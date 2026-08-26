@@ -1,5 +1,4 @@
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
 
 export type ChatGPTUser = {
   displayName: string;
@@ -7,74 +6,62 @@ export type ChatGPTUser = {
   fullName: string | null;
 };
 
-const USER_EMAIL_HEADER = "oai-authenticated-user-email";
-const USER_FULL_NAME_HEADER = "oai-authenticated-user-full-name";
-const USER_FULL_NAME_ENCODING_HEADER =
-  "oai-authenticated-user-full-name-encoding";
+const CLOUDFLARE_ACCESS_EMAIL_HEADER = "cf-access-authenticated-user-email";
+const OAI_EMAIL_HEADER = "oai-authenticated-user-email";
+const OAI_FULL_NAME_HEADER = "oai-authenticated-user-full-name";
+const OAI_FULL_NAME_ENCODING_HEADER = "oai-authenticated-user-full-name-encoding";
 const PERCENT_ENCODED_UTF8 = "percent-encoded-utf-8";
-const SIGN_IN_PATH = "/signin-with-chatgpt";
-const SIGN_OUT_PATH = "/signout-with-chatgpt";
-const CALLBACK_PATH = "/callback";
+
+function normalizedEmail(value: string | null) {
+  const email = value?.trim().toLowerCase() ?? "";
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : "";
+}
 
 export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
   const requestHeaders = await headers();
-  const email = requestHeaders.get(USER_EMAIL_HEADER);
+
+  // Production: Cloudflare Access injects this header only after Access policy succeeds.
+  // Preview compatibility: keep the previous OpenAI-hosted identity header as fallback.
+  const email = normalizedEmail(
+    requestHeaders.get(CLOUDFLARE_ACCESS_EMAIL_HEADER)
+      ?? requestHeaders.get(OAI_EMAIL_HEADER),
+  );
   if (!email) return null;
 
-  const encodedFullName = requestHeaders.get(USER_FULL_NAME_HEADER);
+  const encodedFullName = requestHeaders.get(OAI_FULL_NAME_HEADER);
   const fullName =
-    encodedFullName &&
-    requestHeaders.get(USER_FULL_NAME_ENCODING_HEADER) === PERCENT_ENCODED_UTF8
+    encodedFullName
+      && requestHeaders.get(OAI_FULL_NAME_ENCODING_HEADER) === PERCENT_ENCODED_UTF8
       ? safeDecodeURIComponent(encodedFullName)
       : null;
 
   return {
-    displayName: fullName ?? email,
+    displayName: fullName?.trim() || email.split("@")[0] || email,
     email,
-    fullName,
+    fullName: fullName?.trim() || null,
   };
 }
 
-export async function requireChatGPTUser(
-  returnTo: string,
-): Promise<ChatGPTUser> {
+/**
+ * Compatibility helper retained for existing server code.
+ * In Cloudflare production, Access itself owns the sign-in flow before the Worker runs.
+ */
+export async function requireChatGPTUser(_returnTo = "/"): Promise<ChatGPTUser> {
   const user = await getChatGPTUser();
-  if (user) return user;
-
-  redirect(chatGPTSignInPath(returnTo));
-}
-
-export function chatGPTSignInPath(returnTo: string): string {
-  const safeReturnTo = safeRelativeReturnPath(returnTo);
-  return `${SIGN_IN_PATH}?return_to=${encodeURIComponent(safeReturnTo)}`;
-}
-
-export function chatGPTSignOutPath(returnTo = "/"): string {
-  const safeReturnTo = safeRelativeReturnPath(returnTo);
-  return `${SIGN_OUT_PATH}?return_to=${encodeURIComponent(safeReturnTo)}`;
-}
-
-function safeRelativeReturnPath(value: string): string {
-  if (!value.startsWith("/") || value.startsWith("//")) return "/";
-
-  let url: URL;
-  try {
-    url = new URL(value, "https://app.local");
-  } catch {
-    return "/";
+  if (!user) {
+    throw new Error("CLOUDFLARE_ACCESS_IDENTITY_REQUIRED");
   }
-  if (url.origin !== "https://app.local") return "/";
-  if (isReservedAuthPath(url.pathname)) return "/";
-
-  return `${url.pathname}${url.search}${url.hash}`;
+  return user;
 }
 
-function isReservedAuthPath(pathname: string): boolean {
-  return (
-    pathname === SIGN_IN_PATH ||
-    pathname === SIGN_OUT_PATH ||
-    pathname === CALLBACK_PATH
-  );
+// Legacy helpers remain exported so older imports keep compiling. Cloudflare Access
+// handles production sign-in/sign-out; these paths are not used by the Worker deployment.
+export function chatGPTSignInPath(_returnTo = "/"): string {
+  return "/";
+}
+
+export function chatGPTSignOutPath(_returnTo = "/"): string {
+  return "/";
 }
 
 function safeDecodeURIComponent(value: string): string | null {
