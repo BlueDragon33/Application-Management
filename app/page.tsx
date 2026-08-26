@@ -1,23 +1,33 @@
-import { getChatGPTUser } from "./chatgpt-auth";
+import { requireChatGPTUser } from "./chatgpt-auth";
 import ControlCenter from "./control-center";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const user = await getChatGPTUser();
+  const user = await requireChatGPTUser("/");
 
-  if (!user) {
-    return (
-      <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 24 }}>
-        <section style={{ maxWidth: 560 }}>
-          <h1>Không có quyền truy cập trang quản trị</h1>
-          <p>
-            Trang này chỉ hoạt động sau khi người dùng được xác thực bởi Cloudflare Access.
-          </p>
-        </section>
-      </main>
-    );
-  }
-
-  return <ControlCenter user={{ displayName: user.displayName, email: user.email }} />;
+  return (
+    <>
+      <a
+        href="/logout?return_to=/login"
+        style={{
+          position: "fixed",
+          top: 12,
+          right: 12,
+          zIndex: 1000,
+          padding: "8px 11px",
+          borderRadius: 9,
+          background: "rgba(23,59,51,.94)",
+          color: "white",
+          textDecoration: "none",
+          fontSize: 13,
+          fontWeight: 700,
+          boxShadow: "0 6px 18px rgba(0,0,0,.15)",
+        }}
+      >
+        Đăng xuất
+      </a>
+      <ControlCenter user={{ displayName: user.displayName, email: user.email }} />
+    </>
+  );
 }
