@@ -91,8 +91,19 @@ export async function authenticateAdminPassword(emailValue: string, password: st
   const email = normalizedEmail(emailValue);
   const values = await runtimeValues();
   const allowed = ownerEmails(values.CONTROL_OWNER_EMAILS);
+  const passwordHashConfigured = typeof values.ADMIN_PASSWORD_HASH === "string";
   const passwordOk = await verifyPassword(password, values.ADMIN_PASSWORD_HASH);
-  return Boolean(email && passwordOk && allowed.includes(email)) ? email : null;
+  const emailAllowed = Boolean(email && allowed.includes(email));
+
+  console.log("ADMIN_AUTH_DIAGNOSTIC", {
+    ownerListConfigured: allowed.length > 0,
+    ownerCount: allowed.length,
+    emailAllowed,
+    passwordHashConfigured,
+    passwordOk,
+  });
+
+  return emailAllowed && passwordOk ? email : null;
 }
 
 export async function createAdminSessionCookie(emailValue: string) {
