@@ -18,27 +18,58 @@ test("binds every control device to a non-exportable signing key and one-time ch
   assert.match(server, /existing\.email !== email/);
 });
 
-test("requires owner approval per device without disabling a user's other devices", async () => {
-  const route = await readFile(new URL("../app/api/dashboard/route.ts", import.meta.url), "utf8");
-  const client = await readFile(new URL("../app/control-center.tsx", import.meta.url), "utf8");
+test("uses the Site-owned ChatGPT identity instead of a separate admin password", async () => {
+  const auth = await readFile(new URL("../app/chatgpt-auth.ts", import.meta.url), "utf8");
+  const login = await readFile(new URL("../app/api/auth/login/route.ts", import.meta.url), "utf8");
+  const logout = await readFile(new URL("../app/logout/route.ts", import.meta.url), "utf8");
+  const loginPage = await readFile(new URL("../app/login/page.tsx", import.meta.url), "utf8");
 
-  assert.match(route, /actorDevice\.role !== "owner"/);
-  assert.match(route, /targetId === actorDevice\.deviceId \|\| await isOwnerEmail\(target\.email\)/);
+  assert.match(auth, /oai-authenticated-user-email/);
+  assert.match(auth, /oai-authenticated-user-full-name/);
+  assert.match(auth, /\/signin-with-chatgpt/);
+  assert.match(auth, /\/signout-with-chatgpt/);
+  assert.doesNotMatch(auth, /ADMIN_PASSWORD_HASH/);
+  assert.doesNotMatch(auth, /boiech_admin_session/);
+  assert.match(login, /chatGPTSignInPath/);
+  assert.match(logout, /chatGPTSignOutPath/);
+  assert.match(loginPage, /Đăng nhập bằng ChatGPT/);
+});
+
+test("requires owner approval per device without disabling a user's other devices", async () => {
+  const route = await readFile(new URL("../app/api/system/control/route.ts", import.meta.url), "utf8");
+  const client = await readFile(new URL("../app/system-control/system-control-client.tsx", import.meta.url), "utf8");
+
+  assert.match(route, /actor\.role !== "owner"/);
+  assert.match(route, /targetId === actor\.deviceId \|\| await isOwnerEmail\(target\.email\)/);
   assert.match(route, /OWNER_DEVICE_PROTECTED/);
   assert.match(route, /UPDATE control_devices SET status = 'blocked'/);
   assert.doesNotMatch(route, /UPDATE control_members SET status = 'blocked'/);
-  assert.match(client, /role: "reviewer"/);
-  assert.match(client, /role: "publisher"/);
+  assert.match(client, /"reviewer"/);
+  assert.match(client, /"publisher"/);
   assert.doesNotMatch(client, /role: "editor"/);
   assert.doesNotMatch(route, /\["editor", "reviewer", "publisher"\]/);
 });
 
+test("explains when device enrollment needs a secure browser context", async () => {
+  const device = await readFile(new URL("../app/control-device.client.ts", import.meta.url), "utf8");
+  const learning = await readFile(new URL("../app/control-center.tsx", import.meta.url), "utf8");
+
+  assert.match(device, /globalThis\.crypto\?\.subtle/);
+  assert.match(device, /secure context \(HTTPS\)/);
+  assert.match(learning, /globalThis\.crypto\?\.subtle/);
+  assert.match(learning, /secure context \(HTTPS\)/);
+});
+
 test("keeps editing rights on Boi Ech and migrates old central editors to reviewers", async () => {
   const client = await readFile(new URL("../app/control-center.tsx", import.meta.url), "utf8");
+  const system = await readFile(new URL("../app/system-control/system-control-client.tsx", import.meta.url), "utf8");
+  const page = await readFile(new URL("../app/learning-control/page.tsx", import.meta.url), "utf8");
   const migration = await readFile(new URL("../drizzle/0001_wild_joystick.sql", import.meta.url), "utf8");
 
-  assert.match(client, /Quyền quản trị/);
-  assert.match(client, /Người sửa bài không cần vào đây/);
+  assert.doesNotMatch(client, /roleCapabilities|tab === "approvals"/);
+  assert.match(system, /Quyền & thiết bị/);
+  assert.match(page, /href="\/system-control"/);
+  assert.match(client, /Trung tâm không sửa bài học/);
   assert.doesNotMatch(client, />Biên tập<\/button>/);
   assert.match(migration, /CASE WHEN "role" = 'editor' THEN 'reviewer'/);
 });
@@ -110,17 +141,15 @@ test("keeps device cards stable, checks only known status every minute, and disc
   assert.match(client, /async function openDetail/);
   assert.match(client, /activityTimeline\.length >= 30/);
   assert.match(client, /Cập nhật thiết bị/);
-  assert.match(client, /Trạng thái tự động · 60 giây\/lần/);
+  assert.match(client, /Đã đồng bộ Bơi ếch · 60 giây\/lần/);
   assert.doesNotMatch(client, /15_000/);
 });
 
 test("shows signed online presence, offline time, and exact payment wording", async () => {
-  const route = await readFile(new URL("../app/api/dashboard/route.ts", import.meta.url), "utf8");
   const deviceServer = await readFile(new URL("../app/control-device.server.ts", import.meta.url), "utf8");
   const client = await readFile(new URL("../app/control-center.tsx", import.meta.url), "utf8");
 
-  assert.match(route, /CONTROL_PRESENCE_TIMEOUT_MS = 150_000/);
-  assert.match(route, /offlineSinceAt/);
+  assert.match(client, /offlineSinceAt/);
   assert.match(deviceServer, /UPDATE control_devices SET last_seen_at = CURRENT_TIMESTAMP/);
   assert.match(client, /Offline từ/);
   assert.match(client, /Tín hiệu thiết bị cuối/);
@@ -130,8 +159,8 @@ test("shows signed online presence, offline time, and exact payment wording", as
 });
 
 test("enforces a visible role matrix and can revoke an entire control account", async () => {
-  const route = await readFile(new URL("../app/api/dashboard/route.ts", import.meta.url), "utf8");
-  const client = await readFile(new URL("../app/control-center.tsx", import.meta.url), "utf8");
+  const route = await readFile(new URL("../app/api/system/control/route.ts", import.meta.url), "utf8");
+  const client = await readFile(new URL("../app/system-control/system-control-client.tsx", import.meta.url), "utf8");
 
   assert.match(route, /operation === "deactivate-member"/);
   assert.match(route, /UPDATE control_members SET status = 'inactive'/);
@@ -141,11 +170,11 @@ test("enforces a visible role matrix and can revoke an entire control account", 
   assert.match(route, /DELETE FROM control_challenges WHERE device_id IN/);
   assert.match(route, /DELETE FROM control_devices WHERE email = \?/);
   assert.match(route, /DELETE FROM control_members WHERE email = \? AND status = 'inactive'/);
-  assert.match(client, /roleCapabilities/);
+  assert.match(client, /Kiểm duyệt viên/);
+  assert.match(client, /Người xuất bản/);
   assert.match(client, /Thu hồi tài khoản/);
   assert.match(client, /Xóa tài khoản/);
   assert.match(client, /Nhập chính xác email để xác nhận/);
-  assert.match(client, /Không xuất bản, không xác minh thanh toán/);
 });
 
 test("manages registration, payment groups, proof review, and per-device activity charts", async () => {
@@ -174,28 +203,26 @@ test("keeps the last device list on sync failure and offers exact BE/QT code gui
   assert.match(client, /learningDevices: previous\?\.learningDevices \?\? \[\]/);
   assert.match(client, /searchParams|get.*deviceCode|deviceCode=/i);
   assert.match(client, /Mã chưa đúng định dạng/);
-  assert.match(client, /normalized\.startsWith\("QT-"\)/);
+  assert.match(client, /Mã QT thuộc mục Hệ thống dùng chung/);
   assert.match(client, /\^BE-/);
-  assert.match(client, /Nhập mã dự phòng/);
+  assert.match(client, /Tra cứu thiết bị học/);
   assert.match(client, /Thiết bị mới được quét khi bấm/);
 });
 
 test("shows a combined audit trail only to publishing roles", async () => {
-  const route = await readFile(new URL("../app/api/dashboard/route.ts", import.meta.url), "utf8");
-  const client = await readFile(new URL("../app/control-center.tsx", import.meta.url), "utf8");
+  const route = await readFile(new URL("../app/api/system/control/route.ts", import.meta.url), "utf8");
+  const client = await readFile(new URL("../app/system-control/system-control-client.tsx", import.meta.url), "utf8");
 
-  assert.match(route, /FROM control_audit_log ORDER BY id DESC LIMIT 100/);
-  assert.match(route, /\["publisher", "owner"\]\.includes\(actorDevice\.role\)/);
-  assert.match(client, /const upstreamAudit/);
-  assert.match(client, /\.\.\.upstreamAudit, \.\.\.currentDashboard\.auditLog/);
+  assert.match(route, /FROM control_audit_log ORDER BY id DESC LIMIT 200/);
+  assert.match(route, /\["publisher", "owner"\]\.includes\(actor\.role\)/);
+  assert.match(client, /downloadJson/);
   assert.match(client, /Nhật ký hệ thống/);
-  assert.match(client, /actionLabels/);
 });
 
 test("provides a complete operations inbox, payment exceptions, and recoverable account controls", async () => {
   const client = await readFile(new URL("../app/control-center.tsx", import.meta.url), "utf8");
 
-  assert.match(client, /Hộp việc cần xử lý/);
+  assert.match(client, /Hộp việc Bơi ếch/);
   assert.match(client, /Ảnh chuyển khoản/);
   assert.match(client, /Tài khoản hết hạn/);
   assert.match(client, /action\("reject-payment"/);
@@ -218,7 +245,6 @@ test("lets only the owner identify and permanently remove confirmed spam devices
   assert.match(client, /confirmDeviceCode: deleteConfirmation/);
   assert.match(client, /deleteConfirmation\.trim\(\)\.toUpperCase\(\) !== device\.deviceCode/);
   assert.match(client, /dashboard\.learningDevices\.filter\(\(device\) => device\.deviceId !== data\.deletedDeviceId\)/);
-  assert.match(client, /learning_device_deleted: "Xóa vĩnh viễn thiết bị rác"/);
   assert.match(client, /function DeletedDevicesPanel/);
   assert.match(client, /operation: "restore-deleted-device"/);
   assert.match(client, /Không thể tự đăng ký lại/);
@@ -229,21 +255,24 @@ test("lets only the owner identify and permanently remove confirmed spam devices
 
 test("exports operational backups and installs a privacy-safe offline shell", async () => {
   const client = await readFile(new URL("../app/control-center.tsx", import.meta.url), "utf8");
+  const system = await readFile(new URL("../app/system-control/system-control-client.tsx", import.meta.url), "utf8");
   const layout = await readFile(new URL("../app/layout.tsx", import.meta.url), "utf8");
   const serviceWorker = await readFile(new URL("../public/sw.js", import.meta.url), "utf8");
   const offline = await readFile(new URL("../public/offline.html", import.meta.url), "utf8");
   const manifest = JSON.parse(await readFile(new URL("../public/manifest.webmanifest", import.meta.url), "utf8"));
 
   assert.match(client, /exportDevices/);
-  assert.match(client, /exportAudit/);
   assert.match(client, /bao-cao-thiet-bi-/);
-  assert.match(client, /nhat-ky-quan-tri-/);
+  assert.match(system, /downloadJson/);
+  assert.match(system, /nhat-ky-he-thong-/);
   assert.match(client, /navigator\.serviceWorker\.register\("\/sw\.js"\)/);
   assert.match(layout, /manifest: "\/manifest\.webmanifest"/);
   assert.equal(manifest.display, "standalone");
   assert.match(serviceWorker, /SAFE_ASSETS/);
   assert.match(serviceWorker, /caches\.match\("\/offline\.html"\)/);
-  assert.doesNotMatch(serviceWorker, /cache\.put/);
+  assert.match(serviceWorker, /url\.pathname === "\/ru-medcheck"/);
+  assert.match(serviceWorker, /cache\.put/);
+  assert.match(serviceWorker, /if \(url\.pathname\.startsWith\("\/api\/"\).*url\.pathname\.startsWith\("\/signin-"\).*url\.pathname\.startsWith\("\/signout-"\)\) return;/);
   assert.match(offline, /không lưu hồ sơ học viên/i);
 });
 
@@ -251,7 +280,7 @@ test("adds a role-gated AI operations center without moving lesson editing into 
   const client = await readFile(new URL("../app/control-center.tsx", import.meta.url), "utf8");
   const ai = await readFile(new URL("../app/ai-control-center.tsx", import.meta.url), "utf8");
 
-  assert.match(client, /Điều hành AI/);
+  assert.match(client, /AI Bơi ếch/);
   assert.match(client, /\/api\/control\/ai/);
   assert.match(ai, /canReview = \["reviewer", "publisher", "owner"\]/);
   assert.match(ai, /canManage = \["publisher", "owner"\]/);
@@ -283,7 +312,8 @@ test("controls automatic 60-day access and device-local editing without granting
   assert.match(client, /không thể cập nhật máy chủ/);
   assert.match(client, /personalEditConfigured/);
   assert.match(client, /device\.personRole === "teacher"/);
-  assert.match(client, /<ContentReviewCenter[\s\S]*automation=\{dashboard\.automation\}/);
+  assert.match(client, /dashboard\.automation/);
+  assert.match(client, /<AutomationCenter[\s\S]*automation=\{dashboard\.automation\}/);
   assert.doesNotMatch(client.match(/function AutomationCenter[\s\S]*?\n}/)?.[0] ?? "", /approve-publish|content_published|save-draft/);
 });
 
@@ -301,7 +331,8 @@ test("keeps install controls floating and layout stable across narrow screens", 
   const client = await readFile(new URL("../app/control-center.tsx", import.meta.url), "utf8");
   const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
 
-  assert.match(client, /className="install-fab"/);
+  assert.doesNotMatch(client, /className="install-fab"/);
+  assert.doesNotMatch(client, /beforeinstallprompt/);
   assert.doesNotMatch(client, /className="button install-control"/);
   assert.doesNotMatch(styles, /zoom:\s*var\(--admin-zoom/);
   assert.doesNotMatch(styles, /grid-template-columns:\s*82px/);
@@ -317,10 +348,9 @@ test("uses complete Vietnamese font stacks and offers device-local appearance co
   assert.doesNotMatch(layout, /next\/font\/google/);
   assert.match(styles, /--admin-ui-font/);
   assert.match(styles, /--admin-heading-font/);
-  assert.match(client, /Aa<\/b> Giao diện/);
-  assert.match(client, /learning-control-appearance-v1/);
-  assert.match(client, /Khôi phục mặc định/);
-  assert.match(client, /Chỉ lưu trên máy quản trị hiện tại/);
+  assert.doesNotMatch(client, /Aa<\/b> Giao diện/);
+  assert.doesNotMatch(client, /learning-control-appearance-v1/);
+  assert.match(styles, /--admin-ui-font/);
 });
 
 test("retries an expired proof silently and never exposes the obsolete expiry toast", async () => {

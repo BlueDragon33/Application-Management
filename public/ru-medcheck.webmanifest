@@ -1,0 +1,14 @@
+{
+  "name": "Hòa nhập Nga — Kiểm tra thuốc",
+  "short_name": "Hòa nhập Nga",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f5f7fb",
+  "theme_color": "#153a64",
+  "description": "Quét nhãn thuốc, trích hoạt chất và đối chiếu quy định Liên bang Nga.",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

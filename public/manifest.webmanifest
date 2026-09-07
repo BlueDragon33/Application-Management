@@ -1,7 +1,7 @@
 {
-  "name": "Trung tâm quản trị học tập",
-  "short_name": "Quản trị học tập",
-  "description": "Ứng dụng quản lý thiết bị, thanh toán, tiến độ và duyệt nội dung học tập.",
+  "name": "QUẢN TRỊ ỨNG DỤNG",
+  "short_name": "QUẢN TRỊ ỨNG DỤNG",
+  "description": "Trung tâm điều phối các Site Bauman, Bơi ếch, Sức khỏe và những ứng dụng được kết nối.",
   "lang": "vi",
   "start_url": "/",
   "scope": "/",

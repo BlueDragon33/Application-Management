@@ -1,4 +1,4 @@
-import { clearAdminSessionCookie, safeReturnPath } from "../chatgpt-auth";
+import { chatGPTSignOutPath, safeReturnPath } from "../chatgpt-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -8,8 +8,7 @@ export async function GET(request: Request) {
   return new Response(null, {
     status: 303,
     headers: {
-      location: new URL(returnTo, request.url).toString(),
-      "set-cookie": clearAdminSessionCookie(),
+      location: new URL(chatGPTSignOutPath(returnTo), request.url).toString(),
       "cache-control": "no-store, private",
     },
   });

@@ -2,6 +2,7 @@
 
 /* Ảnh chuyển khoản được lấy qua endpoint bảo vệ và URL blob cục bộ. */
 /* eslint-disable @next/next/no-img-element */
+/* eslint-disable @next/next/no-html-link-for-pages -- full reload keeps the supervised HTTP preview stable. */
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import AiControlCenter, { type AiControlData } from "./ai-control-center";
@@ -78,23 +79,6 @@ type LearningDevice = {
   scores: Record<string, number>;
   activityTimeline: ActivityDay[];
 };
-type ControlDevice = {
-  deviceId: string;
-  deviceCode: string;
-  email: string;
-  displayName: string;
-  status: DeviceStatus;
-  role: ControlRole;
-  label: string | null;
-  createdAt: string;
-  approvedAt: string | null;
-  blockedAt: string | null;
-  lastSeenAt: string;
-  offlineSinceAt: string | null;
-  memberStatus: "active" | "inactive" | "unregistered";
-  active: boolean;
-  owner: boolean;
-};
 type DeletedLearningDevice = {
   deviceId: string;
   deviceCode: string;
@@ -104,46 +88,14 @@ type DeletedLearningDevice = {
   deletedAt: string;
 };
 type BoiBridge = { baseUrl: string; token: string; expiresAt: number };
-type InstallPromptEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: "accepted" | "dismissed" }> };
-type AdminAppearance = {
-  theme: "classic" | "soft" | "contrast";
-  font: "classic" | "modern" | "readable";
-  textSize: "normal" | "large" | "xlarge";
-};
-
-const defaultAdminAppearance: AdminAppearance = { theme: "classic", font: "classic", textSize: "normal" };
-
-const adminThemes: { id: AdminAppearance["theme"]; name: string; paper: string; panel: string; ink: string; muted: string }[] = [
-  { id: "classic", name: "Cổ điển", paper: "#f2eee5", panel: "#fffdf8", ink: "#182421", muted: "#64716c" },
-  { id: "soft", name: "Xanh dịu", paper: "#eaf4f1", panel: "#fbfffd", ink: "#17352f", muted: "#58716a" },
-  { id: "contrast", name: "Tương phản", paper: "#f4f6f7", panel: "#ffffff", ink: "#101820", muted: "#40515a" },
-];
-
-const adminFonts: { id: AdminAppearance["font"]; name: string; ui: string; heading: string; sample: string }[] = [
-  { id: "classic", name: "Hiện đại & cổ điển", ui: "'Segoe UI', 'Noto Sans', Arial, sans-serif", heading: "'Noto Serif', 'Times New Roman', Georgia, serif", sample: "Tiêu đề trang trọng, nội dung rõ ràng" },
-  { id: "modern", name: "Hiện đại", ui: "'Segoe UI', 'Noto Sans', Arial, sans-serif", heading: "'Segoe UI', 'Noto Sans', Arial, sans-serif", sample: "Đồng nhất và gọn trên màn hình" },
-  { id: "readable", name: "Dễ đọc", ui: "Verdana, 'Noto Sans', Arial, sans-serif", heading: "Verdana, 'Noto Sans', Arial, sans-serif", sample: "Chữ thoáng, hỗ trợ tiếng Việt đầy đủ" },
-];
 type Dashboard = {
   actor: Access;
   application: { id: string; name: string; lessonCount: number };
   learningDevices: LearningDevice[];
-  controlDevices: ControlDevice[];
   upstreamError: string | null;
-  applications: { id: string; name: string; status: "online" | "warning" | "planned" }[];
-  auditLog: AuditEntry[];
   boiBridge: BoiBridge;
   automation?: AccessAutomation;
   deletedDevices?: DeletedLearningDevice[];
-};
-type AuditEntry = {
-  id: string;
-  source: string;
-  actor: string;
-  action: string;
-  target: string;
-  detail: Record<string, unknown>;
-  createdAt: string;
 };
 type ApiData = Dashboard & {
   device?: Access;
@@ -151,7 +103,6 @@ type ApiData = Dashboard & {
   error?: string;
   code?: string;
   devices?: LearningDevice[];
-  controlDevices?: ControlDevice[];
   validationErrors?: string[];
   versions?: ContentVersion[];
   versionId?: string;
@@ -257,6 +208,9 @@ async function writeCredential(value: Credential) {
 }
 
 async function credentialForDevice() {
+  if (!globalThis.crypto?.subtle) {
+    throw new Error("Trung tâm quản trị cần trình duyệt ở secure context (HTTPS) để tạo khóa thiết bị.");
+  }
   const current = await readCredential();
   if (current?.version === 1 && current.publicKey && current.privateKey) return current;
   const generated = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]) as CryptoKeyPair;
@@ -392,60 +346,10 @@ const roleLabels: Record<ControlRole, string> = {
   owner: "Chủ hệ thống",
 };
 
-const roleCapabilities: { role: ControlRole; title: string; capabilities: string[] }[] = [
-  { role: "viewer", title: "Chỉ xem", capabilities: ["Xem thiết bị, trạng thái, tiến độ và số liệu AI", "Không duyệt nội dung", "Không xử lý thanh toán hoặc cấu hình AI"] },
-  { role: "reviewer", title: "Kiểm duyệt viên", capabilities: ["Cấp hoặc từ chối quyền sửa", "Đánh giá phản hồi và báo cáo sai của AI", "Không xuất bản, không xác minh thanh toán"] },
-  { role: "publisher", title: "Người xuất bản", capabilities: ["Đầy đủ quyền kiểm duyệt", "Xác minh thanh toán, gia hạn và bật bản sửa riêng", "Xuất bản, cấu hình và tắt AI theo học viên"] },
-  { role: "owner", title: "Chủ hệ thống", capabilities: ["Toàn bộ quyền xuất bản, AI và tự động xác nhận", "Cấp, đổi và thu hồi quyền quản trị", "Xóa thiết bị rác bằng mã xác nhận và lưu dấu vết kiểm soát", "Bảo vệ tài khoản chủ khỏi tự khóa"] },
-];
-
 const statusLabels: Record<DeviceStatus, string> = {
   pending: "Chờ duyệt",
   approved: "Đã cấp quyền",
   blocked: "Đã khóa",
-};
-
-const actionLabels: Record<string, string> = {
-  control_device_approved: "Cấp hoặc đổi quyền thiết bị quản trị",
-  control_device_blocked: "Khóa thiết bị quản trị",
-  control_member_deactivated: "Thu hồi toàn bộ quyền tài khoản quản trị",
-  control_member_deleted: "Xóa vĩnh viễn tài khoản quản trị",
-  learning_device_approve: "Cấp quyền thiết bị học",
-  learning_device_free_approved: "Duyệt tài khoản miễn phí",
-  learning_device_payment_required: "Yêu cầu thanh toán 50.000đ",
-  learning_device_payment_verified: "Xác minh chuyển khoản và mở tài khoản",
-  learning_device_payment_rejected: "Từ chối ảnh chuyển khoản và yêu cầu gửi lại",
-  device_registration_submitted: "Người học gửi hồ sơ đăng ký",
-  payment_proof_submitted: "Người học gửi ảnh chuyển khoản",
-  learning_device_block: "Khóa thiết bị học",
-  learning_device_unblocked: "Mở khóa thiết bị học",
-  learning_device_profile: "Cập nhật hồ sơ thiết bị học",
-  learning_device_reset_progress: "Đặt lại tiến độ học",
-  learning_device_deleted: "Xóa vĩnh viễn thiết bị rác",
-  learning_device_registration_reopened: "Cho phép thiết bị đã xóa đăng ký lại",
-  learning_device_auto_confirmed: "Tự động xác nhận thiết bị mới",
-  learning_device_auto_confirmation_deferred: "Chuyển hồ sơ sang chờ duyệt do đủ hạn mức tự động",
-  learning_device_personal_edit_enabled: "Bật quyền sửa bản riêng trên thiết bị",
-  learning_device_personal_edit_disabled: "Tắt quyền sửa bản riêng trên thiết bị",
-  learning_device_access_renewed: "Duyệt lại và gia hạn quyền sử dụng",
-  access_automation_updated: "Cập nhật quy tắc tự động xác nhận",
-  course_certificate_issued: "Cấp chứng chỉ hoàn thành khóa học",
-  content_edit_permission_requested: "Xin quyền chỉnh sửa tại Site Bơi ếch",
-  content_edit_permission_approved: "Cho phép bắt đầu chỉnh sửa",
-  content_edit_permission_denied: "Từ chối quyền chỉnh sửa",
-  content_editor_draft_saved: "Lưu bản nháp tại Site Bơi ếch",
-  content_editor_submitted: "Gửi bản sửa về Trung tâm",
-  content_changes_requested: "Yêu cầu chỉnh sửa lại",
-  content_edit_cancelled: "Trung tâm hủy bản chỉnh sửa",
-  content_editor_withdrawn: "Người sửa rút yêu cầu",
-  content_published: "Phê duyệt và xuất bản",
-  content_rolled_back: "Khôi phục phiên bản",
-  ai_settings_updated: "Cập nhật cấu hình AI",
-  ai_device_enabled: "Bật AI cho thiết bị học",
-  ai_device_disabled: "Tắt AI cho thiết bị học",
-  ai_interaction_reviewed: "Giáo viên đánh giá phản hồi AI",
-  ai_feedback_resolved: "Xử lý báo cáo chất lượng AI",
-  ai_content_draft_reviewed: "AI kiểm tra bản nháp nội dung",
 };
 
 function Laptop({ active, status, badge }: { active: boolean; status: DeviceStatus; badge?: number }) {
@@ -547,11 +451,9 @@ function SectionDiffReview({ current, proposed }: { current: unknown; proposed: 
   return <div className="diff-review-shell"><div className="diff-review-summary"><div><span>Kết quả đối chiếu</span><strong>{changed} trường đã thay đổi</strong></div><p>Màu đỏ là nội dung mới. Nhấn vào từng trường màu đỏ để mở bản cũ ngay bên dưới.</p></div><div className="lesson-review diff-review">{Object.entries(proposed).map(([key, child]) => <DiffReviewValue key={key} fieldKey={key} current={previous[key]} proposed={child} />)}</div></div>;
 }
 
-function ContentReviewCenter({ bridge, access, automation, saveAutomation }: {
+function ContentReviewCenter({ bridge, access }: {
   bridge: BoiBridge;
   access: Access;
-  automation?: AccessAutomation;
-  saveAutomation: (enabled: boolean, defaultAccessDays: number, defaultDeviceLimit: number) => void;
 }) {
   const [versions, setVersions] = useState<ContentVersion[]>([]);
   const [currentSection, setCurrentSection] = useState<unknown>(null);
@@ -633,7 +535,6 @@ function ContentReviewCenter({ bridge, access, automation, saveAutomation }: {
 
   return (
     <section className="content-review-layout">
-      {automation ? <AutomationCenter key={`${automation.updatedAt}-${automation.enabled}-${automation.defaultAccessDays}-${automation.defaultDeviceLimit}`} automation={automation} canManage={["publisher", "owner"].includes(access.role)} save={saveAutomation} /> : null}
       <section className="studio-grid review-center">
       <aside className="version-panel">
         <header><span>Luồng từ Site nội dung</span><h2>Yêu cầu chỉnh sửa</h2></header>
@@ -842,16 +743,12 @@ export default function ControlCenter({ user }: { user: { displayName: string; e
   const [notice, setNotice] = useState("");
   const [boiOnline, setBoiOnline] = useState(false);
   const [manualCode, setManualCode] = useState("");
-  const [tab, setTab] = useState<"devices" | "ai" | "content" | "approvals" | "audit">("devices");
-  const [filter, setFilter] = useState<"all" | "active" | "pending" | "incomplete" | "payment" | "paid" | "free" | "expired" | "blocked">("all");
+  const [tab, setTab] = useState<"devices" | "payments" | "content" | "ai">("devices");
+  const [filter, setFilter] = useState<"all" | "active" | "pending" | "incomplete" | "paid" | "free" | "expired" | "blocked">("all");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<LearningDevice | null>(null);
   const [selectedActivityLoading, setSelectedActivityLoading] = useState(false);
   const [online, setOnline] = useState(true);
-  const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
-  const [appearanceOpen, setAppearanceOpen] = useState(false);
-  const [appearanceReady, setAppearanceReady] = useState(false);
-  const [appearance, setAppearance] = useState<AdminAppearance>(defaultAdminAppearance);
   const refreshRunning = useRef(false);
   const dashboardRef = useRef<Dashboard | null>(null);
   const detailRequest = useRef(0);
@@ -873,14 +770,12 @@ export default function ControlCenter({ user }: { user: { displayName: string; e
         ? "?activityDays=0"
         : `?deviceCodes=${encodeURIComponent(currentDevices.map((device) => device.deviceCode).join(","))}&activityDays=0`;
       const upstream = await boiApi(currentDashboard.boiBridge, "/api/control/overview", { query: statusQuery });
-      const upstreamAudit = Array.isArray(upstream.auditLog) ? upstream.auditLog : [];
       const incomingDevices = upstream.devices ?? [];
       const devices = mergeLearningDevices(currentDevices, incomingDevices, discoverNew, !discoverNew);
       const knownIds = new Set(currentDevices.map((device) => device.deviceId));
       const added = discoverNew ? incomingDevices.filter((device) => !knownIds.has(device.deviceId)) : [];
       const addedPending = added.filter((device) => device.status === "pending" && device.registrationComplete).map(pendingLearnerLabel);
       if (addedPending.length > 0) setNotice(`Có thiết bị mới chờ duyệt: ${addedPending.join(", ")}`);
-      const combinedAudit = [...upstreamAudit, ...currentDashboard.auditLog].sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt)).slice(0, 150);
       commitDashboard({
         ...currentDashboard,
         application: upstream.application ?? currentDashboard.application,
@@ -888,8 +783,6 @@ export default function ControlCenter({ user }: { user: { displayName: string; e
         automation: upstream.automation ?? currentDashboard.automation,
         deletedDevices: upstream.deletedDevices ?? currentDashboard.deletedDevices,
         upstreamError: null,
-        applications: currentDashboard.applications.map((app) => app.id === "boi-ech" ? { ...app, status: "online" } : app),
-        auditLog: combinedAudit,
       });
       setSelected((current) => current ? devices.find((item) => item.deviceId === current.deviceId) ?? current : null);
       setBoiOnline(true);
@@ -904,9 +797,7 @@ export default function ControlCenter({ user }: { user: { displayName: string; e
         learningDevices: previous?.learningDevices ?? [],
         automation: previous?.automation ?? currentDashboard.automation,
         deletedDevices: previous?.deletedDevices ?? currentDashboard.deletedDevices,
-        auditLog: previous?.auditLog ?? currentDashboard.auditLog,
         upstreamError: message,
-        applications: currentDashboard.applications.map((app) => app.id === "boi-ech" ? { ...app, status: "warning" } : app),
       });
       if (!quiet) setError(message);
       return false;
@@ -927,7 +818,6 @@ export default function ControlCenter({ user }: { user: { displayName: string; e
         ...fetched,
         learningDevices: previous?.learningDevices ?? fetched.learningDevices,
         deletedDevices: previous?.deletedDevices ?? fetched.deletedDevices,
-        auditLog: previous?.auditLog ?? fetched.auditLog,
       };
       commitDashboard(next);
       await loadBoi(next, discoverNew, quiet);
@@ -959,50 +849,14 @@ export default function ControlCenter({ user }: { user: { displayName: string; e
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => undefined);
     const handleOnline = () => setOnline(true);
     const handleOffline = () => setOnline(false);
-    const handleInstall = (event: Event) => { event.preventDefault(); setInstallPrompt(event as InstallPromptEvent); };
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
-    window.addEventListener("beforeinstallprompt", handleInstall);
     return () => {
       window.clearTimeout(startupTimer);
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
-      window.removeEventListener("beforeinstallprompt", handleInstall);
     };
   }, []);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      try {
-        const saved = window.localStorage.getItem("learning-control-appearance-v1");
-        if (saved) setAppearance({ ...defaultAdminAppearance, ...JSON.parse(saved) });
-      } catch {
-        setAppearance(defaultAdminAppearance);
-      } finally {
-        setAppearanceReady(true);
-      }
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
-    if (!appearanceReady) return;
-    window.localStorage.setItem("learning-control-appearance-v1", JSON.stringify(appearance));
-  }, [appearance, appearanceReady]);
-
-  useEffect(() => {
-    if (!appearanceOpen) return;
-    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setAppearanceOpen(false); };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [appearanceOpen]);
-
-  async function installWebApp() {
-    if (!installPrompt) return;
-    await installPrompt.prompt();
-    await installPrompt.userChoice;
-    setInstallPrompt(null);
-  }
 
   function downloadReport(name: string, content: string, type: string) {
     const url = URL.createObjectURL(new Blob([content], { type }));
@@ -1036,10 +890,6 @@ export default function ControlCenter({ user }: { user: { displayName: string; e
     const escape = (value: unknown) => `"${String(value ?? "").replaceAll('"', '""')}"`;
     const header = ["STT", "Họ và tên", "Vai trò", "Mã số HV/Số hiệu SQ-QNCN", "Lớp/đơn vị", "SĐT", "Mã thiết bị", "Kết nối", "Thanh toán", "Tiến độ %", "Nắm vững %", "Bài đạt", "Giây học", "Tín hiệu cuối", "Hết hạn", "Sửa bản riêng", "Tự xác nhận lúc"];
     downloadReport(`bao-cao-thiet-bi-${new Date().toISOString().slice(0, 10)}.csv`, `\uFEFF${[header, ...rows].map((row) => row.map(escape).join(",")).join("\n")}`, "text/csv;charset=utf-8");
-  }
-
-  function exportAudit() {
-    downloadReport(`nhat-ky-quan-tri-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ exportedAt: new Date().toISOString(), entries: dashboard?.auditLog ?? [] }, null, 2), "application/json");
   }
 
   useEffect(() => {
@@ -1098,8 +948,7 @@ export default function ControlCenter({ user }: { user: { displayName: string; e
         }
         if (data.automation) commitDashboard({ ...(dashboardRef.current ?? dashboard), automation: data.automation });
       } else {
-        const data = await secureApi("/api/dashboard", credential, access, body);
-        if (data.controlDevices && dashboard) commitDashboard({ ...dashboard, controlDevices: data.controlDevices });
+        await secureApi("/api/dashboard", credential, access, body);
       }
       setNotice(success);
       return true;
@@ -1110,12 +959,11 @@ export default function ControlCenter({ user }: { user: { displayName: string; e
     const normalized = manualCode.trim().toUpperCase();
     setNotice("");
     if (normalized.startsWith("QT-")) {
-      setTab("approvals");
-      setNotice("Đây là mã quản trị QT. Đã chuyển tới mục Quyền quản trị.");
+      setNotice("Mã QT thuộc mục Hệ thống dùng chung. Hãy mở “Hệ thống” ở thanh điều hướng.");
       return;
     }
     if (!/^BE-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}$/.test(normalized)) {
-      setNotice("Mã chưa đúng định dạng. Thiết bị học dùng mã BE-…, thiết bị quản trị dùng mã QT-…");
+      setNotice("Mã chưa đúng định dạng. Mục này chỉ tra cứu thiết bị học Bơi ếch dùng mã BE-…");
       return;
     }
     let found = dashboard?.learningDevices.find((item) => item.deviceCode === normalized);
@@ -1175,7 +1023,6 @@ export default function ControlCenter({ user }: { user: { displayName: string; e
       const matchesFilter = filter === "all"
         || (filter === "active" ? device.active
           : filter === "incomplete" ? !device.registrationComplete
-          : filter === "payment" ? device.paymentStatus === "proof_submitted"
           : filter === "expired" ? device.accessExpired
             : filter === "paid" || filter === "free" ? device.accessGroup === filter
               : device.status === filter);
@@ -1183,6 +1030,10 @@ export default function ControlCenter({ user }: { user: { displayName: string; e
       return matchesFilter && haystack.includes(search.trim().toLowerCase());
     });
   }, [dashboard?.learningDevices, filter, search]);
+
+  const paymentQueue = useMemo(() => (dashboard?.learningDevices ?? [])
+    .filter((device) => ["proof_submitted", "awaiting_payment"].includes(device.paymentStatus))
+    .sort((left, right) => Number(right.paymentStatus === "proof_submitted") - Number(left.paymentStatus === "proof_submitted") || Date.parse(right.paymentSubmittedAt ?? right.createdAt) - Date.parse(left.paymentSubmittedAt ?? left.createdAt)), [dashboard?.learningDevices]);
 
   if (!access || access.status !== "approved") return <DeviceGate access={access} checking={checking} error={error} retry={() => void initialize()} />;
 
@@ -1200,45 +1051,30 @@ export default function ControlCenter({ user }: { user: { displayName: string; e
     incomplete: dashboard?.learningDevices.filter((item) => !item.registrationComplete).length ?? 0,
     deleted: dashboard?.deletedDevices?.length ?? 0,
   };
-  const activeTheme = adminThemes.find((item) => item.id === appearance.theme) ?? adminThemes[0];
-  const activeFont = adminFonts.find((item) => item.id === appearance.font) ?? adminFonts[0];
-
   return (
-    <main
-      className="control-shell"
-      data-text-size={appearance.textSize}
-      style={{
-        "--paper": activeTheme.paper,
-        "--panel": activeTheme.panel,
-        "--ink": activeTheme.ink,
-        "--muted": activeTheme.muted,
-        "--admin-ui-font": activeFont.ui,
-        "--admin-heading-font": activeFont.heading,
-      } as React.CSSProperties}
-    >
+    <main className="control-shell">
       <aside className="control-sidebar">
-        <div className="control-brand"><div className="brand-seal">QT</div><div><span>Hệ thống trung tâm</span><strong>Quản trị học tập</strong></div></div>
+        <div className="control-brand"><div className="brand-seal">BE</div><div><span>QUẢN TRỊ ỨNG DỤNG</span><strong>Bơi ếch</strong></div></div>
         <nav>
-          <button className={tab === "devices" ? "active" : ""} onClick={() => setTab("devices")}><i>⌘</i>Thiết bị và tiến độ</button>
-          <button className={tab === "ai" ? "active" : ""} onClick={() => setTab("ai")}><i>✦</i>Điều hành AI</button>
+          <button className={tab === "devices" ? "active" : ""} onClick={() => setTab("devices")}><i>⌘</i>Thiết bị · học viên</button>
+          <button className={tab === "payments" ? "active" : ""} onClick={() => setTab("payments")}><i>₫</i>Thanh toán</button>
+          <button className={tab === "ai" ? "active" : ""} onClick={() => setTab("ai")}><i>✦</i>AI Bơi ếch</button>
           {["reviewer", "publisher", "owner"].includes(access.role) ? <button className={tab === "content" ? "active" : ""} onClick={() => setTab("content")}><i>⌁</i>Duyệt chỉnh sửa</button> : null}
-          {access.role === "owner" ? <button className={tab === "approvals" ? "active" : ""} onClick={() => setTab("approvals")}><i>✓</i>Quyền quản trị</button> : null}
-          {["publisher", "owner"].includes(access.role) ? <button className={tab === "audit" ? "active" : ""} onClick={() => setTab("audit")}><i>≡</i>Nhật ký hệ thống</button> : null}
         </nav>
-        <div className="application-list"><span>Ứng dụng</span>{dashboard?.applications.map((app) => <div key={app.id}><i className={app.status} /><strong>{app.name}</strong><small>{app.status === "online" ? "Đã kết nối trực tiếp" : app.status === "planned" ? "Đang chuẩn bị" : "Mất đồng bộ — dữ liệu cũ vẫn giữ"}</small></div>)}</div>
+        <div className="domain-links"><span>Liên kết rõ ràng</span><a href="/"><i>←</i><strong>Quản trị ứng dụng</strong><small>Điều phối các Site</small></a><a href="/system-control"><i>⚙</i><strong>Hệ thống dùng chung</strong><small>Tài khoản, quyền, nhật ký</small></a></div>
         <div className="signed-user"><span>{user.displayName.slice(0, 1).toUpperCase()}</span><div><strong>{user.displayName}</strong><small>{roleLabels[access.role]}</small></div><a href="/signout-with-chatgpt?return_to=/">Đăng xuất</a></div>
       </aside>
 
       <section className="control-main">
-        <header className="topbar"><div><span>Trung tâm điều hành</span><h1>{tab === "devices" ? "Thiết bị học tập" : tab === "ai" ? "Điều hành AI" : tab === "content" ? "Duyệt chỉnh sửa" : tab === "approvals" ? "Quyền quản trị" : "Nhật ký hệ thống"}</h1></div><div className="topbar-actions"><span className={`sync-state ${boiOnline && online ? "" : "sync-warning"}`}><i /> {!online ? "Máy quản trị đang offline" : boiOnline ? "Trạng thái tự động · 60 giây/lần" : "Đang giữ dữ liệu gần nhất"}</span><button className="button appearance-control" onClick={() => setAppearanceOpen(true)} aria-expanded={appearanceOpen} aria-controls="admin-appearance-panel"><b>Aa</b> Giao diện</button><button className="button" onClick={() => void refresh(credential, access, { discoverNew: true })} disabled={checking || !online}>{checking ? "Đang cập nhật…" : "Cập nhật thiết bị"}</button></div></header>
-        {appearanceOpen ? <><button className="admin-appearance-scrim" aria-label="Đóng bảng Giao diện" onClick={() => setAppearanceOpen(false)} /><aside id="admin-appearance-panel" className="admin-appearance-panel" role="dialog" aria-modal="true" aria-labelledby="admin-appearance-title"><header><div><span>Tùy chỉnh hiển thị</span><h2 id="admin-appearance-title">Giao diện quản trị</h2></div><button onClick={() => setAppearanceOpen(false)} aria-label="Đóng">×</button></header><section><label>Màu nền</label><p>Chỉ lưu trên máy quản trị hiện tại.</p><div className="admin-theme-options">{adminThemes.map((item) => <button key={item.id} className={appearance.theme === item.id ? "active" : ""} onClick={() => setAppearance((current) => ({ ...current, theme: item.id }))}><i style={{ background: item.paper }} /><span>{item.name}</span></button>)}</div></section><section><label>Font tiếng Việt</label><div className="admin-font-options">{adminFonts.map((item) => <button key={item.id} className={appearance.font === item.id ? "active" : ""} style={{ fontFamily: item.ui }} onClick={() => setAppearance((current) => ({ ...current, font: item.id }))}><strong>{item.name}</strong><span>{item.sample}</span></button>)}</div></section><section><label>Cỡ giao diện</label><div className="admin-size-options">{([{ id: "normal", label: "Tiêu chuẩn" }, { id: "large", label: "Lớn" }, { id: "xlarge", label: "Rất lớn" }] as const).map((item) => <button key={item.id} className={appearance.textSize === item.id ? "active" : ""} onClick={() => setAppearance((current) => ({ ...current, textSize: item.id }))}>{item.label}</button>)}</div></section><footer><button onClick={() => setAppearance(defaultAdminAppearance)}>Khôi phục mặc định</button><span>Tự lưu trên thiết bị</span></footer></aside></> : null}
+        <header className="topbar"><div><span>BƠI ẾCH · QUẢN TRỊ</span><h1>{tab === "devices" ? "Thiết bị và học viên" : tab === "payments" ? "Thanh toán" : tab === "ai" ? "AI Bơi ếch" : "Duyệt chỉnh sửa"}</h1></div><div className="topbar-actions"><span className={`sync-state ${boiOnline && online ? "" : "sync-warning"}`}><i /> {!online ? "Máy quản trị đang offline" : boiOnline ? "Đã đồng bộ Bơi ếch · 60 giây/lần" : "Đang giữ dữ liệu gần nhất"}</span>{["devices", "payments"].includes(tab) ? <button className="button" onClick={() => void refresh(credential, access, { discoverNew: true })} disabled={checking || !online}>{checking ? "Đang cập nhật…" : "Cập nhật thiết bị"}</button> : null}</div></header>
         {error || dashboard?.upstreamError ? <div className="alert warning">{error || dashboard?.upstreamError}</div> : null}
         {notice ? <div className="notice" role="status">{notice}</div> : null}
 
         {tab === "devices" ? <>
+          {dashboard?.automation ? <AutomationCenter key={`${dashboard.automation.updatedAt}-${dashboard.automation.enabled}-${dashboard.automation.defaultAccessDays}-${dashboard.automation.defaultDeviceLimit}`} automation={dashboard.automation} canManage={["publisher", "owner"].includes(access.role)} save={(enabled, defaultAccessDays, defaultDeviceLimit) => void dashboardAction({ action: "manage-learning-device", operation: "update-automation", enabled, defaultAccessDays, defaultDeviceLimit }, `Đã ${enabled ? "bật" : "tắt"} tự động duyệt; mặc định ${defaultAccessDays} ngày cho tối đa ${defaultDeviceLimit} thiết bị.`)} /> : null}
           <section className="summary-grid"><article><span>Tổng thiết bị</span><strong>{counts.total}</strong><small>Bơi ếch</small></article><article><span>Online</span><strong>{counts.active}</strong><small>Tín hiệu ký số mỗi 60 giây</small></article><article><span>Chờ xử lý</span><strong>{counts.pending}</strong><small>Hồ sơ hoặc thanh toán</small></article><article><span>Nhóm trả phí</span><strong>{counts.paid}</strong><small>Tài khoản 50.000đ</small></article><article><span>Nhóm miễn phí</span><strong>{counts.free}</strong><small>Đã sàng lọc</small></article><article><span>Sửa bản riêng</span><strong>{counts.personalEdit}</strong><small>Không cập nhật máy chủ</small></article><article><span>Sắp/đã hết hạn</span><strong>{counts.expiring + counts.expired}</strong><small>{counts.expired} đã hết hạn</small></article><article><span>Đã khóa</span><strong>{counts.blocked}</strong><small>Không thể truy cập</small></article><article><span>Đã loại bỏ</span><strong>{counts.deleted}</strong><small>Không thể tự đăng ký lại</small></article></section>
-          <section className="operations-inbox"><div><span>Hộp việc cần xử lý</span><strong>Ưu tiên những tài khoản đang chờ quyết định</strong></div><button onClick={() => setFilter("incomplete")}><span>Hồ sơ chưa đủ</span><strong>{counts.incomplete}</strong></button><button onClick={() => setFilter("payment")}><span>Ảnh chuyển khoản</span><strong>{counts.paymentReview}</strong></button><button onClick={() => setFilter("expired")}><span>Tài khoản hết hạn</span><strong>{counts.expired}</strong></button>{["reviewer", "publisher", "owner"].includes(access.role) ? <button onClick={() => setTab("content")}><span>Duyệt nội dung</span><strong>→</strong></button> : null}</section>
-          <section className="manual-device-card"><div><span>Nhập mã dự phòng</span><strong>Thiết bị mới được quét khi bấm “Cập nhật thiết bị”; danh sách đang có luôn được giữ cố định.</strong><small><b>BE-…</b> là thiết bị học Bơi ếch · <b>QT-…</b> là thiết bị vào Trung tâm quản trị.</small></div><label><input value={manualCode} onChange={(event) => setManualCode(event.target.value.toUpperCase())} onKeyDown={(event) => { if (event.key === "Enter") void locateManualCode(); }} placeholder="BE-1234-5678-9ABC-DEF0" aria-label="Mã thiết bị cần tìm" /><button className="button primary" onClick={() => void locateManualCode()}>Tìm thiết bị</button></label></section>
+          <section className="operations-inbox"><div><span>Hộp việc Bơi ếch</span><strong>Ưu tiên những tài khoản đang chờ quyết định</strong></div><button onClick={() => setFilter("incomplete")}><span>Hồ sơ chưa đủ</span><strong>{counts.incomplete}</strong></button><button onClick={() => setTab("payments")}><span>Ảnh chuyển khoản</span><strong>{counts.paymentReview}</strong></button><button onClick={() => setFilter("expired")}><span>Tài khoản hết hạn</span><strong>{counts.expired}</strong></button>{["reviewer", "publisher", "owner"].includes(access.role) ? <button onClick={() => setTab("content")}><span>Duyệt nội dung</span><strong>→</strong></button> : null}</section>
+          <section className="manual-device-card"><div><span>Tra cứu thiết bị học</span><strong>Thiết bị mới được quét khi bấm “Cập nhật thiết bị”; danh sách đang có luôn được giữ cố định.</strong><small><b>BE-…</b> là mã duy nhất của thiết bị học Bơi ếch. Quyền quản trị QT thuộc mục Hệ thống.</small></div><label><input value={manualCode} onChange={(event) => setManualCode(event.target.value.toUpperCase())} onKeyDown={(event) => { if (event.key === "Enter") void locateManualCode(); }} placeholder="BE-1234-5678-9ABC-DEF0" aria-label="Mã thiết bị cần tìm" /><button className="button primary" onClick={() => void locateManualCode()}>Tìm thiết bị</button></label></section>
           <section className="device-toolbar"><div className="filter-pills">{(["all", "active", "pending", "incomplete", "paid", "free", "expired", "blocked"] as const).map((item) => <button key={item} className={filter === item ? "active" : ""} onClick={() => setFilter(item)}>{item === "all" ? "Tất cả" : item === "active" ? "Đang hoạt động" : item === "pending" ? "Chờ xử lý" : item === "incomplete" ? "Chưa nhập thông tin" : item === "paid" ? "Trả phí" : item === "free" ? "Miễn phí" : item === "expired" ? "Hết hạn" : "Đã khóa"}</button>)}</div><div className="report-actions"><button className="button" onClick={exportDevices}>Xuất CSV</button><label><span>⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm tên, mã số, lớp, SĐT hoặc thiết bị" /></label></div></section>
           <section className="laptop-grid">
             {visibleDevices.map((device) => <button key={device.deviceId} className={`account-card ${device.active ? "active" : "idle"} ${device.status} ${device.accessExpired ? "expired" : device.accessExpiringSoon ? "expiring" : ""}`} onClick={() => void openDetail(device)}><Laptop active={device.active} status={device.status} /><div className="account-copy"><span>{device.status === "pending" ? "Hồ sơ mới chờ duyệt" : device.learnerName || device.label || "Chưa gửi hồ sơ"}</span><strong className={device.status === "pending" ? "learner-identity" : undefined}>{device.status === "pending" ? pendingLearnerLabel(device) : device.deviceCode}</strong><small>{device.personRole === "teacher" ? "Giảng viên" : device.personRole === "learner" ? "Học viên" : "Chưa chọn vai trò"}{device.status !== "pending" && device.personCode ? ` · ${device.personCode}` : ""}</small><small>{device.className ? `${device.className} · ` : ""}{device.accessExpired ? "Đã hết hạn" : device.accessExpiringSoon ? `Sắp hết hạn · ${formatDate(device.accessExpiresAt)}` : device.active ? "Online" : `Offline từ ${formatDate(device.offlineSinceAt)}`}</small>{!device.registrationComplete ? <em className="profile-warning">Chưa nhập đủ thông tin</em> : device.personalEditConfigured ? <em>Bản sửa riêng</em> : null}</div><span className={`group-chip ${device.accessGroup}`}>{paymentStatusLabels[device.paymentStatus]}</span><div className="account-progress"><span><i style={{ width: `${device.completionPercent}%` }} /></span><strong>{device.completionPercent}%</strong></div></button>)}
@@ -1247,16 +1083,14 @@ export default function ControlCenter({ user }: { user: { displayName: string; e
           {access.role === "owner" ? <DeletedDevicesPanel devices={dashboard?.deletedDevices ?? []} restore={(device, confirmation) => dashboardAction({ action: "manage-learning-device", operation: "restore-deleted-device", targetDeviceId: device.deviceId, confirmDeviceCode: confirmation }, `Đã cho phép ${device.deviceCode} đăng ký lại. Thiết bị sẽ xuất hiện như hồ sơ mới khi mở Site Bơi ếch.`)} /> : null}
         </> : null}
 
+        {tab === "payments" ? <section className="payment-layout"><header className="section-heading"><div><span>THANH TOÁN BƠI ẾCH</span><h2>Hàng chờ xác minh</h2><p>Chỉ xử lý giao dịch và quyền truy cập của học viên Bơi ếch. Mở từng dòng để xem ảnh chuyển khoản và quyết định.</p></div><strong>{paymentQueue.length} hồ sơ</strong></header><div className="payment-queue">{paymentQueue.map((device) => <button key={device.deviceId} className="payment-row" onClick={() => void openDetail(device)}><div className="payment-row-status"><i className={device.paymentStatus === "proof_submitted" ? "waiting-proof" : "waiting-payment"} /><span>{device.paymentStatus === "proof_submitted" ? "Chờ xác minh ảnh" : "Chờ thanh toán"}</span></div><div><strong>{device.learnerName || "Chưa nhập tên"}</strong><small>{device.personCode || device.deviceCode} · {device.className || "Chưa có lớp/đơn vị"}</small></div><span className="payment-row-amount">{device.paymentAmount > 0 ? `${device.paymentAmount.toLocaleString("vi-VN")}đ` : "50.000đ"}</span><span className="payment-row-date">{formatDate(device.paymentSubmittedAt ?? device.createdAt)}</span><span className="payment-row-open">Mở hồ sơ →</span></button>)}{paymentQueue.length === 0 ? <div className="empty-state"><h3>Không có giao dịch chờ xử lý</h3><p>Ảnh chuyển khoản mới và tài khoản cần thanh toán sẽ xuất hiện ở đây.</p></div> : null}</div></section> : null}
+
         {tab === "ai" && dashboard?.boiBridge ? <AiControlCenter role={access.role} api={(init) => boiApi<AiControlData>(dashboard.boiBridge, "/api/control/ai", init)} onNotice={setNotice} /> : null}
 
-        {tab === "content" && dashboard?.boiBridge ? <ContentReviewCenter bridge={dashboard.boiBridge} access={access} automation={dashboard.automation} saveAutomation={(enabled, defaultAccessDays, defaultDeviceLimit) => void dashboardAction({ action: "manage-learning-device", operation: "update-automation", enabled, defaultAccessDays, defaultDeviceLimit }, `Đã ${enabled ? "bật" : "tắt"} tự động duyệt; mặc định ${defaultAccessDays} ngày cho tối đa ${defaultDeviceLimit} thiết bị.`)} /> : null}
+        {tab === "content" && dashboard?.boiBridge ? <ContentReviewCenter bridge={dashboard.boiBridge} access={access} /> : null}
 
-        {tab === "approvals" ? <section className="approval-layout"><div className="approval-heading"><span>Kiểm soát truy cập theo vai trò</span><h2>Quyền rõ ràng, giới hạn ngay tại máy chủ</h2><p>Người sửa bài không cần vào đây. Họ chỉ biên tập trực quan đúng bài được cấp phép tại Site Bơi ếch; các vai trò dưới đây dùng để kiểm tra và phê duyệt.</p><small className="account-removal-note"><b>Thu hồi</b> giữ hồ sơ để có thể cấp lại. <b>Xóa tài khoản</b> chỉ hiện sau khi đã thu hồi và sẽ dọn toàn bộ thiết bị quản trị dùng chung email.</small></div><div className="role-matrix">{roleCapabilities.map((item) => <article key={item.role} className={access.role === item.role ? "current" : ""}><span>{item.title}</span><ul>{item.capabilities.map((capability) => <li key={capability}>{capability}</li>)}</ul></article>)}</div><div className="approval-list">{(dashboard?.controlDevices ?? []).map((device) => <article key={device.deviceId}><Laptop active={device.active} status={device.status} /><div><span>{device.displayName}</span><strong>{device.email}</strong><small>{device.deviceCode} · {roleLabels[device.role]} · {device.active ? "Online" : `Offline từ ${formatDate(device.offlineSinceAt)}`}</small><small>{device.memberStatus === "inactive" ? "Tài khoản đã bị thu hồi" : statusLabels[device.status]}</small></div>{access.role === "owner" && !device.owner ? <div className="approval-actions"><button disabled={device.status === "approved" && device.role === "reviewer" && device.memberStatus === "active"} onClick={() => void dashboardAction({ action: "manage-control-device", operation: "approve", targetDeviceId: device.deviceId, role: "reviewer", displayName: device.displayName }, "Đã cấp quyền kiểm duyệt viên.")}>Kiểm duyệt</button><button disabled={device.status === "approved" && device.role === "publisher" && device.memberStatus === "active"} onClick={() => void dashboardAction({ action: "manage-control-device", operation: "approve", targetDeviceId: device.deviceId, role: "publisher", displayName: device.displayName }, "Đã cấp quyền xuất bản.")}>Xuất bản</button></div> : null}{access.role === "owner" && device.status !== "blocked" && !device.owner ? <button className="icon-danger" onClick={() => void dashboardAction({ action: "manage-control-device", operation: "block", targetDeviceId: device.deviceId }, "Đã khóa riêng thiết bị này.")}>Khóa máy</button> : null}{access.role === "owner" && device.memberStatus === "active" && !device.owner ? <button className="icon-danger revoke" onClick={() => { if (window.confirm(`Thu hồi toàn bộ quyền quản trị của ${device.email}?`)) void dashboardAction({ action: "manage-control-device", operation: "deactivate-member", targetDeviceId: device.deviceId }, "Đã thu hồi tài khoản và khóa mọi thiết bị quản trị liên quan."); }}>Thu hồi tài khoản</button> : null}{access.role === "owner" && device.memberStatus === "inactive" && !device.owner ? <button className="icon-danger delete-account" onClick={() => { const confirmation = window.prompt(`Xóa vĩnh viễn tài khoản ${device.email} và toàn bộ thiết bị quản trị cùng email.\n\nNhập chính xác email để xác nhận:`); if (confirmation?.trim().toLowerCase() === device.email.toLowerCase()) void dashboardAction({ action: "manage-control-device", operation: "delete-member", targetDeviceId: device.deviceId }, "Đã xóa tài khoản và toàn bộ thiết bị quản trị cùng email."); else if (confirmation !== null) setNotice("Email xác nhận không khớp; chưa xóa dữ liệu."); }}>Xóa tài khoản</button> : null}</article>)}</div></section> : null}
-
-        {tab === "audit" ? <section className="audit-layout"><div className="approval-heading"><span>Dấu vết kiểm soát</span><h2>Mọi thay đổi quan trọng đều có người thực hiện và thời điểm</h2><p>Nhật ký được lấy từ cả trung tâm quản trị và ứng dụng Bơi ếch, mới nhất ở trên.</p><button className="button" onClick={exportAudit}>Xuất nhật ký JSON</button></div><div className="audit-list">{(dashboard?.auditLog ?? []).map((entry) => <article key={entry.id}><div className="audit-mark">{entry.source === "Bơi ếch" ? "BE" : "QT"}</div><div><span>{actionLabels[entry.action] ?? entry.action}</span><strong>{entry.actor}</strong><small>{entry.source} · {formatDate(entry.createdAt)} · {entry.target}</small></div></article>)}{(dashboard?.auditLog ?? []).length === 0 ? <div className="empty-state"><h3>Chưa có thay đổi quản trị</h3><p>Các thao tác cấp quyền, biên tập, phê duyệt và khôi phục sẽ xuất hiện tại đây.</p></div> : null}</div></section> : null}
       </section>
 
-      {installPrompt ? <button className="install-fab" onClick={() => void installWebApp()} aria-label="Cài ứng dụng Quản trị học tập" title="Cài ứng dụng"><span aria-hidden="true">⇩</span><b>Cài ứng dụng</b></button> : null}
       {selected && dashboard?.boiBridge ? <DeviceDrawer key={selected.deviceId} device={selected} bridge={dashboard.boiBridge} canManage={["publisher", "owner"].includes(access.role)} canDelete={access.role === "owner"} activityLoading={selectedActivityLoading} close={closeDetail} action={(operation, success, extra = {}) => dashboardAction({ action: "manage-learning-device", operation, targetDeviceId: selected.deviceId, ...extra }, success)} /> : null}
     </main>
   );

@@ -21,7 +21,7 @@ const executionContext = {
   passThroughOnException() {},
 };
 
-test("redirects unauthenticated visitors to ChatGPT sign-in", async () => {
+test("redirects unauthenticated visitors to Sign in with ChatGPT", async () => {
   const worker = await loadWorker();
   const response = await worker.fetch(
     new Request("http://localhost/", { headers: { accept: "text/html" }, redirect: "manual" }),
@@ -35,28 +35,19 @@ test("redirects unauthenticated visitors to ChatGPT sign-in", async () => {
   assert.equal(location.searchParams.get("return_to"), "/");
 });
 
-test("renders the authenticated management center and preview metadata", async () => {
+test("renders the current admin login and preview metadata", async () => {
   const worker = await loadWorker();
-
   const response = await worker.fetch(
-    new Request("http://localhost/", {
-      headers: {
-        accept: "text/html",
-        "oai-authenticated-user-email": "owner@example.com",
-        "oai-authenticated-user-full-name": "Nguy%E1%BB%85n%20Qu%E1%BA%A3n%20Tr%E1%BB%8B",
-        "oai-authenticated-user-full-name-encoding": "percent-encoded-utf-8",
-      },
-    }),
+    new Request("http://localhost/login?return_to=/", { headers: { accept: "text/html" } }),
     environment,
     executionContext,
   );
 
   assert.equal(response.status, 200);
-  assert.match(
-    response.headers.get("content-type") ?? "",
-    /^text\/html\b/i,
-  );
+  assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
   const html = await response.text();
   assert.match(html, developmentPreviewMeta);
-  assert.match(html, /Trung tâm quản trị học tập/i);
+  assert.match(html, /Đăng nhập quản trị/i);
+  assert.match(html, /Đăng nhập bằng ChatGPT/i);
+  assert.match(html, /\/signin-with-chatgpt/);
 });

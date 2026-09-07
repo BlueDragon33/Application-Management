@@ -41,3 +41,57 @@ export const controlAuditLog = sqliteTable("control_audit_log", {
   detailJson: text("detail_json").notNull().default("{}"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const medicineRules = sqliteTable("medicine_rules", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  synonymsJson: text("synonyms_json").notNull().default("[]"),
+  level: integer("level").notNull(),
+  category: text("category").notNull(),
+  basis: text("basis").notNull(),
+  sourceIdsJson: text("source_ids_json").notNull().default("[]"),
+  reviewRequired: integer("review_required").notNull().default(0),
+  condition: text("condition"),
+  enabled: integer("enabled").notNull().default(1),
+  updatedBy: text("updated_by"),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [index("medicine_rules_level_idx").on(table.level)]);
+
+export const medicineReviews = sqliteTable("medicine_reviews", {
+  id: text("id").primaryKey(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  status: text("status").notNull().default("pending"),
+  medicineName: text("medicine_name"),
+  ocrText: text("ocr_text").notNull(),
+  matchedRuleIdsJson: text("matched_rule_ids_json").notNull().default("[]"),
+  proposedLevel: integer("proposed_level").notNull(),
+  confidence: integer("confidence").notNull().default(0),
+  note: text("note"),
+  adminNote: text("admin_note"),
+  decision: text("decision"),
+  reviewedBy: text("reviewed_by"),
+  reviewedAt: text("reviewed_at"),
+  publicTokenHash: text("public_token_hash"),
+}, (table) => [index("medicine_reviews_status_idx").on(table.status, table.createdAt)]);
+
+export const medicineAuditLog = sqliteTable("medicine_audit_log", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  actor: text("actor").notNull(),
+  action: text("action").notNull(),
+  target: text("target").notNull(),
+  detailJson: text("detail_json").notNull().default("{}"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const medicineSettings = sqliteTable("medicine_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const medicineRateLimits = sqliteTable("medicine_rate_limits", {
+  key: text("key").primaryKey(),
+  count: integer("count").notNull().default(1),
+  expiresAt: integer("expires_at").notNull(),
+});

@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Trung tâm quản trị học tập",
-  description: "Quản lý thiết bị, tiến độ, nội dung và phiên bản của hệ thống học tập.",
-  applicationName: "Trung tâm quản trị học tập",
+  title: "QUẢN TRỊ ỨNG DỤNG",
+  description: "Trung tâm điều phối các Site Bauman, Bơi ếch, Sức khỏe và những ứng dụng được kết nối.",
+  applicationName: "QUẢN TRỊ ỨNG DỤNG",
   manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, title: "Quản trị học tập", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "Quản trị ứng dụng", statusBarStyle: "default" },
   other: {
     "codex-preview": "development",
   },
@@ -24,7 +24,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="vi">
+    <html lang="vi" suppressHydrationWarning>
       <body>{children}</body>
     </html>
   );
