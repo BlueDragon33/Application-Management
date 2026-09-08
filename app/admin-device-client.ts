@@ -82,7 +82,13 @@ export type CenterApiResponse = Partial<CenterBootstrap> & {
 };
 
 type Credential = { version: 1; privateKey: CryptoKey | null; publicKey: JsonWebKey };
-type ApiPayload = Partial<AdminBootstrap> & Partial<HealthAdminBootstrap> & Partial<CenterBootstrap> & {
+type ApiPayload = Partial<CenterBootstrap> & {
+  actor?: AdminAccess;
+  application?: unknown;
+  learningDevices?: [];
+  boiBridge?: ApplicationBridge;
+  bridge?: ApplicationBridge & { application?: "health-care" };
+  upstreamError?: string | null;
   device?: AdminAccess;
   challenge?: string;
   error?: string;
