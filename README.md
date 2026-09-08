@@ -1,166 +1,148 @@
 # Application Management
 
-Application Management là **server/control-plane quản trị** cho các web app/site độc lập trong hệ thống. Trung tâm là đầu não cấp policy, quyền và điều phối; không phải nơi chạy nội dung học tập, sức khỏe hay nghiệp vụ chuyên môn của từng client.
+Application Management là **server/control-plane quản trị** cho các web app/site độc lập. Trung tâm cấp policy, quyền và điều phối; không chạy nội dung học tập, sức khỏe hoặc dữ liệu chuyên môn của client.
 
-## Kiến trúc bắt buộc
+## Topology
 
 ```text
 LEVEL 0 · SERVER
 Application Management
-├── thiết bị quản trị Trung tâm (P-256)
+├── thiết bị quản trị QT- (P-256)
 ├── vai trò & phân quyền
 ├── application registry
-├── audit & bảo mật Trung tâm
-└── signed admin contracts
-    ├── LEVEL 1 · CLIENT: Bơi ếch
-    ├── LEVEL 1 · CLIENT: Sức khỏe Y tế
-    ├── LEVEL 1 · CLIENT: Hòa nhập Nga
-    ├── LEVEL 1 · CLIENT: Bauman Hub
-    │   ├── LEVEL 2 · SUB-CLIENT: Math_Bauman
-    │   └── LEVEL 2 · SUB-CLIENT/MODULE: các site môn học khác
-    └── LEVEL 1 · CLIENT: GrowUP MyChildren
-        └── ENDPOINTS: desktop / tablet-iPad / phone
+├── audit/bảo mật Trung tâm
+└── app-scoped admin contracts
+    ├── LEVEL 1 · Bơi ếch
+    ├── LEVEL 1 · Sức khỏe Y tế
+    ├── LEVEL 1 · Hòa nhập Nga
+    ├── LEVEL 1 · Bauman Hub
+    │   ├── LEVEL 2 · Math_Bauman
+    │   └── LEVEL 2 · subject modules
+    └── LEVEL 1 · GrowUP MyChildren
 ```
 
-Chi tiết topology và quy ước UI nằm tại [`docs/CONTROL_PLANE_TOPOLOGY.md`](docs/CONTROL_PLANE_TOPOLOGY.md).
+Chi tiết topology: [`docs/CONTROL_PLANE_TOPOLOGY.md`](docs/CONTROL_PLANE_TOPOLOGY.md).
 
-## Nguyên tắc server → client
+## Nguyên tắc bắt buộc
 
-Mỗi client phải hoạt động độc lập. Application Management chỉ được:
+Application Management chỉ được:
 
-- cấp, khóa và thu hồi quyền truy cập qua admin contract;
-- cấp hoặc thu hồi quyền chỉnh sửa;
-- quản lý **thiết bị quản trị của chính Trung tâm**;
-- theo dõi trạng thái vận hành tối thiểu qua API/contract;
-- kiểm duyệt các thay đổi mà client chủ động gửi lên;
-- ghi audit cho thay đổi quyền và bảo mật control-plane.
+- quản lý thiết bị quản trị của chính Trung tâm;
+- cấp/khóa/thu hồi quyền qua contract của từng client;
+- cấp hoặc thu hồi quyền chỉnh sửa khi client có backend tương ứng;
+- theo dõi trạng thái vận hành tối thiểu;
+- kiểm duyệt thay đổi mà client chủ động gửi lên;
+- ghi audit thay đổi quyền/bảo mật.
 
-Application Management **không được**:
+Application Management không được:
 
-- chứa database chuyên môn của client;
-- dùng chung registry thiết bị giữa các site;
-- nhúng runtime hoặc router nghiệp vụ của client;
-- quản trị xuyên tầng vào sub-client nếu client cha chưa công bố contract;
-- dựng nút thao tác khi backend thật chưa tồn tại.
+- nhúng runtime client;
+- dùng chung database/registry giữa các client;
+- dùng bridge Bơi ếch cho client khác;
+- đưa dữ liệu sức khỏe/trẻ em riêng tư về control-plane;
+- tạo nút thao tác khi backend thật chưa tồn tại.
 
-## Một shell quản trị, không lặp tầng
+## Namespace thiết bị
 
-Giao diện quản trị dùng một kiến trúc thống nhất giống khu quản trị Bơi ếch:
+| Phạm vi | Namespace | Ghi chú |
+|---|---|---|
+| Application Management | `QT-` | Thiết bị quản trị Trung tâm |
+| Bơi ếch | `BE-` | Registry Bơi ếch |
+| Sức khỏe Y tế | `SK-` | Registry Health_Care |
+| Hòa nhập Nga | `HN-` | Gateway/session Hòa nhập Nga |
+| Bauman | `BM-` | Contract yêu cầu, backend chưa triển khai |
+| GrowUP | `GU-` | Contract yêu cầu, backend chưa triển khai |
 
-- sidebar trái là điều hướng chính;
-- phần **Hệ thống** chỉ giữ `Tổng quan`, `Quyền & thiết bị`, `Nhật ký hệ thống`;
-- các client cấp 1 được liệt kê trực tiếp trong sidebar và dẫn thẳng tới khu quản trị của chính client;
-- topology được gộp vào `Tổng quan`, không duy trì một trang sơ đồ riêng;
-- không duy trì thêm trang `Danh mục client` dạng card nếu cùng thông tin đã có trong sidebar/registry;
-- mỗi client chỉ có **một đường vào quản trị**; không lặp các nút kiểu `Mở site`, `Cấp quyền Web App`, `Vào quản trị ...` ở nhiều tầng.
+Quyền **truy cập** và quyền **chỉnh sửa** luôn là hai lớp độc lập.
 
-Khu quản trị client cũng dùng cùng nguyên tắc shell và chỉ gồm các nhóm chức năng cần thiết: `Tổng quan`, `Thiết bị & quyền`, `Nội dung & chỉnh sửa`, và `Sub-client` khi client thật sự có tầng con.
+## Bơi ếch
 
-**Sức khỏe Y tế và Hòa nhập Nga là hai client cấp 1 độc lập.** Hòa nhập Nga không được đặt trong miền Y tế và Y tế không được hiển thị/điều khiển nghiệp vụ của Hòa nhập Nga.
-
-## Bơi ếch đã tách vật lý khỏi control-plane
-
-Khu quản trị Bơi ếch hiện nằm tại:
-
-```text
-app/apps/boi-ech/
-├── page.tsx
-└── boi-ech-control-center.tsx
-```
-
-Bơi ếch chỉ quản lý nghiệp vụ của chính client:
-
-- thiết bị học và trạng thái online/offline;
-- tiến độ học;
-- nhóm miễn phí/trả phí và thời hạn;
-- AI của Bơi ếch;
-- quyền sửa cục bộ;
-- duyệt thay đổi nội dung Bơi ếch;
-- xóa/khôi phục thiết bị rác của Bơi ếch theo quyền phù hợp.
-
-Các phần legacy đã bị loại bỏ hoàn toàn:
+Khu quản trị nằm riêng tại `app/apps/boi-ech/` và chỉ còn nghiệp vụ Bơi ếch. Các phần legacy đã bị xóa:
 
 - `app/control-center.tsx`;
 - `app/boi-admin-boundary.module.css`;
 - `/api/content` shim cũ.
 
-Không còn dùng CSS để ẩn `Quyền quản trị` hoặc `Nhật ký Trung tâm` trong Bơi ếch. Hai miền này chỉ thuộc Application Management.
+`/api/dashboard` chỉ bootstrap bridge Bơi ếch ngắn hạn. Central device/role/audit chỉ thuộc `/api/center`.
 
-Luồng API hiện tại:
+## Sức khỏe Y tế
 
-```text
-/api/center
-└── control-plane
-    ├── central admin devices
-    ├── roles & permissions
-    └── central security audit
+`Health_Care` sở hữu runtime, Device Gate, registry `SK-`, dữ liệu và Control API. Application Management đã có adapter thật cho:
 
-/api/dashboard
-└── Bơi ếch bridge bootstrap only
-    ├── verify signed QT device proof
-    └── issue short-lived Bơi ếch admin bridge
+- device access;
+- policy;
+- sessions;
+- content review;
+- app audit.
 
-Bơi ếch client
-└── /api/control/* của BOIECH_AI
-    ├── overview / device operations
-    ├── content review
-    ├── AI
-    └── payment proof
-```
+Adapter dùng `HEALTH_CONTROL_SERVICE_SECRET` riêng. Hồ sơ sức khỏe cá nhân không đi vào Application Management.
 
-`/api/dashboard` không được sở hữu `control_devices`, `control_members`, central audit hay danh mục các client khác.
+Trạng thái vẫn là `migrating` cho tới khi xác minh secret/origin/deployment production.
 
-## Client lớn và sub-client
+## Hòa nhập Nga
 
-Client cấp 1 có thể sở hữu client cấp 2. Trường hợp điển hình là **Bauman Hub**:
+`RU_LIFE` là client độc lập, không có form đăng nhập trực tiếp. `main` đã có runtime/PWA và contract Application Management.
 
-- `BlueDragon33/Bauman-master-ai-system` là client cha;
-- `BlueDragon33/Math_Bauman` đã là repo môn học độc lập;
-- các nhóm `subjects/programming`, `subjects/ai`, `subjects/signal`, `subjects/systems`, `subjects/foundation`, `subjects/research`, `subjects/russian` hiện được mô hình hóa như sub-client/module của Bauman;
-- Application Management quản trị Bauman qua contract của Bauman, không biến từng môn học thành client cấp 1 một cách tùy tiện.
+Application Management đã có:
 
-## Chuẩn thiết bị của client
+- namespace `HN-`;
+- đăng ký thiết bị + phân loại computer/phone/tablet;
+- challenge ECDSA P-256;
+- gắn Họ tên + Mã người dùng trước khi duyệt;
+- access token HMAC 15 phút bằng `RU_LIFE_CONTROL_SERVICE_SECRET`;
+- session ledger và thu hồi từ xa;
+- quyền sửa tách khỏi quyền truy cập;
+- audit Hòa nhập Nga;
+- khu quản trị HN riêng.
 
-Các site dùng cùng logic contract nhưng không dùng chung dữ liệu:
+Code và CI hai repo đã xanh; vẫn giữ `migrating` tới khi migration D1, origin/secret và ownership registry production được xác minh.
 
-1. client tự sinh/giữ định danh thiết bị;
-2. client tự động phân loại `desktop`, `tablet/iPad`, `phone`;
-3. client chọn giao diện phù hợp theo lớp thiết bị;
-4. gửi yêu cầu truy cập theo policy;
-5. quyền truy cập và quyền chỉnh sửa là hai lớp độc lập;
-6. client giữ presence/online-offline và audit của chính nó;
-7. Trung tâm chỉ đọc/điều khiển qua vé hoặc API quản trị ngắn hạn.
+## Bauman Hub
 
-Chuẩn UX mặc định:
+Bauman là client cha cấp 1, không phải một nút mở site học tập. Khu quản trị riêng hiển thị topology sub-client và readiness contract.
 
-- **Desktop `>=1024px`**: dashboard 2–4 cột, sidebar, mật độ cao, chuột + bàn phím.
-- **Tablet/iPad `600–1023px`**: 1–2 cột, rail/tab thu gọn, touch-first.
-- **Phone `<600px`**: một cột, tác vụ ưu tiên, điều hướng gọn, không phụ thuộc hover.
+Repo Bauman có:
 
-Đây là chuẩn giao diện, không phải cơ chế fingerprint. Device classification phải diễn ra tại client và chỉ gửi metadata thật sự cần thiết cho quản trị.
+- `CONTROL_INTEGRATION.md`;
+- `control/application-management.contract.json`.
 
-## Trạng thái tích hợp hiện tại
+Math_Bauman là repo độc lập; các subject còn lại vẫn nằm dưới Bauman Hub. Device registry `BM-`, admin API, audit API và content-review API hiện chưa có backend thật nên không có thao tác giả trong Application Management.
 
-- **Bơi ếch**: admin bridge đang hoạt động; khu quản trị đã tách vật lý khỏi control-plane và chỉ còn nghiệp vụ Bơi ếch;
-- **Health_Care**: repo độc lập có Device Gate và Control API phía client; adapter của Application Management chưa nối vào `/api/center` mới;
-- **RU_LIFE**: boundary và luồng P-256 đã được xác lập; runtime/admin API còn đang hoàn thiện;
-- **Bauman Hub**: có source và sub-client, nhưng admin contract chính thức chưa đủ để bật điều khiển;
-- **GrowUP MyChildren**: repo đã có, management contract chưa hoàn tất.
+## GrowUP MyChildren
 
-## Bảo mật
+GrowUP đã có runtime/PWA local-first. Khu quản trị Application Management tập trung vào privacy boundary và readiness.
 
-Thiết bị quản trị dùng khóa P-256 và challenge một lần. Vai trò Trung tâm:
+Repo GrowUP có:
+
+- `docs/CONTROL_INTEGRATION.md`;
+- `control/application-management.contract.json`.
+
+Control-plane tuyệt đối không nhận hồ sơ trẻ, health/nutrition records, private notes, portfolio evidence hoặc nội dung backup. Registry `GU-`, admin API và remote audit/config-review API chưa có backend nên chưa bật thao tác từ xa.
+
+## Trạng thái hiện tại
+
+| Client | Runtime | Admin code | Production contract |
+|---|---|---|---|
+| Bơi ếch | Có | Connected | Connected |
+| Health_Care | Có | Adapter + UI thật | Migrating |
+| RU_LIFE | Có | Gateway + UI thật | Migrating |
+| Bauman Hub | Có | Management readiness | Pending backend |
+| GrowUP | Có | Privacy/readiness management | Pending backend |
+
+Không đổi `migrating/pending` thành `connected` chỉ vì code build xanh; phải có bằng chứng deployment/configuration thật.
+
+## Bảo mật Trung tâm
+
+Thiết bị quản trị dùng P-256 + challenge một lần. Vai trò:
 
 - `viewer`
 - `reviewer`
 - `publisher`
 - `owner`
 
-Các thao tác cấp quyền, khóa thiết bị, thu hồi hoặc xóa tài khoản quản trị được giới hạn theo vai trò và ghi vào `control_audit_log`. Thiết bị/tài khoản owner được bảo vệ khỏi thao tác tự hủy từ giao diện.
+Các thay đổi central role/device được ghi vào `control_audit_log`. Owner/self-device được bảo vệ khỏi thao tác tự hủy.
 
-Bridge Bơi ếch là bridge chuyên biệt. Client khác không được phép dùng `/api/dashboard` làm đường tắt; mỗi client phải có adapter/API quản trị riêng trước khi bật thao tác thật.
-
-## Development
+## Development gate
 
 - Node.js `>=22.13.0`
 - `npm run install:ci`
@@ -168,4 +150,4 @@ Bridge Bơi ếch là bridge chuyên biệt. Client khác không được phép 
 - `npm test`
 - `npm run lint`
 
-Source chính nằm trong `app/`. D1 schema/migrations nằm trong `db/` và `drizzle/`.
+Source chính nằm trong `app/`; D1 schema/migrations nằm trong `db/` và `drizzle/`.
