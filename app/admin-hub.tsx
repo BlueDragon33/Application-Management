@@ -1,4 +1,5 @@
 import { BAUMAN_HUB_URL } from "./bauman-registry";
+import { integrationRussiaSiteUrl } from "./site-links";
 
 /* eslint-disable @next/next/no-html-link-for-pages -- the Sites preview relies on full navigation between independently deployed applications. */
 
@@ -72,15 +73,15 @@ const applications: ManagedApplication[] = [
     index: "04",
     category: "NGA · HÒA NHẬP",
     name: "HÒA NHẬP NGA",
-    description: "Web App người dùng để đọc nhãn thuốc, đối chiếu quy định và gửi ca cần kiểm duyệt.",
+    description: "Web App độc lập; thiết bị truy cập phải được Site Quản trị nhận diện và cấp quyền trước khi sử dụng.",
     tone: "russia",
     status: "connected",
     manageHref: "/medical-control",
-    manageLabel: "Vào quản trị Y tế",
-    webHref: "/medical-control",
-    webLabel: "Cấp quyền Web App",
-    parts: ["OCR thuốc trên thiết bị", "Đối chiếu và phân cấp 1–5", "Gửi ca về Trung tâm"],
-    boundary: "Hòa nhập Nga là Site người dùng độc lập; Trung tâm chỉ giữ kiểm duyệt, quyền truy cập và thống kê.",
+    manageLabel: "Quản lý thiết bị Hòa nhập Nga",
+    webHref: integrationRussiaSiteUrl,
+    webLabel: "Mở Web App ↗",
+    parts: ["Thiết bị HN & trạng thái", "Cấp quyền / thu hồi / khóa", "Kiểm duyệt & thống kê"],
+    boundary: "Hòa nhập Nga chạy ở Site riêng. Trung tâm chỉ quản lý quyền theo thiết bị, kiểm duyệt và dữ liệu điều hành; không chạy giao diện người dùng Hòa nhập Nga.",
   },
 ];
 
@@ -145,38 +146,38 @@ export default function AdminHub({ user }: { user: { displayName: string; email:
         <div className="hero-copy">
           <span className="hero-kicker">APPLICATION CONTROL PLANE</span>
           <h1>QUẢN TRỊ<br /><em>ỨNG DỤNG</em></h1>
-          <p>Một điểm điều phối cho các Site đang sử dụng. Chọn đúng ứng dụng để mở phần quản trị riêng, còn dữ liệu và quyền của từng Site vẫn được tách biệt.</p>
+          <p>Một điểm điều phối cho các Site đang sử dụng. Chọn đúng ứng dụng để mở phần quản trị riêng, còn runtime, dữ liệu và quyền của từng Site được tách theo đúng ranh giới.</p>
           <div className="hero-rule"><span /> <b>Lĩnh vực → Ứng dụng → Phần quản lý</b></div>
         </div>
         <aside className="hero-account-card">
-          <span className="hero-card-label">ĐỊNH DANH TRUY CẬP</span>
+          <span className="hero-card-label">ĐỊNH DANH QUẢN TRỊ</span>
           <strong>{user.email}</strong>
-          <p>Đăng nhập bằng tài khoản ChatGPT hiện tại. Nếu tài khoản đã liên kết Gmail, email liên kết được dùng làm định danh quản trị.</p>
-          <div className="hero-account-status"><i /> Tài khoản đã xác thực</div>
+          <p>Đăng nhập này chỉ dành cho Site Quản trị. Quyền vào Hòa nhập Nga được quyết định riêng theo thiết bị HN, không kế thừa từ tài khoản quản trị.</p>
+          <div className="hero-account-status"><i /> Thiết bị quản trị đã xác thực</div>
         </aside>
       </section>
 
       <section className="hub-summary" aria-label="Tổng quan kết nối">
-        <div><span>Site đã kết nối</span><strong>{connectedCount}</strong><small>Bauman · Bơi ếch · Sức khỏe</small></div>
+        <div><span>Site đã kết nối</span><strong>{connectedCount}</strong><small>Bauman · Bơi ếch · Sức khỏe · Hòa nhập Nga</small></div>
         <div><span>Điểm quản trị</span><strong>{managedCount}</strong><small>Điều hướng theo từng ứng dụng</small></div>
         <div><span>Site chờ kết nối</span><strong>{applications.length - connectedCount}</strong><small>Có thể mở rộng thêm</small></div>
-        <div><span>Tài khoản chính</span><strong>ChatGPT</strong><small>Gmail liên kết nếu có</small></div>
+        <div><span>Tài khoản quản trị</span><strong>ChatGPT</strong><small>Không thay thế quyền thiết bị Site con</small></div>
       </section>
 
       <section className="application-section" aria-labelledby="applications-heading">
         <div className="section-heading">
           <div><span className="hero-kicker">APPLICATION REGISTRY</span><h2 id="applications-heading">Các ứng dụng đang được điều phối</h2></div>
-          <p>Nhấn <b>Quản trị</b> để vào khu vực kiểm soát tương ứng. Nhấn <b>Mở Web App</b> để sử dụng Site riêng.</p>
+          <p>Nhấn <b>Quản trị</b> để vào khu vực kiểm soát tương ứng. Nhấn <b>Mở Web App</b> để mở Site riêng; Site đó tự kiểm tra quyền thiết bị của nó.</p>
         </div>
         <div className="application-grid">{applications.map((application) => <ApplicationCard key={application.id} application={application} />)}</div>
       </section>
 
       <section className="control-principles" aria-labelledby="principles-heading">
-        <div><span className="hero-kicker">CONTROL PRINCIPLES</span><h2 id="principles-heading">Một tài khoản, nhiều Site độc lập.</h2></div>
-        <div className="principle-list"><article><b>01</b><strong>Đăng nhập chung</strong><p>Dùng tài khoản ChatGPT hiện tại; email Gmail liên kết được nhận diện tự động.</p></article><article><b>02</b><strong>Quản trị đúng nơi</strong><p>Mỗi ứng dụng có khu vực quản trị riêng, không trộn nội dung hay dữ liệu vận hành.</p></article><article><b>03</b><strong>Mở rộng có kiểm soát</strong><p>Site mới chỉ cần thêm cấu hình vào sổ đăng ký, không phải thay đổi toàn bộ Trung tâm.</p></article></div>
+        <div><span className="hero-kicker">CONTROL PRINCIPLES</span><h2 id="principles-heading">Một Trung tâm, nhiều Site độc lập.</h2></div>
+        <div className="principle-list"><article><b>01</b><strong>Quản trị tập trung</strong><p>Tài khoản ChatGPT chỉ xác thực người quản trị và thiết bị quản trị.</p></article><article><b>02</b><strong>Quyền Site con tách biệt</strong><p>Mỗi ứng dụng có registry/quy trình quyền riêng; Hòa nhập Nga dùng quyền theo thiết bị HN.</p></article><article><b>03</b><strong>Mở rộng có kiểm soát</strong><p>Site mới thêm hợp đồng quản trị rõ ràng mà không đưa runtime người dùng vào Trung tâm.</p></article></div>
       </section>
 
-      <footer className="admin-hub-footer"><span>QUẢN TRỊ ỨNG DỤNG</span><p>Điều phối tập trung · dữ liệu phân tách · quyền truy cập có kiểm soát</p><a href="/system-control">Quản trị hệ thống →</a></footer>
+      <footer className="admin-hub-footer"><span>QUẢN TRỊ ỨNG DỤNG</span><p>Điều phối tập trung · runtime phân tách · quyền truy cập có kiểm soát</p><a href="/system-control">Quản trị hệ thống →</a></footer>
     </main>
   );
 }
