@@ -1,6 +1,6 @@
 import { ControlAccessError, controlErrorResponse, verifyControlProof } from "../../../../control-device.server";
 import { bulkUpdateManagedAppDevices, listManagedAppDeviceAudit } from "../../../../managed-app-device-admin.server";
-import { listManagedAppDevicesWithProfiles, updateManagedAppDeviceProfile } from "../../../../managed-app-device-profile.server";
+import { listManagedAppDevicesWithProfiles, updateManagedAppDeviceProfile, type ManagedAppDeviceWithProfile } from "../../../../managed-app-device-profile.server";
 import { updateManagedAppDevice } from "../../../../managed-app-device.server";
 
 export const dynamic = "force-dynamic";
@@ -8,6 +8,32 @@ export const dynamic = "force-dynamic";
 function requireGrantRole(role: string) {
   if (!["publisher", "owner"].includes(role)) {
     throw new ControlAccessError("Chỉ Publisher hoặc Owner được cấp/thu hồi quyền thiết bị Hòa nhập Nga.", 403, "ROLE_REQUIRED");
+  }
+}
+
+function profileComplete(device: ManagedAppDeviceWithProfile) {
+  return Boolean(device.profile?.personName?.trim() && device.profile?.personCode?.trim());
+}
+
+async function requireIdentifiedDevices(deviceIds: unknown) {
+  const requested = Array.isArray(deviceIds)
+    ? [...new Set(deviceIds.filter((value): value is string => typeof value === "string" && /^[a-f0-9]{64}$/.test(value)))]
+    : typeof deviceIds === "string" && /^[a-f0-9]{64}$/.test(deviceIds) ? [deviceIds] : [];
+  if (!requested.length) throw new ControlAccessError("Không có thiết bị Hòa nhập Nga hợp lệ để cấp quyền.", 400, "INVALID_DEVICE");
+
+  const devices = await listManagedAppDevicesWithProfiles("hoa-nhap-nga");
+  const selected = requested.map((deviceId) => devices.find((device) => device.deviceId === deviceId)).filter(Boolean) as ManagedAppDeviceWithProfile[];
+  if (selected.length !== requested.length) {
+    throw new ControlAccessError("Có thiết bị không còn tồn tại trong registry Hòa nhập Nga.", 404, "DEVICE_NOT_FOUND");
+  }
+  const incomplete = selected.filter((device) => !profileComplete(device));
+  if (incomplete.length) {
+    const codes = incomplete.slice(0, 5).map((device) => device.deviceCode).join(", ");
+    throw new ControlAccessError(
+      `Chưa thể cấp quyền. Hãy nhập đủ Họ tên và Mã người dùng cho ${incomplete.length} thiết bị${codes ? `: ${codes}` : ""}.`,
+      409,
+      "DEVICE_PROFILE_REQUIRED",
+    );
   }
 }
 
@@ -29,12 +55,14 @@ export async function POST(request: Request) {
       return Response.json({
         actor,
         app: { id: "hoa-nhap-nga", name: "Hòa nhập Nga" },
+        policy: { requireIdentifiedUserBeforeApprove: true },
         ...(await responseState(actor.role)),
       }, { headers: { "cache-control": "no-store, private", "x-content-type-options": "nosniff" } });
     }
 
     if (["approve", "block", "pending", "label"].includes(action)) {
       requireGrantRole(actor.role);
+      if (action === "approve") await requireIdentifiedDevices(body.deviceId);
       const status = action === "approve" ? "approved" : action === "block" ? "blocked" : action === "pending" ? "pending" : undefined;
       await updateManagedAppDevice({
         appId: "hoa-nhap-nga",
@@ -43,7 +71,7 @@ export async function POST(request: Request) {
         label: action === "label" ? body.label : undefined,
         actor: actor.email,
       });
-      return Response.json({ ok: true, ...(await responseState(actor.role)) }, {
+      return Response.json({ ok: true, policy: { requireIdentifiedUserBeforeApprove: true }, ...(await responseState(actor.role)) }, {
         headers: { "cache-control": "no-store, private", "x-content-type-options": "nosniff" },
       });
     }
@@ -60,7 +88,7 @@ export async function POST(request: Request) {
         adminNote: body.adminNote,
         actor: actor.email,
       });
-      return Response.json({ ok: true, ...(await responseState(actor.role)) }, {
+      return Response.json({ ok: true, policy: { requireIdentifiedUserBeforeApprove: true }, ...(await responseState(actor.role)) }, {
         headers: { "cache-control": "no-store, private", "x-content-type-options": "nosniff" },
       });
     }
@@ -70,13 +98,14 @@ export async function POST(request: Request) {
       const operation = typeof body.operation === "string" ? body.operation : "";
       const status = operation === "approve" ? "approved" : operation === "block" ? "blocked" : operation === "pending" ? "pending" : null;
       if (!status) throw new ControlAccessError("Thao tác hàng loạt không hợp lệ.", 400, "INVALID_BULK_ACTION");
+      if (operation === "approve") await requireIdentifiedDevices(body.deviceIds);
       await bulkUpdateManagedAppDevices({
         appId: "hoa-nhap-nga",
         deviceIds: body.deviceIds,
         status,
         actor: actor.email,
       });
-      return Response.json({ ok: true, ...(await responseState(actor.role)) }, {
+      return Response.json({ ok: true, policy: { requireIdentifiedUserBeforeApprove: true }, ...(await responseState(actor.role)) }, {
         headers: { "cache-control": "no-store, private", "x-content-type-options": "nosniff" },
       });
     }
