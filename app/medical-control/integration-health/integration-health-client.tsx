@@ -21,6 +21,30 @@ type Integration = {
   message: string;
 };
 
+type Session = {
+  sessionId: string;
+  deviceId: string;
+  deviceCode: string;
+  issuedAt: string;
+  expiresAt: number;
+  lastSeenAt: string;
+  revokedAt: string | null;
+  revokeReason: string | null;
+  state: "active" | "revoked" | "expired";
+};
+
+type Incident = {
+  id: number;
+  severity: "degraded" | "down";
+  code: string;
+  message: string;
+  targetUrl: string;
+  startedAt: string;
+  lastSeenAt: string;
+  resolvedAt: string | null;
+  occurrences: number;
+};
+
 type HealthResponse = {
   ok: boolean;
   actor: ControlAccess;
@@ -31,9 +55,12 @@ type HealthResponse = {
     approved: number;
     blocked: number;
     active: number;
+    activeSessions: number;
     unknownClass: number;
     missingUserProfile: number;
   };
+  sessions: Session[];
+  incidents: Incident[];
 };
 
 const capabilityLabel: Record<string, string> = {
@@ -59,10 +86,27 @@ function formatTime(value: string) {
   });
 }
 
+function formatExpiry(value: number) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
 function overallLabel(value: Integration["overall"]) {
   if (value === "healthy") return "KẾT NỐI TỐT";
   if (value === "degraded") return "CẦN KIỂM TRA";
   return "MẤT KẾT NỐI";
+}
+
+function sessionLabel(value: Session["state"]) {
+  if (value === "active") return "ĐANG HOẠT ĐỘNG";
+  if (value === "revoked") return "ĐÃ THU HỒI";
+  return "ĐÃ HẾT HẠN";
 }
 
 export default function IntegrationHealthClient({ user }: { user: { displayName: string; email: string } }) {
@@ -109,18 +153,20 @@ export default function IntegrationHealthClient({ user }: { user: { displayName:
   }, [data]);
 
   if (!data) {
-    return <main className="health-loading"><div><span>HN</span><h1>{error || "Đang kiểm tra kết nối RU_LIFE…"}</h1><p>Quản trị ứng dụng đang kiểm tra runtime, shared secret và registry thiết bị.</p><button onClick={() => void refresh()} disabled={loading}>Thử lại</button><a href="/medical-control">← Quay lại Hòa nhập Nga</a></div></main>;
+    return <main className="health-loading"><div><span>HN</span><h1>{error || "Đang kiểm tra kết nối RU_LIFE…"}</h1><p>Quản trị ứng dụng đang kiểm tra runtime, shared secret, registry thiết bị và phiên quyền.</p><button onClick={() => void refresh()} disabled={loading}>Thử lại</button><a href="/medical-control">← Quay lại Hòa nhập Nga</a></div></main>;
   }
 
   const integration = data.integration;
   const appBaseUrl = integration.targetUrl.replace(/\/api\/integration\/health$/, "");
   const secretOk = integration.secretHandshake === "ok";
+  const openIncidents = data.incidents.filter((incident) => !incident.resolvedAt).length;
 
   return <main className="health-shell">
     <aside className="health-side">
       <a className="health-brand" href="/medical-control"><span>HN</span><div><small>HÒA NHẬP NGA · QUẢN TRỊ</small><strong>Kiểm tra kết nối</strong></div></a>
       <nav>
-        <a className="active" href="/medical-control/integration-health">Tổng quan kết nối</a>
+        <a className="active" href="/medical-control/integration-health">Kết nối · phiên · sự cố</a>
+        <a href="/medical-control/access-preflight">Preflight cấp quyền</a>
         <a href="/medical-control">Thiết bị · người dùng</a>
         <a href="/medical-control/device-classification">Phân loại thiết bị</a>
         <a href={appBaseUrl} target="_blank" rel="noreferrer">Mở RU_LIFE ↗</a>
@@ -153,15 +199,39 @@ export default function IntegrationHealthClient({ user }: { user: { displayName:
       </section>
 
       <section className="health-section">
-        <header><div><span>REGISTRY HÒA NHẬP NGA</span><h2>Thiết bị do Quản trị ứng dụng đang giữ</h2></div><a href="/medical-control">Mở quản lý thiết bị →</a></header>
+        <header><div><span>REGISTRY HÒA NHẬP NGA</span><h2>Thiết bị và phiên quyền do Trung tâm đang giữ</h2></div><a href="/medical-control/access-preflight">Mở preflight →</a></header>
         <div className="health-grid registry">
           <article><span>Tổng thiết bị</span><strong>{data.registry.total}</strong><small>managed_app_devices</small></article>
-          <article><span>Đang online</span><strong>{data.registry.active}</strong><small>heartbeat trong 5 phút</small></article>
+          <article><span>Thiết bị online</span><strong>{data.registry.active}</strong><small>heartbeat trong 5 phút</small></article>
+          <article className={data.registry.activeSessions ? "ok" : ""}><span>Phiên quyền active</span><strong>{data.registry.activeSessions}</strong><small>token quyền chưa hết hạn/thu hồi</small></article>
           <article><span>Chờ duyệt</span><strong>{data.registry.pending}</strong><small>chưa được truy cập</small></article>
           <article><span>Đã cấp quyền</span><strong>{data.registry.approved}</strong><small>được phép challenge</small></article>
           <article><span>Đã khóa</span><strong>{data.registry.blocked}</strong><small>không được tạo phiên</small></article>
           <article className={data.registry.unknownClass ? "warn" : ""}><span>Chưa phân loại</span><strong>{data.registry.unknownClass}</strong><small>cần xác minh loại thiết bị</small></article>
           <article className={data.registry.missingUserProfile ? "warn" : ""}><span>Thiếu hồ sơ người dùng</span><strong>{data.registry.missingUserProfile}</strong><small>không được cấp quyền</small></article>
+        </div>
+      </section>
+
+      <section className="health-section health-operations">
+        <header><div><span>PHIÊN QUYỀN RU_LIFE</span><h2>Access token được Trung tâm phát gần đây</h2></div><small>{data.registry.activeSessions} phiên đang hoạt động</small></header>
+        <div className="health-session-list">
+          {data.sessions.slice(0, 20).map((session) => <article key={session.sessionId} className={`session-${session.state}`}>
+            <div><strong>{session.deviceCode}</strong><span>{sessionLabel(session.state)}</span></div>
+            <dl><div><dt>Phát lúc</dt><dd>{formatTime(session.issuedAt)}</dd></div><div><dt>Hết hạn</dt><dd>{formatExpiry(session.expiresAt)}</dd></div><div><dt>Session ID</dt><dd>{session.sessionId.slice(0, 12)}…</dd></div><div><dt>Lý do kết thúc</dt><dd>{session.revokeReason || (session.state === "expired" ? "expired" : "—")}</dd></div></dl>
+          </article>)}
+          {!data.sessions.length ? <div className="health-empty-ops">Chưa có access session nào được phát.</div> : null}
+        </div>
+      </section>
+
+      <section className="health-section health-operations">
+        <header><div><span>LỊCH SỬ SỰ CỐ KẾT NỐI</span><h2>Chỉ ghi khi RU_LIFE degraded hoặc down</h2></div><small>{openIncidents} sự cố đang mở</small></header>
+        <div className="health-incident-list">
+          {data.incidents.map((incident) => <article key={incident.id} className={incident.resolvedAt ? "resolved" : incident.severity}>
+            <div><strong>{incident.code}</strong><span>{incident.resolvedAt ? "ĐÃ KHÔI PHỤC" : incident.severity === "down" ? "ĐANG MẤT KẾT NỐI" : "ĐANG CẦN KIỂM TRA"}</span></div>
+            <p>{incident.message}</p>
+            <footer><span>Bắt đầu {formatTime(incident.startedAt)}</span><span>Lặp {incident.occurrences} lần</span><span>{incident.resolvedAt ? `Khôi phục ${formatTime(incident.resolvedAt)}` : `Gần nhất ${formatTime(incident.lastSeenAt)}`}</span></footer>
+          </article>)}
+          {!data.incidents.length ? <div className="health-empty-ops">Chưa ghi nhận sự cố kết nối RU_LIFE.</div> : null}
         </div>
       </section>
 
