@@ -49,7 +49,7 @@ Application Management không được:
 | Application Management | `QT-` | Thiết bị quản trị Trung tâm |
 | Bơi ếch | `BE-` | Registry Bơi ếch |
 | Sức khỏe Y tế | `SK-` | Registry Health_Care |
-| Hòa nhập Nga | `HN-` | Gateway/session Hòa nhập Nga |
+| Hòa nhập Nga | `HN-` | Registry + session thuộc RU_LIFE |
 | Bauman | `BM-` | Contract yêu cầu, backend chưa triển khai |
 | GrowUP | `GU-` | Contract yêu cầu, backend chưa triển khai |
 
@@ -81,21 +81,19 @@ Trạng thái vẫn là `migrating` cho tới khi xác minh secret/origin/deploy
 
 ## Hòa nhập Nga
 
-`RU_LIFE` là client độc lập, không có form đăng nhập trực tiếp. `main` đã có runtime/PWA và contract Application Management.
+`RU_LIFE` là client độc lập, không có form đăng nhập trực tiếp. `main` hiện sở hữu toàn bộ runtime PWA, D1, registry `HN-`, challenge P-256, session ledger và audit HN.
 
-Application Management đã có:
+Luồng quản trị hiện tại:
 
-- namespace `HN-`;
-- đăng ký thiết bị + phân loại computer/phone/tablet;
-- challenge ECDSA P-256;
-- gắn Họ tên + Mã người dùng trước khi duyệt;
-- access token HMAC 15 phút bằng `RU_LIFE_CONTROL_SERVICE_SECRET`;
-- session ledger và thu hồi từ xa;
-- quyền sửa tách khỏi quyền truy cập;
-- audit Hòa nhập Nga;
-- khu quản trị HN riêng.
+1. thiết bị người dùng đăng ký/challenge/authorize **same-origin trong RU_LIFE**;
+2. RU_LIFE server tự phân loại computer/phone/tablet-iPad và lưu registry `HN-`;
+3. Application Management xác thực thiết bị quản trị `QT-` rồi phát vé bridge HMAC 5 phút;
+4. UI quản trị gọi `/api/control/devices`, `/sessions`, `/audit` của RU_LIFE bằng vé đó;
+5. RU_LIFE tự ghi thay đổi access/edit/session/audit vào D1 của chính client.
 
-Code và CI hai repo đã xanh; vẫn giữ `migrating` tới khi migration D1, origin/secret và ownership registry production được xác minh.
+Application Management không còn route runtime cho đăng ký HN, không phát session người dùng HN và không đọc/ghi bảng `ru_life_*` trong request path. Migration `drizzle/0002_ru_life_device_gateway.sql` được giữ lại **chỉ như lịch sử legacy** để tránh drop dữ liệu chưa xác minh; không được dùng làm nguồn state mới.
+
+RU_LIFE standalone CI và Application Management bridge CI đã xanh. Trạng thái vẫn là `migrating` cho tới khi xác minh `RU_LIFE_BASE_URL`, secret dùng chung và D1 production thật.
 
 ## Bauman Hub
 
@@ -125,7 +123,7 @@ Control-plane tuyệt đối không nhận hồ sơ trẻ, health/nutrition reco
 |---|---|---|---|
 | Bơi ếch | Có | Connected | Connected |
 | Health_Care | Có | Adapter + UI thật | Migrating |
-| RU_LIFE | Có | Gateway + UI thật | Migrating |
+| RU_LIFE | Có + D1 riêng | Signed bridge + Control API | Migrating |
 | Bauman Hub | Có | Management readiness | Pending backend |
 | GrowUP | Có | Privacy/readiness management | Pending backend |
 
