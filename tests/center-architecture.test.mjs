@@ -12,6 +12,12 @@ test("root is a central ApplicationHub, not the Boi Ech monolith", () => {
   assert.doesNotMatch(page, /ControlCenter/);
 });
 
+test("legacy Boi admin monolith and CSS hiding hacks stay deleted", () => {
+  assert.equal(fs.existsSync(new URL("../app/control-center.tsx", import.meta.url)), false);
+  assert.equal(fs.existsSync(new URL("../app/boi-admin-boundary.module.css", import.meta.url)), false);
+  assert.equal(fs.existsSync(new URL("../app/api/content/route.ts", import.meta.url)), false);
+});
+
 test("central API verifies signed control-device proof and owns only central permissions", () => {
   const route = source("app/api/center/route.ts");
   assert.match(route, /verifyControlProof/);
