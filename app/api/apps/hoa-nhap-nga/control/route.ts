@@ -5,6 +5,8 @@ import { updateManagedAppDevice } from "../../../../managed-app-device.server";
 
 export const dynamic = "force-dynamic";
 
+const CLASSIFICATION_REVIEW_THRESHOLD = 60;
+
 function requireGrantRole(role: string) {
   if (!["publisher", "owner"].includes(role)) {
     throw new ControlAccessError("Chỉ Publisher hoặc Owner được cấp/thu hồi quyền thiết bị Hòa nhập Nga.", 403, "ROLE_REQUIRED");
@@ -13,6 +15,11 @@ function requireGrantRole(role: string) {
 
 function profileComplete(device: ManagedAppDeviceWithProfile) {
   return Boolean(device.profile?.personName?.trim() && device.profile?.personCode?.trim());
+}
+
+function classificationResolved(device: ManagedAppDeviceWithProfile) {
+  if (device.deviceClassOverride) return device.deviceClassOverride !== "unknown";
+  return device.autoDeviceClass !== "unknown" && device.classificationConfidence >= CLASSIFICATION_REVIEW_THRESHOLD;
 }
 
 async function requireIdentifiedDevices(deviceIds: unknown) {
@@ -35,12 +42,29 @@ async function requireIdentifiedDevices(deviceIds: unknown) {
       "DEVICE_PROFILE_REQUIRED",
     );
   }
+  const unresolved = selected.filter((device) => !classificationResolved(device));
+  if (unresolved.length) {
+    const codes = unresolved.slice(0, 5).map((device) => device.deviceCode).join(", ");
+    throw new ControlAccessError(
+      `Chưa thể cấp quyền. ${unresolved.length} thiết bị chưa xác định chắc chắn là máy tính, điện thoại hay máy tính bảng${codes ? `: ${codes}` : ""}. Hãy kiểm tra và chọn phân loại thủ công nếu cần.`,
+      409,
+      "DEVICE_CLASSIFICATION_REQUIRED",
+    );
+  }
 }
 
 async function responseState(role: string) {
   return {
     devices: await listManagedAppDevicesWithProfiles("hoa-nhap-nga"),
     auditLog: ["publisher", "owner"].includes(role) ? await listManagedAppDeviceAudit("hoa-nhap-nga") : [],
+  };
+}
+
+function policy() {
+  return {
+    requireIdentifiedUserBeforeApprove: true,
+    requireResolvedDeviceClassBeforeApprove: true,
+    classificationReviewThreshold: CLASSIFICATION_REVIEW_THRESHOLD,
   };
 }
 
@@ -55,12 +79,12 @@ export async function POST(request: Request) {
       return Response.json({
         actor,
         app: { id: "hoa-nhap-nga", name: "Hòa nhập Nga" },
-        policy: { requireIdentifiedUserBeforeApprove: true },
+        policy: policy(),
         ...(await responseState(actor.role)),
       }, { headers: { "cache-control": "no-store, private", "x-content-type-options": "nosniff" } });
     }
 
-    if (["approve", "block", "pending", "label"].includes(action)) {
+    if (["approve", "block", "pending", "label", "classify"].includes(action)) {
       requireGrantRole(actor.role);
       if (action === "approve") await requireIdentifiedDevices(body.deviceId);
       const status = action === "approve" ? "approved" : action === "block" ? "blocked" : action === "pending" ? "pending" : undefined;
@@ -69,9 +93,10 @@ export async function POST(request: Request) {
         deviceId: body.deviceId,
         status,
         label: action === "label" ? body.label : undefined,
+        deviceClassOverride: action === "classify" ? body.deviceClass : undefined,
         actor: actor.email,
       });
-      return Response.json({ ok: true, policy: { requireIdentifiedUserBeforeApprove: true }, ...(await responseState(actor.role)) }, {
+      return Response.json({ ok: true, policy: policy(), ...(await responseState(actor.role)) }, {
         headers: { "cache-control": "no-store, private", "x-content-type-options": "nosniff" },
       });
     }
@@ -88,7 +113,7 @@ export async function POST(request: Request) {
         adminNote: body.adminNote,
         actor: actor.email,
       });
-      return Response.json({ ok: true, policy: { requireIdentifiedUserBeforeApprove: true }, ...(await responseState(actor.role)) }, {
+      return Response.json({ ok: true, policy: policy(), ...(await responseState(actor.role)) }, {
         headers: { "cache-control": "no-store, private", "x-content-type-options": "nosniff" },
       });
     }
@@ -105,7 +130,7 @@ export async function POST(request: Request) {
         status,
         actor: actor.email,
       });
-      return Response.json({ ok: true, policy: { requireIdentifiedUserBeforeApprove: true }, ...(await responseState(actor.role)) }, {
+      return Response.json({ ok: true, policy: policy(), ...(await responseState(actor.role)) }, {
         headers: { "cache-control": "no-store, private", "x-content-type-options": "nosniff" },
       });
     }
