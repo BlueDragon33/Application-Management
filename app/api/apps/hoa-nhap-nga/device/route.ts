@@ -78,6 +78,7 @@ function verifiedProfile(request: Request, value: unknown) {
     clientDeviceClass: clean(source.deviceClass, 30) || null,
     clientClassificationConfidence: numeric(source.classificationConfidence, 0, 100),
     clientClassificationSource: clean(source.classificationSource, 80) || null,
+    // Application Management chooses the final class; client values remain evidence only.
     deviceClass: classification.deviceClass,
     classificationConfidence: classification.confidence,
     classificationSource: classification.source,
