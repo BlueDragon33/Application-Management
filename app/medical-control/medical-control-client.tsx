@@ -227,7 +227,10 @@ export default function MedicalControlClient({ user }: { user: { displayName: st
       if (!options.quiet) setBusy(false);
     }
   }
-  refreshRef.current = refresh;
+
+  useEffect(() => {
+    refreshRef.current = refresh;
+  });
 
   async function changeDevice(deviceId: string, action: "approve" | "block" | "pending") {
     if (action === "block" && !window.confirm("Khóa thiết bị này? Thiết bị sẽ không thể lấy phiên truy cập mới.")) return;
