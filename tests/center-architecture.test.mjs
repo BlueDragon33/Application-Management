@@ -82,7 +82,31 @@ test("dashboard supports global search and compact application rows for scale", 
   assert.match(hub, /ApplicationTable/);
   assert.match(hub, /Một hàng \/ một client/);
   assert.match(hub, /appFilter/);
+  assert.match(hub, /deviceFilter/);
+  assert.match(hub, /timeFilter/);
+  assert.match(hub, /Thời gian: 7 ngày/);
   assert.doesNotMatch(hub, /ClientStatusRow/);
+});
+
+test("reference dashboard composition keeps every operational surface interactive", () => {
+  const hub = source("app/application-hub.tsx");
+  const css = source("app/center-admin.module.css");
+  for (const label of [
+    "Bảng điều phối quản trị ứng dụng",
+    "Tổng ứng dụng",
+    "Thiết bị mới chờ duyệt",
+    "Cảnh báo hôm nay",
+    "Ca kiểm duyệt cần xử lý",
+    "Hộp việc ưu tiên",
+    "Thiết bị mới theo ứng dụng",
+    "Ứng dụng đang quản lý",
+    "Cảnh báo nhanh",
+  ]) assert.match(hub, new RegExp(label));
+  assert.match(hub, /signout-with-chatgpt/);
+  assert.match(hub, /centerAdminAction/);
+  assert.match(hub, /refreshOperations/);
+  assert.match(css, /grid-template-columns:\s*292px/);
+  assert.match(css, /\.dashboardGrid/);
 });
 
 test("central UI reports new devices with the owning application and never claims central ownership", () => {
