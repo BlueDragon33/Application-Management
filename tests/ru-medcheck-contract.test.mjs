@@ -56,7 +56,8 @@ test("Hòa nhập Nga has a separate device registry from Site Quản trị devi
   assert.match(managed, /managed_app_challenges/);
   assert.match(managed, /ManagedAppId = "hoa-nhap-nga"/);
   assert.match(managed, /"pending" \| "approved" \| "blocked"/);
-  assert.match(managed, /HN-/);
+  assert.match(managed, /const prefix = appId === "hoa-nhap-nga" \? "HN" : "APP"/);
+  assert.match(managed, /`\$\{prefix\}-\$\{deviceId\.slice\(0, 4\)\}/);
   assert.match(migration, /CREATE TABLE `managed_app_devices`/);
   assert.match(migration, /PRIMARY KEY\(`app_id`, `device_id`\)/);
   assert.match(schema, /managedAppDevices/);
