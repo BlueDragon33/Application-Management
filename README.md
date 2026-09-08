@@ -91,7 +91,9 @@ Luồng quản trị hiện tại:
 4. UI quản trị gọi `/api/control/devices`, `/sessions`, `/audit` của RU_LIFE bằng vé đó;
 5. RU_LIFE tự ghi thay đổi access/edit/session/audit vào D1 của chính client.
 
-Application Management không còn route runtime cho đăng ký HN, không phát session người dùng HN và không đọc/ghi bảng `ru_life_*` trong request path. Migration `drizzle/0002_ru_life_device_gateway.sql` được giữ lại **chỉ như lịch sử legacy** để tránh drop dữ liệu chưa xác minh; không được dùng làm nguồn state mới.
+Application Management không còn route runtime cho đăng ký HN, không phát session người dùng HN và không đọc/ghi bảng `ru_life_*` trong request path. Migration `drizzle/0002_ru_life_device_gateway.sql` được giữ lại **chỉ như lịch sử legacy** và không nằm trong journal triển khai; không được dùng làm nguồn state mới.
+
+Các migration đã từng được áp dụng cho D1 của Site được giữ nguyên như lịch sử bất biến, kể cả khi bảng legacy không còn được runtime sử dụng. Việc dọn dữ liệu legacy phải là một migration riêng có kiểm kê và phê duyệt, không được thực hiện ngầm trong lần chuyển hosting này.
 
 RU_LIFE standalone CI và Application Management bridge CI đã xanh. Trạng thái vẫn là `migrating` cho tới khi xác minh `RU_LIFE_BASE_URL`, secret dùng chung và D1 production thật.
 
@@ -130,6 +132,10 @@ Control-plane tuyệt đối không nhận hồ sơ trẻ, health/nutrition reco
 Không đổi `migrating/pending` thành `connected` chỉ vì code build xanh; phải có bằng chứng deployment/configuration thật.
 
 ## Bảo mật Trung tâm
+
+Site dùng **đăng nhập ChatGPT do nền tảng Sites điều phối**. Ứng dụng chỉ đọc các header danh tính đã được Sites xác thực (`oai-authenticated-user-id`, `oai-authenticated-user-email` và tên hiển thị tùy chọn); không duy trì mật khẩu, cookie phiên hoặc OAuth riêng.
+
+Quyền xem Site được áp dụng bởi access policy của ChatGPT Sites. Sau khi xác thực, quyền nghiệp vụ vẫn được kiểm tra ở server theo thiết bị quản trị và vai trò trong D1.
 
 Thiết bị quản trị dùng P-256 + challenge một lần. Vai trò:
 

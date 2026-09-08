@@ -1123,7 +1123,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
           {["reviewer", "publisher", "owner"].includes(access.role) ? <button className={tab === "content" ? "active" : ""} onClick={() => setTab("content")}><i>⌁</i>Duyệt chỉnh sửa</button> : null}
         </nav>
         <div className="client-boundary-note"><strong>Ranh giới Bơi ếch</strong><span>Thiết bị học, tiến độ, AI, thanh toán và nội dung thuộc client này. Quyền QT và audit Trung tâm nằm ở Application Management.</span></div>
-        <div className="signed-user"><span>{user.displayName.slice(0, 1).toUpperCase()}</span><div><strong>{user.displayName}</strong><small>{roleLabels[access.role]}</small></div><a href="/logout?return_to=/login">Đăng xuất</a></div>
+        <div className="signed-user"><span>{user.displayName.slice(0, 1).toUpperCase()}</span><div><strong>{user.displayName}</strong><small>{roleLabels[access.role]}</small></div><a href="/signout-with-chatgpt?return_to=/">Đăng xuất</a></div>
       </aside>
 
       <section className="control-main">

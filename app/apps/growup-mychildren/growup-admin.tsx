@@ -56,7 +56,10 @@ export default function GrowUpAdmin({ user }: { user: { displayName: string; ema
     finally { setBusy(false); }
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
   const available = readiness.filter((item) => item[1] === "available").length;
   if (!access || access.status !== "approved") return <Gate access={access} busy={busy} error={error} retry={() => void load()} />;
 

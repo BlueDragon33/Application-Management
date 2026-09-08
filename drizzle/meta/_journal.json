@@ -15,6 +15,20 @@
       "when": 1786611612526,
       "tag": "0001_wild_joystick",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1788831788011,
+      "tag": "0002_happy_la_nuit",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1788833322349,
+      "tag": "0003_regular_siren",
+      "breakpoints": true
     }
   ]
 }

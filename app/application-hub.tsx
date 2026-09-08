@@ -213,11 +213,16 @@ export default function ApplicationHub({ user }: { user: { displayName: string; 
   }
 
   useEffect(() => {
-    const requested = new URLSearchParams(window.location.search).get("view");
-    const valid: CenterView[] = ["overview", "inbox", "applications", "client-devices", "alerts", "devices", "audit", "settings"];
-    if (requested && valid.includes(requested as CenterView)) setView(requested as CenterView);
-    if (requested === "topology") setView("settings");
-    void initialize();
+    const timer = window.setTimeout(() => {
+      const requested = new URLSearchParams(window.location.search).get("view");
+      const valid: CenterView[] = ["overview", "inbox", "applications", "client-devices", "alerts", "devices", "audit", "settings"];
+      if (requested && valid.includes(requested as CenterView)) setView(requested as CenterView);
+      if (requested === "topology") setView("settings");
+      void initialize();
+    }, 0);
+    return () => window.clearTimeout(timer);
+    // The first connection is intentionally tied to the mounted control-plane shell.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function switchView(next: CenterView) {

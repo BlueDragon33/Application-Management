@@ -17,7 +17,7 @@ const executionContext = {
   passThroughOnException() {},
 };
 
-test("redirects unauthenticated visitors to the dedicated admin login", async () => {
+test("redirects unauthenticated visitors to ChatGPT sign-in", async () => {
   const worker = await loadWorker();
   const response = await worker.fetch(
     new Request("http://localhost/", { headers: { accept: "text/html" }, redirect: "manual" }),
@@ -27,7 +27,7 @@ test("redirects unauthenticated visitors to the dedicated admin login", async ()
 
   assert.equal(response.status, 307);
   const location = new URL(response.headers.get("location"));
-  assert.equal(location.pathname, "/login");
+  assert.equal(location.pathname, "/signin-with-chatgpt");
   assert.equal(location.searchParams.get("return_to"), "/");
 });
 

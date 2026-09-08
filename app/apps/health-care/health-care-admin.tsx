@@ -116,6 +116,10 @@ type HealthVersion = {
   updated_at: string;
 };
 
+function reusableBridge(bridge: ApplicationBridge | null) {
+  return bridge && bridge.expiresAt > Date.now() + 30_000 ? bridge : null;
+}
+
 type DevicesResponse = { application: string; devices: HealthDevice[]; error?: string };
 type SessionsResponse = { application: string; sessions: HealthSession[]; error?: string };
 type AuditResponse = { application: string; audit: HealthAudit[]; error?: string };
@@ -192,7 +196,8 @@ export default function HealthCareAdmin({ user }: { user: { displayName: string;
   const canOwn = role === "owner";
 
   async function freshBridge() {
-    if (bridge && bridge.expiresAt > Date.now() + 30_000) return bridge;
+    const cached = reusableBridge(bridge);
+    if (cached) return cached;
     const result = await connectHealthCareAdmin();
     setAccess(result.access);
     if (!result.bootstrap) throw new Error("Thiết bị quản trị chưa được cấp quyền cho Application Management.");
@@ -239,7 +244,10 @@ export default function HealthCareAdmin({ user }: { user: { displayName: string;
     }
   }
 
-  useEffect(() => { void loadAll(); }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void loadAll(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   async function refreshLight() {
     try {

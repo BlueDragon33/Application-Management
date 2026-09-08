@@ -52,7 +52,10 @@ export default function BaumanAdmin({ application, user }: { application: Applic
     } finally { setBusy(false); }
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const children = application.childClients ?? [];
   const independent = children.filter((item) => item.state === "independent").length;

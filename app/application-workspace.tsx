@@ -60,7 +60,10 @@ export default function ApplicationWorkspace({ application, user }: { applicatio
     } finally { setBusy(false); }
   }
 
-  useEffect(() => { void verifyAccess(); }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void verifyAccess(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const hasChildren = Boolean(application.childClients?.length);
   const childCount = application.childClients?.length ?? 0;

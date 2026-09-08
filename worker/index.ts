@@ -1,4 +1,4 @@
-/** Cloudflare Worker entry point for Learning Management. */
+/** Cloudflare Worker entry point for Application Management. */
 import handler from "vinext/server/app-router-entry";
 
 interface Env {
@@ -7,6 +7,12 @@ interface Env {
   BOI_ECH_BASE_URL?: string;
   CONTROL_SERVICE_SECRET?: string;
   CONTROL_OWNER_EMAILS?: string;
+  HEALTH_CARE_BASE_URL?: string;
+  HEALTH_CONTROL_SERVICE_SECRET?: string;
+  RU_LIFE_BASE_URL?: string;
+  RU_LIFE_CONTROL_SERVICE_SECRET?: string;
+  BAUMAN_CONTROL_BASE_URL?: string;
+  BAUMAN_CONTROL_SERVICE_SECRET?: string;
 }
 
 interface ExecutionContext {

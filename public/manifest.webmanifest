@@ -1,7 +1,7 @@
 {
-  "name": "Trung tâm quản trị học tập",
-  "short_name": "Quản trị học tập",
-  "description": "Ứng dụng quản lý thiết bị, thanh toán, tiến độ và duyệt nội dung học tập.",
+  "name": "Application Management",
+  "short_name": "Application Mgmt",
+  "description": "Control-plane quản lý ứng dụng, thiết bị quản trị, quyền truy cập và nhật ký bảo mật.",
   "lang": "vi",
   "start_url": "/",
   "scope": "/",

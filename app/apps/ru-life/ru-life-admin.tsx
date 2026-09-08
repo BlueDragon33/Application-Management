@@ -69,6 +69,10 @@ type RuAudit = {
   createdAt: string;
 };
 
+function reusableBridge(bridge: ApplicationBridge | null) {
+  return bridge && bridge.expiresAt > Date.now() + 30_000 ? bridge : null;
+}
+
 type DeviceResponse = {
   ok?: boolean;
   devices?: RuDevice[];
@@ -145,7 +149,8 @@ export default function RuLifeAdmin({ user }: { user: { displayName: string; ema
   const canReview = role === "reviewer" || canManage;
 
   async function freshBridge() {
-    if (bridge && bridge.expiresAt > Date.now() + 30_000) return bridge;
+    const cached = reusableBridge(bridge);
+    if (cached) return cached;
     const result = await connectRuLifeAdmin();
     setAccess(result.access);
     if (!result.bootstrap?.bridge) throw new Error("Không thể nhận vé quản trị Hòa nhập Nga.");
@@ -183,7 +188,10 @@ export default function RuLifeAdmin({ user }: { user: { displayName: string; ema
     }
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   async function refreshAudit(currentBridge: ApplicationBridge) {
     if (!canReview) return;

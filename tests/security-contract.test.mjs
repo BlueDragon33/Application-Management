@@ -8,6 +8,18 @@ async function source(path) {
 
 const boiClientPath = "app/apps/boi-ech/boi-ech-control-center.tsx";
 
+test("uses dispatch-owned ChatGPT authentication without an app password stack", async () => {
+  const auth = await source("app/chatgpt-auth.ts");
+  const worker = await source("worker/index.ts");
+
+  assert.match(auth, /oai-authenticated-user-id/);
+  assert.match(auth, /oai-authenticated-user-email/);
+  assert.match(auth, /\/signin-with-chatgpt/);
+  assert.match(auth, /\/signout-with-chatgpt/);
+  assert.doesNotMatch(auth, /ADMIN_PASSWORD_HASH|ADMIN_SESSION_SECRET|PBKDF2|__Host-/);
+  assert.doesNotMatch(worker, /ADMIN_PASSWORD_HASH|ADMIN_SESSION_SECRET/);
+});
+
 test("binds every central admin device to P-256 and a one-time challenge", async () => {
   const client = await source("app/admin-device-client.ts");
   const server = await source("app/control-device.server.ts");
