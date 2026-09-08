@@ -30,11 +30,28 @@ test("HN access-token issuance is recorded and revoke or block closes active led
   assert.match(sessions, /recordManagedAppSession/);
   assert.match(sessions, /revokeManagedAppDeviceSessions/);
   assert.match(deviceRoute, /recordManagedAppSession/);
+  assert.match(deviceRoute, /accessToken: authorization\.accessToken/);
   assert.match(deviceRoute, /authorization\.expiresAt/);
   assert.match(controlRoute, /revokeManagedAppDeviceSessions/);
   assert.match(controlRoute, /revokeManagedAppSessionsBulk/);
   assert.match(controlRoute, /device-blocked/);
   assert.match(controlRoute, /access-revoked/);
+});
+
+test("HN session introspection binds the exact access token to the central revocation ledger", async () => {
+  const sessions = await source("../app/managed-app-session.server.ts");
+  const route = await source("../app/api/apps/hoa-nhap-nga/session/route.ts");
+
+  assert.match(sessions, /token_hash TEXT/);
+  assert.match(sessions, /PRAGMA table_info\(managed_app_sessions\)/);
+  assert.match(sessions, /SHA-256/);
+  assert.match(sessions, /introspectManagedAppSession/);
+  assert.match(sessions, /SESSION_NOT_TRACKED/);
+  assert.match(sessions, /SESSION_REVOKED/);
+  assert.match(sessions, /SESSION_DEVICE_REVOKED/);
+  assert.match(sessions, /SELECT status FROM managed_app_devices/);
+  assert.match(route, /introspectManagedAppSession\("hoa-nhap-nga", body\.accessToken\)/);
+  assert.doesNotMatch(route, /verifyControlProof|MEDICINE_SERVICE_SECRET/);
 });
 
 test("RU_LIFE connectivity incidents are persisted as open, repeated and resolved events", async () => {
