@@ -24,6 +24,22 @@ export default async function MedicalControlPage() {
       }}
     >
       <a
+        href="/medical-control/access-preflight"
+        style={{
+          padding: "10px 13px",
+          border: "1px solid rgba(103,210,159,.26)",
+          borderRadius: 10,
+          background: "#163f30",
+          color: "#a8edc2",
+          boxShadow: "0 14px 34px rgba(0,0,0,.24)",
+          textDecoration: "none",
+          fontSize: 11,
+          fontWeight: 850,
+        }}
+      >
+        Preflight cấp quyền HN →
+      </a>
+      <a
         href="/medical-control/integration-health"
         style={{
           padding: "10px 13px",
@@ -37,7 +53,7 @@ export default async function MedicalControlPage() {
           fontWeight: 850,
         }}
       >
-        Kiểm tra kết nối RU_LIFE →
+        Kết nối · phiên · sự cố RU_LIFE →
       </a>
       <a
         href="/medical-control/device-classification"
