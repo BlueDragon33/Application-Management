@@ -2,44 +2,28 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { applicationRegistry, type ApplicationConfig, type DeviceClass } from "./application-registry";
+import { applicationRegistry, type ApplicationConfig } from "./application-registry";
 import {
   centerAdminAction,
   connectAdminCenter,
+  connectOperationsDashboard,
   roleLabels,
   type AdminAccess,
   type CenterBootstrap,
   type ControlAdminDevice,
   type ControlRole,
+  type OperationsBootstrap,
+  type OperationsDevice,
+  type OperationsSummary,
+  type OperationsWorkItem,
 } from "./admin-device-client";
 import styles from "./center-admin.module.css";
 
-type CenterView = "overview" | "devices" | "audit";
+type CenterView = "overview" | "inbox" | "applications" | "client-devices" | "alerts" | "devices" | "audit" | "settings";
 
-const statusLabels = {
-  online: "Đang quản trị",
-  warning: "Cần hoàn thiện",
-  planned: "Chờ kết nối",
-} as const;
-
-const contractLabels = {
-  connected: "Đã kết nối",
-  migrating: "Đang nối adapter",
-  pending: "Chưa nối backend",
-} as const;
-
-const deviceStatusLabels = {
-  pending: "Chờ duyệt",
-  approved: "Đã cấp quyền",
-  blocked: "Đã khóa",
-} as const;
-
-const memberStatusLabels = {
-  active: "Tài khoản hoạt động",
-  inactive: "Đã thu hồi tài khoản",
-  unregistered: "Chưa cấp tài khoản",
-} as const;
-
+const deviceStatusLabels = { pending: "Chờ duyệt", approved: "Đã cấp quyền", blocked: "Đã khóa" } as const;
+const memberStatusLabels = { active: "Tài khoản hoạt động", inactive: "Đã thu hồi tài khoản", unregistered: "Chưa cấp tài khoản" } as const;
+const contractLabels = { connected: "Đã kết nối", migrating: "Đang hoàn thiện", pending: "Chưa nối backend" } as const;
 const auditLabels: Record<string, string> = {
   control_device_approved: "Cấp quyền thiết bị quản trị",
   control_device_blocked: "Khóa thiết bị quản trị",
@@ -48,21 +32,14 @@ const auditLabels: Record<string, string> = {
 };
 
 const viewTitles: Record<CenterView, { eyebrow: string; title: string; description: string }> = {
-  overview: {
-    eyebrow: "SYSTEM CONTROL PLANE",
-    title: "Tổng quan hệ thống",
-    description: "Application Management là server quản trị. Mỗi ứng dụng bên dưới là một client độc lập và chỉ giao tiếp qua contract quản trị.",
-  },
-  devices: {
-    eyebrow: "ACCESS CONTROL",
-    title: "Quyền & thiết bị quản trị",
-    description: "Phần dùng chung cho toàn bộ Trung tâm; không chứa thiết bị người dùng của Bơi ếch, Y tế, Hòa nhập Nga, Bauman hay GrowUP.",
-  },
-  audit: {
-    eyebrow: "SYSTEM AUDIT",
-    title: "Nhật ký hệ thống",
-    description: "Chỉ ghi thay đổi quyền và bảo mật của control-plane; audit nghiệp vụ vẫn thuộc từng client.",
-  },
+  overview: { eyebrow: "CONTROL PLANE · OPERATIONS", title: "Bảng điều phối quản trị ứng dụng", description: "Kiểm soát tập trung các client độc lập, cảnh báo thiết bị mới và đưa người quản trị vào đúng khu xử lý chỉ với một lần bấm." },
+  inbox: { eyebrow: "PRIORITY INBOX", title: "Hộp việc ưu tiên", description: "Tập trung sự kiện cần chú ý từ từng client; mỗi việc luôn ghi rõ ứng dụng sở hữu dữ liệu và nơi cần xử lý." },
+  applications: { eyebrow: "CLIENT REGISTRY", title: "Ứng dụng đang quản lý", description: "Danh sách compact để tìm nhanh khi số lượng client tăng; không dùng các card lớn lặp lại cùng thông tin." },
+  "client-devices": { eyebrow: "CLIENT DEVICE ALERTS", title: "Thiết bị mới theo ứng dụng", description: "Thiết bị người dùng được đọc từ registry của client sở hữu nó; Trung tâm không gom registry vào database QT." },
+  alerts: { eyebrow: "OPERATIONS ALERTS", title: "Cảnh báo vận hành", description: "Ưu tiên mất kết nối, thay đổi môi trường thiết bị và các sự kiện cần can thiệp nhanh." },
+  devices: { eyebrow: "CONTROL ACCESS", title: "Thiết bị quản trị Trung tâm", description: "Chỉ chứa thiết bị QT của Application Management; không trộn thiết bị Bơi, Y tế, Hòa nhập Nga, Bauman hoặc GrowUP." },
+  audit: { eyebrow: "SYSTEM AUDIT", title: "Nhật ký hệ thống", description: "Chỉ ghi thay đổi quyền và bảo mật của control-plane. Audit nghiệp vụ thuộc khu quản trị riêng của từng client." },
+  settings: { eyebrow: "SYSTEM BOUNDARY", title: "Cấu hình & ranh giới", description: "Kiểm tra topology, contract và nguyên tắc sở hữu dữ liệu trước khi bật thêm capability quản trị." },
 };
 
 function formatTime(value: string | null | undefined) {
@@ -72,100 +49,164 @@ function formatTime(value: string | null | undefined) {
   return new Intl.DateTimeFormat("vi-VN", { dateStyle: "short", timeStyle: "short" }).format(date);
 }
 
-function DeviceGlyph({ kind }: { kind: DeviceClass }) {
-  if (kind === "phone") {
-    return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2.4" /><path d="M10.2 5h3.6M11.2 18.7h1.6" /></svg>;
-  }
-  if (kind === "tablet") {
-    return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="2.5" width="16" height="19" rx="2.4" /><path d="M10.5 18.5h3" /></svg>;
-  }
-  return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="3.5" width="19" height="13" rx="2" /><path d="M8 20.5h8M10 16.5v4M14 16.5v4" /></svg>;
+function relativeTime(value: string | null | undefined) {
+  if (!value) return "—";
+  const time = Date.parse(value);
+  if (!Number.isFinite(time)) return "—";
+  const minutes = Math.max(0, Math.floor((Date.now() - time) / 60_000));
+  if (minutes < 1) return "Vừa xong";
+  if (minutes < 60) return `${minutes} phút trước`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} giờ trước`;
+  return `${Math.floor(hours / 24)} ngày trước`;
+}
+
+function appDomain(application: ApplicationConfig) {
+  if (application.id === "health-care") return { group: "Y tế", boundary: "Kiểm duyệt y tế · quy tắc y khoa · audit y tế" };
+  if (application.id === "ru-life") return { group: "Nga", boundary: "Kiểm duyệt Nga · OCR thuốc · thiết bị HN · audit Nga" };
+  if (application.id === "boi-ech") return { group: "Học tập", boundary: "Thiết bị học · tiến độ · AI · thanh toán · duyệt sửa" };
+  if (application.id === "bauman-master-ai") return { group: "Học thuật", boundary: "Bauman Hub · sub-client môn học · contract BM" };
+  return { group: "Gia đình", boundary: "Phát triển 3–18 · privacy-first · contract GU" };
+}
+
+function deviceIcon(type: OperationsDevice["deviceType"]) {
+  return type === "phone" ? "▯" : type === "tablet" ? "▭" : type === "desktop" ? "▱" : "◇";
 }
 
 function Gate({ access, busy, error, retry }: { access: AdminAccess | null; busy: boolean; error: string; retry: () => void }) {
-  return <main className={styles.gateShell}>
-    <section className={styles.gateCard}>
-      <div className={styles.gateMark}>QT</div>
-      <span className={styles.eyebrow}>SECURE CONTROL PLANE</span>
-      <h1>{access?.status === "pending"
-        ? "Thiết bị quản trị đang chờ cấp quyền."
-        : access?.status === "blocked"
-          ? "Thiết bị quản trị đã bị khóa."
-          : "Đang xác thực thiết bị quản trị…"}</h1>
-      <p>{error || "Mỗi máy quản trị dùng khóa P-256 riêng. Trung tâm chỉ mở sau khi thiết bị và tài khoản đều được cấp quyền."}</p>
-      {access?.deviceCode ? <div className={styles.gateCode}><span>Mã thiết bị</span><strong>{access.deviceCode}</strong></div> : null}
-      <button className={styles.primaryButton} onClick={retry} disabled={busy}>{busy ? "Đang xác thực…" : "Kiểm tra lại quyền"}</button>
-    </section>
-  </main>;
+  return <main className={styles.gateShell}><section className={styles.gateCard}>
+    <div className={styles.gateMark}>QT</div><span className={styles.eyebrow}>SECURE CONTROL PLANE</span>
+    <h1>{access?.status === "pending" ? "Thiết bị quản trị đang chờ cấp quyền." : access?.status === "blocked" ? "Thiết bị quản trị đã bị khóa." : "Đang xác thực thiết bị quản trị…"}</h1>
+    <p>{error || "Mỗi máy quản trị dùng khóa P-256 riêng. Trung tâm chỉ mở sau khi thiết bị và tài khoản đều được cấp quyền."}</p>
+    {access?.deviceCode ? <div className={styles.gateCode}><span>Mã thiết bị</span><strong>{access.deviceCode}</strong></div> : null}
+    <button className={styles.primaryButton} onClick={retry} disabled={busy}>{busy ? "Đang xác thực…" : "Kiểm tra lại quyền"}</button>
+  </section></main>;
 }
 
-function ContractState({ application }: { application: ApplicationConfig }) {
-  return <span className={styles.contractState} data-contract={application.contractState}><i />{contractLabels[application.contractState]}</span>;
+function SectionHeader({ title, meta, action }: { title: string; meta?: string; action?: React.ReactNode }) {
+  return <header className={styles.sectionHeader}><div><h2>{title}</h2>{meta ? <span>{meta}</span> : null}</div>{action}</header>;
 }
 
-function ClientStatusRow({ application }: { application: ApplicationConfig & { registered?: boolean } }) {
-  const childCount = application.childClients?.length ?? 0;
-  return <article className={styles.clientRow} data-status={application.status}>
-    <span className={styles.clientMark}>{application.initials}</span>
-    <div className={styles.clientIdentity}>
-      <strong>{application.shortName}</strong>
-      <small>{application.repository}</small>
-    </div>
-    <div className={styles.clientFact}><span>Contract</span><ContractState application={application} /></div>
-    <div className={styles.clientFact}><span>Tầng con</span><strong>{childCount ? `${childCount} sub-client` : "Không có"}</strong></div>
-    <div className={styles.clientFact}><span>Registry</span><strong>{application.registered ? "Live" : "Cấu hình"}</strong></div>
-    <Link href={application.href} className={styles.manageLink}>Quản trị <span>→</span></Link>
-  </article>;
+function LoadingRows({ count = 4 }: { count?: number }) {
+  return <div className={styles.loadingRows}>{Array.from({ length: count }, (_, index) => <i key={index} />)}</div>;
+}
+
+function StatusDot({ state }: { state: OperationsSummary["connection"] }) {
+  return <span className={styles.connectionState} data-state={state}><i />{state === "connected" ? "Kết nối tốt" : state === "pending" ? "Chờ backend" : state === "unavailable" ? "Không đọc được" : "Có cảnh báo"}</span>;
+}
+
+function WorkTable({ items, loading, search }: { items: OperationsWorkItem[]; loading: boolean; search: string }) {
+  const normalized = search.trim().toLowerCase();
+  const visible = items.filter((item) => !normalized || `${item.appName} ${item.title} ${item.detail} ${item.deviceType}`.toLowerCase().includes(normalized));
+  if (loading) return <LoadingRows />;
+  if (!visible.length) return <div className={styles.emptyState}>Không có việc phù hợp với bộ lọc hiện tại.</div>;
+  return <div className={styles.workTable}>
+    <div className={styles.tableHead}><span>Ứng dụng</span><span>Sự kiện</span><span>Thiết bị</span><span>Thời gian</span><span>Trạng thái</span><span>Thao tác</span></div>
+    {visible.slice(0, 20).map((item) => <article key={item.id} className={styles.workRow}>
+      <div className={styles.appCell}><b>{applicationRegistry.find((app) => app.id === item.appId)?.initials ?? "AP"}</b><strong>{item.appName}</strong></div>
+      <div><strong>{item.title}</strong><small>{item.detail}</small></div>
+      <span>{item.deviceType}</span><span>{relativeTime(item.occurredAt)}</span>
+      <span className={styles.priority} data-priority={item.priority}>{item.priority === "high" ? "Cần kiểm tra" : item.kind === "device" ? "Chờ duyệt" : "Theo dõi"}</span>
+      <Link href={item.href} className={styles.rowAction}>Xử lý →</Link>
+    </article>)}
+  </div>;
+}
+
+function ClientDeviceTable({ devices, loading, appFilter, search }: { devices: OperationsDevice[]; loading: boolean; appFilter: string; search: string }) {
+  const normalized = search.trim().toLowerCase();
+  const visible = devices.filter((device) => (device.status === "pending" || device.attention === "environment")
+    && (appFilter === "all" || device.appId === appFilter)
+    && (!normalized || `${device.appName} ${device.deviceCode} ${device.userLabel} ${device.deviceTypeLabel}`.toLowerCase().includes(normalized)));
+  if (loading) return <LoadingRows />;
+  if (!visible.length) return <div className={styles.emptyState}>Không có thiết bị mới/cảnh báo trong phạm vi đang chọn.</div>;
+  return <div className={styles.clientDeviceTable}>
+    <div className={styles.deviceTableHead}><span>Ứng dụng</span><span>Thiết bị</span><span>Người dùng</span><span>Thời gian</span><span>Thao tác</span></div>
+    {visible.slice(0, 24).map((device) => <article key={`${device.appId}:${device.deviceId}`} className={styles.clientDeviceRow}>
+      <div className={styles.appCell}><b>{applicationRegistry.find((app) => app.id === device.appId)?.initials ?? "AP"}</b><strong>{device.appName}</strong></div>
+      <div className={styles.deviceKind}><i>{deviceIcon(device.deviceType)}</i><span>{device.deviceTypeLabel}</span></div>
+      <div><strong>{device.userLabel}</strong><small>{device.deviceCode}</small></div>
+      <span>{relativeTime(device.createdAt ?? device.lastSeenAt)}</span>
+      <Link href={device.href} className={styles.rowAction}>{device.attention === "environment" ? "Kiểm tra →" : "Duyệt →"}</Link>
+    </article>)}
+  </div>;
+}
+
+function ApplicationTable({ summaries, loading, search, appFilter }: { summaries: OperationsSummary[]; loading: boolean; search: string; appFilter: string }) {
+  const normalized = search.trim().toLowerCase();
+  const map = new Map(summaries.map((item) => [item.appId, item]));
+  const apps = applicationRegistry.filter((application) => {
+    const summary = map.get(application.id);
+    const domain = appDomain(application);
+    const haystack = `${application.name} ${application.shortName} ${application.repository} ${domain.group} ${domain.boundary} ${summary?.note ?? ""}`.toLowerCase();
+    return (appFilter === "all" || application.id === appFilter) && (!normalized || haystack.includes(normalized));
+  });
+  return <div className={styles.applicationTable}>
+    <div className={styles.applicationHead}><span>Ứng dụng</span><span>Nhóm nghiệp vụ</span><span>Việc chờ xử lý</span><span>Thiết bị online</span><span>Trạng thái</span><span>Thao tác</span></div>
+    {apps.map((application) => {
+      const summary = map.get(application.id);
+      const domain = appDomain(application);
+      const pending = loading ? "…" : summary?.pendingCount ?? "—";
+      const online = loading ? "…" : summary?.onlineCount ?? "—";
+      const connection: OperationsSummary["connection"] = summary?.connection ?? (application.contractState === "pending" ? "pending" : "warning");
+      return <article key={application.id} className={styles.applicationRow}>
+        <div className={styles.appCell}><b>{application.initials}</b><div><strong>{application.shortName}</strong><small>{domain.boundary}</small></div></div>
+        <span>{domain.group}</span><strong data-count={typeof pending === "number" && pending > 0 ? "attention" : "normal"}>{pending}</strong><strong>{online}</strong>
+        <StatusDot state={connection} /><Link href={application.href} className={styles.manageButton}>Vào quản trị →</Link>
+      </article>;
+    })}
+    {!apps.length ? <div className={styles.emptyState}>Không tìm thấy ứng dụng phù hợp.</div> : null}
+  </div>;
 }
 
 function DeviceRow({ device, actor, role, busy, run }: {
-  device: ControlAdminDevice;
-  actor: AdminAccess;
-  role: ControlRole;
-  busy: string;
+  device: ControlAdminDevice; actor: AdminAccess; role: ControlRole; busy: string;
   run: (device: ControlAdminDevice, operation: "approve" | "block" | "deactivate-member" | "delete-member", selectedRole?: "reviewer" | "publisher") => void;
 }) {
   const [approvalRole, setApprovalRole] = useState<"reviewer" | "publisher">(device.role === "publisher" ? "publisher" : "reviewer");
   const protectedDevice = device.owner || device.deviceId === actor.deviceId;
   const isBusy = busy === device.deviceId;
-
-  return <article className={styles.deviceRow} data-status={device.status}>
-    <div className={styles.presenceCell}><span className={styles.presence} data-online={device.active ? "true" : "false"} /><small>{device.active ? "Online" : "Offline"}</small></div>
-    <div className={styles.deviceIdentity}><strong>{device.displayName || device.email}</strong><span>{device.email}</span><small>{device.deviceCode} · {device.label || "Chưa đặt nhãn"}</small></div>
-    <div className={styles.deviceFact}><span>Trạng thái</span><strong>{deviceStatusLabels[device.status]}</strong><small>{memberStatusLabels[device.memberStatus]}</small></div>
-    <div className={styles.deviceFact}><span>Vai trò</span><strong>{roleLabels[device.role]}</strong><small>{device.active ? "Đang trực tuyến" : `Tín hiệu cuối ${formatTime(device.lastSeenAt)}`}</small></div>
-    <div className={styles.deviceActions}>
-      {protectedDevice ? <span className={styles.protected}>Owner · được bảo vệ</span>
-        : device.status === "pending" ? <>
-          <select value={approvalRole} onChange={(event) => setApprovalRole(event.target.value as "reviewer" | "publisher")} disabled={isBusy || role !== "owner"}>
-            <option value="reviewer">Kiểm duyệt viên</option><option value="publisher">Người xuất bản</option>
-          </select>
-          <button className={styles.primarySmall} disabled={isBusy || role !== "owner"} onClick={() => run(device, "approve", approvalRole)}>Cấp quyền</button>
-          <button className={styles.secondarySmall} disabled={isBusy || role !== "owner"} onClick={() => run(device, "block")}>Từ chối</button>
-        </> : device.memberStatus === "inactive" ?
-          <button className={styles.dangerSmall} disabled={isBusy || role !== "owner"} onClick={() => run(device, "delete-member")}>Xóa tài khoản</button>
-          : <>
-            {device.status !== "blocked" ? <button className={styles.secondarySmall} disabled={isBusy || role !== "owner"} onClick={() => run(device, "block")}>Khóa máy</button> : null}
-            <button className={styles.dangerSmall} disabled={isBusy || role !== "owner"} onClick={() => run(device, "deactivate-member")}>Thu hồi</button>
-          </>}
-    </div>
+  return <article className={styles.adminDeviceRow} data-status={device.status}>
+    <span className={styles.presence} data-online={device.active ? "true" : "false"} />
+    <div><strong>{device.displayName || device.email}</strong><small>{device.email}</small><code>{device.deviceCode}</code></div>
+    <div><span>Trạng thái</span><strong>{deviceStatusLabels[device.status]}</strong><small>{memberStatusLabels[device.memberStatus]}</small></div>
+    <div><span>Vai trò</span><strong>{roleLabels[device.role]}</strong><small>{device.active ? "Đang trực tuyến" : formatTime(device.lastSeenAt)}</small></div>
+    <div className={styles.adminDeviceActions}>{protectedDevice ? <span className={styles.protected}>Owner · được bảo vệ</span> : device.status === "pending" ? <>
+      <select value={approvalRole} onChange={(event) => setApprovalRole(event.target.value as "reviewer" | "publisher")} disabled={isBusy || role !== "owner"}><option value="reviewer">Kiểm duyệt viên</option><option value="publisher">Người xuất bản</option></select>
+      <button disabled={isBusy || role !== "owner"} onClick={() => run(device, "approve", approvalRole)}>Cấp quyền</button><button className={styles.dangerButton} disabled={isBusy || role !== "owner"} onClick={() => run(device, "block")}>Từ chối</button>
+    </> : device.memberStatus === "inactive" ? <button className={styles.dangerButton} disabled={isBusy || role !== "owner"} onClick={() => run(device, "delete-member")}>Xóa tài khoản</button> : <><button disabled={isBusy || role !== "owner" || device.status === "blocked"} onClick={() => run(device, "block")}>Khóa máy</button><button className={styles.dangerButton} disabled={isBusy || role !== "owner"} onClick={() => run(device, "deactivate-member")}>Thu hồi</button></>}</div>
   </article>;
 }
 
 export default function ApplicationHub({ user }: { user: { displayName: string; email: string } }) {
   const [access, setAccess] = useState<AdminAccess | null>(null);
   const [bootstrap, setBootstrap] = useState<CenterBootstrap | null>(null);
+  const [operations, setOperations] = useState<OperationsBootstrap | null>(null);
   const [view, setView] = useState<CenterView>("overview");
   const [busy, setBusy] = useState(true);
+  const [operationsBusy, setOperationsBusy] = useState(false);
   const [actionBusy, setActionBusy] = useState("");
   const [error, setError] = useState("");
+  const [operationsError, setOperationsError] = useState("");
   const [notice, setNotice] = useState("");
+  const [search, setSearch] = useState("");
+  const [appFilter, setAppFilter] = useState("all");
+
+  async function refreshOperations() {
+    setOperationsBusy(true); setOperationsError("");
+    try {
+      const result = await connectOperationsDashboard();
+      if (result.bootstrap) setOperations(result.bootstrap);
+    } catch (caught) {
+      setOperationsError(caught instanceof Error ? caught.message : "Không thể đồng bộ trạng thái các client.");
+    } finally { setOperationsBusy(false); }
+  }
 
   async function initialize() {
     setBusy(true); setError("");
     try {
       const result = await connectAdminCenter();
       setAccess(result.access); setBootstrap(result.bootstrap);
+      if (result.bootstrap) void refreshOperations();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Không thể mở Trung tâm quản trị.");
     } finally { setBusy(false); }
@@ -173,9 +214,9 @@ export default function ApplicationHub({ user }: { user: { displayName: string; 
 
   useEffect(() => {
     const requested = new URLSearchParams(window.location.search).get("view");
-    if (requested === "devices" || requested === "audit" || requested === "overview") setView(requested);
-    // Liên kết cũ được thu gọn về Tổng quan để tránh duy trì màn hình trùng lặp.
-    if (requested === "topology" || requested === "applications") setView("overview");
+    const valid: CenterView[] = ["overview", "inbox", "applications", "client-devices", "alerts", "devices", "audit", "settings"];
+    if (requested && valid.includes(requested as CenterView)) setView(requested as CenterView);
+    if (requested === "topology") setView("settings");
     void initialize();
   }, []);
 
@@ -184,131 +225,119 @@ export default function ApplicationHub({ user }: { user: { displayName: string; 
     window.history.replaceState(null, "", next === "overview" ? "/" : `/?view=${next}`);
   }
 
-  const applications = useMemo(() => {
-    const liveIds = new Set((bootstrap?.applications ?? []).map((item) => item.id));
-    return applicationRegistry.map((application) => ({ ...application, registered: liveIds.has(application.id) }));
-  }, [bootstrap]);
-
-  const deviceCounts = useMemo(() => {
+  const centralCounts = useMemo(() => {
     const devices = bootstrap?.controlDevices ?? [];
-    return {
-      total: devices.length,
-      pending: devices.filter((item) => item.status === "pending").length,
-      approved: devices.filter((item) => item.status === "approved").length,
-      blocked: devices.filter((item) => item.status === "blocked").length,
-      online: devices.filter((item) => item.active).length,
-    };
+    return { total: devices.length, pending: devices.filter((item) => item.status === "pending").length, online: devices.filter((item) => item.active).length };
   }, [bootstrap?.controlDevices]);
 
-  const appCounts = useMemo(() => ({
-    total: applications.length,
-    connected: applications.filter((item) => item.contractState === "connected").length,
-    attention: applications.filter((item) => item.status === "warning").length,
-    children: applications.reduce((sum, item) => sum + (item.childClients?.length ?? 0), 0),
-  }), [applications]);
+  const operational = operations?.metrics;
+  const notificationCount = (operational?.pendingDevices ?? 0) + (operational?.alerts ?? 0) + centralCounts.pending;
+  const summaryById = useMemo(() => new Map((operations?.summaries ?? []).map((item) => [item.appId, item])), [operations]);
+  const highAlerts = useMemo(() => (operations?.workItems ?? []).filter((item) => item.priority === "high"), [operations]);
 
   async function manageDevice(device: ControlAdminDevice, operation: "approve" | "block" | "deactivate-member" | "delete-member", selectedRole?: "reviewer" | "publisher") {
     if (!bootstrap || !access || access.role !== "owner") return;
-    if (operation === "deactivate-member" && !window.confirm(`Thu hồi toàn bộ quyền quản trị của ${device.email}? Tất cả thiết bị của tài khoản này sẽ bị khóa.`)) return;
+    if (operation === "deactivate-member" && !window.confirm(`Thu hồi toàn bộ quyền quản trị của ${device.email}?`)) return;
     if (operation === "delete-member") {
-      const confirmation = window.prompt(`Xóa vĩnh viễn tài khoản đã thu hồi. Nhập chính xác email để xác nhận:\n${device.email}`);
+      const confirmation = window.prompt(`Nhập chính xác email để xóa tài khoản đã thu hồi:\n${device.email}`);
       if (confirmation?.trim().toLowerCase() !== device.email.toLowerCase()) { setNotice("Đã hủy xóa vì chuỗi xác nhận không khớp."); return; }
     }
     setActionBusy(device.deviceId); setNotice("");
     try {
       const result = await centerAdminAction({ action: "manage-control-device", operation, targetDeviceId: device.deviceId, role: selectedRole, displayName: device.displayName });
       setBootstrap((current) => current ? { ...current, controlDevices: result.controlDevices ?? current.controlDevices, auditLog: result.auditLog ?? current.auditLog } : current);
-      setNotice(operation === "approve" ? "Đã cấp quyền thiết bị quản trị." : operation === "block" ? "Đã khóa thiết bị quản trị." : operation === "deactivate-member" ? "Đã thu hồi tài khoản và khóa các thiết bị liên quan." : "Đã xóa tài khoản quản trị.");
-    } catch (caught) { setNotice(caught instanceof Error ? caught.message : "Không thể cập nhật quyền thiết bị."); }
+      setNotice("Đã cập nhật quyền thiết bị quản trị.");
+    } catch (caught) { setNotice(caught instanceof Error ? caught.message : "Không thể cập nhật thiết bị quản trị."); }
     finally { setActionBusy(""); }
   }
 
   if (!access || access.status !== "approved" || !bootstrap) return <Gate access={access} busy={busy} error={error} retry={() => void initialize()} />;
 
   const role = access.role;
-  const canSeeDevices = role === "owner";
-  const canSeeAudit = ["publisher", "owner"].includes(role);
+  const canSeeAdminDevices = role === "owner";
+  const canSeeAudit = role === "publisher" || role === "owner";
   const title = viewTitles[view];
+  const filteredWorkItems = operations?.workItems ?? [];
+  const filteredDevices = operations?.devices ?? [];
 
   return <main className={styles.shell}>
     <aside className={styles.sidebar}>
-      <div className={styles.brand}><div className={styles.brandMark}>QT</div><div><span>QUẢN TRỊ ỨNG DỤNG</span><strong>Hệ thống</strong></div></div>
-      <div className={styles.systemState}><span className={styles.systemDot} /><div><strong>Control-plane hoạt động</strong><small>Server quản trị trung tâm</small></div></div>
-
-      <nav className={styles.nav} aria-label="Điều hướng hệ thống">
-        <span className={styles.navGroup}>HỆ THỐNG</span>
-        <button data-active={view === "overview"} onClick={() => switchView("overview")}><span>01</span><div><strong>Tổng quan</strong><small>Trạng thái & kiến trúc</small></div></button>
-        {canSeeDevices ? <button data-active={view === "devices"} onClick={() => switchView("devices")}><span>02</span><div><strong>Quyền & thiết bị</strong><small>Máy quản trị Trung tâm</small></div></button> : null}
-        {canSeeAudit ? <button data-active={view === "audit"} onClick={() => switchView("audit")}><span>{canSeeDevices ? "03" : "02"}</span><div><strong>Nhật ký hệ thống</strong><small>Quyền & bảo mật</small></div></button> : null}
+      <div className={styles.brand}><div className={styles.brandMark}>QT</div><div><span>TRUNG TÂM ĐIỀU PHỐI</span><strong>QUẢN TRỊ ỨNG DỤNG</strong></div></div>
+      <nav className={styles.nav} aria-label="Điều hướng quản trị">
+        <button data-active={view === "overview"} onClick={() => switchView("overview")}><i>⌂</i><div><strong>Tổng quan</strong><small>Bảng điều phối</small></div></button>
+        <button data-active={view === "inbox"} onClick={() => switchView("inbox")}><i>▤</i><div><strong>Hộp việc</strong><small>Ưu tiên xử lý</small></div>{operational?.workItems ? <b>{operational.workItems}</b> : null}</button>
+        <button data-active={view === "applications"} onClick={() => switchView("applications")}><i>⊞</i><div><strong>Ứng dụng</strong><small>Tìm & quản trị client</small></div></button>
+        <button data-active={view === "client-devices"} onClick={() => switchView("client-devices")}><i>▯</i><div><strong>Thiết bị mới</strong><small>Theo từng ứng dụng</small></div>{operational?.pendingDevices ? <b>{operational.pendingDevices}</b> : null}</button>
+        <button data-active={view === "alerts"} onClick={() => switchView("alerts")}><i>△</i><div><strong>Cảnh báo</strong><small>Vận hành client</small></div>{operational?.alerts ? <b>{operational.alerts}</b> : null}</button>
+        <span className={styles.navDivider}>HỆ THỐNG</span>
+        {canSeeAdminDevices ? <button data-active={view === "devices"} onClick={() => switchView("devices")}><i>♙</i><div><strong>Thiết bị QT</strong><small>Quyền Trung tâm</small></div>{centralCounts.pending ? <b>{centralCounts.pending}</b> : null}</button> : null}
+        {canSeeAudit ? <button data-active={view === "audit"} onClick={() => switchView("audit")}><i>▧</i><div><strong>Nhật ký</strong><small>Bảo mật hệ thống</small></div></button> : null}
+        <button data-active={view === "settings"} onClick={() => switchView("settings")}><i>⚙</i><div><strong>Cấu hình</strong><small>Contract & ranh giới</small></div></button>
       </nav>
-
-      <div className={styles.clientNav}>
-        <span className={styles.navGroup}>CLIENT</span>
-        {applications.map((application) => <Link key={application.id} href={application.href}>
-          <span className={styles.clientNavMark}>{application.initials}</span>
-          <div><strong>{application.shortName}</strong><small>{contractLabels[application.contractState]}</small></div>
-          <i data-status={application.status} />
-        </Link>)}
-      </div>
-
-      <div className={styles.boundaryBox}><span>RANH GIỚI</span><strong>Server quản trị không chứa runtime client.</strong><p>Client tự giữ dữ liệu, phiên, thiết bị và nghiệp vụ. Bauman Hub tự quản trị các site môn học bên dưới.</p></div>
-      <div className={styles.userCard}><div className={styles.avatar}>{user.displayName.slice(0, 1).toUpperCase()}</div><div><strong>{user.displayName}</strong><span>{roleLabels[role]}</span><small>{access.deviceCode}</small></div><a href="/logout?return_to=/login" aria-label="Đăng xuất">↗</a></div>
+      <div className={styles.sidebarFooter}><p>Quản trị tập trung<br/>Vận hành an toàn<br/>Client độc lập</p><span><i/> Control-plane hoạt động</span></div>
     </aside>
 
     <section className={styles.main}>
       <header className={styles.topbar}>
-        <div><span>{title.eyebrow}</span><h1>{title.title}</h1><p>{title.description}</p></div>
-        <button className={styles.refreshButton} onClick={() => void initialize()} disabled={busy}>{busy ? "Đang cập nhật…" : "Cập nhật"}</button>
+        <label className={styles.searchBox}><span>⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm theo ứng dụng, thiết bị, người dùng…" /></label>
+        <select className={styles.filterSelect} value={appFilter} onChange={(event) => setAppFilter(event.target.value)}><option value="all">Tất cả ứng dụng</option>{applicationRegistry.map((application) => <option key={application.id} value={application.id}>{application.shortName}</option>)}</select>
+        <button className={styles.bell} onClick={() => switchView("alerts")} aria-label="Mở cảnh báo"><span>♢</span>{notificationCount > 0 ? <b>{notificationCount}</b> : null}</button>
+        <div className={styles.topUser}><span>{user.displayName.slice(0, 1).toUpperCase()}</span><div><strong>{user.displayName}</strong><small>{roleLabels[role]}</small></div></div>
       </header>
 
-      {error || bootstrap.upstreamError ? <div className={styles.error}>{error || bootstrap.upstreamError}</div> : null}
-      {notice ? <div className={styles.notice}>{notice}</div> : null}
+      <div className={styles.pageBody}>
+        <header className={styles.pageHeader}><div><span>{title.eyebrow}</span><h1>{title.title}</h1><p>{title.description}</p></div><button className={styles.syncButton} onClick={() => void refreshOperations()} disabled={operationsBusy}>{operationsBusy ? "Đang đồng bộ…" : "Đồng bộ client"}</button></header>
+        {operationsError ? <div className={styles.operationsWarning}><strong>Một phần dữ liệu client chưa tải được.</strong><span>{operationsError}</span><button onClick={() => void refreshOperations()}>Thử lại</button></div> : null}
+        {notice ? <div className={styles.notice}>{notice}</div> : null}
 
-      {view === "overview" ? <>
-        <section className={styles.metrics}>
-          <article><span>Client cấp 1</span><strong>{appCounts.total}</strong><small>{appCounts.connected} contract hoạt động</small></article>
-          <article data-alert={appCounts.attention > 0}><span>Cần hoàn thiện</span><strong>{appCounts.attention}</strong><small>Adapter hoặc backend</small></article>
-          <article><span>Sub-client</span><strong>{appCounts.children}</strong><small>Hiện thuộc Bauman Hub</small></article>
-          <article data-alert={deviceCounts.pending > 0}><span>Thiết bị quản trị</span><strong>{deviceCounts.total}</strong><small>{deviceCounts.online} online · {deviceCounts.pending} chờ duyệt</small></article>
-        </section>
+        {view === "overview" ? <>
+          <section className={styles.metricGrid}>
+            <button onClick={() => switchView("applications")} data-tone="teal"><i>◇</i><div><span>Tổng ứng dụng</span><strong>{applicationRegistry.length}</strong><small>Client cấp 1 đang quản lý</small></div><b>→</b></button>
+            <button onClick={() => switchView("client-devices")} data-tone="amber"><i>▯</i><div><span>Thiết bị mới chờ duyệt</span><strong>{operationsBusy && !operations ? "…" : operational?.pendingDevices ?? "—"}</strong><small>Đọc từ registry từng client</small></div><b>→</b></button>
+            <button onClick={() => switchView("alerts")} data-tone="red"><i>△</i><div><span>Cảnh báo vận hành</span><strong>{operationsBusy && !operations ? "…" : operational?.alerts ?? "—"}</strong><small>Client lỗi hoặc môi trường đổi</small></div><b>→</b></button>
+            <button onClick={() => switchView("inbox")} data-tone="gold"><i>▤</i><div><span>Việc cần xử lý</span><strong>{operationsBusy && !operations ? "…" : operational?.workItems ?? "—"}</strong><small>Không tạo số liệu giả</small></div><b>→</b></button>
+          </section>
 
-        <section className={styles.architecturePanel}>
-          <div className={styles.sectionHead}><div><span className={styles.eyebrow}>ARCHITECTURE</span><h2>Một server → nhiều client → thiết bị</h2></div><p>Không tạo thêm “trung tâm con”. Khu quản trị của mỗi client chỉ là control surface của chính client đó.</p></div>
-          <div className={styles.architectureFlow}>
-            <div className={styles.serverBlock}><span>LEVEL 0 · SERVER</span><strong>Application Management</strong><small>Policy · quyền quản trị · audit · signed contract</small></div>
-            <div className={styles.flowArrow}>↓</div>
-            <div className={styles.clientBlocks}>{applications.map((application) => <Link key={application.id} href={application.href} data-status={application.status}><b>{application.initials}</b><span><strong>{application.shortName}</strong><small>{application.childClients?.length ? `${application.childClients.length} sub-client bên dưới` : "Client độc lập"}</small></span></Link>)}</div>
-            <div className={styles.flowArrow}>↓</div>
-            <div className={styles.endpointBlock}><span>ENDPOINT</span><div>{applicationRegistry[0].deviceExperiences.map((profile) => <i key={profile.id}><DeviceGlyph kind={profile.id} /><small>{profile.label}</small></i>)}</div><p>Thiết bị được phân loại và lưu trong registry của client sở hữu nó.</p></div>
-          </div>
-        </section>
+          <section className={styles.dashboardGrid}>
+            <div className={styles.panel}><SectionHeader title="Hộp việc ưu tiên" meta={operational ? `${operational.workItems} việc` : "Đang đồng bộ"} action={<button onClick={() => switchView("inbox")}>Xem tất cả →</button>} /><WorkTable items={filteredWorkItems.slice(0, 6)} loading={operationsBusy && !operations} search={search} /></div>
+            <div className={styles.panel}><SectionHeader title="Thiết bị mới theo ứng dụng" meta={operational ? `${operational.pendingDevices} chờ duyệt` : "Đang đồng bộ"} action={<button onClick={() => switchView("client-devices")}>Xem tất cả →</button>} /><ClientDeviceTable devices={filteredDevices} loading={operationsBusy && !operations} appFilter={appFilter} search={search} /></div>
+            <div className={`${styles.panel} ${styles.applicationPanel}`}><SectionHeader title="Ứng dụng đang quản lý" meta="Một hàng / một client" action={<button onClick={() => switchView("applications")}>Quản lý ứng dụng →</button>} /><ApplicationTable summaries={operations?.summaries ?? []} loading={operationsBusy && !operations} search={search} appFilter={appFilter} /></div>
+            <div className={styles.panel}><SectionHeader title="Cảnh báo nhanh" meta={highAlerts.length ? `${highAlerts.length} cần kiểm tra` : "Không có cảnh báo nghiêm trọng"} action={<button onClick={() => switchView("alerts")}>Xem tất cả →</button>} /><div className={styles.alertTiles}>
+              <button onClick={() => switchView("client-devices")} data-tone="amber"><span>▯</span><div><small>Thiết bị mới</small><strong>{operational?.pendingDevices ?? "—"}</strong><em>Chờ duyệt theo app</em></div></button>
+              <button onClick={() => switchView("alerts")} data-tone="red"><span>⌁</span><div><small>Client không đọc được</small><strong>{operations?.summaries.filter((item) => item.connection === "unavailable").length ?? "—"}</strong><em>Kiểm tra contract/origin</em></div></button>
+              <button onClick={() => switchView("alerts")} data-tone="gold"><span>△</span><div><small>Môi trường thay đổi</small><strong>{filteredDevices.filter((item) => item.attention === "environment").length || 0}</strong><em>Thiết bị cần xác minh</em></div></button>
+              <button onClick={() => switchView("applications")} data-tone="blue"><span>▤</span><div><small>Contract chưa hoàn tất</small><strong>{applicationRegistry.filter((item) => item.contractState !== "connected").length}</strong><em>Không bật thao tác giả</em></div></button>
+            </div></div>
+          </section>
+        </> : null}
 
-        <section className={styles.clientPanel}>
-          <div className={styles.sectionHead}><div><span className={styles.eyebrow}>CLIENT REGISTRY</span><h2>Ứng dụng đang được quản trị</h2></div><p>Mỗi client chỉ có một đường vào quản trị. Không lặp lại nút “mở site”, “cấp quyền” ở nhiều card/tầng.</p></div>
-          <div className={styles.clientTable}>{applications.map((application) => <ClientStatusRow key={application.id} application={application} />)}</div>
-        </section>
-      </> : null}
+        {view === "inbox" ? <section className={styles.panel}><SectionHeader title="Tất cả việc cần chú ý" meta="Ưu tiên sự kiện thật từ client" /><WorkTable items={filteredWorkItems} loading={operationsBusy && !operations} search={search} /></section> : null}
 
-      {view === "devices" && canSeeDevices ? <>
-        <section className={styles.boundaryNotice}><span>!</span><div><strong>Đây chỉ là thiết bị quản trị Application Management.</strong><p>Thiết bị người dùng của từng client phải quản lý trong khu quản trị của client đó; không đưa chung vào danh sách này.</p></div></section>
-        <section className={styles.metrics}>
-          <article><span>Tổng thiết bị</span><strong>{deviceCounts.total}</strong><small>Control-plane only</small></article>
-          <article data-alert={deviceCounts.pending > 0}><span>Chờ cấp quyền</span><strong>{deviceCounts.pending}</strong><small>Thiết bị mới</small></article>
-          <article><span>Đã cấp quyền</span><strong>{deviceCounts.approved}</strong><small>{deviceCounts.online} đang online</small></article>
-          <article data-alert={deviceCounts.blocked > 0}><span>Bị khóa/thu hồi</span><strong>{deviceCounts.blocked}</strong><small>Kiểm soát tập trung</small></article>
-        </section>
-        <section className={styles.devicePanel}>
-          <div className={styles.sectionHead}><div><span className={styles.eyebrow}>ACCESS CONTROL</span><h2>Danh sách thiết bị quản trị</h2></div><p>Khóa thiết bị chỉ chặn một máy. Thu hồi tài khoản chặn toàn bộ thiết bị dùng cùng email.</p></div>
-          <div className={styles.deviceList}>{bootstrap.controlDevices.length ? bootstrap.controlDevices.map((device) => <DeviceRow key={device.deviceId} device={device} actor={access} role={role} busy={actionBusy} run={(item, operation, selectedRole) => void manageDevice(item, operation, selectedRole)} />) : <div className={styles.emptyState}>Chưa có thiết bị quản trị nào.</div>}</div>
-        </section>
-      </> : null}
+        {view === "applications" ? <section className={styles.panel}><SectionHeader title="Danh sách client cấp 1" meta={`${applicationRegistry.length} ứng dụng`} /><ApplicationTable summaries={operations?.summaries ?? []} loading={operationsBusy && !operations} search={search} appFilter={appFilter} /></section> : null}
 
-      {view === "audit" && canSeeAudit ? <section className={styles.auditPanel}>
-        <div className={styles.sectionHead}><div><span className={styles.eyebrow}>SECURITY TRAIL</span><h2>Thay đổi gần đây</h2></div><p>Nhật ký này không trộn với nhật ký học tập, sức khỏe hoặc hoạt động người dùng của client.</p></div>
-        <div className={styles.auditList}>{bootstrap.auditLog.length ? bootstrap.auditLog.map((entry) => <article key={entry.id}>
-          <span className={styles.auditMark}>QT</span><div><strong>{auditLabels[entry.action] ?? entry.action}</strong><span>{entry.actor}</span><small>{formatTime(entry.createdAt)} · {entry.target}</small></div>
-        </article>) : <div className={styles.emptyState}>Chưa có thay đổi quyền hoặc bảo mật.</div>}</div>
-      </section> : null}
+        {view === "client-devices" ? <section className={styles.panel}><SectionHeader title="Thiết bị mới / thiết bị cần xác minh" meta="Registry vẫn thuộc client" /><ClientDeviceTable devices={filteredDevices} loading={operationsBusy && !operations} appFilter={appFilter} search={search} /></section> : null}
+
+        {view === "alerts" ? <section className={styles.alertsLayout}>
+          <div className={styles.panel}><SectionHeader title="Cảnh báo cần xử lý" meta={`${highAlerts.length} cảnh báo mức cao`} /><WorkTable items={filteredWorkItems.filter((item) => item.priority === "high")} loading={operationsBusy && !operations} search={search} /></div>
+          <div className={styles.panel}><SectionHeader title="Tình trạng từng client" /><div className={styles.connectionList}>{applicationRegistry.map((application) => {
+            const summary = summaryById.get(application.id); const state: OperationsSummary["connection"] = summary?.connection ?? (application.contractState === "pending" ? "pending" : "warning");
+            return <article key={application.id}><b>{application.initials}</b><div><strong>{application.shortName}</strong><small>{summary?.note ?? application.contractNote}</small></div><StatusDot state={state}/><Link href={application.href}>Kiểm tra →</Link></article>;
+          })}</div></div>
+        </section> : null}
+
+        {view === "devices" && canSeeAdminDevices ? <section className={styles.panel}><SectionHeader title="Thiết bị quản trị Application Management" meta={`${centralCounts.total} thiết bị · ${centralCounts.online} online`} />
+          <div className={styles.centralBoundary}>Đây chỉ là thiết bị quản trị Application Management. Thiết bị người dùng của từng client phải xử lý trong khu quản trị của client đó.</div>
+          <div className={styles.adminDeviceList}>{bootstrap.controlDevices.map((device) => <DeviceRow key={device.deviceId} device={device} actor={access} role={role} busy={actionBusy} run={manageDevice} />)}</div>
+        </section> : null}
+
+        {view === "audit" && canSeeAudit ? <section className={styles.panel}><SectionHeader title="Nhật ký bảo mật control-plane" meta={`${bootstrap.auditLog.length} sự kiện gần nhất`} /><div className={styles.auditList}>{bootstrap.auditLog.map((entry) => <article key={entry.id}><time>{formatTime(entry.createdAt)}</time><div><strong>{auditLabels[entry.action] ?? entry.action}</strong><small>{entry.actor}</small></div><code>{entry.target}</code></article>)}{!bootstrap.auditLog.length ? <div className={styles.emptyState}>Chưa có sự kiện audit Trung tâm.</div> : null}</div></section> : null}
+
+        {view === "settings" ? <section className={styles.settingsGrid}>
+          <div className={styles.panel}><SectionHeader title="Topology bắt buộc" /><div className={styles.topologyFlow}><div><span>LEVEL 0</span><strong>Application Management</strong><small>QT · role · central audit</small></div><b>→</b><div><span>LEVEL 1</span><strong>Client độc lập</strong><small>BE · SK · HN · BM · GU</small></div><b>→</b><div><span>ENDPOINT</span><strong>Thiết bị client</strong><small>Registry thuộc client</small></div></div></div>
+          <div className={styles.panel}><SectionHeader title="Contract từng ứng dụng" /><div className={styles.contractList}>{applicationRegistry.map((application) => <article key={application.id}><b>{application.initials}</b><div><strong>{application.shortName}</strong><small>{application.repository}</small></div><span data-contract={application.contractState}>{contractLabels[application.contractState]}</span><Link href={application.href}>Quản trị →</Link></article>)}</div></div>
+          <div className={`${styles.panel} ${styles.boundaryPanel}`}><SectionHeader title="Ranh giới nghiệp vụ" /><div className={styles.boundaryCards}><article data-client="health"><strong>Sức khỏe Y tế</strong><p>Chỉ kiểm duyệt y tế, quy tắc y khoa, hồ sơ/phiên Health và audit y tế. Không quản trị OCR hoặc ca Hòa nhập Nga.</p></article><article data-client="ru"><strong>Hòa nhập Nga</strong><p>Chỉ quản trị thiết bị HN, OCR thuốc, đối chiếu quy định và audit Nga. Không xử lý hồ sơ y tế tổng quát.</p></article></div></div>
+        </section> : null}
+      </div>
     </section>
   </main>;
 }
