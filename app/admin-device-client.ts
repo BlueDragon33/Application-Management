@@ -62,6 +62,12 @@ export type AdminBootstrap = {
   upstreamError?: string | null;
 };
 
+export type HealthAdminBootstrap = {
+  actor: AdminAccess;
+  application: "health-care";
+  bridge: ApplicationBridge & { application?: "health-care" };
+};
+
 export type CenterBootstrap = {
   actor: AdminAccess;
   applications: ApplicationDescriptor[];
@@ -76,7 +82,7 @@ export type CenterApiResponse = Partial<CenterBootstrap> & {
 };
 
 type Credential = { version: 1; privateKey: CryptoKey | null; publicKey: JsonWebKey };
-type ApiPayload = Partial<AdminBootstrap> & Partial<CenterBootstrap> & {
+type ApiPayload = Partial<AdminBootstrap> & Partial<HealthAdminBootstrap> & Partial<CenterBootstrap> & {
   device?: AdminAccess;
   challenge?: string;
   error?: string;
@@ -225,9 +231,14 @@ async function secureApi(
   throw lastError;
 }
 
-export async function connectAdminCenter() {
+async function approvedSession() {
   const credential = await credentialForDevice();
   const access = await register(credential);
+  return { credential, access };
+}
+
+export async function connectAdminCenter() {
+  const { credential, access } = await approvedSession();
   if (access.status !== "approved") {
     return { access, bootstrap: null as CenterBootstrap | null };
   }
@@ -238,8 +249,7 @@ export async function connectAdminCenter() {
 }
 
 export async function centerAdminAction(body: Record<string, unknown>) {
-  const credential = await credentialForDevice();
-  const access = await register(credential);
+  const { credential, access } = await approvedSession();
   if (access.status !== "approved") {
     throw new AdminApiError("Thiết bị quản trị chưa được cấp quyền.", { device: access });
   }
@@ -257,14 +267,27 @@ export async function connectAdminDevice(application: "boi-ech" = "boi-ech") {
       code: "APPLICATION_BRIDGE_MISMATCH",
     });
   }
-  const credential = await credentialForDevice();
-  const access = await register(credential);
+  const { credential, access } = await approvedSession();
   if (access.status !== "approved") {
     return { access, bootstrap: null as AdminBootstrap | null };
   }
   const bootstrap = await secureApi("/api/dashboard", credential, access, {
     action: "bootstrap",
   }) as AdminBootstrap;
+  return { access, bootstrap };
+}
+
+/**
+ * Health_Care có adapter và secret riêng. Vé này không dùng chung với Bơi ếch.
+ */
+export async function connectHealthCareAdmin() {
+  const { credential, access } = await approvedSession();
+  if (access.status !== "approved") {
+    return { access, bootstrap: null as HealthAdminBootstrap | null };
+  }
+  const bootstrap = await secureApi("/api/apps/health-care/bridge", credential, access, {
+    action: "bootstrap",
+  }) as HealthAdminBootstrap;
   return { access, bootstrap };
 }
 
