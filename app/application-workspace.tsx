@@ -1,21 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ApplicationConfig, DeviceClass } from "./application-registry";
 import { connectAdminCenter, roleLabels, type AdminAccess } from "./admin-device-client";
 import styles from "./application-admin.module.css";
 
+type WorkspaceView = "overview" | "devices" | "content" | "subclients";
+
 const statusLabels = {
   online: "Đang quản trị",
-  warning: "Cần hoàn thiện kết nối",
+  warning: "Cần hoàn thiện",
   planned: "Chờ kết nối",
 } as const;
 
 const contractLabels = {
-  connected: "Contract quản trị đang hoạt động",
-  migrating: "Client đã/đang chuẩn bị contract · adapter Trung tâm chưa hoàn tất",
-  pending: "Chưa có backend quản trị chính thức",
+  connected: "Contract hoạt động",
+  migrating: "Đang nối adapter",
+  pending: "Chưa nối backend",
 } as const;
 
 function DeviceGlyph({ kind }: { kind: DeviceClass }) {
@@ -35,7 +37,7 @@ function WorkspaceGate({ application, access, error, busy, retry }: {
     <span className={styles.workspaceGateMark}>{application.initials}</span>
     <small>APPLICATION MANAGEMENT · CLIENT ADMIN GATE</small>
     <h1>{access?.status === "pending" ? "Thiết bị quản trị đang chờ cấp quyền." : access?.status === "blocked" ? "Thiết bị quản trị đã bị khóa." : `Đang xác thực khu quản trị ${application.shortName}…`}</h1>
-    <p>{error || "Đây là control surface của client, chỉ mở trên thiết bị quản trị đã được Application Management phê duyệt. Runtime client vẫn chạy độc lập."}</p>
+    <p>{error || "Khu quản trị client chỉ mở trên thiết bị đã được Application Management cấp quyền. Runtime và dữ liệu của client vẫn hoàn toàn độc lập."}</p>
     {access?.deviceCode ? <div className={styles.workspaceGateCode}><span>Mã thiết bị quản trị</span><strong>{access.deviceCode}</strong></div> : null}
     <button onClick={retry} disabled={busy}>{busy ? "Đang xác thực…" : "Kiểm tra lại quyền"}</button>
   </section></main>;
@@ -45,6 +47,7 @@ export default function ApplicationWorkspace({ application, user }: { applicatio
   const [access, setAccess] = useState<AdminAccess | null>(null);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState("");
+  const [view, setView] = useState<WorkspaceView>("overview");
 
   async function verifyAccess() {
     setBusy(true); setError("");
@@ -64,85 +67,99 @@ export default function ApplicationWorkspace({ application, user }: { applicatio
   }
 
   const hasChildren = Boolean(application.childClients?.length);
+  const childCount = application.childClients?.length ?? 0;
+  const connectedCapabilities = application.contractState === "connected" ? application.capabilities.length : 0;
+  const currentTitle = useMemo(() => {
+    if (view === "devices") return { eyebrow: "DEVICE & ACCESS", title: "Thiết bị & quyền truy cập", description: "Client tự nhận diện endpoint, giữ registry và áp dụng giao diện phù hợp theo loại thiết bị." };
+    if (view === "content") return { eyebrow: "CONTENT & CONTROL", title: "Nội dung & quyền chỉnh sửa", description: "Một nơi duy nhất cho các năng lực quản trị client; không nhân bản nút thao tác ở nhiều màn hình." };
+    if (view === "subclients") return { eyebrow: "SUB-CLIENTS", title: `Client con của ${application.shortName}`, description: "Sub-client nằm dưới quyền client cha; Application Management không biến chúng thành client cấp 1 một cách tự động." };
+    return { eyebrow: "CLIENT CONTROL SURFACE", title: `Quản trị ${application.name}`, description: application.scope };
+  }, [application.name, application.scope, application.shortName, view]);
 
   return <main className={styles.workspaceShell}>
-    <aside className={styles.clientRail}>
-      <Link href="/" className={styles.railBrand}><span>AM</span><div><small>SERVER</small><strong>Application Management</strong></div></Link>
-      <div className={styles.railConnector}><i /><span>signed contract</span><i /></div>
-      <div className={styles.railClient}><span>{application.initials}</span><div><small>CLIENT CẤP 1</small><strong>{application.shortName}</strong></div></div>
-      <nav className={styles.railNav} aria-label={`Khu quản trị ${application.shortName}`}>
-        <a href="#overview"><span>01</span><div><strong>Tổng quan</strong><small>Boundary & contract</small></div></a>
-        {hasChildren ? <a href="#subclients"><span>02</span><div><strong>Sub-client</strong><small>Tầng client con</small></div></a> : null}
-        <a href="#devices"><span>{hasChildren ? "03" : "02"}</span><div><strong>Thiết bị & giao diện</strong><small>Endpoint policy</small></div></a>
-        <a href="#contract"><span>{hasChildren ? "04" : "03"}</span><div><strong>Admin contract</strong><small>Backend thật</small></div></a>
-        <a href="#guardrails"><span>{hasChildren ? "05" : "04"}</span><div><strong>Ranh giới</strong><small>Không vượt phạm vi</small></div></a>
+    <aside className={styles.clientSidebar}>
+      <Link href="/" className={styles.serverBack}><span>←</span><div><small>SERVER</small><strong>Application Management</strong></div></Link>
+      <div className={styles.clientBrand}><span>{application.initials}</span><div><small>CLIENT CẤP 1</small><strong>{application.shortName}</strong></div></div>
+      <div className={styles.clientStatus}><i data-status={application.status} /><div><strong>{statusLabels[application.status]}</strong><small>{contractLabels[application.contractState]}</small></div></div>
+
+      <nav className={styles.clientNav} aria-label={`Khu quản trị ${application.shortName}`}>
+        <span className={styles.navGroup}>QUẢN TRỊ CLIENT</span>
+        <button data-active={view === "overview"} onClick={() => setView("overview")}><span>01</span><div><strong>Tổng quan</strong><small>Trạng thái & boundary</small></div></button>
+        <button data-active={view === "devices"} onClick={() => setView("devices")}><span>02</span><div><strong>Thiết bị & quyền</strong><small>Endpoint registry</small></div></button>
+        <button data-active={view === "content"} onClick={() => setView("content")}><span>03</span><div><strong>Nội dung & chỉnh sửa</strong><small>Capability contract</small></div></button>
+        {hasChildren ? <button data-active={view === "subclients"} onClick={() => setView("subclients")}><span>04</span><div><strong>Sub-client</strong><small>Site/module cấp 2</small></div></button> : null}
       </nav>
-      <div className={styles.railUser}><span>{user.displayName.slice(0,1).toUpperCase()}</span><div><strong>{user.displayName}</strong><small>{roleLabels[access.role]} · {access.deviceCode}</small></div></div>
+
+      <div className={styles.clientBoundary}><span>RANH GIỚI</span><strong>Không có “trung tâm quản trị con”.</strong><p>Đây chỉ là control surface của {application.shortName}. Runtime, DB, phiên và thiết bị người dùng vẫn thuộc client.</p></div>
+      <div className={styles.clientUser}><span>{user.displayName.slice(0, 1).toUpperCase()}</span><div><strong>{user.displayName}</strong><small>{roleLabels[access.role]}</small><small>{access.deviceCode}</small></div></div>
     </aside>
 
-    <div className={styles.workspaceMain}>
+    <section className={styles.workspaceMain}>
       <header className={styles.workspaceTopbar}>
-        <div className={styles.breadcrumb}><Link href="/">Server</Link><span>/</span><b>Client</b><span>/</span><strong>{application.shortName}</strong></div>
-        <div className={styles.topbarMeta}><span data-status={application.status}>{statusLabels[application.status]}</span><small>{application.repository}</small></div>
+        <div><span>{currentTitle.eyebrow}</span><h1>{currentTitle.title}</h1><p>{currentTitle.description}</p></div>
+        <div className={styles.topbarActions}><Link href="/">Hệ thống</Link><button onClick={() => void verifyAccess()} disabled={busy}>{busy ? "Đang cập nhật…" : "Cập nhật"}</button></div>
       </header>
+      {error ? <div className={styles.workspaceError}>{error}</div> : null}
 
-      <section id="overview" className={styles.clientHero} data-status={application.status}>
-        <div className={styles.clientHeroCopy}>
-          <span className={styles.eyebrow}>LEVEL 1 · INDEPENDENT CLIENT</span>
-          <h1>Quản trị {application.name}</h1>
-          <p>{application.scope}</p>
-          <div className={styles.heroFacts}>
-            <div><span>Control plane</span><strong>Application Management</strong></div>
-            <div><span>Client repository</span><strong>{application.repository}</strong></div>
-            <div><span>Admin contract</span><strong>{contractLabels[application.contractState]}</strong></div>
+      {view === "overview" ? <>
+        <section className={styles.clientMetrics}>
+          <article><span>Vai trò</span><strong>Client cấp 1</strong><small>Thuộc Application Management</small></article>
+          <article data-state={application.contractState}><span>Admin contract</span><strong>{contractLabels[application.contractState]}</strong><small>{connectedCapabilities}/{application.capabilities.length} năng lực đang có backend</small></article>
+          <article><span>Sub-client</span><strong>{childCount}</strong><small>{childCount ? `Do ${application.shortName} quản trị` : "Không có tầng con"}</small></article>
+          <article><span>Endpoint class</span><strong>{application.deviceExperiences.length}</strong><small>Desktop · tablet/iPad · phone</small></article>
+        </section>
+
+        <section className={styles.clientPanel}>
+          <div className={styles.panelHeader}><div><span>ARCHITECTURE</span><h2>Luồng quản trị duy nhất</h2></div><p>Quyền đi từ server xuống client; dữ liệu chuyên môn không bị kéo ngược về server chỉ để hiển thị giao diện.</p></div>
+          <div className={styles.controlFlow}>
+            <div data-level="server"><small>LEVEL 0 · SERVER</small><strong>Application Management</strong><span>Policy · admin device · audit</span></div>
+            <b>→</b>
+            <div data-level="client"><small>LEVEL 1 · CLIENT</small><strong>{application.shortName}</strong><span>Runtime · DB · registry thiết bị</span></div>
+            {hasChildren ? <><b>→</b><div data-level="subclient"><small>LEVEL 2 · SUB-CLIENT</small><strong>{childCount} site/module</strong><span>Do {application.shortName} quản trị</span></div></> : null}
           </div>
-        </div>
-        <div className={styles.boundaryDiagram}>
-          <div data-level="server"><small>LEVEL 0</small><strong>Application Management</strong><span>policy · admin device · audit</span></div>
-          <i><span>signed contract</span></i>
-          <div data-level="client"><small>LEVEL 1</small><strong>{application.shortName}</strong><span>runtime · DB · device registry</span></div>
-          {hasChildren ? <><i><span>client-owned contract</span></i><div data-level="subclient"><small>LEVEL 2</small><strong>{application.childClients?.length} sub-client/module</strong><span>do {application.shortName} quản trị</span></div></> : null}
-        </div>
-      </section>
+        </section>
 
-      <section className={styles.contractStatusCard}>
-        <div><span className={styles.statusDot} data-contract={application.contractState} /><div><small>TRẠNG THÁI KẾT NỐI</small><strong>{contractLabels[application.contractState]}</strong></div></div>
-        <p>{application.contractNote}</p>
-      </section>
+        <section className={styles.clientPanel}>
+          <div className={styles.panelHeader}><div><span>CONTRACT STATUS</span><h2>Trạng thái kết nối</h2></div><p>{application.contractNote}</p></div>
+          <div className={styles.contractSummary}>
+            <div><span>Repository</span><strong>{application.repository}</strong></div>
+            <div><span>Backend</span><strong>{contractLabels[application.contractState]}</strong></div>
+            <div><span>Device registry</span><strong>Thuộc {application.shortName}</strong></div>
+            <div><span>Control-plane</span><strong>Chỉ policy & audit cần thiết</strong></div>
+          </div>
+        </section>
+      </> : null}
 
-      <section className={styles.boundaryCallout}>
-        <span>CONTROL BOUNDARY</span>
-        <p><strong>Server không chạy client.</strong> Application Management chỉ cấp/thu hồi quyền, gọi API quản trị đã công bố và nhận telemetry tối thiểu. Runtime, dữ liệu chuyên môn, phiên người dùng và registry endpoint thuộc client này.</p>
-      </section>
+      {view === "devices" ? <>
+        <section className={styles.boundaryNotice}><span>!</span><div><strong>Thiết bị người dùng thuộc registry của {application.shortName}.</strong><p>Application Management không gom fingerprint hoặc presence endpoint của client vào database quản trị Trung tâm.</p></div></section>
+        <section className={styles.clientPanel}>
+          <div className={styles.panelHeader}><div><span>ENDPOINT EXPERIENCE</span><h2>Phân loại thiết bị</h2></div><p>{application.devicePolicy}</p></div>
+          <div className={styles.endpointList}>{application.deviceExperiences.map((profile) => <article key={profile.id}>
+            <span className={styles.endpointIcon}><DeviceGlyph kind={profile.id} /></span>
+            <div><small>{profile.viewport}</small><strong>{profile.label}</strong><p>{profile.shell}</p></div>
+            <dl><div><dt>Điều hướng</dt><dd>{profile.navigation}</dd></div><div><dt>Mật độ</dt><dd>{profile.density}</dd></div><div><dt>Tương tác</dt><dd>{profile.interaction}</dd></div></dl>
+          </article>)}</div>
+        </section>
+      </> : null}
 
-      {hasChildren ? <section id="subclients" className={styles.workspaceSection}>
-        <div className={styles.sectionHeader}><div><span className={styles.eyebrow}>LEVEL 2 · SUB-CLIENT TOPOLOGY</span><h2>Client con dưới {application.shortName}</h2></div><p>Sub-client không tự trở thành client cấp 1 của Application Management. Client cha quyết định policy, contract và đường quản trị xuống tầng dưới.</p></div>
-        <div className={styles.subClientGrid}>{application.childClients?.map((child) => <article key={child.id} data-state={child.state}>
-          <div className={styles.subClientHead}><span>{child.initials}</span><div><small>{child.kind === "subject-site" ? "SUB-CLIENT SITE" : "SUB-CLIENT MODULE"}</small><strong>{child.name}</strong></div></div>
-          <div className={styles.subClientState}><span>{child.state === "independent" ? "Repo/site độc lập" : child.state === "module" ? "Đang nằm trong client cha" : "Lập kế hoạch"}</span><b data-contract={child.contractState}>{child.contractState === "connected" ? "Contract active" : child.contractState === "migrating" ? "Migrating" : "Contract pending"}</b></div>
-          <p>{child.note}</p>
-          <small>{child.repository ?? child.sourcePath ?? "Chưa gán nguồn"}</small>
+      {view === "content" ? <section className={styles.clientPanel}>
+        <div className={styles.panelHeader}><div><span>CAPABILITY CONTRACT</span><h2>{application.contractState === "connected" ? "Năng lực quản trị client" : "Chưa bật thao tác khi backend chưa đủ"}</h2></div><p>{application.contractState === "connected" ? "Các năng lực dưới đây chỉ được nối tới backend thật của client." : "Không dựng nút cấp quyền, mở Web App, duyệt hay chỉnh sửa giả. Khi adapter thật hoàn tất, thao tác sẽ xuất hiện đúng một lần tại khu này."}</p></div>
+        <div className={styles.capabilityList}>{application.capabilities.map((item, index) => <article key={item}>
+          <span>{String(index + 1).padStart(2, "0")}</span><div><strong>{item}</strong><small>{application.contractState === "connected" ? "Backend sẵn sàng" : "Chờ contract/adapter chính thức"}</small></div><i data-contract={application.contractState} />
         </article>)}</div>
+        <div className={styles.guardrailBlock}><span>KHÔNG ĐƯỢC VƯỢT PHẠM VI</span>{application.guardrails.map((item) => <p key={item}>• {item}</p>)}</div>
       </section> : null}
 
-      <section id="devices" className={styles.workspaceSection}>
-        <div className={styles.sectionHeader}><div><span className={styles.eyebrow}>ENDPOINT EXPERIENCE</span><h2>Phân loại thiết bị và giao diện</h2></div><p>Thiết bị được client tự nhận diện. Không chỉ responsive theo kích thước; từng lớp endpoint có mật độ, điều hướng và kiểu tương tác khác nhau.</p></div>
-        <div className={styles.deviceExperienceGrid}>{application.deviceExperiences.map((profile) => <article key={profile.id} data-device={profile.id}>
-          <div className={styles.deviceIllustration}><DeviceGlyph kind={profile.id} /></div>
-          <div className={styles.deviceExperienceBody}><div><small>{profile.viewport}</small><h3>{profile.label}</h3></div><p>{profile.shell}</p><dl><div><dt>Điều hướng</dt><dd>{profile.navigation}</dd></div><div><dt>Mật độ</dt><dd>{profile.density}</dd></div><div><dt>Tương tác</dt><dd>{profile.interaction}</dd></div></dl></div>
+      {view === "subclients" && hasChildren ? <section className={styles.clientPanel}>
+        <div className={styles.panelHeader}><div><span>LEVEL 2</span><h2>Sub-client dưới {application.shortName}</h2></div><p>Mỗi site/module chỉ xuất hiện một lần ở đây; không nhân bản thành card ở Y tế, Hòa nhập Nga hoặc khu client khác.</p></div>
+        <div className={styles.subClientList}>{application.childClients?.map((child) => <article key={child.id}>
+          <span className={styles.subClientMark}>{child.initials}</span>
+          <div><strong>{child.name}</strong><small>{child.repository ?? child.sourcePath ?? "Chưa gán nguồn"}</small></div>
+          <div><span>Loại</span><strong>{child.kind === "subject-site" ? "Site môn học" : "Module"}</strong></div>
+          <div><span>Trạng thái</span><strong>{child.state === "independent" ? "Độc lập" : child.state === "module" ? "Trong client cha" : "Kế hoạch"}</strong></div>
+          <div><span>Contract</span><strong>{contractLabels[child.contractState]}</strong></div>
         </article>)}</div>
-        <div className={styles.devicePolicyBox}><span>DEVICE REGISTRY</span><p>{application.devicePolicy}</p><strong>Registry endpoint không nằm trong database Application Management.</strong></div>
-      </section>
-
-      <section id="contract" className={styles.workspaceSection}>
-        <div className={styles.sectionHeader}><div><span className={styles.eyebrow}>ADMIN CONTRACT</span><h2>{application.contractState === "connected" ? "Backend quản trị đã sẵn sàng" : "Chưa bật các thao tác giả lập"}</h2></div><p>{application.contractState === "connected" ? "Chỉ những chức năng được backend client cung cấp thật mới xuất hiện trong khu quản trị." : "Chỉ khi repository ứng dụng cung cấp API quản trị, xác thực thiết bị, policy và audit theo chuẩn thì nút thao tác mới được bật."}</p></div>
-        <div className={styles.capabilityGrid}>{application.capabilities.map((item, index) => <article key={item}><span>{String(index + 1).padStart(2,"0")}</span><strong>{item}</strong><small>{application.contractState === "connected" ? "Có thể nối backend thật" : "Chờ contract chính thức"}</small></article>)}</div>
-      </section>
-
-      <section id="guardrails" className={styles.workspaceSection}>
-        <div className={styles.sectionHeader}><div><span className={styles.eyebrow}>GUARDRAILS</span><h2>Ranh giới không được vượt</h2></div><p>Các quy tắc này quan trọng hơn sự tiện lợi của giao diện. Nếu contract chưa đủ, giao diện phải thể hiện trạng thái chờ thay vì giả lập thao tác.</p></div>
-        <div className={styles.guardrailGrid}>{application.guardrails.map((item, index) => <article key={item}><span>{String(index + 1).padStart(2,"0")}</span><p>{item}</p></article>)}</div>
-      </section>
-    </div>
+      </section> : null}
+    </section>
   </main>;
 }
