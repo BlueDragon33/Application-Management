@@ -50,7 +50,8 @@ test("Hòa nhập Nga user runtime is not a route or PWA inside Site Quản tr�
   assert.equal(await missing("../app/ru-medcheck/page.tsx"), true);
   assert.equal(await missing("../public/ru-medcheck.webmanifest"), true);
   assert.match(medical, /integrationRussiaSiteUrl/);
-  assert.match(medical, /Site người dùng hoạt động riêng/);
+  assert.match(medical, /Hòa nhập Nga là Site độc lập/);
+  assert.match(medical, /không có màn hình đăng nhập riêng/);
   assert.doesNotMatch(serviceWorker, /ru-medcheck|hoa-nhap-nga-webapp/);
   assert.doesNotMatch(worker, /SITE_SURFACE|integration-russia|\/ru-medcheck/);
 });
