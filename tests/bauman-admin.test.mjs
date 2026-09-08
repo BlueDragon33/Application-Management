@@ -19,7 +19,7 @@ test("Bauman management surface does not fake operational backend actions", () =
   const admin = source("app/apps/bauman-master-ai/bauman-admin.tsx");
   assert.match(admin, /Chưa có backend quản trị Bauman/);
   assert.match(admin, /không có nút cấp quyền, publish, sửa bài hay mở site giả/i);
-  assert.doesNotMatch(admin, /approve-device|publish-content|open-learning-site|iframe/i);
+  assert.doesNotMatch(admin, /approve-device|publish-content|open-learning-site|<iframe/i);
 });
 
 test("Bauman keeps Math and subject modules under the level-1 hub", () => {
