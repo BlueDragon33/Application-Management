@@ -48,15 +48,67 @@ Application Management **không được**:
 Giao diện quản trị dùng một kiến trúc thống nhất giống khu quản trị Bơi ếch:
 
 - sidebar trái là điều hướng chính;
-- phần **Hệ thống** chỉ có `Tổng quan`, `Quyền & thiết bị`, `Nhật ký hệ thống`;
+- phần **Hệ thống** chỉ giữ `Tổng quan`, `Quyền & thiết bị`, `Nhật ký hệ thống`;
 - các client cấp 1 được liệt kê trực tiếp trong sidebar và dẫn thẳng tới khu quản trị của chính client;
 - topology được gộp vào `Tổng quan`, không duy trì một trang sơ đồ riêng;
 - không duy trì thêm trang `Danh mục client` dạng card nếu cùng thông tin đã có trong sidebar/registry;
 - mỗi client chỉ có **một đường vào quản trị**; không lặp các nút kiểu `Mở site`, `Cấp quyền Web App`, `Vào quản trị ...` ở nhiều tầng.
 
-Khu quản trị client cũng dùng cùng shell và chỉ gồm các nhóm chức năng cần thiết: `Tổng quan`, `Thiết bị & quyền`, `Nội dung & chỉnh sửa`, và `Sub-client` khi client thật sự có tầng con.
+Khu quản trị client cũng dùng cùng nguyên tắc shell và chỉ gồm các nhóm chức năng cần thiết: `Tổng quan`, `Thiết bị & quyền`, `Nội dung & chỉnh sửa`, và `Sub-client` khi client thật sự có tầng con.
 
 **Sức khỏe Y tế và Hòa nhập Nga là hai client cấp 1 độc lập.** Hòa nhập Nga không được đặt trong miền Y tế và Y tế không được hiển thị/điều khiển nghiệp vụ của Hòa nhập Nga.
+
+## Bơi ếch đã tách vật lý khỏi control-plane
+
+Khu quản trị Bơi ếch hiện nằm tại:
+
+```text
+app/apps/boi-ech/
+├── page.tsx
+└── boi-ech-control-center.tsx
+```
+
+Bơi ếch chỉ quản lý nghiệp vụ của chính client:
+
+- thiết bị học và trạng thái online/offline;
+- tiến độ học;
+- nhóm miễn phí/trả phí và thời hạn;
+- AI của Bơi ếch;
+- quyền sửa cục bộ;
+- duyệt thay đổi nội dung Bơi ếch;
+- xóa/khôi phục thiết bị rác của Bơi ếch theo quyền phù hợp.
+
+Các phần legacy đã bị loại bỏ hoàn toàn:
+
+- `app/control-center.tsx`;
+- `app/boi-admin-boundary.module.css`;
+- `/api/content` shim cũ.
+
+Không còn dùng CSS để ẩn `Quyền quản trị` hoặc `Nhật ký Trung tâm` trong Bơi ếch. Hai miền này chỉ thuộc Application Management.
+
+Luồng API hiện tại:
+
+```text
+/api/center
+└── control-plane
+    ├── central admin devices
+    ├── roles & permissions
+    └── central security audit
+
+/api/dashboard
+└── Bơi ếch bridge bootstrap only
+    ├── verify signed QT device proof
+    └── issue short-lived Bơi ếch admin bridge
+
+Bơi ếch client
+└── /api/control/* của BOIECH_AI
+    ├── overview / device operations
+    ├── content review
+    ├── AI
+    └── payment proof
+```
+
+`/api/dashboard` không được sở hữu `control_devices`, `control_members`, central audit hay danh mục các client khác.
 
 ## Client lớn và sub-client
 
@@ -89,7 +141,7 @@ Chuẩn UX mặc định:
 
 ## Trạng thái tích hợp hiện tại
 
-- **Bơi ếch**: admin bridge đang hoạt động;
+- **Bơi ếch**: admin bridge đang hoạt động; khu quản trị đã tách vật lý khỏi control-plane và chỉ còn nghiệp vụ Bơi ếch;
 - **Health_Care**: repo độc lập có Device Gate và Control API phía client; adapter của Application Management chưa nối vào `/api/center` mới;
 - **RU_LIFE**: boundary và luồng P-256 đã được xác lập; runtime/admin API còn đang hoàn thiện;
 - **Bauman Hub**: có source và sub-client, nhưng admin contract chính thức chưa đủ để bật điều khiển;
@@ -105,6 +157,8 @@ Thiết bị quản trị dùng khóa P-256 và challenge một lần. Vai trò 
 - `owner`
 
 Các thao tác cấp quyền, khóa thiết bị, thu hồi hoặc xóa tài khoản quản trị được giới hạn theo vai trò và ghi vào `control_audit_log`. Thiết bị/tài khoản owner được bảo vệ khỏi thao tác tự hủy từ giao diện.
+
+Bridge Bơi ếch là bridge chuyên biệt. Client khác không được phép dùng `/api/dashboard` làm đường tắt; mỗi client phải có adapter/API quản trị riêng trước khi bật thao tác thật.
 
 ## Development
 
