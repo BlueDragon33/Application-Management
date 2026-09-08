@@ -75,11 +75,14 @@ function verifiedProfile(request: Request, value: unknown) {
   const classification = classifyDevice(request, source);
   return {
     ...source,
+    clientDeviceClass: clean(source.deviceClass, 30) || null,
+    clientClassificationConfidence: numeric(source.classificationConfidence, 0, 100),
+    clientClassificationSource: clean(source.classificationSource, 80) || null,
     // The client contributes signals only. Application Management chooses the final class.
     deviceClass: classification.deviceClass,
     classificationConfidence: classification.confidence,
     classificationSource: classification.source,
-    classifierVersion: 2,
+    classifierVersion: 3,
   };
 }
 
