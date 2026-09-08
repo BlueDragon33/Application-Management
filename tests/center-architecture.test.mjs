@@ -21,17 +21,19 @@ test("central API verifies signed control-device proof and owns only central per
 });
 
 test("application registry has exactly one top-level entry per client", () => {
-  const registry = source("app/application-registry.ts");
+  const sourceText = source("app/application-registry.ts");
+  const registry = sourceText.slice(sourceText.indexOf("export const applicationRegistry"));
   for (const id of ["boi-ech", "health-care", "ru-life", "bauman-master-ai", "growup-mychildren"]) {
     const matches = registry.match(new RegExp(`id: "${id}"`, "g")) ?? [];
     assert.equal(matches.length, 1, `${id} must exist exactly once in the top-level registry`);
   }
-  assert.match(registry, /desktop\/phone\/tablet-iPad|máy tính, điện thoại, tablet\/iPad/i);
-  assert.match(registry, /Không dùng API\/DB Bơi ếch|Không chia sẻ registry Bơi ếch|Không dùng DB ứng dụng khác/);
+  assert.match(sourceText, /desktop\/phone\/tablet-iPad|máy tính, điện thoại, tablet\/iPad/i);
+  assert.match(sourceText, /Không dùng API\/DB Bơi ếch|Không chia sẻ registry Bơi ếch|Không dùng DB ứng dụng khác/);
 });
 
 test("Health Care and RU LIFE stay separate top-level clients", () => {
-  const registry = source("app/application-registry.ts");
+  const sourceText = source("app/application-registry.ts");
+  const registry = sourceText.slice(sourceText.indexOf("export const applicationRegistry"));
   const healthStart = registry.indexOf('id: "health-care"');
   const ruStart = registry.indexOf('id: "ru-life"');
   assert.ok(healthStart >= 0 && ruStart > healthStart);
