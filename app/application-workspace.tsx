@@ -62,10 +62,6 @@ export default function ApplicationWorkspace({ application, user }: { applicatio
 
   useEffect(() => { void verifyAccess(); }, []);
 
-  if (!access || access.status !== "approved") {
-    return <WorkspaceGate application={application} access={access} error={error} busy={busy} retry={() => void verifyAccess()} />;
-  }
-
   const hasChildren = Boolean(application.childClients?.length);
   const childCount = application.childClients?.length ?? 0;
   const connectedCapabilities = application.contractState === "connected" ? application.capabilities.length : 0;
@@ -75,6 +71,10 @@ export default function ApplicationWorkspace({ application, user }: { applicatio
     if (view === "subclients") return { eyebrow: "SUB-CLIENTS", title: `Client con của ${application.shortName}`, description: "Sub-client nằm dưới quyền client cha; Application Management không biến chúng thành client cấp 1 một cách tự động." };
     return { eyebrow: "CLIENT CONTROL SURFACE", title: `Quản trị ${application.name}`, description: application.scope };
   }, [application.name, application.scope, application.shortName, view]);
+
+  if (!access || access.status !== "approved") {
+    return <WorkspaceGate application={application} access={access} error={error} busy={busy} retry={() => void verifyAccess()} />;
+  }
 
   return <main className={styles.workspaceShell}>
     <aside className={styles.clientSidebar}>
