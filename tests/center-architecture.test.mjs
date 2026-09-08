@@ -93,16 +93,25 @@ test("central UI uses center endpoint instead of application dashboard", () => {
   assert.match(client, /secureApi\("\/api\/center"/);
 });
 
-test("Boi Ech remains a separate app-admin route without exposing legacy central admin tabs", () => {
+test("Boi Ech has a physically isolated client control center", () => {
   const route = source("app/apps/boi-ech/page.tsx");
-  const boundary = source("app/boi-admin-boundary.module.css");
-  assert.match(route, /ControlCenter/);
-  assert.match(route, /boiBoundary/);
+  const client = source("app/apps/boi-ech/boi-ech-control-center.tsx");
+  assert.match(route, /BoiEchControlCenter/);
   assert.match(route, /Application Management/);
-  assert.match(boundary, /\.approval-layout/);
-  assert.match(boundary, /\.audit-layout/);
-  assert.match(boundary, /display:none!important/);
-  assert.match(boundary, /Quyền quản trị Trung tâm và nhật ký bảo mật được quản lý tại Application Management/);
+  assert.doesNotMatch(route, /boiBoundary|\.\.\/\.\.\/control-center/);
+  assert.match(client, /type Dashboard =/);
+  assert.match(client, /"devices" \| "ai" \| "content"/);
+  assert.doesNotMatch(client, /"approvals"|"audit"|manage-control-device|controlDevices|application-list|roleCapabilities/);
+  assert.match(client, /Quyền QT và audit Trung tâm nằm ở Application Management/);
+});
+
+test("Boi Ech dashboard bootstrap cannot own central device or audit state", () => {
+  const dashboard = source("app/api/dashboard/route.ts");
+  assert.match(dashboard, /issueBoiBrowserBridge/);
+  assert.match(dashboard, /verifyControlProof/);
+  assert.doesNotMatch(dashboard, /controlDevices|auditLog|applications:\s*\[/);
+  assert.doesNotMatch(dashboard, /manage-control-device|CENTER_ACTION_MOVED/);
+  assert.match(dashboard, /INVALID_BOI_DASHBOARD_ACTION/);
 });
 
 test("unconnected applications do not expose fake operational controls", () => {
