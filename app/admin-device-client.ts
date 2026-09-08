@@ -56,7 +56,8 @@ export type CenterAuditEntry = {
 
 export type AdminBootstrap = {
   actor: AdminAccess;
-  applications: ApplicationDescriptor[];
+  application: { id: "boi-ech"; name: string; lessonCount: number };
+  learningDevices: [];
   boiBridge: ApplicationBridge;
   upstreamError?: string | null;
 };
@@ -224,14 +225,6 @@ async function secureApi(
   throw lastError;
 }
 
-function currentApplication() {
-  if (typeof window !== "undefined" && window.location.pathname.startsWith("/apps/health-care")) return "health-care";
-  if (typeof window !== "undefined" && window.location.pathname.startsWith("/apps/ru-life")) return "ru-life";
-  if (typeof window !== "undefined" && window.location.pathname.startsWith("/apps/bauman-master-ai")) return "bauman-master-ai";
-  if (typeof window !== "undefined" && window.location.pathname.startsWith("/apps/growup-mychildren")) return "growup-mychildren";
-  return "boi-ech";
-}
-
 export async function connectAdminCenter() {
   const credential = await credentialForDevice();
   const access = await register(credential);
@@ -253,7 +246,17 @@ export async function centerAdminAction(body: Record<string, unknown>) {
   return await secureApi("/api/center", credential, access, body) as CenterApiResponse;
 }
 
-export async function connectAdminDevice(application = currentApplication()) {
+/**
+ * Bridge bootstrap dành riêng cho client Bơi ếch.
+ * Các client khác phải có adapter/API quản trị riêng; tuyệt đối không được dùng
+ * /api/dashboard của Bơi ếch làm đường tắt sang control-plane.
+ */
+export async function connectAdminDevice(application: "boi-ech" = "boi-ech") {
+  if (application !== "boi-ech") {
+    throw new AdminApiError("Client này chưa có admin adapter riêng; không được dùng bridge Bơi ếch.", {
+      code: "APPLICATION_BRIDGE_MISMATCH",
+    });
+  }
   const credential = await credentialForDevice();
   const access = await register(credential);
   if (access.status !== "approved") {
@@ -261,7 +264,6 @@ export async function connectAdminDevice(application = currentApplication()) {
   }
   const bootstrap = await secureApi("/api/dashboard", credential, access, {
     action: "bootstrap",
-    application,
   }) as AdminBootstrap;
   return { access, bootstrap };
 }
