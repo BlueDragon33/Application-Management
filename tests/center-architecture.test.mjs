@@ -93,11 +93,16 @@ test("central UI uses center endpoint instead of application dashboard", () => {
   assert.match(client, /secureApi\("\/api\/center"/);
 });
 
-test("Boi Ech remains a separate app-admin route", () => {
+test("Boi Ech remains a separate app-admin route without exposing legacy central admin tabs", () => {
   const route = source("app/apps/boi-ech/page.tsx");
+  const boundary = source("app/boi-admin-boundary.module.css");
   assert.match(route, /ControlCenter/);
   assert.match(route, /boiBoundary/);
   assert.match(route, /Application Management/);
+  assert.match(boundary, /\.approval-layout/);
+  assert.match(boundary, /\.audit-layout/);
+  assert.match(boundary, /display:none!important/);
+  assert.match(boundary, /Quyền quản trị Trung tâm và nhật ký bảo mật được quản lý tại Application Management/);
 });
 
 test("unconnected applications do not expose fake operational controls", () => {
