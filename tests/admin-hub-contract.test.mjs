@@ -51,6 +51,7 @@ test("registered applications have independent management and Web App entry poin
   assert.match(hub, /https:\/\/suc-khoe-tre\.boiech-ai\.workers\.dev\/suc-khoe-tre/);
   assert.match(hub, /id: "hoa-nhap-nga"/);
   assert.match(siteLinks, /https:\/\/hoa-nhap-nga\.dinhnam3391\.chatgpt\.site/);
+  assert.match(hub, /webHref: integrationRussiaSiteUrl/);
 
   assert.match(learningPage, /ControlCenter/);
   assert.match(learningPage, /requireChatGPTUser\("\/learning-control"\)/);
@@ -58,21 +59,28 @@ test("registered applications have independent management and Web App entry poin
   assert.match(systemPage, /requireChatGPTUser\("\/system-control"\)/);
 });
 
-test("Hòa nhập Nga is opened only after a central access ticket is issued", async () => {
+test("Hòa nhập Nga opens as a separate site and access is managed by HN device", async () => {
   const hub = await source("../app/admin-hub.tsx");
   const medical = await source("../app/medical-control/medical-control-client.tsx");
-  const access = await source("../app/api/medicine/access/route.ts");
-  const bridge = await source("../app/medicine-bridge.server.ts");
+  const gateway = await source("../app/api/apps/hoa-nhap-nga/device/route.ts");
+  const control = await source("../app/api/apps/hoa-nhap-nga/control/route.ts");
+  const registry = await source("../app/managed-app-device.server.ts");
 
-  assert.match(hub, /webHref: "\/medical-control"/);
-  assert.match(hub, /Cấp quyền Web App/);
-  assert.match(medical, /\/api\/medicine\/access/);
-  assert.match(medical, /issue-access/);
-  assert.match(medical, /Cấp quyền & mở Web App/);
-  assert.match(access, /verifyControlProof/);
-  assert.match(access, /issueMedicineBrowserBridge/);
-  assert.match(bridge, /aud: "hoa-nhap-nga"/);
-  assert.match(bridge, /MEDICINE_SERVICE_SECRET/);
+  assert.match(hub, /webHref: integrationRussiaSiteUrl/);
+  assert.match(hub, /Quản lý thiết bị Hòa nhập Nga/);
+  assert.match(hub, /Site đó tự kiểm tra quyền thiết bị của nó/);
+  assert.doesNotMatch(hub, /Cấp quyền Web App/);
+  assert.match(medical, /\/api\/apps\/hoa-nhap-nga\/control/);
+  assert.match(medical, /Cấp quyền/);
+  assert.match(medical, /Thu hồi tạm/);
+  assert.match(medical, /Đặt tên/);
+  assert.match(gateway, /registerManagedAppDevice/);
+  assert.match(gateway, /createManagedAppChallenge/);
+  assert.match(gateway, /authorizeManagedAppDevice/);
+  assert.match(control, /verifyControlProof/);
+  assert.match(registry, /managed_app_devices/);
+  assert.match(registry, /deviceCodeFor/);
+  assert.match(registry, /HN-/);
 });
 
 test("central medical API converts an upstream HTML failure into a JSON error", async () => {
@@ -93,6 +101,7 @@ test("hub keeps a data-driven application expansion boundary", async () => {
   assert.match(hub, /const applications: ManagedApplication\[\]/);
   assert.match(hub, /applications\.map/);
   assert.match(hub, /Quản trị Bauman/);
-  assert.match(hub, /Hòa nhập Nga là Site người dùng độc lập/);
+  assert.match(hub, /Hòa nhập Nga chạy ở Site riêng/);
   assert.match(hub, /Sức khỏe trẻ dùng Worker và D1 riêng/);
+  assert.match(hub, /Một Trung tâm, nhiều Site độc lập/);
 });
