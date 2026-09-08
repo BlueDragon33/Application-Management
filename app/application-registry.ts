@@ -169,7 +169,7 @@ export const applicationRegistry: readonly ApplicationConfig[] = [
     contractState: "connected",
     repository: "BlueDragon33/BOIECH_AI",
     scope: "Client học Bơi ếch độc lập; Trung tâm quản trị qua bridge ký số và không chạy nội dung học tập.",
-    contractNote: "Admin bridge đang hoạt động. Tiếp tục tách phần legacy để khu Bơi ếch chỉ còn nghiệp vụ của chính client.",
+    contractNote: "Admin bridge đang hoạt động. Khu quản trị Bơi ếch đã tách vật lý khỏi control-plane và chỉ còn nghiệp vụ của chính client.",
     devicePolicy: "Registry BE riêng · tự nhận diện desktop/phone/tablet-iPad · quyền truy cập và quyền sửa tách biệt.",
     deviceExperiences: standardDeviceExperiences,
     capabilities: ["Thiết bị & truy cập", "Tiến độ học", "AI", "Thanh toán & thời hạn", "Duyệt nội dung"],
