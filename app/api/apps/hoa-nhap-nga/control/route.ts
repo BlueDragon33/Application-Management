@@ -68,6 +68,16 @@ function policy() {
   };
 }
 
+async function fullResponse(actor: { role: string; email: string; [key: string]: unknown }, ok = false) {
+  return {
+    ...(ok ? { ok: true } : {}),
+    actor,
+    app: { id: "hoa-nhap-nga" as const, name: "Hòa nhập Nga" },
+    policy: policy(),
+    ...(await responseState(actor.role)),
+  };
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json() as Record<string, unknown>;
@@ -76,12 +86,7 @@ export async function POST(request: Request) {
     const action = typeof body.action === "string" ? body.action : "bootstrap";
 
     if (action === "bootstrap") {
-      return Response.json({
-        actor,
-        app: { id: "hoa-nhap-nga", name: "Hòa nhập Nga" },
-        policy: policy(),
-        ...(await responseState(actor.role)),
-      }, { headers: { "cache-control": "no-store, private", "x-content-type-options": "nosniff" } });
+      return Response.json(await fullResponse(actor), { headers: { "cache-control": "no-store, private", "x-content-type-options": "nosniff" } });
     }
 
     if (["approve", "block", "pending", "label", "classify"].includes(action)) {
@@ -96,7 +101,7 @@ export async function POST(request: Request) {
         deviceClassOverride: action === "classify" ? body.deviceClass : undefined,
         actor: actor.email,
       });
-      return Response.json({ ok: true, policy: policy(), ...(await responseState(actor.role)) }, {
+      return Response.json(await fullResponse(actor, true), {
         headers: { "cache-control": "no-store, private", "x-content-type-options": "nosniff" },
       });
     }
@@ -113,7 +118,7 @@ export async function POST(request: Request) {
         adminNote: body.adminNote,
         actor: actor.email,
       });
-      return Response.json({ ok: true, policy: policy(), ...(await responseState(actor.role)) }, {
+      return Response.json(await fullResponse(actor, true), {
         headers: { "cache-control": "no-store, private", "x-content-type-options": "nosniff" },
       });
     }
@@ -130,7 +135,7 @@ export async function POST(request: Request) {
         status,
         actor: actor.email,
       });
-      return Response.json({ ok: true, policy: policy(), ...(await responseState(actor.role)) }, {
+      return Response.json(await fullResponse(actor, true), {
         headers: { "cache-control": "no-store, private", "x-content-type-options": "nosniff" },
       });
     }
