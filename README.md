@@ -43,6 +43,21 @@ Application Management **không được**:
 - quản trị xuyên tầng vào sub-client nếu client cha chưa công bố contract;
 - dựng nút thao tác khi backend thật chưa tồn tại.
 
+## Một shell quản trị, không lặp tầng
+
+Giao diện quản trị dùng một kiến trúc thống nhất giống khu quản trị Bơi ếch:
+
+- sidebar trái là điều hướng chính;
+- phần **Hệ thống** chỉ có `Tổng quan`, `Quyền & thiết bị`, `Nhật ký hệ thống`;
+- các client cấp 1 được liệt kê trực tiếp trong sidebar và dẫn thẳng tới khu quản trị của chính client;
+- topology được gộp vào `Tổng quan`, không duy trì một trang sơ đồ riêng;
+- không duy trì thêm trang `Danh mục client` dạng card nếu cùng thông tin đã có trong sidebar/registry;
+- mỗi client chỉ có **một đường vào quản trị**; không lặp các nút kiểu `Mở site`, `Cấp quyền Web App`, `Vào quản trị ...` ở nhiều tầng.
+
+Khu quản trị client cũng dùng cùng shell và chỉ gồm các nhóm chức năng cần thiết: `Tổng quan`, `Thiết bị & quyền`, `Nội dung & chỉnh sửa`, và `Sub-client` khi client thật sự có tầng con.
+
+**Sức khỏe Y tế và Hòa nhập Nga là hai client cấp 1 độc lập.** Hòa nhập Nga không được đặt trong miền Y tế và Y tế không được hiển thị/điều khiển nghiệp vụ của Hòa nhập Nga.
+
 ## Client lớn và sub-client
 
 Client cấp 1 có thể sở hữu client cấp 2. Trường hợp điển hình là **Bauman Hub**:
@@ -72,17 +87,7 @@ Chuẩn UX mặc định:
 
 Đây là chuẩn giao diện, không phải cơ chế fingerprint. Device classification phải diễn ra tại client và chỉ gửi metadata thật sự cần thiết cho quản trị.
 
-## Control-plane hiện tại
-
-Root `/` là Application Hub với năm khu vực:
-
-- **Tổng quan** — tình trạng server, contract và việc cần xử lý;
-- **Sơ đồ hệ thống** — topology `Server → Client → Sub-client → Endpoint`;
-- **Client** — registry và đường vào khu quản trị riêng;
-- **Thiết bị quản trị** — chỉ dành cho máy quản trị Application Management;
-- **Nhật ký & bảo mật** — audit của control-plane.
-
-Trạng thái tích hợp hiện tại:
+## Trạng thái tích hợp hiện tại
 
 - **Bơi ếch**: admin bridge đang hoạt động;
 - **Health_Care**: repo độc lập có Device Gate và Control API phía client; adapter của Application Management chưa nối vào `/api/center` mới;
