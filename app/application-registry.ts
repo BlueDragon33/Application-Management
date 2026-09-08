@@ -82,12 +82,12 @@ export const applicationRegistry: readonly ApplicationConfig[] = [
   },
   {
     id: "ru-life", name: "Hòa nhập Nga", shortName: "Hòa nhập Nga", href: "/apps/ru-life", initials: "RU", tier: "client", status: "warning", contractState: "migrating", repository: "BlueDragon33/RU_LIFE",
-    scope: "Client Hòa nhập Nga độc lập; không có đăng nhập trực tiếp, truy cập chỉ được phát sau khi thiết bị HN được phê duyệt.",
-    contractNote: "RU_LIFE main và gateway/admin HN trong Application Management đã build + test xanh. Luồng P-256, token 15 phút, session revocation và khu quản trị HN đã có; vẫn giữ migrating cho tới khi xác minh secret/origin, migration D1 và ownership registry ở production.",
-    devicePolicy: "Namespace HN riêng · nhận diện computer/phone/tablet-iPad · gắn Họ tên + Mã người dùng trước khi duyệt · quyền truy cập và quyền sửa tách biệt.",
+    scope: "Client Hòa nhập Nga độc lập; RU_LIFE sở hữu D1, registry HN, challenge P-256, session ledger và audit; không có đăng nhập trực tiếp.",
+    contractNote: "RU_LIFE main đã chuyển sang D1/registry/session riêng và CI standalone đã xanh. Application Management chỉ phát vé bridge 5 phút rồi gọi Control API của RU_LIFE; vẫn giữ migrating cho tới khi cấu hình RU_LIFE_BASE_URL, secret chung và D1 production được xác minh.",
+    devicePolicy: "Registry HN thuộc RU_LIFE · server RU_LIFE tự phân loại computer/phone/tablet-iPad · Application Management chỉ gắn người dùng/cấp policy qua signed Control API · access/edit tách biệt.",
     deviceExperiences: standardDeviceExperiences,
     capabilities: ["Thiết bị HN", "Cấp/khóa truy cập", "Phân loại thiết bị", "Quyền chỉnh sửa", "Phiên & thu hồi từ xa", "Audit HN"],
-    guardrails: ["Không nhúng site vào Trung tâm", "Không dùng QT/BE/SK làm namespace HN", "Không có đăng nhập trực tiếp trên RU_LIFE", "Không dùng secret Health/Bơi ếch"],
+    guardrails: ["Không lưu registry/session HN trong DB Trung tâm", "Không dùng QT/BE/SK làm namespace HN", "Không có đăng nhập trực tiếp trên RU_LIFE", "Không dùng secret Health/Bơi ếch"],
   },
   {
     id: "bauman-master-ai", name: "Bauman Master AI", shortName: "Bauman Hub", href: "/apps/bauman-master-ai", initials: "BM", tier: "client", status: "warning", contractState: "pending", repository: "BlueDragon33/Bauman-master-ai-system",
