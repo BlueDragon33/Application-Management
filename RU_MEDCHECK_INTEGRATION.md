@@ -1,96 +1,101 @@
-# Trung tâm quản trị — RU MedCheck / Y tế integration
+# Hòa nhập Nga — ranh giới tích hợp với Site Quản trị
 
-## Kiến trúc Trung tâm
+## Nguyên tắc bắt buộc
 
-Root `/` là **Trung tâm quản trị** đa lĩnh vực. Ba lĩnh vực đang hoạt động được tách theo ranh giới chức năng và dữ liệu:
+**Hòa nhập Nga là một Site/Web App độc lập.** Repo `Learning-Management` chỉ là **Site Quản trị** và không chứa route, giao diện, manifest hay service worker của Web App Hòa nhập Nga.
 
-- `/learning-control` — **Học tập**: thiết bị học, tiến độ, thanh toán, AI và duyệt chỉnh sửa nội dung.
-- `/medical-control` — **Y tế**: dashboard chung của các module Y tế; RU MedCheck là module đầu tiên.
-- `/system-control` — **Hệ thống**: tài khoản, thiết bị quản trị, phân quyền và nhật ký dùng chung.
+Địa chỉ Site Hòa nhập Nga được khai báo tại `app/site-links.ts`. Site Quản trị chỉ thực hiện các nhiệm vụ:
 
-Các lĩnh vực dùng chung danh tính ChatGPT và bằng chứng thiết bị quản trị ECDSA, nhưng API nghiệp vụ được tách riêng. Hệ thống không cần vé/bridge của Bơi ếch và Y tế không nhập dữ liệu thuốc vào tiến độ học tập.
+- nhận yêu cầu đăng ký thiết bị từ Hòa nhập Nga;
+- tự phân loại thiết bị để quản trị viên dễ nhận biết;
+- duyệt, thu hồi hoặc khóa quyền truy cập theo từng thiết bị;
+- quản lý kiểm duyệt, quy tắc, thống kê và nhật ký thuộc phạm vi quản trị;
+- giao tiếp với Site Hòa nhập Nga qua API/secret khi cần.
 
-`app/control-device.client.ts` là lớp xác thực client dùng chung cho các module mới. Nó tái sử dụng thiết bị quản trị đã cấp quyền và chuỗi ký hiện hành `learning-control:<deviceId>:<challenge>`.
+`control_devices` và `managed_app_devices` là hai miền khác nhau:
 
-## Routes RU MedCheck / Y tế
+- `control_devices`: thiết bị được phép vào **Site Quản trị**;
+- `managed_app_devices`: thiết bị người dùng được phép vào **ứng dụng được quản lý**, hiện có `app_id = hoa-nhap-nga`.
 
-- `/medical-control` — protected medical-domain dashboard.
-- `/ru-medcheck` — public installable Web App for Russia-only medicine screening.
-- `/medicine-control` — protected RU MedCheck review/rule workspace under the Y tế domain.
-- `/api/medicine/rules` — public enabled rule set.
-- `/api/medicine/reviews` — submit OCR text for central review.
-- `/api/medicine/reviews/[id]?token=...` — read one public review decision with its separate secret lookup token.
-- `/api/medicine/control` — protected medical administration API using signed control-device proof.
+Không được dùng quyền của thiết bị quản trị để thay thế quyền của thiết bị Hòa nhập Nga.
 
-## Route Hệ thống
+## Luồng truy cập Hòa nhập Nga
 
-- `/system-control` — protected system administration workspace.
-- `/api/system/control` — dedicated system control API for bootstrap, control-device/account management and central audit.
+Cơ chế giữ tinh thần giống Site Bơi ếch: Site người dùng hoạt động riêng nhưng quyền được quyết định từ Trung tâm.
 
-The system API deliberately does **not** import `issueBoiBrowserBridge` or any Bơi ếch dependency. The older `/api/dashboard` remains available to the existing Learning ControlCenter for compatibility while the large legacy component is gradually cleaned up.
+1. Lần đầu mở Hòa nhập Nga, trình duyệt tạo cặp khóa ECDSA P-256 và lưu khóa riêng cục bộ bằng IndexedDB.
+2. Site gửi khóa công khai cùng hồ sơ nhận diện thiết bị tới `POST /api/apps/hoa-nhap-nga/device` với `action=register`.
+3. Site Quản trị tạo mã thiết bị dạng `HN-XXXX-XXXX-XXXX-XXXX`, trạng thái mặc định `pending`.
+4. Thiết bị xuất hiện trong **Y tế → Hòa nhập Nga → Thiết bị truy cập**.
+5. Publisher/Owner có thể `Cấp quyền`, `Thu hồi tạm`, `Khóa` hoặc `Đặt tên` thiết bị.
+6. Khi đã được duyệt, Hòa nhập Nga gọi `action=challenge`, ký chuỗi
+   `managed-app:hoa-nhap-nga:<deviceId>:<challenge>` bằng khóa riêng cục bộ rồi gửi `action=authorize`.
+7. Site Quản trị xác minh chữ ký và chỉ khi thiết bị vẫn là `approved` mới phát token HMAC ngắn hạn có audience `hoa-nhap-nga-device`.
+8. **Site Hòa nhập Nga độc lập** phải xác minh token này ở phía server và tạo phiên/cookie của chính nó. Không có màn hình đăng nhập trực tiếp trên Hòa nhập Nga.
 
-## Trust model
+Nếu thiết bị bị chuyển về `pending` hoặc `blocked`, lần xác thực tiếp theo bị từ chối. Token có thời hạn ngắn để việc thu hồi quyền có hiệu lực nhanh mà không phụ thuộc tài khoản quản trị.
 
-The medicine/system administrators do not have separate passwords. They reuse the existing ChatGPT identity, approved management device, ECDSA challenge/proof, and `viewer` / `reviewer` / `publisher` / `owner` roles.
+## API phía Site Quản trị
 
-- viewer: read permitted management workspaces.
-- reviewer: decide review cases where a module grants reviewer capability.
-- publisher: reviewer capabilities plus publishing/configuration and audit capabilities where applicable.
-- owner: central account/device administration and full module capabilities.
+### Public gateway dành riêng cho Hòa nhập Nga
 
-The public scanner keeps medicine images in the browser. OCR uses Tesseract.js locally. Only extracted text is sent to the control center after an explicit `Gửi Trung tâm kiểm duyệt` action.
+`POST /api/apps/hoa-nhap-nga/device`
 
-The server does **not** trust the risk level or matched ingredients calculated by the browser. Every submitted OCR text is analyzed again against the current enabled D1 rule set before a review record is stored.
+- `register`: đăng ký/đồng bộ hồ sơ thiết bị;
+- `challenge`: cấp nonce một lần cho thiết bị đã được duyệt;
+- `authorize`: xác minh chữ ký thiết bị và phát access token ngắn hạn.
 
-Public review lookup uses two independent values:
+CORS chỉ chấp nhận origin của `MEDICINE_APP_BASE_URL` (hoặc URL Hòa nhập Nga đã khai báo). API này không dùng cookie đăng nhập Site Quản trị.
 
-1. a random review UUID;
-2. a separate 256-bit random lookup token.
+### API quản trị thiết bị Hòa nhập Nga
 
-Only the SHA-256 hash of that lookup token is stored in D1. A UUID by itself cannot retrieve the decision.
+`POST /api/apps/hoa-nhap-nga/control`
 
-Public review submission is bounded by payload size and an hourly rate limit. The rate-limit key is derived from a SHA-256 hash of the Cloudflare client IP plus the current time bucket; the raw IP is not stored in the RU MedCheck tables.
+API này bắt buộc bằng chứng ECDSA của **thiết bị quản trị đã được duyệt** thông qua cơ chế `verifyControlProof` hiện có.
 
-## Five levels
+- `bootstrap`: đọc danh sách thiết bị Hòa nhập Nga;
+- `approve`: cấp quyền;
+- `pending`: thu hồi tạm/bỏ khóa về trạng thái chờ;
+- `block`: khóa;
+- `label`: đặt tên gợi nhớ.
 
-1. No special-control ingredient recognized from a known rule.
-2. Attention / unknown match; central review is recommended when the ingredient cannot be identified.
-3. Concentration, dose, form, or combination needs checking.
-4. Strict control; documentation and Russia-specific conditions need verification.
-5. Special control; do not treat the automated result as permission to import/use without official/document verification.
+Publisher/Owner mới có quyền thay đổi trạng thái hoặc tên thiết bị.
 
-The result is a legal/regulatory screening aid for the Russian Federation only. It is not medical prescribing advice and not an absolute customs clearance decision.
+## Nhận diện và phân loại thiết bị
 
-## Data and rule lifecycle
+Hồ sơ quản trị lưu các trường:
 
-The D1 tables are self-initialized with `CREATE TABLE IF NOT EXISTS` and are also described in `drizzle/0002_ru_medcheck.sql` and `db/schema.ts`.
+- `device_class`: computer / phone / tablet / unknown;
+- `os_name`;
+- `browser_name`;
+- `model_hint`;
+- `screen`;
+- thời điểm tạo, duyệt, khóa, last seen và trạng thái hoạt động.
 
-- `medicine_rules` — centrally managed ingredient rules.
-- `medicine_reviews` — review queue and decisions.
-- `medicine_audit_log` — RU MedCheck administrative audit log.
-- `medicine_settings` — seed/data version state.
-- `medicine_rate_limits` — short-lived anti-abuse counters.
+Các trường này giúp con người nhận biết thiết bị; **không phải căn cứ bảo mật**. Trình duyệt không đảm bảo cho biết chính xác model phần cứng hoặc phân biệt tuyệt đối laptop với desktop. Danh tính bảo mật là khóa ECDSA của thiết bị và `device_id` SHA-256 sinh từ khóa công khai.
 
-The current seed version is `RU-MED-2026.09.05-v4`. A new seed version refreshes only system-owned seed rules. A rule edited by a Publisher/Owner is preserved and is not overwritten by a later seed refresh.
+## Ranh giới PWA/runtime
 
-Russian source metadata is centrally versioned. Current source metadata covers Federal Law 61-FZ Article 50, Government Decree 681 Lists II/III/IV, Ministry of Health Order 459n, and Government Decree 964.
+Site Quản trị dùng manifest/service worker của riêng nó. Repo này không còn:
 
-## PWA and offline behavior
+- `/ru-medcheck`;
+- `public/ru-medcheck.webmanifest`;
+- bridge đổi tài khoản quản trị thành phiên Hòa nhập Nga;
+- cookie phiên Hòa nhập Nga;
+- chế độ Worker biến Site Quản trị thành `integration-russia`.
 
-`/ru-medcheck` has its own Web App manifest and reuses the central service worker. After a successful online visit, the RU MedCheck navigation shell and same-origin static assets can be reused offline. The last successfully downloaded rule set is also cached in browser storage.
+PWA, offline cache và giao diện người dùng Hòa nhập Nga phải nằm ở mã nguồn/deployment độc lập của Hòa nhập Nga.
 
-Offline mode supports reading previously cached rule data and manual ingredient text analysis. Sending a new central review or refreshing a review decision still requires a network connection. OCR image recognition also requires a network connection the first time Tesseract.js/language data are loaded.
+## Phần Site Hòa nhập Nga cần triển khai
 
-## Quality gate
+Mã nguồn độc lập của Hòa nhập Nga cần có lớp `device-access` thực hiện đúng contract trên:
 
-`.github/workflows/ci.yml` runs on `main` and `work/**` branches and on pull requests to `main`:
+- sinh/lưu P-256 keypair;
+- gửi profile thiết bị khi `register`;
+- hiển thị mã `HN-...` và trạng thái `pending/blocked` khi chưa được phép;
+- tự thử lại trạng thái khi người dùng tải lại hoặc bấm kiểm tra;
+- ký challenge và đổi access token thành session phía server;
+- bảo vệ toàn bộ nội dung nghiệp vụ bằng session thiết bị;
+- không chấp nhận token chỉ dựa trên email/role quản trị.
 
-1. locked dependency install;
-2. ESLint;
-3. full `npm test` build-and-test gate.
-
-Contract tests protect both feature and architecture boundaries:
-
-- `tests/ru-medcheck-contract.test.mjs` — server-side risk recomputation, private lookup token, no-image-upload contract, authorization, Russian source identifiers, and PWA/offline behavior.
-- `tests/admin-hub-contract.test.mjs` — cross-domain hub and independent entry routes.
-- `tests/domain-boundary-contract.test.mjs` — dedicated System API, Y tế API boundary, shared ECDSA client proof, and Learning-domain navigation separation.
+Đây là ranh giới kiến trúc cần được giữ cố định cho các lần nâng cấp tiếp theo.
