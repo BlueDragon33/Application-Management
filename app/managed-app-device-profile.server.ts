@@ -1,4 +1,4 @@
-import { getControlDatabase } from "./control-device.server";
+import { ControlAccessError, getControlDatabase } from "./control-device.server";
 import { listManagedAppDevices, type ManagedAppDevice, type ManagedAppId } from "./managed-app-device.server";
 
 export type ManagedAppDeviceProfile = {
@@ -94,9 +94,13 @@ export async function updateManagedAppDeviceProfile(input: {
   actor: string;
 }) {
   const deviceId = typeof input.deviceId === "string" ? input.deviceId : "";
-  if (!/^[a-f0-9]{64}$/.test(deviceId)) throw new Error("INVALID_DEVICE");
+  if (!/^[a-f0-9]{64}$/.test(deviceId)) {
+    throw new ControlAccessError("Mã thiết bị Hòa nhập Nga không hợp lệ.", 400, "INVALID_DEVICE");
+  }
   const devices = await listManagedAppDevices(input.appId);
-  if (!devices.some((device) => device.deviceId === deviceId)) throw new Error("DEVICE_NOT_FOUND");
+  if (!devices.some((device) => device.deviceId === deviceId)) {
+    throw new ControlAccessError("Không tìm thấy thiết bị Hòa nhập Nga.", 404, "DEVICE_NOT_FOUND");
+  }
 
   const profile = {
     personName: clean(input.personName, 160) || null,
