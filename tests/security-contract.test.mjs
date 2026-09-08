@@ -253,7 +253,7 @@ test("lets only the owner identify and permanently remove confirmed spam devices
   assert.match(styles, /\.profile-warning/);
 });
 
-test("exports operational backups and installs a privacy-safe offline shell", async () => {
+test("exports operational backups and keeps the admin offline shell isolated", async () => {
   const client = await readFile(new URL("../app/control-center.tsx", import.meta.url), "utf8");
   const system = await readFile(new URL("../app/system-control/system-control-client.tsx", import.meta.url), "utf8");
   const layout = await readFile(new URL("../app/layout.tsx", import.meta.url), "utf8");
@@ -270,9 +270,9 @@ test("exports operational backups and installs a privacy-safe offline shell", as
   assert.equal(manifest.display, "standalone");
   assert.match(serviceWorker, /SAFE_ASSETS/);
   assert.match(serviceWorker, /caches\.match\("\/offline\.html"\)/);
-  assert.match(serviceWorker, /url\.pathname === "\/ru-medcheck"/);
-  assert.match(serviceWorker, /cache\.put/);
-  assert.match(serviceWorker, /if \(url\.pathname\.startsWith\("\/api\/"\).*url\.pathname\.startsWith\("\/signin-"\).*url\.pathname\.startsWith\("\/signout-"\)\) return;/);
+  assert.doesNotMatch(serviceWorker, /ru-medcheck|hoa-nhap-nga-webapp/);
+  assert.doesNotMatch(serviceWorker, /cache\.put/);
+  assert.match(serviceWorker, /if \(url\.origin !== self\.location\.origin \|\| url\.pathname\.startsWith\("\/api\/"\) \|\| url\.pathname\.startsWith\("\/signin-"\) \|\| url\.pathname\.startsWith\("\/signout-"\)\) return;/);
   assert.match(offline, /không lưu hồ sơ học viên/i);
 });
 
