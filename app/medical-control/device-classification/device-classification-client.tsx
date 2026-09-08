@@ -98,11 +98,14 @@ export default function DeviceClassificationClient({ user }: { user: { displayNa
   }, []);
 
   useEffect(() => {
-    void refresh();
+    const initial = window.setTimeout(() => void refresh(), 0);
     const interval = window.setInterval(() => {
       if (document.visibilityState === "visible") void refresh(true);
     }, 60_000);
-    return () => window.clearInterval(interval);
+    return () => {
+      window.clearTimeout(initial);
+      window.clearInterval(interval);
+    };
   }, [refresh]);
 
   async function classify(deviceId: string, deviceClass: "auto" | DeviceClass) {
