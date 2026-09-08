@@ -11,7 +11,7 @@ test("Hòa nhập Nga refreshes device state every 60 seconds while preserving t
 
   assert.match(client, /60_000/);
   assert.match(client, /document\.visibilityState === "visible"/);
-  assert.match(client, /refresh\(\{ quiet: true \}\)/);
+  assert.match(client, /refreshRef\.current\(\{ quiet: true \}\)/);
   assert.match(client, /Danh sách gần nhất vẫn được giữ nguyên/);
   assert.match(client, /ĐÃ ĐỒNG BỘ · 60 GIÂY\/LẦN/);
   assert.doesNotMatch(client, /ĐÃ ĐỒNG BỘ · THỦ CÔNG/);
