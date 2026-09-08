@@ -111,6 +111,30 @@ test("Site Quản trị can approve, revoke, block and label Hòa nhập Nga dev
   assert.doesNotMatch(client, /issue-access|Cấp quyền & mở Web App/);
 });
 
+test("Hòa nhập Nga management follows the Bơi ếch administration information frame", async () => {
+  const client = await source("../app/medical-control/medical-control-client.tsx");
+  const styles = await source("../app/medical-control/medical-control.css");
+
+  assert.match(client, /russia-sidebar/);
+  assert.match(client, /Thiết bị · người dùng/);
+  assert.match(client, /Quyền truy cập/);
+  assert.match(client, /Kiểm duyệt nội dung/);
+  assert.match(client, /Quy tắc · cảnh báo/);
+  assert.match(client, /Nhật ký hoạt động/);
+  assert.match(client, /HỘP VIỆC HÒA NHẬP NGA/);
+  assert.match(client, /TRA CỨU THIẾT BỊ HN/);
+  assert.match(client, /russia-stat-grid/);
+  assert.match(client, /Tổng thiết bị/);
+  assert.match(client, /Chờ cấp quyền/);
+  assert.match(client, /Đã cấp quyền/);
+  assert.match(client, /Đã khóa/);
+  assert.match(styles, /grid-template-columns:304px minmax\(0,1fr\)/);
+  assert.match(styles, /\.russia-stat-grid\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+  assert.match(styles, /\.russia-inbox/);
+  assert.match(styles, /\.russia-device-panel/);
+  assert.match(styles, /@media\(max-width:900px\)/);
+});
+
 test("rule publication still validates central Russian source identifiers", async () => {
   const control = await source("../app/api/medicine/control/route.ts");
   const server = await source("../app/medicine.server.ts");
