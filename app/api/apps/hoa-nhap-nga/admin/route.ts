@@ -5,6 +5,7 @@ import {
   listRuLifeSessions,
   manageRuLifeDevice,
   revokeRuLifeSession,
+  RuLifeAccessError,
   ruLifeErrorResponse,
 } from "../../../../ru-life-device.server";
 
@@ -42,8 +43,6 @@ export async function POST(request: Request) {
 
     return response({ error: "Thao tác quản trị Hòa nhập Nga không hợp lệ.", code: "INVALID_RU_LIFE_ADMIN_ACTION" }, 400);
   } catch (error) {
-    const ruResponse = ruLifeErrorResponse(error);
-    if (ruResponse.status !== 500 || error instanceof Error && error.name === "RuLifeAccessError") return ruResponse;
-    return controlErrorResponse(error);
+    return error instanceof RuLifeAccessError ? ruLifeErrorResponse(error) : controlErrorResponse(error);
   }
 }
