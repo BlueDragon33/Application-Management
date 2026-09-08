@@ -162,7 +162,7 @@ export default function AccessPreflightClient({ user }: { user: { displayName: s
         <article className={data.summary.warnings ? "warn" : ""}><span>Có cảnh báo</span><strong>{data.summary.warnings}</strong></article>
       </section>
 
-      <section className="preflight-tools"><div><span>HÀNG ĐỢI PRELIGHT</span><h2>{rows.length} thiết bị phù hợp</h2></div><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm mã HN, họ tên, mã người dùng, nhóm…" /></section>
+      <section className="preflight-tools"><div><span>HÀNG ĐỢI PREFLIGHT</span><h2>{rows.length} thiết bị phù hợp</h2></div><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm mã HN, họ tên, mã người dùng, nhóm…" /></section>
 
       <section className="preflight-list">
         {rows.map(({ report, device }) => {
