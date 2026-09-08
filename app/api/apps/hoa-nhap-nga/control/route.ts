@@ -2,14 +2,14 @@ import { ControlAccessError, controlErrorResponse, verifyControlProof } from "..
 import { bulkUpdateManagedAppDevices, listManagedAppDeviceAudit } from "../../../../managed-app-device-admin.server";
 import { listManagedAppDevicesWithProfiles, updateManagedAppDeviceProfile, type ManagedAppDeviceWithProfile } from "../../../../managed-app-device-profile.server";
 import { updateManagedAppDevice } from "../../../../managed-app-device.server";
-import { evaluateManagedAppPreflight, HN_CLASSIFICATION_REVIEW_THRESHOLD } from "../../../../managed-app-preflight.server";
+import { evaluateManagedAppPreflight } from "../../../../managed-app-preflight.server";
 import { revokeManagedAppDeviceSessions, revokeManagedAppSessionsBulk } from "../../../../managed-app-session.server";
 import { checkRuLifeIntegrationHealth } from "../../../../ru-life-integration-health.server";
 import { recordRuLifeIntegrationHealth } from "../../../../ru-life-integration-incident.server";
 
 export const dynamic = "force-dynamic";
 
-const CLASSIFICATION_REVIEW_THRESHOLD = HN_CLASSIFICATION_REVIEW_THRESHOLD;
+const CLASSIFICATION_REVIEW_THRESHOLD = 60;
 
 function requireGrantRole(role: string) {
   if (!["publisher", "owner"].includes(role)) {
@@ -141,10 +141,8 @@ export async function POST(request: Request) {
 
     if (["approve", "block", "pending", "label", "classify"].includes(action)) {
       requireGrantRole(actor.role);
-      if (action === "approve") {
-        await requireIdentifiedDevices(body.deviceId);
-        await requireHealthyIntegration();
-      }
+      if (action === "approve") await requireIdentifiedDevices(body.deviceId);
+      if (action === "approve") await requireHealthyIntegration();
       const status = action === "approve" ? "approved" : action === "block" ? "blocked" : action === "pending" ? "pending" : undefined;
       await updateManagedAppDevice({
         appId: "hoa-nhap-nga",
@@ -184,10 +182,8 @@ export async function POST(request: Request) {
       const operation = typeof body.operation === "string" ? body.operation : "";
       const status = operation === "approve" ? "approved" : operation === "block" ? "blocked" : operation === "pending" ? "pending" : null;
       if (!status) throw new ControlAccessError("Thao tác hàng loạt không hợp lệ.", 400, "INVALID_BULK_ACTION");
-      if (operation === "approve") {
-        await requireIdentifiedDevices(body.deviceIds);
-        await requireHealthyIntegration();
-      }
+      if (operation === "approve") await requireIdentifiedDevices(body.deviceIds);
+      if (operation === "approve") await requireHealthyIntegration();
       await bulkUpdateManagedAppDevices({
         appId: "hoa-nhap-nga",
         deviceIds: body.deviceIds,
