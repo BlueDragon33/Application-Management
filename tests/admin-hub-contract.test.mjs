@@ -80,7 +80,8 @@ test("Hòa nhập Nga opens as a separate site and access is managed by HN devic
   assert.match(control, /verifyControlProof/);
   assert.match(registry, /managed_app_devices/);
   assert.match(registry, /deviceCodeFor/);
-  assert.match(registry, /HN-/);
+  assert.match(registry, /const prefix = appId === "hoa-nhap-nga" \? "HN" : "APP"/);
+  assert.match(registry, /`\$\{prefix\}-\$\{deviceId\.slice\(0, 4\)\}/);
 });
 
 test("central medical API converts an upstream HTML failure into a JSON error", async () => {
