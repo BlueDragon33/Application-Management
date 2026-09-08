@@ -34,6 +34,18 @@ test("only publishing roles can change HN user profiles", async () => {
   assert.match(profile, /managed_app_device\.profile_updated/);
 });
 
+test("HN approval requires a fully identified user profile", async () => {
+  const route = await source("../app/api/apps/hoa-nhap-nga/control/route.ts");
+
+  assert.match(route, /function profileComplete/);
+  assert.match(route, /personName\?\.trim\(\)/);
+  assert.match(route, /personCode\?\.trim\(\)/);
+  assert.match(route, /DEVICE_PROFILE_REQUIRED/);
+  assert.match(route, /if \(action === "approve"\) await requireIdentifiedDevices\(body\.deviceId\)/);
+  assert.match(route, /if \(operation === "approve"\) await requireIdentifiedDevices\(body\.deviceIds\)/);
+  assert.match(route, /requireIdentifiedUserBeforeApprove: true/);
+});
+
 test("device management displays, searches and exports assigned user data", async () => {
   const client = await source("../app/medical-control/medical-control-client.tsx");
 
