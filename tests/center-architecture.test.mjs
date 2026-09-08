@@ -81,7 +81,7 @@ test("central UI makes admin devices distinct from client endpoints", () => {
   assert.match(hub, /Thiết bị người dùng của từng client phải quản lý trong khu quản trị của client đó/);
 });
 
-test("client workspace uses one admin shell and does not embed runtime", () => {
+test("generic client workspace uses one admin shell and does not embed runtime", () => {
   const workspace = source("app/application-workspace.tsx");
   assert.match(workspace, /QUẢN TRỊ CLIENT/);
   assert.match(workspace, /Thiết bị & quyền/);
@@ -118,6 +118,31 @@ test("Boi Ech dashboard bootstrap cannot own central device or audit state", () 
   assert.doesNotMatch(dashboard, /controlDevices|auditLog|applications:\s*\[/);
   assert.doesNotMatch(dashboard, /manage-control-device|CENTER_ACTION_MOVED/);
   assert.match(dashboard, /INVALID_BOI_DASHBOARD_ACTION/);
+});
+
+test("Health Care uses its own signed adapter and real client control surfaces", () => {
+  const route = source("app/apps/health-care/page.tsx");
+  const client = source("app/apps/health-care/health-care-admin.tsx");
+  const bridgeRoute = source("app/api/apps/health-care/bridge/route.ts");
+  const bridgeServer = source("app/health-care.server.ts");
+  const adminClient = source("app/admin-device-client.ts");
+
+  assert.match(route, /HealthCareAdmin/);
+  assert.doesNotMatch(route, /ApplicationWorkspace/);
+  assert.match(client, /\/api\/control\/devices/);
+  assert.match(client, /\/api\/control\/policy/);
+  assert.match(client, /\/api\/control\/sessions/);
+  assert.match(client, /\/api\/control\/health-content/);
+  assert.match(client, /\/api\/control\/audit/);
+  assert.match(client, /Hồ sơ sức khỏe cá nhân không đi vào Application Management/);
+  assert.match(bridgeRoute, /verifyControlProof/);
+  assert.match(bridgeRoute, /issueHealthBrowserBridge/);
+  assert.match(bridgeServer, /HEALTH_CONTROL_SERVICE_SECRET/);
+  assert.match(bridgeServer, /child-health-control/);
+  assert.match(bridgeServer, /app:\s*TOKEN_APP/);
+  assert.doesNotMatch(bridgeServer, /CONTROL_SERVICE_SECRET/);
+  assert.match(adminClient, /connectHealthCareAdmin/);
+  assert.match(adminClient, /\/api\/apps\/health-care\/bridge/);
 });
 
 test("unconnected applications do not expose fake operational controls", () => {
