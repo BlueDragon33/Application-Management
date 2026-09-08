@@ -2,10 +2,14 @@ import { ControlAccessError, controlErrorResponse, verifyControlProof } from "..
 import { bulkUpdateManagedAppDevices, listManagedAppDeviceAudit } from "../../../../managed-app-device-admin.server";
 import { listManagedAppDevicesWithProfiles, updateManagedAppDeviceProfile, type ManagedAppDeviceWithProfile } from "../../../../managed-app-device-profile.server";
 import { updateManagedAppDevice } from "../../../../managed-app-device.server";
+import { evaluateManagedAppPreflight, HN_CLASSIFICATION_REVIEW_THRESHOLD } from "../../../../managed-app-preflight.server";
+import { revokeManagedAppDeviceSessions, revokeManagedAppSessionsBulk } from "../../../../managed-app-session.server";
+import { checkRuLifeIntegrationHealth } from "../../../../ru-life-integration-health.server";
+import { recordRuLifeIntegrationHealth } from "../../../../ru-life-integration-incident.server";
 
 export const dynamic = "force-dynamic";
 
-const CLASSIFICATION_REVIEW_THRESHOLD = 60;
+const CLASSIFICATION_REVIEW_THRESHOLD = HN_CLASSIFICATION_REVIEW_THRESHOLD;
 
 function requireGrantRole(role: string) {
   if (!["publisher", "owner"].includes(role)) {
@@ -22,16 +26,25 @@ function classificationResolved(device: ManagedAppDeviceWithProfile) {
   return device.autoDeviceClass !== "unknown" && device.classificationConfidence >= CLASSIFICATION_REVIEW_THRESHOLD;
 }
 
-async function requireIdentifiedDevices(deviceIds: unknown) {
-  const requested = Array.isArray(deviceIds)
+function requestedDeviceIds(deviceIds: unknown) {
+  return Array.isArray(deviceIds)
     ? [...new Set(deviceIds.filter((value): value is string => typeof value === "string" && /^[a-f0-9]{64}$/.test(value)))]
     : typeof deviceIds === "string" && /^[a-f0-9]{64}$/.test(deviceIds) ? [deviceIds] : [];
+}
+
+async function requireIdentifiedDevices(deviceIds: unknown) {
+  const requested = requestedDeviceIds(deviceIds);
   if (!requested.length) throw new ControlAccessError("Không có thiết bị Hòa nhập Nga hợp lệ để cấp quyền.", 400, "INVALID_DEVICE");
 
   const devices = await listManagedAppDevicesWithProfiles("hoa-nhap-nga");
   const selected = requested.map((deviceId) => devices.find((device) => device.deviceId === deviceId)).filter(Boolean) as ManagedAppDeviceWithProfile[];
   if (selected.length !== requested.length) {
     throw new ControlAccessError("Có thiết bị không còn tồn tại trong registry Hòa nhập Nga.", 404, "DEVICE_NOT_FOUND");
+  }
+  const blocked = selected.filter((device) => device.status === "blocked");
+  if (blocked.length) {
+    const codes = blocked.slice(0, 5).map((device) => device.deviceCode).join(", ");
+    throw new ControlAccessError(`Thiết bị đang bị khóa${codes ? `: ${codes}` : ""}. Hãy bỏ khóa về trạng thái chờ trước khi cấp quyền.`, 409, "DEVICE_BLOCKED_REQUIRE_PENDING");
   }
   const incomplete = selected.filter((device) => !profileComplete(device));
   if (incomplete.length) {
@@ -51,6 +64,20 @@ async function requireIdentifiedDevices(deviceIds: unknown) {
       "DEVICE_CLASSIFICATION_REQUIRED",
     );
   }
+  return selected;
+}
+
+async function requireHealthyIntegration() {
+  const integration = await checkRuLifeIntegrationHealth();
+  await recordRuLifeIntegrationHealth(integration);
+  if (integration.overall !== "healthy" || integration.secretHandshake !== "ok" || !integration.originMatches) {
+    throw new ControlAccessError(
+      `Chưa thể cấp quyền vì kết nối RU_LIFE chưa sẵn sàng (${integration.code}). ${integration.message}`,
+      503,
+      "RU_LIFE_PREFLIGHT_FAILED",
+    );
+  }
+  return integration;
 }
 
 async function responseState(role: string) {
@@ -64,6 +91,7 @@ function policy() {
   return {
     requireIdentifiedUserBeforeApprove: true,
     requireResolvedDeviceClassBeforeApprove: true,
+    requireHealthyIntegrationBeforeApprove: true,
     classificationReviewThreshold: CLASSIFICATION_REVIEW_THRESHOLD,
   };
 }
@@ -89,9 +117,34 @@ export async function POST(request: Request) {
       return Response.json(await fullResponse(actor), { headers: { "cache-control": "no-store, private", "x-content-type-options": "nosniff" } });
     }
 
+    if (action === "preflight") {
+      if (!["reviewer", "publisher", "owner"].includes(actor.role)) {
+        throw new ControlAccessError("Không đủ quyền chạy kiểm tra trước cấp quyền Hòa nhập Nga.", 403, "ROLE_REQUIRED");
+      }
+      const [integration, devices] = await Promise.all([
+        checkRuLifeIntegrationHealth(),
+        listManagedAppDevicesWithProfiles("hoa-nhap-nga"),
+      ]);
+      await recordRuLifeIntegrationHealth(integration);
+      const reports = devices.map((device) => evaluateManagedAppPreflight(device, integration));
+      return Response.json({
+        ...(await fullResponse(actor)),
+        integration,
+        preflight: reports,
+        summary: {
+          ready: reports.filter((report) => report.ready).length,
+          blocked: reports.filter((report) => !report.ready).length,
+          warnings: reports.filter((report) => report.checks.some((item) => item.status === "warn")).length,
+        },
+      }, { headers: { "cache-control": "no-store, private", "x-content-type-options": "nosniff" } });
+    }
+
     if (["approve", "block", "pending", "label", "classify"].includes(action)) {
       requireGrantRole(actor.role);
-      if (action === "approve") await requireIdentifiedDevices(body.deviceId);
+      if (action === "approve") {
+        await requireIdentifiedDevices(body.deviceId);
+        await requireHealthyIntegration();
+      }
       const status = action === "approve" ? "approved" : action === "block" ? "blocked" : action === "pending" ? "pending" : undefined;
       await updateManagedAppDevice({
         appId: "hoa-nhap-nga",
@@ -101,6 +154,9 @@ export async function POST(request: Request) {
         deviceClassOverride: action === "classify" ? body.deviceClass : undefined,
         actor: actor.email,
       });
+      if ((action === "block" || action === "pending") && typeof body.deviceId === "string") {
+        await revokeManagedAppDeviceSessions("hoa-nhap-nga", body.deviceId, action === "block" ? "device-blocked" : "access-revoked");
+      }
       return Response.json(await fullResponse(actor, true), {
         headers: { "cache-control": "no-store, private", "x-content-type-options": "nosniff" },
       });
@@ -128,13 +184,19 @@ export async function POST(request: Request) {
       const operation = typeof body.operation === "string" ? body.operation : "";
       const status = operation === "approve" ? "approved" : operation === "block" ? "blocked" : operation === "pending" ? "pending" : null;
       if (!status) throw new ControlAccessError("Thao tác hàng loạt không hợp lệ.", 400, "INVALID_BULK_ACTION");
-      if (operation === "approve") await requireIdentifiedDevices(body.deviceIds);
+      if (operation === "approve") {
+        await requireIdentifiedDevices(body.deviceIds);
+        await requireHealthyIntegration();
+      }
       await bulkUpdateManagedAppDevices({
         appId: "hoa-nhap-nga",
         deviceIds: body.deviceIds,
         status,
         actor: actor.email,
       });
+      if (operation === "block" || operation === "pending") {
+        await revokeManagedAppSessionsBulk("hoa-nhap-nga", requestedDeviceIds(body.deviceIds), operation === "block" ? "device-blocked" : "access-revoked");
+      }
       return Response.json(await fullResponse(actor, true), {
         headers: { "cache-control": "no-store, private", "x-content-type-options": "nosniff" },
       });
