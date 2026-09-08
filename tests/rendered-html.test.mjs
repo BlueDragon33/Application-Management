@@ -11,9 +11,7 @@ async function loadWorker() {
 }
 
 const environment = {
-  ASSETS: {
-    fetch: async () => new Response("Not found", { status: 404 }),
-  },
+  ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) },
 };
 
 const executionContext = {
@@ -35,9 +33,8 @@ test("redirects unauthenticated visitors to ChatGPT sign-in", async () => {
   assert.equal(location.searchParams.get("return_to"), "/");
 });
 
-test("renders the authenticated management center and preview metadata", async () => {
+test("renders the authenticated Application Management control plane", async () => {
   const worker = await loadWorker();
-
   const response = await worker.fetch(
     new Request("http://localhost/", {
       headers: {
@@ -52,11 +49,8 @@ test("renders the authenticated management center and preview metadata", async (
   );
 
   assert.equal(response.status, 200);
-  assert.match(
-    response.headers.get("content-type") ?? "",
-    /^text\/html\b/i,
-  );
+  assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
   const html = await response.text();
   assert.match(html, developmentPreviewMeta);
-  assert.match(html, /Trung tâm quản trị học tập/i);
+  assert.match(html, /Application Management|Trung tâm quản trị ứng dụng/i);
 });
