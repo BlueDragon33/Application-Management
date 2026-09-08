@@ -20,18 +20,29 @@ test("central API verifies signed control-device proof and owns only central per
   assert.doesNotMatch(route, /payment|learner|health-content|course-content/i);
 });
 
-test("application registry explicitly defines independent app boundaries", () => {
+test("application registry has exactly one top-level entry per client", () => {
   const registry = source("app/application-registry.ts");
   for (const id of ["boi-ech", "health-care", "ru-life", "bauman-master-ai", "growup-mychildren"]) {
-    assert.match(registry, new RegExp(`id: "${id}"`));
+    const matches = registry.match(new RegExp(`id: "${id}"`, "g")) ?? [];
+    assert.equal(matches.length, 1, `${id} must exist exactly once in the top-level registry`);
   }
   assert.match(registry, /desktop\/phone\/tablet-iPad|máy tính, điện thoại, tablet\/iPad/i);
   assert.match(registry, /Không dùng API\/DB Bơi ếch|Không chia sẻ registry Bơi ếch|Không dùng DB ứng dụng khác/);
 });
 
-test("topology is explicitly Server to Client to Sub-client to Endpoint", () => {
+test("Health Care and RU LIFE stay separate top-level clients", () => {
+  const registry = source("app/application-registry.ts");
+  const healthStart = registry.indexOf('id: "health-care"');
+  const ruStart = registry.indexOf('id: "ru-life"');
+  assert.ok(healthStart >= 0 && ruStart > healthStart);
+  const healthBlock = registry.slice(healthStart, ruStart);
+  assert.doesNotMatch(healthBlock, /Hòa nhập Nga|RU_LIFE/);
+});
+
+test("topology stays Server to Client to Sub-client to Endpoint without duplicate topology screens", () => {
   const registry = source("app/application-registry.ts");
   const hub = source("app/application-hub.tsx");
+  const workspace = source("app/application-workspace.tsx");
   const docs = source("docs/CONTROL_PLANE_TOPOLOGY.md");
   assert.match(registry, /tier: "client"/);
   assert.match(registry, /childClients: baumanChildren/);
@@ -39,27 +50,37 @@ test("topology is explicitly Server to Client to Sub-client to Endpoint", () => 
   for (const deviceClass of ["desktop", "tablet", "phone"]) {
     assert.match(registry, new RegExp(`id: "${deviceClass}"`));
   }
-  assert.match(hub, /SERVER \/ CONTROL PLANE/);
-  assert.match(hub, /LEVEL 1 · CLIENT/);
-  assert.match(hub, /LEVEL 2 · SUB-CLIENT/);
-  assert.match(hub, /ENDPOINTS/);
+  assert.match(hub, /Một server → nhiều client → thiết bị/);
+  assert.match(hub, /ENDPOINT/);
+  assert.match(workspace, /LEVEL 1 · CLIENT/);
+  assert.match(workspace, /LEVEL 2 · SUB-CLIENT/);
+  assert.doesNotMatch(hub, /function ApplicationCard|function TopologyMap/);
   assert.match(docs, /Server → Client → Sub-client → Endpoint|SERVER \/ CONTROL PLANE/i);
+});
+
+test("central navigation is compact and clients link directly to their admin routes", () => {
+  const hub = source("app/application-hub.tsx");
+  assert.match(hub, /type CenterView = "overview" \| "devices" \| "audit"/);
+  assert.match(hub, /CLIENT/);
+  assert.match(hub, /href=\{application\.href\}/);
+  assert.doesNotMatch(hub, /Mảng Y tế|Mở Site Sức khỏe|Cấp quyền Web App|Vào quản trị Y tế/);
 });
 
 test("central UI makes admin devices distinct from client endpoints", () => {
   const hub = source("app/application-hub.tsx");
   assert.match(hub, /Đây chỉ là thiết bị quản trị Application Management/);
-  assert.match(hub, /Endpoint registry thuộc từng client, không thuộc server/);
-  assert.match(hub, /Registry thiết bị thuộc/);
+  assert.match(hub, /Thiết bị được phân loại và lưu trong registry của client sở hữu nó/);
+  assert.match(hub, /Thiết bị người dùng của từng client phải quản lý trong khu quản trị của client đó/);
 });
 
-test("client workspace exposes hierarchy and responsive endpoint policy without embedding runtime", () => {
+test("client workspace uses one admin shell and does not embed runtime", () => {
   const workspace = source("app/application-workspace.tsx");
-  assert.match(workspace, /Server<\/Link><span>\/</);
-  assert.match(workspace, /LEVEL 1 · INDEPENDENT CLIENT/);
-  assert.match(workspace, /LEVEL 2 · SUB-CLIENT TOPOLOGY/);
-  assert.match(workspace, /Phân loại thiết bị và giao diện/);
+  assert.match(workspace, /QUẢN TRỊ CLIENT/);
+  assert.match(workspace, /Thiết bị & quyền/);
+  assert.match(workspace, /Nội dung & chỉnh sửa/);
+  assert.match(workspace, /Không có “trung tâm quản trị con”/);
   assert.doesNotMatch(workspace, /<iframe/i);
+  assert.doesNotMatch(workspace, /Mở Site|Cấp quyền Web App|Vào quản trị Y tế/);
 });
 
 test("central UI uses center endpoint instead of application dashboard", () => {
@@ -79,6 +100,6 @@ test("Boi Ech remains a separate app-admin route", () => {
 
 test("unconnected applications do not expose fake operational controls", () => {
   const workspace = source("app/application-workspace.tsx");
-  assert.match(workspace, /Chưa bật các thao tác giả lập/);
-  assert.match(workspace, /Chỉ khi repository ứng dụng cung cấp API quản trị/);
+  assert.match(workspace, /Chưa bật thao tác khi backend chưa đủ/);
+  assert.match(workspace, /Không dựng nút cấp quyền, mở Web App, duyệt hay chỉnh sửa giả/);
 });
