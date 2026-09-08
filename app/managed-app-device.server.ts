@@ -11,6 +11,12 @@ export type ManagedAppDevice = {
   status: ManagedAppDeviceStatus;
   label: string | null;
   deviceClass: ManagedDeviceClass;
+  autoDeviceClass: ManagedDeviceClass;
+  deviceClassOverride: ManagedDeviceClass | null;
+  classificationConfidence: number;
+  classificationSource: string;
+  classifierVersion: number;
+  classificationDetail: Record<string, unknown>;
   osName: string;
   browserName: string;
   modelHint: string | null;
@@ -31,6 +37,11 @@ type DeviceRow = {
   status: ManagedAppDeviceStatus;
   label: string | null;
   device_class: ManagedDeviceClass;
+  device_class_override: ManagedDeviceClass | null;
+  classification_confidence: number;
+  classification_source: string;
+  classifier_version: number;
+  classification_detail_json: string;
   os_name: string;
   browser_name: string;
   model_hint: string | null;
@@ -70,6 +81,11 @@ async function ensureTables() {
         status TEXT NOT NULL DEFAULT 'pending',
         label TEXT,
         device_class TEXT NOT NULL DEFAULT 'unknown',
+        device_class_override TEXT,
+        classification_confidence INTEGER NOT NULL DEFAULT 0,
+        classification_source TEXT NOT NULL DEFAULT 'legacy',
+        classifier_version INTEGER NOT NULL DEFAULT 1,
+        classification_detail_json TEXT NOT NULL DEFAULT '{}',
         os_name TEXT NOT NULL DEFAULT 'Unknown',
         browser_name TEXT NOT NULL DEFAULT 'Unknown',
         model_hint TEXT,
@@ -92,6 +108,16 @@ async function ensureTables() {
       )`),
       database.prepare("CREATE INDEX IF NOT EXISTS managed_app_challenges_device_idx ON managed_app_challenges(app_id, device_id, expires_at)"),
     ]);
+
+    // Existing D1 databases may already have managed_app_devices from migration 0003.
+    // Add classification columns lazily so deployments remain backward-compatible.
+    const columns = await database.prepare("PRAGMA table_info(managed_app_devices)").all<{ name: string }>();
+    const names = new Set(columns.results.map((column) => column.name));
+    if (!names.has("device_class_override")) await database.prepare("ALTER TABLE managed_app_devices ADD COLUMN device_class_override TEXT").run();
+    if (!names.has("classification_confidence")) await database.prepare("ALTER TABLE managed_app_devices ADD COLUMN classification_confidence INTEGER NOT NULL DEFAULT 0").run();
+    if (!names.has("classification_source")) await database.prepare("ALTER TABLE managed_app_devices ADD COLUMN classification_source TEXT NOT NULL DEFAULT 'legacy'").run();
+    if (!names.has("classifier_version")) await database.prepare("ALTER TABLE managed_app_devices ADD COLUMN classifier_version INTEGER NOT NULL DEFAULT 1").run();
+    if (!names.has("classification_detail_json")) await database.prepare("ALTER TABLE managed_app_devices ADD COLUMN classification_detail_json TEXT NOT NULL DEFAULT '{}'").run();
   })().catch((error) => {
     tablesReady = null;
     throw error;
@@ -146,13 +172,33 @@ function clean(value: unknown, max = 120) {
   return typeof value === "string" ? value.trim().replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, max) : "";
 }
 
+function boundedInteger(value: unknown, min: number, max: number, fallback = 0) {
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.min(max, Math.round(parsed)));
+}
+
+function safeJsonObject(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {} as Record<string, unknown>;
+  return value as Record<string, unknown>;
+}
+
+function parseJsonObject(value: string) {
+  try {
+    const parsed = JSON.parse(value);
+    return safeJsonObject(parsed);
+  } catch {
+    return {};
+  }
+}
+
 function inferProfile(userAgent: string, provided: unknown) {
-  const source = provided && typeof provided === "object" ? provided as Record<string, unknown> : {};
+  const source = safeJsonObject(provided);
   const ua = userAgent.slice(0, 500);
-  let deviceClass: ManagedDeviceClass = "unknown";
-  if (/iPad|Tablet|Android(?!.*Mobile)/i.test(ua)) deviceClass = "tablet";
-  else if (/iPhone|Android.*Mobile|Mobile/i.test(ua)) deviceClass = "phone";
-  else if (/Windows|Macintosh|CrOS|Linux/i.test(ua)) deviceClass = "computer";
+  const verifiedClass = clean(source.deviceClass, 30);
+  const deviceClass: ManagedDeviceClass = ["computer", "phone", "tablet", "unknown"].includes(verifiedClass)
+    ? verifiedClass as ManagedDeviceClass
+    : "unknown";
 
   let osName = "Unknown";
   if (/Windows NT/i.test(ua)) osName = "Windows";
@@ -169,8 +215,6 @@ function inferProfile(userAgent: string, provided: unknown) {
   else if (/Firefox\//i.test(ua) || /FxiOS\//i.test(ua)) browserName = "Firefox";
   else if (/Safari\//i.test(ua)) browserName = "Safari";
 
-  const hintedClass = clean(source.deviceClass, 30);
-  if (["computer", "phone", "tablet", "unknown"].includes(hintedClass)) deviceClass = hintedClass as ManagedDeviceClass;
   const hintedOs = clean(source.osName, 80);
   const hintedBrowser = clean(source.browserName, 80);
   const modelHint = clean(source.modelHint, 100) || (() => {
@@ -181,9 +225,28 @@ function inferProfile(userAgent: string, provided: unknown) {
     return "";
   })();
   const screen = clean(source.screen, 40);
+  const classificationConfidence = boundedInteger(source.classificationConfidence, 0, 100, deviceClass === "unknown" ? 0 : 50);
+  const classificationSource = clean(source.classificationSource, 80) || "server:unspecified";
+  const classifierVersion = boundedInteger(source.classifierVersion, 1, 100, 1);
+  const detail = {
+    platformHint: clean(source.platformHint, 80) || null,
+    viewport: clean(source.viewport, 40) || null,
+    touchPoints: boundedInteger(source.touchPoints, 0, 20, 0),
+    coarsePointer: source.coarsePointer === true,
+    mobileHint: typeof source.mobileHint === "boolean" ? source.mobileHint : null,
+    architecture: clean(source.architecture, 30) || null,
+    bitness: clean(source.bitness, 10) || null,
+    clientDeviceClass: clean(source.clientDeviceClass, 30) || null,
+    clientClassificationConfidence: boundedInteger(source.clientClassificationConfidence, 0, 100, 0),
+    clientClassificationSource: clean(source.clientClassificationSource, 80) || null,
+  };
 
   return {
     deviceClass,
+    classificationConfidence,
+    classificationSource,
+    classifierVersion,
+    classificationDetailJson: JSON.stringify(detail),
     osName: hintedOs || osName,
     browserName: hintedBrowser || browserName,
     modelHint: modelHint || null,
@@ -193,13 +256,21 @@ function inferProfile(userAgent: string, provided: unknown) {
 
 function publicState(row: DeviceRow): ManagedAppDevice {
   const lastSeen = Date.parse(row.last_seen_at);
+  const autoDeviceClass = row.device_class;
+  const deviceClassOverride = row.device_class_override;
   return {
     appId: row.app_id,
     deviceId: row.device_id,
     deviceCode: row.display_code,
     status: row.status,
     label: row.label,
-    deviceClass: row.device_class,
+    deviceClass: deviceClassOverride || autoDeviceClass,
+    autoDeviceClass,
+    deviceClassOverride,
+    classificationConfidence: row.classification_confidence,
+    classificationSource: row.classification_source,
+    classifierVersion: row.classifier_version,
+    classificationDetail: parseJsonObject(row.classification_detail_json),
     osName: row.os_name,
     browserName: row.browser_name,
     modelHint: row.model_hint,
@@ -213,14 +284,15 @@ function publicState(row: DeviceRow): ManagedAppDevice {
   };
 }
 
+const DEVICE_SELECT = `SELECT app_id, device_id, display_code, public_key_jwk, status, label, device_class,
+  device_class_override, classification_confidence, classification_source, classifier_version, classification_detail_json,
+  os_name, browser_name, model_hint, screen, created_at, approved_at, blocked_at, last_seen_at, approved_by
+  FROM managed_app_devices`;
+
 async function rowFor(appId: ManagedAppId, deviceId: string) {
   await ensureTables();
   const database = await getControlDatabase();
-  return database.prepare(
-    `SELECT app_id, device_id, display_code, public_key_jwk, status, label, device_class, os_name,
-            browser_name, model_hint, screen, created_at, approved_at, blocked_at, last_seen_at, approved_by
-       FROM managed_app_devices WHERE app_id = ? AND device_id = ?`,
-  ).bind(appId, deviceId).first<DeviceRow>();
+  return database.prepare(`${DEVICE_SELECT} WHERE app_id = ? AND device_id = ?`).bind(appId, deviceId).first<DeviceRow>();
 }
 
 export async function registerManagedAppDevice(appIdValue: unknown, publicKeyValue: unknown, profileValue: unknown, request: Request) {
@@ -235,16 +307,44 @@ export async function registerManagedAppDevice(appIdValue: unknown, publicKeyVal
   if (!existing) {
     await database.prepare(
       `INSERT INTO managed_app_devices
-        (app_id, device_id, display_code, public_key_jwk, device_class, os_name, browser_name, model_hint, screen)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).bind(appId, deviceId, deviceCodeFor(appId, deviceId), serialized, profile.deviceClass, profile.osName, profile.browserName, profile.modelHint, profile.screen).run();
+        (app_id, device_id, display_code, public_key_jwk, device_class, classification_confidence, classification_source,
+         classifier_version, classification_detail_json, os_name, browser_name, model_hint, screen)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).bind(
+      appId,
+      deviceId,
+      deviceCodeFor(appId, deviceId),
+      serialized,
+      profile.deviceClass,
+      profile.classificationConfidence,
+      profile.classificationSource,
+      profile.classifierVersion,
+      profile.classificationDetailJson,
+      profile.osName,
+      profile.browserName,
+      profile.modelHint,
+      profile.screen,
+    ).run();
   } else if (canonicalKey(publicKeyShape(JSON.parse(existing.public_key_jwk))) !== serialized) {
     throw new ManagedAppDeviceError("Khóa thiết bị không khớp hồ sơ đã đăng ký.", 403, "DEVICE_KEY_MISMATCH");
   } else {
     await database.prepare(
-      `UPDATE managed_app_devices SET device_class = ?, os_name = ?, browser_name = ?, model_hint = ?, screen = ?, last_seen_at = CURRENT_TIMESTAMP
-        WHERE app_id = ? AND device_id = ?`,
-    ).bind(profile.deviceClass, profile.osName, profile.browserName, profile.modelHint, profile.screen, appId, deviceId).run();
+      `UPDATE managed_app_devices SET device_class = ?, classification_confidence = ?, classification_source = ?,
+        classifier_version = ?, classification_detail_json = ?, os_name = ?, browser_name = ?, model_hint = ?, screen = ?,
+        last_seen_at = CURRENT_TIMESTAMP WHERE app_id = ? AND device_id = ?`,
+    ).bind(
+      profile.deviceClass,
+      profile.classificationConfidence,
+      profile.classificationSource,
+      profile.classifierVersion,
+      profile.classificationDetailJson,
+      profile.osName,
+      profile.browserName,
+      profile.modelHint,
+      profile.screen,
+      appId,
+      deviceId,
+    ).run();
   }
   const created = await rowFor(appId, deviceId);
   if (!created) throw new ManagedAppDeviceError("Không thể tạo hồ sơ thiết bị Hòa nhập Nga.", 500, "DEVICE_CREATE_FAILED");
@@ -331,10 +431,7 @@ export async function listManagedAppDevices(appIdValue: unknown) {
   await ensureTables();
   const database = await getControlDatabase();
   const result = await database.prepare(
-    `SELECT app_id, device_id, display_code, public_key_jwk, status, label, device_class, os_name,
-            browser_name, model_hint, screen, created_at, approved_at, blocked_at, last_seen_at, approved_by
-       FROM managed_app_devices WHERE app_id = ?
-       ORDER BY CASE status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END, created_at DESC`,
+    `${DEVICE_SELECT} WHERE app_id = ? ORDER BY CASE status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END, created_at DESC`,
   ).bind(appId).all<DeviceRow>();
   return result.results.map(publicState);
 }
@@ -344,6 +441,7 @@ export async function updateManagedAppDevice(input: {
   deviceId: unknown;
   status?: unknown;
   label?: unknown;
+  deviceClassOverride?: unknown;
   actor: string;
 }) {
   const appId = assertAppId(input.appId);
@@ -355,17 +453,25 @@ export async function updateManagedAppDevice(input: {
     ? input.status as ManagedAppDeviceStatus
     : existing.status;
   const label = input.label === undefined ? existing.label : (clean(input.label, 120) || null);
+  let deviceClassOverride = existing.device_class_override;
+  if (input.deviceClassOverride !== undefined) {
+    const requested = clean(input.deviceClassOverride, 30);
+    if (!requested || requested === "auto") deviceClassOverride = null;
+    else if (["computer", "phone", "tablet", "unknown"].includes(requested)) deviceClassOverride = requested as ManagedDeviceClass;
+    else throw new ManagedAppDeviceError("Phân loại thiết bị không hợp lệ.", 400, "INVALID_DEVICE_CLASS");
+  }
+
   const database = await getControlDatabase();
   await database.prepare(
-    `UPDATE managed_app_devices SET status = ?, label = ?,
+    `UPDATE managed_app_devices SET status = ?, label = ?, device_class_override = ?,
       approved_at = CASE WHEN ? = 'approved' THEN COALESCE(approved_at, CURRENT_TIMESTAMP) ELSE approved_at END,
       approved_by = CASE WHEN ? = 'approved' THEN ? ELSE approved_by END,
       blocked_at = CASE WHEN ? = 'blocked' THEN CURRENT_TIMESTAMP WHEN ? <> 'blocked' THEN NULL ELSE blocked_at END
      WHERE app_id = ? AND device_id = ?`,
-  ).bind(status, label, status, status, input.actor, status, status, appId, deviceId).run();
+  ).bind(status, label, deviceClassOverride, status, status, input.actor, status, status, appId, deviceId).run();
   await database.prepare(
     "INSERT INTO control_audit_log (actor, action, target, detail_json) VALUES (?, ?, ?, ?)",
-  ).bind(input.actor, "managed_app_device.updated", `${appId}:${deviceId}`, JSON.stringify({ status, label })).run();
+  ).bind(input.actor, "managed_app_device.updated", `${appId}:${deviceId}`, JSON.stringify({ status, label, deviceClassOverride })).run();
   const updated = await rowFor(appId, deviceId);
   if (!updated) throw new ManagedAppDeviceError("Không thể cập nhật thiết bị.", 500, "DEVICE_UPDATE_FAILED");
   return publicState(updated);
