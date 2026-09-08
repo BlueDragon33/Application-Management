@@ -55,10 +55,9 @@ test("topology stays Server to Client to Sub-client to Endpoint without duplicat
   assert.match(registry, /tier: "client"/);
   assert.match(registry, /childClients: baumanChildren/);
   assert.match(registry, /BlueDragon33\/Math_Bauman/);
-  for (const deviceClass of ["desktop", "tablet", "phone"]) {
-    assert.match(registry, new RegExp(`id: "${deviceClass}"`));
-  }
-  assert.match(hub, /Một server → nhiều client → thiết bị/);
+  for (const deviceClass of ["desktop", "tablet", "phone"]) assert.match(registry, new RegExp(`id: "${deviceClass}"`));
+  assert.match(hub, /LEVEL 0/);
+  assert.match(hub, /LEVEL 1/);
   assert.match(hub, /ENDPOINT/);
   assert.match(workspace, /LEVEL 1 · CLIENT/);
   assert.match(workspace, /LEVEL 2 · SUB-CLIENT/);
@@ -66,19 +65,60 @@ test("topology stays Server to Client to Sub-client to Endpoint without duplicat
   assert.match(docs, /Server → Client → Sub-client → Endpoint|SERVER \/ CONTROL PLANE/i);
 });
 
-test("central navigation is compact and clients link directly to their admin routes", () => {
+test("central navigation is an operations shell with direct one-click client routes", () => {
   const hub = source("app/application-hub.tsx");
-  assert.match(hub, /type CenterView = "overview" \| "devices" \| "audit"/);
-  assert.match(hub, /CLIENT/);
+  assert.match(hub, /type CenterView = "overview" \| "inbox" \| "applications" \| "client-devices" \| "alerts"/);
+  assert.match(hub, /Hộp việc/);
+  assert.match(hub, /Thiết bị mới/);
+  assert.match(hub, /Cảnh báo/);
   assert.match(hub, /href=\{application\.href\}/);
+  assert.match(hub, /Vào quản trị →/);
   assert.doesNotMatch(hub, /Mảng Y tế|Mở Site Sức khỏe|Cấp quyền Web App|Vào quản trị Y tế/);
 });
 
-test("central UI makes admin devices distinct from client endpoints", () => {
+test("dashboard supports global search and compact application rows for scale", () => {
   const hub = source("app/application-hub.tsx");
+  assert.match(hub, /Tìm theo ứng dụng, thiết bị, người dùng/);
+  assert.match(hub, /ApplicationTable/);
+  assert.match(hub, /Một hàng \/ một client/);
+  assert.match(hub, /appFilter/);
+  assert.doesNotMatch(hub, /ClientStatusRow/);
+});
+
+test("central UI reports new devices with the owning application and never claims central ownership", () => {
+  const hub = source("app/application-hub.tsx");
+  const operations = source("app/api/operations/route.ts");
+  assert.match(hub, /Thiết bị mới theo ứng dụng/);
   assert.match(hub, /Đây chỉ là thiết bị quản trị Application Management/);
-  assert.match(hub, /Thiết bị được phân loại và lưu trong registry của client sở hữu nó/);
-  assert.match(hub, /Thiết bị người dùng của từng client phải quản lý trong khu quản trị của client đó/);
+  assert.match(hub, /Registry vẫn thuộc client|registry của client/);
+  assert.match(operations, /appId/);
+  assert.match(operations, /appName/);
+  assert.match(operations, /deviceCode/);
+  assert.doesNotMatch(operations, /CREATE TABLE|INSERT INTO|UPDATE .*devices|DELETE FROM/);
+});
+
+test("operations summary is signed, asynchronous and bounded per client", () => {
+  const route = source("app/api/operations/route.ts");
+  const client = source("app/admin-device-client.ts");
+  assert.match(route, /verifyControlProof/);
+  assert.match(route, /Promise\.all/);
+  assert.match(route, /UPSTREAM_TIMEOUT_MS/);
+  assert.match(route, /AbortController/);
+  assert.match(route, /issueBoiBrowserBridge/);
+  assert.match(route, /issueHealthBrowserBridge/);
+  assert.match(route, /issueRuLifeBrowserBridge/);
+  assert.match(route, /issueBaumanBrowserBridge/);
+  assert.match(client, /connectOperationsDashboard/);
+  assert.match(client, /secureApi\("\/api\/operations"/);
+  assert.match(client, /Tải sau shell chính/);
+});
+
+test("Health and RU operational domains are visibly separate", () => {
+  const hub = source("app/application-hub.tsx");
+  assert.match(hub, /Kiểm duyệt y tế · quy tắc y khoa · audit y tế/);
+  assert.match(hub, /Kiểm duyệt Nga · OCR thuốc · thiết bị HN · audit Nga/);
+  assert.match(hub, /Không quản trị OCR hoặc ca Hòa nhập Nga/);
+  assert.match(hub, /Không xử lý hồ sơ y tế tổng quát/);
 });
 
 test("generic client workspace uses one admin shell and does not embed runtime", () => {
@@ -91,12 +131,14 @@ test("generic client workspace uses one admin shell and does not embed runtime",
   assert.doesNotMatch(workspace, /Mở Site|Cấp quyền Web App|Vào quản trị Y tế/);
 });
 
-test("central UI uses center endpoint instead of application dashboard", () => {
+test("central UI uses center and operations endpoints instead of Boi application dashboard", () => {
   const hub = source("app/application-hub.tsx");
   const client = source("app/admin-device-client.ts");
   assert.match(hub, /connectAdminCenter/);
+  assert.match(hub, /connectOperationsDashboard/);
   assert.doesNotMatch(hub, /\/api\/dashboard/);
   assert.match(client, /secureApi\("\/api\/center"/);
+  assert.match(client, /secureApi\("\/api\/operations"/);
 });
 
 test("Boi Ech has a physically isolated client control center", () => {
@@ -126,7 +168,6 @@ test("Health Care uses its own signed adapter and real client control surfaces",
   const bridgeRoute = source("app/api/apps/health-care/bridge/route.ts");
   const bridgeServer = source("app/health-care.server.ts");
   const adminClient = source("app/admin-device-client.ts");
-
   assert.match(route, /HealthCareAdmin/);
   assert.doesNotMatch(route, /ApplicationWorkspace/);
   assert.match(client, /\/api\/control\/devices/);
@@ -147,6 +188,8 @@ test("Health Care uses its own signed adapter and real client control surfaces",
 
 test("unconnected applications do not expose fake operational controls", () => {
   const workspace = source("app/application-workspace.tsx");
+  const hub = source("app/application-hub.tsx");
   assert.match(workspace, /Chưa bật thao tác khi backend chưa đủ/);
   assert.match(workspace, /Không dựng nút cấp quyền, mở Web App, duyệt hay chỉnh sửa giả/);
+  assert.match(hub, /Không tạo số liệu giả/);
 });
