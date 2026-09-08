@@ -5,6 +5,7 @@ import {
   ManagedAppDeviceError,
   registerManagedAppDevice,
 } from "../../../../managed-app-device.server";
+import { recordManagedAppSession } from "../../../../managed-app-session.server";
 import { integrationRussiaSiteUrl } from "../../../../site-links";
 
 export const dynamic = "force-dynamic";
@@ -132,7 +133,14 @@ export async function POST(request: Request) {
       return Response.json(await createManagedAppChallenge("hoa-nhap-nga", body.deviceId), { headers });
     }
     if (action === "authorize") {
-      return Response.json(await authorizeManagedAppDevice({ ...body, appId: "hoa-nhap-nga" }), { headers });
+      const authorization = await authorizeManagedAppDevice({ ...body, appId: "hoa-nhap-nga" });
+      await recordManagedAppSession({
+        appId: "hoa-nhap-nga",
+        deviceId: authorization.device.deviceId,
+        deviceCode: authorization.device.deviceCode,
+        expiresAt: authorization.expiresAt,
+      });
+      return Response.json(authorization, { headers });
     }
     throw new ManagedAppDeviceError("Thao tác thiết bị không hợp lệ.", 400, "INVALID_DEVICE_ACTION");
   } catch (error) {
