@@ -42,6 +42,37 @@ export const controlAuditLog = sqliteTable("control_audit_log", {
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const managedAppDevices = sqliteTable("managed_app_devices", {
+  appId: text("app_id").notNull(),
+  deviceId: text("device_id").notNull(),
+  displayCode: text("display_code").notNull().unique(),
+  publicKeyJwk: text("public_key_jwk").notNull(),
+  status: text("status").notNull().default("pending"),
+  label: text("label"),
+  deviceClass: text("device_class").notNull().default("unknown"),
+  osName: text("os_name").notNull().default("Unknown"),
+  browserName: text("browser_name").notNull().default("Unknown"),
+  modelHint: text("model_hint"),
+  screen: text("screen"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  approvedAt: text("approved_at"),
+  blockedAt: text("blocked_at"),
+  lastSeenAt: text("last_seen_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  approvedBy: text("approved_by"),
+}, (table) => [
+  index("managed_app_devices_app_status_idx").on(table.appId, table.status, table.createdAt),
+]);
+
+export const managedAppChallenges = sqliteTable("managed_app_challenges", {
+  nonce: text("nonce").primaryKey(),
+  appId: text("app_id").notNull(),
+  deviceId: text("device_id").notNull(),
+  expiresAt: integer("expires_at").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("managed_app_challenges_device_idx").on(table.appId, table.deviceId, table.expiresAt),
+]);
+
 export const medicineRules = sqliteTable("medicine_rules", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
