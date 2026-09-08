@@ -8,7 +8,6 @@ async function source(path) {
 
 test("classification metadata is persisted without replacing the P-256 device identity", async () => {
   const managed = await source("../app/managed-app-device.server.ts");
-  const migration = await source("../drizzle/0005_managed_app_device_classification.sql");
   const schema = await source("../db/schema.ts");
 
   assert.match(managed, /deviceClassOverride/);
@@ -18,11 +17,20 @@ test("classification metadata is persisted without replacing the P-256 device id
   assert.match(managed, /classificationDetail/);
   assert.match(managed, /deviceClass: deviceClassOverride \|\| autoDeviceClass/);
   assert.match(managed, /crypto\.subtle\.digest\("SHA-256"/);
-  assert.match(migration, /device_class_override/);
-  assert.match(migration, /classification_confidence/);
-  assert.match(migration, /classification_detail_json/);
+  assert.match(schema, /deviceClassOverride/);
   assert.match(schema, /classificationConfidence/);
   assert.match(schema, /classificationDetailJson/);
+});
+
+test("classification schema upgrade is idempotent for existing D1 databases", async () => {
+  const managed = await source("../app/managed-app-device.server.ts");
+
+  assert.match(managed, /PRAGMA table_info\(managed_app_devices\)/);
+  assert.match(managed, /if \(!names\.has\("device_class_override"\)\)/);
+  assert.match(managed, /if \(!names\.has\("classification_confidence"\)\)/);
+  assert.match(managed, /if \(!names\.has\("classification_source"\)\)/);
+  assert.match(managed, /if \(!names\.has\("classifier_version"\)\)/);
+  assert.match(managed, /if \(!names\.has\("classification_detail_json"\)\)/);
 });
 
 test("central management keeps automatic class and manual override as separate values", async () => {
