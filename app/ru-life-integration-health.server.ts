@@ -60,10 +60,10 @@ async function configuration() {
   const env = await workerEnvironment();
   const configuredUrl = typeof env.MEDICINE_APP_BASE_URL === "string" && env.MEDICINE_APP_BASE_URL.trim()
     ? env.MEDICINE_APP_BASE_URL.trim()
-    : process.env.MEDICINE_APP_BASE_URL?.trim() || integrationRussiaSiteUrl;
+    : integrationRussiaSiteUrl;
   const secret = typeof env.MEDICINE_SERVICE_SECRET === "string" && env.MEDICINE_SERVICE_SECRET.length >= 32
     ? env.MEDICINE_SERVICE_SECRET
-    : process.env.MEDICINE_SERVICE_SECRET || "";
+    : "";
   return { configuredUrl: configuredUrl.replace(/\/$/, ""), secret };
 }
 
