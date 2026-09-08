@@ -44,7 +44,6 @@ function classifyDevice(request: Request, profile: DeviceProfileInput): { device
   const shortestSide = shortestScreenSide(profile);
   const platform = `${platformHeader} ${platformHint}`;
 
-  // iPadOS may present a Macintosh UA. Multi-touch distinguishes it from a Mac.
   if (/ipad/i.test(ua) || (/(macintosh|mac os x)/i.test(ua) && touchPoints > 1)) {
     return { deviceClass: "tablet", confidence: 99, source: "server:ipad" };
   }
@@ -79,7 +78,6 @@ function verifiedProfile(request: Request, value: unknown) {
     clientDeviceClass: clean(source.deviceClass, 30) || null,
     clientClassificationConfidence: numeric(source.classificationConfidence, 0, 100),
     clientClassificationSource: clean(source.classificationSource, 80) || null,
-    // The client contributes signals only. Application Management chooses the final class.
     deviceClass: classification.deviceClass,
     classificationConfidence: classification.confidence,
     classificationSource: classification.source,
@@ -138,6 +136,7 @@ export async function POST(request: Request) {
         appId: "hoa-nhap-nga",
         deviceId: authorization.device.deviceId,
         deviceCode: authorization.device.deviceCode,
+        accessToken: authorization.accessToken,
         expiresAt: authorization.expiresAt,
       });
       return Response.json(authorization, { headers });
