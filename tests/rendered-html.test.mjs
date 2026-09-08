@@ -3,6 +3,8 @@ import test from "node:test";
 
 const developmentPreviewMeta =
   /<meta(?=[^>]*\bname=["']codex-preview["'])(?=[^>]*\bcontent=["']development["'])[^>]*>/i;
+const sessionSecret = "application-management-test-session-secret-2026";
+const ownerEmail = "owner@example.com";
 
 async function loadWorker() {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
@@ -12,6 +14,8 @@ async function loadWorker() {
 
 const environment = {
   ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) },
+  ADMIN_SESSION_SECRET: sessionSecret,
+  CONTROL_OWNER_EMAILS: ownerEmail,
 };
 
 const executionContext = {
@@ -19,7 +23,29 @@ const executionContext = {
   passThroughOnException() {},
 };
 
-test("redirects unauthenticated visitors to ChatGPT sign-in", async () => {
+function base64Url(value) {
+  return Buffer.from(value).toString("base64url");
+}
+
+async function adminSessionCookie() {
+  const payload = base64Url(JSON.stringify({
+    v: 1,
+    email: ownerEmail,
+    exp: Date.now() + 60 * 60 * 1000,
+  }));
+  const signedInput = `v1.${payload}`;
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(sessionSecret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signature = base64Url(new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(signedInput))));
+  return `__Host-boiech_admin_session=${signedInput}.${signature}`;
+}
+
+test("redirects unauthenticated visitors to the dedicated admin login", async () => {
   const worker = await loadWorker();
   const response = await worker.fetch(
     new Request("http://localhost/", { headers: { accept: "text/html" }, redirect: "manual" }),
@@ -29,7 +55,7 @@ test("redirects unauthenticated visitors to ChatGPT sign-in", async () => {
 
   assert.equal(response.status, 307);
   const location = new URL(response.headers.get("location"));
-  assert.equal(location.pathname, "/signin-with-chatgpt");
+  assert.equal(location.pathname, "/login");
   assert.equal(location.searchParams.get("return_to"), "/");
 });
 
@@ -39,9 +65,7 @@ test("renders the authenticated Application Management control plane", async () 
     new Request("http://localhost/", {
       headers: {
         accept: "text/html",
-        "oai-authenticated-user-email": "owner@example.com",
-        "oai-authenticated-user-full-name": "Nguy%E1%BB%85n%20Qu%E1%BA%A3n%20Tr%E1%BB%8B",
-        "oai-authenticated-user-full-name-encoding": "percent-encoded-utf-8",
+        cookie: await adminSessionCookie(),
       },
     }),
     environment,
