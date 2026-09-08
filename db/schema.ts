@@ -73,6 +73,20 @@ export const managedAppChallenges = sqliteTable("managed_app_challenges", {
   index("managed_app_challenges_device_idx").on(table.appId, table.deviceId, table.expiresAt),
 ]);
 
+export const managedAppDeviceProfiles = sqliteTable("managed_app_device_profiles", {
+  appId: text("app_id").notNull(),
+  deviceId: text("device_id").notNull(),
+  personName: text("person_name"),
+  personCode: text("person_code"),
+  groupName: text("group_name"),
+  purpose: text("purpose"),
+  adminNote: text("admin_note"),
+  updatedBy: text("updated_by"),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("managed_app_device_profiles_person_idx").on(table.appId, table.personCode, table.personName),
+]);
+
 export const medicineRules = sqliteTable("medicine_rules", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
