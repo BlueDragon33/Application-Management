@@ -93,6 +93,7 @@ type ApiPayload = Partial<CenterBootstrap> & {
   challenge?: string;
   error?: string;
   code?: string;
+  [key: string]: unknown;
 };
 
 export class AdminApiError extends Error {
@@ -196,7 +197,7 @@ async function proof(credential: Credential, access: AdminAccess) {
     action: "challenge",
     deviceId: access.deviceId,
   });
-  if (!challenge.challenge || !credential.privateKey) {
+  if (!challenge.challenge || typeof challenge.challenge !== "string" || !credential.privateKey) {
     throw new AdminApiError("Không thể tạo thử thách thiết bị.", challenge);
   }
   const message = new TextEncoder().encode(
@@ -262,11 +263,7 @@ export async function centerAdminAction(body: Record<string, unknown>) {
   return await secureApi("/api/center", credential, access, body) as CenterApiResponse;
 }
 
-/**
- * Bridge bootstrap dành riêng cho client Bơi ếch.
- * Các client khác phải có adapter/API quản trị riêng; tuyệt đối không được dùng
- * /api/dashboard của Bơi ếch làm đường tắt sang control-plane.
- */
+/** Bridge bootstrap dành riêng cho client Bơi ếch. */
 export async function connectAdminDevice(application: "boi-ech" = "boi-ech") {
   if (application !== "boi-ech") {
     throw new AdminApiError("Client này chưa có admin adapter riêng; không được dùng bridge Bơi ếch.", {
@@ -283,9 +280,7 @@ export async function connectAdminDevice(application: "boi-ech" = "boi-ech") {
   return { access, bootstrap };
 }
 
-/**
- * Health_Care có adapter và secret riêng. Vé này không dùng chung với Bơi ếch.
- */
+/** Health_Care có adapter và secret riêng. Vé này không dùng chung với Bơi ếch. */
 export async function connectHealthCareAdmin() {
   const { credential, access } = await approvedSession();
   if (access.status !== "approved") {
@@ -295,6 +290,20 @@ export async function connectHealthCareAdmin() {
     action: "bootstrap",
   }) as HealthAdminBootstrap;
   return { access, bootstrap };
+}
+
+/** Hòa nhập Nga dùng registry HN và API quản trị app-scoped riêng. */
+export async function connectRuLifeAdmin<T = ApiPayload>() {
+  const { credential, access } = await approvedSession();
+  if (access.status !== "approved") return { access, bootstrap: null as T | null };
+  const bootstrap = await secureApi("/api/apps/hoa-nhap-nga/admin", credential, access, { action: "bootstrap" }) as T;
+  return { access, bootstrap };
+}
+
+export async function ruLifeAdminAction<T = ApiPayload>(body: Record<string, unknown>) {
+  const { credential, access } = await approvedSession();
+  if (access.status !== "approved") throw new AdminApiError("Thiết bị quản trị chưa được cấp quyền.", { device: access });
+  return await secureApi("/api/apps/hoa-nhap-nga/admin", credential, access, body) as T;
 }
 
 export async function upstreamJson<T>(
