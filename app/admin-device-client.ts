@@ -68,6 +68,12 @@ export type HealthAdminBootstrap = {
   bridge: ApplicationBridge & { application?: "health-care" };
 };
 
+export type RuLifeAdminBootstrap = {
+  actor: AdminAccess;
+  application: "ru-life";
+  bridge: ApplicationBridge & { application?: "ru-life" };
+};
+
 export type CenterBootstrap = {
   actor: AdminAccess;
   applications: ApplicationDescriptor[];
@@ -87,7 +93,7 @@ type ApiPayload = Partial<CenterBootstrap> & {
   application?: unknown;
   learningDevices?: [];
   boiBridge?: ApplicationBridge;
-  bridge?: ApplicationBridge & { application?: "health-care" };
+  bridge?: ApplicationBridge & { application?: "health-care" | "ru-life" };
   upstreamError?: string | null;
   device?: AdminAccess;
   challenge?: string;
@@ -280,7 +286,7 @@ export async function connectAdminDevice(application: "boi-ech" = "boi-ech") {
   return { access, bootstrap };
 }
 
-/** Health_Care có adapter và secret riêng. Vé này không dùng chung với Bơi ếch. */
+/** Health_Care có adapter và secret riêng. */
 export async function connectHealthCareAdmin() {
   const { credential, access } = await approvedSession();
   if (access.status !== "approved") {
@@ -292,18 +298,16 @@ export async function connectHealthCareAdmin() {
   return { access, bootstrap };
 }
 
-/** Hòa nhập Nga dùng registry HN và API quản trị app-scoped riêng. */
-export async function connectRuLifeAdmin<T = ApiPayload>() {
+/** Hòa nhập Nga sở hữu registry/session; Trung tâm chỉ xin vé bridge ngắn hạn. */
+export async function connectRuLifeAdmin() {
   const { credential, access } = await approvedSession();
-  if (access.status !== "approved") return { access, bootstrap: null as T | null };
-  const bootstrap = await secureApi("/api/apps/hoa-nhap-nga/admin", credential, access, { action: "bootstrap" }) as T;
+  if (access.status !== "approved") {
+    return { access, bootstrap: null as RuLifeAdminBootstrap | null };
+  }
+  const bootstrap = await secureApi("/api/apps/hoa-nhap-nga/bridge", credential, access, {
+    action: "bootstrap",
+  }) as RuLifeAdminBootstrap;
   return { access, bootstrap };
-}
-
-export async function ruLifeAdminAction<T = ApiPayload>(body: Record<string, unknown>) {
-  const { credential, access } = await approvedSession();
-  if (access.status !== "approved") throw new AdminApiError("Thiết bị quản trị chưa được cấp quyền.", { device: access });
-  return await secureApi("/api/apps/hoa-nhap-nga/admin", credential, access, body) as T;
 }
 
 export async function upstreamJson<T>(
