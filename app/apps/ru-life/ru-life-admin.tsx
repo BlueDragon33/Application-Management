@@ -5,8 +5,9 @@ import { useEffect, useMemo, useState } from "react";
 import {
   connectRuLifeAdmin,
   roleLabels,
-  ruLifeAdminAction,
+  upstreamJson,
   type AdminAccess,
+  type ApplicationBridge,
 } from "../../admin-device-client";
 import styles from "./ru-life-admin.module.css";
 
@@ -68,18 +69,21 @@ type RuAudit = {
   createdAt: string;
 };
 
-type Bootstrap = {
-  actor: AdminAccess;
-  application: "ru-life";
-  devices: RuDevice[];
-  sessions: RuSession[];
-  audit: RuAudit[];
+type DeviceResponse = {
+  ok?: boolean;
+  devices?: RuDevice[];
+  sessions?: RuSession[];
+  device?: RuDevice | null;
 };
 
-type ActionResponse = Partial<Bootstrap> & {
-  device?: RuDevice | null;
-  error?: string;
-  code?: string;
+type SessionResponse = {
+  ok?: boolean;
+  sessions?: RuSession[];
+};
+
+type AuditResponse = {
+  ok?: boolean;
+  audit?: RuAudit[];
 };
 
 type BindingDraft = { userName: string; userCode: string };
@@ -99,7 +103,7 @@ const statusLabel: Record<DeviceStatus, string> = {
 
 function formatTime(value: string | number | null | undefined) {
   if (value === null || value === undefined || value === "") return "—";
-  const date = typeof value === "number" ? new Date(value) : new Date(value);
+  const date = new Date(value);
   return Number.isNaN(date.getTime()) ? "—" : new Intl.DateTimeFormat("vi-VN", { dateStyle: "short", timeStyle: "short" }).format(date);
 }
 
@@ -115,7 +119,7 @@ function Gate({ access, error, retry, busy }: { access: AdminAccess | null; erro
     <div className={styles.gateMark}>RU</div>
     <span>RU LIFE · CLIENT ADMIN</span>
     <h1>{access?.status === "pending" ? "Thiết bị quản trị đang chờ cấp quyền." : access?.status === "blocked" ? "Thiết bị quản trị đã bị khóa." : "Đang xác thực khu quản trị Hòa nhập Nga…"}</h1>
-    <p>{error || "Chỉ thiết bị quản trị đã được Application Management phê duyệt mới được xem registry HN và thay đổi quyền truy cập."}</p>
+    <p>{error || "Chỉ thiết bị quản trị đã được Application Management phê duyệt mới được nhận vé ngắn hạn để quản trị registry HN nằm trong RU_LIFE."}</p>
     {access?.deviceCode ? <div><small>Mã thiết bị quản trị</small><strong>{access.deviceCode}</strong></div> : null}
     <button onClick={retry} disabled={busy}>{busy ? "Đang kiểm tra…" : "Kiểm tra lại"}</button>
   </section></main>;
@@ -124,6 +128,7 @@ function Gate({ access, error, retry, busy }: { access: AdminAccess | null; erro
 export default function RuLifeAdmin({ user }: { user: { displayName: string; email: string } }) {
   const [view, setView] = useState<View>("devices");
   const [access, setAccess] = useState<AdminAccess | null>(null);
+  const [bridge, setBridge] = useState<ApplicationBridge | null>(null);
   const [devices, setDevices] = useState<RuDevice[]>([]);
   const [sessions, setSessions] = useState<RuSession[]>([]);
   const [audit, setAudit] = useState<RuAudit[]>([]);
@@ -139,17 +144,35 @@ export default function RuLifeAdmin({ user }: { user: { displayName: string; ema
   const canManage = role === "publisher" || role === "owner";
   const canReview = role === "reviewer" || canManage;
 
+  async function freshBridge() {
+    if (bridge && bridge.expiresAt > Date.now() + 30_000) return bridge;
+    const result = await connectRuLifeAdmin();
+    setAccess(result.access);
+    if (!result.bootstrap?.bridge) throw new Error("Không thể nhận vé quản trị Hòa nhập Nga.");
+    setBridge(result.bootstrap.bridge);
+    return result.bootstrap.bridge;
+  }
+
   async function load() {
     setBusy(true);
     setError("");
     try {
-      const result = await connectRuLifeAdmin<Bootstrap>();
+      const result = await connectRuLifeAdmin();
       setAccess(result.access);
-      if (!result.bootstrap) return;
-      setDevices(result.bootstrap.devices ?? []);
-      setSessions(result.bootstrap.sessions ?? []);
-      setAudit(result.bootstrap.audit ?? []);
-      setBindings(Object.fromEntries((result.bootstrap.devices ?? []).filter((item) => item.status === "pending").map((item) => [item.deviceId, {
+      if (!result.bootstrap?.bridge) return;
+      const currentBridge = result.bootstrap.bridge;
+      setBridge(currentBridge);
+      const mayReadAudit = ["reviewer", "publisher", "owner"].includes(result.access.role);
+      const [deviceData, sessionData, auditData] = await Promise.all([
+        upstreamJson<DeviceResponse>(currentBridge, "/api/control/devices"),
+        upstreamJson<SessionResponse>(currentBridge, "/api/control/sessions"),
+        mayReadAudit ? upstreamJson<AuditResponse>(currentBridge, "/api/control/audit") : Promise.resolve({ audit: [] }),
+      ]);
+      const nextDevices = deviceData.devices ?? [];
+      setDevices(nextDevices);
+      setSessions(sessionData.sessions ?? []);
+      setAudit(auditData.audit ?? []);
+      setBindings(Object.fromEntries(nextDevices.filter((item) => item.status === "pending").map((item) => [item.deviceId, {
         userName: item.userName ?? "",
         userCode: item.userCode ?? "",
       }])));
@@ -162,15 +185,30 @@ export default function RuLifeAdmin({ user }: { user: { displayName: string; ema
 
   useEffect(() => { void load(); }, []);
 
+  async function refreshAudit(currentBridge: ApplicationBridge) {
+    if (!canReview) return;
+    try {
+      const result = await upstreamJson<AuditResponse>(currentBridge, "/api/control/audit");
+      setAudit(result.audit ?? []);
+    } catch {
+      // Operational mutation already succeeded; a transient audit refresh must not roll it back in the UI.
+    }
+  }
+
   async function manage(device: RuDevice, operation: string, extra: Record<string, unknown> = {}) {
     if (!canManage) return;
     setActionBusy(device.deviceId);
     setNotice("");
     try {
-      const result = await ruLifeAdminAction<ActionResponse>({ action: "manage-device", operation, targetDeviceId: device.deviceId, ...extra });
+      const currentBridge = await freshBridge();
+      const result = await upstreamJson<DeviceResponse>(currentBridge, "/api/control/devices", {
+        method: "POST",
+        body: { operation, targetDeviceId: device.deviceId, ...extra },
+      });
       if (result.devices) setDevices(result.devices);
       if (result.sessions) setSessions(result.sessions);
-      setNotice("Đã cập nhật thiết bị Hòa nhập Nga.");
+      await refreshAudit(currentBridge);
+      setNotice("Đã cập nhật policy thiết bị trong RU_LIFE.");
     } catch (caught) {
       setNotice(caught instanceof Error ? caught.message : "Không thể cập nhật thiết bị Hòa nhập Nga.");
     } finally {
@@ -192,10 +230,14 @@ export default function RuLifeAdmin({ user }: { user: { displayName: string; ema
     if (!window.confirm(`Thu hồi phiên ${session.deviceCode}?`)) return;
     setActionBusy(session.sessionId);
     try {
-      const result = await ruLifeAdminAction<ActionResponse>({ action: "revoke-session", sessionId: session.sessionId });
+      const currentBridge = await freshBridge();
+      const result = await upstreamJson<SessionResponse>(currentBridge, "/api/control/sessions", {
+        method: "POST",
+        body: { sessionId: session.sessionId },
+      });
       if (result.sessions) setSessions(result.sessions);
-      if (result.audit) setAudit(result.audit);
-      setNotice("Đã thu hồi phiên Hòa nhập Nga.");
+      await refreshAudit(currentBridge);
+      setNotice("Đã thu hồi phiên trong session ledger của RU_LIFE.");
     } catch (caught) {
       setNotice(caught instanceof Error ? caught.message : "Không thể thu hồi phiên.");
     } finally {
@@ -223,25 +265,25 @@ export default function RuLifeAdmin({ user }: { user: { displayName: string; ema
       <Link href="/" className={styles.serverLink}><span>AM</span><div><small>CONTROL PLANE</small><strong>Application Management</strong></div></Link>
       <div className={styles.brand}><span>RU</span><div><small>CLIENT ĐỘC LẬP</small><strong>Hòa nhập Nga</strong></div></div>
       <nav>
-        <button data-active={view === "devices"} onClick={() => setView("devices")}><b>01</b><div><strong>Thiết bị & quyền</strong><small>Registry HN riêng</small></div></button>
-        <button data-active={view === "sessions"} onClick={() => setView("sessions")}><b>02</b><div><strong>Phiên truy cập</strong><small>15 phút · thu hồi từ xa</small></div></button>
-        {canReview ? <button data-active={view === "audit"} onClick={() => setView("audit")}><b>03</b><div><strong>Audit Hòa nhập Nga</strong><small>Chỉ nghiệp vụ HN</small></div></button> : null}
+        <button data-active={view === "devices"} onClick={() => setView("devices")}><b>01</b><div><strong>Thiết bị & quyền</strong><small>Registry HN trong RU_LIFE</small></div></button>
+        <button data-active={view === "sessions"} onClick={() => setView("sessions")}><b>02</b><div><strong>Phiên truy cập</strong><small>RU_LIFE phát · 15 phút</small></div></button>
+        {canReview ? <button data-active={view === "audit"} onClick={() => setView("audit")}><b>03</b><div><strong>Audit Hòa nhập Nga</strong><small>Đọc từ RU_LIFE</small></div></button> : null}
       </nav>
-      <div className={styles.boundary}><strong>RANH GIỚI</strong><p>HN- là namespace riêng. Không dùng QT-, BE- hoặc SK-. RU_LIFE không có form đăng nhập trực tiếp.</p></div>
+      <div className={styles.boundary}><strong>RANH GIỚI</strong><p>HN- và session ledger thuộc RU_LIFE. Application Management chỉ cấp policy qua vé quản trị ngắn hạn; không lưu thiết bị HN trong DB Trung tâm.</p></div>
       <div className={styles.user}><span>{user.displayName.slice(0, 1).toUpperCase()}</span><div><strong>{user.displayName}</strong><small>{roleLabels[role]} · {access.deviceCode}</small></div></div>
     </aside>
 
     <section className={styles.main}>
-      <header className={styles.topbar}><div><span>RU LIFE / DEVICE CONTROL</span><h1>{view === "devices" ? "Thiết bị & quyền Hòa nhập Nga" : view === "sessions" ? "Phiên truy cập Hòa nhập Nga" : "Audit ứng dụng Hòa nhập Nga"}</h1><p>{view === "devices" ? "Thiết bị tự nhận diện trên RU_LIFE, Application Management kiểm tra lại, gắn người sử dụng rồi mới cấp quyền." : view === "sessions" ? "Phiên chỉ được phát sau challenge P-256 và có thể bị thu hồi tức thời khi thiết bị bị khóa." : "Nhật ký riêng cho thay đổi quyền HN; không trộn với audit thiết bị QT."}</p></div><button onClick={() => void load()} disabled={busy}>{busy ? "Đang đồng bộ…" : "Đồng bộ"}</button></header>
+      <header className={styles.topbar}><div><span>RU LIFE / SIGNED REMOTE CONTROL</span><h1>{view === "devices" ? "Thiết bị & quyền Hòa nhập Nga" : view === "sessions" ? "Phiên truy cập Hòa nhập Nga" : "Audit ứng dụng Hòa nhập Nga"}</h1><p>{view === "devices" ? "RU_LIFE tự nhận diện, phân loại và lưu thiết bị. Application Management chỉ gắn người dùng, cấp/khóa quyền qua signed Control API." : view === "sessions" ? "Phiên do RU_LIFE phát sau challenge P-256; Trung tâm chỉ gửi lệnh thu hồi qua API quản trị." : "Nhật ký nằm trong RU_LIFE; Trung tâm chỉ đọc theo quyền reviewer/publisher/owner."}</p></div><button onClick={() => void load()} disabled={busy}>{busy ? "Đang đồng bộ…" : "Đồng bộ"}</button></header>
       {error ? <div className={styles.error}>{error}</div> : null}
       {notice ? <div className={styles.notice}>{notice}</div> : null}
 
       {view === "devices" ? <>
         <section className={styles.metrics}>
-          <article><span>Tổng HN</span><strong>{devices.length}</strong><small>Registry Hòa nhập Nga</small></article>
+          <article><span>Tổng HN</span><strong>{devices.length}</strong><small>Đọc từ registry RU_LIFE</small></article>
           <article data-alert={counts.pending > 0}><span>Chờ duyệt</span><strong>{counts.pending}</strong><small>Phải gắn người dùng</small></article>
           <article><span>Đã cấp quyền</span><strong>{counts.approved}</strong><small>{counts.online} đang online</small></article>
-          <article data-alert={counts.blocked > 0}><span>Đã khóa</span><strong>{counts.blocked}</strong><small>Phiên bị thu hồi</small></article>
+          <article data-alert={counts.blocked > 0}><span>Đã khóa</span><strong>{counts.blocked}</strong><small>Session bị thu hồi tại RU_LIFE</small></article>
         </section>
         <section className={styles.toolbar}><div>{(["all", "online", "pending", "approved", "blocked"] as const).map((item) => <button key={item} data-active={filter === item} onClick={() => setFilter(item)}>{item === "all" ? "Tất cả" : item === "online" ? "Online" : statusLabel[item]}</button>)}</div><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm mã HN, họ tên, mã người dùng…" /></section>
         <section className={styles.deviceList}>
@@ -260,9 +302,9 @@ export default function RuLifeAdmin({ user }: { user: { displayName: string; ema
         </section>
       </> : null}
 
-      {view === "sessions" ? <section className={styles.sessionPanel}><header><div><span>SESSION LEDGER</span><h2>Phiên đã phát cho thiết bị HN</h2></div><strong>{sessions.filter((item) => item.active).length} active</strong></header><div className={styles.sessionList}>{sessions.map((session) => <article key={session.sessionId}><div><strong>{session.userName || session.deviceCode}</strong><small>{session.userCode || "Chưa có mã"} · {classLabel[session.deviceClass]} · {session.deviceCode}</small></div><div><span data-active={session.active}>{session.status}</span><small>Hết hạn {formatTime(session.expiresAt)}</small></div><div><small>Phát {formatTime(session.createdAt)}</small><small>Thấy cuối {formatTime(session.lastSeenAt)}</small></div>{canManage && session.active ? <button disabled={actionBusy === session.sessionId} onClick={() => void revoke(session)}>Thu hồi</button> : <span/>}</article>)}{!sessions.length ? <div className={styles.empty}>Chưa có phiên Hòa nhập Nga.</div> : null}</div></section> : null}
+      {view === "sessions" ? <section className={styles.sessionPanel}><header><div><span>RU_LIFE SESSION LEDGER</span><h2>Phiên do RU_LIFE phát cho thiết bị HN</h2></div><strong>{sessions.filter((item) => item.active).length} active</strong></header><div className={styles.sessionList}>{sessions.map((session) => <article key={session.sessionId}><div><strong>{session.userName || session.deviceCode}</strong><small>{session.userCode || "Chưa có mã"} · {classLabel[session.deviceClass]} · {session.deviceCode}</small></div><div><span data-active={session.active}>{session.status}</span><small>Hết hạn {formatTime(session.expiresAt)}</small></div><div><small>Phát {formatTime(session.createdAt)}</small><small>Thấy cuối {formatTime(session.lastSeenAt)}</small></div>{canManage && session.active ? <button disabled={actionBusy === session.sessionId} onClick={() => void revoke(session)}>Thu hồi</button> : <span/>}</article>)}{!sessions.length ? <div className={styles.empty}>Chưa có phiên Hòa nhập Nga.</div> : null}</div></section> : null}
 
-      {view === "audit" && canReview ? <section className={styles.auditPanel}><header><span>RU_LIFE AUDIT</span><h2>Nhật ký thay đổi quyền HN</h2></header><div>{audit.map((entry) => <article key={entry.id}><time>{formatTime(entry.createdAt)}</time><div><strong>{entry.action}</strong><small>{entry.actor}</small></div><code>{entry.target}</code></article>)}{!audit.length ? <div className={styles.empty}>Chưa có sự kiện audit.</div> : null}</div></section> : null}
+      {view === "audit" && canReview ? <section className={styles.auditPanel}><header><span>RU_LIFE AUDIT</span><h2>Nhật ký thay đổi quyền HN trong client</h2></header><div>{audit.map((entry) => <article key={entry.id}><time>{formatTime(entry.createdAt)}</time><div><strong>{entry.action}</strong><small>{entry.actor}</small></div><code>{entry.target}</code></article>)}{!audit.length ? <div className={styles.empty}>Chưa có sự kiện audit.</div> : null}</div></section> : null}
     </section>
   </main>;
 }
