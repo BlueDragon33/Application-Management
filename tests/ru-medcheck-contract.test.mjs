@@ -15,32 +15,6 @@ async function missing(path) {
   }
 }
 
-test("RU MedCheck recomputes submitted risk on the server", async () => {
-  const server = await source("../app/medicine.server.ts");
-  const submit = await source("../app/api/medicine/reviews/route.ts");
-
-  assert.match(server, /export async function analyzeMedicineText/);
-  assert.match(submit, /const analysis = await analyzeMedicineText\(ocrText\)/);
-  assert.match(submit, /analysis\.matchedRuleIds/);
-  assert.match(submit, /analysis\.level/);
-  assert.doesNotMatch(submit, /body\.matchedRuleIds/);
-  assert.doesNotMatch(submit, /body\.proposedLevel/);
-});
-
-test("review results keep the separate unguessable lookup token", async () => {
-  const submit = await source("../app/api/medicine/reviews/route.ts");
-  const lookup = await source("../app/api/medicine/reviews/[id]/route.ts");
-  const schema = await source("../db/schema.ts");
-
-  assert.match(submit, /createMedicineReviewToken/);
-  assert.match(submit, /public_token_hash/);
-  assert.match(submit, /sha256Hex\(token\)/);
-  assert.match(lookup, /searchParams\.get\("token"\)/);
-  assert.match(lookup, /public_token_hash/);
-  assert.match(lookup, /sha256Hex\(token\)/);
-  assert.match(schema, /publicTokenHash: text\("public_token_hash"\)/);
-});
-
 test("medicine administration stays behind the signed central control device", async () => {
   const control = await source("../app/api/medicine/control/route.ts");
   const client = await source("../app/medicine-control/medicine-control-client.tsx");
@@ -55,7 +29,7 @@ test("medicine administration stays behind the signed central control device", a
   assert.match(shared, /learning-control:\$\{access\.deviceId\}:\$\{challenge\.challenge\}/);
 });
 
-test("Hòa nhập Nga user surface is absent from the admin repository", async () => {
+test("Hòa nhập Nga user surface and user APIs are absent from the admin repository", async () => {
   const worker = await source("../worker/index.ts");
   const serviceWorker = await source("../public/sw.js");
 
@@ -66,6 +40,9 @@ test("Hòa nhập Nga user surface is absent from the admin repository", async (
   assert.equal(await missing("../app/medicine-bridge.server.ts"), true);
   assert.equal(await missing("../app/api/auth/bridge/route.ts"), true);
   assert.equal(await missing("../app/api/medicine/access/route.ts"), true);
+  assert.equal(await missing("../app/api/medicine/rules/route.ts"), true);
+  assert.equal(await missing("../app/api/medicine/reviews/route.ts"), true);
+  assert.equal(await missing("../app/api/medicine/reviews/[id]/route.ts"), true);
   assert.doesNotMatch(worker, /SITE_SURFACE|integration-russia|\/ru-medcheck|api\/auth\/bridge/);
   assert.doesNotMatch(serviceWorker, /ru-medcheck|hoa-nhap-nga-webapp/);
 });
