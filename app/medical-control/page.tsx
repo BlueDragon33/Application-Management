@@ -4,7 +4,7 @@ import MedicalControlClient from "./medical-control-client";
 import "./medical-control.css";
 import "./medical-control-access.css";
 
-export const metadata: Metadata = { title: "Y tế · QUẢN TRỊ ỨNG DỤNG" };
+export const metadata: Metadata = { title: "Hòa nhập Nga · QUẢN TRỊ ỨNG DỤNG" };
 export const dynamic = "force-dynamic";
 
 export default async function MedicalControlPage() {
