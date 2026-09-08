@@ -1,56 +1,94 @@
 # Application Management
 
-Application Management là **control-plane quản trị** cho các web app/site độc lập trong hệ thống. Trung tâm không phải nơi chạy nội dung học tập, sức khỏe hay các nghiệp vụ chuyên môn của từng site.
+Application Management là **server/control-plane quản trị** cho các web app/site độc lập trong hệ thống. Trung tâm là đầu não cấp policy, quyền và điều phối; không phải nơi chạy nội dung học tập, sức khỏe hay nghiệp vụ chuyên môn của từng client.
 
 ## Kiến trúc bắt buộc
 
 ```text
+LEVEL 0 · SERVER
 Application Management
-├── Thiết bị quản trị Trung tâm (P-256)
-├── Vai trò & phân quyền
-├── Application Registry
-├── Audit & bảo mật
-└── Contract quản trị
-    ├── Bơi ếch AI          → runtime / DB / registry thiết bị riêng
-    ├── Sức khỏe Y tế       → runtime / DB / registry thiết bị riêng
-    ├── Hòa nhập Nga        → runtime / DB / registry thiết bị riêng
-    ├── Bauman Master AI    → runtime / dữ liệu / môn học riêng
-    └── GrowUP MyChildren   → runtime / dữ liệu / thiết bị riêng
+├── thiết bị quản trị Trung tâm (P-256)
+├── vai trò & phân quyền
+├── application registry
+├── audit & bảo mật Trung tâm
+└── signed admin contracts
+    ├── LEVEL 1 · CLIENT: Bơi ếch
+    ├── LEVEL 1 · CLIENT: Sức khỏe Y tế
+    ├── LEVEL 1 · CLIENT: Hòa nhập Nga
+    ├── LEVEL 1 · CLIENT: Bauman Hub
+    │   ├── LEVEL 2 · SUB-CLIENT: Math_Bauman
+    │   └── LEVEL 2 · SUB-CLIENT/MODULE: các site môn học khác
+    └── LEVEL 1 · CLIENT: GrowUP MyChildren
+        └── ENDPOINTS: desktop / tablet-iPad / phone
 ```
 
-Mỗi ứng dụng phải hoạt động độc lập. Application Management chỉ được:
+Chi tiết topology và quy ước UI nằm tại [`docs/CONTROL_PLANE_TOPOLOGY.md`](docs/CONTROL_PLANE_TOPOLOGY.md).
 
-- cấp, khóa và thu hồi quyền truy cập;
+## Nguyên tắc server → client
+
+Mỗi client phải hoạt động độc lập. Application Management chỉ được:
+
+- cấp, khóa và thu hồi quyền truy cập qua admin contract;
 - cấp hoặc thu hồi quyền chỉnh sửa;
-- quản lý thiết bị quản trị Trung tâm;
-- theo dõi trạng thái vận hành cần thiết qua API/contract;
-- kiểm duyệt các thay đổi mà ứng dụng chủ động gửi lên;
-- ghi audit cho các thay đổi quyền và bảo mật.
+- quản lý **thiết bị quản trị của chính Trung tâm**;
+- theo dõi trạng thái vận hành tối thiểu qua API/contract;
+- kiểm duyệt các thay đổi mà client chủ động gửi lên;
+- ghi audit cho thay đổi quyền và bảo mật control-plane.
 
-Application Management **không được** chứa database chuyên môn của ứng dụng, dùng chung registry thiết bị giữa các site, nhúng runtime của site con hoặc dựng thao tác quản trị khi backend thật chưa tồn tại.
+Application Management **không được**:
 
-## Chuẩn thiết bị của site con
+- chứa database chuyên môn của client;
+- dùng chung registry thiết bị giữa các site;
+- nhúng runtime hoặc router nghiệp vụ của client;
+- quản trị xuyên tầng vào sub-client nếu client cha chưa công bố contract;
+- dựng nút thao tác khi backend thật chưa tồn tại.
 
-Các site được quản lý theo cùng một contract logic nhưng không dùng chung dữ liệu:
+## Client lớn và sub-client
 
-1. site tự sinh/giữ định danh thiết bị;
-2. tự động phân loại `desktop`, `phone`, `tablet/iPad`;
-3. gửi yêu cầu truy cập;
-4. Trung tâm hoặc khu quản trị riêng phê duyệt theo chính sách;
+Client cấp 1 có thể sở hữu client cấp 2. Trường hợp điển hình là **Bauman Hub**:
+
+- `BlueDragon33/Bauman-master-ai-system` là client cha;
+- `BlueDragon33/Math_Bauman` đã là repo môn học độc lập;
+- các nhóm `subjects/programming`, `subjects/ai`, `subjects/signal`, `subjects/systems`, `subjects/foundation`, `subjects/research`, `subjects/russian` hiện được mô hình hóa như sub-client/module của Bauman;
+- Application Management quản trị Bauman qua contract của Bauman, không biến từng môn học thành client cấp 1 một cách tùy tiện.
+
+## Chuẩn thiết bị của client
+
+Các site dùng cùng logic contract nhưng không dùng chung dữ liệu:
+
+1. client tự sinh/giữ định danh thiết bị;
+2. client tự động phân loại `desktop`, `tablet/iPad`, `phone`;
+3. client chọn giao diện phù hợp theo lớp thiết bị;
+4. gửi yêu cầu truy cập theo policy;
 5. quyền truy cập và quyền chỉnh sửa là hai lớp độc lập;
-6. site giữ presence/online-offline và audit của chính nó;
+6. client giữ presence/online-offline và audit của chính nó;
 7. Trung tâm chỉ đọc/điều khiển qua vé hoặc API quản trị ngắn hạn.
+
+Chuẩn UX mặc định:
+
+- **Desktop `>=1024px`**: dashboard 2–4 cột, sidebar, mật độ cao, chuột + bàn phím.
+- **Tablet/iPad `600–1023px`**: 1–2 cột, rail/tab thu gọn, touch-first.
+- **Phone `<600px`**: một cột, tác vụ ưu tiên, điều hướng gọn, không phụ thuộc hover.
+
+Đây là chuẩn giao diện, không phải cơ chế fingerprint. Device classification phải diễn ra tại client và chỉ gửi metadata thật sự cần thiết cho quản trị.
 
 ## Control-plane hiện tại
 
-Root `/` là Application Hub với bốn khu vực:
+Root `/` là Application Hub với năm khu vực:
 
-- **Tổng quan** — tình trạng hệ thống, contract và việc cần xử lý;
-- **Ứng dụng** — registry và đường vào khu quản trị riêng;
-- **Thiết bị & quyền** — chỉ dành cho thiết bị quản trị Application Management;
+- **Tổng quan** — tình trạng server, contract và việc cần xử lý;
+- **Sơ đồ hệ thống** — topology `Server → Client → Sub-client → Endpoint`;
+- **Client** — registry và đường vào khu quản trị riêng;
+- **Thiết bị quản trị** — chỉ dành cho máy quản trị Application Management;
 - **Nhật ký & bảo mật** — audit của control-plane.
 
-Bơi ếch đang có backend quản trị hoạt động và được giữ ở `/apps/boi-ech`. Các ứng dụng khác chỉ bật thao tác thực tế khi repository tương ứng cung cấp admin contract chính thức; trước đó giao diện chỉ mô tả trạng thái, ranh giới và yêu cầu tích hợp để tránh chức năng giả.
+Trạng thái tích hợp hiện tại:
+
+- **Bơi ếch**: admin bridge đang hoạt động;
+- **Health_Care**: repo độc lập có Device Gate và Control API phía client; adapter của Application Management chưa nối vào `/api/center` mới;
+- **RU_LIFE**: boundary và luồng P-256 đã được xác lập; runtime/admin API còn đang hoàn thiện;
+- **Bauman Hub**: có source và sub-client, nhưng admin contract chính thức chưa đủ để bật điều khiển;
+- **GrowUP MyChildren**: repo đã có, management contract chưa hoàn tất.
 
 ## Bảo mật
 

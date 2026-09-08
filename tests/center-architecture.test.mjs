@@ -29,6 +29,39 @@ test("application registry explicitly defines independent app boundaries", () =>
   assert.match(registry, /Không dùng API\/DB Bơi ếch|Không chia sẻ registry Bơi ếch|Không dùng DB ứng dụng khác/);
 });
 
+test("topology is explicitly Server to Client to Sub-client to Endpoint", () => {
+  const registry = source("app/application-registry.ts");
+  const hub = source("app/application-hub.tsx");
+  const docs = source("docs/CONTROL_PLANE_TOPOLOGY.md");
+  assert.match(registry, /tier: "client"/);
+  assert.match(registry, /childClients: baumanChildren/);
+  assert.match(registry, /BlueDragon33\/Math_Bauman/);
+  for (const deviceClass of ["desktop", "tablet", "phone"]) {
+    assert.match(registry, new RegExp(`id: "${deviceClass}"`));
+  }
+  assert.match(hub, /SERVER \/ CONTROL PLANE/);
+  assert.match(hub, /LEVEL 1 · CLIENT/);
+  assert.match(hub, /LEVEL 2 · SUB-CLIENT/);
+  assert.match(hub, /ENDPOINTS/);
+  assert.match(docs, /Server → Client → Sub-client → Endpoint|SERVER \/ CONTROL PLANE/i);
+});
+
+test("central UI makes admin devices distinct from client endpoints", () => {
+  const hub = source("app/application-hub.tsx");
+  assert.match(hub, /Đây chỉ là thiết bị quản trị Application Management/);
+  assert.match(hub, /Endpoint registry thuộc từng client, không thuộc server/);
+  assert.match(hub, /Registry thiết bị thuộc/);
+});
+
+test("client workspace exposes hierarchy and responsive endpoint policy without embedding runtime", () => {
+  const workspace = source("app/application-workspace.tsx");
+  assert.match(workspace, /Server<\/Link><span>\/</);
+  assert.match(workspace, /LEVEL 1 · INDEPENDENT CLIENT/);
+  assert.match(workspace, /LEVEL 2 · SUB-CLIENT TOPOLOGY/);
+  assert.match(workspace, /Phân loại thiết bị và giao diện/);
+  assert.doesNotMatch(workspace, /<iframe/i);
+});
+
 test("central UI uses center endpoint instead of application dashboard", () => {
   const hub = source("app/application-hub.tsx");
   const client = source("app/admin-device-client.ts");
