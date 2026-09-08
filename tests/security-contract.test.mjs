@@ -69,15 +69,15 @@ test("keeps Boi Ech dashboard as a signed short-lived bridge only", async () => 
   assert.match(bridge, /Date\.now\(\) \+ 5 \* 60 \* 1000/);
 });
 
-test("keeps every management API behind an approved signed central device", async () => {
+test("keeps both central and Boi bridge APIs behind approved signed devices", async () => {
   const center = await source("app/api/center/route.ts");
   const dashboard = await source("app/api/dashboard/route.ts");
-  const content = await source("app/api/content/route.ts");
+  const boiClient = await source(boiClientPath);
 
   assert.match(center, /verifyControlProof/);
   assert.match(dashboard, /verifyControlProof/);
-  assert.match(content, /verifyControlProof/);
-  assert.match(content, /CONTENT_REVIEW_ROLE_REQUIRED/);
+  assert.match(boiClient, /boiApi\(bridge, "\/api\/control\/content"/);
+  assert.doesNotMatch(boiClient, /fetch\("\/api\/content"|secureApi\("\/api\/content"/);
 });
 
 test("keeps central admin roles separate from Boi Ech lesson editing", async () => {
