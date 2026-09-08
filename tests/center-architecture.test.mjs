@@ -140,7 +140,7 @@ test("Health Care uses its own signed adapter and real client control surfaces",
   assert.match(bridgeServer, /HEALTH_CONTROL_SERVICE_SECRET/);
   assert.match(bridgeServer, /child-health-control/);
   assert.match(bridgeServer, /app:\s*TOKEN_APP/);
-  assert.doesNotMatch(bridgeServer, /CONTROL_SERVICE_SECRET/);
+  assert.doesNotMatch(bridgeServer, /values\.CONTROL_SERVICE_SECRET\b/);
   assert.match(adminClient, /connectHealthCareAdmin/);
   assert.match(adminClient, /\/api\/apps\/health-care\/bridge/);
 });
