@@ -1,9 +1,8 @@
 import type { ControlRole } from "./control-device.server";
 
-const DEFAULT_HEALTH_BASE_URL = "https://suc-khoe-tre.boiech-ai.workers.dev";
-const TOKEN_ISSUER = "quan-ly-hoc-tap";
-const TOKEN_AUDIENCE = "child-health-control";
-const TOKEN_APP = "child-health";
+const TOKEN_ISSUER = "application-management";
+const TOKEN_AUDIENCE = "health-care-control";
+const TOKEN_APP = "health-care";
 
 export class HealthBridgeError extends Error {
   status: number;
@@ -16,22 +15,33 @@ export class HealthBridgeError extends Error {
   }
 }
 
+function normalizeOrigin(value: unknown) {
+  if (typeof value !== "string") return "";
+  const trimmed = value.trim().replace(/\/$/, "");
+  if (!/^https:\/\/[a-z0-9.-]+(?::\d+)?$/i.test(trimmed)) return "";
+  return trimmed;
+}
+
 async function configuration() {
   const workers = await import("cloudflare:workers");
   const values = workers.env as unknown as Record<string, unknown>;
-  const configuredBaseUrl = typeof values.HEALTH_CARE_BASE_URL === "string"
-    ? values.HEALTH_CARE_BASE_URL.replace(/\/$/, "")
-    : "";
-  const baseUrl = configuredBaseUrl || DEFAULT_HEALTH_BASE_URL;
+  const baseUrl = normalizeOrigin(values.HEALTH_CARE_BASE_URL);
   const secret = typeof values.HEALTH_CONTROL_SERVICE_SECRET === "string"
     ? values.HEALTH_CONTROL_SERVICE_SECRET
     : "";
 
-  if (!/^https:\/\/[a-z0-9.-]+$/i.test(baseUrl) || secret.length < 32) {
+  if (!baseUrl) {
     throw new HealthBridgeError(
-      "Kết nối Sức khỏe Y tế chưa được cấu hình bằng secret riêng.",
+      "Chưa cấu hình URL Site Sức khỏe Y tế trong ChatGPT Sites.",
       503,
-      { code: "HEALTH_CARE_NOT_CONFIGURED" },
+      { code: "HEALTH_CARE_SITE_URL_NOT_CONFIGURED" },
+    );
+  }
+  if (secret.length < 32) {
+    throw new HealthBridgeError(
+      "Chưa cấu hình khóa kết nối Sức khỏe Y tế trong ChatGPT Sites.",
+      503,
+      { code: "HEALTH_CARE_SITE_SECRET_NOT_CONFIGURED" },
     );
   }
   return { baseUrl, secret };
@@ -71,6 +81,7 @@ export async function issueHealthBrowserBridge(
     role,
     controlDeviceId,
     jti: ticketId,
+    iat: Date.now(),
     exp: expiresAt,
   })));
   const signedInput = `v1.${payload}`;
@@ -79,5 +90,6 @@ export async function issueHealthBrowserBridge(
     token: `${signedInput}.${await signature(secret, signedInput)}`,
     expiresAt,
     application: "health-care" as const,
+    transport: "chatgpt-sites" as const,
   };
 }

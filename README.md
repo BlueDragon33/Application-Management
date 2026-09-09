@@ -6,7 +6,7 @@ Application Management là **server/control-plane quản trị** cho các web ap
 
 ```text
 LEVEL 0 · SERVER
-Application Management
+Application Management · ChatGPT Site
 ├── thiết bị quản trị QT- (P-256)
 ├── vai trò & phân quyền
 ├── application registry
@@ -75,9 +75,17 @@ Khu quản trị nằm riêng tại `app/apps/boi-ech/` và chỉ còn nghiệp 
 - content review;
 - app audit.
 
-Adapter dùng `HEALTH_CONTROL_SERVICE_SECRET` riêng. Hồ sơ sức khỏe cá nhân không đi vào Application Management.
+Application Management hiện chạy trong **ChatGPT Sites**. Kết nối Health không được hard-code qua `workers.dev`; bridge lấy URL Site Health từ `HEALTH_CARE_BASE_URL` và dùng khóa riêng `HEALTH_CONTROL_SERVICE_SECRET` trong môi trường hosting của Sites.
 
-Trạng thái vẫn là `migrating` cho tới khi xác minh secret/origin/deployment production.
+Vé bridge chuẩn có tuổi thọ 5 phút và danh tính:
+
+- issuer: `application-management`;
+- audience: `health-care-control`;
+- app: `health-care`.
+
+Health_Care chỉ dùng khóa này để xác minh control-plane; khóa không phải cơ chế đăng nhập người dùng và không được lưu trong repo hoặc `.openai/hosting.json`. Hồ sơ sức khỏe cá nhân không đi vào Application Management.
+
+Trạng thái vẫn là `migrating` cho tới khi URL Site Health và khóa kết nối được cấu hình ở ChatGPT Sites và Control API live được xác minh.
 
 ## Hòa nhập Nga
 
@@ -95,7 +103,7 @@ Application Management không còn route runtime cho đăng ký HN, không phát
 
 Các migration đã từng được áp dụng cho D1 của Site được giữ nguyên như lịch sử bất biến, kể cả khi bảng legacy không còn được runtime sử dụng. Việc dọn dữ liệu legacy phải là một migration riêng có kiểm kê và phê duyệt, không được thực hiện ngầm trong lần chuyển hosting này.
 
-RU_LIFE standalone CI và Application Management bridge CI đã xanh. Trạng thái vẫn là `migrating` cho tới khi xác minh `RU_LIFE_BASE_URL`, secret dùng chung và D1 production thật.
+RU_LIFE standalone CI và Application Management bridge CI đã xanh. Trạng thái vẫn là `migrating` cho tới khi xác minh endpoint, secret dùng chung và D1 production thật.
 
 ## Bauman Hub
 
@@ -124,7 +132,7 @@ Control-plane tuyệt đối không nhận hồ sơ trẻ, health/nutrition reco
 | Client | Runtime | Admin code | Production contract |
 |---|---|---|---|
 | Bơi ếch | Có | Connected | Connected |
-| Health_Care | Có | Adapter + UI thật | Migrating |
+| Health_Care | Có | ChatGPT Sites adapter + UI thật | Migrating |
 | RU_LIFE | Có + D1 riêng | Signed bridge + Control API | Migrating |
 | Bauman Hub | Có | Management readiness | Pending backend |
 | GrowUP | Có | Privacy/readiness management | Pending backend |
@@ -145,6 +153,17 @@ Thiết bị quản trị dùng P-256 + challenge một lần. Vai trò:
 - `owner`
 
 Các thay đổi central role/device được ghi vào `control_audit_log`. Owner/self-device được bảo vệ khỏi thao tác tự hủy.
+
+## Cấu hình hosting ChatGPT Sites
+
+`Application-Management/.openai/hosting.json` chỉ lưu project linkage và tên binding. Giá trị runtime/secret không được commit.
+
+Đối với Health adapter cần cấu hình trong phần Settings của Site Application Management:
+
+- `HEALTH_CARE_BASE_URL`: URL production của Site Health_Care;
+- `HEALTH_CONTROL_SERVICE_SECRET`: khóa app-scoped đủ mạnh, giống giá trị phía Health_Care.
+
+Sau khi đổi environment/secret phải phát hành lại bản Site được duyệt. Không cần cấu hình một Application Management Worker riêng trên Cloudflare.
 
 ## Development gate
 
