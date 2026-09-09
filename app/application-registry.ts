@@ -30,6 +30,7 @@ export type ApplicationConfig = {
   name: string;
   shortName: string;
   href: string;
+  publicUrl?: string;
   initials: string;
   tier: "client";
   status: ApplicationStatus;
@@ -81,13 +82,13 @@ export const applicationRegistry: readonly ApplicationConfig[] = [
     guardrails: ["Không chứa hồ sơ sức khỏe cá nhân", "Không dùng API/DB Bơi ếch", "Không gộp runtime với Trung tâm"],
   },
   {
-    id: "ru-life", name: "Hòa nhập Nga", shortName: "Hòa nhập Nga", href: "/apps/ru-life", initials: "RU", tier: "client", status: "warning", contractState: "migrating", repository: "BlueDragon33/RU_LIFE",
+    id: "ru-life", name: "Hòa nhập Nga", shortName: "Hòa nhập Nga", href: "/apps/ru-life", publicUrl: "https://hoa-nhap-nga.dinhnam3391.chatgpt.site", initials: "RU", tier: "client", status: "warning", contractState: "migrating", repository: "BlueDragon33/RU_LIFE",
     scope: "Client Hòa nhập Nga độc lập; RU_LIFE sở hữu D1, registry HN, challenge P-256, session ledger và audit; không có đăng nhập trực tiếp.",
-    contractNote: "RU_LIFE main đã chuyển sang D1/registry/session riêng và CI standalone đã xanh. Application Management chỉ phát vé bridge 5 phút rồi gọi Control API của RU_LIFE; vẫn giữ migrating cho tới khi cấu hình RU_LIFE_BASE_URL, secret chung và D1 production được xác minh.",
-    devicePolicy: "Registry HN thuộc RU_LIFE · server RU_LIFE tự phân loại computer/phone/tablet-iPad · Application Management chỉ gắn người dùng/cấp policy qua signed Control API · access/edit tách biệt.",
+    contractNote: "Application Management phát vé quản trị opaque 5 phút; RU_LIFE introspect ngược vé với Trung tâm rồi tự xử lý Control API trên D1/registry/session của chính RU_LIFE. Giữ migrating cho tới khi hai Site production được publish và handshake live được xác minh.",
+    devicePolicy: "Registry HN thuộc RU_LIFE · server RU_LIFE tự phân loại computer/phone/tablet-iPad · Application Management chỉ gắn người dùng/cấp policy qua Control API · access/edit tách biệt.",
     deviceExperiences: standardDeviceExperiences,
-    capabilities: ["Thiết bị HN", "Cấp/khóa truy cập", "Phân loại thiết bị", "Quyền chỉnh sửa", "Phiên & thu hồi từ xa", "Audit HN"],
-    guardrails: ["Không lưu registry/session HN trong DB Trung tâm", "Không dùng QT/BE/SK làm namespace HN", "Không có đăng nhập trực tiếp trên RU_LIFE", "Không dùng secret Health/Bơi ếch"],
+    capabilities: ["Thiết bị HN", "Cấp/khóa truy cập", "Phân loại thiết bị", "Quyền chỉnh sửa", "Phiên & thu hồi từ xa", "Audit HN", "Mở site độc lập để kiểm tra"],
+    guardrails: ["Không lưu registry/session HN trong DB Trung tâm", "Không dùng QT/BE/SK làm namespace HN", "Không có đăng nhập trực tiếp trên RU_LIFE", "Thiết bị QT không tự kế thừa quyền HN"],
   },
   {
     id: "bauman-master-ai", name: "Bauman Master AI", shortName: "Bauman Hub", href: "/apps/bauman-master-ai", initials: "BM", tier: "client", status: "warning", contractState: "pending", repository: "BlueDragon33/Bauman-master-ai-system",
