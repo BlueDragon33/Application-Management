@@ -7,7 +7,7 @@ import { issueBaumanBrowserBridge } from "../../bauman.server";
 
 export const dynamic = "force-dynamic";
 
-const UPSTREAM_TIMEOUT_MS = 2_400;
+const UPSTREAM_TIMEOUT_MS = 6_000;
 const RECENT_DEVICE_MS = 7 * 24 * 60 * 60 * 1000;
 
 type Bridge = { baseUrl: string; token: string; expiresAt: number };
@@ -104,6 +104,11 @@ async function bridgeJson(bridge: Bridge, path: string) {
     const data = await response.json().catch(() => ({})) as UnknownRecord;
     if (!response.ok) throw new Error(text(data.error, `HTTP_${response.status}`));
     return data;
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error(`Client phản hồi quá thời hạn ${UPSTREAM_TIMEOUT_MS / 1_000} giây.`);
+    }
+    throw error;
   } finally {
     clearTimeout(timeout);
   }
@@ -229,15 +234,16 @@ async function loadBauman(actor: { email: string; role: Parameters<typeof issueB
 }
 
 function summary(config: ReturnType<typeof app>, devices: ClientDevice[], connection: ClientSummary["connection"], note: string): ClientSummary {
+  const hasOperationalData = connection === "connected";
   return {
     appId: config.id,
     appName: config.shortName,
     href: config.href,
     group: config.id === "health-care" ? "Y tế" : config.id === "ru-life" ? "Nga" : config.id === "boi-ech" ? "Học tập" : config.id === "bauman-master-ai" ? "Học thuật" : "Gia đình",
     connection,
-    onlineCount: connection === "unavailable" ? null : devices.filter((device) => device.active).length,
-    pendingCount: connection === "unavailable" ? null : devices.filter((device) => device.status === "pending").length,
-    attentionCount: connection === "unavailable" ? null : devices.filter((device) => device.attention !== "none").length,
+    onlineCount: hasOperationalData ? devices.filter((device) => device.active).length : null,
+    pendingCount: hasOperationalData ? devices.filter((device) => device.status === "pending").length : null,
+    attentionCount: hasOperationalData ? devices.filter((device) => device.attention !== "none").length : null,
     note,
   };
 }
@@ -272,6 +278,11 @@ export async function POST(request: Request) {
     for (const result of settled) {
       const config = app(result.id);
       if (!result.ok) {
+        if (config.contractState !== "connected") {
+          const connection = config.contractState === "pending" ? "pending" : "warning";
+          summaries.push(summary(config, [], connection, `${config.contractNote} Trạng thái production: ${result.error}`));
+          continue;
+        }
         summaries.push(summary(config, [], "unavailable", result.error));
         workItems.push({
           id: `${config.id}:connection`, appId: config.id, appName: config.shortName, href: config.href,

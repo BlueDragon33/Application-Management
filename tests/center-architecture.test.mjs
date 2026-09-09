@@ -105,7 +105,9 @@ test("reference dashboard composition keeps every operational surface interactiv
   assert.match(hub, /signout-with-chatgpt/);
   assert.match(hub, /centerAdminAction/);
   assert.match(hub, /refreshOperations/);
-  assert.match(css, /grid-template-columns:\s*292px/);
+  assert.match(css, /--qt-sidebar-width:\s*292px/);
+  assert.match(css, /\.sidebar\s*\{[^}]*position:\s*fixed/s);
+  assert.match(css, /\.topbar\s*\{[^}]*position:\s*fixed/s);
   assert.match(css, /\.dashboardGrid/);
 });
 
@@ -135,6 +137,8 @@ test("operations summary is signed, asynchronous and bounded per client", () => 
   assert.match(client, /connectOperationsDashboard/);
   assert.match(client, /secureApi\("\/api\/operations"/);
   assert.match(client, /Tải sau shell chính/);
+  assert.match(route, /config\.contractState !== "connected"/);
+  assert.match(route, /Client phản hồi quá thời hạn/);
 });
 
 test("Health and RU operational domains are visibly separate", () => {
