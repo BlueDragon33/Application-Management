@@ -3,6 +3,17 @@ import type { ControlRole } from "./control-device.server";
 const TOKEN_ISSUER = "application-management";
 const TOKEN_AUDIENCE = "health-care-control";
 const TOKEN_APP = "health-care";
+const CONTROL_PROTOCOL = "application-management-health-control-v1";
+const CONTRACT_TIMEOUT_MS = 4_500;
+
+export type HealthContractProbe = {
+  baseUrl: string;
+  siteOrigin: string;
+  contractVersion: number;
+  controlProtocol: string;
+  capabilities: string[];
+  deviceNamespace: string;
+};
 
 export class HealthBridgeError extends Error {
   status: number;
@@ -22,14 +33,29 @@ function normalizeOrigin(value: unknown) {
   return trimmed;
 }
 
-async function configuration() {
+async function environment() {
   const workers = await import("cloudflare:workers");
   const values = workers.env as unknown as Record<string, unknown>;
-  const baseUrl = normalizeOrigin(values.HEALTH_CARE_BASE_URL);
-  const secret = typeof values.HEALTH_CONTROL_SERVICE_SECRET === "string"
-    ? values.HEALTH_CONTROL_SERVICE_SECRET
-    : "";
+  return {
+    baseUrl: normalizeOrigin(values.HEALTH_CARE_BASE_URL),
+    secret: typeof values.HEALTH_CONTROL_SERVICE_SECRET === "string" ? values.HEALTH_CONTROL_SERVICE_SECRET : "",
+  };
+}
 
+async function requireBaseUrl() {
+  const { baseUrl } = await environment();
+  if (!baseUrl) {
+    throw new HealthBridgeError(
+      "Chưa cấu hình URL Site Sức khỏe Y tế trong ChatGPT Sites.",
+      503,
+      { code: "HEALTH_CARE_SITE_URL_NOT_CONFIGURED" },
+    );
+  }
+  return baseUrl;
+}
+
+async function configuration() {
+  const { baseUrl, secret } = await environment();
   if (!baseUrl) {
     throw new HealthBridgeError(
       "Chưa cấu hình URL Site Sức khỏe Y tế trong ChatGPT Sites.",
@@ -41,10 +67,100 @@ async function configuration() {
     throw new HealthBridgeError(
       "Chưa cấu hình khóa kết nối Sức khỏe Y tế trong ChatGPT Sites.",
       503,
-      { code: "HEALTH_CARE_SITE_SECRET_NOT_CONFIGURED" },
+      { code: "HEALTH_CARE_SITE_SECRET_NOT_CONFIGURED", baseUrl },
     );
   }
   return { baseUrl, secret };
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function text(value: unknown) {
+  return typeof value === "string" ? value : "";
+}
+
+export async function probeHealthManagementContract(): Promise<HealthContractProbe> {
+  const baseUrl = await requireBaseUrl();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), CONTRACT_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${baseUrl}/api/control/contract`, { cache: "no-store", signal: controller.signal });
+    const payload = asRecord(await response.json().catch(() => ({})));
+    if (!response.ok) {
+      throw new HealthBridgeError(
+        text(payload.error) || `Health contract trả HTTP ${response.status}.`,
+        502,
+        { code: "HEALTH_CARE_CONTRACT_UNAVAILABLE", baseUrl, upstreamStatus: response.status },
+      );
+    }
+
+    const auth = asRecord(payload.auth);
+    const endpoints = asRecord(payload.endpoints);
+    const boundary = asRecord(payload.boundary);
+    const registry = asRecord(payload.deviceRegistry);
+    const siteOrigin = normalizeOrigin(payload.siteOrigin);
+    const contractVersion = Number(payload.contractVersion);
+    const capabilities = Array.isArray(payload.capabilities)
+      ? payload.capabilities.filter((item): item is string => typeof item === "string")
+      : [];
+
+    const valid = payload.application === TOKEN_APP
+      && payload.canonicalApplication === TOKEN_APP
+      && payload.controlProtocol === CONTROL_PROTOCOL
+      && Number.isInteger(contractVersion)
+      && contractVersion >= 1
+      && auth.issuer === TOKEN_ISSUER
+      && auth.audience === TOKEN_AUDIENCE
+      && auth.app === TOKEN_APP
+      && auth.secretEnv === "HEALTH_CONTROL_SERVICE_SECRET"
+      && endpoints.status === "/api/control/status"
+      && endpoints.devices === "/api/control/devices"
+      && endpoints.sessions === "/api/control/sessions"
+      && endpoints.policy === "/api/control/policy"
+      && endpoints.contentReview === "/api/control/health-content"
+      && endpoints.audit === "/api/control/audit"
+      && boundary.healthDataInControlPlane === false
+      && boundary.profileDataInControlPlane === false
+      && boundary.independentRuntime === true
+      && registry.owner === "Health_Care"
+      && registry.namespace === "SK-"
+      && siteOrigin === baseUrl;
+
+    if (!valid) {
+      throw new HealthBridgeError(
+        "Contract production của Sức khỏe Y tế không khớp contract Application Management.",
+        409,
+        { code: "HEALTH_CARE_CONTRACT_MISMATCH", baseUrl },
+      );
+    }
+
+    return {
+      baseUrl,
+      siteOrigin,
+      contractVersion,
+      controlProtocol: CONTROL_PROTOCOL,
+      capabilities,
+      deviceNamespace: "SK-",
+    };
+  } catch (error) {
+    if (error instanceof HealthBridgeError) throw error;
+    if (controller.signal.aborted) {
+      throw new HealthBridgeError(
+        `Site Sức khỏe Y tế không trả contract trong ${CONTRACT_TIMEOUT_MS / 1_000} giây.`,
+        504,
+        { code: "HEALTH_CARE_CONTRACT_TIMEOUT", baseUrl },
+      );
+    }
+    throw new HealthBridgeError(
+      error instanceof Error ? error.message : "Không đọc được contract Sức khỏe Y tế.",
+      502,
+      { code: "HEALTH_CARE_CONTRACT_UNAVAILABLE", baseUrl },
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function base64Url(bytes: Uint8Array) {
@@ -70,7 +186,14 @@ export async function issueHealthBrowserBridge(
   role: ControlRole,
   controlDeviceId: string,
 ) {
-  const { baseUrl, secret } = await configuration();
+  const [configured, contract] = await Promise.all([configuration(), probeHealthManagementContract()]);
+  if (configured.baseUrl !== contract.baseUrl) {
+    throw new HealthBridgeError(
+      "URL bridge và URL contract Sức khỏe Y tế không trùng nhau.",
+      409,
+      { code: "HEALTH_CARE_ORIGIN_MISMATCH" },
+    );
+  }
   const expiresAt = Date.now() + 5 * 60 * 1000;
   const ticketId = base64Url(crypto.getRandomValues(new Uint8Array(18)));
   const payload = base64Url(new TextEncoder().encode(JSON.stringify({
@@ -86,10 +209,12 @@ export async function issueHealthBrowserBridge(
   })));
   const signedInput = `v1.${payload}`;
   return {
-    baseUrl,
-    token: `${signedInput}.${await signature(secret, signedInput)}`,
+    baseUrl: configured.baseUrl,
+    token: `${signedInput}.${await signature(configured.secret, signedInput)}`,
     expiresAt,
     application: "health-care" as const,
     transport: "chatgpt-sites" as const,
+    contractVersion: contract.contractVersion,
+    controlProtocol: contract.controlProtocol,
   };
 }
