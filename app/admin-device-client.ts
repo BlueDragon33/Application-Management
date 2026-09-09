@@ -104,6 +104,8 @@ export type OperationsSummary = {
   appId: string;
   appName: string;
   href: string;
+  webHref: string | null;
+  managedWebLaunch: boolean;
   group: string;
   connection: "connected" | "warning" | "pending" | "unavailable";
   onlineCount: number | null;
@@ -153,6 +155,8 @@ export type OperationsActionResponse = {
   dismissedIds?: string[];
   removedDeviceId?: string;
   approvedDeviceId?: string;
+  launchUrl?: string;
+  expiresAt?: number;
   settings?: OperationsSettings;
 };
 
