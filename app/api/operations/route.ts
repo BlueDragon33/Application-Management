@@ -129,7 +129,14 @@ function deviceFrom(
   appName: string,
   href: string,
   raw: unknown,
-  options: { typeKey: string; userKeys: string[]; environmentKey?: string; approve?: boolean; remove?: boolean },
+  options: {
+    typeKey: string;
+    userKeys: string[];
+    environmentKey?: string;
+    approve?: boolean;
+    remove?: boolean;
+    approvalRequiresRegistrationComplete?: boolean;
+  },
 ): ClientDevice {
   const row = record(raw);
   const deviceType = normalizedType(row[options.typeKey]);
@@ -139,12 +146,13 @@ function deviceFrom(
     || text(row.label) || text(row.autoLabel) || text(row.deviceCode) || "Thiết bị chưa gắn người dùng";
   const environmentChanged = options.environmentKey ? bool(row[options.environmentKey]) : false;
   const recent = createdAt ? Date.now() - Date.parse(createdAt) <= RECENT_DEVICE_MS : false;
+  const approvalReady = options.approvalRequiresRegistrationComplete === false || bool(row.registrationComplete);
   return {
     appId, appName, href, deviceId: text(row.deviceId), deviceCode: text(row.deviceCode, "—"), deviceType,
     deviceTypeLabel: typeLabel(deviceType), userLabel, status, active: bool(row.active), createdAt,
     lastSeenAt: text(row.lastSeenAt) || text(row.lastActivityAt) || null,
     attention: environmentChanged ? "environment" : recent && status === "pending" ? "new" : "none",
-    canApprove: options.approve === true && status === "pending" && bool(row.registrationComplete),
+    canApprove: options.approve === true && status === "pending" && approvalReady,
     canRemove: options.remove === true,
   };
 }
@@ -183,7 +191,11 @@ async function loadHealth(actor: ControlDeviceState) {
   const bridge = await issueHealthBrowserBridge(actor.email, actor.role, actor.deviceId);
   const data = await bridgeJson(bridge, "/api/control/devices");
   const devices = Array.isArray(data.devices) ? data.devices.map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
-    typeKey: "deviceType", userKeys: ["label", "autoLabel"], environmentKey: "environmentChanged",
+    typeKey: "deviceType",
+    userKeys: ["label", "autoLabel"],
+    environmentKey: "environmentChanged",
+    approve: actor.role === "publisher" || actor.role === "owner",
+    approvalRequiresRegistrationComplete: false,
   })) : [];
   return { config, devices };
 }
@@ -314,7 +326,17 @@ export async function POST(request: Request) {
       const appId = text(payload.appId);
       const deviceId = text(payload.deviceId);
       const deviceCode = text(payload.deviceCode).toUpperCase();
-      if (appId !== "boi-ech" || !/^[a-f0-9]{64}$/.test(deviceId)) return json({ error: "Client chưa hỗ trợ thao tác này hoặc mã thiết bị không hợp lệ.", code: "CLIENT_ACTION_UNAVAILABLE" }, 409);
+      if (!/^[a-f0-9]{64}$/.test(deviceId)) return json({ error: "Mã thiết bị không hợp lệ.", code: "INVALID_DEVICE_ID" }, 400);
+
+      if (appId === "health-care") {
+        if (operation !== "approve") return json({ error: "Health_Care hiện chỉ công bố thao tác duyệt thiết bị ở bảng điều phối; các quyền khác xử lý trong khu quản trị Health.", code: "HEALTH_CLIENT_ACTION_UNAVAILABLE" }, 409);
+        if (actor.role !== "publisher" && actor.role !== "owner") return json({ error: "Vai trò hiện tại không được duyệt thiết bị.", code: "PUBLISHER_REQUIRED" }, 403);
+        const bridge = await issueHealthBrowserBridge(actor.email, actor.role, actor.deviceId);
+        await bridgeJson(bridge, "/api/control/devices", { method: "POST", body: { action: "approve", deviceId } });
+        return json({ ok: true, approvedDeviceId: deviceId });
+      }
+
+      if (appId !== "boi-ech") return json({ error: "Client chưa hỗ trợ thao tác này.", code: "CLIENT_ACTION_UNAVAILABLE" }, 409);
       if (operation === "approve") {
         if (actor.role !== "publisher" && actor.role !== "owner") return json({ error: "Vai trò hiện tại không được duyệt thiết bị.", code: "PUBLISHER_REQUIRED" }, 403);
         const bridge = await issueBoiBrowserBridge(actor.email, actor.role);
