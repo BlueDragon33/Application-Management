@@ -288,7 +288,14 @@ function ClientDeviceTable({ devices, loading, appFilter, deviceFilter, timeFilt
   </div>;
 }
 
-function ApplicationTable({ summaries, loading, search, appFilter }: { summaries: OperationsSummary[]; loading: boolean; search: string; appFilter: string }) {
+function ApplicationTable({ summaries, loading, search, appFilter, launchWeb, busyLaunch }: {
+  summaries: OperationsSummary[];
+  loading: boolean;
+  search: string;
+  appFilter: string;
+  launchWeb: (appId: string) => void;
+  busyLaunch: string;
+}) {
   const normalized = search.trim().toLowerCase();
   const map = new Map(summaries.map((item) => [item.appId, item]));
   const apps = applicationRegistry.filter((application) => {
@@ -305,10 +312,12 @@ function ApplicationTable({ summaries, loading, search, appFilter }: { summaries
       const pending = loading ? "…" : summary?.pendingCount ?? "—";
       const online = loading ? "…" : summary?.onlineCount ?? "—";
       const connection: OperationsSummary["connection"] = summary?.connection ?? (application.contractState === "pending" ? "pending" : "warning");
+      const canOpenWeb = Boolean(summary?.directWebAccess && summary.webHref);
+      const launchBusy = busyLaunch === application.id;
       return <article key={application.id} className={styles.applicationRow}>
         <div className={styles.appCell}><AppBadge appId={application.id} initials={application.initials}/><div><strong>{application.shortName}</strong><small>{domain.boundary}</small></div></div>
         <span>{domain.group}</span><strong data-count={typeof pending === "number" && pending > 0 ? "attention" : "normal"}>{pending}</strong><strong>{online}</strong>
-        <StatusDot state={connection}/>{summary?.directWebAccess ? <Link href={summary.href} target="_blank" rel="noreferrer" className={styles.directAccess}>Truy cập web ↗</Link> : <span className={styles.contractPending}>Chờ contract</span>}<Link href={application.href} className={styles.manageButton}>Vào quản trị →</Link>
+        <StatusDot state={connection}/>{canOpenWeb ? summary?.managedWebLaunch ? <a href={summary.webHref ?? "#"} target="_blank" rel="noopener noreferrer" aria-disabled={launchBusy} className={styles.directAccess} onClick={(event) => { event.preventDefault(); if (!launchBusy) launchWeb(application.id); }}>{launchBusy ? "Đang cấp quyền…" : "Truy cập web ↗"}</a> : <a href={summary?.webHref ?? "#"} target="_blank" rel="noopener noreferrer" className={styles.directAccess}>Truy cập web ↗</a> : <span className={styles.contractPending}>Chờ contract</span>}<Link href={application.href} className={styles.manageButton}>Vào quản trị →</Link>
       </article>;
     })}
     {!apps.length ? <div className={styles.emptyState}>Không tìm thấy ứng dụng phù hợp.</div> : null}
@@ -342,6 +351,7 @@ export default function ApplicationHub({ user }: { user: { displayName: string; 
   const [busy, setBusy] = useState(true);
   const [operationsBusy, setOperationsBusy] = useState(false);
   const [actionBusy, setActionBusy] = useState("");
+  const [webLaunchBusy, setWebLaunchBusy] = useState("");
   const [error, setError] = useState("");
   const [operationsError, setOperationsError] = useState("");
   const [notice, setNotice] = useState("");
@@ -494,6 +504,27 @@ export default function ApplicationHub({ user }: { user: { displayName: string; 
     finally { setActionBusy(""); }
   }
 
+  async function launchClientWeb(appId: string) {
+    const summary = operations?.summaries.find((item) => item.appId === appId);
+    if (!summary?.webHref) { setNotice("Client chưa công bố URL Web production hợp lệ."); return; }
+    if (!summary.managedWebLaunch) {
+      window.open(summary.webHref, "_blank", "noopener,noreferrer");
+      return;
+    }
+    const popup = window.open("about:blank", "_blank");
+    if (popup) popup.opener = null;
+    setWebLaunchBusy(appId); setNotice("");
+    try {
+      const result = await operationsAction({ action: "launch-client-web", appId });
+      if (!result.launchUrl) throw new Error(result.error ?? "Không lấy được vé mở Web client.");
+      if (popup) popup.location.replace(result.launchUrl);
+      else window.location.assign(result.launchUrl);
+    } catch (caught) {
+      popup?.close();
+      setNotice(caught instanceof Error ? caught.message : "Không thể mở Web client.");
+    } finally { setWebLaunchBusy(""); }
+  }
+
   if (!access || access.status !== "approved" || !bootstrap) return <Gate access={access} busy={busy} error={error} retry={() => void initialize()}/>;
 
   const role = access.role;
@@ -550,7 +581,7 @@ export default function ApplicationHub({ user }: { user: { displayName: string; 
           <section className={styles.dashboardGrid}>
             <div className={styles.panel}><SectionHeader icon="inbox" title="Hộp việc ưu tiên" meta={operational ? `${operational.workItems}` : "…"} action={<button onClick={() => switchView("inbox")}>Xem tất cả <span>→</span></button>}/><WorkTable items={workItems} loading={operationsBusy && !operations} search={search} appFilter={appFilter} limit={4}/></div>
             <div className={styles.panel}><SectionHeader icon="device" title="Thiết bị mới theo ứng dụng" meta={operational ? `${operational.pendingDevices}` : "…"} action={<button onClick={() => switchView("client-devices")}>Xem tất cả <span>→</span></button>}/><DeviceFilters appFilter={appFilter} setAppFilter={setAppFilter} deviceFilter={deviceFilter} setDeviceFilter={setDeviceFilter} timeFilter={timeFilter} setTimeFilter={setTimeFilter}/><ClientDeviceTable devices={devices} loading={operationsBusy && !operations} appFilter={appFilter} deviceFilter={deviceFilter} timeFilter={timeFilter} search={search} limit={4}/></div>
-            <div className={`${styles.panel} ${styles.applicationPanel}`}><SectionHeader icon="cube" title="Ứng dụng đang quản lý" meta="Một hàng / một client" action={<button onClick={() => switchView("applications")}>Quản lý ứng dụng <span>→</span></button>}/><ApplicationTable summaries={operations?.summaries ?? []} loading={operationsBusy && !operations} search={search} appFilter={appFilter}/></div>
+            <div className={`${styles.panel} ${styles.applicationPanel}`}><SectionHeader icon="cube" title="Ứng dụng đang quản lý" meta="Một hàng / một client" action={<button onClick={() => switchView("applications")}>Quản lý ứng dụng <span>→</span></button>}/><ApplicationTable summaries={operations?.summaries ?? []} loading={operationsBusy && !operations} search={search} appFilter={appFilter} launchWeb={(appId) => void launchClientWeb(appId)} busyLaunch={webLaunchBusy}/></div>
             <div className={styles.panel}><SectionHeader icon="bell" title="Cảnh báo nhanh" meta={highAlerts.length ? `${highAlerts.length}` : undefined} action={<button onClick={() => switchView("alerts")}>Xem tất cả <span>→</span></button>}/><div className={styles.alertTiles}>
               <button onClick={() => switchView("client-devices")} data-tone="amber"><span><Icon name="device" size={24}/></span><div><small>Thiết bị mới</small><strong>{operational?.pendingDevices ?? "—"}</strong><em>Chờ duyệt</em></div></button>
               <button onClick={() => switchView("alerts")} data-tone="red"><span><Icon name="wifi" size={24}/></span><div><small>App mất kết nối</small><strong>{operations ? unavailableCount : "—"}</strong><em>Cần kiểm tra ngay</em></div></button>
@@ -561,7 +592,7 @@ export default function ApplicationHub({ user }: { user: { displayName: string; 
         </> : null}
 
         {view === "inbox" ? <section className={styles.panel}><SectionHeader icon="inbox" title="Việc cần chú ý theo ứng dụng" meta={operational ? `${operational.workItems}` : "…"} action={<button className={styles.clearNotifications} onClick={() => void dismissNotifications()} disabled={!workItems.length || actionBusy === "dismiss-notifications"}>{actionBusy === "dismiss-notifications" ? "Đang xóa…" : "Xóa hết thông báo"}</button>}/><GroupedWorkInbox items={workItems} loading={operationsBusy && !operations} search={search} appFilter={appFilter}/></section> : null}
-        {view === "applications" ? <section className={styles.panel}><SectionHeader icon="apps" title="Danh sách client cấp 1" meta={`${applicationRegistry.length} ứng dụng`}/><ApplicationTable summaries={operations?.summaries ?? []} loading={operationsBusy && !operations} search={search} appFilter={appFilter}/></section> : null}
+        {view === "applications" ? <section className={styles.panel}><SectionHeader icon="apps" title="Danh sách client cấp 1" meta={`${applicationRegistry.length} ứng dụng`}/><ApplicationTable summaries={operations?.summaries ?? []} loading={operationsBusy && !operations} search={search} appFilter={appFilter} launchWeb={(appId) => void launchClientWeb(appId)} busyLaunch={webLaunchBusy}/></section> : null}
         {view === "client-devices" ? <section className={styles.panel}><SectionHeader icon="device" title="Thiết bị mới / thiết bị cần xác minh" meta="Registry vẫn thuộc client" action={<button className={styles.autoApprovalButton} onClick={() => setAutoApprovalOpen(true)} disabled={role !== "owner"}>Duyệt tự động</button>}/><DeviceFilters appFilter={appFilter} setAppFilter={setAppFilter} deviceFilter={deviceFilter} setDeviceFilter={setDeviceFilter} timeFilter={timeFilter} setTimeFilter={setTimeFilter}/><ClientDeviceTable devices={devices} loading={operationsBusy && !operations} appFilter={appFilter} deviceFilter={deviceFilter} timeFilter={timeFilter} search={search} busyDevice={actionBusy} run={(device, operation) => void manageClientDevice(device, operation)}/></section> : null}
 
         {view === "alerts" ? <section className={styles.alertsLayout}>
