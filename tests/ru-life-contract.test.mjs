@@ -70,3 +70,15 @@ test("RU admin keeps user binding and access versus edit controls without persis
   assert.match(admin, /disable-edit/);
   assert.match(admin, /signed Control API/);
 });
+
+test("RU admin can open the independent RU_LIFE site without inheriting QT access", () => {
+  const registry = source("app/application-registry.ts");
+  const page = source("app/apps/ru-life/page.tsx");
+  assert.match(registry, /publicUrl\?: string/);
+  assert.match(registry, /publicUrl: "https:\/\/hoa-nhap-nga\.dinhnam3391\.chatgpt\.site"/);
+  assert.match(page, /getApplicationConfig\("ru-life"\)/);
+  assert.match(page, /Mở site RU_LIFE ↗/);
+  assert.match(page, /target="_blank"/);
+  assert.match(page, /Thiết bị quản trị QT không tự kế thừa quyền truy cập HN/);
+  assert.doesNotMatch(page, /accessToken|bridge\.token|authorization/);
+});
