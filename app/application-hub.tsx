@@ -308,7 +308,7 @@ function ApplicationTable({ summaries, loading, search, appFilter }: { summaries
       return <article key={application.id} className={styles.applicationRow}>
         <div className={styles.appCell}><AppBadge appId={application.id} initials={application.initials}/><div><strong>{application.shortName}</strong><small>{domain.boundary}</small></div></div>
         <span>{domain.group}</span><strong data-count={typeof pending === "number" && pending > 0 ? "attention" : "normal"}>{pending}</strong><strong>{online}</strong>
-        <StatusDot state={connection}/>{summary?.directWebAccess ? <Link href={application.href} target="_blank" className={styles.directAccess}>Truy cập web ↗</Link> : <span className={styles.contractPending}>Chờ contract</span>}<Link href={application.href} className={styles.manageButton}>Vào quản trị →</Link>
+        <StatusDot state={connection}/>{summary?.directWebAccess ? <Link href={summary.href} target="_blank" rel="noreferrer" className={styles.directAccess}>Truy cập web ↗</Link> : <span className={styles.contractPending}>Chờ contract</span>}<Link href={application.href} className={styles.manageButton}>Vào quản trị →</Link>
       </article>;
     })}
     {!apps.length ? <div className={styles.emptyState}>Không tìm thấy ứng dụng phù hợp.</div> : null}
