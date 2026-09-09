@@ -1,14 +1,22 @@
 import { applicationRegistry } from "../../application-registry";
-import { verifyControlProof } from "../../control-device.server";
+import { verifyControlProof, type ControlDeviceState } from "../../control-device.server";
 import { issueBoiBrowserBridge } from "../../boi-ech.server";
 import { issueHealthBrowserBridge } from "../../health-care.server";
 import { issueRuLifeBrowserBridge } from "../../ru-life.server";
 import { issueBaumanBrowserBridge } from "../../bauman.server";
+import {
+  dismissedNotificationHashes,
+  hashWorkItem,
+  readAutoApprovalSettings,
+  rememberAutoApproval,
+  rememberDismissedNotifications,
+} from "../../operations-settings.server";
 
 export const dynamic = "force-dynamic";
 
-const UPSTREAM_TIMEOUT_MS = 6_000;
+const UPSTREAM_TIMEOUT_MS = 4_500;
 const RECENT_DEVICE_MS = 7 * 24 * 60 * 60 * 1000;
+const AUTO_APPROVE_SUPPORTED_APP_IDS = ["boi-ech"] as const;
 
 type Bridge = { baseUrl: string; token: string; expiresAt: number };
 type UnknownRecord = Record<string, unknown>;
@@ -27,6 +35,8 @@ type ClientDevice = {
   createdAt: string | null;
   lastSeenAt: string | null;
   attention: "new" | "environment" | "none";
+  canApprove: boolean;
+  canRemove: boolean;
 };
 
 type ClientSummary = {
@@ -39,6 +49,7 @@ type ClientSummary = {
   pendingCount: number | null;
   attentionCount: number | null;
   note: string;
+  directWebAccess: boolean;
 };
 
 type WorkItem = {
@@ -55,13 +66,7 @@ type WorkItem = {
 };
 
 function json(data: unknown, status = 200) {
-  return Response.json(data, {
-    status,
-    headers: {
-      "cache-control": "no-store, private",
-      "x-content-type-options": "nosniff",
-    },
-  });
+  return Response.json(data, { status, headers: { "cache-control": "no-store, private", "x-content-type-options": "nosniff" } });
 }
 
 function record(value: unknown): UnknownRecord {
@@ -91,13 +96,14 @@ function typeLabel(type: ClientDevice["deviceType"]) {
   return type === "desktop" ? "Máy tính" : type === "phone" ? "Điện thoại" : type === "tablet" ? "Tablet / iPad" : "Chưa phân loại";
 }
 
-async function bridgeJson(bridge: Bridge, path: string) {
+async function bridgeJson(bridge: Bridge, path: string, init?: { method?: "GET" | "POST"; body?: UnknownRecord }) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
   try {
     const response = await fetch(`${bridge.baseUrl}${path}`, {
-      method: "GET",
+      method: init?.method ?? "GET",
       headers: { authorization: `Bearer ${bridge.token}`, "content-type": "application/json" },
+      body: init?.body ? JSON.stringify(init.body) : undefined,
       cache: "no-store",
       signal: controller.signal,
     });
@@ -105,9 +111,7 @@ async function bridgeJson(bridge: Bridge, path: string) {
     if (!response.ok) throw new Error(text(data.error, `HTTP_${response.status}`));
     return data;
   } catch (error) {
-    if (controller.signal.aborted) {
-      throw new Error(`Client phản hồi quá thời hạn ${UPSTREAM_TIMEOUT_MS / 1_000} giây.`);
-    }
+    if (controller.signal.aborted) throw new Error(`Client phản hồi quá thời hạn ${UPSTREAM_TIMEOUT_MS / 1_000} giây.`);
     throw error;
   } finally {
     clearTimeout(timeout);
@@ -125,108 +129,76 @@ function deviceFrom(
   appName: string,
   href: string,
   raw: unknown,
-  options: { typeKey: string; userKeys: string[]; environmentKey?: string },
+  options: { typeKey: string; userKeys: string[]; environmentKey?: string; approve?: boolean; remove?: boolean },
 ): ClientDevice {
   const row = record(raw);
   const deviceType = normalizedType(row[options.typeKey]);
   const createdAt = text(row.createdAt) || null;
+  const status = normalizedStatus(row.status);
   const userLabel = options.userKeys.map((key) => text(row[key])).find(Boolean)
-    || text(row.label)
-    || text(row.autoLabel)
-    || text(row.deviceCode)
-    || "Thiết bị chưa gắn người dùng";
+    || text(row.label) || text(row.autoLabel) || text(row.deviceCode) || "Thiết bị chưa gắn người dùng";
   const environmentChanged = options.environmentKey ? bool(row[options.environmentKey]) : false;
   const recent = createdAt ? Date.now() - Date.parse(createdAt) <= RECENT_DEVICE_MS : false;
   return {
-    appId,
-    appName,
-    href,
-    deviceId: text(row.deviceId),
-    deviceCode: text(row.deviceCode, "—"),
-    deviceType,
-    deviceTypeLabel: typeLabel(deviceType),
-    userLabel,
-    status: normalizedStatus(row.status),
-    active: bool(row.active),
-    createdAt,
+    appId, appName, href, deviceId: text(row.deviceId), deviceCode: text(row.deviceCode, "—"), deviceType,
+    deviceTypeLabel: typeLabel(deviceType), userLabel, status, active: bool(row.active), createdAt,
     lastSeenAt: text(row.lastSeenAt) || text(row.lastActivityAt) || null,
-    attention: environmentChanged ? "environment" : recent && normalizedStatus(row.status) === "pending" ? "new" : "none",
+    attention: environmentChanged ? "environment" : recent && status === "pending" ? "new" : "none",
+    canApprove: options.approve === true && status === "pending" && bool(row.registrationComplete),
+    canRemove: options.remove === true,
   };
 }
 
 function workFromDevice(device: ClientDevice): WorkItem | null {
   if (device.attention === "environment") {
     return {
-      id: `${device.appId}:environment:${device.deviceId}`,
-      appId: device.appId,
-      appName: device.appName,
-      href: device.href,
-      kind: "environment",
-      title: "Môi trường thiết bị thay đổi",
-      detail: `${device.deviceCode} · ${device.userLabel}`,
-      deviceType: device.deviceTypeLabel,
-      occurredAt: device.lastSeenAt,
-      priority: "high",
+      id: `${device.appId}:environment:${device.deviceId}`, appId: device.appId, appName: device.appName, href: device.href,
+      kind: "environment", title: "Môi trường thiết bị thay đổi", detail: `${device.deviceCode} · ${device.userLabel}`,
+      deviceType: device.deviceTypeLabel, occurredAt: device.lastSeenAt, priority: "high",
     };
   }
   if (device.status === "pending") {
     return {
-      id: `${device.appId}:device:${device.deviceId}`,
-      appId: device.appId,
-      appName: device.appName,
-      href: device.href,
-      kind: "device",
-      title: "Thiết bị mới chờ duyệt",
-      detail: `${device.deviceCode} · ${device.userLabel}`,
-      deviceType: device.deviceTypeLabel,
-      occurredAt: device.createdAt,
-      priority: "normal",
+      id: `${device.appId}:device:${device.deviceId}`, appId: device.appId, appName: device.appName, href: device.href,
+      kind: "device", title: "Thiết bị mới chờ duyệt", detail: `${device.deviceCode} · ${device.userLabel}`,
+      deviceType: device.deviceTypeLabel, occurredAt: device.createdAt, priority: "normal",
     };
   }
   return null;
 }
 
-async function loadBoi(actor: { email: string; role: Parameters<typeof issueBoiBrowserBridge>[1] }) {
+async function loadBoi(actor: ControlDeviceState) {
   const config = app("boi-ech");
   const bridge = await issueBoiBrowserBridge(actor.email, actor.role);
   const data = await bridgeJson(bridge, "/api/control/overview?activityDays=0");
-  const devices = Array.isArray(data.devices)
-    ? data.devices.map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
-      typeKey: "deviceType",
-      userKeys: ["learnerName", "personCode"],
-    }))
-    : [];
+  const devices = Array.isArray(data.devices) ? data.devices.map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
+    typeKey: "deviceType", userKeys: ["learnerName", "personCode"],
+    approve: actor.role === "publisher" || actor.role === "owner", remove: actor.role === "owner",
+  })) : [];
   return { config, devices };
 }
 
-async function loadHealth(actor: { email: string; role: Parameters<typeof issueHealthBrowserBridge>[1]; deviceId: string }) {
+async function loadHealth(actor: ControlDeviceState) {
   const config = app("health-care");
   const bridge = await issueHealthBrowserBridge(actor.email, actor.role, actor.deviceId);
   const data = await bridgeJson(bridge, "/api/control/devices");
-  const devices = Array.isArray(data.devices)
-    ? data.devices.map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
-      typeKey: "deviceType",
-      userKeys: ["label", "autoLabel"],
-      environmentKey: "environmentChanged",
-    }))
-    : [];
+  const devices = Array.isArray(data.devices) ? data.devices.map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
+    typeKey: "deviceType", userKeys: ["label", "autoLabel"], environmentKey: "environmentChanged",
+  })) : [];
   return { config, devices };
 }
 
-async function loadRu(actor: { email: string; role: Parameters<typeof issueRuLifeBrowserBridge>[1]; deviceId: string }) {
+async function loadRu(actor: ControlDeviceState) {
   const config = app("ru-life");
   const bridge = await issueRuLifeBrowserBridge(actor.email, actor.role, actor.deviceId);
   const data = await bridgeJson(bridge, "/api/control/devices");
-  const devices = Array.isArray(data.devices)
-    ? data.devices.map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
-      typeKey: "deviceClass",
-      userKeys: ["userName", "userCode", "label"],
-    }))
-    : [];
+  const devices = Array.isArray(data.devices) ? data.devices.map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
+    typeKey: "deviceClass", userKeys: ["userName", "userCode", "label"],
+  })) : [];
   return { config, devices };
 }
 
-async function loadBauman(actor: { email: string; role: Parameters<typeof issueBaumanBrowserBridge>[1]; deviceId: string }) {
+async function loadBauman(actor: ControlDeviceState) {
   const config = app("bauman-master-ai");
   const bridge = await issueBaumanBrowserBridge(actor.email, actor.role, actor.deviceId);
   await bridgeJson(bridge, "/api/control/status");
@@ -236,15 +208,74 @@ async function loadBauman(actor: { email: string; role: Parameters<typeof issueB
 function summary(config: ReturnType<typeof app>, devices: ClientDevice[], connection: ClientSummary["connection"], note: string): ClientSummary {
   const hasOperationalData = connection === "connected";
   return {
-    appId: config.id,
-    appName: config.shortName,
-    href: config.href,
+    appId: config.id, appName: config.shortName, href: config.href,
     group: config.id === "health-care" ? "Y tế" : config.id === "ru-life" ? "Nga" : config.id === "boi-ech" ? "Học tập" : config.id === "bauman-master-ai" ? "Học thuật" : "Gia đình",
-    connection,
-    onlineCount: hasOperationalData ? devices.filter((device) => device.active).length : null,
+    connection, onlineCount: hasOperationalData ? devices.filter((device) => device.active).length : null,
     pendingCount: hasOperationalData ? devices.filter((device) => device.status === "pending").length : null,
     attentionCount: hasOperationalData ? devices.filter((device) => device.attention !== "none").length : null,
-    note,
+    note, directWebAccess: hasOperationalData,
+  };
+}
+
+async function buildBootstrap(actor: ControlDeviceState) {
+  const loaders = [
+    { id: "boi-ech", run: () => loadBoi(actor) },
+    { id: "health-care", run: () => loadHealth(actor) },
+    { id: "ru-life", run: () => loadRu(actor) },
+    { id: "bauman-master-ai", run: () => loadBauman(actor) },
+  ] as const;
+  const settled = await Promise.all(loaders.map(async (loader) => {
+    try { return { id: loader.id, ok: true as const, value: await loader.run() }; }
+    catch (error) { return { id: loader.id, ok: false as const, error: error instanceof Error ? error.message : "Không thể kết nối client." }; }
+  }));
+  const devices: ClientDevice[] = [];
+  const summaries: ClientSummary[] = [];
+  const workItems: WorkItem[] = [];
+
+  for (const result of settled) {
+    const config = app(result.id);
+    if (!result.ok) {
+      if (config.contractState !== "connected") {
+        const connection = config.contractState === "pending" ? "pending" : "warning";
+        summaries.push(summary(config, [], connection, `${config.contractNote} Trạng thái production: ${result.error}`));
+        continue;
+      }
+      summaries.push(summary(config, [], "unavailable", result.error));
+      workItems.push({ id: `${config.id}:connection`, appId: config.id, appName: config.shortName, href: config.href, kind: "connection", title: "Không đọc được trạng thái client", detail: result.error, deviceType: "—", occurredAt: null, priority: "high" });
+      continue;
+    }
+    devices.push(...result.value.devices);
+    summaries.push(summary(config, result.value.devices, "connected", config.contractNote));
+    for (const device of result.value.devices) {
+      const item = workFromDevice(device);
+      if (item) workItems.push(item);
+    }
+  }
+
+  for (const applicationId of ["growup-mychildren"]) {
+    const config = app(applicationId);
+    summaries.push(summary(config, [], "pending", config.contractNote));
+  }
+
+  workItems.sort((a, b) => {
+    const priority = { high: 0, normal: 1, info: 2 } as const;
+    if (priority[a.priority] !== priority[b.priority]) return priority[a.priority] - priority[b.priority];
+    return (b.occurredAt ? Date.parse(b.occurredAt) : 0) - (a.occurredAt ? Date.parse(a.occurredAt) : 0);
+  });
+  devices.sort((a, b) => (b.createdAt ? Date.parse(b.createdAt) : 0) - (a.createdAt ? Date.parse(a.createdAt) : 0));
+
+  const hidden = await dismissedNotificationHashes(actor.email);
+  const visibleWorkItems = (await Promise.all(workItems.slice(0, 60).map(async (item) => ({ item, hash: await hashWorkItem(item.id) }))))
+    .filter(({ hash }) => !hidden.has(hash)).map(({ item }) => item);
+  return {
+    actor: { deviceCode: actor.deviceCode, role: actor.role }, generatedAt: new Date().toISOString(), summaries, devices,
+    workItems: visibleWorkItems, settings: await readAutoApprovalSettings(AUTO_APPROVE_SUPPORTED_APP_IDS),
+    metrics: {
+      applications: applicationRegistry.length,
+      pendingDevices: devices.filter((device) => device.status === "pending").length,
+      alerts: visibleWorkItems.filter((item) => item.priority === "high").length,
+      workItems: visibleWorkItems.length,
+    },
   };
 }
 
@@ -254,74 +285,52 @@ export async function POST(request: Request) {
     const previewRequest = ["terminal.local", "localhost"].includes(new URL(request.url).hostname);
     const actor = await verifyControlProof(payload, undefined, previewRequest);
     const action = typeof payload.action === "string" ? payload.action : "bootstrap";
-    if (action !== "bootstrap") return json({ error: "Thao tác điều phối không hợp lệ.", code: "INVALID_OPERATIONS_ACTION" }, 400);
+    if (action === "bootstrap") return json(await buildBootstrap(actor));
 
-    const loaders = [
-      { id: "boi-ech", run: () => loadBoi(actor) },
-      { id: "health-care", run: () => loadHealth(actor) },
-      { id: "ru-life", run: () => loadRu(actor) },
-      { id: "bauman-master-ai", run: () => loadBauman(actor) },
-    ] as const;
-
-    const settled = await Promise.all(loaders.map(async (loader) => {
-      try {
-        return { id: loader.id, ok: true as const, value: await loader.run() };
-      } catch (error) {
-        return { id: loader.id, ok: false as const, error: error instanceof Error ? error.message : "Không thể kết nối client." };
-      }
-    }));
-
-    const devices: ClientDevice[] = [];
-    const summaries: ClientSummary[] = [];
-    const workItems: WorkItem[] = [];
-
-    for (const result of settled) {
-      const config = app(result.id);
-      if (!result.ok) {
-        if (config.contractState !== "connected") {
-          const connection = config.contractState === "pending" ? "pending" : "warning";
-          summaries.push(summary(config, [], connection, `${config.contractNote} Trạng thái production: ${result.error}`));
-          continue;
-        }
-        summaries.push(summary(config, [], "unavailable", result.error));
-        workItems.push({
-          id: `${config.id}:connection`, appId: config.id, appName: config.shortName, href: config.href,
-          kind: "connection", title: "Không đọc được trạng thái client", detail: result.error,
-          deviceType: "—", occurredAt: null, priority: "high",
-        });
-        continue;
-      }
-      devices.push(...result.value.devices);
-      summaries.push(summary(config, result.value.devices, "connected", config.contractNote));
-      for (const device of result.value.devices) {
-        const item = workFromDevice(device);
-        if (item) workItems.push(item);
-      }
+    if (action === "dismiss-notifications") {
+      const workItemIds = Array.isArray(payload.workItemIds)
+        ? payload.workItemIds.filter((item): item is string => typeof item === "string" && item.length > 0 && item.length <= 300).slice(0, 60) : [];
+      if (!workItemIds.length) return json({ ok: true, dismissedIds: [] });
+      await rememberDismissedNotifications(actor.email, workItemIds);
+      return json({ ok: true, dismissedIds: workItemIds });
     }
 
-    const growup = app("growup-mychildren");
-    summaries.push(summary(growup, [], "pending", growup.contractNote));
+    if (action === "set-auto-approval") {
+      if (actor.role !== "owner") return json({ error: "Chỉ Chủ hệ thống được đổi quy tắc duyệt tự động.", code: "OWNER_REQUIRED" }, 403);
+      const appIds = Array.isArray(payload.appIds) ? [...new Set(payload.appIds.filter((item): item is string => typeof item === "string"))] : [];
+      const known = new Set<string>(applicationRegistry.map((item) => item.id));
+      if (appIds.some((id) => !known.has(id))) return json({ error: "Danh sách ứng dụng không hợp lệ.", code: "INVALID_APPLICATIONS" }, 400);
+      const unsupported = appIds.filter((id) => !AUTO_APPROVE_SUPPORTED_APP_IDS.includes(id as typeof AUTO_APPROVE_SUPPORTED_APP_IDS[number]));
+      if (unsupported.length) return json({ error: "Một số ứng dụng chưa công bố contract duyệt tự động.", code: "AUTO_APPROVAL_CONTRACT_MISSING" }, 409);
+      const bridge = await issueBoiBrowserBridge(actor.email, actor.role);
+      const enabled = appIds.includes("boi-ech");
+      await bridgeJson(bridge, "/api/control/overview", { method: "POST", body: { action: "update-automation", enabled, defaultAccessDays: 60, defaultDeviceLimit: 100 } });
+      await rememberAutoApproval(actor.email, "boi-ech", enabled);
+      return json({ ok: true, settings: await readAutoApprovalSettings(AUTO_APPROVE_SUPPORTED_APP_IDS) });
+    }
 
-    workItems.sort((a, b) => {
-      const priority = { high: 0, normal: 1, info: 2 } as const;
-      if (priority[a.priority] !== priority[b.priority]) return priority[a.priority] - priority[b.priority];
-      return (b.occurredAt ? Date.parse(b.occurredAt) : 0) - (a.occurredAt ? Date.parse(a.occurredAt) : 0);
-    });
-    devices.sort((a, b) => (b.createdAt ? Date.parse(b.createdAt) : 0) - (a.createdAt ? Date.parse(a.createdAt) : 0));
-
-    return json({
-      actor: { deviceCode: actor.deviceCode, role: actor.role },
-      generatedAt: new Date().toISOString(),
-      summaries,
-      devices,
-      workItems: workItems.slice(0, 60),
-      metrics: {
-        applications: applicationRegistry.length,
-        pendingDevices: devices.filter((device) => device.status === "pending").length,
-        alerts: workItems.filter((item) => item.priority === "high").length,
-        workItems: workItems.length,
-      },
-    });
+    if (action === "manage-client-device") {
+      const operation = payload.operation;
+      const appId = text(payload.appId);
+      const deviceId = text(payload.deviceId);
+      const deviceCode = text(payload.deviceCode).toUpperCase();
+      if (appId !== "boi-ech" || !/^[a-f0-9]{64}$/.test(deviceId)) return json({ error: "Client chưa hỗ trợ thao tác này hoặc mã thiết bị không hợp lệ.", code: "CLIENT_ACTION_UNAVAILABLE" }, 409);
+      if (operation === "approve") {
+        if (actor.role !== "publisher" && actor.role !== "owner") return json({ error: "Vai trò hiện tại không được duyệt thiết bị.", code: "PUBLISHER_REQUIRED" }, 403);
+        const bridge = await issueBoiBrowserBridge(actor.email, actor.role);
+        await bridgeJson(bridge, "/api/control/overview", { method: "POST", body: { action: "grant-free", deviceId } });
+        return json({ ok: true, approvedDeviceId: deviceId });
+      }
+      if (operation === "remove") {
+        if (actor.role !== "owner") return json({ error: "Chỉ Chủ hệ thống được loại bỏ thiết bị.", code: "OWNER_REQUIRED" }, 403);
+        if (!/^BE-[A-Z0-9-]{8,60}$/.test(deviceCode)) return json({ error: "Mã xác nhận thiết bị Bơi ếch không hợp lệ.", code: "INVALID_DEVICE_CODE" }, 400);
+        const bridge = await issueBoiBrowserBridge(actor.email, actor.role);
+        await bridgeJson(bridge, "/api/control/overview", { method: "POST", body: { action: "delete-spam-device", deviceId, confirmDeviceCode: deviceCode, deleteReason: "spam" } });
+        return json({ ok: true, removedDeviceId: deviceId });
+      }
+      return json({ error: "Thao tác thiết bị không hợp lệ.", code: "INVALID_DEVICE_OPERATION" }, 400);
+    }
+    return json({ error: "Thao tác điều phối không hợp lệ.", code: "INVALID_OPERATIONS_ACTION" }, 400);
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : "Không thể tải bảng điều phối.", code: "OPERATIONS_UNAVAILABLE" }, 500);
   }

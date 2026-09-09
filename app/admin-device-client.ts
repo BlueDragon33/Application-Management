@@ -96,6 +96,8 @@ export type OperationsDevice = {
   createdAt: string | null;
   lastSeenAt: string | null;
   attention: "new" | "environment" | "none";
+  canApprove: boolean;
+  canRemove: boolean;
 };
 
 export type OperationsSummary = {
@@ -108,6 +110,12 @@ export type OperationsSummary = {
   pendingCount: number | null;
   attentionCount: number | null;
   note: string;
+  directWebAccess: boolean;
+};
+
+export type OperationsSettings = {
+  autoApproveAppIds: string[];
+  autoApproveSupportedAppIds: string[];
 };
 
 export type OperationsWorkItem = {
@@ -129,12 +137,23 @@ export type OperationsBootstrap = {
   summaries: OperationsSummary[];
   devices: OperationsDevice[];
   workItems: OperationsWorkItem[];
+  settings: OperationsSettings;
   metrics: {
     applications: number;
     pendingDevices: number;
     alerts: number;
     workItems: number;
   };
+};
+
+export type OperationsActionResponse = {
+  ok?: boolean;
+  error?: string;
+  code?: string;
+  dismissedIds?: string[];
+  removedDeviceId?: string;
+  approvedDeviceId?: string;
+  settings?: OperationsSettings;
 };
 
 export type CenterApiResponse = Partial<CenterBootstrap> & {
@@ -253,9 +272,36 @@ async function secureApi(path: string, credential: Credential, access: AdminAcce
 }
 
 async function approvedSession() {
-  const credential = await credentialForDevice();
-  const access = await register(credential);
-  return { credential, access };
+  if (!approvedSessionPromise) {
+    approvedSessionPromise = (async () => {
+      const credential = await credentialForDevice();
+      const access = await register(credential);
+      return { credential, access };
+    })().catch((error) => {
+      approvedSessionPromise = null;
+      throw error;
+    });
+  }
+  return await approvedSessionPromise;
+}
+
+let approvedSessionPromise: Promise<{ credential: Credential; access: AdminAccess }> | null = null;
+const operationsCacheKey = "application-management:operations:v1";
+
+export function readCachedOperations() {
+  try {
+    const raw = window.sessionStorage.getItem(operationsCacheKey);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as OperationsBootstrap;
+    if (!parsed.generatedAt || Date.now() - Date.parse(parsed.generatedAt) > 10 * 60_000) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function cacheOperations(bootstrap: OperationsBootstrap) {
+  try { window.sessionStorage.setItem(operationsCacheKey, JSON.stringify(bootstrap)); } catch { /* Device-local cache is optional. */ }
 }
 
 export async function connectAdminCenter() {
@@ -270,7 +316,14 @@ export async function connectOperationsDashboard() {
   const { credential, access } = await approvedSession();
   if (access.status !== "approved") return { access, bootstrap: null as OperationsBootstrap | null };
   const bootstrap = await secureApi("/api/operations", credential, access, { action: "bootstrap" }) as unknown as OperationsBootstrap;
+  cacheOperations(bootstrap);
   return { access, bootstrap };
+}
+
+export async function operationsAction(body: Record<string, unknown>) {
+  const { credential, access } = await approvedSession();
+  if (access.status !== "approved") throw new AdminApiError("Thiết bị quản trị chưa được cấp quyền.", { device: access });
+  return await secureApi("/api/operations", credential, access, body) as OperationsActionResponse;
 }
 
 export async function centerAdminAction(body: Record<string, unknown>) {

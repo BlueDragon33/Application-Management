@@ -111,6 +111,35 @@ test("reference dashboard composition keeps every operational surface interactiv
   assert.match(css, /\.dashboardGrid/);
 });
 
+test("requested operations controls are real, grouped, and contract-gated", () => {
+  const hub = source("app/application-hub.tsx");
+  const route = source("app/api/operations/route.ts");
+  const settings = source("app/operations-settings.server.ts");
+  assert.match(hub, /Xóa hết thông báo/);
+  assert.match(hub, /workGroupButton/);
+  assert.match(hub, /Truy cập web/);
+  assert.match(hub, /Duyệt tự động/);
+  assert.match(hub, /Loại bỏ/);
+  assert.match(hub, /Times New Roman/);
+  assert.match(hub, /appearanceBackgrounds/);
+  assert.match(route, /dismiss-notifications/);
+  assert.match(route, /set-auto-approval/);
+  assert.match(route, /delete-spam-device/);
+  assert.match(route, /grant-free/);
+  assert.match(route, /AUTO_APPROVE_SUPPORTED_APP_IDS/);
+  assert.match(settings, /hashWorkItem/);
+  assert.doesNotMatch(settings, /deviceCode|userLabel|learner|health/i);
+});
+
+test("operations shell paints cached data before bounded background refresh", () => {
+  const hub = source("app/application-hub.tsx");
+  const client = source("app/admin-device-client.ts");
+  assert.match(hub, /readCachedOperations/);
+  assert.match(client, /sessionStorage/);
+  assert.match(client, /approvedSessionPromise/);
+  assert.match(client, /10 \* 60_000/);
+});
+
 test("central UI reports new devices with the owning application and never claims central ownership", () => {
   const hub = source("app/application-hub.tsx");
   const operations = source("app/api/operations/route.ts");
