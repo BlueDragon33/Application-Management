@@ -24,7 +24,7 @@ test("Health bridge verifies the live machine-readable contract before issuing t
     'boundary.profileDataInControlPlane === false',
     'registry.namespace === "SK-"',
   ]);
-  assert.equal(/CONTROL_SERVICE_SECRET(?![A-Z_])/.test(healthBridge), false, "Health bridge must not fall back to the shared legacy secret");
+  assert.equal(/(?<!HEALTH_)CONTROL_SERVICE_SECRET/.test(healthBridge), false, "Health bridge must not fall back to the shared legacy secret");
 });
 
 test("Health remains a separate managed client and operations uses its own bridge", () => {
