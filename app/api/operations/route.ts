@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 
 const UPSTREAM_TIMEOUT_MS = 4_500;
 const RECENT_DEVICE_MS = 7 * 24 * 60 * 60 * 1000;
-const AUTO_APPROVE_SUPPORTED_APP_IDS = ["boi-ech"] as const;
+const AUTO_APPROVE_SUPPORTED_APP_IDS = ["boi-ech", "health-care"] as const;
 
 type Bridge = { baseUrl: string; token: string; expiresAt: number };
 type UnknownRecord = Record<string, unknown>;
@@ -314,10 +314,30 @@ export async function POST(request: Request) {
       if (appIds.some((id) => !known.has(id))) return json({ error: "Danh sách ứng dụng không hợp lệ.", code: "INVALID_APPLICATIONS" }, 400);
       const unsupported = appIds.filter((id) => !AUTO_APPROVE_SUPPORTED_APP_IDS.includes(id as typeof AUTO_APPROVE_SUPPORTED_APP_IDS[number]));
       if (unsupported.length) return json({ error: "Một số ứng dụng chưa công bố contract duyệt tự động.", code: "AUTO_APPROVAL_CONTRACT_MISSING" }, 409);
-      const bridge = await issueBoiBrowserBridge(actor.email, actor.role);
-      const enabled = appIds.includes("boi-ech");
-      await bridgeJson(bridge, "/api/control/overview", { method: "POST", body: { action: "update-automation", enabled, defaultAccessDays: 60, defaultDeviceLimit: 100 } });
-      await rememberAutoApproval(actor.email, "boi-ech", enabled);
+
+      const current = await readAutoApprovalSettings(AUTO_APPROVE_SUPPORTED_APP_IDS);
+      const enabledBefore = new Set(current.autoApproveAppIds);
+      const boiEnabled = appIds.includes("boi-ech");
+      const healthEnabled = appIds.includes("health-care");
+
+      if (enabledBefore.has("boi-ech") !== boiEnabled) {
+        const bridge = await issueBoiBrowserBridge(actor.email, actor.role);
+        await bridgeJson(bridge, "/api/control/overview", {
+          method: "POST",
+          body: { action: "update-automation", enabled: boiEnabled, defaultAccessDays: 60, defaultDeviceLimit: 100 },
+        });
+        await rememberAutoApproval(actor.email, "boi-ech", boiEnabled);
+      }
+
+      if (enabledBefore.has("health-care") !== healthEnabled) {
+        const bridge = await issueHealthBrowserBridge(actor.email, actor.role, actor.deviceId);
+        await bridgeJson(bridge, "/api/control/automation", {
+          method: "POST",
+          body: { autoApproveDevices: healthEnabled },
+        });
+        await rememberAutoApproval(actor.email, "health-care", healthEnabled);
+      }
+
       return json({ ok: true, settings: await readAutoApprovalSettings(AUTO_APPROVE_SUPPORTED_APP_IDS) });
     }
 
