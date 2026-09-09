@@ -1,9 +1,23 @@
 import { requireChatGPTUser } from "../../chatgpt-auth";
+import { probeGrowUpManagementContract } from "../../growup.server";
 import GrowUpAdmin from "./growup-admin";
 
 export const dynamic = "force-dynamic";
 
 export default async function GrowUpAdminPage() {
   const user = await requireChatGPTUser("/apps/growup-mychildren");
-  return <GrowUpAdmin user={{ displayName: user.displayName, email: user.email }} />;
+  let siteUrl = "";
+  let siteError = "";
+  let remoteAdminReady = false;
+  try {
+    const contract = await probeGrowUpManagementContract();
+    siteUrl = contract.baseUrl;
+    remoteAdminReady = contract.remoteAdminReady;
+  } catch (error) {
+    siteError = error instanceof Error ? error.message : "Không thể xác minh Site GrowUP.";
+  }
+  return <GrowUpAdmin
+    user={{ displayName: user.displayName, email: user.email }}
+    site={{ url: siteUrl, error: siteError, remoteAdminReady }}
+  />;
 }

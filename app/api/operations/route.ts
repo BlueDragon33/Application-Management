@@ -4,6 +4,7 @@ import { issueBoiBrowserBridge } from "../../boi-ech.server";
 import { issueHealthBrowserBridge } from "../../health-care.server";
 import { issueRuLifeBrowserBridge } from "../../ru-life.server";
 import { issueBaumanBrowserBridge } from "../../bauman.server";
+import { probeGrowUpManagementContract } from "../../growup.server";
 import {
   dismissedNotificationHashes,
   hashWorkItem,
@@ -217,15 +218,36 @@ async function loadBauman(actor: ControlDeviceState) {
   return { config, devices: [] as ClientDevice[] };
 }
 
-function summary(config: ReturnType<typeof app>, devices: ClientDevice[], connection: ClientSummary["connection"], note: string): ClientSummary {
-  const hasOperationalData = connection === "connected";
+async function loadGrowUp() {
+  const config = app("growup-mychildren");
+  const contract = await probeGrowUpManagementContract();
   return {
-    appId: config.id, appName: config.shortName, href: config.href,
+    config,
+    devices: [] as ClientDevice[],
+    directWebHref: `${contract.baseUrl}/`,
+    hasOperationalData: contract.remoteAdminReady,
+  };
+}
+
+function summary(
+  config: ReturnType<typeof app>,
+  devices: ClientDevice[],
+  connection: ClientSummary["connection"],
+  note: string,
+  options: { directWebHref?: string; hasOperationalData?: boolean } = {},
+): ClientSummary {
+  const hasOperationalData = options.hasOperationalData ?? connection === "connected";
+  return {
+    appId: config.id,
+    appName: config.shortName,
+    href: options.directWebHref || config.href,
     group: config.id === "health-care" ? "Y tế" : config.id === "ru-life" ? "Nga" : config.id === "boi-ech" ? "Học tập" : config.id === "bauman-master-ai" ? "Học thuật" : "Gia đình",
-    connection, onlineCount: hasOperationalData ? devices.filter((device) => device.active).length : null,
+    connection,
+    onlineCount: hasOperationalData ? devices.filter((device) => device.active).length : null,
     pendingCount: hasOperationalData ? devices.filter((device) => device.status === "pending").length : null,
     attentionCount: hasOperationalData ? devices.filter((device) => device.attention !== "none").length : null,
-    note, directWebAccess: hasOperationalData,
+    note,
+    directWebAccess: Boolean(options.directWebHref) || hasOperationalData,
   };
 }
 
@@ -235,6 +257,7 @@ async function buildBootstrap(actor: ControlDeviceState) {
     { id: "health-care", run: () => loadHealth(actor) },
     { id: "ru-life", run: () => loadRu(actor) },
     { id: "bauman-master-ai", run: () => loadBauman(actor) },
+    { id: "growup-mychildren", run: () => loadGrowUp() },
   ] as const;
   const settled = await Promise.all(loaders.map(async (loader) => {
     try { return { id: loader.id, ok: true as const, value: await loader.run() }; }
@@ -257,16 +280,16 @@ async function buildBootstrap(actor: ControlDeviceState) {
       continue;
     }
     devices.push(...result.value.devices);
-    summaries.push(summary(config, result.value.devices, "connected", config.contractNote));
+    const directWebHref = "directWebHref" in result.value ? result.value.directWebHref : undefined;
+    const hasOperationalData = "hasOperationalData" in result.value ? result.value.hasOperationalData : undefined;
+    const note = result.id === "growup-mychildren"
+      ? `${config.contractNote} Direct site contract đã xác minh; dữ liệu trẻ em vẫn ở phía GrowUP.`
+      : config.contractNote;
+    summaries.push(summary(config, result.value.devices, "connected", note, { directWebHref, hasOperationalData }));
     for (const device of result.value.devices) {
       const item = workFromDevice(device);
       if (item) workItems.push(item);
     }
-  }
-
-  for (const applicationId of ["growup-mychildren"]) {
-    const config = app(applicationId);
-    summaries.push(summary(config, [], "pending", config.contractNote));
   }
 
   workItems.sort((a, b) => {

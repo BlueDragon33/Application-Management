@@ -10,5 +10,6 @@ declare namespace Cloudflare {
     RU_LIFE_CONTROL_SERVICE_SECRET?: string;
     BAUMAN_CONTROL_BASE_URL?: string;
     BAUMAN_CONTROL_SERVICE_SECRET?: string;
+    GROWUP_BASE_URL?: string;
   }
 }
