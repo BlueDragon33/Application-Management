@@ -38,5 +38,16 @@ test("Health remains a separate managed client and operations uses its own bridg
     'issueHealthBrowserBridge',
     'loadHealth',
     '"/api/control/devices"',
+    'appId === "health-care"',
+    'action: "approve", deviceId',
+    'approvalRequiresRegistrationComplete: false',
   ]);
+});
+
+test("central Health approval is constrained to the client contract", () => {
+  assert.match(operations, /if \(appId === "health-care"\)[\s\S]*operation !== "approve"/);
+  assert.match(operations, /actor\.role !== "publisher" && actor\.role !== "owner"/);
+  assert.match(operations, /issueHealthBrowserBridge\(actor\.email, actor\.role, actor\.deviceId\)/);
+  assert.match(operations, /bridgeJson\(bridge, "\/api\/control\/devices", \{ method: "POST", body: \{ action: "approve", deviceId \} \}\)/);
+  assert.equal(/delete-spam-device[\s\S]*health-care/.test(operations), false, "Health must not inherit Boi Ech delete semantics");
 });
