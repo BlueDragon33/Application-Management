@@ -10,7 +10,7 @@ function mustContain(source, snippets) {
   for (const snippet of snippets) assert.ok(source.includes(snippet), `Missing: ${snippet}`);
 }
 
-test("Health bridge verifies the live machine-readable contract before issuing tickets", () => {
+test("Health bridge verifies management contract v2 before issuing tickets", () => {
   mustContain(healthBridge, [
     'const TOKEN_ISSUER = "application-management"',
     'const TOKEN_AUDIENCE = "health-care-control"',
@@ -20,6 +20,9 @@ test("Health bridge verifies the live machine-readable contract before issuing t
     'HEALTH_CARE_BASE_URL',
     'probeHealthManagementContract',
     '/api/control/contract',
+    'contractVersion >= 2',
+    'endpoints.automation === "/api/control/automation"',
+    'capabilities.includes("device-auto-approval")',
     'boundary.healthDataInControlPlane === false',
     'boundary.profileDataInControlPlane === false',
     'registry.namespace === "SK-"',
@@ -50,4 +53,16 @@ test("central Health approval is constrained to the client contract", () => {
   assert.match(operations, /issueHealthBrowserBridge\(actor\.email, actor\.role, actor\.deviceId\)/);
   assert.match(operations, /bridgeJson\(bridge, "\/api\/control\/devices", \{ method: "POST", body: \{ action: "approve", deviceId \} \}\)/);
   assert.equal(/delete-spam-device[\s\S]*health-care/.test(operations), false, "Health must not inherit Boi Ech delete semantics");
+});
+
+test("global auto-approval dialog can safely control Health_Care", () => {
+  mustContain(operations, [
+    'const AUTO_APPROVE_SUPPORTED_APP_IDS = ["boi-ech", "health-care"] as const',
+    'appIds.includes("health-care")',
+    '"/api/control/automation"',
+    'autoApproveDevices: healthEnabled',
+    'rememberAutoApproval(actor.email, "health-care", healthEnabled)',
+  ]);
+  assert.match(operations, /if \(actor\.role !== "owner"\).*OWNER_REQUIRED/);
+  assert.match(operations, /enabledBefore\.has\("health-care"\) !== healthEnabled/);
 });

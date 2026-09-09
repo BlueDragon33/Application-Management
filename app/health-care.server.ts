@@ -110,7 +110,7 @@ export async function probeHealthManagementContract(): Promise<HealthContractPro
       && payload.canonicalApplication === TOKEN_APP
       && payload.controlProtocol === CONTROL_PROTOCOL
       && Number.isInteger(contractVersion)
-      && contractVersion >= 1
+      && contractVersion >= 2
       && auth.issuer === TOKEN_ISSUER
       && auth.audience === TOKEN_AUDIENCE
       && auth.app === TOKEN_APP
@@ -119,8 +119,10 @@ export async function probeHealthManagementContract(): Promise<HealthContractPro
       && endpoints.devices === "/api/control/devices"
       && endpoints.sessions === "/api/control/sessions"
       && endpoints.policy === "/api/control/policy"
+      && endpoints.automation === "/api/control/automation"
       && endpoints.contentReview === "/api/control/health-content"
       && endpoints.audit === "/api/control/audit"
+      && capabilities.includes("device-auto-approval")
       && boundary.healthDataInControlPlane === false
       && boundary.profileDataInControlPlane === false
       && boundary.independentRuntime === true
@@ -130,7 +132,7 @@ export async function probeHealthManagementContract(): Promise<HealthContractPro
 
     if (!valid) {
       throw new HealthBridgeError(
-        "Contract production của Sức khỏe Y tế không khớp contract Application Management.",
+        "Contract production của Sức khỏe Y tế chưa đạt phiên bản quản trị v2 (bao gồm duyệt thiết bị tự động).",
         409,
         { code: "HEALTH_CARE_CONTRACT_MISMATCH", baseUrl },
       );
