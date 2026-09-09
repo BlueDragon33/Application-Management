@@ -355,6 +355,28 @@ export default function HealthCareAdmin({ user }: { user: { displayName: string;
     }
   }
 
+  async function openEditor() {
+    if (!canReview) return;
+    const popup = window.open("", "_blank");
+    setActionBusy("editor");
+    setNotice("");
+    try {
+      const token = await freshBridge();
+      const target = `${token.baseUrl}/editor-bridge#ticket=${encodeURIComponent(token.token)}`;
+      if (popup) {
+        popup.opener = null;
+        popup.location.replace(target);
+      } else {
+        window.location.assign(target);
+      }
+    } catch (caught) {
+      popup?.close();
+      setNotice(caught instanceof Error ? caught.message : "Không thể mở trình biên tập Health_Care.");
+    } finally {
+      setActionBusy("");
+    }
+  }
+
   const visibleDevices = useMemo(() => devices.filter((device) => {
     const filterMatch = deviceFilter === "all"
       || (deviceFilter === "online" ? device.active
@@ -435,7 +457,7 @@ export default function HealthCareAdmin({ user }: { user: { displayName: string;
       </section> : null}
 
       {view === "content" && canReview ? <section className={styles.contentPanel}>
-        <header><div><span>HEALTH CONTENT REVIEW</span><h2>Một hàng đợi kiểm duyệt của Health_Care</h2><p>Không sửa bài tại Trung tâm. Chỉ quyết định đối với bản mà Health_Care gửi lên.</p></div><strong>{versions.filter((item) => item.status === "permission_requested" || item.status === "review").length} cần xử lý</strong></header>
+        <header><div><span>HEALTH CONTENT REVIEW</span><h2>Một hàng đợi kiểm duyệt của Health_Care</h2><p>Không sửa bài tại Trung tâm. Chỉnh sửa diễn ra trong Health_Care sau khi Trung tâm cấp quyền; bản gửi lên mới được duyệt tại đây.</p></div><div><button className={styles.primary} disabled={actionBusy === "editor"} onClick={() => void openEditor()}>{actionBusy === "editor" ? "Đang mở…" : "Mở trình biên tập Health_Care"}</button><strong>{versions.filter((item) => item.status === "permission_requested" || item.status === "review").length} cần xử lý</strong></div></header>
         <div>{versions.map((version) => <article key={version.id} data-status={version.status}><div><span>V{version.version_number} · {contentStatusLabels[version.status] ?? version.status}</span><strong>{version.edit_scope_label || version.summary || "Phiên bản Sức khỏe Y tế"}</strong><small>{version.created_by} · {formatTime(version.created_at)}{version.editor_device_code ? ` · ${version.editor_device_code}` : ""}</small></div><div>{version.status === "permission_requested" ? <><button disabled={actionBusy === version.id} onClick={() => void contentAction(version, "approve-edit")}>Cho phép sửa</button><button className={styles.danger} disabled={actionBusy === version.id} onClick={() => void contentAction(version, "deny-edit")}>Từ chối</button></> : null}{version.status === "review" ? <><button disabled={actionBusy === version.id} onClick={() => void contentAction(version, "request-changes")}>Yêu cầu sửa lại</button>{canManage ? <button className={styles.primary} disabled={actionBusy === version.id} onClick={() => void contentAction(version, "approve-publish")}>Đồng ý cập nhật</button> : null}</> : null}</div></article>)}{!versions.length ? <div className={styles.empty}>Chưa có phiên bản nội dung gửi kiểm duyệt.</div> : null}</div>
       </section> : null}
 
