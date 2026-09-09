@@ -2,7 +2,7 @@ import { getControlDatabase, type ControlRole } from "./control-device.server";
 
 const DEFAULT_RU_LIFE_BASE_URL = "https://hoa-nhap-nga.dinhnam3391.chatgpt.site";
 const BRIDGE_TTL_MS = 5 * 60 * 1000;
-const BRIDGE_PREFIX = "rulb_";
+const BRIDGE_PREFIX = "v1.rulb_";
 
 export class RuLifeBridgeError extends Error {
   status: number;
@@ -99,7 +99,7 @@ export async function issueRuLifeBrowserBridge(actor: string, role: ControlRole,
 }
 
 export async function introspectRuLifeBridgeToken(token: unknown) {
-  if (typeof token !== "string" || !/^rulb_[A-Za-z0-9_-]{43}$/.test(token)) {
+  if (typeof token !== "string" || !/^v1\.rulb_[A-Za-z0-9_-]{43}$/.test(token)) {
     throw new RuLifeBridgeError("Vé quản trị Hòa nhập Nga không hợp lệ.", 401, { code: "RU_LIFE_BRIDGE_INVALID" });
   }
   const database = await ensureBridgeTable();
