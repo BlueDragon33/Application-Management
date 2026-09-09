@@ -13,6 +13,7 @@ export type HealthContractProbe = {
   controlProtocol: string;
   capabilities: string[];
   deviceNamespace: string;
+  webLaunchTarget: string;
 };
 
 export class HealthBridgeError extends Error {
@@ -105,16 +106,18 @@ export async function probeHealthManagementContract(): Promise<HealthContractPro
     const capabilities = Array.isArray(payload.capabilities)
       ? payload.capabilities.filter((item): item is string => typeof item === "string")
       : [];
+    const webLaunchTarget = text(endpoints.webLaunchTarget);
 
     const valid = payload.application === TOKEN_APP
       && payload.canonicalApplication === TOKEN_APP
       && payload.controlProtocol === CONTROL_PROTOCOL
       && Number.isInteger(contractVersion)
-      && contractVersion >= 2
+      && contractVersion >= 3
       && auth.issuer === TOKEN_ISSUER
       && auth.audience === TOKEN_AUDIENCE
       && auth.app === TOKEN_APP
       && auth.secretEnv === "HEALTH_CONTROL_SERVICE_SECRET"
+      && Number(auth.webLaunchTtlSeconds) === 60
       && endpoints.status === "/api/control/status"
       && endpoints.devices === "/api/control/devices"
       && endpoints.sessions === "/api/control/sessions"
@@ -122,7 +125,9 @@ export async function probeHealthManagementContract(): Promise<HealthContractPro
       && endpoints.automation === "/api/control/automation"
       && endpoints.contentReview === "/api/control/health-content"
       && endpoints.audit === "/api/control/audit"
+      && webLaunchTarget === "/suc-khoe-tre"
       && capabilities.includes("device-auto-approval")
+      && capabilities.includes("control-web-launch")
       && boundary.healthDataInControlPlane === false
       && boundary.profileDataInControlPlane === false
       && boundary.independentRuntime === true
@@ -132,7 +137,7 @@ export async function probeHealthManagementContract(): Promise<HealthContractPro
 
     if (!valid) {
       throw new HealthBridgeError(
-        "Contract production của Sức khỏe Y tế chưa đạt phiên bản quản trị v2 (bao gồm duyệt thiết bị tự động).",
+        "Contract production của Sức khỏe Y tế chưa đạt phiên bản quản trị v3 (bao gồm direct web launch an toàn).",
         409,
         { code: "HEALTH_CARE_CONTRACT_MISMATCH", baseUrl },
       );
@@ -145,6 +150,7 @@ export async function probeHealthManagementContract(): Promise<HealthContractPro
       controlProtocol: CONTROL_PROTOCOL,
       capabilities,
       deviceNamespace: "SK-",
+      webLaunchTarget,
     };
   } catch (error) {
     if (error instanceof HealthBridgeError) throw error;
@@ -183,6 +189,27 @@ async function signature(secret: string, value: string) {
   return base64Url(new Uint8Array(signed));
 }
 
+async function issueTicket(secret: string, claims: Record<string, unknown>) {
+  const payload = base64Url(new TextEncoder().encode(JSON.stringify(claims)));
+  const signedInput = `v1.${payload}`;
+  return `${signedInput}.${await signature(secret, signedInput)}`;
+}
+
+function baseClaims(actor: string, role: ControlRole, controlDeviceId: string, expiresAt: number, purpose: "control" | "web-launch") {
+  return {
+    iss: TOKEN_ISSUER,
+    aud: TOKEN_AUDIENCE,
+    app: TOKEN_APP,
+    purpose,
+    actor: actor.trim().toLowerCase().slice(0, 160),
+    role,
+    controlDeviceId,
+    jti: base64Url(crypto.getRandomValues(new Uint8Array(18))),
+    iat: Date.now(),
+    exp: expiresAt,
+  };
+}
+
 export async function issueHealthBrowserBridge(
   actor: string,
   role: ControlRole,
@@ -197,26 +224,36 @@ export async function issueHealthBrowserBridge(
     );
   }
   const expiresAt = Date.now() + 5 * 60 * 1000;
-  const ticketId = base64Url(crypto.getRandomValues(new Uint8Array(18)));
-  const payload = base64Url(new TextEncoder().encode(JSON.stringify({
-    iss: TOKEN_ISSUER,
-    aud: TOKEN_AUDIENCE,
-    app: TOKEN_APP,
-    actor: actor.trim().toLowerCase().slice(0, 160),
-    role,
-    controlDeviceId,
-    jti: ticketId,
-    iat: Date.now(),
-    exp: expiresAt,
-  })));
-  const signedInput = `v1.${payload}`;
   return {
     baseUrl: configured.baseUrl,
-    token: `${signedInput}.${await signature(configured.secret, signedInput)}`,
+    token: await issueTicket(configured.secret, baseClaims(actor, role, controlDeviceId, expiresAt, "control")),
     expiresAt,
     application: "health-care" as const,
     transport: "chatgpt-sites" as const,
     contractVersion: contract.contractVersion,
     controlProtocol: contract.controlProtocol,
+  };
+}
+
+export async function issueHealthWebLaunch(
+  actor: string,
+  role: ControlRole,
+  controlDeviceId: string,
+) {
+  const [configured, contract] = await Promise.all([configuration(), probeHealthManagementContract()]);
+  if (configured.baseUrl !== contract.baseUrl) {
+    throw new HealthBridgeError(
+      "URL Site và URL contract Sức khỏe Y tế không trùng nhau.",
+      409,
+      { code: "HEALTH_CARE_ORIGIN_MISMATCH" },
+    );
+  }
+  const expiresAt = Date.now() + 60_000;
+  const token = await issueTicket(configured.secret, baseClaims(actor, role, controlDeviceId, expiresAt, "web-launch"));
+  return {
+    launchUrl: `${configured.baseUrl}${contract.webLaunchTarget}#control-launch=${encodeURIComponent(token)}`,
+    expiresAt,
+    application: "health-care" as const,
+    transport: "chatgpt-sites-fragment" as const,
   };
 }
