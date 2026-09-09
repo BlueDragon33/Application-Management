@@ -37,7 +37,7 @@ test("operations probes GrowUP but does not invent remote device operations", ()
     'probeGrowUpManagementContract',
     'async function loadGrowUp()',
     '{ id: "growup-mychildren", run: () => loadGrowUp() }',
-    'directWebHref: `${contract.baseUrl}/`',
+    'webHref: `${contract.baseUrl}/`',
     'hasOperationalData: contract.remoteAdminReady',
     'Direct site contract đã xác minh; dữ liệu trẻ em vẫn ở phía GrowUP.',
   ]);
@@ -46,10 +46,11 @@ test("operations probes GrowUP but does not invent remote device operations", ()
 
 test("central table opens the verified client URL while admin remains internal", () => {
   mustContain(hub, [
-    'summary?.directWebAccess ? <Link href={summary.href} target="_blank" rel="noreferrer"',
+    'const canOpenWeb = Boolean(summary?.directWebAccess && summary.webHref)',
+    '<a href={summary?.webHref ?? "#"} target="_blank" rel="noopener noreferrer" className={styles.directAccess}>Truy cập web ↗</a>',
     '<Link href={application.href} className={styles.manageButton}>Vào quản trị →</Link>',
   ]);
-  assert.equal(hub.includes('summary?.directWebAccess ? <Link href={application.href} target="_blank"'), false);
+  assert.equal(hub.includes('<a href={application.href} target="_blank"'), false);
 });
 
 test("GrowUP admin exposes verified direct launch without claiming deep admin readiness", () => {
