@@ -5,12 +5,13 @@ import assert from "node:assert/strict";
 const healthBridge = fs.readFileSync("app/health-care.server.ts", "utf8");
 const operations = fs.readFileSync("app/api/operations/route.ts", "utf8");
 const registry = fs.readFileSync("app/application-registry.ts", "utf8");
+const hub = fs.readFileSync("app/application-hub.tsx", "utf8");
 
 function mustContain(source, snippets) {
   for (const snippet of snippets) assert.ok(source.includes(snippet), `Missing: ${snippet}`);
 }
 
-test("Health bridge verifies management contract v2 before issuing tickets", () => {
+test("Health bridge verifies management contract v3 before issuing tickets", () => {
   mustContain(healthBridge, [
     'const TOKEN_ISSUER = "application-management"',
     'const TOKEN_AUDIENCE = "health-care-control"',
@@ -20,9 +21,12 @@ test("Health bridge verifies management contract v2 before issuing tickets", () 
     'HEALTH_CARE_BASE_URL',
     'probeHealthManagementContract',
     '/api/control/contract',
-    'contractVersion >= 2',
+    'contractVersion >= 3',
+    'Number(auth.webLaunchTtlSeconds) === 60',
     'endpoints.automation === "/api/control/automation"',
+    'webLaunchTarget === "/suc-khoe-tre"',
     'capabilities.includes("device-auto-approval")',
+    'capabilities.includes("control-web-launch")',
     'boundary.healthDataInControlPlane === false',
     'boundary.profileDataInControlPlane === false',
     'registry.namespace === "SK-"',
@@ -65,4 +69,35 @@ test("global auto-approval dialog can safely control Health_Care", () => {
   ]);
   assert.match(operations, /if \(actor\.role !== "owner"\).*OWNER_REQUIRED/);
   assert.match(operations, /enabledBefore\.has\("health-care"\) !== healthEnabled/);
+});
+
+test("Health direct web launch uses a purpose-scoped 60 second ticket", () => {
+  mustContain(healthBridge, [
+    'purpose: "control" | "web-launch"',
+    'issueHealthWebLaunch',
+    'Date.now() + 60_000',
+    '"web-launch"',
+    'chatgpt-sites-fragment',
+    '#control-launch=',
+  ]);
+  mustContain(operations, [
+    'action === "launch-client-web"',
+    'appId !== "health-care"',
+    'issueHealthWebLaunch(actor.email, actor.role, actor.deviceId)',
+    'managedWebLaunch: true',
+    'webHref: bridge.baseUrl',
+  ]);
+  assert.match(operations, /if \(appId !== "health-care"\).*WEB_LAUNCH_CONTRACT_MISSING/);
+});
+
+test("application table opens Health runtime instead of the internal admin route", () => {
+  mustContain(hub, [
+    'launchClientWeb',
+    'summary?.webHref',
+    'summary.managedWebLaunch',
+    'action: "launch-client-web", appId',
+    'window.open("about:blank", "_blank")',
+    'popup.location.replace(result.launchUrl)',
+  ]);
+  assert.equal(/summary\?\.directWebAccess \? <Link href=\{application\.href\} target="_blank"/.test(hub), false, "Direct web access must not point to internal /apps route");
 });

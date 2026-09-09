@@ -1,7 +1,7 @@
 import { applicationRegistry } from "../../application-registry";
 import { verifyControlProof, type ControlDeviceState } from "../../control-device.server";
 import { issueBoiBrowserBridge } from "../../boi-ech.server";
-import { issueHealthBrowserBridge } from "../../health-care.server";
+import { issueHealthBrowserBridge, issueHealthWebLaunch } from "../../health-care.server";
 import { issueRuLifeBrowserBridge } from "../../ru-life.server";
 import { issueBaumanBrowserBridge } from "../../bauman.server";
 import { probeGrowUpManagementContract } from "../../growup.server";
@@ -44,6 +44,8 @@ type ClientSummary = {
   appId: string;
   appName: string;
   href: string;
+  webHref: string | null;
+  managedWebLaunch: boolean;
   group: string;
   connection: "connected" | "warning" | "pending" | "unavailable";
   onlineCount: number | null;
@@ -184,7 +186,7 @@ async function loadBoi(actor: ControlDeviceState) {
     typeKey: "deviceType", userKeys: ["learnerName", "personCode"],
     approve: actor.role === "publisher" || actor.role === "owner", remove: actor.role === "owner",
   })) : [];
-  return { config, devices };
+  return { config, devices, webHref: bridge.baseUrl, managedWebLaunch: false, hasOperationalData: true };
 }
 
 async function loadHealth(actor: ControlDeviceState) {
@@ -198,7 +200,7 @@ async function loadHealth(actor: ControlDeviceState) {
     approve: actor.role === "publisher" || actor.role === "owner",
     approvalRequiresRegistrationComplete: false,
   })) : [];
-  return { config, devices };
+  return { config, devices, webHref: bridge.baseUrl, managedWebLaunch: true, hasOperationalData: true };
 }
 
 async function loadRu(actor: ControlDeviceState) {
@@ -208,14 +210,14 @@ async function loadRu(actor: ControlDeviceState) {
   const devices = Array.isArray(data.devices) ? data.devices.map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
     typeKey: "deviceClass", userKeys: ["userName", "userCode", "label"],
   })) : [];
-  return { config, devices };
+  return { config, devices, webHref: bridge.baseUrl, managedWebLaunch: false, hasOperationalData: true };
 }
 
 async function loadBauman(actor: ControlDeviceState) {
   const config = app("bauman-master-ai");
   const bridge = await issueBaumanBrowserBridge(actor.email, actor.role, actor.deviceId);
   await bridgeJson(bridge, "/api/control/status");
-  return { config, devices: [] as ClientDevice[] };
+  return { config, devices: [] as ClientDevice[], webHref: bridge.baseUrl, managedWebLaunch: false, hasOperationalData: true };
 }
 
 async function loadGrowUp() {
@@ -224,7 +226,8 @@ async function loadGrowUp() {
   return {
     config,
     devices: [] as ClientDevice[],
-    directWebHref: `${contract.baseUrl}/`,
+    webHref: `${contract.baseUrl}/`,
+    managedWebLaunch: false,
     hasOperationalData: contract.remoteAdminReady,
   };
 }
@@ -234,20 +237,21 @@ function summary(
   devices: ClientDevice[],
   connection: ClientSummary["connection"],
   note: string,
-  options: { directWebHref?: string; hasOperationalData?: boolean } = {},
+  webHref: string | null = null,
+  managedWebLaunch = false,
+  hasOperationalDataOverride?: boolean,
 ): ClientSummary {
-  const hasOperationalData = options.hasOperationalData ?? connection === "connected";
+  const connected = connection === "connected";
+  const hasOperationalData = hasOperationalDataOverride ?? connected;
   return {
-    appId: config.id,
-    appName: config.shortName,
-    href: options.directWebHref || config.href,
+    appId: config.id, appName: config.shortName, href: config.href,
+    webHref: connected ? webHref : null,
+    managedWebLaunch: connected && managedWebLaunch,
     group: config.id === "health-care" ? "Y tế" : config.id === "ru-life" ? "Nga" : config.id === "boi-ech" ? "Học tập" : config.id === "bauman-master-ai" ? "Học thuật" : "Gia đình",
-    connection,
-    onlineCount: hasOperationalData ? devices.filter((device) => device.active).length : null,
+    connection, onlineCount: hasOperationalData ? devices.filter((device) => device.active).length : null,
     pendingCount: hasOperationalData ? devices.filter((device) => device.status === "pending").length : null,
     attentionCount: hasOperationalData ? devices.filter((device) => device.attention !== "none").length : null,
-    note,
-    directWebAccess: Boolean(options.directWebHref) || hasOperationalData,
+    note, directWebAccess: connected && Boolean(webHref),
   };
 }
 
@@ -280,12 +284,18 @@ async function buildBootstrap(actor: ControlDeviceState) {
       continue;
     }
     devices.push(...result.value.devices);
-    const directWebHref = "directWebHref" in result.value ? result.value.directWebHref : undefined;
-    const hasOperationalData = "hasOperationalData" in result.value ? result.value.hasOperationalData : undefined;
     const note = result.id === "growup-mychildren"
       ? `${config.contractNote} Direct site contract đã xác minh; dữ liệu trẻ em vẫn ở phía GrowUP.`
       : config.contractNote;
-    summaries.push(summary(config, result.value.devices, "connected", note, { directWebHref, hasOperationalData }));
+    summaries.push(summary(
+      config,
+      result.value.devices,
+      "connected",
+      note,
+      result.value.webHref,
+      result.value.managedWebLaunch,
+      result.value.hasOperationalData,
+    ));
     for (const device of result.value.devices) {
       const item = workFromDevice(device);
       if (item) workItems.push(item);
@@ -321,6 +331,13 @@ export async function POST(request: Request) {
     const actor = await verifyControlProof(payload, undefined, previewRequest);
     const action = typeof payload.action === "string" ? payload.action : "bootstrap";
     if (action === "bootstrap") return json(await buildBootstrap(actor));
+
+    if (action === "launch-client-web") {
+      const appId = text(payload.appId);
+      if (appId !== "health-care") return json({ error: "Client này chưa công bố direct web launch do control-plane quản lý.", code: "WEB_LAUNCH_CONTRACT_MISSING" }, 409);
+      const launch = await issueHealthWebLaunch(actor.email, actor.role, actor.deviceId);
+      return json({ ok: true, ...launch });
+    }
 
     if (action === "dismiss-notifications") {
       const workItemIds = Array.isArray(payload.workItemIds)
