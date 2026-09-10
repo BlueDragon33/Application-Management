@@ -10,13 +10,18 @@ const LOCAL_RUNTIME_KEYS = [
   "LOCAL_DEV_USER_EMAIL",
   "LOCAL_DEV_USER_NAME",
   "CONTROL_OWNER_EMAILS",
+  "CONTROL_PLANE_NETWORK_MODE",
   "CONTROL_SERVICE_SECRET",
   "BOI_ECH_BASE_URL",
+  "BOI_ECH_LOCAL_BASE_URL",
   "HEALTH_CARE_BASE_URL",
+  "HEALTH_CARE_LOCAL_BASE_URL",
   "HEALTH_CONTROL_SERVICE_SECRET",
   "RU_LIFE_BASE_URL",
+  "RU_LIFE_LOCAL_BASE_URL",
   "RU_LIFE_CONTROL_SERVICE_SECRET",
   "BAUMAN_CONTROL_BASE_URL",
+  "BAUMAN_CONTROL_LOCAL_BASE_URL",
   "BAUMAN_CONTROL_SERVICE_SECRET",
   "GROWUP_BASE_URL",
 ] as const;
@@ -60,7 +65,7 @@ export default defineConfig(async ({ command }) => {
   return {
     server: {
       host: "0.0.0.0",
-      allowedHosts: ["terminal.local"],
+      allowedHosts: ["terminal.local", "localhost", "127.0.0.1"],
       ...(isCodexSeatbeltSandbox
         ? { watch: { useFsEvents: false, usePolling: true } }
         : {}),
