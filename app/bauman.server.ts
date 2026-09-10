@@ -31,6 +31,12 @@ async function configuration() {
       { code: "BAUMAN_CONTROL_NOT_CONFIGURED" },
     );
   }
+  let runtimeOrigin = null;
+  try {
+    runtimeOrigin = await resolveClientOrigin("bauman-runtime");
+  } catch {
+    runtimeOrigin = null;
+  }
   if (secret.length < 32) {
     throw new BaumanBridgeError(
       "Bauman Control Service chưa được cấu hình secret.",
@@ -38,7 +44,7 @@ async function configuration() {
       { code: "BAUMAN_CONTROL_SECRET_NOT_CONFIGURED", baseUrl: origin.baseUrl },
     );
   }
-  return { ...origin, secret };
+  return { ...origin, secret, runtimeOrigin };
 }
 
 function base64Url(bytes: Uint8Array) {
@@ -53,7 +59,7 @@ async function signature(secret: string, value: string) {
 }
 
 export async function issueBaumanBrowserBridge(actor: string, role: ControlRole, controlDeviceId: string) {
-  const { baseUrl, secret, source } = await configuration();
+  const { baseUrl, secret, source, runtimeOrigin } = await configuration();
   const expiresAt = Date.now() + 5 * 60 * 1000;
   const payload = base64Url(new TextEncoder().encode(JSON.stringify({
     iss: TOKEN_ISSUER,
@@ -68,6 +74,8 @@ export async function issueBaumanBrowserBridge(actor: string, role: ControlRole,
   const signedInput = `v1.${payload}`;
   return {
     baseUrl,
+    runtimeBaseUrl: runtimeOrigin?.baseUrl ?? null,
+    runtimeOriginSource: runtimeOrigin?.source ?? null,
     token: `${signedInput}.${await signature(secret, signedInput)}`,
     expiresAt,
     application: "bauman-master-ai" as const,
