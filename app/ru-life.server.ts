@@ -1,6 +1,6 @@
+import { resolveClientOrigin } from "./client-origin.server";
 import { getControlDatabase, type ControlRole } from "./control-device.server";
 
-const DEFAULT_RU_LIFE_BASE_URL = "https://hoa-nhap-nga.dinhnam3391.chatgpt.site";
 const BRIDGE_TTL_MS = 5 * 60 * 1000;
 const BRIDGE_PREFIX = "v1.rulb_";
 
@@ -24,15 +24,16 @@ type BridgeRow = {
   expires_at: number;
 };
 
-async function baseUrl() {
-  const workers = await import("cloudflare:workers");
-  const values = workers.env as unknown as Record<string, unknown>;
-  const configured = typeof values.RU_LIFE_BASE_URL === "string" ? values.RU_LIFE_BASE_URL.replace(/\/$/, "") : "";
-  const value = configured || DEFAULT_RU_LIFE_BASE_URL;
-  if (!/^https:\/\/[a-z0-9.-]+$/i.test(value)) {
-    throw new RuLifeBridgeError("Origin Hòa nhập Nga không hợp lệ.", 503, { code: "RU_LIFE_ORIGIN_INVALID" });
+async function controlOrigin() {
+  try {
+    return await resolveClientOrigin("ru-life");
+  } catch (error) {
+    throw new RuLifeBridgeError(
+      error instanceof Error ? error.message : "Origin Hòa nhập Nga chưa được cấu hình.",
+      503,
+      { code: "RU_LIFE_ORIGIN_INVALID" },
+    );
   }
-  return value;
 }
 
 function base64Url(bytes: Uint8Array) {
@@ -69,7 +70,7 @@ function validRole(value: unknown): value is ControlRole {
 }
 
 export async function issueRuLifeBrowserBridge(actor: string, role: ControlRole, controlDeviceId: string) {
-  const database = await ensureBridgeTable();
+  const [database, origin] = await Promise.all([ensureBridgeTable(), controlOrigin()]);
   const expiresAt = Date.now() + BRIDGE_TTL_MS;
   const token = `${BRIDGE_PREFIX}${base64Url(crypto.getRandomValues(new Uint8Array(32)))}`;
   const tokenHash = await sha256(token);
@@ -90,11 +91,12 @@ export async function issueRuLifeBrowserBridge(actor: string, role: ControlRole,
   ]);
 
   return {
-    baseUrl: await baseUrl(),
+    baseUrl: origin.baseUrl,
     token,
     expiresAt,
     application: "ru-life" as const,
     protocol: "ru-life-control-opaque-v1" as const,
+    originSource: origin.source,
   };
 }
 

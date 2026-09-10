@@ -10,6 +10,8 @@
     "dev": "vite",
     "local": "node scripts/run-local.mjs",
     "local:db": "wrangler d1 migrations apply learning-management-db --local --config wrangler.local.jsonc",
+    "local:system": "node scripts/run-local-system.mjs --local",
+    "local:system:hybrid": "node scripts/run-local-system.mjs --hybrid",
     "build": "bash scripts/build-verified.sh",
     "preview": "npm run build && vite preview",
     "start": "vinext start",

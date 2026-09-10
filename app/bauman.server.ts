@@ -1,3 +1,4 @@
+import { resolveClientOrigin } from "./client-origin.server";
 import type { ControlRole } from "./control-device.server";
 
 const TOKEN_ISSUER = "application-management";
@@ -19,16 +20,25 @@ export class BaumanBridgeError extends Error {
 async function configuration() {
   const workers = await import("cloudflare:workers");
   const values = workers.env as unknown as Record<string, unknown>;
-  const baseUrl = typeof values.BAUMAN_CONTROL_BASE_URL === "string" ? values.BAUMAN_CONTROL_BASE_URL.replace(/\/$/, "") : "";
   const secret = typeof values.BAUMAN_CONTROL_SERVICE_SECRET === "string" ? values.BAUMAN_CONTROL_SERVICE_SECRET : "";
-  if (!/^https:\/\/[a-z0-9.-]+$/i.test(baseUrl) || secret.length < 32) {
+  let origin;
+  try {
+    origin = await resolveClientOrigin("bauman-master-ai");
+  } catch (error) {
     throw new BaumanBridgeError(
-      "Bauman Control Service chưa được cấu hình origin/secret production.",
+      error instanceof Error ? error.message : "Bauman Control Service chưa được cấu hình origin.",
       503,
       { code: "BAUMAN_CONTROL_NOT_CONFIGURED" },
     );
   }
-  return { baseUrl, secret };
+  if (secret.length < 32) {
+    throw new BaumanBridgeError(
+      "Bauman Control Service chưa được cấu hình secret.",
+      503,
+      { code: "BAUMAN_CONTROL_SECRET_NOT_CONFIGURED", baseUrl: origin.baseUrl },
+    );
+  }
+  return { ...origin, secret };
 }
 
 function base64Url(bytes: Uint8Array) {
@@ -43,7 +53,7 @@ async function signature(secret: string, value: string) {
 }
 
 export async function issueBaumanBrowserBridge(actor: string, role: ControlRole, controlDeviceId: string) {
-  const { baseUrl, secret } = await configuration();
+  const { baseUrl, secret, source } = await configuration();
   const expiresAt = Date.now() + 5 * 60 * 1000;
   const payload = base64Url(new TextEncoder().encode(JSON.stringify({
     iss: TOKEN_ISSUER,
@@ -62,5 +72,6 @@ export async function issueBaumanBrowserBridge(actor: string, role: ControlRole,
     expiresAt,
     application: "bauman-master-ai" as const,
     mode: "read-only" as const,
+    originSource: source,
   };
 }
