@@ -21,12 +21,14 @@ test("hybrid resolver supports production, local and hybrid without allowing pub
   assert.match(resolver, /values\.LOCAL_DEV_AUTH === "1" \? "hybrid" : "production"/);
 });
 
-test("local port convention matches the existing local-first layout", () => {
+test("local port convention keeps Bauman control and learning runtime physically separate", () => {
   assert.match(resolver, /health-care[\s\S]*127\.0\.0\.1:3001/);
   assert.match(resolver, /ru-life[\s\S]*127\.0\.0\.1:3002/);
   assert.match(resolver, /bauman-master-ai[\s\S]*127\.0\.0\.1:3003/);
+  assert.match(resolver, /bauman-runtime[\s\S]*BAUMAN_APP_ORIGIN[\s\S]*BAUMAN_APP_LOCAL_ORIGIN[\s\S]*127\.0\.0\.1:3005/);
   assert.match(resolver, /boi-ech[\s\S]*127\.0\.0\.1:3004/);
   assert.match(launcher, /baumanRuntimeOrigin = "http:\/\/127\.0\.0\.1:3005"/);
+  assert.match(launcher, /BAUMAN_APP_LOCAL_ORIGIN: baumanRuntimeOrigin/);
 });
 
 test("all managed client bridges use the shared resolver and no chatgpt.site fallback", () => {
@@ -35,6 +37,9 @@ test("all managed client bridges use the shared resolver and no chatgpt.site fal
     assert.match(bridge, /resolveClientOrigin/);
     assert.doesNotMatch(bridge, /dinhnam3391\.chatgpt\.site/);
   }
+  const bauman = source("app/bauman.server.ts");
+  assert.match(bauman, /resolveClientOrigin\("bauman-runtime"\)/);
+  assert.match(bauman, /runtimeBaseUrl: runtimeOrigin\?\.baseUrl \?\? null/);
 });
 
 test("full local launcher keeps repos independent and local databases isolated", () => {
@@ -53,6 +58,7 @@ test("full local launcher keeps repos independent and local databases isolated",
   assert.match(launcher, /Bauman control-service\/wrangler\.local\.jsonc/);
   assert.match(launcher, /"wrangler", "dev", "--local", "--config", "wrangler\.local\.jsonc"/);
   assert.match(launcher, /BAUMAN_APP_ORIGIN/);
+  assert.match(launcher, /BAUMAN_APP_LOCAL_ORIGIN/);
   assert.match(launcher, /scripts\/serve-local-runtime\.mjs/);
   assert.match(launcher, /BAUMAN-RUNTIME/);
   assert.match(launcher, /_local\/health/);
