@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { getCloudflareAccessUser } from "./cloudflare-access-auth";
 
 export type ChatGPTUser = {
   userId: string;
@@ -40,12 +41,10 @@ async function runtimeVariables() {
   }
 }
 
-async function localDevelopmentUser(requestHeaders: Headers): Promise<ChatGPTUser | null> {
+function localDevelopmentUser(requestHeaders: Headers, runtime: Record<string, unknown>): ChatGPTUser | null {
   const forwardedHost = requestHeaders.get("x-forwarded-host")?.split(",", 1)[0]?.trim();
   const host = forwardedHost || requestHeaders.get("host")?.trim() || "";
   if (!LOOPBACK_HOST.test(host)) return null;
-
-  const runtime = await runtimeVariables();
   if (runtime.LOCAL_DEV_AUTH !== "1") return null;
 
   const email = normalizedEmail(typeof runtime.LOCAL_DEV_USER_EMAIL === "string" ? runtime.LOCAL_DEV_USER_EMAIL : null);
@@ -66,6 +65,7 @@ export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
   const userId = requestHeaders.get(USER_ID_HEADER)?.trim() ?? "";
   const email = normalizedEmail(requestHeaders.get(USER_EMAIL_HEADER));
 
+  // ChatGPT Sites identity remains authoritative whenever dispatch supplies it.
   if (userId && email) {
     const encodedFullName = requestHeaders.get(USER_FULL_NAME_HEADER);
     const fullName = encodedFullName
@@ -81,7 +81,13 @@ export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
     };
   }
 
-  return localDevelopmentUser(requestHeaders);
+  const runtime = await runtimeVariables();
+  const localUser = localDevelopmentUser(requestHeaders, runtime);
+  if (localUser) return localUser;
+
+  // Cloudflare deployment uses a cryptographically verified Access JWT.
+  // This cannot be reached via LOCAL_DEV_AUTH on a public hostname.
+  return getCloudflareAccessUser(requestHeaders, runtime);
 }
 
 export async function requireChatGPTUser(returnTo = "/"): Promise<ChatGPTUser> {
