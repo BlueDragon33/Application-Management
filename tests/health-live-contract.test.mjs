@@ -46,17 +46,18 @@ test("Health remains a separate managed client and operations uses its own bridg
     'loadHealth',
     '"/api/control/devices"',
     'appId === "health-care"',
-    'action: "approve", deviceId',
+    'action: operation === "approve" ? "approve" : "block"',
     'approvalRequiresRegistrationComplete: false',
+    'remove: canManage',
   ]);
 });
 
-test("central Health approval is constrained to the client contract", () => {
-  assert.match(operations, /if \(appId === "health-care"\)[\s\S]*operation !== "approve"/);
+test("central Health device actions are constrained to the client contract and verified", () => {
+  assert.match(operations, /if \(appId === "health-care"\)[\s\S]*operation === "approve" \? "approve" : "block"/);
   assert.match(operations, /actor\.role !== "publisher" && actor\.role !== "owner"/);
   assert.match(operations, /issueHealthBrowserBridge\(actor\.email, actor\.role, actor\.deviceId\)/);
-  assert.match(operations, /bridgeJson\(bridge, "\/api\/control\/devices", \{ method: "POST", body: \{ action: "approve", deviceId \} \}\)/);
-  assert.equal(/delete-spam-device[\s\S]*health-care/.test(operations), false, "Health must not inherit Boi Ech delete semantics");
+  assert.match(operations, /verifyDeviceStatus\(bridge, "\/api\/control\/devices", deviceId, expected\)/);
+  assert.equal(/delete-spam-device[\s\S]*health-care/.test(operations), false, "Health must not inherit Boi Ech permanent delete semantics");
 });
 
 test("global auto-approval dialog can safely control Health_Care", () => {

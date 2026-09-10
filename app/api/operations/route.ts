@@ -127,6 +127,28 @@ function app(id: string) {
   return item;
 }
 
+function rows(data: UnknownRecord) {
+  return Array.isArray(data.devices) ? data.devices.map(record) : [];
+}
+
+function rowByDeviceId(data: UnknownRecord, deviceId: string) {
+  return rows(data).find((item) => text(item.deviceId) === deviceId) ?? null;
+}
+
+async function verifyDeviceStatus(bridge: Bridge, path: string, deviceId: string, expected: "approved" | "blocked") {
+  const state = await bridgeJson(bridge, path);
+  const device = rowByDeviceId(state, deviceId);
+  if (!device || normalizedStatus(device.status) !== expected) {
+    throw new Error(`Client chưa xác nhận trạng thái ${expected} cho thiết bị sau thao tác.`);
+  }
+  return device;
+}
+
+async function verifyDeviceRemoved(bridge: Bridge, path: string, deviceId: string) {
+  const state = await bridgeJson(bridge, path);
+  if (rowByDeviceId(state, deviceId)) throw new Error("Client chưa xác nhận thiết bị đã được xóa.");
+}
+
 function deviceFrom(
   appId: string,
   appName: string,
@@ -139,24 +161,30 @@ function deviceFrom(
     approve?: boolean;
     remove?: boolean;
     approvalRequiresRegistrationComplete?: boolean;
+    requiredApprovalKeys?: string[];
+    defaultType?: ClientDevice["deviceType"];
   },
 ): ClientDevice {
   const row = record(raw);
-  const deviceType = normalizedType(row[options.typeKey]);
+  const detectedType = normalizedType(row[options.typeKey]);
+  const deviceType = detectedType === "unknown" && options.defaultType ? options.defaultType : detectedType;
   const createdAt = text(row.createdAt) || null;
   const status = normalizedStatus(row.status);
   const userLabel = options.userKeys.map((key) => text(row[key])).find(Boolean)
     || text(row.label) || text(row.autoLabel) || text(row.deviceCode) || "Thiết bị chưa gắn người dùng";
   const environmentChanged = options.environmentKey ? bool(row[options.environmentKey]) : false;
   const recent = createdAt ? Date.now() - Date.parse(createdAt) <= RECENT_DEVICE_MS : false;
-  const approvalReady = options.approvalRequiresRegistrationComplete === false || bool(row.registrationComplete);
+  const requiredKeysReady = options.requiredApprovalKeys?.length
+    ? options.requiredApprovalKeys.every((key) => Boolean(text(row[key])))
+    : null;
+  const approvalReady = requiredKeysReady ?? (options.approvalRequiresRegistrationComplete === false || bool(row.registrationComplete));
   return {
     appId, appName, href, deviceId: text(row.deviceId), deviceCode: text(row.deviceCode, "—"), deviceType,
     deviceTypeLabel: typeLabel(deviceType), userLabel, status, active: bool(row.active), createdAt,
     lastSeenAt: text(row.lastSeenAt) || text(row.lastActivityAt) || null,
     attention: environmentChanged ? "environment" : recent && status === "pending" ? "new" : "none",
     canApprove: options.approve === true && status === "pending" && approvalReady,
-    canRemove: options.remove === true,
+    canRemove: options.remove === true && status !== "blocked",
   };
 }
 
@@ -182,10 +210,10 @@ async function loadBoi(actor: ControlDeviceState) {
   const config = app("boi-ech");
   const bridge = await issueBoiBrowserBridge(actor.email, actor.role);
   const data = await bridgeJson(bridge, "/api/control/overview?activityDays=0");
-  const devices = Array.isArray(data.devices) ? data.devices.map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
+  const devices = rows(data).map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
     typeKey: "deviceType", userKeys: ["learnerName", "personCode"],
     approve: actor.role === "publisher" || actor.role === "owner", remove: actor.role === "owner",
-  })) : [];
+  }));
   return { config, devices, webHref: bridge.baseUrl, managedWebLaunch: false, hasOperationalData: true };
 }
 
@@ -193,13 +221,15 @@ async function loadHealth(actor: ControlDeviceState) {
   const config = app("health-care");
   const bridge = await issueHealthBrowserBridge(actor.email, actor.role, actor.deviceId);
   const data = await bridgeJson(bridge, "/api/control/devices");
-  const devices = Array.isArray(data.devices) ? data.devices.map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
+  const canManage = actor.role === "publisher" || actor.role === "owner";
+  const devices = rows(data).map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
     typeKey: "deviceType",
     userKeys: ["label", "autoLabel"],
     environmentKey: "environmentChanged",
-    approve: actor.role === "publisher" || actor.role === "owner",
+    approve: canManage,
+    remove: canManage,
     approvalRequiresRegistrationComplete: false,
-  })) : [];
+  }));
   return { config, devices, webHref: bridge.baseUrl, managedWebLaunch: true, hasOperationalData: true };
 }
 
@@ -207,9 +237,14 @@ async function loadRu(actor: ControlDeviceState) {
   const config = app("ru-life");
   const bridge = await issueRuLifeBrowserBridge(actor.email, actor.role, actor.deviceId);
   const data = await bridgeJson(bridge, "/api/control/devices");
-  const devices = Array.isArray(data.devices) ? data.devices.map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
-    typeKey: "deviceClass", userKeys: ["userName", "userCode", "label"],
-  })) : [];
+  const canManage = actor.role === "publisher" || actor.role === "owner";
+  const devices = rows(data).map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
+    typeKey: "deviceClass",
+    userKeys: ["userName", "userCode", "label"],
+    approve: canManage,
+    remove: canManage,
+    requiredApprovalKeys: ["userName", "userCode"],
+  }));
   return { config, devices, webHref: bridge.baseUrl, managedWebLaunch: false, hasOperationalData: true };
 }
 
@@ -217,7 +252,17 @@ async function loadBauman(actor: ControlDeviceState) {
   const config = app("bauman-master-ai");
   const bridge = await issueBaumanBrowserBridge(actor.email, actor.role, actor.deviceId);
   await bridgeJson(bridge, "/api/control/status");
-  return { config, devices: [] as ClientDevice[], webHref: bridge.baseUrl, managedWebLaunch: false, hasOperationalData: true };
+  const data = await bridgeJson(bridge, "/api/control/devices");
+  const canManage = actor.role === "owner";
+  const devices = rows(data).map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
+    typeKey: "deviceType",
+    userKeys: ["displayName", "label", "platform", "browser"],
+    approve: canManage,
+    remove: canManage,
+    approvalRequiresRegistrationComplete: false,
+    defaultType: "desktop",
+  }));
+  return { config, devices, webHref: bridge.baseUrl, managedWebLaunch: false, hasOperationalData: true };
 }
 
 async function loadGrowUp() {
@@ -386,31 +431,61 @@ export async function POST(request: Request) {
       const appId = text(payload.appId);
       const deviceId = text(payload.deviceId);
       const deviceCode = text(payload.deviceCode).toUpperCase();
+      if (operation !== "approve" && operation !== "remove") return json({ error: "Thao tác thiết bị không hợp lệ.", code: "INVALID_DEVICE_OPERATION" }, 400);
       if (!/^[a-f0-9]{64}$/.test(deviceId)) return json({ error: "Mã thiết bị không hợp lệ.", code: "INVALID_DEVICE_ID" }, 400);
 
       if (appId === "health-care") {
-        if (operation !== "approve") return json({ error: "Health_Care hiện chỉ công bố thao tác duyệt thiết bị ở bảng điều phối; các quyền khác xử lý trong khu quản trị Health.", code: "HEALTH_CLIENT_ACTION_UNAVAILABLE" }, 409);
-        if (actor.role !== "publisher" && actor.role !== "owner") return json({ error: "Vai trò hiện tại không được duyệt thiết bị.", code: "PUBLISHER_REQUIRED" }, 403);
+        if (actor.role !== "publisher" && actor.role !== "owner") return json({ error: "Vai trò hiện tại không được thay đổi thiết bị Health_Care.", code: "PUBLISHER_REQUIRED" }, 403);
         const bridge = await issueHealthBrowserBridge(actor.email, actor.role, actor.deviceId);
-        await bridgeJson(bridge, "/api/control/devices", { method: "POST", body: { action: "approve", deviceId } });
-        return json({ ok: true, approvedDeviceId: deviceId });
+        const expected = operation === "approve" ? "approved" as const : "blocked" as const;
+        await bridgeJson(bridge, "/api/control/devices", { method: "POST", body: { action: operation === "approve" ? "approve" : "block", deviceId } });
+        await verifyDeviceStatus(bridge, "/api/control/devices", deviceId, expected);
+        return json({ ok: true, verified: true, verifiedStatus: expected, ...(operation === "approve" ? { approvedDeviceId: deviceId } : { removedDeviceId: deviceId }) });
+      }
+
+      if (appId === "ru-life") {
+        if (actor.role !== "publisher" && actor.role !== "owner") return json({ error: "Vai trò hiện tại không được thay đổi thiết bị Hòa nhập Nga.", code: "PUBLISHER_REQUIRED" }, 403);
+        const bridge = await issueRuLifeBrowserBridge(actor.email, actor.role, actor.deviceId);
+        const before = await bridgeJson(bridge, "/api/control/devices");
+        const current = rowByDeviceId(before, deviceId);
+        if (!current) return json({ error: "Thiết bị Hòa nhập Nga không còn trong registry.", code: "DEVICE_NOT_FOUND" }, 404);
+        if (operation === "approve") {
+          const userName = text(current.userName);
+          const userCode = text(current.userCode);
+          if (!userName || !userCode) return json({ error: "Cần gắn Họ tên và Mã người dùng trong quản trị Hòa nhập Nga trước khi duyệt.", code: "USER_BINDING_REQUIRED" }, 409);
+          await bridgeJson(bridge, "/api/control/devices", { method: "POST", body: { targetDeviceId: deviceId, operation: "approve", userName, userCode } });
+          await verifyDeviceStatus(bridge, "/api/control/devices", deviceId, "approved");
+          return json({ ok: true, verified: true, verifiedStatus: "approved", approvedDeviceId: deviceId });
+        }
+        await bridgeJson(bridge, "/api/control/devices", { method: "POST", body: { targetDeviceId: deviceId, operation: "block" } });
+        await verifyDeviceStatus(bridge, "/api/control/devices", deviceId, "blocked");
+        return json({ ok: true, verified: true, verifiedStatus: "blocked", removedDeviceId: deviceId });
+      }
+
+      if (appId === "bauman-master-ai") {
+        if (actor.role !== "owner") return json({ error: "Bauman yêu cầu quyền Chủ hệ thống để thay đổi thiết bị.", code: "OWNER_REQUIRED" }, 403);
+        const bridge = await issueBaumanBrowserBridge(actor.email, actor.role, actor.deviceId);
+        const expected = operation === "approve" ? "approved" as const : "blocked" as const;
+        await bridgeJson(bridge, "/api/control/devices", { method: "POST", body: { action: operation === "approve" ? "approve" : "block", deviceId } });
+        await verifyDeviceStatus(bridge, "/api/control/devices", deviceId, expected);
+        return json({ ok: true, verified: true, verifiedStatus: expected, ...(operation === "approve" ? { approvedDeviceId: deviceId } : { removedDeviceId: deviceId }) });
       }
 
       if (appId !== "boi-ech") return json({ error: "Client chưa hỗ trợ thao tác này.", code: "CLIENT_ACTION_UNAVAILABLE" }, 409);
+      const bridge = await issueBoiBrowserBridge(actor.email, actor.role);
       if (operation === "approve") {
         if (actor.role !== "publisher" && actor.role !== "owner") return json({ error: "Vai trò hiện tại không được duyệt thiết bị.", code: "PUBLISHER_REQUIRED" }, 403);
-        const bridge = await issueBoiBrowserBridge(actor.email, actor.role);
         await bridgeJson(bridge, "/api/control/overview", { method: "POST", body: { action: "grant-free", deviceId } });
-        return json({ ok: true, approvedDeviceId: deviceId });
+        const state = await bridgeJson(bridge, "/api/control/overview?activityDays=0");
+        const updated = rowByDeviceId(state, deviceId);
+        if (!updated || normalizedStatus(updated.status) === "pending") throw new Error("Bơi ếch chưa xác nhận quyền truy cập sau thao tác duyệt.");
+        return json({ ok: true, verified: true, approvedDeviceId: deviceId });
       }
-      if (operation === "remove") {
-        if (actor.role !== "owner") return json({ error: "Chỉ Chủ hệ thống được loại bỏ thiết bị.", code: "OWNER_REQUIRED" }, 403);
-        if (!/^BE-[A-Z0-9-]{8,60}$/.test(deviceCode)) return json({ error: "Mã xác nhận thiết bị Bơi ếch không hợp lệ.", code: "INVALID_DEVICE_CODE" }, 400);
-        const bridge = await issueBoiBrowserBridge(actor.email, actor.role);
-        await bridgeJson(bridge, "/api/control/overview", { method: "POST", body: { action: "delete-spam-device", deviceId, confirmDeviceCode: deviceCode, deleteReason: "spam" } });
-        return json({ ok: true, removedDeviceId: deviceId });
-      }
-      return json({ error: "Thao tác thiết bị không hợp lệ.", code: "INVALID_DEVICE_OPERATION" }, 400);
+      if (actor.role !== "owner") return json({ error: "Chỉ Chủ hệ thống được xóa thiết bị Bơi ếch.", code: "OWNER_REQUIRED" }, 403);
+      if (!/^BE-[A-Z0-9-]{8,60}$/.test(deviceCode)) return json({ error: "Mã xác nhận thiết bị Bơi ếch không hợp lệ.", code: "INVALID_DEVICE_CODE" }, 400);
+      await bridgeJson(bridge, "/api/control/overview", { method: "POST", body: { action: "delete-spam-device", deviceId, confirmDeviceCode: deviceCode, deleteReason: "spam" } });
+      await verifyDeviceRemoved(bridge, "/api/control/overview?activityDays=0", deviceId);
+      return json({ ok: true, verified: true, verifiedStatus: "deleted", removedDeviceId: deviceId });
     }
     return json({ error: "Thao tác điều phối không hợp lệ.", code: "INVALID_OPERATIONS_ACTION" }, 400);
   } catch (error) {
