@@ -321,6 +321,7 @@ async function main() {
     RU_LIFE_LOCAL_BASE_URL: "http://127.0.0.1:3002",
     RU_LIFE_CONTROL_SERVICE_SECRET: ruSecret,
     BAUMAN_CONTROL_LOCAL_BASE_URL: "http://127.0.0.1:3003",
+    BAUMAN_APP_LOCAL_ORIGIN: baumanRuntimeOrigin,
     BAUMAN_CONTROL_SERVICE_SECRET: baumanSecret,
     BOI_ECH_LOCAL_BASE_URL: "http://127.0.0.1:3004",
     CONTROL_SERVICE_SECRET: boiSecret,

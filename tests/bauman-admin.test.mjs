@@ -50,6 +50,20 @@ test("Bauman device mutations are owner-only idempotent compare-and-set commands
   assert.match(operations, /operation: operation === "approve" \? "approve" : "block"/);
 });
 
+test("Bauman website access resolves the learning runtime instead of the control service", () => {
+  const operations = source("app/api/operations/route.ts");
+  const bridge = source("app/bauman.server.ts");
+  const registry = source("app/application-registry.ts");
+
+  assert.match(bridge, /resolveClientOrigin\("bauman-master-ai"\)/);
+  assert.match(bridge, /resolveClientOrigin\("bauman-runtime"\)/);
+  assert.match(bridge, /runtimeBaseUrl/);
+  assert.match(operations, /webHref: bridge\.runtimeBaseUrl/);
+  assert.doesNotMatch(operations, /loadBauman[\s\S]{0,2500}webHref: bridge\.baseUrl/);
+  assert.match(registry, /Nút Website phải mở runtime học Bauman, không mở Control Service/);
+  assert.match(registry, /contractState: "migrating"/);
+});
+
 test("Bauman keeps Math and subject modules under the level-1 hub", () => {
   const registry = source("app/application-registry.ts");
   const admin = source("app/apps/bauman-master-ai/bauman-admin.tsx");

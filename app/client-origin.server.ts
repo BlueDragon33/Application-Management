@@ -1,5 +1,5 @@
 export type ControlPlaneNetworkMode = "production" | "local" | "hybrid";
-export type ManagedClientId = "health-care" | "ru-life" | "boi-ech" | "bauman-master-ai";
+export type ManagedClientId = "health-care" | "ru-life" | "boi-ech" | "bauman-master-ai" | "bauman-runtime";
 export type ClientOriginSource = "production" | "local";
 
 export type ClientOriginResolution = {
@@ -36,6 +36,12 @@ const CLIENTS: Record<ManagedClientId, ClientOriginSpec> = {
     localEnv: "BAUMAN_CONTROL_LOCAL_BASE_URL",
     localDefault: "http://127.0.0.1:3003",
     probePath: "/api/control/status",
+  },
+  "bauman-runtime": {
+    productionEnv: "BAUMAN_APP_ORIGIN",
+    localEnv: "BAUMAN_APP_LOCAL_ORIGIN",
+    localDefault: "http://127.0.0.1:3005",
+    probePath: "/_local/health",
   },
   "boi-ech": {
     productionEnv: "BOI_ECH_BASE_URL",
@@ -88,8 +94,6 @@ async function environment() {
 function networkMode(values: Record<string, unknown>): ControlPlaneNetworkMode {
   const normalized = text(values.CONTROL_PLANE_NETWORK_MODE).toLowerCase();
   if (normalized === "production" || normalized === "local" || normalized === "hybrid") return normalized;
-  // Existing local-first launcher already uses LOCAL_DEV_AUTH=1. Preserve that
-  // workflow and automatically make client bridges local-first while on loopback.
   return values.LOCAL_DEV_AUTH === "1" ? "hybrid" : "production";
 }
 
@@ -121,9 +125,6 @@ export async function resolveClientOrigin(applicationId: ManagedClientId): Promi
   const spec = CLIENTS[applicationId];
   const production = normalizeClientOrigin(values[spec.productionEnv], false);
   const explicitLocal = normalizeClientOrigin(values[spec.localEnv], true);
-  // Backwards-compatible local-first development: .dev.vars historically put
-  // loopback origins in *_BASE_URL. Treat them as local only when they are
-  // actually private HTTP origins; production mode never accepts them.
   const legacyLocal = normalizeClientOrigin(values[spec.productionEnv], true);
   const local = explicitLocal || (legacyLocal && !production ? legacyLocal : "") || spec.localDefault;
 
