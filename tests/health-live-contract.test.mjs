@@ -3,6 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 const healthBridge = fs.readFileSync("app/health-care.server.ts", "utf8");
+const originResolver = fs.readFileSync("app/client-origin.server.ts", "utf8");
 const operations = fs.readFileSync("app/api/operations/route.ts", "utf8");
 const registry = fs.readFileSync("app/application-registry.ts", "utf8");
 const hub = fs.readFileSync("app/application-hub.tsx", "utf8");
@@ -18,7 +19,7 @@ test("Health bridge verifies management contract v3 before issuing tickets", () 
     'const TOKEN_APP = "health-care"',
     'const CONTROL_PROTOCOL = "application-management-health-control-v1"',
     'HEALTH_CONTROL_SERVICE_SECRET',
-    'HEALTH_CARE_BASE_URL',
+    'resolveClientOrigin("health-care")',
     'probeHealthManagementContract',
     '/api/control/contract',
     'contractVersion >= 3',
@@ -30,6 +31,11 @@ test("Health bridge verifies management contract v3 before issuing tickets", () 
     'boundary.healthDataInControlPlane === false',
     'boundary.profileDataInControlPlane === false',
     'registry.namespace === "SK-"',
+  ]);
+  mustContain(originResolver, [
+    'productionEnv: "HEALTH_CARE_BASE_URL"',
+    'localEnv: "HEALTH_CARE_LOCAL_BASE_URL"',
+    'localDefault: "http://127.0.0.1:3001"',
   ]);
   assert.equal(/(?<!HEALTH_)CONTROL_SERVICE_SECRET/.test(healthBridge), false, "Health bridge must not fall back to the shared legacy secret");
 });
@@ -72,13 +78,14 @@ test("global auto-approval dialog can safely control Health_Care", () => {
   assert.match(operations, /enabledBefore\.has\("health-care"\) !== healthEnabled/);
 });
 
-test("Health direct web launch uses a purpose-scoped 60 second ticket", () => {
+test("Health direct web launch uses a purpose-scoped 60 second ticket in local or cloud transport", () => {
   mustContain(healthBridge, [
     'purpose: "control" | "web-launch"',
     'issueHealthWebLaunch',
     'Date.now() + 60_000',
     '"web-launch"',
-    'chatgpt-sites-fragment',
+    'local-fragment',
+    'cloud-fragment',
     '#control-launch=',
   ]);
   mustContain(operations, [
