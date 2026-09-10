@@ -6,12 +6,14 @@ LOCAL_DEV_USER_NAME=Local Owner
 CONTROL_OWNER_EMAILS=local.owner@example.test
 
 # Optional client bridges for full-stack local testing.
-# Start each independent client on its own localhost port and use the same local-only secret on both sides.
-# HEALTH_CARE_BASE_URL=http://127.0.0.1:3001
+# Start each independent client on its own loopback port and use the same local-only secret on both sides.
+# Prefer the explicit *_LOCAL_* variables below rather than putting private HTTP origins in production *_BASE_URL variables.
+# HEALTH_CARE_LOCAL_BASE_URL=http://127.0.0.1:3001
 # HEALTH_CONTROL_SERVICE_SECRET=local-only-health-control-secret-change-me-0001
-# RU_LIFE_BASE_URL=http://127.0.0.1:3002
+# RU_LIFE_LOCAL_BASE_URL=http://127.0.0.1:3002
 # RU_LIFE_CONTROL_SERVICE_SECRET=local-only-ru-control-secret-change-me-0001
-# BAUMAN_CONTROL_BASE_URL=http://127.0.0.1:3003
+# BAUMAN_CONTROL_LOCAL_BASE_URL=http://127.0.0.1:3003
+# BAUMAN_APP_LOCAL_ORIGIN=http://127.0.0.1:3005
 # BAUMAN_CONTROL_SERVICE_SECRET=local-only-bauman-control-secret-change-me-0001
-# BOI_ECH_BASE_URL=http://127.0.0.1:3004
+# BOI_ECH_LOCAL_BASE_URL=http://127.0.0.1:3004
 # CONTROL_SERVICE_SECRET=local-only-boi-control-secret-change-me-0001
