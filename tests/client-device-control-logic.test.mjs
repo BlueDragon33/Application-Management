@@ -82,9 +82,16 @@ test("bootstrap remains read-only and automation is only changed by its explicit
 
 test("Boi delete and other-client block semantics stay separate at the backend", () => {
   const route = source("app/api/operations/route.ts");
+  const health = actionBlock(route, "health-care", "ru-life");
+  const ru = actionBlock(route, "ru-life", "bauman-master-ai");
+  const baumanStart = route.indexOf('if (appId === "bauman-master-ai")');
+  const boiStart = route.indexOf('if (appId !== "boi-ech")', baumanStart);
+  const bauman = route.slice(baumanStart, boiStart);
   assert.match(route, /delete-spam-device/);
   assert.match(route, /Chỉ Chủ hệ thống được xóa thiết bị Bơi ếch/);
-  assert.match(route, /operation: "block"/);
+  assert.match(health, /operation: operation === "approve" \? "approve" : "block"/);
+  assert.match(ru, /operation: operation === "approve" \? "approve" : "block"/);
+  assert.match(bauman, /action: operation === "approve" \? "approve" : "block"/);
   assert.match(route, /verifiedStatus: "deleted"/);
-  assert.match(route, /verifiedStatus: "blocked"/);
+  assert.match(route, /verifiedStatus: expected/);
 });
