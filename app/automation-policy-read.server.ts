@@ -60,7 +60,10 @@ async function readHealthAutomation() {
 /** Read-only policy probes. No registration/device mutation is performed here. */
 export async function readClientAutoApprovalStates(supportedAppIds: readonly string[]) {
   return Promise.allSettled(supportedAppIds.map(async (appId) => {
-    if (appId === "boi-ech") return { appId, ...(await readBoiAutomation()), enabled: (await readBoiAutomation()).autoApproveEnabled };
+    if (appId === "boi-ech") {
+      const state = await readBoiAutomation();
+      return { appId, ...state, enabled: state.autoApproveEnabled };
+    }
     if (appId === "health-care") {
       const state = await readHealthAutomation();
       return { appId, ...state, enabled: state.autoApproveEnabled };
