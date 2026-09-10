@@ -1,0 +1,21 @@
+@echo off
+setlocal
+cd /d "%~dp0"
+echo ===============================================================
+echo   APPLICATION MANAGEMENT - FULL LOCAL CONTROL PLANE
+echo ===============================================================
+echo.
+where node >nul 2>nul
+if errorlevel 1 (
+  echo [ERROR] Chua cai Node.js. Can Node.js 22.13.0 tro len.
+  pause
+  exit /b 1
+)
+node scripts\run-local-system.mjs --local
+if errorlevel 1 (
+  echo.
+  echo [ERROR] He thong local dung voi loi. Xem thong bao phia tren.
+  pause
+  exit /b 1
+)
+endlocal
