@@ -13,6 +13,7 @@ import {
 } from "../../admin-device-client";
 import type { ApplicationConfig } from "../../application-registry";
 import styles from "../../application-admin.module.css";
+import baumanStyles from "./bauman-admin.module.css";
 
 type View = "overview" | "devices" | "subclients" | "contract";
 type ReadinessState = "available" | "implemented" | "missing";
@@ -65,9 +66,7 @@ export default function BaumanAdmin({ application, user }: { application: Applic
       const result = await connectOperationsDashboard();
       setAccess(result.access);
       setOperations(result.bootstrap);
-      if (result.access.status === "approved" && !result.bootstrap) {
-        setError("Không thể tải bảng điều phối Bauman từ control-plane.");
-      }
+      if (result.access.status === "approved" && !result.bootstrap) setError("Không thể tải bảng điều phối Bauman từ control-plane.");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Không thể xác thực khu quản trị Bauman Hub.");
     } finally {
@@ -174,19 +173,19 @@ export default function BaumanAdmin({ application, user }: { application: Applic
 
       {view === "devices" ? <section className={styles.clientPanel}>
         <div className={styles.panelHeader}><div><span>BM DEVICE REGISTRY</span><h2>Thiết bị do Bauman sở hữu</h2></div><p>{liveConnected ? `Đã đồng bộ ${devices.length} thiết bị. Khóa không xóa registry và sẽ thu hồi session đang hoạt động.` : "Bauman chưa phản hồi live; các nút mutation bị vô hiệu theo capability từ control-plane."}</p></div>
-        <div className={styles.deviceAdminSummary}><div><span>Chờ duyệt</span><strong>{pending}</strong></div><div><span>Đã cấp quyền</span><strong>{approved}</strong></div><div><span>Đã khóa</span><strong>{blocked}</strong></div><div><span>Vai trò</span><strong>{roleLabels[access.role]}</strong></div></div>
-        {devices.length ? <div className={styles.deviceAdminList}>{devices.map((device) => {
+        <div className={baumanStyles.deviceAdminSummary}><div><span>Chờ duyệt</span><strong>{pending}</strong></div><div><span>Đã cấp quyền</span><strong>{approved}</strong></div><div><span>Đã khóa</span><strong>{blocked}</strong></div><div><span>Vai trò</span><strong>{roleLabels[access.role]}</strong></div></div>
+        {devices.length ? <div className={baumanStyles.deviceAdminList}>{devices.map((device) => {
           const approving = actioning === `${device.deviceId}:approve`;
           const blocking = actioning === `${device.deviceId}:remove`;
           return <article key={device.deviceId} data-status={device.status}>
-            <div className={styles.deviceAdminIdentity}><span>{device.deviceType === "phone" ? "PH" : device.deviceType === "tablet" ? "TB" : "PC"}</span><div><strong>{device.deviceCode}</strong><small>{device.userLabel}</small></div></div>
+            <div className={baumanStyles.deviceAdminIdentity}><span>{device.deviceType === "phone" ? "PH" : device.deviceType === "tablet" ? "TB" : "PC"}</span><div><strong>{device.deviceCode}</strong><small>{device.userLabel}</small></div></div>
             <dl><div><dt>Trạng thái</dt><dd data-status={device.status}>{deviceStatusLabel[device.status]}</dd></div><div><dt>Loại</dt><dd>{device.deviceTypeLabel}</dd></div><div><dt>Hoạt động cuối</dt><dd>{formatTime(device.lastSeenAt)}</dd></div><div><dt>Đăng ký</dt><dd>{formatTime(device.createdAt)}</dd></div></dl>
-            <div className={styles.deviceAdminActions}>
+            <div className={baumanStyles.deviceAdminActions}>
               {device.status === "pending" ? <button data-action="approve" onClick={() => void manageDevice(device, "approve")} disabled={!device.canApprove || Boolean(actioning)}>{approving ? "Đang duyệt…" : "Duyệt"}</button> : null}
               {device.status !== "blocked" ? <button data-action="block" onClick={() => void manageDevice(device, "remove")} disabled={!device.canRemove || Boolean(actioning)}>{blocking ? "Đang khóa…" : "Khóa"}</button> : <span>Registry được giữ lại</span>}
             </div>
           </article>;
-        })}</div> : <div className={styles.deviceAdminEmpty}><strong>{liveConnected ? "Chưa có thiết bị Bauman trong registry." : "Chưa đọc được registry Bauman."}</strong><p>{liveConnected ? "Mở runtime Bauman trên thiết bị mới để Device Gate đăng ký mã BM-, sau đó yêu cầu sẽ xuất hiện tại đây." : "Kiểm tra Bauman Control URL, secret, D1 binding và BAUMAN_APP_ORIGIN. Trung tâm không tạo dữ liệu thiết bị giả."}</p></div>}
+        })}</div> : <div className={baumanStyles.deviceAdminEmpty}><strong>{liveConnected ? "Chưa có thiết bị Bauman trong registry." : "Chưa đọc được registry Bauman."}</strong><p>{liveConnected ? "Mở runtime Bauman trên thiết bị mới để Device Gate đăng ký mã BM-, sau đó yêu cầu sẽ xuất hiện tại đây." : "Kiểm tra Bauman Control URL, secret, D1 binding và BAUMAN_APP_ORIGIN. Trung tâm không tạo dữ liệu thiết bị giả."}</p></div>}
       </section> : null}
 
       {view === "subclients" ? <section className={styles.clientPanel}><div className={styles.panelHeader}><div><span>SUB-CLIENT INVENTORY</span><h2>Cấu trúc học tập dưới Bauman</h2></div><p>Inventory quản trị; không điều hướng người quản trị sang runtime học tập thay cho chức năng quản trị.</p></div><div className={styles.subClientList}>{children.map((child) => <article key={child.id}><span className={styles.subClientMark}>{child.initials}</span><div><strong>{child.name}</strong><small>{child.repository ?? child.sourcePath ?? "Chưa gán nguồn"}</small></div><div><span>Loại</span><strong>{child.kind === "subject-site" ? "Site môn học" : "Module"}</strong></div><div><span>Trạng thái</span><strong>{child.state === "independent" ? "Độc lập" : "Trong Bauman"}</strong></div><div><span>Admin contract</span><strong>{child.state === "independent" ? "Cần contract riêng" : "Qua Bauman Hub"}</strong></div></article>)}</div></section> : null}
