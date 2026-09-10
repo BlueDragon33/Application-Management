@@ -530,20 +530,62 @@ export async function POST(request: Request) {
       if (appId === "ru-life") {
         if (actor.role !== "publisher" && actor.role !== "owner") return json({ error: "Vai trò hiện tại không được thay đổi thiết bị Hòa nhập Nga.", code: "PUBLISHER_REQUIRED" }, 403);
         const bridge = await issueRuLifeBrowserBridge(actor.email, actor.role, actor.deviceId);
+        const status = await bridgeJson(bridge, "/api/control/status");
+        const endpoints = record(status.endpoints);
+        const capabilities = record(status.capabilities);
+        const commandPath = text(endpoints.deviceCommands);
+        if (commandPath !== "/api/control/device-commands" || !bool(capabilities.deviceIdempotentCommands) || !bool(capabilities.optimisticConcurrency)) {
+          return json({ error: "Contract Hòa nhập Nga chưa xác nhận idempotent device commands.", code: "RU_DEVICE_COMMAND_CONTRACT_NOT_LIVE" }, 409);
+        }
+
         const before = await bridgeJson(bridge, "/api/control/devices");
         const current = rowByDeviceId(before, deviceId);
         if (!current) return json({ error: "Thiết bị Hòa nhập Nga không còn trong registry.", code: "DEVICE_NOT_FOUND" }, 404);
-        if (operation === "approve") {
-          const userName = text(current.userName);
-          const userCode = text(current.userCode);
-          if (!userName || !userCode) return json({ error: "Cần gắn Họ tên và Mã người dùng trong quản trị Hòa nhập Nga trước khi duyệt.", code: "USER_BINDING_REQUIRED" }, 409);
-          await bridgeJson(bridge, "/api/control/devices", { method: "POST", body: { targetDeviceId: deviceId, operation: "approve", userName, userCode } });
-          await verifyDeviceStatus(bridge, "/api/control/devices", deviceId, "approved");
-          return json({ ok: true, verified: true, verifiedStatus: "approved", approvedDeviceId: deviceId });
+
+        const liveStatus = normalizedStatus(current.status);
+        const suppliedExpected = normalizedStatus(payload.expectedStatus);
+        const expectedStatus = suppliedExpected === "unknown" ? liveStatus : suppliedExpected;
+        if (expectedStatus !== liveStatus) {
+          return json({ error: `Snapshot Hòa nhập Nga đã thay đổi: expected ${expectedStatus}, hiện tại ${liveStatus}.`, code: "DEVICE_STATE_CONFLICT" }, 409);
         }
-        await bridgeJson(bridge, "/api/control/devices", { method: "POST", body: { targetDeviceId: deviceId, operation: "block" } });
-        await verifyDeviceStatus(bridge, "/api/control/devices", deviceId, "blocked");
-        return json({ ok: true, verified: true, verifiedStatus: "blocked", removedDeviceId: deviceId });
+        if (operation === "approve" && expectedStatus !== "pending") {
+          return json({ error: "Thiết bị Hòa nhập Nga không còn ở trạng thái chờ duyệt.", code: "DEVICE_STATE_CONFLICT" }, 409);
+        }
+        if (operation === "remove" && expectedStatus !== "pending" && expectedStatus !== "approved") {
+          return json({ error: "Thiết bị Hòa nhập Nga đã bị khóa hoặc trạng thái không xác định.", code: "DEVICE_STATE_CONFLICT" }, 409);
+        }
+
+        const userName = operation === "approve" ? text(current.userName) : "";
+        const userCode = operation === "approve" ? text(current.userCode) : "";
+        if (operation === "approve" && (!userName || !userCode)) {
+          return json({ error: "Cần gắn Họ tên và Mã người dùng trong quản trị Hòa nhập Nga trước khi duyệt.", code: "USER_BINDING_REQUIRED" }, 409);
+        }
+
+        const suppliedCommandId = text(payload.commandId).toLowerCase();
+        if (suppliedCommandId && !validCommandId(suppliedCommandId)) {
+          return json({ error: "commandId không hợp lệ.", code: "INVALID_COMMAND_ID" }, 400);
+        }
+        const commandId = suppliedCommandId || crypto.randomUUID();
+        const expected = operation === "approve" ? "approved" as const : "blocked" as const;
+        const command = await bridgeCommandJson(bridge, commandPath, {
+          commandId,
+          deviceId,
+          operation: operation === "approve" ? "approve" : "block",
+          expectedStatus,
+          ...(operation === "approve" ? { userName, userCode } : {}),
+        });
+        if (text(command.commandId).toLowerCase() !== commandId || normalizedStatus(command.status) !== expected) {
+          return json({ error: "Hòa nhập Nga chưa xác nhận commandId hoặc trạng thái kết quả.", code: "DEVICE_COMMAND_READBACK_MISMATCH" }, 502);
+        }
+        await verifyDeviceStatus(bridge, "/api/control/devices", deviceId, expected);
+        return json({
+          ok: true,
+          verified: true,
+          verifiedStatus: expected,
+          commandId,
+          commandReplayed: bool(command.replayed),
+          ...(operation === "approve" ? { approvedDeviceId: deviceId } : { removedDeviceId: deviceId }),
+        });
       }
 
       if (appId === "bauman-master-ai") {
