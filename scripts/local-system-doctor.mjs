@@ -77,11 +77,13 @@ function checkFile(reporter, path, label) {
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   const reporter = createReporter();
+  const baumanRoot = join(options.appsRoot, "Bauman-master-ai-system");
   const paths = {
     central: centralRoot,
     health: join(options.appsRoot, "Health_Care"),
     ruLife: join(options.appsRoot, "RU_LIFE"),
-    baumanControl: join(options.appsRoot, "Bauman-master-ai-system", "control-service"),
+    baumanRuntime: baumanRoot,
+    baumanControl: join(baumanRoot, "control-service"),
     boi: join(options.appsRoot, "BOIECH_AI", "boi-ech"),
   };
 
@@ -103,6 +105,12 @@ async function main() {
     [join(paths.ruLife, "wrangler.local.jsonc"), "RU_LIFE local D1 config"],
     [join(paths.baumanControl, "package.json"), "Bauman Control package"],
     [join(paths.baumanControl, "wrangler.jsonc"), "Bauman Control Wrangler config"],
+    [join(paths.baumanControl, "wrangler.local.jsonc"), "Bauman Control local D1 config"],
+    [join(paths.baumanRuntime, "index.html"), "Bauman learning runtime"],
+    [join(paths.baumanRuntime, "assets", "js", "platform", "runtime-config.js"), "Bauman runtime control config"],
+    [join(paths.baumanRuntime, "assets", "js", "platform", "device-access-gate.js"), "Bauman Device Gate v4"],
+    [join(paths.baumanRuntime, "assets", "css", "device-access-gate.css"), "Bauman Device Gate styles"],
+    [join(paths.baumanRuntime, "scripts", "serve-local-runtime.mjs"), "Bauman local static runtime server"],
     [join(paths.boi, "package.json"), "Bơi ếch package"],
     [join(paths.boi, "vite.config.ts"), "Bơi ếch local bindings"],
     [join(paths.boi, "wrangler.d1.jsonc"), "Bơi ếch local D1 config"],
@@ -117,7 +125,7 @@ async function main() {
     'http://127.0.0.1:3003',
     'http://127.0.0.1:3004',
     'url.protocol === "https:"',
-  ])) reporter.pass("Hybrid origin resolver", "Production HTTPS + local ports 3001–3004");
+  ])) reporter.pass("Hybrid origin resolver", "Production HTTPS + control ports 3001–3004");
   else reporter.fail("Hybrid origin resolver", "Resolver thiếu mode/port/HTTPS guard chuẩn.");
 
   const launcherPath = join(paths.central, "scripts", "run-local-system.mjs");
@@ -130,6 +138,37 @@ async function main() {
   } else {
     reporter.fail("Local D1 isolation", "Phát hiện dấu hiệu remote deployment trong launcher local.");
   }
+
+  if (hasAll(launcher, [
+    'baumanRuntimeOrigin = "http://127.0.0.1:3005"',
+    'BAUMAN_APP_ORIGIN',
+    'scripts/serve-local-runtime.mjs',
+    'BAUMAN-RUNTIME',
+    '/_local/health',
+  ])) reporter.pass("Bauman local runtime bridge", "Runtime :3005 được khóa qua Bauman Control :3003");
+  else reporter.fail("Bauman local runtime bridge", "Launcher chưa nối đầy đủ Bauman runtime :3005 với Control Service.");
+
+  const runtimeServerPath = join(paths.baumanRuntime, "scripts", "serve-local-runtime.mjs");
+  if (syntaxCheck(runtimeServerPath)) reporter.pass("Bauman runtime server syntax", "node --check PASS");
+  else reporter.fail("Bauman runtime server syntax", "Không parse được scripts/serve-local-runtime.mjs");
+
+  const runtimeHtml = text(join(paths.baumanRuntime, "index.html"));
+  const runtimeConfig = text(join(paths.baumanRuntime, "assets", "js", "platform", "runtime-config.js"));
+  const runtimeGate = text(join(paths.baumanRuntime, "assets", "js", "platform", "device-access-gate.js"));
+  if (hasAll(runtimeHtml, ["assets/css/device-access-gate.css", "assets/js/platform/runtime-config.js", "assets/js/platform/device-access-gate.js"])) {
+    reporter.pass("Bauman runtime gate wiring", "index.html nạp Device Gate trước ứng dụng học");
+  } else reporter.fail("Bauman runtime gate wiring", "index.html chưa nạp đủ runtime config/gate.");
+
+  if (hasAll(runtimeConfig, ["bauman-control-v4", "http://127.0.0.1:3003", "deviceAccess: true"]) && hasAll(runtimeGate, [
+    "/api/device/register",
+    "/api/device/challenge",
+    "/api/device/verify",
+    "/api/device/heartbeat",
+    "ECDSA",
+    "P-256",
+    "offline-grace",
+  ])) reporter.pass("Bauman Device Gate contract", "P-256 + session + heartbeat + offline grace");
+  else reporter.fail("Bauman Device Gate contract", "Device Gate không khớp contract v4.");
 
   const healthVite = text(join(paths.health, "vite.config.ts"));
   if (hasAll(healthVite, ["HEALTH_CONTROL_SERVICE_SECRET", "APPLICATION_MANAGEMENT_ORIGIN", "LOCAL_CONTROL_ALLOW_LAN"])) {
@@ -146,7 +185,7 @@ async function main() {
     reporter.pass("Bơi ếch local bridge", "Bindings local đã có");
   } else reporter.fail("Bơi ếch local bridge", "Bơi ếch chưa có đủ local control bindings.");
 
-  const portResults = await Promise.all([3000, 3001, 3002, 3003, 3004].map(async (port) => [port, await portFree(port)]));
+  const portResults = await Promise.all([3000, 3001, 3002, 3003, 3004, 3005].map(async (port) => [port, await portFree(port)]));
   for (const [port, free] of portResults) {
     if (free) reporter.pass(`Port ${port}`, "Đang trống");
     else if (options.strictPorts) reporter.fail(`Port ${port}`, "Đang có tiến trình lắng nghe");
