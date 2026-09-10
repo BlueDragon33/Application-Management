@@ -26,6 +26,7 @@ test("local port convention matches the existing local-first layout", () => {
   assert.match(resolver, /ru-life[\s\S]*127\.0\.0\.1:3002/);
   assert.match(resolver, /bauman-master-ai[\s\S]*127\.0\.0\.1:3003/);
   assert.match(resolver, /boi-ech[\s\S]*127\.0\.0\.1:3004/);
+  assert.match(launcher, /baumanRuntimeOrigin = "http:\/\/127\.0\.0\.1:3005"/);
 });
 
 test("all managed client bridges use the shared resolver and no chatgpt.site fallback", () => {
@@ -40,7 +41,7 @@ test("full local launcher keeps repos independent and local databases isolated",
   for (const token of ["Health_Care", "RU_LIFE", "Bauman-master-ai-system", "BOIECH_AI", "Application Management"]) {
     assert.ok(launcher.includes(token), `missing launcher repo token: ${token}`);
   }
-  for (const port of [3000, 3001, 3002, 3003, 3004]) {
+  for (const port of [3000, 3001, 3002, 3003, 3004, 3005]) {
     assert.ok(launcher.includes(String(port)), `missing local port ${port}`);
   }
   assert.match(launcher, /randomBytes\(48\)\.toString\("base64url"\)/);
@@ -51,6 +52,10 @@ test("full local launcher keeps repos independent and local databases isolated",
   assert.match(launcher, /"bauman-control-local", "--local", "--config", "wrangler\.local\.jsonc"/);
   assert.match(launcher, /Bauman control-service\/wrangler\.local\.jsonc/);
   assert.match(launcher, /"wrangler", "dev", "--local", "--config", "wrangler\.local\.jsonc"/);
+  assert.match(launcher, /BAUMAN_APP_ORIGIN/);
+  assert.match(launcher, /scripts\/serve-local-runtime\.mjs/);
+  assert.match(launcher, /BAUMAN-RUNTIME/);
+  assert.match(launcher, /_local\/health/);
   assert.doesNotMatch(launcher, /"--remote"/);
   assert.doesNotMatch(launcher, /workers\.dev/);
 });
