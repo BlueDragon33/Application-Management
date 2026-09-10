@@ -13,6 +13,9 @@ interface Env {
   RU_LIFE_CONTROL_SERVICE_SECRET?: string;
   BAUMAN_CONTROL_BASE_URL?: string;
   BAUMAN_CONTROL_SERVICE_SECRET?: string;
+  GROWUP_BASE_URL?: string;
+  CF_ACCESS_TEAM_DOMAIN?: string;
+  CF_ACCESS_AUD?: string;
 }
 
 interface ExecutionContext {
