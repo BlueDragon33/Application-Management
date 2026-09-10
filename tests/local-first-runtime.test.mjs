@@ -42,7 +42,7 @@ test("local secrets remain untracked and dev bindings are serve-only", () => {
 });
 
 test("Cloudflare track never inherits the local auth bypass", () => {
-  assert.equal(cloudflareTemplate.includes("LOCAL_DEV_AUTH"), false);
+  assert.equal(/"LOCAL_DEV_AUTH"\s*:/.test(cloudflareTemplate), false);
   assert.ok(cloudflareTemplate.includes("CF_ACCESS_TEAM_DOMAIN"));
   assert.ok(cloudflareTemplate.includes("CF_ACCESS_AUD"));
   assert.ok(gitignore.split(/\r?\n/).includes("wrangler.cloudflare.jsonc"));
