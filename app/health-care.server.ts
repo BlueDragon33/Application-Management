@@ -14,6 +14,7 @@ export type HealthContractProbe = {
   controlProtocol: string;
   capabilities: string[];
   deviceNamespace: string;
+  deviceCommandsTarget: string;
   webLaunchTarget: string;
   originSource: "local" | "production";
 };
@@ -92,6 +93,7 @@ export async function probeHealthManagementContract(): Promise<HealthContractPro
     const capabilities = Array.isArray(payload.capabilities)
       ? payload.capabilities.filter((item): item is string => typeof item === "string")
       : [];
+    const deviceCommandsTarget = text(endpoints.deviceCommands);
     const webLaunchTarget = text(endpoints.webLaunchTarget);
 
     const valid = payload.application === TOKEN_APP
@@ -106,12 +108,14 @@ export async function probeHealthManagementContract(): Promise<HealthContractPro
       && Number(auth.webLaunchTtlSeconds) === 60
       && endpoints.status === "/api/control/status"
       && endpoints.devices === "/api/control/devices"
+      && deviceCommandsTarget === "/api/control/device-commands"
       && endpoints.sessions === "/api/control/sessions"
       && endpoints.policy === "/api/control/policy"
       && endpoints.automation === "/api/control/automation"
       && endpoints.contentReview === "/api/control/health-content"
       && endpoints.audit === "/api/control/audit"
       && webLaunchTarget === "/suc-khoe-tre"
+      && capabilities.includes("device-idempotent-commands")
       && capabilities.includes("device-auto-approval")
       && capabilities.includes("control-web-launch")
       && boundary.healthDataInControlPlane === false
@@ -123,7 +127,7 @@ export async function probeHealthManagementContract(): Promise<HealthContractPro
 
     if (!valid) {
       throw new HealthBridgeError(
-        "Contract của Sức khỏe Y tế chưa đạt phiên bản quản trị v3.",
+        "Contract của Sức khỏe Y tế chưa đạt phiên bản quản trị v3 có idempotent device commands.",
         409,
         { code: "HEALTH_CARE_CONTRACT_MISMATCH", baseUrl, originSource: origin.source },
       );
@@ -136,6 +140,7 @@ export async function probeHealthManagementContract(): Promise<HealthContractPro
       controlProtocol: CONTROL_PROTOCOL,
       capabilities,
       deviceNamespace: "SK-",
+      deviceCommandsTarget,
       webLaunchTarget,
       originSource: origin.source,
     };
@@ -211,6 +216,7 @@ export async function issueHealthBrowserBridge(actor: string, role: ControlRole,
     transport: configured.source === "local" ? "local-control" as const : "cloud-control" as const,
     contractVersion: contract.contractVersion,
     controlProtocol: contract.controlProtocol,
+    deviceCommandsTarget: contract.deviceCommandsTarget,
     originSource: configured.source,
   };
 }
