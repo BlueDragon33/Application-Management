@@ -29,7 +29,9 @@ test("automation state is read from the owning clients before central audit fall
   assert.match(settings, /fallback\.has\(appId\)/);
   assert.match(settings, /autoBlockPendingSupportedAppIds/);
   assert.match(settings, /pendingBlockAfterHoursByApp/);
-  assert.doesNotMatch(settings, /autoBlockSupported\.add\(appId\)[\s\S]*fallback\.has\(appId\)/);
+  const fallbackBranch = settings.match(/else if \(fallback\.has\(appId\)\) \{([\s\S]*?)\n\s*\}/)?.[1] ?? "";
+  assert.match(fallbackBranch, /autoApproveEnabled\.add\(appId\)/);
+  assert.doesNotMatch(fallbackBranch, /autoBlockSupported|autoBlockEnabled|pendingBlockAfterHours/);
 });
 
 test("automation policy reader uses a bounded read-only service identity", () => {
