@@ -62,17 +62,22 @@ test("Health remains a separate managed client and operations uses its own bridg
 });
 
 test("central Health device actions use commandId expectedStatus retry-safe mutation and read-back verification", () => {
-  assert.match(operations, /if \(appId === "health-care"\)[\s\S]*bridgeCommandJson/);
-  assert.match(operations, /actor\.role !== "publisher" && actor\.role !== "owner"/);
-  assert.match(operations, /issueHealthBrowserBridge\(actor\.email, actor\.role, actor\.deviceId\)/);
-  assert.match(operations, /const commandId = suppliedCommandId \|\| crypto\.randomUUID\(\)/);
-  assert.match(operations, /expectedStatus,/);
-  assert.match(operations, /bridge\.deviceCommandsTarget/);
-  assert.match(operations, /DEVICE_COMMAND_READBACK_MISMATCH/);
-  assert.match(operations, /verifyDeviceStatus\(bridge, "\/api\/control\/devices", deviceId, expected\)/);
+  const healthStart = operations.indexOf('if (appId === "health-care")');
+  const ruStart = operations.indexOf('if (appId === "ru-life")', healthStart);
+  assert.ok(healthStart >= 0 && ruStart > healthStart, "Health action block boundaries must be detectable");
+  const healthActionBlock = operations.slice(healthStart, ruStart);
+
+  assert.match(healthActionBlock, /bridgeCommandJson/);
+  assert.match(healthActionBlock, /actor\.role !== "publisher" && actor\.role !== "owner"/);
+  assert.match(healthActionBlock, /issueHealthBrowserBridge\(actor\.email, actor\.role, actor\.deviceId\)/);
+  assert.match(healthActionBlock, /const commandId = suppliedCommandId \|\| crypto\.randomUUID\(\)/);
+  assert.match(healthActionBlock, /expectedStatus,/);
+  assert.match(healthActionBlock, /bridge\.deviceCommandsTarget/);
+  assert.match(healthActionBlock, /DEVICE_COMMAND_READBACK_MISMATCH/);
+  assert.match(healthActionBlock, /verifyDeviceStatus\(bridge, "\/api\/control\/devices", deviceId, expected\)/);
   assert.match(operations, /error instanceof TypeError[\s\S]*Client phản hồi quá thời hạn/);
-  assert.equal(/appId === "health-care"[\s\S]*bridgeJson\(bridge, "\/api\/control\/devices", \{ method: "POST"/.test(operations), false, "Health central mutation must not use legacy direct device POST");
-  assert.equal(/delete-spam-device[\s\S]*health-care/.test(operations), false, "Health must not inherit Boi Ech permanent delete semantics");
+  assert.equal(/bridgeJson\(bridge, "\/api\/control\/devices", \{ method: "POST"/.test(healthActionBlock), false, "Health central mutation must not use legacy direct device POST");
+  assert.equal(/delete-spam-device/.test(healthActionBlock), false, "Health must not inherit Boi Ech permanent delete semantics");
 });
 
 test("global auto-approval dialog can safely control Health_Care", () => {
