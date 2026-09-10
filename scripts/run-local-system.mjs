@@ -180,11 +180,14 @@ async function waitForEndpoint(name, url, timeoutMs = 45_000) {
   while (Date.now() < deadline) {
     try {
       const response = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(900) });
-      console.log(`[local-system] ${name} sẵn sàng · HTTP ${response.status}`);
-      return;
+      if (response.status < 500) {
+        console.log(`[local-system] ${name} sẵn sàng · HTTP ${response.status}`);
+        return;
+      }
     } catch {
-      await new Promise((resolvePromise) => setTimeout(resolvePromise, 450));
+      // Retry until timeout.
     }
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 450));
   }
   throw new Error(`${name} không sẵn sàng sau ${Math.round(timeoutMs / 1000)} giây: ${url}`);
 }
@@ -223,18 +226,21 @@ async function shutdown(exitCode = 0) {
 async function main() {
   ensureNodeVersion();
   const options = parseArgs(process.argv.slice(2));
+  const baumanRoot = join(options.appsRoot, "Bauman-master-ai-system");
   const paths = {
     central: centralRoot,
     health: join(options.appsRoot, "Health_Care"),
     ruLife: join(options.appsRoot, "RU_LIFE"),
-    baumanControl: join(options.appsRoot, "Bauman-master-ai-system", "control-service"),
+    baumanRuntime: baumanRoot,
+    baumanControl: join(baumanRoot, "control-service"),
     boi: join(options.appsRoot, "BOIECH_AI", "boi-ech"),
   };
 
   for (const [key, path] of Object.entries(paths)) requirePath(path, key);
   requirePath(join(paths.ruLife, "wrangler.local.jsonc"), "RU_LIFE/wrangler.local.jsonc");
   requirePath(join(paths.baumanControl, "wrangler.local.jsonc"), "Bauman control-service/wrangler.local.jsonc");
-  requirePorts([3000, 3001, 3002, 3003, 3004]);
+  requirePath(join(paths.baumanRuntime, "scripts", "serve-local-runtime.mjs"), "Bauman scripts/serve-local-runtime.mjs");
+  requirePorts([3000, 3001, 3002, 3003, 3004, 3005]);
 
   ensureDependencies("Application Management", paths.central, true, options.skipInstall);
   ensureDependencies("Sức khỏe Y tế", paths.health, true, options.skipInstall);
@@ -246,6 +252,7 @@ async function main() {
   migrateLocalDatabases(paths, options.skipMigrate);
 
   const centralOrigin = "http://127.0.0.1:3000";
+  const baumanRuntimeOrigin = "http://127.0.0.1:3005";
   const healthSecret = ephemeralSecret();
   const ruSecret = ephemeralSecret();
   const baumanSecret = ephemeralSecret();
@@ -271,12 +278,13 @@ async function main() {
     env: { ...commonClientEnv, RU_LIFE_CONTROL_SERVICE_SECRET: ruSecret },
   }));
   children.push(spawnService({
-    name: "BAUMAN",
+    name: "BAUMAN-CONTROL",
     command: npx,
     args: [
       "wrangler", "dev", "--local", "--config", "wrangler.local.jsonc", "--ip", "127.0.0.1", "--port", "3003",
       "--var", `BAUMAN_CONTROL_SERVICE_SECRET:${baumanSecret}`,
       "--var", `APPLICATION_MANAGEMENT_ORIGIN:${centralOrigin}`,
+      "--var", `BAUMAN_APP_ORIGIN:${baumanRuntimeOrigin}`,
     ],
     cwd: paths.baumanControl,
     env: {},
@@ -288,12 +296,20 @@ async function main() {
     cwd: paths.boi,
     env: { ...commonClientEnv, CONTROL_SERVICE_SECRET: boiSecret },
   }));
+  children.push(spawnService({
+    name: "BAUMAN-RUNTIME",
+    command: process.execPath,
+    args: ["scripts/serve-local-runtime.mjs", "--host", "127.0.0.1", "--port", "3005"],
+    cwd: paths.baumanRuntime,
+    env: {},
+  }));
 
   await Promise.all([
     waitForEndpoint("Sức khỏe Y tế", "http://127.0.0.1:3001/api/control/contract"),
     waitForEndpoint("Hòa nhập Nga", "http://127.0.0.1:3002/api/control/status"),
     waitForEndpoint("Bauman Control", "http://127.0.0.1:3003/health"),
     waitForEndpoint("Bơi ếch", "http://127.0.0.1:3004/api/control/overview?activityDays=0"),
+    waitForEndpoint("Bauman Runtime", `${baumanRuntimeOrigin}/_local/health`),
   ]);
 
   const centralEnv = {
@@ -329,10 +345,11 @@ async function main() {
   console.log(" Hòa nhập Nga    : http://127.0.0.1:3002");
   console.log(" Bauman Control  : http://127.0.0.1:3003 · D1 bauman-control-local");
   console.log(" Bơi ếch         : http://127.0.0.1:3004");
+  console.log(` Bauman Runtime  : ${baumanRuntimeOrigin} · Device Gate v4`);
   console.log("---------------------------------------------------------------");
   console.log(" D1 local nằm trong .wrangler của từng repo và KHÔNG phải D1 production.");
   console.log(" Secret liên-app chỉ tồn tại trong process hiện tại, không ghi vào GitHub.");
-  console.log(" Bauman learning runtime sẽ được nối ở cổng riêng; hiện lượt này chỉ bật Control Service v4.");
+  console.log(" Bauman Runtime phải được duyệt bằng mã BM- trong Application Management trước khi mở nội dung học.");
   console.log(" Nhấn Ctrl+C để dừng toàn bộ hệ thống.");
   console.log("===============================================================\n");
 
