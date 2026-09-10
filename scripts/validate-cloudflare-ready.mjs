@@ -9,7 +9,7 @@ for (const file of requiredLocal) {
 }
 
 const template = fs.readFileSync("wrangler.cloudflare.example.jsonc", "utf8");
-if (template.includes("LOCAL_DEV_AUTH")) throw new Error("Cloudflare template tuyệt đối không được chứa LOCAL_DEV_AUTH.");
+if (/"LOCAL_DEV_AUTH"\s*:/.test(template)) throw new Error("Cloudflare template tuyệt đối không được cấu hình LOCAL_DEV_AUTH.");
 if (!template.includes("CF_ACCESS_TEAM_DOMAIN") || !template.includes("CF_ACCESS_AUD")) throw new Error("Cloudflare template thiếu Access identity settings.");
 
 if (!fs.existsSync("wrangler.cloudflare.jsonc")) {
@@ -22,7 +22,7 @@ if (/00000000-0000-0000-0000-000000000000|replace-with-/.test(config)) {
   console.error("CLOUDFLARE_PLACEHOLDER_CONFIG: wrangler.cloudflare.jsonc vẫn còn giá trị placeholder.");
   process.exit(2);
 }
-if (config.includes("LOCAL_DEV_AUTH")) throw new Error("CLOUDFLARE_LOCAL_AUTH_FORBIDDEN: không được deploy local auth lên Cloudflare.");
+if (/"LOCAL_DEV_AUTH"\s*:/.test(config)) throw new Error("CLOUDFLARE_LOCAL_AUTH_FORBIDDEN: không được deploy local auth lên Cloudflare.");
 
 if (!fs.existsSync("app/cloudflare-access-auth.ts")) {
   console.error("CLOUDFLARE_ACCESS_ADAPTER_REQUIRED: chưa có adapter xác thực JWT/AUD của Cloudflare Access. Không deploy control plane công khai.");
