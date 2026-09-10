@@ -7,11 +7,16 @@
   },
   "scripts": {
     "install:ci": "bash scripts/install-ci.sh",
-    "dev": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vite",
+    "dev": "vite",
+    "local": "node scripts/run-local.mjs",
+    "local:db": "wrangler d1 migrations apply learning-management-db --local --config wrangler.local.jsonc",
     "build": "bash scripts/build-verified.sh",
-    "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
+    "preview": "npm run build && vite preview",
+    "start": "vinext start",
     "test": "npm run build && node --test tests/*.test.mjs",
     "validate:artifact": "bash scripts/validate-artifact.sh",
+    "validate:local-first": "node --test tests/local-first-runtime.test.mjs",
+    "cloudflare:check": "node scripts/validate-cloudflare-ready.mjs",
     "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "bash scripts/sites-env.sh -- drizzle-kit generate"
   },
