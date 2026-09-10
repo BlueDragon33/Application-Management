@@ -1,3 +1,4 @@
+import { resolveClientOrigin } from "./client-origin.server";
 import type { ControlRole } from "./control-device.server";
 
 export class UpstreamError extends Error {
@@ -14,12 +15,21 @@ export class UpstreamError extends Error {
 async function configuration() {
   const workers = await import("cloudflare:workers");
   const values = workers.env as unknown as Record<string, unknown>;
-  const baseUrl = typeof values.BOI_ECH_BASE_URL === "string" ? values.BOI_ECH_BASE_URL.replace(/\/$/, "") : "";
   const secret = typeof values.CONTROL_SERVICE_SECRET === "string" ? values.CONTROL_SERVICE_SECRET : "";
-  if (!/^https:\/\/[a-z0-9.-]+$/i.test(baseUrl) || secret.length < 32) {
-    throw new UpstreamError("Kết nối Bơi ếch chưa được cấu hình.", 503, { code: "BOI_ECH_NOT_CONFIGURED" });
+  let origin;
+  try {
+    origin = await resolveClientOrigin("boi-ech");
+  } catch (error) {
+    throw new UpstreamError(
+      error instanceof Error ? error.message : "Kết nối Bơi ếch chưa được cấu hình.",
+      503,
+      { code: "BOI_ECH_NOT_CONFIGURED" },
+    );
   }
-  return { baseUrl, secret };
+  if (secret.length < 32) {
+    throw new UpstreamError("Khóa kết nối Bơi ếch chưa được cấu hình.", 503, { code: "BOI_ECH_SECRET_NOT_CONFIGURED" });
+  }
+  return { ...origin, secret };
 }
 
 function base64Url(bytes: Uint8Array) {
@@ -41,7 +51,7 @@ async function signature(secret: string, value: string) {
 }
 
 export async function issueBoiBrowserBridge(actor: string, role: ControlRole) {
-  const { baseUrl, secret } = await configuration();
+  const { baseUrl, secret, source } = await configuration();
   const expiresAt = Date.now() + 5 * 60 * 1000;
   const payload = base64Url(new TextEncoder().encode(JSON.stringify({
     iss: "quan-ly-hoc-tap",
@@ -51,5 +61,10 @@ export async function issueBoiBrowserBridge(actor: string, role: ControlRole) {
     exp: expiresAt,
   })));
   const signedInput = `v1.${payload}`;
-  return { baseUrl, token: `${signedInput}.${await signature(secret, signedInput)}`, expiresAt };
+  return {
+    baseUrl,
+    token: `${signedInput}.${await signature(secret, signedInput)}`,
+    expiresAt,
+    originSource: source,
+  };
 }
