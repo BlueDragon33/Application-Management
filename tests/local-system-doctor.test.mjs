@@ -8,7 +8,10 @@ const bat = fs.readFileSync("CHECK_LOCAL_SYSTEM.bat", "utf8");
 
 test("local doctor is read-only and cannot deploy or migrate data", () => {
   assert.doesNotMatch(doctor, /writeFile|appendFile|unlink|rmSync|mkdirSync/);
-  assert.doesNotMatch(doctor, /npm\s+(?:ci|install)|wrangler\s+d1\s+migrations|--remote|wrangler\s+deploy/);
+  assert.doesNotMatch(doctor, /\bexecSync\b|\bexecFile\b|\bspawn\(/);
+  assert.equal((doctor.match(/spawnSync\(/g) ?? []).length, 1, "doctor may only spawn node --check");
+  assert.match(doctor, /spawnSync\(process\.execPath, \["--check", path\]/);
+  assert.ok(doctor.includes(`!launcher.includes('"--remote"')`), "doctor must inspect launcher for forbidden remote D1 usage");
   assert.match(doctor, /Doctor chỉ đọc\/kiểm tra/);
 });
 
