@@ -1,9 +1,25 @@
+import { readClientAutoApprovalStates } from "./automation-policy-read.server";
 import { getControlDatabase } from "./control-device.server";
 
 type UnknownRecord = Record<string, unknown>;
 
 function record(value: unknown): UnknownRecord {
   return value && typeof value === "object" && !Array.isArray(value) ? value as UnknownRecord : {};
+}
+
+async function auditAutoApprovalFallback(supportedAppIds: readonly string[]) {
+  const database = await getControlDatabase();
+  const rows = await database.prepare(
+    "SELECT target, detail_json FROM control_audit_log WHERE action = 'application_auto_approval_updated' ORDER BY id DESC LIMIT 100",
+  ).all<{ target: string; detail_json: string }>();
+  const decided = new Set<string>();
+  const enabled = new Set<string>();
+  for (const row of rows.results) {
+    if (decided.has(row.target) || !supportedAppIds.includes(row.target)) continue;
+    decided.add(row.target);
+    try { if (record(JSON.parse(row.detail_json)).enabled === true) enabled.add(row.target); } catch { /* Historic audit metadata is only a resilience fallback. */ }
+  }
+  return enabled;
 }
 
 export async function hashWorkItem(value: string) {
@@ -28,19 +44,29 @@ export async function dismissedNotificationHashes(actor: string) {
   }
 }
 
+/**
+ * Client-owned automation is the source of truth. The central audit log is
+ * consulted only if a client is temporarily unreachable, so a stale audit
+ * entry can never override a live client policy.
+ */
 export async function readAutoApprovalSettings(supportedAppIds: readonly string[]) {
-  const database = await getControlDatabase();
-  const rows = await database.prepare(
-    "SELECT target, detail_json FROM control_audit_log WHERE action = 'application_auto_approval_updated' ORDER BY id DESC LIMIT 100",
-  ).all<{ target: string; detail_json: string }>();
-  const decided = new Set<string>();
+  const fallback = await auditAutoApprovalFallback(supportedAppIds);
   const enabled = new Set<string>();
-  for (const row of rows.results) {
-    if (decided.has(row.target) || !supportedAppIds.includes(row.target)) continue;
-    decided.add(row.target);
-    try { if (record(JSON.parse(row.detail_json)).enabled === true) enabled.add(row.target); } catch { /* Ignore malformed historic metadata. */ }
-  }
-  return { autoApproveAppIds: [...enabled], autoApproveSupportedAppIds: [...supportedAppIds] };
+  const probes = await readClientAutoApprovalStates(supportedAppIds);
+
+  probes.forEach((probe, index) => {
+    const appId = supportedAppIds[index];
+    if (probe.status === "fulfilled") {
+      if (probe.value.enabled) enabled.add(appId);
+    } else if (fallback.has(appId)) {
+      enabled.add(appId);
+    }
+  });
+
+  return {
+    autoApproveAppIds: supportedAppIds.filter((id) => enabled.has(id)),
+    autoApproveSupportedAppIds: [...supportedAppIds],
+  };
 }
 
 async function writeAudit(actor: string, action: string, target: string, detail: UnknownRecord) {
