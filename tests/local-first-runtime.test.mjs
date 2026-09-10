@@ -20,7 +20,10 @@ test("local auth is explicit and loopback-only", () => {
   assert.match(auth, /localhost\|127\\\.0\\\.0\\\.1\|\\\[::1\\\]/);
   assert.equal(auth.includes("0.0.0.0"), false);
   assert.equal(auth.includes("terminal.local"), false);
-  assert.ok(auth.indexOf("if (userId && email)") < auth.indexOf("return localDevelopmentUser(requestHeaders)"));
+  const chat = auth.indexOf("if (userId && email)");
+  const local = auth.indexOf("const localUser = localDevelopmentUser");
+  const cloudflare = auth.indexOf("return getCloudflareAccessUser");
+  assert.ok(chat >= 0 && local > chat && cloudflare > local);
 });
 
 test("local launcher uses isolated D1 and does not require Work", () => {
