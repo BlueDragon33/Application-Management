@@ -2,9 +2,9 @@
 
 ## Trạng thái
 
-Cloudflare được chuẩn bị như **môi trường preview/production thay thế**, nhưng không được triển khai công khai cho Application Management cho đến khi lớp xác thực Cloudflare Access được hoàn thiện và kiểm tra.
+Cloudflare được chuẩn bị như **môi trường preview/production thay thế**. Access Auth Adapter V1 đã được triển khai trong `app/cloudflare-access-auth.ts`; bước còn thiếu trước preview thật là cấu hình tài khoản Cloudflare (preview D1, Team Domain, AUD, Access policy, secrets và hostname/Worker).
 
-Lý do: ChatGPT Site hiện nhận dạng người dùng bằng `oai-authenticated-user-*`. Cloudflare không tự tạo các header ChatGPT này.
+ChatGPT Site vẫn nhận dạng người dùng bằng `oai-authenticated-user-*`. Cloudflare không tạo các header đó, nên Cloudflare path dùng `Cf-Access-Jwt-Assertion` và xác minh chữ ký/issuer/audience độc lập.
 
 ## Kiến trúc đích
 
@@ -12,8 +12,10 @@ Lý do: ChatGPT Site hiện nhận dạng người dùng bằng `oai-authenticat
 Browser
   ↓
 Cloudflare Access
-  ↓ JWT đã được kiểm tra
-Application Management Worker
+  ↓ Cf-Access-Jwt-Assertion
+Application Management
+  ↓ verify RS256 + JWKS + issuer + AUD + exp/nbf
+Control-plane authorization (QT device + role)
   ↓ D1 binding riêng
 Application Management D1
   ↓ signed client-control contracts
@@ -22,18 +24,37 @@ Health_Care / RU_LIFE / Bauman / Bơi Ếch
 
 Application Management vẫn chỉ là Control Plane. Không nhập runtime/client database vào Worker này.
 
+## Access Auth Adapter V1
+
+Adapter hiện tại:
+
+- chỉ chấp nhận Team Domain dạng `https://<team>.cloudflareaccess.com`;
+- lấy JWKS tại `/cdn-cgi/access/certs`;
+- chỉ chấp nhận `RS256`;
+- kiểm tra `kid`, RSA signing key, chữ ký WebCrypto;
+- kiểm tra issuer, audience, expiration, not-before và issued-at với clock skew nhỏ;
+- yêu cầu `sub` và email hợp lệ;
+- cache JWKS ngắn hạn để tránh fetch cert ở mọi request;
+- không sử dụng `LOCAL_DEV_AUTH`;
+- ChatGPT Sites identity vẫn được ưu tiên khi `oai-authenticated-user-*` tồn tại;
+- local identity chỉ đứng trước Cloudflare identity trên loopback host.
+
+Cloudflare Access chỉ xác thực danh tính. Quyền quản trị thực tế vẫn tiếp tục qua `QT-` device + role của Application Management.
+
 ## Giai đoạn 1 — Preview Cloudflare
 
 1. Tạo D1 **preview riêng**.
 2. Copy `wrangler.cloudflare.example.jsonc` thành `wrangler.cloudflare.jsonc`.
 3. Thay `database_id` placeholder bằng D1 preview ID.
-4. Tạo Cloudflare Access application cho hostname preview.
+4. Tạo/protect Worker hoặc hostname preview bằng Cloudflare Access.
 5. Lấy Team Domain và Application Audience (AUD).
-6. Hoàn thiện adapter xác thực `Cf-Access-Jwt-Assertion` trước khi mở quyền quản trị.
+6. Ghi `CF_ACCESS_TEAM_DOMAIN` và `CF_ACCESS_AUD` vào config/variables của môi trường preview.
 7. Đặt các base URL client phù hợp preview.
 8. Đặt secrets bằng Wrangler hoặc Cloudflare Dashboard.
-9. Apply migrations vào D1 preview.
-10. Build + deploy Worker preview.
+9. Chạy `npm run cloudflare:check`.
+10. Apply migrations vào D1 preview.
+11. Build + deploy Worker preview.
+12. Smoke test Access login → QT device registration/proof → control bridge.
 
 ## Secrets
 
@@ -48,7 +69,7 @@ Các secret app-scoped hiện có thể gồm:
 
 Health không được fallback từ `HEALTH_CONTROL_SERVICE_SECRET` sang generic `CONTROL_SERVICE_SECRET`.
 
-## Lệnh dự kiến sau khi adapter Access sẵn sàng
+## Lệnh preview sau khi có thông tin tài khoản Cloudflare
 
 ```bash
 npm ci
@@ -68,9 +89,9 @@ Trước khi deploy quản trị lên Internet phải có cả hai:
 - `CF_ACCESS_TEAM_DOMAIN`
 - `CF_ACCESS_AUD`
 
-và code phải cryptographically validate `Cf-Access-Jwt-Assertion`/AUD hoặc sử dụng một cơ chế Access đã được xác minh tương đương.
+và Access policy phải bảo vệ chính Worker/hostname preview. Adapter trong ứng dụng xác minh lại JWT; không tin một header email tự khai báo.
 
-Không chỉ tin một header email tự khai báo.
+Cloudflare hiện cũng cung cấp Worker-level Access và `ctx.access`; adapter V1 vẫn chủ động xác minh JWT để không phụ thuộc việc framework Next/vinext có chuyển `ExecutionContext` Access identity vào các server component hay không.
 
 ## Production Cloudflare
 
