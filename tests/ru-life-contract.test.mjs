@@ -24,15 +24,19 @@ test("RU LIFE keeps a real admin workspace while reading state from RU control A
 
 test("Application Management issues a short-lived opaque RU bridge ticket without a shared production secret", () => {
   const server = source("app/ru-life.server.ts");
+  const resolver = source("app/client-origin.server.ts");
   const route = source("app/api/apps/hoa-nhap-nga/bridge/route.ts");
   const introspect = source("app/api/apps/hoa-nhap-nga/bridge/introspect/route.ts");
   const client = source("app/admin-device-client.ts");
-  assert.match(server, /DEFAULT_RU_LIFE_BASE_URL/);
-  assert.match(server, /RU_LIFE_BASE_URL/);
+  assert.match(server, /resolveClientOrigin\("ru-life"\)/);
+  assert.match(resolver, /productionEnv: "RU_LIFE_BASE_URL"/);
+  assert.match(resolver, /localEnv: "RU_LIFE_LOCAL_BASE_URL"/);
+  assert.match(resolver, /localDefault: "http:\/\/127\.0\.0\.1:3002"/);
   assert.match(server, /BRIDGE_PREFIX = "v1\.rulb_"/);
   assert.match(server, /BRIDGE_TTL_MS = 5 \* 60 \* 1000/);
   assert.match(server, /ru_life_bridge_tickets/);
   assert.doesNotMatch(server, /RU_LIFE_CONTROL_SERVICE_SECRET/);
+  assert.doesNotMatch(server, /DEFAULT_RU_LIFE_BASE_URL|dinhnam3391\.chatgpt\.site/);
   assert.match(route, /verifyControlProof/);
   assert.match(route, /issueRuLifeBrowserBridge/);
   assert.match(introspect, /introspectRuLifeBridgeToken/);
