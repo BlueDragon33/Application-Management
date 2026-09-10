@@ -219,11 +219,12 @@ test("Boi Ech dashboard bootstrap cannot own central device or audit state", () 
   assert.match(dashboard, /INVALID_BOI_DASHBOARD_ACTION/);
 });
 
-test("Health Care uses its own ChatGPT Sites bridge and real client control surfaces", () => {
+test("Health Care uses its own managed bridge and real client control surfaces", () => {
   const route = source("app/apps/health-care/page.tsx");
   const client = source("app/apps/health-care/health-care-admin.tsx");
   const bridgeRoute = source("app/api/apps/health-care/bridge/route.ts");
   const bridgeServer = source("app/health-care.server.ts");
+  const originResolver = source("app/client-origin.server.ts");
   const adminClient = source("app/admin-device-client.ts");
   assert.match(route, /HealthCareAdmin/);
   assert.doesNotMatch(route, /ApplicationWorkspace/);
@@ -236,10 +237,13 @@ test("Health Care uses its own ChatGPT Sites bridge and real client control surf
   assert.match(bridgeRoute, /verifyControlProof/);
   assert.match(bridgeRoute, /issueHealthBrowserBridge/);
   assert.match(bridgeServer, /HEALTH_CONTROL_SERVICE_SECRET/);
-  assert.match(bridgeServer, /HEALTH_CARE_BASE_URL/);
+  assert.match(bridgeServer, /resolveClientOrigin\("health-care"\)/);
+  assert.match(originResolver, /HEALTH_CARE_BASE_URL/);
+  assert.match(originResolver, /HEALTH_CARE_LOCAL_BASE_URL/);
   assert.match(bridgeServer, /application-management/);
   assert.match(bridgeServer, /health-care-control/);
-  assert.match(bridgeServer, /transport:\s*"chatgpt-sites"/);
+  assert.match(bridgeServer, /local-control/);
+  assert.match(bridgeServer, /cloud-control/);
   assert.match(bridgeServer, /app:\s*TOKEN_APP/);
   assert.doesNotMatch(bridgeServer, /suc-khoe-tre\.boiech-ai\.workers\.dev/);
   assert.doesNotMatch(bridgeServer, /const TOKEN_ISSUER = "quan-ly-hoc-tap"/);
