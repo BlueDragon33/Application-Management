@@ -16,6 +16,7 @@ const PERCENT_ENCODED_UTF8 = "percent-encoded-utf-8";
 const SIGN_IN_PATH = "/signin-with-chatgpt";
 const SIGN_OUT_PATH = "/signout-with-chatgpt";
 const CALLBACK_PATH = "/callback";
+const LOOPBACK_HOST = /^(?:localhost|127\.0\.0\.1|\[::1\])(?::\d{1,5})?$/i;
 
 function normalizedEmail(value: string | null | undefined) {
   const email = value?.trim().toLowerCase() ?? "";
@@ -30,24 +31,57 @@ function safeDecodeURIComponent(value: string) {
   }
 }
 
+async function runtimeVariables() {
+  try {
+    const workers = await import("cloudflare:workers");
+    return workers.env as unknown as Record<string, unknown>;
+  } catch {
+    return process.env as unknown as Record<string, unknown>;
+  }
+}
+
+async function localDevelopmentUser(requestHeaders: Headers): Promise<ChatGPTUser | null> {
+  const forwardedHost = requestHeaders.get("x-forwarded-host")?.split(",", 1)[0]?.trim();
+  const host = forwardedHost || requestHeaders.get("host")?.trim() || "";
+  if (!LOOPBACK_HOST.test(host)) return null;
+
+  const runtime = await runtimeVariables();
+  if (runtime.LOCAL_DEV_AUTH !== "1") return null;
+
+  const email = normalizedEmail(typeof runtime.LOCAL_DEV_USER_EMAIL === "string" ? runtime.LOCAL_DEV_USER_EMAIL : null);
+  if (!email) return null;
+  const configuredId = typeof runtime.LOCAL_DEV_USER_ID === "string" ? runtime.LOCAL_DEV_USER_ID.trim() : "";
+  const configuredName = typeof runtime.LOCAL_DEV_USER_NAME === "string" ? runtime.LOCAL_DEV_USER_NAME.trim() : "";
+
+  return {
+    userId: configuredId || `local:${email}`,
+    displayName: configuredName || email.split("@")[0] || "Local Owner",
+    email,
+    fullName: configuredName || null,
+  };
+}
+
 export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
   const requestHeaders = await headers();
   const userId = requestHeaders.get(USER_ID_HEADER)?.trim() ?? "";
   const email = normalizedEmail(requestHeaders.get(USER_EMAIL_HEADER));
-  if (!userId || !email) return null;
 
-  const encodedFullName = requestHeaders.get(USER_FULL_NAME_HEADER);
-  const fullName = encodedFullName
-    && requestHeaders.get(USER_FULL_NAME_ENCODING_HEADER) === PERCENT_ENCODED_UTF8
-    ? safeDecodeURIComponent(encodedFullName)
-    : null;
+  if (userId && email) {
+    const encodedFullName = requestHeaders.get(USER_FULL_NAME_HEADER);
+    const fullName = encodedFullName
+      && requestHeaders.get(USER_FULL_NAME_ENCODING_HEADER) === PERCENT_ENCODED_UTF8
+      ? safeDecodeURIComponent(encodedFullName)
+      : null;
 
-  return {
-    userId,
-    displayName: fullName || email.split("@")[0] || email,
-    email,
-    fullName,
-  };
+    return {
+      userId,
+      displayName: fullName || email.split("@")[0] || email,
+      email,
+      fullName,
+    };
+  }
+
+  return localDevelopmentUser(requestHeaders);
 }
 
 export async function requireChatGPTUser(returnTo = "/"): Promise<ChatGPTUser> {
