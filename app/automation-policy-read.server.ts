@@ -1,5 +1,5 @@
 import { issueBoiBrowserBridge } from "./boi-ech.server";
-import { issueHealthBrowserBridge } from "./health-care.server";
+import { issueHealthBrowserBridge, probeHealthManagementContract } from "./health-care.server";
 
 const AUTOMATION_READ_ACTOR = "automation-state@application-management.local";
 const AUTOMATION_READ_DEVICE_ID = "0".repeat(64);
@@ -30,23 +30,41 @@ async function automationJson(bridge: Bridge, path: string) {
   }
 }
 
-async function readBoiAutoApproval() {
+async function readBoiAutomation() {
   const bridge = await issueBoiBrowserBridge(AUTOMATION_READ_ACTOR, "viewer");
   const payload = await automationJson(bridge, "/api/control/overview?activityDays=0");
-  return record(payload.automation).enabled === true;
+  return {
+    autoApproveEnabled: record(payload.automation).enabled === true,
+    autoBlockSupported: false,
+    autoBlockEnabled: false,
+    pendingBlockAfterHours: null as number | null,
+  };
 }
 
-async function readHealthAutoApproval() {
-  const bridge = await issueHealthBrowserBridge(AUTOMATION_READ_ACTOR, "viewer", AUTOMATION_READ_DEVICE_ID);
+async function readHealthAutomation() {
+  const [bridge, contract] = await Promise.all([
+    issueHealthBrowserBridge(AUTOMATION_READ_ACTOR, "viewer", AUTOMATION_READ_DEVICE_ID),
+    probeHealthManagementContract(),
+  ]);
   const payload = await automationJson(bridge, "/api/control/automation");
-  return record(payload.automation).autoApproveDevices === true;
+  const automation = record(payload.automation);
+  const rawHours = Math.round(Number(automation.pendingBlockAfterHours));
+  return {
+    autoApproveEnabled: automation.autoApproveDevices === true,
+    autoBlockSupported: contract.capabilities.includes("device-auto-block-pending"),
+    autoBlockEnabled: automation.autoBlockPendingDevices === true,
+    pendingBlockAfterHours: [24, 168, 720].includes(rawHours) ? rawHours : 168,
+  };
 }
 
 /** Read-only policy probes. No registration/device mutation is performed here. */
 export async function readClientAutoApprovalStates(supportedAppIds: readonly string[]) {
   return Promise.allSettled(supportedAppIds.map(async (appId) => {
-    if (appId === "boi-ech") return { appId, enabled: await readBoiAutoApproval() };
-    if (appId === "health-care") return { appId, enabled: await readHealthAutoApproval() };
+    if (appId === "boi-ech") return { appId, ...(await readBoiAutomation()), enabled: (await readBoiAutomation()).autoApproveEnabled };
+    if (appId === "health-care") {
+      const state = await readHealthAutomation();
+      return { appId, ...state, enabled: state.autoApproveEnabled };
+    }
     throw new Error(`AUTO_APPROVAL_READER_MISSING_${appId}`);
   }));
 }
