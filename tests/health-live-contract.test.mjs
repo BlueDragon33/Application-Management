@@ -12,7 +12,7 @@ function mustContain(source, snippets) {
   for (const snippet of snippets) assert.ok(source.includes(snippet), `Missing: ${snippet}`);
 }
 
-test("Health bridge verifies management contract v3 before issuing tickets", () => {
+test("Health bridge verifies management contract v3 with idempotent device commands before issuing tickets", () => {
   mustContain(healthBridge, [
     'const TOKEN_ISSUER = "application-management"',
     'const TOKEN_AUDIENCE = "health-care-control"',
@@ -24,8 +24,10 @@ test("Health bridge verifies management contract v3 before issuing tickets", () 
     '/api/control/contract',
     'contractVersion >= 3',
     'Number(auth.webLaunchTtlSeconds) === 60',
+    'deviceCommandsTarget === "/api/control/device-commands"',
     'endpoints.automation === "/api/control/automation"',
     'webLaunchTarget === "/suc-khoe-tre"',
+    'capabilities.includes("device-idempotent-commands")',
     'capabilities.includes("device-auto-approval")',
     'capabilities.includes("control-web-launch")',
     'boundary.healthDataInControlPlane === false',
@@ -52,17 +54,24 @@ test("Health remains a separate managed client and operations uses its own bridg
     'loadHealth',
     '"/api/control/devices"',
     'appId === "health-care"',
-    'action: operation === "approve" ? "approve" : "block"',
+    'bridge.deviceCommandsTarget',
+    'operation: operation === "approve" ? "approve" : "block"',
     'approvalRequiresRegistrationComplete: false',
     'remove: canManage',
   ]);
 });
 
-test("central Health device actions are constrained to the client contract and verified", () => {
-  assert.match(operations, /if \(appId === "health-care"\)[\s\S]*operation === "approve" \? "approve" : "block"/);
+test("central Health device actions use commandId expectedStatus retry-safe mutation and read-back verification", () => {
+  assert.match(operations, /if \(appId === "health-care"\)[\s\S]*bridgeCommandJson/);
   assert.match(operations, /actor\.role !== "publisher" && actor\.role !== "owner"/);
   assert.match(operations, /issueHealthBrowserBridge\(actor\.email, actor\.role, actor\.deviceId\)/);
+  assert.match(operations, /const commandId = suppliedCommandId \|\| crypto\.randomUUID\(\)/);
+  assert.match(operations, /expectedStatus,/);
+  assert.match(operations, /bridge\.deviceCommandsTarget/);
+  assert.match(operations, /DEVICE_COMMAND_READBACK_MISMATCH/);
   assert.match(operations, /verifyDeviceStatus\(bridge, "\/api\/control\/devices", deviceId, expected\)/);
+  assert.match(operations, /error instanceof TypeError[\s\S]*Client phản hồi quá thời hạn/);
+  assert.equal(/appId === "health-care"[\s\S]*bridgeJson\(bridge, "\/api\/control\/devices", \{ method: "POST"/.test(operations), false, "Health central mutation must not use legacy direct device POST");
   assert.equal(/delete-spam-device[\s\S]*health-care/.test(operations), false, "Health must not inherit Boi Ech permanent delete semantics");
 });
 
