@@ -19,11 +19,15 @@ test("local doctor checks all independent runtimes and standard ports", () => {
   for (const token of ["Application Management", "Health_Care", "RU_LIFE", "Bauman-master-ai-system", "BOIECH_AI"]) {
     assert.ok(doctor.includes(token), `missing runtime token: ${token}`);
   }
-  for (const port of [3000, 3001, 3002, 3003, 3004]) assert.ok(doctor.includes(String(port)), `missing port ${port}`);
+  for (const port of [3000, 3001, 3002, 3003, 3004, 3005]) assert.ok(doctor.includes(String(port)), `missing port ${port}`);
   assert.match(doctor, /client-origin\.server\.ts/);
   assert.match(doctor, /HEALTH_CONTROL_SERVICE_SECRET/);
   assert.match(doctor, /RU_LIFE_CONTROL_SERVICE_SECRET/);
   assert.match(doctor, /CONTROL_SERVICE_SECRET/);
+  assert.match(doctor, /BAUMAN_APP_ORIGIN/);
+  assert.match(doctor, /serve-local-runtime\.mjs/);
+  assert.match(doctor, /device-access-gate\.js/);
+  assert.match(doctor, /Bauman Device Gate contract/);
 });
 
 test("doctor exposes human and JSON modes with optional strict port gate", () => {
