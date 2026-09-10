@@ -7,6 +7,7 @@ const authSource = fs.readFileSync("app/cloudflare-access-auth.ts", "utf8");
 const chatAuth = fs.readFileSync("app/chatgpt-auth.ts", "utf8");
 const preflight = fs.readFileSync("scripts/validate-cloudflare-ready.mjs", "utf8");
 const worker = fs.readFileSync("worker/index.ts", "utf8");
+const cloudflareTemplate = fs.readFileSync("wrangler.cloudflare.example.jsonc", "utf8");
 
 function base64UrlJson(value) {
   return Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -70,6 +71,16 @@ test("Cloudflare preflight and worker require Access deployment settings", () =>
   assert.ok(preflight.includes("CF_ACCESS_TEAM_DOMAIN"));
   assert.ok(worker.includes("CF_ACCESS_AUD?: string"));
   assert.ok(worker.includes("CF_ACCESS_TEAM_DOMAIN?: string"));
+});
+
+test("Cloudflare template and preflight keep Bauman Control separate from the learning runtime", () => {
+  assert.ok(cloudflareTemplate.includes('"BAUMAN_CONTROL_BASE_URL": ""'));
+  assert.ok(cloudflareTemplate.includes('"BAUMAN_APP_ORIGIN": ""'));
+  assert.ok(preflight.includes("CLOUDFLARE_BAUMAN_ORIGINS_INCOMPLETE"));
+  assert.ok(preflight.includes("CLOUDFLARE_BAUMAN_HTTPS_REQUIRED"));
+  assert.ok(preflight.includes("CLOUDFLARE_BAUMAN_ORIGINS_COLLIDE"));
+  assert.ok(preflight.includes('stringVar(config, "BAUMAN_CONTROL_BASE_URL")'));
+  assert.ok(preflight.includes('stringVar(config, "BAUMAN_APP_ORIGIN")'));
 });
 
 test("Access adapter cryptographically accepts a valid RS256 JWT and rejects a tampered JWT", async () => {
