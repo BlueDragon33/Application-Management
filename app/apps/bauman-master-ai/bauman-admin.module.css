@@ -1,0 +1,171 @@
+.deviceAdminSummary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-bottom: 1px solid rgba(229, 199, 111, .11);
+  background: rgba(18, 31, 27, .32);
+}
+
+.deviceAdminSummary > div {
+  min-height: 78px;
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  padding: 14px 18px;
+  border-left: 1px solid rgba(229, 199, 111, .1);
+}
+
+.deviceAdminSummary > div:first-child { border-left: 0; }
+.deviceAdminSummary span { color: #8f8775; font-size: 8.4px; letter-spacing: .04em; }
+.deviceAdminSummary strong { color: #ece8dd; font-family: Georgia, "Times New Roman", serif; font-size: 20px; }
+
+.deviceAdminList { display: grid; }
+
+.deviceAdminList > article {
+  display: grid;
+  grid-template-columns: minmax(220px, .9fr) minmax(420px, 1.45fr) auto;
+  align-items: center;
+  gap: 18px;
+  min-height: 110px;
+  padding: 15px 20px;
+  border-top: 1px solid rgba(229, 199, 111, .11);
+  background: rgba(42, 40, 29, .44);
+  transition: background .16s ease, border-color .16s ease;
+}
+
+.deviceAdminList > article:first-child { border-top: 0; }
+.deviceAdminList > article:hover { background: rgba(50, 48, 34, .68); }
+.deviceAdminList > article[data-status="pending"] { box-shadow: inset 3px 0 rgba(215, 167, 69, .72); }
+.deviceAdminList > article[data-status="approved"] { box-shadow: inset 3px 0 rgba(75, 214, 158, .55); }
+.deviceAdminList > article[data-status="blocked"] { box-shadow: inset 3px 0 rgba(225, 132, 119, .52); opacity: .82; }
+
+.deviceAdminIdentity {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  align-items: center;
+  gap: 11px;
+}
+
+.deviceAdminIdentity > span {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  border: 1px solid rgba(143, 208, 189, .18);
+  background: #173a32;
+  color: #a9d8ca;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.deviceAdminIdentity > div { min-width: 0; display: grid; gap: 4px; }
+.deviceAdminIdentity strong { overflow: hidden; color: #eee9df; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.deviceAdminIdentity small { overflow: hidden; color: #918978; font-size: 8.8px; text-overflow: ellipsis; white-space: nowrap; }
+
+.deviceAdminList dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.deviceAdminList dl > div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  padding: 9px 10px;
+  border-radius: 9px;
+  background: rgba(24, 26, 22, .58);
+}
+
+.deviceAdminList dt { color: #797363; font-size: 7.5px; text-transform: uppercase; letter-spacing: .05em; }
+.deviceAdminList dd { margin: 0; overflow: hidden; color: #c9c1b0; font-size: 8.7px; text-overflow: ellipsis; white-space: nowrap; }
+.deviceAdminList dd[data-status="pending"] { color: #edca72; }
+.deviceAdminList dd[data-status="approved"] { color: #77d9b5; }
+.deviceAdminList dd[data-status="blocked"] { color: #e4a096; }
+.deviceAdminList dd[data-status="unknown"] { color: #9b9b95; }
+
+.deviceAdminActions {
+  min-width: 126px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.deviceAdminActions button {
+  min-width: 58px;
+  min-height: 35px;
+  padding: 0 11px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  background: #1a211e;
+  color: #d9dfdc;
+  font: inherit;
+  font-size: 8.7px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform .12s ease, border-color .12s ease, background .12s ease;
+}
+
+.deviceAdminActions button:hover:not(:disabled) { transform: translateY(-1px); }
+.deviceAdminActions button[data-action="approve"] { border-color: rgba(75, 214, 158, .28); background: rgba(27, 85, 65, .46); color: #a8e6cf; }
+.deviceAdminActions button[data-action="block"] { border-color: rgba(225, 132, 119, .26); background: rgba(89, 43, 37, .38); color: #e8b1a8; }
+.deviceAdminActions button:disabled { opacity: .38; cursor: default; transform: none; }
+.deviceAdminActions > span { max-width: 122px; color: #8d8676; font-size: 8px; line-height: 1.35; text-align: right; }
+
+.deviceAdminEmpty {
+  min-height: 220px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  padding: 30px;
+  text-align: center;
+}
+
+.deviceAdminEmpty::before {
+  content: "BM";
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  border-radius: 15px;
+  border: 1px solid rgba(143, 208, 189, .18);
+  background: #173a32;
+  color: #a9d8ca;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.deviceAdminEmpty strong { margin-top: 4px; color: #ddd7c9; font-size: 11px; }
+.deviceAdminEmpty p { max-width: 560px; margin: 0; color: #8f8775; font-size: 9px; line-height: 1.55; }
+
+@media (max-width: 1180px) {
+  .deviceAdminList > article { grid-template-columns: minmax(210px, .8fr) minmax(0, 1.2fr); }
+  .deviceAdminActions { grid-column: 1 / -1; justify-content: flex-end; min-width: 0; }
+  .deviceAdminList dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 760px) {
+  .deviceAdminSummary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .deviceAdminSummary > div:nth-child(3) { border-left: 0; border-top: 1px solid rgba(229, 199, 111, .1); }
+  .deviceAdminSummary > div:nth-child(4) { border-top: 1px solid rgba(229, 199, 111, .1); }
+  .deviceAdminList > article { grid-template-columns: 1fr; gap: 12px; padding: 14px; }
+  .deviceAdminList dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .deviceAdminActions { grid-column: auto; justify-content: stretch; }
+  .deviceAdminActions button { flex: 1; min-height: 39px; }
+  .deviceAdminActions > span { max-width: none; text-align: left; }
+}
+
+@media (max-width: 430px) {
+  .deviceAdminSummary > div { min-height: 68px; padding: 11px 12px; }
+  .deviceAdminSummary strong { font-size: 17px; }
+  .deviceAdminIdentity { grid-template-columns: 40px minmax(0, 1fr); }
+  .deviceAdminIdentity > span { width: 40px; height: 40px; border-radius: 10px; }
+  .deviceAdminList dl { grid-template-columns: 1fr; }
+}
