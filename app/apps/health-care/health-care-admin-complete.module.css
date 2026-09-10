@@ -1,0 +1,122 @@
+.scope{min-height:100dvh}
+
+/* Shared surface rhythm */
+.scope :global(section[class*="main"]){padding-bottom:34px!important}
+.scope :global(section[class*="main"]>section),
+.scope :global(section[class*="main"]>footer){animation:healthSurfaceIn .18s ease-out both}
+.scope :global(button),.scope :global(input),.scope :global(textarea){font-family:'Segoe UI','Noto Sans',Arial,sans-serif}
+.scope :global(button:focus-visible),.scope :global(input:focus-visible),.scope :global(textarea:focus-visible){outline:2px solid #59e7d5!important;outline-offset:3px!important}
+
+/* Access / Policy view */
+.scope :global(section[class*="accessGrid"]){display:grid!important;grid-template-columns:minmax(0,1.18fr) minmax(410px,.82fr)!important;gap:18px!important;align-items:start!important}
+.scope :global(article[class*="policyCard"]),
+.scope :global(article[class*="sessionCard"]),
+.scope :global(section[class*="contentPanel"]),
+.scope :global(section[class*="auditPanel"]){border:1px solid rgba(78,204,197,.22)!important;border-radius:18px!important;background:linear-gradient(150deg,rgba(7,54,63,.95),rgba(4,40,48,.94))!important;box-shadow:0 18px 38px rgba(0,0,0,.12),inset 0 1px rgba(255,255,255,.025)!important;overflow:hidden!important}
+.scope :global(article[class*="policyCard"]>header),
+.scope :global(article[class*="sessionCard"]>header),
+.scope :global(section[class*="contentPanel"]>header),
+.scope :global(section[class*="auditPanel"]>header){min-height:92px!important;display:flex!important;align-items:center!important;justify-content:space-between!important;gap:18px!important;padding:18px 20px!important;border-bottom:1px solid rgba(77,194,188,.15)!important;background:linear-gradient(90deg,rgba(11,71,78,.72),rgba(7,47,56,.4))!important}
+.scope :global(article[class*="policyCard"]>header h2),
+.scope :global(article[class*="sessionCard"]>header h2),
+.scope :global(section[class*="contentPanel"]>header h2),
+.scope :global(section[class*="auditPanel"]>header h2){margin:5px 0 0!important;color:#f2f8f6!important;font-family:Georgia,'Times New Roman',serif!important;font-size:25px!important;line-height:1.12!important}
+.scope :global(article[class*="policyCard"]>header span),
+.scope :global(article[class*="sessionCard"]>header span),
+.scope :global(section[class*="contentPanel"]>header span),
+.scope :global(section[class*="auditPanel"]>header span){font-size:10px!important;letter-spacing:.17em!important;color:#69e4d7!important}
+.scope :global(article[class*="policyCard"]>header b),
+.scope :global(article[class*="sessionCard"]>header b),
+.scope :global(section[class*="contentPanel"]>header strong),
+.scope :global(section[class*="auditPanel"]>header strong){display:inline-flex!important;align-items:center!important;min-height:34px!important;padding:7px 12px!important;border-radius:999px!important;background:#0b343c!important;border:1px solid rgba(85,205,195,.2)!important;color:#a9c7c4!important;font-size:10px!important;white-space:nowrap!important}
+.scope :global(article[class*="policyCard"]>header b[data-online="true"]){background:rgba(23,112,79,.28)!important;border-color:rgba(69,219,143,.35)!important;color:#75e9ad!important}
+
+.scope :global(div[class*="policyForm"]){display:grid!important;gap:15px!important;padding:20px!important}
+.scope :global(label[class*="toggleRow"]){display:flex!important;align-items:center!important;justify-content:space-between!important;gap:18px!important;min-height:72px!important;padding:14px 16px!important;border:1px solid rgba(87,181,181,.16)!important;border-radius:14px!important;background:linear-gradient(145deg,rgba(6,48,56,.82),rgba(5,39,47,.72))!important}
+.scope :global(label[class*="toggleRow"]>div){display:grid!important;gap:5px!important}
+.scope :global(label[class*="toggleRow"] strong){font-size:12px!important;color:#edf7f5!important}
+.scope :global(label[class*="toggleRow"] small){font-size:10px!important;color:#8ea9a6!important;line-height:1.45!important}
+.scope :global(label[class*="toggleRow"] input[type="checkbox"]){appearance:none!important;position:relative!important;width:46px!important;height:26px!important;flex:0 0 auto!important;border-radius:999px!important;border:1px solid rgba(109,180,177,.28)!important;background:#092b34!important;cursor:pointer!important;transition:.16s ease!important}
+.scope :global(label[class*="toggleRow"] input[type="checkbox"]::after){content:""!important;position:absolute!important;top:3px!important;left:3px!important;width:18px!important;height:18px!important;border-radius:50%!important;background:#829c99!important;box-shadow:0 3px 8px rgba(0,0,0,.25)!important;transition:.16s ease!important}
+.scope :global(label[class*="toggleRow"] input[type="checkbox"]:checked){background:linear-gradient(145deg,#22a993,#197a76)!important;border-color:#4ee1cd!important}
+.scope :global(label[class*="toggleRow"] input[type="checkbox"]:checked::after){left:23px!important;background:#e9fffb!important}
+.scope :global(label[class*="toggleRow"] input[type="checkbox"]:disabled){opacity:.5!important;cursor:not-allowed!important}
+.scope :global(div[class*="numberGrid"]){display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px!important}
+.scope :global(div[class*="numberGrid"] label){display:grid!important;grid-template-columns:1fr auto!important;grid-template-areas:"label unit" "input input"!important;gap:7px 8px!important;padding:13px!important;border:1px solid rgba(83,179,178,.15)!important;border-radius:13px!important;background:#062e37!important}
+.scope :global(div[class*="numberGrid"] label>span){grid-area:label!important;font-size:10px!important;color:#94b0ad!important}
+.scope :global(div[class*="numberGrid"] label>small){grid-area:unit!important;font-size:9px!important;color:#6d8c89!important;align-self:center!important}
+.scope :global(div[class*="numberGrid"] input){grid-area:input!important;width:100%!important;min-height:42px!important;padding:9px 11px!important;border-radius:10px!important;border:1px solid rgba(101,178,175,.22)!important;background:#041f28!important;color:#eef8f6!important;font-size:12px!important}
+.scope :global(div[class*="policyForm"] textarea){min-height:92px!important;resize:vertical!important;padding:13px 14px!important;border-radius:12px!important;border:1px solid rgba(97,184,180,.23)!important;background:#041f28!important;color:#e8f4f2!important;font-size:11px!important;line-height:1.5!important}
+.scope :global(div[class*="policyForm"]>button){justify-self:start!important;min-width:128px!important;min-height:42px!important}
+
+.scope :global(article[class*="sessionCard"]>div){display:grid!important;gap:10px!important;padding:14px!important}
+.scope :global(article[class*="sessionCard"]>div>section){display:grid!important;grid-template-columns:minmax(0,1fr) auto auto!important;gap:12px!important;align-items:center!important;min-height:82px!important;padding:13px 14px!important;border:1px solid rgba(83,181,178,.14)!important;border-radius:13px!important;background:linear-gradient(145deg,rgba(7,48,57,.86),rgba(5,39,47,.84))!important}
+.scope :global(article[class*="sessionCard"]>div>section[data-active="true"]){border-left:3px solid #43d791!important;background:linear-gradient(145deg,rgba(7,63,56,.8),rgba(5,43,48,.86))!important}
+.scope :global(article[class*="sessionCard"]>div>section>div){display:grid!important;gap:4px!important;min-width:0!important}
+.scope :global(article[class*="sessionCard"]>div>section strong){font-size:11px!important;color:#f1f8f6!important}
+.scope :global(article[class*="sessionCard"]>div>section span){font-size:9px!important;color:#74d8d0!important}
+.scope :global(article[class*="sessionCard"]>div>section small){font-size:9px!important;color:#7f9d99!important}
+.scope :global(article[class*="sessionCard"]>div>section>span){padding:6px 9px!important;border:1px solid rgba(86,182,177,.16)!important;border-radius:999px!important;background:#0a3138!important;color:#a9c1be!important;text-transform:capitalize!important}
+.scope :global(article[class*="sessionCard"]>div>section>button){min-height:34px!important;padding:7px 10px!important;border-radius:9px!important;border:1px solid rgba(225,104,118,.28)!important;background:#231f24!important;color:#ff8898!important;font-size:9px!important;font-weight:800!important}
+
+/* Content review */
+.scope :global(section[class*="contentPanel"]>header){align-items:flex-start!important}
+.scope :global(section[class*="contentPanel"]>header p),
+.scope :global(section[class*="auditPanel"]>header p){margin:7px 0 0!important;max-width:760px!important;color:#91aeaa!important;font-size:11px!important;line-height:1.55!important}
+.scope :global(section[class*="contentPanel"]>header>div:last-child){display:flex!important;align-items:center!important;gap:10px!important;flex-wrap:wrap!important;justify-content:flex-end!important}
+.scope :global(section[class*="contentPanel"]>header button[class*="primary"]){min-height:40px!important;padding:9px 13px!important;border-radius:10px!important;border:1px solid #49deca!important;background:linear-gradient(145deg,#168078,#0c6264)!important;color:#f0fffc!important;font-size:10px!important;font-weight:800!important}
+.scope :global(section[class*="contentPanel"]>div){display:grid!important;gap:11px!important;padding:16px!important}
+.scope :global(section[class*="contentPanel"]>div>article){display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:14px!important;align-items:center!important;min-height:86px!important;padding:14px 16px!important;border:1px solid rgba(81,183,180,.15)!important;border-radius:14px!important;background:linear-gradient(145deg,rgba(6,49,58,.9),rgba(5,40,48,.88))!important}
+.scope :global(section[class*="contentPanel"]>div>article[data-status="permission_requested"]){border-left:3px solid #e8ae3d!important}
+.scope :global(section[class*="contentPanel"]>div>article[data-status="review"]){border-left:3px solid #50d3ef!important}
+.scope :global(section[class*="contentPanel"]>div>article[data-status="published"]){border-left:3px solid #43d68f!important}
+.scope :global(section[class*="contentPanel"]>div>article>div:first-child){display:grid!important;gap:4px!important}
+.scope :global(section[class*="contentPanel"]>div>article>div:first-child>span){font-size:9px!important;color:#73d8d0!important;text-transform:uppercase!important;letter-spacing:.08em!important}
+.scope :global(section[class*="contentPanel"]>div>article>div:first-child>strong){font-size:12px!important;color:#eef7f5!important}
+.scope :global(section[class*="contentPanel"]>div>article>div:first-child>small){font-size:9px!important;color:#7e9c99!important}
+.scope :global(section[class*="contentPanel"]>div>article>div:last-child){display:flex!important;gap:8px!important;flex-wrap:wrap!important;justify-content:flex-end!important}
+.scope :global(section[class*="contentPanel"]>div>article button){min-height:34px!important;padding:7px 10px!important;border-radius:9px!important;border:1px solid rgba(105,189,185,.22)!important;background:#061f27!important;color:#81ded3!important;font-size:9px!important;font-weight:800!important}
+.scope :global(section[class*="contentPanel"]>div>article button[class*="primary"]){border-color:rgba(71,218,194,.45)!important;background:linear-gradient(145deg,#126b65,#0a5058)!important;color:#baf8ed!important}
+.scope :global(section[class*="contentPanel"]>div>article button[class*="danger"]){border-color:rgba(229,93,111,.34)!important;background:#281e23!important;color:#ff8292!important}
+
+/* Audit */
+.scope :global(section[class*="auditPanel"]>div){display:grid!important;gap:9px!important;padding:14px 16px 18px!important}
+.scope :global(section[class*="auditPanel"]>div>article){display:grid!important;grid-template-columns:42px minmax(0,1fr)!important;gap:12px!important;align-items:start!important;min-height:74px!important;padding:12px 13px!important;border:1px solid rgba(81,181,178,.13)!important;border-radius:13px!important;background:linear-gradient(145deg,rgba(6,48,57,.86),rgba(4,39,47,.84))!important}
+.scope :global(section[class*="auditPanel"]>div>article>span){display:grid!important;place-items:center!important;width:38px!important;height:38px!important;border-radius:11px!important;border:1px solid rgba(77,219,207,.26)!important;background:rgba(13,93,91,.34)!important;color:#77e3d8!important;font-size:10px!important;font-weight:900!important;letter-spacing:.05em!important}
+.scope :global(section[class*="auditPanel"]>div>article>div){display:grid!important;gap:3px!important;min-width:0!important}
+.scope :global(section[class*="auditPanel"]>div>article strong){font-size:11px!important;color:#edf7f5!important}
+.scope :global(section[class*="auditPanel"]>div>article small){font-size:9px!important;color:#7f9e9a!important}
+.scope :global(section[class*="auditPanel"]>div>article p){margin:3px 0 0!important;font-family:ui-monospace,SFMono-Regular,Consolas,monospace!important;font-size:9px!important;color:#68cbc5!important;word-break:break-all!important}
+
+/* Empty states shared */
+.scope :global(article[class*="sessionCard"] div[class*="empty"]),
+.scope :global(section[class*="contentPanel"] div[class*="empty"]),
+.scope :global(section[class*="auditPanel"] div[class*="empty"]){min-height:220px!important;display:grid!important;place-items:center!important;border:1px dashed rgba(104,193,190,.28)!important;border-radius:14px!important;background:linear-gradient(145deg,rgba(5,47,56,.58),rgba(4,38,46,.62))!important;color:#91b2ae!important;font-size:11px!important;text-align:center!important}
+
+/* Contract footer */
+.scope :global(footer[class*="contractFooter"]){display:flex!important;align-items:center!important;gap:8px!important;flex-wrap:wrap!important;margin-top:20px!important;padding:13px 14px!important;border:1px solid rgba(76,181,179,.13)!important;border-radius:13px!important;background:linear-gradient(145deg,rgba(5,43,51,.74),rgba(4,34,42,.78))!important}
+.scope :global(footer[class*="contractFooter"] span),.scope :global(footer[class*="contractFooter"] strong){display:inline-flex!important;align-items:center!important;min-height:30px!important;padding:6px 10px!important;border-radius:999px!important;border:1px solid rgba(88,177,174,.13)!important;background:#092a32!important;color:#8ca9a6!important;font-size:9px!important;font-weight:700!important}
+.scope :global(footer[class*="contractFooter"] strong){color:#7ddfd4!important;background:rgba(9,62,63,.48)!important}
+
+/* Mobile/tablet */
+@media(max-width:1320px){
+  .scope :global(section[class*="accessGrid"]){grid-template-columns:1fr!important}
+  .scope :global(article[class*="sessionCard"]){min-height:auto!important}
+}
+@media(max-width:860px){
+  .scope :global(div[class*="numberGrid"]){grid-template-columns:1fr!important}
+  .scope :global(section[class*="contentPanel"]>header),.scope :global(section[class*="auditPanel"]>header){align-items:flex-start!important;flex-direction:column!important}
+  .scope :global(section[class*="contentPanel"]>div>article){grid-template-columns:1fr!important}
+  .scope :global(section[class*="contentPanel"]>div>article>div:last-child){justify-content:flex-start!important}
+}
+@media(max-width:560px){
+  .scope :global(article[class*="policyCard"]>header),.scope :global(article[class*="sessionCard"]>header),.scope :global(section[class*="contentPanel"]>header),.scope :global(section[class*="auditPanel"]>header){padding:15px!important}
+  .scope :global(div[class*="policyForm"]){padding:14px!important}
+  .scope :global(label[class*="toggleRow"]){align-items:flex-start!important}
+  .scope :global(article[class*="sessionCard"]>div>section){grid-template-columns:1fr!important}
+  .scope :global(footer[class*="contractFooter"]){align-items:stretch!important}
+  .scope :global(footer[class*="contractFooter"] span),.scope :global(footer[class*="contractFooter"] strong){width:100%!important;justify-content:flex-start!important}
+}
+@media(prefers-reduced-motion:reduce){.scope :global(section[class*="main"]>section),.scope :global(section[class*="main"]>footer){animation:none!important}.scope :global(label[class*="toggleRow"] input[type="checkbox"]),.scope :global(label[class*="toggleRow"] input[type="checkbox"]::after){transition:none!important}}
+
+@keyframes healthSurfaceIn{from{opacity:.72;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
