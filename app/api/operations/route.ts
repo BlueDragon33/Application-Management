@@ -293,7 +293,7 @@ async function loadBauman(actor: ControlDeviceState) {
     approvalRequiresRegistrationComplete: false,
     defaultType: "desktop",
   }));
-  return { config, devices, webHref: bridge.baseUrl, managedWebLaunch: false, hasOperationalData: true };
+  return { config, devices, webHref: bridge.runtimeBaseUrl, managedWebLaunch: false, hasOperationalData: true };
 }
 
 async function loadGrowUp() {
