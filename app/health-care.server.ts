@@ -1,3 +1,4 @@
+import { normalizeClientOrigin, resolveClientOrigin } from "./client-origin.server";
 import type { ControlRole } from "./control-device.server";
 
 const TOKEN_ISSUER = "application-management";
@@ -14,6 +15,7 @@ export type HealthContractProbe = {
   capabilities: string[];
   deviceNamespace: string;
   webLaunchTarget: string;
+  originSource: "local" | "production";
 };
 
 export class HealthBridgeError extends Error {
@@ -27,51 +29,34 @@ export class HealthBridgeError extends Error {
   }
 }
 
-function normalizeOrigin(value: unknown) {
-  if (typeof value !== "string") return "";
-  const trimmed = value.trim().replace(/\/$/, "");
-  if (!/^https:\/\/[a-z0-9.-]+(?::\d+)?$/i.test(trimmed)) return "";
-  return trimmed;
-}
-
-async function environment() {
+async function secret() {
   const workers = await import("cloudflare:workers");
   const values = workers.env as unknown as Record<string, unknown>;
-  return {
-    baseUrl: normalizeOrigin(values.HEALTH_CARE_BASE_URL),
-    secret: typeof values.HEALTH_CONTROL_SERVICE_SECRET === "string" ? values.HEALTH_CONTROL_SERVICE_SECRET : "",
-  };
+  return typeof values.HEALTH_CONTROL_SERVICE_SECRET === "string" ? values.HEALTH_CONTROL_SERVICE_SECRET : "";
 }
 
-async function requireBaseUrl() {
-  const { baseUrl } = await environment();
-  if (!baseUrl) {
+async function requireOrigin() {
+  try {
+    return await resolveClientOrigin("health-care");
+  } catch (error) {
     throw new HealthBridgeError(
-      "Chưa cấu hình URL Site Sức khỏe Y tế trong ChatGPT Sites.",
+      error instanceof Error ? error.message : "Chưa cấu hình origin Sức khỏe Y tế.",
       503,
-      { code: "HEALTH_CARE_SITE_URL_NOT_CONFIGURED" },
+      { code: "HEALTH_CARE_ORIGIN_NOT_CONFIGURED" },
     );
   }
-  return baseUrl;
 }
 
 async function configuration() {
-  const { baseUrl, secret } = await environment();
-  if (!baseUrl) {
+  const [origin, configuredSecret] = await Promise.all([requireOrigin(), secret()]);
+  if (configuredSecret.length < 32) {
     throw new HealthBridgeError(
-      "Chưa cấu hình URL Site Sức khỏe Y tế trong ChatGPT Sites.",
+      "Chưa cấu hình khóa kết nối Sức khỏe Y tế.",
       503,
-      { code: "HEALTH_CARE_SITE_URL_NOT_CONFIGURED" },
+      { code: "HEALTH_CARE_SECRET_NOT_CONFIGURED", baseUrl: origin.baseUrl },
     );
   }
-  if (secret.length < 32) {
-    throw new HealthBridgeError(
-      "Chưa cấu hình khóa kết nối Sức khỏe Y tế trong ChatGPT Sites.",
-      503,
-      { code: "HEALTH_CARE_SITE_SECRET_NOT_CONFIGURED", baseUrl },
-    );
-  }
-  return { baseUrl, secret };
+  return { ...origin, secret: configuredSecret };
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -83,7 +68,8 @@ function text(value: unknown) {
 }
 
 export async function probeHealthManagementContract(): Promise<HealthContractProbe> {
-  const baseUrl = await requireBaseUrl();
+  const origin = await requireOrigin();
+  const baseUrl = origin.baseUrl;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), CONTRACT_TIMEOUT_MS);
   try {
@@ -101,7 +87,7 @@ export async function probeHealthManagementContract(): Promise<HealthContractPro
     const endpoints = asRecord(payload.endpoints);
     const boundary = asRecord(payload.boundary);
     const registry = asRecord(payload.deviceRegistry);
-    const siteOrigin = normalizeOrigin(payload.siteOrigin);
+    const siteOrigin = normalizeClientOrigin(payload.siteOrigin, origin.source === "local");
     const contractVersion = Number(payload.contractVersion);
     const capabilities = Array.isArray(payload.capabilities)
       ? payload.capabilities.filter((item): item is string => typeof item === "string")
@@ -137,9 +123,9 @@ export async function probeHealthManagementContract(): Promise<HealthContractPro
 
     if (!valid) {
       throw new HealthBridgeError(
-        "Contract production của Sức khỏe Y tế chưa đạt phiên bản quản trị v3 (bao gồm direct web launch an toàn).",
+        "Contract của Sức khỏe Y tế chưa đạt phiên bản quản trị v3.",
         409,
-        { code: "HEALTH_CARE_CONTRACT_MISMATCH", baseUrl },
+        { code: "HEALTH_CARE_CONTRACT_MISMATCH", baseUrl, originSource: origin.source },
       );
     }
 
@@ -151,20 +137,21 @@ export async function probeHealthManagementContract(): Promise<HealthContractPro
       capabilities,
       deviceNamespace: "SK-",
       webLaunchTarget,
+      originSource: origin.source,
     };
   } catch (error) {
     if (error instanceof HealthBridgeError) throw error;
     if (controller.signal.aborted) {
       throw new HealthBridgeError(
-        `Site Sức khỏe Y tế không trả contract trong ${CONTRACT_TIMEOUT_MS / 1_000} giây.`,
+        `Sức khỏe Y tế không trả contract trong ${CONTRACT_TIMEOUT_MS / 1_000} giây.`,
         504,
-        { code: "HEALTH_CARE_CONTRACT_TIMEOUT", baseUrl },
+        { code: "HEALTH_CARE_CONTRACT_TIMEOUT", baseUrl, originSource: origin.source },
       );
     }
     throw new HealthBridgeError(
       error instanceof Error ? error.message : "Không đọc được contract Sức khỏe Y tế.",
       502,
-      { code: "HEALTH_CARE_CONTRACT_UNAVAILABLE", baseUrl },
+      { code: "HEALTH_CARE_CONTRACT_UNAVAILABLE", baseUrl, originSource: origin.source },
     );
   } finally {
     clearTimeout(timeout);
@@ -177,10 +164,10 @@ function base64Url(bytes: Uint8Array) {
   return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
 }
 
-async function signature(secret: string, value: string) {
+async function signature(secretValue: string, value: string) {
   const key = await crypto.subtle.importKey(
     "raw",
-    new TextEncoder().encode(secret),
+    new TextEncoder().encode(secretValue),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"],
@@ -189,10 +176,10 @@ async function signature(secret: string, value: string) {
   return base64Url(new Uint8Array(signed));
 }
 
-async function issueTicket(secret: string, claims: Record<string, unknown>) {
+async function issueTicket(secretValue: string, claims: Record<string, unknown>) {
   const payload = base64Url(new TextEncoder().encode(JSON.stringify(claims)));
   const signedInput = `v1.${payload}`;
-  return `${signedInput}.${await signature(secret, signedInput)}`;
+  return `${signedInput}.${await signature(secretValue, signedInput)}`;
 }
 
 function baseClaims(actor: string, role: ControlRole, controlDeviceId: string, expiresAt: number, purpose: "control" | "web-launch") {
@@ -210,18 +197,10 @@ function baseClaims(actor: string, role: ControlRole, controlDeviceId: string, e
   };
 }
 
-export async function issueHealthBrowserBridge(
-  actor: string,
-  role: ControlRole,
-  controlDeviceId: string,
-) {
+export async function issueHealthBrowserBridge(actor: string, role: ControlRole, controlDeviceId: string) {
   const [configured, contract] = await Promise.all([configuration(), probeHealthManagementContract()]);
   if (configured.baseUrl !== contract.baseUrl) {
-    throw new HealthBridgeError(
-      "URL bridge và URL contract Sức khỏe Y tế không trùng nhau.",
-      409,
-      { code: "HEALTH_CARE_ORIGIN_MISMATCH" },
-    );
+    throw new HealthBridgeError("URL bridge và URL contract Sức khỏe Y tế không trùng nhau.", 409, { code: "HEALTH_CARE_ORIGIN_MISMATCH" });
   }
   const expiresAt = Date.now() + 5 * 60 * 1000;
   return {
@@ -229,24 +208,17 @@ export async function issueHealthBrowserBridge(
     token: await issueTicket(configured.secret, baseClaims(actor, role, controlDeviceId, expiresAt, "control")),
     expiresAt,
     application: "health-care" as const,
-    transport: "chatgpt-sites" as const,
+    transport: configured.source === "local" ? "local-control" as const : "cloud-control" as const,
     contractVersion: contract.contractVersion,
     controlProtocol: contract.controlProtocol,
+    originSource: configured.source,
   };
 }
 
-export async function issueHealthWebLaunch(
-  actor: string,
-  role: ControlRole,
-  controlDeviceId: string,
-) {
+export async function issueHealthWebLaunch(actor: string, role: ControlRole, controlDeviceId: string) {
   const [configured, contract] = await Promise.all([configuration(), probeHealthManagementContract()]);
   if (configured.baseUrl !== contract.baseUrl) {
-    throw new HealthBridgeError(
-      "URL Site và URL contract Sức khỏe Y tế không trùng nhau.",
-      409,
-      { code: "HEALTH_CARE_ORIGIN_MISMATCH" },
-    );
+    throw new HealthBridgeError("URL Site và URL contract Sức khỏe Y tế không trùng nhau.", 409, { code: "HEALTH_CARE_ORIGIN_MISMATCH" });
   }
   const expiresAt = Date.now() + 60_000;
   const token = await issueTicket(configured.secret, baseClaims(actor, role, controlDeviceId, expiresAt, "web-launch"));
@@ -254,6 +226,7 @@ export async function issueHealthWebLaunch(
     launchUrl: `${configured.baseUrl}${contract.webLaunchTarget}#control-launch=${encodeURIComponent(token)}`,
     expiresAt,
     application: "health-care" as const,
-    transport: "chatgpt-sites-fragment" as const,
+    transport: configured.source === "local" ? "local-fragment" as const : "cloud-fragment" as const,
+    originSource: configured.source,
   };
 }
