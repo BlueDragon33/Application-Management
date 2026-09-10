@@ -47,25 +47,37 @@ export async function dismissedNotificationHashes(actor: string) {
 /**
  * Client-owned automation is the source of truth. The central audit log is
  * consulted only if a client is temporarily unreachable, so a stale audit
- * entry can never override a live client policy.
+ * entry can never override a live client policy. Auto-block support itself is
+ * never inferred from audit: it is enabled only by a live client capability.
  */
 export async function readAutoApprovalSettings(supportedAppIds: readonly string[]) {
   const fallback = await auditAutoApprovalFallback(supportedAppIds);
-  const enabled = new Set<string>();
+  const autoApproveEnabled = new Set<string>();
+  const autoBlockSupported = new Set<string>();
+  const autoBlockEnabled = new Set<string>();
+  const pendingBlockAfterHoursByApp: Record<string, number> = {};
   const probes = await readClientAutoApprovalStates(supportedAppIds);
 
   probes.forEach((probe, index) => {
     const appId = supportedAppIds[index];
     if (probe.status === "fulfilled") {
-      if (probe.value.enabled) enabled.add(appId);
+      if (probe.value.enabled) autoApproveEnabled.add(appId);
+      if (probe.value.autoBlockSupported) {
+        autoBlockSupported.add(appId);
+        if (probe.value.autoBlockEnabled) autoBlockEnabled.add(appId);
+        pendingBlockAfterHoursByApp[appId] = probe.value.pendingBlockAfterHours ?? 168;
+      }
     } else if (fallback.has(appId)) {
-      enabled.add(appId);
+      autoApproveEnabled.add(appId);
     }
   });
 
   return {
-    autoApproveAppIds: supportedAppIds.filter((id) => enabled.has(id)),
+    autoApproveAppIds: supportedAppIds.filter((id) => autoApproveEnabled.has(id)),
     autoApproveSupportedAppIds: [...supportedAppIds],
+    autoBlockPendingAppIds: supportedAppIds.filter((id) => autoBlockEnabled.has(id)),
+    autoBlockPendingSupportedAppIds: supportedAppIds.filter((id) => autoBlockSupported.has(id)),
+    pendingBlockAfterHoursByApp,
   };
 }
 
@@ -85,4 +97,8 @@ export async function rememberDismissedNotifications(actor: string, workItemIds:
 
 export async function rememberAutoApproval(actor: string, appId: string, enabled: boolean) {
   await writeAudit(actor, "application_auto_approval_updated", appId, { enabled, defaultAccessDays: 60, defaultDeviceLimit: 100 });
+}
+
+export async function rememberAutoBlockPending(actor: string, appId: string, enabled: boolean, pendingBlockAfterHours: number) {
+  await writeAudit(actor, "application_auto_block_pending_updated", appId, { enabled, pendingBlockAfterHours });
 }

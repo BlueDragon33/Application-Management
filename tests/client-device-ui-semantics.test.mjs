@@ -12,7 +12,8 @@ test("client device table distinguishes block from destructive Boi deletion", ()
 
 test("client actions are verified before UI refresh and never optimistic-delete rows", () => {
   const start = hub.indexOf("async function manageClientDevice");
-  const end = hub.indexOf("async function saveAutoApproval");
+  const end = hub.indexOf("async function removeVisibleClientDevices", start);
+  assert.ok(start >= 0 && end > start);
   const block = hub.slice(start, end);
   assert.match(block, /await operationsAction/);
   assert.match(block, /await refreshOperations\(\)/);
@@ -24,11 +25,21 @@ test("device table falls back to app administration when direct action is unavai
   assert.match(hub, /needsAppAdmin/);
 });
 
-test("bulk removal follows visible device filters and uses verified device actions", () => {
-  assert.match(hub, /filterClientDevices/);
-  assert.match(hub, /removeVisibleClientDevices/);
-  assert.match(hub, /Loại bỏ tất cả/);
-  assert.match(hub, /filterClientDevices\(operations\?\.devices \?\? \[\], appFilter, deviceFilter, timeFilter, search\)\.slice\(0, 24\)/);
+test("bulk removal follows the complete active filter set, not only 24 rendered rows", () => {
+  const start = hub.indexOf("async function removeVisibleClientDevices");
+  const end = hub.indexOf("async function saveAutomation", start);
+  assert.ok(start >= 0 && end > start);
+  const bulk = hub.slice(start, end);
+  assert.match(bulk, /const matched = filterClientDevices\(operations\?\.devices \?\? \[\], appFilter, deviceFilter, timeFilter, search\);/);
+  assert.match(bulk, /const targets = matched\.filter\(\(device\) => device\.canRemove\);/);
+  assert.doesNotMatch(bulk, /filterClientDevices\([^;]+\)\.slice\(0,\s*24\)/s);
+  assert.match(bulk, /Bảng chỉ hiển thị 24 dòng đầu nhưng thao tác sẽ áp dụng toàn bộ/);
+});
+
+test("table rendering may stay capped while bulk count uses the full filtered set", () => {
+  assert.match(hub, /const filteredClientDevices = filterClientDevices\(devices, appFilter, deviceFilter, timeFilter, search\);/);
+  assert.match(hub, /bulkRemovableCount = filteredClientDevices\.filter\(\(device\) => device\.canRemove\)\.length/);
+  assert.match(hub, /visible\.slice\(0, limit\)\.map/);
 });
 
 test("returning from app administration triggers read-only resync", () => {
@@ -37,8 +48,12 @@ test("returning from app administration triggers read-only resync", () => {
   assert.match(hub, /read-only registry resync/);
 });
 
-test("automatic removal is shown per app but is not faked without a client contract", () => {
+test("automatic removal is enabled only for clients advertising a safe auto-block contract", () => {
   assert.match(hub, /Tự động loại bỏ theo ứng dụng/);
-  assert.match(hub, /Chưa có contract tự động/);
-  assert.match(hub, /disabled checked=\{false\} readOnly/);
+  assert.match(hub, /autoBlockPendingSupportedAppIds/);
+  assert.match(hub, /Khóa thiết bị pending quá hạn, giữ registry và audit/);
+  assert.match(hub, /Sau 24 giờ/);
+  assert.match(hub, /Sau 7 ngày/);
+  assert.match(hub, /Sau 30 ngày/);
+  assert.match(hub, /Không tự động xóa vĩnh viễn thiết bị/);
 });
