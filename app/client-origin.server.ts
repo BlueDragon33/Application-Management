@@ -22,26 +22,26 @@ const CLIENTS: Record<ManagedClientId, ClientOriginSpec> = {
   "health-care": {
     productionEnv: "HEALTH_CARE_BASE_URL",
     localEnv: "HEALTH_CARE_LOCAL_BASE_URL",
-    localDefault: "http://127.0.0.1:3101",
+    localDefault: "http://127.0.0.1:3001",
     probePath: "/api/control/contract",
   },
   "ru-life": {
     productionEnv: "RU_LIFE_BASE_URL",
     localEnv: "RU_LIFE_LOCAL_BASE_URL",
-    localDefault: "http://127.0.0.1:3102",
+    localDefault: "http://127.0.0.1:3002",
+    probePath: "/api/control/status",
+  },
+  "bauman-master-ai": {
+    productionEnv: "BAUMAN_CONTROL_BASE_URL",
+    localEnv: "BAUMAN_CONTROL_LOCAL_BASE_URL",
+    localDefault: "http://127.0.0.1:3003",
     probePath: "/api/control/status",
   },
   "boi-ech": {
     productionEnv: "BOI_ECH_BASE_URL",
     localEnv: "BOI_ECH_LOCAL_BASE_URL",
-    localDefault: "http://127.0.0.1:3103",
+    localDefault: "http://127.0.0.1:3004",
     probePath: "/api/control/overview?activityDays=0",
-  },
-  "bauman-master-ai": {
-    productionEnv: "BAUMAN_CONTROL_BASE_URL",
-    localEnv: "BAUMAN_CONTROL_LOCAL_BASE_URL",
-    localDefault: "http://127.0.0.1:3104",
-    probePath: "/api/control/status",
   },
 };
 
