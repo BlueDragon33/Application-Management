@@ -74,11 +74,30 @@ test("RU admin keeps user binding and access versus edit controls without persis
 test("RU admin can open the independent RU_LIFE site without inheriting QT access", () => {
   const registry = source("app/application-registry.ts");
   const page = source("app/apps/ru-life/page.tsx");
+  const admin = source("app/apps/ru-life/ru-life-admin.tsx");
   assert.match(registry, /publicUrl\?: string/);
   assert.match(registry, /publicUrl: "https:\/\/hoa-nhap-nga\.dinhnam3391\.chatgpt\.site"/);
   assert.match(page, /getApplicationConfig\("ru-life"\)/);
-  assert.match(page, /Mở site RU_LIFE ↗/);
-  assert.match(page, /target="_blank"/);
-  assert.match(page, /Thiết bị quản trị QT không tự kế thừa quyền truy cập HN/);
+  assert.match(page, /publicUrl=\{publicUrl\}/);
+  assert.match(admin, /href=\{publicUrl\}/);
+  assert.match(admin, /target="_blank"/);
+  assert.match(admin, /Mở site RU_LIFE độc lập/);
   assert.doesNotMatch(page, /accessToken|bridge\.token|authorization/);
+});
+
+test("RU admin premium UI exposes operational hierarchy without changing ownership boundaries", () => {
+  const admin = source("app/apps/ru-life/ru-life-admin.tsx");
+  const css = source("app/apps/ru-life/ru-life-admin.module.css");
+  assert.match(admin, /Thiết bị & quyền Hòa nhập Nga/);
+  assert.match(admin, /Tổng HN/);
+  assert.match(admin, /Chờ duyệt/);
+  assert.match(admin, /Đã cấp quyền/);
+  assert.match(admin, /Đã khóa/);
+  assert.match(admin, /Danh sách thiết bị/);
+  assert.match(admin, /Ctrl K/);
+  assert.match(admin, /Phân loại tự động/);
+  assert.match(css, /data-tone="blue"|\[data-tone="blue"\]/);
+  assert.match(css, /\.approveButton/);
+  assert.match(css, /\.devicePanel/);
+  assert.match(css, /@media\(max-width:680px\)/);
 });
