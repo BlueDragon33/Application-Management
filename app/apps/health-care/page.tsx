@@ -7,5 +7,5 @@ export const dynamic = "force-dynamic";
 
 export default async function HealthCareAdminPage() {
   const user = await requireChatGPTUser("/apps/health-care");
-  return <div className={`${reference.scope} ${complete.scope}`}><HealthCareAdmin user={{ displayName: user.displayName, email: user.email }} /></div>;
+  return <div className={reference.scope}><div className={complete.scope}><HealthCareAdmin user={{ displayName: user.displayName, email: user.email }} /></div></div>;
 }
