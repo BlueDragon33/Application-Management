@@ -1,0 +1,29 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "application-management-preview",
+  "main": "./worker/index.ts",
+  "compatibility_date": "2026-09-10",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Copy this file to wrangler.cloudflare.jsonc for a real Cloudflare environment.
+  // Use a SEPARATE preview D1 database first. Do not use LOCAL_DEV_AUTH on Cloudflare.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "application-management-preview-db",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "drizzle"
+    }
+  ],
+
+  "vars": {
+    "CONTROL_OWNER_EMAILS": "replace-with-approved-owner-email",
+    "BOI_ECH_BASE_URL": "",
+    "HEALTH_CARE_BASE_URL": "",
+    "RU_LIFE_BASE_URL": "",
+    "BAUMAN_CONTROL_BASE_URL": "",
+    "GROWUP_BASE_URL": "",
+    "CF_ACCESS_TEAM_DOMAIN": "https://replace-me.cloudflareaccess.com",
+    "CF_ACCESS_AUD": "replace-with-access-application-audience"
+  }
+}
