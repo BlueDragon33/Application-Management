@@ -71,7 +71,7 @@ export async function issueBaumanBrowserBridge(actor: string, role: ControlRole,
     token: `${signedInput}.${await signature(secret, signedInput)}`,
     expiresAt,
     application: "bauman-master-ai" as const,
-    mode: "read-only" as const,
+    mode: "capability-gated" as const,
     originSource: source,
   };
 }

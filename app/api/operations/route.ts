@@ -272,9 +272,19 @@ async function loadRu(actor: ControlDeviceState) {
 async function loadBauman(actor: ControlDeviceState) {
   const config = app("bauman-master-ai");
   const bridge = await issueBaumanBrowserBridge(actor.email, actor.role, actor.deviceId);
-  await bridgeJson(bridge, "/api/control/status");
-  const data = await bridgeJson(bridge, "/api/control/devices");
-  const canManage = actor.role === "owner";
+  const status = await bridgeJson(bridge, "/api/control/status");
+  const endpoints = record(status.endpoints);
+  const capabilities = record(status.capabilities);
+  const devicesPath = text(endpoints.devices);
+  if (devicesPath !== "/api/control/devices" || !bool(capabilities.deviceRegistry)) {
+    throw new Error("Bauman device registry chưa sẵn sàng trên runtime hiện tại.");
+  }
+  const canManage = actor.role === "owner"
+    && bool(capabilities.deviceApproval)
+    && bool(capabilities.deviceIdempotentCommands)
+    && bool(capabilities.optimisticConcurrency)
+    && text(endpoints.deviceCommands) === "/api/control/device-commands";
+  const data = await bridgeJson(bridge, devicesPath);
   const devices = rows(data).map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
     typeKey: "deviceType",
     userKeys: ["displayName", "label", "platform", "browser"],
@@ -591,10 +601,63 @@ export async function POST(request: Request) {
       if (appId === "bauman-master-ai") {
         if (actor.role !== "owner") return json({ error: "Bauman yêu cầu quyền Chủ hệ thống để thay đổi thiết bị.", code: "OWNER_REQUIRED" }, 403);
         const bridge = await issueBaumanBrowserBridge(actor.email, actor.role, actor.deviceId);
+        const status = await bridgeJson(bridge, "/api/control/status");
+        const endpoints = record(status.endpoints);
+        const capabilities = record(status.capabilities);
+        const devicesPath = text(endpoints.devices);
+        const commandPath = text(endpoints.deviceCommands);
+        if (
+          devicesPath !== "/api/control/devices"
+          || commandPath !== "/api/control/device-commands"
+          || !bool(capabilities.deviceRegistry)
+          || !bool(capabilities.deviceApproval)
+          || !bool(capabilities.deviceIdempotentCommands)
+          || !bool(capabilities.optimisticConcurrency)
+        ) {
+          return json({ error: "Contract Bauman chưa xác nhận device control v4 sẵn sàng.", code: "BAUMAN_DEVICE_COMMAND_CONTRACT_NOT_LIVE" }, 409);
+        }
+
+        const before = await bridgeJson(bridge, devicesPath);
+        const current = rowByDeviceId(before, deviceId);
+        if (!current) return json({ error: "Thiết bị Bauman không còn trong registry.", code: "DEVICE_NOT_FOUND" }, 404);
+
+        const liveStatus = normalizedStatus(current.status);
+        const suppliedExpected = normalizedStatus(payload.expectedStatus);
+        const expectedStatus = suppliedExpected === "unknown" ? liveStatus : suppliedExpected;
+        if (expectedStatus !== liveStatus) {
+          return json({ error: `Snapshot Bauman đã thay đổi: expected ${expectedStatus}, hiện tại ${liveStatus}.`, code: "DEVICE_STATE_CONFLICT" }, 409);
+        }
+        if (operation === "approve" && expectedStatus !== "pending") {
+          return json({ error: "Thiết bị Bauman không còn ở trạng thái chờ duyệt.", code: "DEVICE_STATE_CONFLICT" }, 409);
+        }
+        if (operation === "remove" && expectedStatus !== "pending" && expectedStatus !== "approved") {
+          return json({ error: "Thiết bị Bauman đã bị khóa hoặc trạng thái không xác định.", code: "DEVICE_STATE_CONFLICT" }, 409);
+        }
+
+        const suppliedCommandId = text(payload.commandId).toLowerCase();
+        if (suppliedCommandId && !validCommandId(suppliedCommandId)) {
+          return json({ error: "commandId không hợp lệ.", code: "INVALID_COMMAND_ID" }, 400);
+        }
+        const commandId = suppliedCommandId || crypto.randomUUID();
         const expected = operation === "approve" ? "approved" as const : "blocked" as const;
-        await bridgeJson(bridge, "/api/control/devices", { method: "POST", body: { action: operation === "approve" ? "approve" : "block", deviceId } });
-        await verifyDeviceStatus(bridge, "/api/control/devices", deviceId, expected);
-        return json({ ok: true, verified: true, verifiedStatus: expected, ...(operation === "approve" ? { approvedDeviceId: deviceId } : { removedDeviceId: deviceId }) });
+        const command = await bridgeCommandJson(bridge, commandPath, {
+          commandId,
+          deviceId,
+          operation: operation === "approve" ? "approve" : "block",
+          expectedStatus,
+        });
+        if (text(command.commandId).toLowerCase() !== commandId || normalizedStatus(command.status) !== expected) {
+          return json({ error: "Bauman chưa xác nhận commandId hoặc trạng thái kết quả.", code: "DEVICE_COMMAND_READBACK_MISMATCH" }, 502);
+        }
+        await verifyDeviceStatus(bridge, devicesPath, deviceId, expected);
+        return json({
+          ok: true,
+          verified: true,
+          verifiedStatus: expected,
+          commandId,
+          commandReplayed: bool(command.replayed),
+          ...(operation === "approve" ? { approvedDeviceId: deviceId } : { removedDeviceId: deviceId }),
+        });
       }
 
       if (appId !== "boi-ech") return json({ error: "Client chưa hỗ trợ thao tác này.", code: "CLIENT_ACTION_UNAVAILABLE" }, 409);

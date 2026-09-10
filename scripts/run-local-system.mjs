@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn, spawnSync } from "node:child_process";
@@ -65,9 +65,7 @@ function parseEnvFile(path) {
     if (separator <= 0) continue;
     const key = line.slice(0, separator).trim();
     let value = line.slice(separator + 1).trim();
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-      value = value.slice(1, -1);
-    }
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) value = value.slice(1, -1);
     values[key] = value;
   }
   return values;
@@ -82,12 +80,8 @@ function ensureCentralDevVars() {
     console.log("[local-system] Đã tạo .dev.vars từ mẫu local-only.");
   }
   const values = parseEnvFile(target);
-  if (values.LOCAL_DEV_AUTH !== "1") {
-    throw new Error(".dev.vars phải có LOCAL_DEV_AUTH=1 để dùng local control plane trên loopback.");
-  }
-  if (!values.LOCAL_DEV_USER_EMAIL) {
-    throw new Error(".dev.vars thiếu LOCAL_DEV_USER_EMAIL.");
-  }
+  if (values.LOCAL_DEV_AUTH !== "1") throw new Error(".dev.vars phải có LOCAL_DEV_AUTH=1 để dùng local control plane trên loopback.");
+  if (!values.LOCAL_DEV_USER_EMAIL) throw new Error(".dev.vars thiếu LOCAL_DEV_USER_EMAIL.");
   return values;
 }
 
@@ -96,12 +90,7 @@ function ephemeralSecret() {
 }
 
 function commandResult(command, args, cwd, env = process.env) {
-  return spawnSync(command, args, {
-    cwd,
-    env,
-    stdio: "inherit",
-    shell: false,
-  });
+  return spawnSync(command, args, { cwd, env, stdio: "inherit", shell: false });
 }
 
 function runChecked(label, command, args, cwd, env = process.env) {
@@ -151,6 +140,12 @@ function migrateLocalDatabases(paths, skipMigrate) {
     npx,
     ["wrangler", "d1", "migrations", "apply", "ru-life-local", "--local", "--config", "wrangler.local.jsonc"],
     paths.ruLife,
+  );
+  runChecked(
+    "Migration D1 local · Bauman Control",
+    npx,
+    ["wrangler", "d1", "migrations", "apply", "bauman-control-local", "--local", "--config", "wrangler.local.jsonc"],
+    paths.baumanControl,
   );
   runChecked(
     "Migration D1 local · Bơi ếch",
@@ -238,6 +233,7 @@ async function main() {
 
   for (const [key, path] of Object.entries(paths)) requirePath(path, key);
   requirePath(join(paths.ruLife, "wrangler.local.jsonc"), "RU_LIFE/wrangler.local.jsonc");
+  requirePath(join(paths.baumanControl, "wrangler.local.jsonc"), "Bauman control-service/wrangler.local.jsonc");
   requirePorts([3000, 3001, 3002, 3003, 3004]);
 
   ensureDependencies("Application Management", paths.central, true, options.skipInstall);
@@ -278,7 +274,7 @@ async function main() {
     name: "BAUMAN",
     command: npx,
     args: [
-      "wrangler", "dev", "--local", "--ip", "127.0.0.1", "--port", "3003",
+      "wrangler", "dev", "--local", "--config", "wrangler.local.jsonc", "--ip", "127.0.0.1", "--port", "3003",
       "--var", `BAUMAN_CONTROL_SERVICE_SECRET:${baumanSecret}`,
       "--var", `APPLICATION_MANAGEMENT_ORIGIN:${centralOrigin}`,
     ],
@@ -331,16 +327,16 @@ async function main() {
   console.log(` Trung tâm       : ${centralOrigin}`);
   console.log(" Sức khỏe Y tế   : http://127.0.0.1:3001");
   console.log(" Hòa nhập Nga    : http://127.0.0.1:3002");
-  console.log(" Bauman Control  : http://127.0.0.1:3003");
+  console.log(" Bauman Control  : http://127.0.0.1:3003 · D1 bauman-control-local");
   console.log(" Bơi ếch         : http://127.0.0.1:3004");
   console.log("---------------------------------------------------------------");
   console.log(" D1 local nằm trong .wrangler của từng repo và KHÔNG phải D1 production.");
   console.log(" Secret liên-app chỉ tồn tại trong process hiện tại, không ghi vào GitHub.");
+  console.log(" Bauman learning runtime sẽ được nối ở cổng riêng; hiện lượt này chỉ bật Control Service v4.");
   console.log(" Nhấn Ctrl+C để dừng toàn bộ hệ thống.");
   console.log("===============================================================\n");
 
   if (!options.noBrowser) openBrowser(centralOrigin);
-
   await new Promise(() => {});
 }
 

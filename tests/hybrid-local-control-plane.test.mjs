@@ -47,6 +47,10 @@ test("full local launcher keeps repos independent and local databases isolated",
   assert.match(launcher, /"--local"/);
   assert.match(launcher, /wrangler\.local\.jsonc/);
   assert.match(launcher, /wrangler\.d1\.jsonc/);
+  assert.match(launcher, /Migration D1 local · Bauman Control/);
+  assert.match(launcher, /"bauman-control-local", "--local", "--config", "wrangler\.local\.jsonc"/);
+  assert.match(launcher, /Bauman control-service\/wrangler\.local\.jsonc/);
+  assert.match(launcher, /"wrangler", "dev", "--local", "--config", "wrangler\.local\.jsonc"/);
   assert.doesNotMatch(launcher, /"--remote"/);
   assert.doesNotMatch(launcher, /workers\.dev/);
 });
