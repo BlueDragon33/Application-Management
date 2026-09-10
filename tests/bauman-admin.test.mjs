@@ -84,4 +84,4 @@ test("Bauman device admin styles cover status, action and responsive layouts", (
   assert.match(css, /data-status="approved"/);
   assert.match(css, /data-status="blocked"/);
   assert.match(css, /@media \(max-width: 760px\)/);
-}
+});
