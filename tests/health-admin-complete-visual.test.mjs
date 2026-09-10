@@ -9,7 +9,8 @@ const ui = fs.readFileSync("app/apps/health-care/health-care-admin.tsx", "utf8")
 test("Health admin applies the complete visual layer on top of the approved reference", () => {
   for (const token of [
     'import complete from "./health-care-admin-complete.module.css"',
-    '${reference.scope} ${complete.scope}',
+    'className={reference.scope}',
+    'className={complete.scope}',
   ]) assert.ok(page.includes(token), `missing complete visual integration: ${token}`);
 });
 
