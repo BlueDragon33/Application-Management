@@ -22,6 +22,7 @@
     "HEALTH_CARE_BASE_URL": "",
     "RU_LIFE_BASE_URL": "",
     "BAUMAN_CONTROL_BASE_URL": "",
+    "BAUMAN_APP_ORIGIN": "",
     "GROWUP_BASE_URL": "",
     "CF_ACCESS_TEAM_DOMAIN": "https://replace-me.cloudflareaccess.com",
     "CF_ACCESS_AUD": "replace-with-access-application-audience"
