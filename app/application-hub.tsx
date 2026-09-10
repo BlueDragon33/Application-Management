@@ -28,6 +28,11 @@ type IconName = "home" | "inbox" | "apps" | "device" | "alert" | "audit" | "sett
 type AppearanceFont = "Inter" | "Times New Roman" | "Arial" | "Georgia" | "Verdana";
 type AppearanceBackground = "standard" | "emerald" | "navy" | "graphite" | "burgundy";
 type AppearanceSettings = { font: AppearanceFont; background: AppearanceBackground };
+type ExtendedOperationsSettings = OperationsBootstrap["settings"] & {
+  autoBlockPendingAppIds?: string[];
+  autoBlockPendingSupportedAppIds?: string[];
+  pendingBlockAfterHoursByApp?: Record<string, number>;
+};
 
 const appearanceStorageKey = "application-management:appearance:v1";
 const appearanceFonts: AppearanceFont[] = ["Inter", "Times New Roman", "Arial", "Georgia", "Verdana"];
@@ -237,15 +242,19 @@ function AutoApprovalDialog({ open, settings, busy, close, save }: {
   settings: OperationsBootstrap["settings"] | undefined;
   busy: boolean;
   close: () => void;
-  save: (appIds: string[]) => void;
+  save: (appIds: string[], autoBlockAppIds: string[], pendingBlockAfterHoursByApp: Record<string, number>) => void;
 }) {
-  const [selected, setSelected] = useState<string[]>(settings?.autoApproveAppIds ?? []);
+  const extended = (settings ?? { autoApproveAppIds: [], autoApproveSupportedAppIds: [] }) as ExtendedOperationsSettings;
+  const [selected, setSelected] = useState<string[]>(extended.autoApproveAppIds ?? []);
+  const [autoBlockSelected, setAutoBlockSelected] = useState<string[]>(extended.autoBlockPendingAppIds ?? []);
+  const [pendingBlockHours, setPendingBlockHours] = useState<Record<string, number>>(extended.pendingBlockAfterHoursByApp ?? {});
   if (!open) return null;
-  const supported = new Set(settings?.autoApproveSupportedAppIds ?? []);
+  const supported = new Set(extended.autoApproveSupportedAppIds ?? []);
+  const autoBlockSupported = new Set(extended.autoBlockPendingSupportedAppIds ?? []);
   return <div className={styles.dialogScrim} role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) close(); }}>
     <section className={styles.dialogCard} role="dialog" aria-modal="true" aria-labelledby="auto-approval-title">
       <header><div><span>QUY TẮC THIẾT BỊ</span><h2 id="auto-approval-title">Tự động xử lý theo ứng dụng</h2></div><button onClick={close} aria-label="Đóng">×</button></header>
-      <p>Chỉ bật quy tắc khi app sở hữu registry đã công bố contract thật. Trung tâm không giả lập automation và không dùng thao tác Đồng bộ để thay đổi thiết bị.</p>
+      <p>Chỉ bật quy tắc khi app sở hữu registry đã công bố contract thật. Trung tâm chỉ cấu hình policy; tác vụ tự động chạy tại backend của app và Đồng bộ vẫn luôn chỉ đọc.</p>
       <div className={styles.dialogChoices}>
         <strong>Duyệt tự động theo ứng dụng</strong>
         {applicationRegistry.map((application) => {
@@ -258,12 +267,17 @@ function AutoApprovalDialog({ open, settings, busy, close, save }: {
       </div>
       <div className={styles.dialogChoices}>
         <strong>Tự động loại bỏ theo ứng dụng</strong>
-        {applicationRegistry.map((application) => <label key={`remove:${application.id}`} data-disabled="true">
-          <input type="checkbox" disabled checked={false} readOnly/>
-          <AppBadge appId={application.id} initials={application.initials}/><span><strong>{application.shortName}</strong><small>{application.id === "boi-ech" ? "Chưa có contract tự động xóa an toàn" : "Chưa có contract tự động khóa an toàn"} · Hiện xử lý tại bảng thiết bị hoặc Vào quản trị app.</small></span>
-        </label>)}
+        {applicationRegistry.map((application) => {
+          const enabled = autoBlockSupported.has(application.id);
+          const checked = autoBlockSelected.includes(application.id);
+          const hours = pendingBlockHours[application.id] ?? 168;
+          return <label key={`remove:${application.id}`} data-disabled={!enabled}>
+            <input type="checkbox" disabled={!enabled || busy} checked={checked} onChange={(event) => setAutoBlockSelected((current) => event.target.checked ? [...current, application.id] : current.filter((id) => id !== application.id))}/>
+            <AppBadge appId={application.id} initials={application.initials}/><span><strong>{application.shortName}</strong><small>{enabled ? "Khóa thiết bị pending quá hạn, giữ registry và audit" : application.id === "boi-ech" ? "Không tự động xóa vĩnh viễn thiết bị" : "Chờ contract tự động khóa an toàn"}</small>{enabled && checked ? <select value={hours} disabled={busy} onClick={(event) => event.stopPropagation()} onChange={(event) => setPendingBlockHours((current) => ({ ...current, [application.id]: Number(event.target.value) }))}><option value={24}>Sau 24 giờ</option><option value={168}>Sau 7 ngày</option><option value={720}>Sau 30 ngày</option></select> : null}</span>
+          </label>;
+        })}
       </div>
-      <footer><button onClick={close} disabled={busy}>Hủy</button><button className={styles.primaryButton} onClick={() => save(selected)} disabled={busy}>{busy ? "Đang lưu…" : "Lưu quy tắc duyệt"}</button></footer>
+      <footer><button onClick={close} disabled={busy}>Hủy</button><button className={styles.primaryButton} onClick={() => save(selected, autoBlockSelected, pendingBlockHours)} disabled={busy}>{busy ? "Đang lưu…" : "Lưu quy tắc"}</button></footer>
     </section>
   </div>;
 }
@@ -545,11 +559,11 @@ export default function ApplicationHub({ user }: { user: { displayName: string; 
 }
 
 async function removeVisibleClientDevices() {
-  const visible = filterClientDevices(operations?.devices ?? [], appFilter, deviceFilter, timeFilter, search).slice(0, 24);
-  const targets = visible.filter((device) => device.canRemove);
-  const fallbackCount = visible.length - targets.length;
+  const matched = filterClientDevices(operations?.devices ?? [], appFilter, deviceFilter, timeFilter, search);
+  const targets = matched.filter((device) => device.canRemove);
+  const fallbackCount = matched.length - targets.length;
   if (!targets.length) {
-    setNotice(visible.length ? "Các thiết bị đang hiển thị cần xử lý trong quản trị app tương ứng." : "Không có thiết bị phù hợp để xử lý.");
+    setNotice(matched.length ? "Các thiết bị phù hợp bộ lọc cần xử lý trong quản trị app tương ứng." : "Không có thiết bị phù hợp để xử lý.");
     return;
   }
   const permanentCount = targets.filter((device) => device.appId === "boi-ech").length;
@@ -558,7 +572,8 @@ async function removeVisibleClientDevices() {
   const deviceScope = deviceFilter === "all" ? "tất cả loại thiết bị" : deviceFilter;
   const timeScope = timeFilter === "all" ? "mọi thời gian" : `${timeFilter} ngày`;
   const summary = [
-    `Xử lý ${targets.length}/${visible.length} thiết bị đang hiển thị (${appScope} · ${deviceScope} · ${timeScope})?`,
+    `Xử lý ${targets.length}/${matched.length} thiết bị phù hợp bộ lọc (${appScope} · ${deviceScope} · ${timeScope})?`,
+    matched.length > 24 ? `Bảng chỉ hiển thị 24 dòng đầu nhưng thao tác sẽ áp dụng toàn bộ ${matched.length} thiết bị đã đồng bộ phù hợp bộ lọc.` : "",
     blockCount ? `${blockCount} thiết bị sẽ bị khóa và thu hồi quyền/phiên.` : "",
     permanentCount ? `${permanentCount} thiết bị Bơi ếch sẽ bị xóa vĩnh viễn.` : "",
     fallbackCount ? `${fallbackCount} thiết bị không hỗ trợ trực tiếp sẽ được giữ lại để Vào quản trị app.` : "",
@@ -582,15 +597,28 @@ async function removeVisibleClientDevices() {
   setActionBusy("");
 }
 
-  async function saveAutoApproval(appIds: string[]) {
+  async function saveAutomation(appIds: string[], autoBlockAppIds: string[], pendingBlockAfterHoursByApp: Record<string, number>) {
     setActionBusy("auto-approval"); setNotice("");
     try {
-      const result = await operationsAction({ action: "set-auto-approval", appIds });
-      setOperations((current) => current && result.settings ? { ...current, settings: result.settings } : current);
+      await operationsAction({ action: "set-auto-approval", appIds });
+      const current = (operations?.settings ?? { autoApproveAppIds: [], autoApproveSupportedAppIds: [] }) as ExtendedOperationsSettings;
+      const supported = current.autoBlockPendingSupportedAppIds ?? [];
+      const enabledBefore = new Set(current.autoBlockPendingAppIds ?? []);
+      for (const appId of supported) {
+        const enabled = autoBlockAppIds.includes(appId);
+        const pendingBlockAfterHours = pendingBlockAfterHoursByApp[appId] ?? current.pendingBlockAfterHoursByApp?.[appId] ?? 168;
+        const previousHours = current.pendingBlockAfterHoursByApp?.[appId] ?? 168;
+        if (enabledBefore.has(appId) === enabled && previousHours === pendingBlockAfterHours) continue;
+        await operationsAction({ action: "set-auto-block-pending", appId, enabled, pendingBlockAfterHours });
+      }
+      const synced = await refreshOperations();
+      if (!synced) throw new Error("Đã gửi quy tắc tới client nhưng Trung tâm chưa đọc lại được trạng thái xác minh.");
       setAutoApprovalOpen(false);
-      setNotice(appIds.length ? "Đã bật duyệt tự động cho ứng dụng được chọn." : "Đã tắt duyệt tự động.");
-    } catch (caught) { setNotice(caught instanceof Error ? caught.message : "Không thể lưu quy tắc duyệt tự động."); }
-    finally { setActionBusy(""); }
+      setNotice("Đã lưu và xác minh quy tắc tự động theo ứng dụng.");
+    } catch (caught) {
+      void refreshOperations();
+      setNotice(caught instanceof Error ? caught.message : "Không thể lưu quy tắc tự động.");
+    } finally { setActionBusy(""); }
   }
 
   async function launchClientWeb(appId: string) {
@@ -622,8 +650,8 @@ async function removeVisibleClientDevices() {
   const title = viewTitles[view];
   const workItems = operations?.workItems ?? [];
   const devices = operations?.devices ?? [];
-  const visibleClientDevices = filterClientDevices(devices, appFilter, deviceFilter, timeFilter, search).slice(0, 24);
-  const bulkRemovableCount = visibleClientDevices.filter((device) => device.canRemove).length;
+  const filteredClientDevices = filterClientDevices(devices, appFilter, deviceFilter, timeFilter, search);
+  const bulkRemovableCount = filteredClientDevices.filter((device) => device.canRemove).length;
   const selectedBackground = appearanceBackgrounds.find((item) => item.id === appearance.background) ?? appearanceBackgrounds[0];
   const shellStyle = { "--qt-user-font": appearance.font, "--qt-user-background": selectedBackground.value } as CSSProperties;
 
@@ -654,7 +682,7 @@ async function removeVisibleClientDevices() {
       </header>
 
       {appearanceOpen ? <AppearanceDialog open value={appearance} close={() => setAppearanceOpen(false)} change={setAppearance}/> : null}
-      {autoApprovalOpen ? <AutoApprovalDialog open settings={operations?.settings} busy={actionBusy === "auto-approval"} close={() => setAutoApprovalOpen(false)} save={(appIds) => void saveAutoApproval(appIds)}/> : null}
+      {autoApprovalOpen ? <AutoApprovalDialog open settings={operations?.settings} busy={actionBusy === "auto-approval"} close={() => setAutoApprovalOpen(false)} save={(appIds, autoBlockAppIds, pendingBlockAfterHoursByApp) => void saveAutomation(appIds, autoBlockAppIds, pendingBlockAfterHoursByApp)}/> : null}
 
       <div className={styles.pageBody}>
         <header className={styles.pageHeader}><div><h1>{title.title}</h1><p>{title.description}</p></div><div className={styles.systemCard}><Icon name="calendar" size={23}/><div><span>{formatDate(now)}</span><strong>{formatClock(now)}</strong></div><i/><div data-state={systemState}><span>Hệ thống</span><strong>{systemState === "healthy" ? "Hoạt động ổn định" : systemState === "syncing" ? "Đang đồng bộ" : `${unavailableCount || 1} client cần kiểm tra`}</strong></div><button onClick={() => void refreshOperations()} disabled={operationsBusy} aria-label="Đồng bộ dữ liệu client" title="Đồng bộ dữ liệu client"><Icon name="refresh" size={17}/></button></div></header>
