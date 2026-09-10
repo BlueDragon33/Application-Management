@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import ts from "typescript";
 
 const authSource = fs.readFileSync("app/cloudflare-access-auth.ts", "utf8");
 const chatAuth = fs.readFileSync("app/chatgpt-auth.ts", "utf8");
@@ -9,6 +10,16 @@ const worker = fs.readFileSync("worker/index.ts", "utf8");
 
 function base64UrlJson(value) {
   return Buffer.from(JSON.stringify(value)).toString("base64url");
+}
+
+function loadAdapter() {
+  const output = ts.transpileModule(authSource, {
+    compilerOptions: {
+      module: ts.ModuleKind.ES2022,
+      target: ts.ScriptTarget.ES2022,
+    },
+  }).outputText;
+  return import(`data:text/javascript;base64,${Buffer.from(output).toString("base64")}`);
 }
 
 async function signedToken({ teamDomain, audience, email = "admin@example.test", subject = "cf-user-1", mutatePayload = false }) {
@@ -62,7 +73,7 @@ test("Cloudflare preflight and worker require Access deployment settings", () =>
 });
 
 test("Access adapter cryptographically accepts a valid RS256 JWT and rejects a tampered JWT", async () => {
-  const module = await import(`../app/cloudflare-access-auth.ts?test=${Date.now()}`);
+  const module = await loadAdapter();
   const teamDomain = "https://unit-test.cloudflareaccess.com";
   const audience = "unit-test-audience-12345678";
   const { token, publicJwk } = await signedToken({ teamDomain, audience });
