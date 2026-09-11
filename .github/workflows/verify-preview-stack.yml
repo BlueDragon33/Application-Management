@@ -1,0 +1,42 @@
+name: Application Management Preview Stack Verify
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Verification scope"
+        required: true
+        default: "full-stack"
+        type: choice
+        options:
+          - phase-a
+          - full-stack
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    environment: application-management-preview
+    timeout-minutes: 10
+    env:
+      APPLICATION_MANAGEMENT_PREVIEW_ORIGIN: ${{ vars.APPLICATION_MANAGEMENT_PREVIEW_ORIGIN }}
+      BOI_ECH_PREVIEW_ORIGIN: ${{ vars.BOI_ECH_PREVIEW_ORIGIN }}
+      HEALTH_CARE_PREVIEW_ORIGIN: ${{ vars.HEALTH_CARE_PREVIEW_ORIGIN }}
+      RU_LIFE_PREVIEW_ORIGIN: ${{ vars.RU_LIFE_PREVIEW_ORIGIN }}
+      BAUMAN_CONTROL_PREVIEW_ORIGIN: ${{ vars.BAUMAN_CONTROL_PREVIEW_ORIGIN }}
+      BAUMAN_RUNTIME_PREVIEW_ORIGIN: ${{ vars.BAUMAN_RUNTIME_PREVIEW_ORIGIN }}
+      CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+      CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+      CONTROL_SERVICE_SECRET: ${{ secrets.CONTROL_SERVICE_SECRET }}
+      HEALTH_CONTROL_SERVICE_SECRET: ${{ secrets.HEALTH_CONTROL_SERVICE_SECRET }}
+      RU_LIFE_CONTROL_SERVICE_SECRET: ${{ secrets.RU_LIFE_CONTROL_SERVICE_SECRET }}
+      BAUMAN_CONTROL_SERVICE_SECRET: ${{ secrets.BAUMAN_CONTROL_SERVICE_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+      - name: Verify preview stack without mutation
+        run: npm run preview:verify -- "${{ inputs.mode }}"
