@@ -1,0 +1,85 @@
+name: Application Management Cloudflare Preview CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/cloudflare-preview-ci.yml"
+      - ".github/workflows/deploy-application-management-preview.yml"
+      - "wrangler.cloudflare.example.jsonc"
+      - "wrangler.local.jsonc"
+      - "vite.config.ts"
+      - "worker/index.ts"
+      - "app/cloudflare-access-auth.ts"
+      - "app/client-origin.server.ts"
+      - "scripts/prepare-cloudflare-preview.mjs"
+      - "scripts/validate-cloudflare-preview.mjs"
+      - "docs/CLOUDFLARE_DEPLOYMENT_TRACK.md"
+
+permissions:
+  contents: read
+
+jobs:
+  preview-boundary:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID: 33333333-3333-4333-8333-333333333333
+      APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID: 44444444-4444-4444-8444-444444444444
+      CONTROL_OWNER_EMAILS: owner@example.com
+      CF_ACCESS_TEAM_DOMAIN: https://example-team.cloudflareaccess.com
+      CF_ACCESS_AUD: preview-audience-0123456789
+      BOI_ECH_BASE_URL: ""
+      HEALTH_CARE_BASE_URL: ""
+      RU_LIFE_BASE_URL: ""
+      BAUMAN_CONTROL_BASE_URL: https://bauman-control-preview.example.com
+      BAUMAN_APP_ORIGIN: https://bauman-runtime-preview.example.com
+      GROWUP_BASE_URL: ""
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Preserve existing Application Management regressions
+        run: npm test
+
+      - name: Validate Cloudflare migration boundary
+        run: npm run validate:cloudflare-preview
+
+      - name: Materialize isolated preview config
+        run: npm run cloudflare:preview:prepare
+
+      - name: Validate materialized Cloudflare config
+        run: npm run cloudflare:check
+
+      - name: Build with preview bindings
+        env:
+          CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH: wrangler.cloudflare.jsonc
+        run: npm run build
+
+      - name: Verify generated deployment artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f dist/server/index.js
+          test -f dist/wrangler.json
+          test -f .wrangler/deploy/config.json
+          if grep -R "1cf8f6b4-6c23-4479-8751-47703ecac92b" dist/wrangler.json .wrangler/deploy/config.json wrangler.cloudflare.jsonc; then
+            echo '::error::Preview artifact references legacy ChatGPT Sites D1.'
+            exit 1
+          fi
+          if grep -R "00000000-0000-0000-0000-000000000003" dist/wrangler.json .wrangler/deploy/config.json wrangler.cloudflare.jsonc; then
+            echo '::error::Preview artifact references local-only D1.'
+            exit 1
+          fi
+          grep -q 'application-management-preview-db' dist/wrangler.json
+          grep -q 'cloudflare-preview' dist/wrangler.json
+
+      - name: Wrangler dry-run generated preview artifact
+        run: npx wrangler deploy --dry-run --outdir .wrangler/preview-dry-run
