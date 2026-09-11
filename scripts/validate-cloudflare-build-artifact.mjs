@@ -51,6 +51,9 @@ const generatedRelative = assertInsideRoot(generatedPath, "Generated Wrangler co
 if (!generatedRelative.startsWith("dist/")) {
   fail(`Generated Wrangler config must live under dist/, got ${generatedRelative}.`);
 }
+if (!fs.existsSync(generatedPath)) {
+  fail(`Generated Wrangler config does not exist: ${generatedRelative}.`);
+}
 
 const generatedText = fs.readFileSync(generatedPath, "utf8");
 if (generatedText.includes(LOCAL_D1_ID)) fail("Generated Wrangler config references the local-only D1 placeholder.");
