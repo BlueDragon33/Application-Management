@@ -18,6 +18,7 @@
     "preview": "npm run build && vite preview",
     "start": "vinext start",
     "test": "npm run build && node --test tests/*.test.mjs",
+    "preview:verify:readonly": "node scripts/verify-cloudflare-preview-stack.mjs",
     "validate:artifact": "bash scripts/validate-artifact.sh",
     "validate:local-first": "node --test tests/local-first-runtime.test.mjs",
     "validate:cloudflare-preview": "node scripts/validate-cloudflare-preview.mjs",
