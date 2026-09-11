@@ -113,25 +113,7 @@ jobs:
         run: npm run build
 
       - name: Verify generated preview artifact
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -f dist/server/index.js
-          test -f dist/wrangler.json
-          test -f .wrangler/deploy/config.json
-          FILES=(dist/wrangler.json .wrangler/deploy/config.json wrangler.cloudflare.jsonc)
-          if grep -R "1cf8f6b4-6c23-4479-8751-47703ecac92b" "${FILES[@]}"; then
-            echo '::error::Preview artifact references legacy ChatGPT Sites D1.'
-            exit 1
-          fi
-          if grep -R "00000000-0000-0000-0000-000000000003" "${FILES[@]}"; then
-            echo '::error::Preview artifact references local-only D1.'
-            exit 1
-          fi
-          grep -q 'application-management-preview-db' wrangler.cloudflare.jsonc
-          grep -q 'cloudflare-preview' wrangler.cloudflare.jsonc
-          grep -q "$APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID" .wrangler/deploy/config.json
-          grep -q 'application-management-preview' .wrangler/deploy/config.json
+        run: npm run cloudflare:artifact:check
 
       - name: Deploy Application Management preview Worker
         run: npx wrangler deploy
