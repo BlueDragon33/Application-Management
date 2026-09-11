@@ -1,5 +1,7 @@
 import fs from "node:fs";
 
+const LOCAL_D1_ID = "00000000-0000-0000-0000-000000000003";
+const LEGACY_SITES_D1_ID = "1cf8f6b4-6c23-4479-8751-47703ecac92b";
 const requiredLocal = [
   "wrangler.cloudflare.example.jsonc",
   "docs/CLOUDFLARE_DEPLOYMENT_TRACK.md",
@@ -17,10 +19,22 @@ function isHttpsOrigin(value) {
   if (!value) return false;
   try {
     const url = new URL(value);
-    return url.protocol === "https:" && url.origin === value.replace(/\/$/, "") && url.pathname === "/" && !url.username && !url.password && !url.search && !url.hash;
+    return url.protocol === "https:"
+      && url.origin === value.replace(/\/$/, "")
+      && url.pathname === "/"
+      && !url.username
+      && !url.password
+      && !url.search
+      && !url.hash;
   } catch {
     return false;
   }
+}
+
+function validOwnerEmails(value) {
+  if (!value) return false;
+  const emails = value.split(",").map((item) => item.trim()).filter(Boolean);
+  return emails.length > 0 && emails.every((email) => /^[^\s@,]+@[^\s@,]+\.[^\s@,]+$/.test(email));
 }
 
 const template = fs.readFileSync("wrangler.cloudflare.example.jsonc", "utf8");
@@ -31,44 +45,57 @@ for (const key of ["BAUMAN_CONTROL_BASE_URL", "BAUMAN_APP_ORIGIN"]) {
 }
 
 if (!fs.existsSync("wrangler.cloudflare.jsonc")) {
-  console.error("CLOUDFLARE_NOT_CONFIGURED: copy wrangler.cloudflare.example.jsonc -> wrangler.cloudflare.jsonc và cấu hình preview D1/Access trước.");
+  console.error("CLOUDFLARE_NOT_CONFIGURED: chạy npm run cloudflare:preview:prepare để tạo config preview đã kiểm tra.");
   process.exit(2);
 }
 
 const config = fs.readFileSync("wrangler.cloudflare.jsonc", "utf8");
-if (/00000000-0000-0000-0000-000000000000|replace-with-/.test(config)) {
-  console.error("CLOUDFLARE_PLACEHOLDER_CONFIG: wrangler.cloudflare.jsonc vẫn còn giá trị placeholder.");
+if (/__[A-Z0-9_]+__/.test(config) || /replace-with-/.test(config)) {
+  console.error("CLOUDFLARE_PLACEHOLDER_CONFIG: wrangler.cloudflare.jsonc vẫn còn placeholder.");
   process.exit(2);
 }
+if (config.includes(LOCAL_D1_ID) || config.includes(LEGACY_SITES_D1_ID)) {
+  throw new Error("CLOUDFLARE_D1_BOUNDARY_VIOLATION: preview đang tham chiếu local hoặc legacy Sites D1.");
+}
+if (config.includes(".chatgpt.site")) throw new Error("CLOUDFLARE_CHATGPT_FALLBACK_FORBIDDEN: preview không được trỏ client về ChatGPT Sites.");
 if (/"LOCAL_DEV_AUTH"\s*:/.test(config)) throw new Error("CLOUDFLARE_LOCAL_AUTH_FORBIDDEN: không được deploy local auth lên Cloudflare.");
+if (stringVar(config, "CONTROL_PLANE_NETWORK_MODE") !== "production") {
+  throw new Error("CLOUDFLARE_NETWORK_MODE_REQUIRED: Cloudflare preview phải dùng production resolver, không localhost fallback.");
+}
+if (stringVar(config, "APPLICATION_MANAGEMENT_DEPLOYMENT_CHANNEL") !== "cloudflare-preview") {
+  throw new Error("CLOUDFLARE_DEPLOYMENT_CHANNEL_INVALID: config preview phải tự nhận dạng cloudflare-preview.");
+}
+
+const ownerEmails = stringVar(config, "CONTROL_OWNER_EMAILS");
+if (!validOwnerEmails(ownerEmails)) throw new Error("CLOUDFLARE_OWNER_POLICY_INVALID: CONTROL_OWNER_EMAILS không hợp lệ.");
+const teamDomain = stringVar(config, "CF_ACCESS_TEAM_DOMAIN");
+const audience = stringVar(config, "CF_ACCESS_AUD");
+if (!teamDomain || !/^https:\/\/[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.cloudflareaccess\.com$/i.test(teamDomain)) {
+  throw new Error("CLOUDFLARE_ACCESS_TEAM_DOMAIN_INVALID.");
+}
+if (!audience || !/^[A-Za-z0-9._:-]{8,256}$/.test(audience)) throw new Error("CLOUDFLARE_ACCESS_AUD_INVALID.");
+
+for (const key of ["BOI_ECH_BASE_URL", "HEALTH_CARE_BASE_URL", "RU_LIFE_BASE_URL", "BAUMAN_CONTROL_BASE_URL", "BAUMAN_APP_ORIGIN", "GROWUP_BASE_URL"]) {
+  const value = stringVar(config, key);
+  if (value === null) throw new Error(`Cloudflare config thiếu ${key}.`);
+  if (value && !isHttpsOrigin(value)) throw new Error(`${key} phải là HTTPS exact origin.`);
+}
 
 const baumanControl = stringVar(config, "BAUMAN_CONTROL_BASE_URL");
 const baumanRuntime = stringVar(config, "BAUMAN_APP_ORIGIN");
-if (baumanControl === null || baumanRuntime === null) {
-  console.error("CLOUDFLARE_BAUMAN_ORIGINS_MISSING: config phải khai báo riêng BAUMAN_CONTROL_BASE_URL và BAUMAN_APP_ORIGIN.");
-  process.exit(2);
-}
 if (Boolean(baumanControl) !== Boolean(baumanRuntime)) {
-  console.error("CLOUDFLARE_BAUMAN_ORIGINS_INCOMPLETE: khi bật Bauman phải cấu hình cả Control Service và Learning Runtime.");
-  process.exit(2);
+  throw new Error("CLOUDFLARE_BAUMAN_ORIGINS_INCOMPLETE: khi bật Bauman phải cấu hình cả Control Service và Learning Runtime.");
 }
-if (baumanControl && (!isHttpsOrigin(baumanControl) || !isHttpsOrigin(baumanRuntime))) {
-  console.error("CLOUDFLARE_BAUMAN_HTTPS_REQUIRED: cả hai origin Bauman production phải là HTTPS origin thuần.");
-  process.exit(2);
-}
-if (baumanControl && baumanControl.replace(/\/$/, "") === baumanRuntime.replace(/\/$/, "")) {
-  console.error("CLOUDFLARE_BAUMAN_ORIGINS_COLLIDE: Learning Runtime không được dùng cùng origin với Control Service.");
-  process.exit(2);
+if (baumanControl && baumanControl === baumanRuntime) {
+  throw new Error("CLOUDFLARE_BAUMAN_ORIGINS_COLLIDE: Learning Runtime không được dùng cùng origin với Control Service.");
 }
 
 if (!fs.existsSync("app/cloudflare-access-auth.ts")) {
-  console.error("CLOUDFLARE_ACCESS_ADAPTER_REQUIRED: chưa có adapter xác thực JWT/AUD của Cloudflare Access. Không deploy control plane công khai.");
-  process.exit(2);
+  throw new Error("CLOUDFLARE_ACCESS_ADAPTER_REQUIRED: chưa có adapter xác thực JWT/AUD của Cloudflare Access.");
 }
-
 const auth = fs.readFileSync("app/cloudflare-access-auth.ts", "utf8");
-for (const token of ["cf-access-jwt-assertion", "CF_ACCESS_AUD", "CF_ACCESS_TEAM_DOMAIN"]) {
+for (const token of ["cf-access-jwt-assertion", "CF_ACCESS_AUD", "CF_ACCESS_TEAM_DOMAIN", "RSASSA-PKCS1-v1_5"]) {
   if (!auth.toLowerCase().includes(token.toLowerCase())) throw new Error(`Cloudflare Access adapter thiếu: ${token}`);
 }
 
-console.log("Cloudflare preflight PASS: deployment config + Access adapter + Bauman dual-origin boundary present. Vẫn phải chạy npm test và smoke test preview trước production.");
+console.log("Cloudflare preflight PASS: isolated preview D1 + Access JWT + owner policy + client HTTPS boundary + Bauman dual-origin boundary present.");

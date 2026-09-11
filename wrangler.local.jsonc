@@ -8,7 +8,7 @@
     {
       "binding": "DB",
       "database_name": "learning-management-db",
-      "database_id": "1cf8f6b4-6c23-4479-8751-47703ecac92b",
+      "database_id": "00000000-0000-0000-0000-000000000003",
       "migrations_dir": "drizzle"
     }
   ]

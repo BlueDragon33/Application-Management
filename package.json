@@ -20,7 +20,10 @@
     "test": "npm run build && node --test tests/*.test.mjs",
     "validate:artifact": "bash scripts/validate-artifact.sh",
     "validate:local-first": "node --test tests/local-first-runtime.test.mjs",
+    "validate:cloudflare-preview": "node scripts/validate-cloudflare-preview.mjs",
+    "cloudflare:preview:prepare": "node scripts/prepare-cloudflare-preview.mjs",
     "cloudflare:check": "node scripts/validate-cloudflare-ready.mjs",
+    "cloudflare:artifact:check": "node scripts/validate-cloudflare-build-artifact.mjs",
     "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "bash scripts/sites-env.sh -- drizzle-kit generate"
   },

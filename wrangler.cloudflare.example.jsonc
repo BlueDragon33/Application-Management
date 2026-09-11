@@ -5,26 +5,30 @@
   "compatibility_date": "2026-09-10",
   "compatibility_flags": ["nodejs_compat"],
 
-  // Copy this file to wrangler.cloudflare.jsonc for a real Cloudflare environment.
-  // Use a SEPARATE preview D1 database first. Do not use LOCAL_DEV_AUTH on Cloudflare.
+  // Template only. scripts/prepare-cloudflare-preview.mjs materializes
+  // wrangler.cloudflare.jsonc with a SEPARATE preview D1 database.
+  // Never put service secrets or LOCAL_DEV_AUTH in this file.
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "application-management-preview-db",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "__APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID__",
       "migrations_dir": "drizzle"
     }
   ],
 
   "vars": {
-    "CONTROL_OWNER_EMAILS": "replace-with-approved-owner-email",
-    "BOI_ECH_BASE_URL": "",
-    "HEALTH_CARE_BASE_URL": "",
-    "RU_LIFE_BASE_URL": "",
-    "BAUMAN_CONTROL_BASE_URL": "",
-    "BAUMAN_APP_ORIGIN": "",
-    "GROWUP_BASE_URL": "",
-    "CF_ACCESS_TEAM_DOMAIN": "https://replace-me.cloudflareaccess.com",
-    "CF_ACCESS_AUD": "replace-with-access-application-audience"
+    "CONTROL_OWNER_EMAILS": "__CONTROL_OWNER_EMAILS__",
+    "CONTROL_PLANE_NETWORK_MODE": "production",
+    "BOI_ECH_BASE_URL": "__BOI_ECH_BASE_URL__",
+    "HEALTH_CARE_BASE_URL": "__HEALTH_CARE_BASE_URL__",
+    "RU_LIFE_BASE_URL": "__RU_LIFE_BASE_URL__",
+    "BAUMAN_CONTROL_BASE_URL": "__BAUMAN_CONTROL_BASE_URL__",
+    "BAUMAN_APP_ORIGIN": "__BAUMAN_APP_ORIGIN__",
+    "GROWUP_BASE_URL": "__GROWUP_BASE_URL__",
+    "CF_ACCESS_TEAM_DOMAIN": "__CF_ACCESS_TEAM_DOMAIN__",
+    "CF_ACCESS_AUD": "__CF_ACCESS_AUD__",
+    "APPLICATION_MANAGEMENT_DEPLOYMENT_CHANNEL": "cloudflare-preview",
+    "APPLICATION_MANAGEMENT_BUILD_REVISION": "__APPLICATION_MANAGEMENT_BUILD_REVISION__"
   }
 }

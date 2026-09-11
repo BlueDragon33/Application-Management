@@ -2,9 +2,11 @@
 
 ## Trạng thái
 
-Cloudflare được chuẩn bị như môi trường preview/production thay thế. Access Auth Adapter V1 đã được triển khai trong `app/cloudflare-access-auth.ts`; trước preview thật vẫn cần cấu hình tài khoản Cloudflare, preview D1, Team Domain, AUD, Access policy, secrets và hostname/Worker.
+Cloudflare là môi trường preview/production thay thế ChatGPT Sites. `Application-Management` vẫn là **control-plane canonical duy nhất**; mỗi ứng dụng tiếp tục sở hữu runtime, database, registry thiết bị và audit của chính nó.
 
-ChatGPT Site có thể nhận dạng người dùng bằng `oai-authenticated-user-*`. Cloudflare không tạo các header đó, nên Cloudflare path dùng `Cf-Access-Jwt-Assertion` và xác minh chữ ký/issuer/audience độc lập.
+Cloudflare path đã có Access Auth Adapter trong `app/cloudflare-access-auth.ts`: xác minh `Cf-Access-Jwt-Assertion` bằng JWKS, RS256, issuer, audience, thời hạn và subject/email. `LOCAL_DEV_AUTH` chỉ dùng loopback local và tuyệt đối không được materialize vào Cloudflare.
+
+Preview **không còn copy config thủ công**. `wrangler.cloudflare.example.jsonc` là template; `scripts/prepare-cloudflare-preview.mjs` tạo file ignored `wrangler.cloudflare.jsonc` sau khi kiểm tra D1, Access, owner policy và client origins.
 
 ## Kiến trúc đích
 
@@ -15,86 +17,147 @@ Cloudflare Access
   ↓ Cf-Access-Jwt-Assertion
 Application Management
   ↓ verify RS256 + JWKS + issuer + AUD + exp/nbf
-Control-plane authorization (QT device + role)
-  ↓ D1 binding riêng
+QT device + role authorization
+  ↓ D1 riêng của control-plane
 Application Management D1
-  ↓ signed client-control contracts
+  ↓ signed app-scoped Control API
 Health_Care / RU_LIFE / Bauman Control / Bơi Ếch
 
 Bauman riêng:
 Bauman Learning Runtime ── P-256 Device Gate ──> Bauman Control Service ──> Bauman D1
 ```
 
-Application Management vẫn chỉ là Control Plane. Không nhập runtime/client database vào Worker này.
+Application Management không nhập database/client data vào control-plane. `GROWUP_BASE_URL` hiện chỉ dùng contract/direct launch cho tới khi GrowUP có remote-admin contract đầy đủ.
 
-## Access Auth Adapter V1
+## Local / offline và Cloudflare tách D1 tuyệt đối
 
-Adapter hiện tại chỉ chấp nhận Team Domain hợp lệ, lấy JWKS từ Cloudflare Access, chỉ nhận RS256, kiểm tra `kid`/signature/issuer/audience/exp/nbf/iat, yêu cầu `sub` và email hợp lệ, cache JWKS ngắn hạn và không dùng `LOCAL_DEV_AUTH` trên production. Cloudflare Access chỉ xác thực danh tính; quyền quản trị vẫn qua thiết bị `QT-` + role của Application Management.
+Local Application Management dùng `wrangler.local.jsonc` với UUID giả riêng:
 
-## Giai đoạn 1 — Preview Cloudflare
+```text
+00000000-0000-0000-0000-000000000003
+```
 
-1. Tạo D1 preview riêng cho Application Management.
-2. Copy `wrangler.cloudflare.example.jsonc` thành `wrangler.cloudflare.jsonc`.
-3. Thay `database_id` placeholder bằng D1 preview ID.
-4. Tạo/protect Worker hoặc hostname preview bằng Cloudflare Access.
-5. Lấy Team Domain và Application Audience (AUD).
-6. Ghi `CF_ACCESS_TEAM_DOMAIN` và `CF_ACCESS_AUD` vào variables của preview.
-7. Đặt các base URL client phù hợp preview.
-8. Đặt secrets bằng Wrangler hoặc Cloudflare Dashboard.
-9. Chạy `npm run cloudflare:check`.
-10. Apply migrations vào D1 preview.
-11. Build + deploy Worker preview.
-12. Smoke test Access login → QT device registration/proof → control bridge.
+UUID này chỉ dành cho Wrangler local. Preview materializer từ chối UUID local, từ chối legacy ChatGPT Sites D1 `1cf8f6b4-6c23-4479-8751-47703ecac92b`, và nếu được cung cấp thì cũng từ chối `APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID` trùng preview.
 
-## Origin production của client
+`vite.config.ts` chạy hai đường rõ ràng:
 
-Các Control API phải là HTTPS. Với Bauman, tuyệt đối không dùng một URL cho cả website học và backend quản trị:
+- local/dev: binding D1 local-only và các local env chỉ ở `serve`;
+- Cloudflare build: chỉ dùng config được chỉ định qua `CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH`.
+
+Như vậy build preview không thể vô tình lấy binding D1 cũ từ ChatGPT Sites.
+
+## Preview Cloudflare
+
+Workflow `.github/workflows/deploy-application-management-preview.yml` là **manual-only**. Không có `push` auto-deploy. Người vận hành phải nhập chính xác `DEPLOY_PREVIEW`.
+
+GitHub Environment `application-management-preview` cần cấu hình:
+
+```text
+Secrets bắt buộc:
+CLOUDFLARE_API_TOKEN
+CLOUDFLARE_ACCOUNT_ID
+APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID
+CF_ACCESS_CLIENT_ID
+CF_ACCESS_CLIENT_SECRET
+
+Secrets app-scoped khi client tương ứng được cấu hình:
+CONTROL_SERVICE_SECRET
+HEALTH_CONTROL_SERVICE_SECRET
+RU_LIFE_CONTROL_SERVICE_SECRET
+BAUMAN_CONTROL_SERVICE_SECRET
+
+Secret guard khuyến nghị:
+APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID
+
+Variables bắt buộc:
+CONTROL_OWNER_EMAILS
+CF_ACCESS_TEAM_DOMAIN
+CF_ACCESS_AUD
+APPLICATION_MANAGEMENT_PREVIEW_ORIGIN
+
+Variables client preview, chỉ đặt khi client đó đã có preview thật:
+BOI_ECH_PREVIEW_ORIGIN
+HEALTH_CARE_PREVIEW_ORIGIN
+RU_LIFE_PREVIEW_ORIGIN
+BAUMAN_CONTROL_PREVIEW_ORIGIN
+BAUMAN_RUNTIME_PREVIEW_ORIGIN
+GROWUP_PREVIEW_ORIGIN
+```
+
+Bauman Control và Bauman Learning Runtime phải được cấu hình cùng nhau và phải là hai HTTPS origin khác nhau. Mọi client origin mới đều bị từ chối nếu trỏ về `*.chatgpt.site`.
+
+## Trình tự workflow preview
+
+Workflow thực hiện stop-on-error theo thứ tự:
+
+1. xác minh confirmation, Cloudflare credentials, Access service token và policy variables;
+2. `npm ci`, sau đó chạy toàn bộ regression hiện có trước khi materialize preview;
+3. chạy `validate:cloudflare-preview`;
+4. materialize `wrangler.cloudflare.jsonc`;
+5. chạy `cloudflare:check` lần nữa trên config thật;
+6. apply migrations chỉ vào `application-management-preview-db`;
+7. build với `CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH=wrangler.cloudflare.jsonc`;
+8. kiểm artifact không chứa legacy/local D1;
+9. deploy generated Worker artifact;
+10. cài/rotate từng app-scoped secret chỉ khi client tương ứng được cấu hình;
+11. gọi preview không token và **bắt buộc không được HTTP 200**;
+12. gọi `/__deployment` qua Cloudflare Access service token và read-back: đúng application/channel/revision, D1 ready, Access configured, owner policy configured, network mode `production`.
+
+CI `.github/workflows/cloudflare-preview-ci.yml` chỉ chạy ở pull request và chỉ dry-run; CI không có quyền deploy preview/production.
+
+## `/__deployment`
+
+`worker/index.ts` có endpoint read-back không chứa secret hoặc dữ liệu người dùng. Endpoint chỉ công bố deployment identity/revision/channel, trạng thái schema D1, Access/owner config, network mode và cờ client-origin đã cấu hình.
+
+Endpoint này **không thay Cloudflare Access**. Preview workflow yêu cầu Access chặn request ẩn danh trước, sau đó mới đọc endpoint bằng service token. Nếu request ẩn danh nhận HTTP 200 thì deployment workflow fail.
+
+## Cloudflare Access
+
+Trước khi chạy deploy preview phải tạo Access Application/Policy bảo vệ đúng `APPLICATION_MANAGEMENT_PREVIEW_ORIGIN`. Service token dùng bởi GitHub Actions phải được allow trong policy. Human admin vẫn đăng nhập qua Access identity; service token chỉ dùng cho deployment read-back và không thay thế user identity/role.
+
+Ứng dụng tiếp tục xác thực JWT ở origin bằng `CF_ACCESS_TEAM_DOMAIN` + `CF_ACCESS_AUD`; không tin email header tự khai báo.
+
+## Client origins
+
+Production/preview Control API phải là HTTPS exact origin. Riêng Bauman:
 
 ```text
 BAUMAN_CONTROL_BASE_URL=https://<bauman-control-worker>
 BAUMAN_APP_ORIGIN=https://<bauman-learning-runtime>
 ```
 
-`BAUMAN_CONTROL_BASE_URL` chỉ dành cho Application Management gọi Control API. `BAUMAN_APP_ORIGIN` là website người học và là đích của `Truy cập web`. Cùng `BAUMAN_APP_ORIGIN` phải được đặt ở Bauman Control Service để giới hạn CORS/device gateway đúng runtime.
+`BAUMAN_CONTROL_BASE_URL` dùng cho remote admin. `BAUMAN_APP_ORIGIN` là website học và là origin device gateway. Không fallback runtime sang Control Service.
 
-Nếu `BAUMAN_APP_ORIGIN` chưa có hoặc runtime chưa phản hồi, Application Management phải tắt direct web access; không được fallback sang `BAUMAN_CONTROL_BASE_URL`.
+Local tương ứng:
 
-Các origin local tương ứng là `BAUMAN_CONTROL_LOCAL_BASE_URL=http://127.0.0.1:3003` và `BAUMAN_APP_LOCAL_ORIGIN=http://127.0.0.1:3005`.
+```text
+BAUMAN_CONTROL_LOCAL_BASE_URL=http://127.0.0.1:3003
+BAUMAN_APP_LOCAL_ORIGIN=http://127.0.0.1:3005
+```
 
 ## Secrets
 
-Không ghi secret vào Git, `.dev.vars.example`, `wrangler.cloudflare.example.jsonc`, README hoặc PR body.
+Không ghi secret vào Git, template, README, PR body hoặc chat. Các app-scoped secret hiện gồm:
 
-Các secret app-scoped gồm `CONTROL_SERVICE_SECRET`, `HEALTH_CONTROL_SERVICE_SECRET`, `RU_LIFE_CONTROL_SERVICE_SECRET` và `BAUMAN_CONTROL_SERVICE_SECRET`. Health không được fallback sang generic secret.
-
-## Lệnh preview sau khi có thông tin tài khoản Cloudflare
-
-```bash
-npm ci
-npm test
-npm run cloudflare:check
-npx wrangler d1 migrations apply application-management-preview-db --remote --config wrangler.cloudflare.jsonc
-npm run build
-npx wrangler deploy --config wrangler.cloudflare.jsonc
+```text
+CONTROL_SERVICE_SECRET              # Bơi ếch
+HEALTH_CONTROL_SERVICE_SECRET       # Health_Care
+RU_LIFE_CONTROL_SERVICE_SECRET      # RU_LIFE
+BAUMAN_CONTROL_SERVICE_SECRET       # Bauman
 ```
 
-Dùng `--remote` cho migration Cloudflare chỉ khi chắc chắn config đang trỏ tới preview D1 đúng môi trường.
-
-## Cloudflare Access gate
-
-Trước khi deploy quản trị lên Internet phải có `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD` và Access policy bảo vệ chính Worker/hostname. Adapter trong ứng dụng xác minh lại JWT; không tin header email tự khai báo.
+Health không fallback sang generic secret. GrowUP hiện không có shared control secret trong bridge hiện hành.
 
 ## Production Cloudflare
 
-Chỉ chuyển từ preview sang production khi local review đạt, GitHub CI đạt, Cloudflare preview build/contract test đạt, Access authentication đạt, D1 preview migrations đạt, client bridges hoạt động đúng, không có local auth trên hostname public và không có dữ liệu riêng tư của client bị sao chép về Application Management.
+Preview không tự promote production. Chỉ tạo/chạy production promotion sau khi:
 
-Riêng Bauman phải kiểm tra độc lập cả hai endpoint: Control Service production và Learning Runtime production. Chỉ khi cả hai live, runtime Device Gate dùng đúng Control Service, nút Website mở đúng runtime và BM registry/approve/block/read-back hoạt động thật mới chuyển metadata từ `migrating` sang `connected`.
+- GitHub regression + Cloudflare dry-run đạt;
+- preview D1 migrations và `/__deployment` read-back đạt;
+- Cloudflare Access thực sự chặn anonymous request;
+- human Access login + QT device gate được kiểm tra;
+- từng client bridge được live-probe và mutation/read-back đúng semantics;
+- Bauman Control và Learning Runtime đều live và Device Gate trỏ đúng control origin;
+- không còn client nào cần fallback `chatgpt.site` trong production config.
 
-## Tài liệu Cloudflare nền
-
-- Workers local development: https://developers.cloudflare.com/workers/local-development/
-- D1 local development: https://developers.cloudflare.com/d1/best-practices/local-development/
-- Workers Vite plugin: https://developers.cloudflare.com/workers/vite-plugin/
-- Workers secrets: https://developers.cloudflare.com/workers/configuration/secrets/
-- Cloudflare Access for Workers: https://developers.cloudflare.com/workers/configuration/cloudflare-access/
-- Validate Access JWT: https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/
+Không coi CI xanh là production đã deploy. Không thay URL cũ hoặc tắt rollback path trước khi production read-back pass.
