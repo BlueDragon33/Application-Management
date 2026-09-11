@@ -70,16 +70,19 @@ jobs:
           test -f dist/server/index.js
           test -f dist/wrangler.json
           test -f .wrangler/deploy/config.json
-          if grep -R "1cf8f6b4-6c23-4479-8751-47703ecac92b" dist/wrangler.json .wrangler/deploy/config.json wrangler.cloudflare.jsonc; then
+          FILES=(dist/wrangler.json .wrangler/deploy/config.json wrangler.cloudflare.jsonc)
+          if grep -R "1cf8f6b4-6c23-4479-8751-47703ecac92b" "${FILES[@]}"; then
             echo '::error::Preview artifact references legacy ChatGPT Sites D1.'
             exit 1
           fi
-          if grep -R "00000000-0000-0000-0000-000000000003" dist/wrangler.json .wrangler/deploy/config.json wrangler.cloudflare.jsonc; then
+          if grep -R "00000000-0000-0000-0000-000000000003" "${FILES[@]}"; then
             echo '::error::Preview artifact references local-only D1.'
             exit 1
           fi
-          grep -q 'application-management-preview-db' dist/wrangler.json
-          grep -q 'cloudflare-preview' dist/wrangler.json
+          grep -q 'application-management-preview-db' wrangler.cloudflare.jsonc
+          grep -q 'cloudflare-preview' wrangler.cloudflare.jsonc
+          grep -q '33333333-3333-4333-8333-333333333333' .wrangler/deploy/config.json
+          grep -q 'application-management-preview' .wrangler/deploy/config.json
 
       - name: Wrangler dry-run generated preview artifact
         run: npx wrangler deploy --dry-run --outdir .wrangler/preview-dry-run
