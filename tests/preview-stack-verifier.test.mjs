@@ -10,7 +10,8 @@ test("preview stack verifier remains read-only", () => {
   assert.match(script, /"full-stack"/);
   assert.match(script, /method:\s*"OPTIONS"/);
   assert.doesNotMatch(script, /method:\s*"(?:POST|PUT|PATCH|DELETE)"/);
-  assert.doesNotMatch(script, /chatgpt\.site fallback/);
+  assert.match(script, /must not use a chatgpt\.site fallback/);
+  assert.doesNotMatch(script, /hostname\.endsWith\("\.chatgpt\.site"\)\s*\?\s*true/);
   assert.match(script, /anonymous\.status !== 200/);
   assert.match(script, /databaseReady === true/);
   assert.match(script, /GrowUP must remain unconfigured/);
