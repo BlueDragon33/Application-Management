@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { normalizePreviewOrigin, verifyPreviewStack } from "../scripts/verify-cloudflare-preview-stack.mjs";
 
@@ -178,4 +179,13 @@ test("full-stack verifier fails closed when central/client wiring is incomplete"
     verifyPreviewStack({ mode: "full-stack", env: envFor("full-stack"), fetchImpl: fixture.fetchImpl }),
     /requires boiEch origin to be configured/,
   );
+});
+
+test("manual verification workflow cannot deploy or mutate preview resources", async () => {
+  const workflow = await readFile(new URL("../.github/workflows/verify-application-management-preview.yml", import.meta.url), "utf8");
+  assert.match(workflow, /permissions:\s*\n\s*contents:\s*read/);
+  assert.match(workflow, /VERIFY_PREVIEW/);
+  assert.doesNotMatch(workflow, /CLOUDFLARE_API_TOKEN/);
+  assert.doesNotMatch(workflow, /wrangler\s+(?:deploy|d1\s+migrations)/i);
+  assert.doesNotMatch(workflow, /(?:POST|PUT|PATCH|DELETE)/);
 });
