@@ -3,7 +3,7 @@ import { defineConfig } from "vite";
 import hostingConfig from "./.openai/hosting.json";
 import { sites } from "./build/sites-vite-plugin";
 
-const LEARNING_MANAGEMENT_DATABASE_ID = "1cf8f6b4-6c23-4479-8751-47703ecac92b";
+const LOCAL_ONLY_DATABASE_ID = "00000000-0000-0000-0000-000000000003";
 const LOCAL_RUNTIME_KEYS = [
   "LOCAL_DEV_AUTH",
   "LOCAL_DEV_USER_ID",
@@ -22,14 +22,15 @@ const LOCAL_RUNTIME_KEYS = [
   "RU_LIFE_CONTROL_SERVICE_SECRET",
   "BAUMAN_CONTROL_BASE_URL",
   "BAUMAN_CONTROL_LOCAL_BASE_URL",
+  "BAUMAN_APP_ORIGIN",
+  "BAUMAN_APP_LOCAL_ORIGIN",
   "BAUMAN_CONTROL_SERVICE_SECRET",
   "GROWUP_BASE_URL",
 ] as const;
 
 const { d1 } = hostingConfig;
-
-// macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
+const cloudflareConfigPath = process.env.CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH?.trim();
 
 function localRuntimeVars(command: string) {
   if (command !== "serve") return undefined;
@@ -47,7 +48,7 @@ export default defineConfig(async ({ command }) => {
   const { cloudflare } = await import("@cloudflare/vite-plugin");
   const vars = localRuntimeVars(command);
   const localBindingConfig = {
-    name: "learning-management",
+    name: "application-management-local",
     main: "./worker/index.ts",
     compatibility_flags: ["nodejs_compat"],
     ...(vars ? { vars } : {}),
@@ -55,12 +56,23 @@ export default defineConfig(async ({ command }) => {
       ? [
           {
             binding: d1,
-            database_name: "learning-management-db",
-            database_id: LEARNING_MANAGEMENT_DATABASE_ID,
+            database_name: "learning-management-local",
+            database_id: LOCAL_ONLY_DATABASE_ID,
           },
         ]
       : [],
   };
+  const cloudflareOptions = cloudflareConfigPath
+    ? {
+        configPath: cloudflareConfigPath,
+        viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
+        inspectorPort: false as const,
+      }
+    : {
+        config: localBindingConfig,
+        viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
+        inspectorPort: false as const,
+      };
 
   return {
     server: {
@@ -73,11 +85,7 @@ export default defineConfig(async ({ command }) => {
     plugins: [
       vinext(),
       sites(),
-      cloudflare({
-        viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
-        inspectorPort: false,
-        config: localBindingConfig,
-      }),
+      cloudflare(cloudflareOptions),
     ],
   };
 });
