@@ -24,6 +24,7 @@
     "cloudflare:preview:prepare": "node scripts/prepare-cloudflare-preview.mjs",
     "cloudflare:check": "node scripts/validate-cloudflare-ready.mjs",
     "cloudflare:artifact:check": "node scripts/validate-cloudflare-build-artifact.mjs",
+    "preview:verify": "node scripts/verify-preview-stack.mjs",
     "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "bash scripts/sites-env.sh -- drizzle-kit generate"
   },
