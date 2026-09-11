@@ -73,15 +73,17 @@ for (const token of [
   "DEPLOY_PREVIEW",
   "APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID",
   "application-management-preview-db --remote",
-  "CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH=wrangler.cloudflare.jsonc",
+  "CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH: wrangler.cloudflare.jsonc",
   "CF_ACCESS_CLIENT_ID",
   "CF_ACCESS_CLIENT_SECRET",
-  "wrangler deploy --config wrangler.cloudflare.jsonc",
+  "npx wrangler deploy",
+  "Anonymous request reached Application Management",
+  "Application Management Cloudflare preview read-back PASS",
 ]) {
   if (!deploy.includes(token)) throw new Error(`Preview deploy workflow thiếu: ${token}`);
 }
 if (deploy.includes("learning-management-db --remote")) throw new Error("Preview workflow không được migrate legacy/production database name.");
-if (/\n\s*push\s*:/.test(previewCi)) throw new Error("Preview CI is allowed on PR/push only as dry-run; this guard checks deployment workflow separately.");
+if (/\n\s*push\s*:/.test(previewCi)) throw new Error("Cloudflare preview CI không được là một đường auto-deploy trá hình; chỉ PR dry-run được phép.");
 if (!previewCi.includes("--dry-run") || !previewCi.includes("validate:cloudflare-preview")) throw new Error("Preview CI phải dry-run và chạy migration boundary gate.");
 
 if (fs.existsSync("wrangler.cloudflare.jsonc")) {
