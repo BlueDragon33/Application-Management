@@ -1,0 +1,74 @@
+name: Application Management Preview Read-only Verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Chọn phase-a cho bootstrap Trung tâm hoặc full-stack sau khi đã đóng vòng client origins"
+        required: true
+        type: choice
+        default: phase-a
+        options:
+          - phase-a
+          - full-stack
+      confirm:
+        description: "Gõ VERIFY_PREVIEW để chạy kiểm tra chỉ đọc"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: application-management-preview-readonly-verification
+  cancel-in-progress: false
+
+jobs:
+  verify-preview:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    environment: application-management-preview
+    env:
+      APPLICATION_MANAGEMENT_PREVIEW_ORIGIN: ${{ vars.APPLICATION_MANAGEMENT_PREVIEW_ORIGIN }}
+      BOI_ECH_PREVIEW_ORIGIN: ${{ vars.BOI_ECH_PREVIEW_ORIGIN }}
+      HEALTH_CARE_PREVIEW_ORIGIN: ${{ vars.HEALTH_CARE_PREVIEW_ORIGIN }}
+      RU_LIFE_PREVIEW_ORIGIN: ${{ vars.RU_LIFE_PREVIEW_ORIGIN }}
+      BAUMAN_CONTROL_PREVIEW_ORIGIN: ${{ vars.BAUMAN_CONTROL_PREVIEW_ORIGIN }}
+      BAUMAN_RUNTIME_PREVIEW_ORIGIN: ${{ vars.BAUMAN_RUNTIME_PREVIEW_ORIGIN }}
+      CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+      CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+      CONTROL_SERVICE_SECRET: ${{ secrets.CONTROL_SERVICE_SECRET }}
+      HEALTH_CONTROL_SERVICE_SECRET: ${{ secrets.HEALTH_CONTROL_SERVICE_SECRET }}
+      RU_LIFE_CONTROL_SERVICE_SECRET: ${{ secrets.RU_LIFE_CONTROL_SERVICE_SECRET }}
+      BAUMAN_CONTROL_SERVICE_SECRET: ${{ secrets.BAUMAN_CONTROL_SERVICE_SECRET }}
+
+    steps:
+      - name: Require explicit verification confirmation
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ inputs.confirm }}" != "VERIFY_PREVIEW" ]]; then
+            echo '::error::Verification cancelled. Enter VERIFY_PREVIEW exactly.'
+            exit 1
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+
+      - name: Prove verifier behavior with fixtures
+        run: node --test tests/cloudflare-preview-stack-verifier.test.mjs
+
+      - name: Verify deployed preview without mutations
+        run: node scripts/verify-cloudflare-preview-stack.mjs --mode="${{ inputs.mode }}"
+
+      - name: Verification boundary summary
+        shell: bash
+        run: |
+          echo 'Read-only preview verification completed.'
+          echo 'Allowed network methods: GET, OPTIONS only.'
+          echo 'No deploy, migration, secret write, approve, block, revoke, or delete action is performed by this workflow.'
