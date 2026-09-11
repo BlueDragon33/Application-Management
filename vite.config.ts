@@ -56,7 +56,7 @@ export default defineConfig(async ({ command }) => {
       ? [
           {
             binding: d1,
-            database_name: "learning-management-local",
+            database_name: "learning-management-db",
             database_id: LOCAL_ONLY_DATABASE_ID,
           },
         ]
