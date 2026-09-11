@@ -32,13 +32,15 @@ Bơi ếch còn cần R2 riêng `boi-ech-preview-payments`.
 
 Không copy dữ liệu production nhạy cảm vào preview. Chỉ dùng synthetic/test data.
 
-Guard secrets nên cấu hình để workflow fail nếu preview D1 trùng production:
+Production D1 guard là **bắt buộc** ở mọi preview Environment. Materializer phải fail-closed nếu guard bị thiếu, sai định dạng hoặc trùng preview D1:
 
 - Application Management: `APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID`;
 - Health: `HEALTH_PRODUCTION_D1_DATABASE_ID`;
 - RU_LIFE: `RU_LIFE_PRODUCTION_D1_DATABASE_ID`;
 - Bơi ếch: `BOI_ECH_PRODUCTION_D1_DATABASE_ID`;
 - Bauman: `BAUMAN_CONTROL_PRODUCTION_D1_DATABASE_ID`.
+
+Không chạy migration/deploy thật nếu chưa biết chắc production D1 ID dùng làm guard.
 
 ## 3. Secret liên ứng dụng
 
@@ -60,9 +62,9 @@ Secrets:
 - `CLOUDFLARE_API_TOKEN`;
 - `CLOUDFLARE_ACCOUNT_ID`;
 - `APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID`;
+- `APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID`;
 - `CF_ACCESS_CLIENT_ID`;
-- `CF_ACCESS_CLIENT_SECRET`;
-- guard `APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID` nếu có.
+- `CF_ACCESS_CLIENT_SECRET`.
 
 Variables:
 
@@ -106,9 +108,8 @@ Secrets bắt buộc:
 - `CLOUDFLARE_API_TOKEN`;
 - `CLOUDFLARE_ACCOUNT_ID`;
 - `HEALTH_PREVIEW_D1_DATABASE_ID`;
+- `HEALTH_PRODUCTION_D1_DATABASE_ID`;
 - `HEALTH_CONTROL_SERVICE_SECRET`.
-
-Guard khuyến nghị: `HEALTH_PRODUCTION_D1_DATABASE_ID`.
 
 Variables:
 
@@ -126,9 +127,8 @@ Secrets bắt buộc:
 - `CLOUDFLARE_API_TOKEN`;
 - `CLOUDFLARE_ACCOUNT_ID`;
 - `RU_LIFE_PREVIEW_D1_DATABASE_ID`;
+- `RU_LIFE_PRODUCTION_D1_DATABASE_ID`;
 - `RU_LIFE_CONTROL_SERVICE_SECRET`.
-
-Guard khuyến nghị: `RU_LIFE_PRODUCTION_D1_DATABASE_ID`.
 
 Variables:
 
@@ -146,9 +146,8 @@ Secrets bắt buộc:
 - `CLOUDFLARE_API_TOKEN`;
 - `CLOUDFLARE_ACCOUNT_ID`;
 - `BOI_ECH_PREVIEW_D1_DATABASE_ID`;
+- `BOI_ECH_PRODUCTION_D1_DATABASE_ID`;
 - `CONTROL_SERVICE_SECRET`.
-
-Guard khuyến nghị: `BOI_ECH_PRODUCTION_D1_DATABASE_ID`.
 
 Variables:
 
@@ -168,9 +167,8 @@ Secrets bắt buộc:
 - `CLOUDFLARE_API_TOKEN`;
 - `CLOUDFLARE_ACCOUNT_ID`;
 - `BAUMAN_CONTROL_PREVIEW_D1_DATABASE_ID`;
+- `BAUMAN_CONTROL_PRODUCTION_D1_DATABASE_ID`;
 - `BAUMAN_CONTROL_SERVICE_SECRET`.
-
-Guard khuyến nghị: `BAUMAN_CONTROL_PRODUCTION_D1_DATABASE_ID`.
 
 Variables bắt buộc:
 
@@ -225,6 +223,7 @@ Bauman Control/Learning Runtime dùng Wrangler configs riêng và dry-run trực
 Không tạo production promotion cho tới khi:
 
 - CI và preview artifact gates của tất cả repo xanh;
+- production D1 guard bắt buộc đã cấu hình ở mọi preview Environment;
 - các preview D1 migrations pass;
 - Access của Application Management chặn anonymous;
 - E2E mutation/read-back pass cho 4 client;
@@ -235,4 +234,4 @@ Không tạo production promotion cho tới khi:
 
 ## 10. Trạng thái hiện tại
 
-Phần mã nguồn đã chuẩn hóa đường preview và generated-artifact validation. Việc deploy preview thật còn phụ thuộc GitHub Environment/Cloudflare credentials/D1 IDs/origins thực tế; các giá trị đó không được suy đoán hoặc commit vào repo.
+Phần mã nguồn đã chuẩn hóa đường preview và generated-artifact validation. Preview materializers được thiết kế fail-closed khi thiếu production D1 guard. Việc deploy preview thật còn phụ thuộc GitHub Environment/Cloudflare credentials/D1 IDs/origins thực tế; các giá trị đó không được suy đoán hoặc commit vào repo.

@@ -22,8 +22,11 @@ function d1Id() {
   }
   if (value === LOCAL_D1_ID) throw new Error("Preview must never use the Application Management local D1 placeholder.");
   if (value === LEGACY_SITES_D1_ID) throw new Error("Preview must never reuse the legacy ChatGPT Sites D1 database.");
-  const production = text("APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID").toLowerCase();
-  if (production && value === production) throw new Error("Preview must never reuse the Application Management production D1 database.");
+  const production = required("APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID").toLowerCase();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(production)) {
+    throw new Error("APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID must be a real D1 UUID.");
+  }
+  if (value === production) throw new Error("Preview must never reuse the Application Management production D1 database.");
   return value;
 }
 
