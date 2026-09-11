@@ -33,7 +33,7 @@ test("Cloudflare preview uses a materialized isolated D1 and production network 
   assert.equal(/"LOCAL_DEV_AUTH"\s*:/.test(template), false);
   assert.ok(prepare.includes(LOCAL_D1));
   assert.ok(prepare.includes(LEGACY_D1));
-  assert.ok(prepare.includes("APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID"));
+  assert.ok(prepare.includes('required("APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID")'));
   assert.ok(prepare.includes(".chatgpt.site"));
 });
 
