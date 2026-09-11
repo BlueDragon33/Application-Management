@@ -114,7 +114,9 @@ console.log("PASS Bơi ếch status/CORS/D1/R2");
 
 await verifyCors(healthOrigin, "/api/control/status", healthSecret, centralOrigin, "Health_Care");
 const health = await json(await request(`${healthOrigin}/api/control/status`, { headers: serviceHeaders(healthSecret, centralOrigin) }), "Health_Care status");
-assert(health.ok === true, "Health_Care status is not healthy.");
+assert(health.application === "child-health", "Unexpected Health_Care application identity.");
+assert(health.canonicalApplication === "suc-khoe-y-te", "Unexpected Health_Care canonical application identity.");
+assert(health.contractVersion === 3, "Unexpected Health_Care control contract version.");
 assert(health.controlAuth?.secretScope === "health", "Health_Care app-scoped control secret is not active.");
 console.log("PASS Health_Care status/CORS/control secret");
 
