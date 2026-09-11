@@ -6,6 +6,8 @@ const vite = fs.readFileSync("vite.config.ts", "utf8");
 const local = fs.readFileSync("wrangler.local.jsonc", "utf8");
 const template = fs.readFileSync("wrangler.cloudflare.example.jsonc", "utf8");
 const prepare = fs.readFileSync("scripts/prepare-cloudflare-preview.mjs", "utf8");
+const artifact = fs.readFileSync("scripts/validate-cloudflare-build-artifact.mjs", "utf8");
+const previewCi = fs.readFileSync(".github/workflows/cloudflare-preview-ci.yml", "utf8");
 const deploy = fs.readFileSync(".github/workflows/deploy-application-management-preview.yml", "utf8");
 const worker = fs.readFileSync("worker/index.ts", "utf8");
 const access = fs.readFileSync("app/cloudflare-access-auth.ts", "utf8");
@@ -33,6 +35,25 @@ test("Cloudflare preview uses a materialized isolated D1 and production network 
   assert.ok(prepare.includes(LEGACY_D1));
   assert.ok(prepare.includes("APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID"));
   assert.ok(prepare.includes(".chatgpt.site"));
+});
+
+test("generated Cloudflare artifact validation follows Wrangler's config redirect", () => {
+  for (const marker of [
+    'path.join(ROOT, ".wrangler", "deploy", "config.json")',
+    "redirect.configPath",
+    'generated.name !== EXPECTED_WORKER',
+    'item.binding === "DB"',
+    "APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID",
+    "APPLICATION_MANAGEMENT_DEPLOYMENT_CHANNEL",
+    LOCAL_D1,
+    LEGACY_D1,
+  ]) {
+    assert.ok(artifact.includes(marker), `missing generated-artifact guard: ${marker}`);
+  }
+  assert.ok(previewCi.includes("npm run cloudflare:artifact:check"));
+  assert.ok(deploy.includes("npm run cloudflare:artifact:check"));
+  assert.equal(previewCi.includes("grep -q '33333333-3333-4333-8333-333333333333' .wrangler/deploy/config.json"), false);
+  assert.equal(deploy.includes('grep -q "$APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID" .wrangler/deploy/config.json'), false);
 });
 
 test("Cloudflare preview deployment is explicit, Access-protected and read-back verified", () => {
