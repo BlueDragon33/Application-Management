@@ -71,16 +71,18 @@ test("Cloudflare preflight and worker require Access deployment settings", () =>
   assert.ok(preflight.includes("CF_ACCESS_TEAM_DOMAIN"));
   assert.ok(worker.includes("CF_ACCESS_AUD?: string"));
   assert.ok(worker.includes("CF_ACCESS_TEAM_DOMAIN?: string"));
+  assert.ok(worker.includes('url.pathname === "/__deployment"'));
 });
 
 test("Cloudflare template and preflight keep Bauman Control separate from the learning runtime", () => {
-  assert.ok(cloudflareTemplate.includes('"BAUMAN_CONTROL_BASE_URL": ""'));
-  assert.ok(cloudflareTemplate.includes('"BAUMAN_APP_ORIGIN": ""'));
+  assert.ok(cloudflareTemplate.includes('"BAUMAN_CONTROL_BASE_URL": "__BAUMAN_CONTROL_BASE_URL__"'));
+  assert.ok(cloudflareTemplate.includes('"BAUMAN_APP_ORIGIN": "__BAUMAN_APP_ORIGIN__"'));
   assert.ok(preflight.includes("CLOUDFLARE_BAUMAN_ORIGINS_INCOMPLETE"));
-  assert.ok(preflight.includes("CLOUDFLARE_BAUMAN_HTTPS_REQUIRED"));
   assert.ok(preflight.includes("CLOUDFLARE_BAUMAN_ORIGINS_COLLIDE"));
   assert.ok(preflight.includes('stringVar(config, "BAUMAN_CONTROL_BASE_URL")'));
   assert.ok(preflight.includes('stringVar(config, "BAUMAN_APP_ORIGIN")'));
+  assert.ok(preflight.includes('if (value && !isHttpsOrigin(value))'));
+  assert.ok(preflight.includes("CLOUDFLARE_CHATGPT_FALLBACK_FORBIDDEN"));
 });
 
 test("Access adapter cryptographically accepts a valid RS256 JWT and rejects a tampered JWT", async () => {
