@@ -26,25 +26,6 @@ function text(message: string, status: number) {
   });
 }
 
-async function targetReady(url: string) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 2_500);
-  try {
-    const response = await fetch(url, {
-      method: "GET",
-      redirect: "manual",
-      cache: "no-store",
-      signal: controller.signal,
-      headers: { "user-agent": "Application-Management-Local-Launcher/1.0" },
-    });
-    return response.status >= 200 && response.status < 400;
-  } catch {
-    return false;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   if (!isLoopback(requestUrl.hostname)) {
@@ -57,10 +38,11 @@ export async function GET(request: Request) {
   const appId = requestUrl.searchParams.get("app") as LocalAppId | null;
   if (!appId || !(appId in LOCAL_TARGETS)) return text("Ứng dụng local không hợp lệ.", 400);
 
+  // RUN_LOCAL.bat already verifies every client runtime before starting the
+  // Application Management server. Do not probe a loopback client again from
+  // the Cloudflare/Vite worker here: that execution context can report a false
+  // negative for host loopback even when the browser can reach the runtime.
+  // Redirect the authenticated local browser to the verified runtime instead.
   const target = LOCAL_TARGETS[appId];
-  if (!(await targetReady(target.url))) {
-    return text(`${target.label} chưa sẵn sàng tại ${target.url}. Hãy kiểm tra cửa sổ RUN_LOCAL.bat.`, 503);
-  }
-
   return Response.redirect(target.url, 307);
 }
