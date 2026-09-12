@@ -68,22 +68,25 @@ async function verifyCors(origin, path, secret, centralOrigin, label) {
 }
 
 const centralOrigin = previewOrigin("APPLICATION_MANAGEMENT_PREVIEW_ORIGIN");
-const accessClientId = env("CF_ACCESS_CLIENT_ID");
-const accessClientSecret = env("CF_ACCESS_CLIENT_SECRET");
-const accessHeaders = { "CF-Access-Client-Id": accessClientId, "CF-Access-Client-Secret": accessClientSecret };
+const previewAccessSecret = env("APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET");
+assert(previewAccessSecret.length >= 32, "APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET must be at least 32 characters.");
 
 const anonymous = await request(`${centralOrigin}/__deployment`);
-assert(anonymous.status !== 200, "Application Management /__deployment must not be anonymously readable through Cloudflare Access.");
+assert(anonymous.status === 401, `Application Management anonymous /__deployment must return 401, got HTTP ${anonymous.status}.`);
 
-const central = await json(await request(`${centralOrigin}/__deployment`, { headers: accessHeaders }), "Application Management /__deployment");
+const central = await json(
+  await request(`${centralOrigin}/__deployment`, { headers: { authorization: `Bearer ${previewAccessSecret}` } }),
+  "Application Management /__deployment",
+);
 assert(central.application === "application-management", "Unexpected Application Management deployment identity.");
 assert(central.runtime === "control-plane", "Application Management runtime identity is not control-plane.");
 assert(central.channel === "cloudflare-preview", "Application Management is not running the cloudflare-preview channel.");
 assert(central.databaseReady === true, "Application Management preview D1 is not ready.");
-assert(central.accessConfigured === true, "Application Management Cloudflare Access configuration is incomplete.");
+assert(central.previewAccessConfigured === true, "Application Management preview access secret is not configured.");
+assert(central.accessMode === "application-preview-secret", "Application Management preview access mode is unexpected.");
 assert(central.ownerPolicyConfigured === true, "Application Management owner policy is not configured.");
 assert(central.networkMode === "production", "Application Management preview must use production network mode for real client origins.");
-console.log("PASS Application Management preview deployment/access/D1");
+console.log("PASS Application Management preview deployment/app-secret/D1");
 
 if (mode === "phase-a") {
   console.log("PASS phase-a preview verification (read-only)");
