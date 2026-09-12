@@ -4,10 +4,10 @@ import { useEffect } from "react";
 import styles from "./center-admin.module.css";
 
 const LOCAL_WEB_TARGETS = [
-  { names: ["Bơi ếch"], href: "http://127.0.0.1:3004/" },
-  { names: ["Sức khỏe Y tế"], href: "http://127.0.0.1:3001/suc-khoe-tre" },
-  { names: ["Hòa nhập Nga"], href: "http://127.0.0.1:3002/" },
-  { names: ["Bauman Hub", "Bauman"], href: "http://127.0.0.1:3005/" },
+  { names: ["Bơi ếch"], appId: "boi-ech" },
+  { names: ["Sức khỏe Y tế"], appId: "health-care" },
+  { names: ["Hòa nhập Nga"], appId: "ru-life" },
+  { names: ["Bauman Hub", "Bauman"], appId: "bauman-master-ai" },
 ] as const;
 
 const TOOL_LINKS = [
@@ -34,6 +34,14 @@ function installToolLinks() {
   }
 }
 
+function renameDeviceActions() {
+  for (const button of document.querySelectorAll<HTMLButtonElement>("button")) {
+    const label = button.textContent?.trim() ?? "";
+    if (label === "Duyệt tự động") button.textContent = "Tự động";
+    else if (label.startsWith("Loại bỏ tất cả")) button.textContent = "Xóa hết";
+  }
+}
+
 function localTargetForRow(text: string) {
   return LOCAL_WEB_TARGETS.find((target) => target.names.some((name) => text.includes(name))) ?? null;
 }
@@ -54,12 +62,12 @@ function replacePendingWebCells() {
     }
 
     const link = document.createElement("a");
-    link.href = target.href;
+    link.href = `/api/local-web-launch?app=${encodeURIComponent(target.appId)}`;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
     link.className = styles.directAccess;
     link.textContent = "Truy cập web ↗";
-    link.dataset.localWebFallback = "true";
+    link.dataset.localWebFallback = "verified";
     pending.replaceWith(link);
   }
 }
@@ -70,6 +78,7 @@ export default function LocalQuickAccess() {
 
     const synchronize = () => {
       installToolLinks();
+      renameDeviceActions();
       if (loopback) replacePendingWebCells();
     };
 
