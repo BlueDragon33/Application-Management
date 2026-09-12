@@ -14,7 +14,10 @@ const cloudflareTemplate = fs.readFileSync("wrangler.cloudflare.example.jsonc", 
 const standard = fs.readFileSync("docs/LOCAL_FIRST_RELEASE_STANDARD.md", "utf8");
 const cloudflareTrack = fs.readFileSync("docs/CLOUDFLARE_DEPLOYMENT_TRACK.md", "utf8");
 const launcher = fs.readFileSync("scripts/run-local.mjs", "utf8");
+const systemLauncher = fs.readFileSync("scripts/run-local-system.mjs", "utf8");
 const bat = fs.readFileSync("RUN_LOCAL.bat", "utf8");
+const centerOnlyBat = fs.readFileSync("RUN_LOCAL_CENTER_ONLY.bat", "utf8");
+const home = fs.readFileSync("app/page.tsx", "utf8");
 
 test("local auth is explicit and loopback-only", () => {
   assert.ok(auth.includes('runtime.LOCAL_DEV_AUTH !== "1"'));
@@ -29,21 +32,32 @@ test("local auth is explicit and loopback-only", () => {
   assert.equal(auth.includes("getCloudflareAccessUser"), false);
 });
 
-test("local launcher uses isolated D1 and does not require Work", () => {
+test("local launchers keep isolated D1 and expose one-click full system startup", () => {
   assert.equal(pkg.scripts.dev, "vite");
   assert.equal(pkg.scripts.local, "node scripts/run-local.mjs");
   assert.ok(pkg.scripts["local:db"].includes("--local"));
   assert.ok(localConfig.includes('"migrations_dir": "drizzle"'));
   assert.ok(launcher.includes('"--local"'));
   assert.ok(launcher.includes('"127.0.0.1"'));
-  assert.ok(bat.includes("scripts\\run-local.mjs"));
+  assert.ok(bat.includes("scripts\\run-local-system.mjs --local"));
+  assert.ok(centerOnlyBat.includes("scripts\\run-local.mjs"));
 });
 
-test("Windows launcher invokes npm and npx through cmd.exe for Node 24 compatibility", () => {
+test("Windows launchers invoke npm and npx through cmd.exe for Node 24 compatibility", () => {
   assert.ok(launcher.includes('process.env.ComSpec || "cmd.exe"'));
   assert.ok(launcher.includes('`${name}.cmd`'));
   assert.ok(launcher.includes('["/d", "/s", "/c", executable, ...args]'));
   assert.equal(launcher.includes('execFileSync(command(name), args'), false);
+  assert.ok(systemLauncher.includes('process.env.ComSpec || "cmd.exe"'));
+  assert.ok(systemLauncher.includes('/\\.cmd$/i.test(command)'));
+  assert.ok(systemLauncher.includes('["/d", "/s", "/c", command, ...args]'));
+  assert.ok(systemLauncher.includes('spawn(spec.file, spec.args'));
+  assert.ok(systemLauncher.includes('spawnSync(spec.file, spec.args'));
+});
+
+test("management home exposes the local secret generator", () => {
+  assert.match(home, /href="\/tools\/secret-generator"/);
+  assert.match(home, /Tạo Key \/ Secret/);
 });
 
 test("local secrets remain untracked and dev bindings are serve-only", () => {
