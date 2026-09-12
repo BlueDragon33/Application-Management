@@ -39,6 +39,13 @@ test("local launcher uses isolated D1 and does not require Work", () => {
   assert.ok(bat.includes("scripts\\run-local.mjs"));
 });
 
+test("Windows launcher invokes npm and npx through cmd.exe for Node 24 compatibility", () => {
+  assert.ok(launcher.includes('process.env.ComSpec || "cmd.exe"'));
+  assert.ok(launcher.includes('`${name}.cmd`'));
+  assert.ok(launcher.includes('["/d", "/s", "/c", executable, ...args]'));
+  assert.equal(launcher.includes('execFileSync(command(name), args'), false);
+});
+
 test("local secrets remain untracked and dev bindings are serve-only", () => {
   assert.ok(gitignore.split(/\r?\n/).includes(".dev.vars"));
   assert.ok(localExample.includes("LOCAL_DEV_AUTH=1"));
