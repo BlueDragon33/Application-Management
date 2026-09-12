@@ -2,9 +2,9 @@
 
 ## Phạm vi
 
-Tài liệu này là thứ tự vận hành canonical cho preview của hệ thống. `Application-Management` là control-plane trung tâm duy nhất; Health_Care, RU_LIFE, Bơi ếch và Bauman tiếp tục sở hữu runtime/database/registry/audit riêng. GrowUP chỉ được nối khi có preview contract thật; không dùng fallback ChatGPT Sites.
+`Application-Management` là control-plane trung tâm duy nhất. Health_Care, RU_LIFE, Bơi ếch và Bauman tiếp tục sở hữu runtime/database/registry/audit riêng. Không bước nào trong runbook này tự động promote production.
 
-Không bước nào trong runbook này được tự động promote production.
+Application Management preview dùng **application-level preview secret**, không cần Cloudflare Zero Trust.
 
 ## 1. GitHub Environments
 
@@ -16,11 +16,11 @@ Không bước nào trong runbook này được tự động promote production.
 | `BlueDragon33/BOIECH_AI` | `boi-ech-preview` | `boi-ech-preview` |
 | `BlueDragon33/Bauman-master-ai-system` | `bauman-preview` | `bauman-control-preview` + `bauman-master-ai-preview` |
 
-Tất cả workflow deploy preview đều là `workflow_dispatch` và yêu cầu nhập chính xác `DEPLOY_PREVIEW`.
+Mọi workflow deploy preview đều là `workflow_dispatch` và yêu cầu nhập chính xác `DEPLOY_PREVIEW`.
 
-## 2. D1 preview phải tách production/local
+## 2. D1 preview tách production/local
 
-Tạo D1 preview riêng trước khi deploy:
+Preview D1:
 
 - Application Management: `application-management-preview-db`;
 - Health: `health-care-preview-db`;
@@ -30,208 +30,224 @@ Tạo D1 preview riêng trước khi deploy:
 
 Bơi ếch còn cần R2 riêng `boi-ech-preview-payments`.
 
-Không copy dữ liệu production nhạy cảm vào preview. Chỉ dùng synthetic/test data.
+Production D1 guard bắt buộc:
 
-Production D1 guard là **bắt buộc** ở mọi preview Environment. Materializer phải fail-closed nếu guard bị thiếu, sai định dạng hoặc trùng preview D1:
+- `APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID`;
+- `HEALTH_PRODUCTION_D1_DATABASE_ID`;
+- `RU_LIFE_PRODUCTION_D1_DATABASE_ID`;
+- `BOI_ECH_PRODUCTION_D1_DATABASE_ID`;
+- `BAUMAN_CONTROL_PRODUCTION_D1_DATABASE_ID`.
 
-- Application Management: `APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID`;
-- Health: `HEALTH_PRODUCTION_D1_DATABASE_ID`;
-- RU_LIFE: `RU_LIFE_PRODUCTION_D1_DATABASE_ID`;
-- Bơi ếch: `BOI_ECH_PRODUCTION_D1_DATABASE_ID`;
-- Bauman: `BAUMAN_CONTROL_PRODUCTION_D1_DATABASE_ID`.
+Preview và production UUID tuyệt đối không được trùng nhau.
 
-Không chạy migration/deploy thật nếu chưa biết chắc production D1 ID dùng làm guard.
+## 3. Pha A · Application Management preview
 
-## 3. Secret liên ứng dụng
+Environment `application-management-preview` cần:
 
-Mỗi client dùng secret app-scoped riêng. Giá trị ở client preview và Application Management preview phải khớp chính xác:
+### Secrets
 
-- Bơi ếch ↔ Application Management: `CONTROL_SERVICE_SECRET`;
-- Health ↔ Application Management: `HEALTH_CONTROL_SERVICE_SECRET`;
-- RU_LIFE ↔ Application Management: `RU_LIFE_CONTROL_SERVICE_SECRET`;
-- Bauman ↔ Application Management: `BAUMAN_CONTROL_SERVICE_SECRET`.
+```text
+CLOUDFLARE_API_TOKEN
+CLOUDFLARE_ACCOUNT_ID
+APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID
+APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID
+APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET
+```
 
-Không dùng một secret chung cho mọi app. Không ghi secret vào Git, PR, issue, log hoặc tài liệu.
+`APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET`:
 
-## 4. Pha A · dựng Application Management preview độc lập
+- tối thiểu 32 ký tự;
+- không commit vào Git;
+- không đặt trong Environment variables;
+- không đặt trong URL;
+- workflow cài lên Worker bằng `wrangler secret put`.
 
-Trong `application-management-preview`, cấu hình tối thiểu:
+Không cần tạo hoặc nhập các giá trị Zero Trust sau:
+
+```text
+CF_ACCESS_CLIENT_ID
+CF_ACCESS_CLIENT_SECRET
+CF_ACCESS_TEAM_DOMAIN
+CF_ACCESS_AUD
+```
+
+### Variables
+
+```text
+CONTROL_OWNER_EMAILS
+APPLICATION_MANAGEMENT_PREVIEW_ORIGIN
+```
+
+Lần deploy đầu để trống:
+
+```text
+BOI_ECH_PREVIEW_ORIGIN
+HEALTH_CARE_PREVIEW_ORIGIN
+RU_LIFE_PREVIEW_ORIGIN
+BAUMAN_CONTROL_PREVIEW_ORIGIN
+BAUMAN_RUNTIME_PREVIEW_ORIGIN
+GROWUP_PREVIEW_ORIGIN
+```
+
+Chạy `Application Management Cloudflare Preview Deploy` với `DEPLOY_PREVIEW`.
+
+### Gate pha A
+
+1. anonymous `GET /__deployment` phải trả HTTP 401;
+2. request có `Authorization: Bearer <APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET>` phải đọc được `/__deployment`;
+3. `application=application-management`;
+4. `runtime=control-plane`;
+5. `channel=cloudflare-preview`;
+6. `databaseReady=true`;
+7. `previewAccessConfigured=true`;
+8. `accessMode=application-preview-secret`;
+9. `ownerPolicyConfigured=true`;
+10. `networkMode=production`.
+
+Sau deploy, chạy `Application Management Preview Stack Verify` với mode `phase-a`.
+
+### Truy cập bằng trình duyệt
+
+Mở preview origin. Worker sẽ chuyển người chưa xác thực tới `/__preview-login`. Nhập cùng preview access secret đã lưu trong GitHub. Worker đổi secret thành signed session cookie `HttpOnly + Secure + SameSite=Strict`; secret không đi trong query string.
+
+## 4. Secret liên ứng dụng
+
+Mỗi client dùng secret riêng và giá trị ở client preview phải khớp Application Management preview:
+
+- Bơi ếch: `CONTROL_SERVICE_SECRET`;
+- Health: `HEALTH_CONTROL_SERVICE_SECRET`;
+- RU_LIFE: `RU_LIFE_CONTROL_SERVICE_SECRET`;
+- Bauman: `BAUMAN_CONTROL_SERVICE_SECRET`.
+
+Không dùng một secret chung cho mọi app.
+
+## 5. Pha B · client previews
+
+### Health_Care / `health-preview`
 
 Secrets:
 
-- `CLOUDFLARE_API_TOKEN`;
-- `CLOUDFLARE_ACCOUNT_ID`;
-- `APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID`;
-- `APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID`;
-- `CF_ACCESS_CLIENT_ID`;
-- `CF_ACCESS_CLIENT_SECRET`.
+```text
+CLOUDFLARE_API_TOKEN
+CLOUDFLARE_ACCOUNT_ID
+HEALTH_PREVIEW_D1_DATABASE_ID
+HEALTH_PRODUCTION_D1_DATABASE_ID
+HEALTH_CONTROL_SERVICE_SECRET
+```
 
 Variables:
 
-- `CONTROL_OWNER_EMAILS`;
-- `CF_ACCESS_TEAM_DOMAIN`;
-- `CF_ACCESS_AUD`;
-- `APPLICATION_MANAGEMENT_PREVIEW_ORIGIN`.
+```text
+APPLICATION_MANAGEMENT_PREVIEW_ORIGIN
+HEALTH_PREVIEW_ORIGIN
+```
 
-Ở lần deploy đầu, để trống toàn bộ client preview origins chưa tồn tại:
+### RU_LIFE / `ru-life-preview`
 
-- `BOI_ECH_PREVIEW_ORIGIN`;
-- `HEALTH_CARE_PREVIEW_ORIGIN`;
-- `RU_LIFE_PREVIEW_ORIGIN`;
-- `BAUMAN_CONTROL_PREVIEW_ORIGIN`;
-- `BAUMAN_RUNTIME_PREVIEW_ORIGIN`;
-- `GROWUP_PREVIEW_ORIGIN`.
+Secrets:
 
-Chạy workflow `Application Management Cloudflare Preview Deploy` với `DEPLOY_PREVIEW`.
-
-Gate bắt buộc sau pha A:
-
-1. anonymous request tới `/__deployment` không được HTTP 200;
-2. service-token request phải đọc được `/__deployment`;
-3. `application=application-management`;
-4. `channel=cloudflare-preview`;
-5. D1 schema ready;
-6. Access configured;
-7. owner policy configured;
-8. network mode là `production`, không localhost fallback.
-
-Chỉ khi các gate này pass mới dùng `APPLICATION_MANAGEMENT_PREVIEW_ORIGIN` cho client.
-
-## 5. Pha B · dựng từng client preview
-
-### Health_Care
-
-Environment `health-preview`:
-
-Secrets bắt buộc:
-
-- `CLOUDFLARE_API_TOKEN`;
-- `CLOUDFLARE_ACCOUNT_ID`;
-- `HEALTH_PREVIEW_D1_DATABASE_ID`;
-- `HEALTH_PRODUCTION_D1_DATABASE_ID`;
-- `HEALTH_CONTROL_SERVICE_SECRET`.
+```text
+CLOUDFLARE_API_TOKEN
+CLOUDFLARE_ACCOUNT_ID
+RU_LIFE_PREVIEW_D1_DATABASE_ID
+RU_LIFE_PRODUCTION_D1_DATABASE_ID
+RU_LIFE_CONTROL_SERVICE_SECRET
+```
 
 Variables:
 
-- `APPLICATION_MANAGEMENT_PREVIEW_ORIGIN` = origin đã pass pha A;
-- `HEALTH_PREVIEW_ORIGIN` có thể để trống ở lần đầu, sau deploy ghi lại URL thật rồi cấu hình cho lần smoke tiếp theo.
+```text
+APPLICATION_MANAGEMENT_PREVIEW_ORIGIN
+RU_LIFE_PREVIEW_ORIGIN
+```
 
-Workflow: `Health Cloudflare Preview Deploy`.
+### Bơi ếch / `boi-ech-preview`
 
-### RU_LIFE
+Secrets:
 
-Environment `ru-life-preview`:
-
-Secrets bắt buộc:
-
-- `CLOUDFLARE_API_TOKEN`;
-- `CLOUDFLARE_ACCOUNT_ID`;
-- `RU_LIFE_PREVIEW_D1_DATABASE_ID`;
-- `RU_LIFE_PRODUCTION_D1_DATABASE_ID`;
-- `RU_LIFE_CONTROL_SERVICE_SECRET`.
-
-Variables:
-
-- `APPLICATION_MANAGEMENT_PREVIEW_ORIGIN`;
-- `RU_LIFE_PREVIEW_ORIGIN` sau lần deploy đầu.
-
-Workflow: `RU_LIFE Cloudflare Preview Deploy`.
-
-### Bơi ếch
-
-Environment `boi-ech-preview`:
-
-Secrets bắt buộc:
-
-- `CLOUDFLARE_API_TOKEN`;
-- `CLOUDFLARE_ACCOUNT_ID`;
-- `BOI_ECH_PREVIEW_D1_DATABASE_ID`;
-- `BOI_ECH_PRODUCTION_D1_DATABASE_ID`;
-- `CONTROL_SERVICE_SECRET`.
+```text
+CLOUDFLARE_API_TOKEN
+CLOUDFLARE_ACCOUNT_ID
+BOI_ECH_PREVIEW_D1_DATABASE_ID
+BOI_ECH_PRODUCTION_D1_DATABASE_ID
+CONTROL_SERVICE_SECRET
+```
 
 Variables:
 
-- `APPLICATION_MANAGEMENT_PREVIEW_ORIGIN`;
-- `BOI_ECH_PREVIEW_ORIGIN` sau lần deploy đầu.
+```text
+APPLICATION_MANAGEMENT_PREVIEW_ORIGIN
+BOI_ECH_PREVIEW_ORIGIN
+```
 
-Workflow: `Boi Ech Cloudflare Preview Deploy`.
+R2 preview: `boi-ech-preview-payments`.
 
-Smoke bắt buộc phải xác minh cả D1 registry và R2 `boi-ech-preview-payments`.
+### Bauman / `bauman-preview`
 
-### Bauman
+Secrets:
 
-Environment `bauman-preview`:
+```text
+CLOUDFLARE_API_TOKEN
+CLOUDFLARE_ACCOUNT_ID
+BAUMAN_CONTROL_PREVIEW_D1_DATABASE_ID
+BAUMAN_CONTROL_PRODUCTION_D1_DATABASE_ID
+BAUMAN_CONTROL_SERVICE_SECRET
+```
 
-Secrets bắt buộc:
+Variables:
 
-- `CLOUDFLARE_API_TOKEN`;
-- `CLOUDFLARE_ACCOUNT_ID`;
-- `BAUMAN_CONTROL_PREVIEW_D1_DATABASE_ID`;
-- `BAUMAN_CONTROL_PRODUCTION_D1_DATABASE_ID`;
-- `BAUMAN_CONTROL_SERVICE_SECRET`.
+```text
+APPLICATION_MANAGEMENT_PREVIEW_ORIGIN
+BAUMAN_CONTROL_PREVIEW_ORIGIN
+BAUMAN_RUNTIME_PREVIEW_ORIGIN
+```
 
-Variables bắt buộc:
+Bauman Control và Learning Runtime phải là hai HTTPS origin khác nhau.
 
-- `APPLICATION_MANAGEMENT_PREVIEW_ORIGIN`;
-- `BAUMAN_CONTROL_PREVIEW_ORIGIN`;
-- `BAUMAN_RUNTIME_PREVIEW_ORIGIN`.
+## 6. Pha C · đóng vòng Application Management
 
-Control và Learning Runtime phải là hai HTTPS origin khác nhau. Workflow: `Bauman Cloudflare Preview Deploy`.
+Sau khi các client có preview origin thật, cập nhật `application-management-preview`:
 
-Gate Bauman phải pass cả Control Service, registry BM-, idempotent device commands, CORS Device Gate và Learning Runtime metadata.
+```text
+HEALTH_CARE_PREVIEW_ORIGIN
+RU_LIFE_PREVIEW_ORIGIN
+BOI_ECH_PREVIEW_ORIGIN
+BAUMAN_CONTROL_PREVIEW_ORIGIN
+BAUMAN_RUNTIME_PREVIEW_ORIGIN
+```
 
-## 6. Pha C · đóng vòng tại Application Management
+Đồng thời thêm các app-scoped bridge secrets tương ứng. Giữ `GROWUP_PREVIEW_ORIGIN` trống cho tới khi GrowUP có preview contract thật.
 
-Sau khi 4 client preview đã có origin thật, cập nhật Environment `application-management-preview`:
-
-- `HEALTH_CARE_PREVIEW_ORIGIN` = Health preview;
-- `RU_LIFE_PREVIEW_ORIGIN` = RU_LIFE preview;
-- `BOI_ECH_PREVIEW_ORIGIN` = Bơi ếch preview;
-- `BAUMAN_CONTROL_PREVIEW_ORIGIN` = Bauman Control preview;
-- `BAUMAN_RUNTIME_PREVIEW_ORIGIN` = Bauman Learning Runtime preview.
-
-Cấu hình các secret app-scoped tương ứng ở Application Management bằng đúng giá trị phía client.
-
-Không đặt `GROWUP_PREVIEW_ORIGIN` cho tới khi GrowUP có preview contract thật và được live-probe.
-
-Redeploy Application Management preview bằng `DEPLOY_PREVIEW`.
+Redeploy Application Management bằng `DEPLOY_PREVIEW`, sau đó chạy `Application Management Preview Stack Verify` với `full-stack`.
 
 ## 7. Pha D · E2E control-plane
 
-Kiểm tra theo thứ tự, dùng synthetic devices/data:
+Dùng synthetic devices/data và kiểm tra:
 
-1. dashboard đọc được source trạng thái thật của từng client;
-2. `Website` mở runtime người dùng, không mở khu quản trị;
-3. Health: SK- đăng ký → pending → approve → session → block → session revoke;
-4. RU_LIFE: HN- pending → bind Họ tên/Mã người dùng → approve → block → read-back;
-5. Bauman: BM- pending → approve bằng idempotent command → Learning Runtime Device Gate mở → block/revoke → runtime bị chặn;
-6. Bơi ếch: pending → approve; spam removal vẫn là semantics xóa riêng của Bơi ếch, không đánh đồng với block của Health/RU/Bauman;
-7. mọi mutation phải read-back từ client sở hữu registry trước khi báo thành công;
-8. refresh/focus của Application Management chỉ sync đọc, không tự tạo mutation ngoài policy đã bật rõ ràng;
-9. không có health/profile/private data bị sao chép sang control-plane.
+1. dashboard đọc trạng thái thật từ client-owned registry;
+2. `Website` mở user runtime, không mở admin;
+3. Health: pending → approve → session → block → revoke;
+4. RU_LIFE: pending → bind identity → approve → block → read-back;
+5. Bauman: pending → idempotent approve → Learning Runtime mở → block/revoke → runtime bị chặn;
+6. Bơi ếch: pending → approve; spam removal vẫn là semantics riêng;
+7. mọi mutation chỉ báo thành công sau read-back từ client sở hữu registry;
+8. refresh/focus sync chỉ đọc ngoài policy rõ ràng;
+9. không sao chép health/profile/private data vào central control-plane.
 
-## 8. Generated artifact gate
+## 8. Điều kiện trước production
 
-Application Management, Health, RU_LIFE và Bơi ếch dùng Cloudflare Vite generated config. `.wrangler/deploy/config.json` là redirect có `configPath`, không phải source of truth metadata cuối.
+Không chuẩn bị production promotion cho tới khi:
 
-Các repo này phải follow `configPath` và kiểm generated Wrangler config thật trước deploy. Không quay lại cách grep D1/Worker/R2 trực tiếp trong redirect file.
+- CI và preview artifact gates xanh;
+- production D1 guards đầy đủ;
+- preview migrations pass;
+- Application Management anonymous access bị chặn 401;
+- preview secret read-back pass;
+- browser preview login pass;
+- full-stack verifier pass;
+- E2E mutation/read-back pass;
+- Bauman Control/Runtime tách origin đúng;
+- không client nào dùng `*.chatgpt.site` fallback;
+- production vẫn manual/guarded.
 
-Bauman Control/Learning Runtime dùng Wrangler configs riêng và dry-run trực tiếp, nên giữ gate theo contract Bauman hiện hành.
-
-## 9. Điều kiện mới được chuẩn bị production
-
-Không tạo production promotion cho tới khi:
-
-- CI và preview artifact gates của tất cả repo xanh;
-- production D1 guard bắt buộc đã cấu hình ở mọi preview Environment;
-- các preview D1 migrations pass;
-- Access của Application Management chặn anonymous;
-- E2E mutation/read-back pass cho 4 client;
-- Bauman Control/Runtime origin tách đúng;
-- không client nào cần `*.chatgpt.site` fallback;
-- rollback path cũ vẫn còn cho tới khi production read-back pass;
-- production deployment vẫn manual/guarded ở giai đoạn chuyển đổi.
-
-## 10. Trạng thái hiện tại
-
-Phần mã nguồn đã chuẩn hóa đường preview và generated-artifact validation. Preview materializers được thiết kế fail-closed khi thiếu production D1 guard. Việc deploy preview thật còn phụ thuộc GitHub Environment/Cloudflare credentials/D1 IDs/origins thực tế; các giá trị đó không được suy đoán hoặc commit vào repo.
+Cơ chế access cho production sẽ được quyết định riêng; preview secret gate không tự động trở thành production authentication.

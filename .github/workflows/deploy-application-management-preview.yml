@@ -25,9 +25,8 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID: ${{ secrets.APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID }}
       APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID: ${{ secrets.APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID }}
+      APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET: ${{ secrets.APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET }}
       CONTROL_OWNER_EMAILS: ${{ vars.CONTROL_OWNER_EMAILS }}
-      CF_ACCESS_TEAM_DOMAIN: ${{ vars.CF_ACCESS_TEAM_DOMAIN }}
-      CF_ACCESS_AUD: ${{ vars.CF_ACCESS_AUD }}
       APPLICATION_MANAGEMENT_PREVIEW_ORIGIN: ${{ vars.APPLICATION_MANAGEMENT_PREVIEW_ORIGIN }}
       BOI_ECH_BASE_URL: ${{ vars.BOI_ECH_PREVIEW_ORIGIN }}
       HEALTH_CARE_BASE_URL: ${{ vars.HEALTH_CARE_PREVIEW_ORIGIN }}
@@ -39,8 +38,6 @@ jobs:
       HEALTH_CONTROL_SERVICE_SECRET: ${{ secrets.HEALTH_CONTROL_SERVICE_SECRET }}
       RU_LIFE_CONTROL_SERVICE_SECRET: ${{ secrets.RU_LIFE_CONTROL_SERVICE_SECRET }}
       BAUMAN_CONTROL_SERVICE_SECRET: ${{ secrets.BAUMAN_CONTROL_SERVICE_SECRET }}
-      CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
-      CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
 
     steps:
       - name: Require explicit preview confirmation
@@ -65,12 +62,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for key in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID CONTROL_OWNER_EMAILS CF_ACCESS_TEAM_DOMAIN CF_ACCESS_AUD APPLICATION_MANAGEMENT_PREVIEW_ORIGIN CF_ACCESS_CLIENT_ID CF_ACCESS_CLIENT_SECRET; do
+          for key in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET CONTROL_OWNER_EMAILS APPLICATION_MANAGEMENT_PREVIEW_ORIGIN; do
             if [[ -z "${!key:-}" ]]; then
               echo "::error::$key is required in the application-management-preview GitHub environment."
               exit 1
             fi
           done
+          if [[ ${#APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET} -lt 32 ]]; then
+            echo '::error::APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET must contain at least 32 characters.'
+            exit 1
+          fi
           case "$APPLICATION_MANAGEMENT_PREVIEW_ORIGIN" in https://*) ;; *) echo '::error::APPLICATION_MANAGEMENT_PREVIEW_ORIGIN must be HTTPS.'; exit 1 ;; esac
           if [[ "$APPLICATION_MANAGEMENT_PREVIEW_ORIGIN" == *.chatgpt.site ]]; then
             echo '::error::Application Management preview must not use ChatGPT Sites.'
@@ -118,6 +119,10 @@ jobs:
       - name: Deploy Application Management preview Worker
         run: npx wrangler deploy
 
+      - name: Install or rotate Application Management preview access secret
+        shell: bash
+        run: printf '%s' "$APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET" | npx wrangler secret put APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET --config wrangler.cloudflare.jsonc
+
       - name: Install Bơi ếch bridge secret
         if: ${{ env.BOI_ECH_BASE_URL != '' }}
         shell: bash
@@ -138,24 +143,23 @@ jobs:
         shell: bash
         run: printf '%s' "$BAUMAN_CONTROL_SERVICE_SECRET" | npx wrangler secret put BAUMAN_CONTROL_SERVICE_SECRET --config wrangler.cloudflare.jsonc
 
-      - name: Verify Cloudflare Access blocks anonymous traffic
+      - name: Verify application preview gate blocks anonymous traffic
         shell: bash
         run: |
           set -euo pipefail
           CODE="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 15 "$APPLICATION_MANAGEMENT_PREVIEW_ORIGIN/__deployment")"
-          case "$CODE" in
-            200) echo '::error::Anonymous request reached Application Management. Cloudflare Access is not enforcing the preview origin.'; exit 1 ;;
-            000) echo '::error::Application Management preview origin is unreachable.'; exit 1 ;;
-            *) echo "Anonymous request blocked/redirected by Access with HTTP $CODE." ;;
-          esac
+          if [[ "$CODE" != "401" ]]; then
+            echo "::error::Expected anonymous /__deployment to return 401 from the application preview gate, got HTTP $CODE."
+            exit 1
+          fi
+          echo 'Anonymous request blocked by application preview gate with HTTP 401.'
 
-      - name: Read back deployment through Cloudflare Access service token
+      - name: Read back deployment through application preview secret
         shell: bash
         run: |
           set -euo pipefail
           curl --fail --silent --show-error --max-time 20 \
-            -H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" \
-            -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET" \
+            -H "Authorization: Bearer $APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET" \
             "$APPLICATION_MANAGEMENT_PREVIEW_ORIGIN/__deployment" > /tmp/application-management-deployment.json
           node --input-type=module - <<'NODE'
           import fs from 'node:fs';
@@ -164,7 +168,8 @@ jobs:
           if (value.channel !== 'cloudflare-preview') throw new Error('Application Management deployment channel mismatch.');
           if (!value.revision || value.revision === 'unknown') throw new Error('Application Management build revision missing.');
           if (!value.databaseReady) throw new Error('Application Management preview D1 schema is not ready.');
-          if (!value.accessConfigured) throw new Error('Cloudflare Access JWT adapter configuration is missing.');
+          if (!value.previewAccessConfigured) throw new Error('Application preview access secret is not configured.');
+          if (value.accessMode !== 'application-preview-secret') throw new Error('Unexpected Application Management preview access mode.');
           if (!value.ownerPolicyConfigured) throw new Error('Application Management owner policy is missing.');
           if (value.networkMode !== 'production') throw new Error('Cloud preview must use production network resolution, never localhost fallback.');
           console.log('Application Management Cloudflare preview read-back PASS.');
@@ -176,5 +181,5 @@ jobs:
           echo 'Application Management preview deployment completed.'
           echo 'Worker: application-management-preview'
           echo 'D1: application-management-preview-db'
-          echo 'Cloudflare Access: anonymous traffic verified blocked; service-token read-back verified.'
+          echo 'Access: application-level preview secret; anonymous read-back verified blocked.'
           echo 'Production auto-deploy remains disabled.'

@@ -7,7 +7,7 @@
 
   // Template only. scripts/prepare-cloudflare-preview.mjs materializes
   // wrangler.cloudflare.jsonc with a SEPARATE preview D1 database.
-  // Never put service secrets or LOCAL_DEV_AUTH in this file.
+  // Never put service secrets, preview access secrets or LOCAL_DEV_AUTH in this file.
   "d1_databases": [
     {
       "binding": "DB",
@@ -26,8 +26,6 @@
     "BAUMAN_CONTROL_BASE_URL": "__BAUMAN_CONTROL_BASE_URL__",
     "BAUMAN_APP_ORIGIN": "__BAUMAN_APP_ORIGIN__",
     "GROWUP_BASE_URL": "__GROWUP_BASE_URL__",
-    "CF_ACCESS_TEAM_DOMAIN": "__CF_ACCESS_TEAM_DOMAIN__",
-    "CF_ACCESS_AUD": "__CF_ACCESS_AUD__",
     "APPLICATION_MANAGEMENT_DEPLOYMENT_CHANNEL": "cloudflare-preview",
     "APPLICATION_MANAGEMENT_BUILD_REVISION": "__APPLICATION_MANAGEMENT_BUILD_REVISION__"
   }

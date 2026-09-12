@@ -4,78 +4,85 @@
 
 Cloudflare là môi trường preview/production thay thế ChatGPT Sites. `Application-Management` vẫn là **control-plane canonical duy nhất**; mỗi ứng dụng tiếp tục sở hữu runtime, database, registry thiết bị và audit của chính nó.
 
-Cloudflare path đã có Access Auth Adapter trong `app/cloudflare-access-auth.ts`: xác minh `Cf-Access-Jwt-Assertion` bằng JWKS, RS256, issuer, audience, thời hạn và subject/email. `LOCAL_DEV_AUTH` chỉ dùng loopback local và tuyệt đối không được materialize vào Cloudflare.
+Preview Application Management **không phụ thuộc Cloudflare Zero Trust**. Lớp bảo vệ preview nằm ngay tại Worker trong `worker/preview-access.ts` và dùng secret riêng `APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET`.
 
-Preview **không còn copy config thủ công**. `wrangler.cloudflare.example.jsonc` là template; `scripts/prepare-cloudflare-preview.mjs` tạo file ignored `wrangler.cloudflare.jsonc` sau khi kiểm tra D1, Access, owner policy và client origins.
+`LOCAL_DEV_AUTH` chỉ dùng loopback local và tuyệt đối không được materialize lên Cloudflare.
 
-## Kiến trúc đích
+## Kiến trúc preview
 
 ```text
-Browser
-  ↓
-Cloudflare Access
-  ↓ Cf-Access-Jwt-Assertion
-Application Management
-  ↓ verify RS256 + JWKS + issuer + AUD + exp/nbf
+Browser / GitHub Actions
+        ↓
+Application Management Worker
+        ↓ application-level preview secret gate
+        ├─ Browser: secret -> signed HttpOnly session cookie
+        └─ CI: Authorization: Bearer <preview secret>
+        ↓
+Internal preview-owner identity bridge
+        ↓
 QT device + role authorization
-  ↓ D1 riêng của control-plane
+        ↓ D1 riêng của control-plane
 Application Management D1
-  ↓ signed app-scoped Control API
+        ↓ app-scoped Control API
 Health_Care / RU_LIFE / Bauman Control / Bơi Ếch
-
-Bauman riêng:
-Bauman Learning Runtime ── P-256 Device Gate ──> Bauman Control Service ──> Bauman D1
 ```
 
-Application Management không nhập database/client data vào control-plane. `GROWUP_BASE_URL` hiện chỉ dùng contract/direct launch cho tới khi GrowUP có remote-admin contract đầy đủ.
+Secret không nằm trong URL, không nằm trong Wrangler vars và không commit vào Git. Browser nhập secret tại `/__preview-login`; Worker đổi nó thành session cookie ký HMAC-SHA-256, `HttpOnly`, `Secure`, `SameSite=Strict`.
 
-## Local / offline và Cloudflare tách D1 tuyệt đối
+## Local / preview / production tách D1 tuyệt đối
 
-Local Application Management dùng `wrangler.local.jsonc` với UUID giả riêng:
+Local Application Management dùng UUID giả riêng:
 
 ```text
 00000000-0000-0000-0000-000000000003
 ```
 
-UUID này chỉ dành cho Wrangler local. Preview materializer từ chối UUID local, từ chối legacy ChatGPT Sites D1 `1cf8f6b4-6c23-4479-8751-47703ecac92b`, và nếu được cung cấp thì cũng từ chối `APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID` trùng preview.
+Preview dùng `application-management-preview-db`. Materializer từ chối UUID local, legacy ChatGPT Sites D1 `1cf8f6b4-6c23-4479-8751-47703ecac92b`, production ID sai định dạng và production ID trùng preview.
 
-`vite.config.ts` chạy hai đường rõ ràng:
+`APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID` là guard bắt buộc nhưng production D1 không được bind vào preview Worker.
 
-- local/dev: binding D1 local-only và các local env chỉ ở `serve`;
-- Cloudflare build: chỉ dùng config được chỉ định qua `CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH`.
+## GitHub Environment `application-management-preview`
 
-Như vậy build preview không thể vô tình lấy binding D1 cũ từ ChatGPT Sites.
-
-## Preview Cloudflare
-
-Workflow `.github/workflows/deploy-application-management-preview.yml` là **manual-only**. Không có `push` auto-deploy. Người vận hành phải nhập chính xác `DEPLOY_PREVIEW`.
-
-GitHub Environment `application-management-preview` cần cấu hình:
+Secrets bắt buộc pha A:
 
 ```text
-Secrets bắt buộc:
 CLOUDFLARE_API_TOKEN
 CLOUDFLARE_ACCOUNT_ID
 APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID
+APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID
+APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET
+```
+
+`APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET` phải dài ít nhất 32 ký tự và chỉ được cài lên Worker bằng `wrangler secret put`.
+
+Variables bắt buộc pha A:
+
+```text
+CONTROL_OWNER_EMAILS
+APPLICATION_MANAGEMENT_PREVIEW_ORIGIN
+```
+
+Không còn cần:
+
+```text
 CF_ACCESS_CLIENT_ID
 CF_ACCESS_CLIENT_SECRET
+CF_ACCESS_TEAM_DOMAIN
+CF_ACCESS_AUD
+```
 
-Secrets app-scoped khi client tương ứng được cấu hình:
+Secrets app-scoped khi client tương ứng được nối:
+
+```text
 CONTROL_SERVICE_SECRET
 HEALTH_CONTROL_SERVICE_SECRET
 RU_LIFE_CONTROL_SERVICE_SECRET
 BAUMAN_CONTROL_SERVICE_SECRET
+```
 
-Secret guard khuyến nghị:
-APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID
+Client preview origins chỉ đặt khi preview thật đã tồn tại:
 
-Variables bắt buộc:
-CONTROL_OWNER_EMAILS
-CF_ACCESS_TEAM_DOMAIN
-CF_ACCESS_AUD
-APPLICATION_MANAGEMENT_PREVIEW_ORIGIN
-
-Variables client preview, chỉ đặt khi client đó đã có preview thật:
+```text
 BOI_ECH_PREVIEW_ORIGIN
 HEALTH_CARE_PREVIEW_ORIGIN
 RU_LIFE_PREVIEW_ORIGIN
@@ -84,80 +91,64 @@ BAUMAN_RUNTIME_PREVIEW_ORIGIN
 GROWUP_PREVIEW_ORIGIN
 ```
 
-Bauman Control và Bauman Learning Runtime phải được cấu hình cùng nhau và phải là hai HTTPS origin khác nhau. Mọi client origin mới đều bị từ chối nếu trỏ về `*.chatgpt.site`.
+Bauman Control và Bauman Learning Runtime phải là hai HTTPS origin khác nhau. Không dùng `*.chatgpt.site` làm fallback.
 
-## Trình tự workflow preview
+## Workflow preview
 
-Workflow thực hiện stop-on-error theo thứ tự:
+`.github/workflows/deploy-application-management-preview.yml` là **manual-only**, yêu cầu nhập chính xác `DEPLOY_PREVIEW`.
 
-1. xác minh confirmation, Cloudflare credentials, Access service token và policy variables;
-2. `npm ci`, sau đó chạy toàn bộ regression hiện có trước khi materialize preview;
-3. chạy `validate:cloudflare-preview`;
+Trình tự stop-on-error:
+
+1. kiểm Cloudflare credentials, hai D1 ID, preview access secret, owner policy và preview origin;
+2. chạy regression;
+3. validate preview boundary;
 4. materialize `wrangler.cloudflare.jsonc`;
-5. chạy `cloudflare:check` lần nữa trên config thật;
+5. validate materialized config;
 6. apply migrations chỉ vào `application-management-preview-db`;
-7. build với `CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH=wrangler.cloudflare.jsonc`;
-8. kiểm artifact không chứa legacy/local D1;
-9. deploy generated Worker artifact;
-10. cài/rotate từng app-scoped secret chỉ khi client tương ứng được cấu hình;
-11. gọi preview không token và **bắt buộc không được HTTP 200**;
-12. gọi `/__deployment` qua Cloudflare Access service token và read-back: đúng application/channel/revision, D1 ready, Access configured, owner policy configured, network mode `production`.
+7. build bằng preview bindings;
+8. kiểm generated artifact;
+9. deploy Worker;
+10. cài/rotate `APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET` bằng Wrangler secret;
+11. cài các bridge secret nếu client tương ứng đã cấu hình;
+12. gọi anonymous `/__deployment` và **bắt buộc nhận HTTP 401**;
+13. gọi lại bằng `Authorization: Bearer <preview secret>` và read-back identity/channel/revision/D1/access/owner/network-mode.
 
-CI `.github/workflows/cloudflare-preview-ci.yml` chỉ chạy ở pull request và chỉ dry-run; CI không có quyền deploy preview/production.
+Nếu secret chưa được cài hoặc ngắn hơn 32 ký tự, preview phải fail-closed.
 
 ## `/__deployment`
 
-`worker/index.ts` có endpoint read-back không chứa secret hoặc dữ liệu người dùng. Endpoint chỉ công bố deployment identity/revision/channel, trạng thái schema D1, Access/owner config, network mode và cờ client-origin đã cấu hình.
+Endpoint công bố thông tin không nhạy cảm:
 
-Endpoint này **không thay Cloudflare Access**. Preview workflow yêu cầu Access chặn request ẩn danh trước, sau đó mới đọc endpoint bằng service token. Nếu request ẩn danh nhận HTTP 200 thì deployment workflow fail.
+- application/runtime/channel/revision;
+- trạng thái schema D1;
+- `previewAccessConfigured`;
+- `accessMode=application-preview-secret`;
+- owner policy;
+- network mode;
+- trạng thái client origins.
 
-## Cloudflare Access
+Anonymous request tới endpoint này phải bị Worker trả 401 ở preview. Endpoint không chứa secret.
 
-Trước khi chạy deploy preview phải tạo Access Application/Policy bảo vệ đúng `APPLICATION_MANAGEMENT_PREVIEW_ORIGIN`. Service token dùng bởi GitHub Actions phải được allow trong policy. Human admin vẫn đăng nhập qua Access identity; service token chỉ dùng cho deployment read-back và không thay thế user identity/role.
+## Browser preview access
 
-Ứng dụng tiếp tục xác thực JWT ở origin bằng `CF_ACCESS_TEAM_DOMAIN` + `CF_ACCESS_AUD`; không tin email header tự khai báo.
+Khi mở preview bằng trình duyệt mà chưa có session, Worker chuyển tới `/__preview-login`. Người quản trị nhập `APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET`; secret được gửi bằng POST form, không đặt trong query string. Sau khi hợp lệ, Worker tạo signed session cookie 12 giờ.
 
-## Client origins
+Worker xóa/ghi đè mọi header identity do client tự gửi và chỉ tạo preview-owner identity sau khi preview gate pass. Owner email lấy từ `CONTROL_OWNER_EMAILS`.
 
-Production/preview Control API phải là HTTPS exact origin. Riêng Bauman:
+## CI và verifier
 
-```text
-BAUMAN_CONTROL_BASE_URL=https://<bauman-control-worker>
-BAUMAN_APP_ORIGIN=https://<bauman-learning-runtime>
-```
+`cloudflare-preview-ci.yml` chỉ chạy PR dry-run, không deploy thật.
 
-`BAUMAN_CONTROL_BASE_URL` dùng cho remote admin. `BAUMAN_APP_ORIGIN` là website học và là origin device gateway. Không fallback runtime sang Control Service.
+`Application Management Preview Stack Verify` là read-only. Nó kiểm:
 
-Local tương ứng:
+- anonymous `/__deployment` = 401;
+- bearer preview secret đọc được deployment metadata;
+- D1 ready;
+- preview access gate configured;
+- owner policy configured;
+- network mode production;
+- khi full-stack: CORS/status/ownership của các client và Bauman Control/Runtime linkage.
 
-```text
-BAUMAN_CONTROL_LOCAL_BASE_URL=http://127.0.0.1:3003
-BAUMAN_APP_LOCAL_ORIGIN=http://127.0.0.1:3005
-```
+## Production
 
-## Secrets
-
-Không ghi secret vào Git, template, README, PR body hoặc chat. Các app-scoped secret hiện gồm:
-
-```text
-CONTROL_SERVICE_SECRET              # Bơi ếch
-HEALTH_CONTROL_SERVICE_SECRET       # Health_Care
-RU_LIFE_CONTROL_SERVICE_SECRET      # RU_LIFE
-BAUMAN_CONTROL_SERVICE_SECRET       # Bauman
-```
-
-Health không fallback sang generic secret. GrowUP hiện không có shared control secret trong bridge hiện hành.
-
-## Production Cloudflare
-
-Preview không tự promote production. Chỉ tạo/chạy production promotion sau khi:
-
-- GitHub regression + Cloudflare dry-run đạt;
-- preview D1 migrations và `/__deployment` read-back đạt;
-- Cloudflare Access thực sự chặn anonymous request;
-- human Access login + QT device gate được kiểm tra;
-- từng client bridge được live-probe và mutation/read-back đúng semantics;
-- Bauman Control và Learning Runtime đều live và Device Gate trỏ đúng control origin;
-- không còn client nào cần fallback `chatgpt.site` trong production config.
-
-Không coi CI xanh là production đã deploy. Không thay URL cũ hoặc tắt rollback path trước khi production read-back pass.
+Preview không tự promote production. Không tạo production promotion cho tới khi CI, preview migration, read-back và E2E control-plane đều pass. Cơ chế access production sẽ được quyết định riêng; không mặc định sao chép preview secret gate thành production auth.

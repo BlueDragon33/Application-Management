@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 
 const auth = fs.readFileSync("app/chatgpt-auth.ts", "utf8");
+const previewGate = fs.readFileSync("worker/preview-access.ts", "utf8");
+const worker = fs.readFileSync("worker/index.ts", "utf8");
 const vite = fs.readFileSync("vite.config.ts", "utf8");
 const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
 const gitignore = fs.readFileSync(".gitignore", "utf8");
@@ -22,8 +24,9 @@ test("local auth is explicit and loopback-only", () => {
   assert.equal(auth.includes("terminal.local"), false);
   const chat = auth.indexOf("if (userId && email)");
   const local = auth.indexOf("const localUser = localDevelopmentUser");
-  const cloudflare = auth.indexOf("return getCloudflareAccessUser");
-  assert.ok(chat >= 0 && local > chat && cloudflare > local);
+  const failClosed = auth.indexOf("return null", local);
+  assert.ok(chat >= 0 && local > chat && failClosed > local);
+  assert.equal(auth.includes("getCloudflareAccessUser"), false);
 });
 
 test("local launcher uses isolated D1 and does not require Work", () => {
@@ -44,13 +47,17 @@ test("local secrets remain untracked and dev bindings are serve-only", () => {
   assert.ok(vite.includes('"LOCAL_DEV_AUTH"'));
 });
 
-test("Cloudflare track never inherits the local auth bypass", () => {
+test("Cloudflare preview never inherits the local auth bypass or Zero Trust dependency", () => {
   assert.equal(/"LOCAL_DEV_AUTH"\s*:/.test(cloudflareTemplate), false);
-  assert.ok(cloudflareTemplate.includes("CF_ACCESS_TEAM_DOMAIN"));
-  assert.ok(cloudflareTemplate.includes("CF_ACCESS_AUD"));
+  assert.equal(cloudflareTemplate.includes("CF_ACCESS_TEAM_DOMAIN"), false);
+  assert.equal(cloudflareTemplate.includes("CF_ACCESS_AUD"), false);
+  assert.equal(cloudflareTemplate.includes("APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET"), false);
   assert.ok(gitignore.split(/\r?\n/).includes("wrangler.cloudflare.jsonc"));
-  assert.ok(cloudflareTrack.includes("Cloudflare Access"));
-  assert.ok(cloudflareTrack.includes("Cf-Access-Jwt-Assertion"));
+  assert.ok(previewGate.includes("Authorization: Bearer <preview-secret>"));
+  assert.ok(previewGate.includes("secretNeverInUrl"));
+  assert.ok(worker.includes("APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET?: string"));
+  assert.ok(cloudflareTrack.includes("application-level preview secret"));
+  assert.ok(cloudflareTrack.includes("không phụ thuộc Cloudflare Zero Trust"));
 });
 
 test("release standard is GitHub -> local -> hosted, not publish-driven development", () => {

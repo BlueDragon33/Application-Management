@@ -1,5 +1,14 @@
 /** Cloudflare Worker entry point for Application Management. */
 import handler from "vinext/server/app-router-entry";
+import {
+  handlePreviewLogin,
+  handlePreviewLogout,
+  previewAccessConfigured,
+  previewLoginPath,
+  previewLogoutPath,
+  previewRequestAuthorized,
+  withPreviewOwnerIdentity,
+} from "./preview-access";
 
 interface Env {
   ASSETS: Fetcher;
@@ -16,8 +25,7 @@ interface Env {
   BAUMAN_APP_ORIGIN?: string;
   BAUMAN_CONTROL_SERVICE_SECRET?: string;
   GROWUP_BASE_URL?: string;
-  CF_ACCESS_TEAM_DOMAIN?: string;
-  CF_ACCESS_AUD?: string;
+  APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET?: string;
   APPLICATION_MANAGEMENT_DEPLOYMENT_CHANNEL?: string;
   APPLICATION_MANAGEMENT_BUILD_REVISION?: string;
 }
@@ -50,7 +58,8 @@ async function deploymentStatus(env: Env) {
     channel: env.APPLICATION_MANAGEMENT_DEPLOYMENT_CHANNEL ?? "unknown",
     revision: env.APPLICATION_MANAGEMENT_BUILD_REVISION ?? "unknown",
     databaseReady: await databaseReady(env),
-    accessConfigured: configured(env.CF_ACCESS_TEAM_DOMAIN) && configured(env.CF_ACCESS_AUD),
+    previewAccessConfigured: previewAccessConfigured(env.APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET),
+    accessMode: "application-preview-secret",
     ownerPolicyConfigured: configured(env.CONTROL_OWNER_EMAILS),
     networkMode: env.CONTROL_PLANE_NETWORK_MODE ?? "unknown",
     clients: {
@@ -65,9 +74,51 @@ async function deploymentStatus(env: Env) {
   };
 }
 
+function previewUnavailable() {
+  return Response.json(
+    { ok: false, error: "preview_access_not_configured" },
+    {
+      status: 503,
+      headers: {
+        "cache-control": "no-store, private",
+        "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+        "x-content-type-options": "nosniff",
+      },
+    },
+  );
+}
+
+function previewUnauthorized(request: Request) {
+  const acceptsHtml = (request.headers.get("accept") ?? "").includes("text/html");
+  if (request.method === "GET" && acceptsHtml) {
+    return Response.redirect(new URL(previewLoginPath(), request.url), 303);
+  }
+  return Response.json(
+    { ok: false, error: "preview_access_required" },
+    {
+      status: 401,
+      headers: {
+        "cache-control": "no-store, private",
+        "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+        "www-authenticate": 'Bearer realm="application-management-preview"',
+        "x-content-type-options": "nosniff",
+      },
+    },
+  );
+}
+
 const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+    const isPreview = env.APPLICATION_MANAGEMENT_DEPLOYMENT_CHANNEL === "cloudflare-preview";
+
+    if (isPreview) {
+      if (!previewAccessConfigured(env.APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET)) return previewUnavailable();
+      if (url.pathname === previewLoginPath()) return handlePreviewLogin(request, env.APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET);
+      if (url.pathname === previewLogoutPath()) return handlePreviewLogout();
+      if (!(await previewRequestAuthorized(request, env.APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET))) return previewUnauthorized(request);
+    }
+
     if (request.method === "GET" && url.pathname === "/__deployment") {
       return Response.json(await deploymentStatus(env), {
         headers: {
@@ -77,6 +128,13 @@ const worker = {
         },
       });
     }
+
+    if (isPreview) {
+      const authenticated = withPreviewOwnerIdentity(request, env.CONTROL_OWNER_EMAILS);
+      if (!authenticated) return previewUnavailable();
+      request = authenticated;
+    }
+
     return handler.fetch(request, env, ctx);
   },
 };
