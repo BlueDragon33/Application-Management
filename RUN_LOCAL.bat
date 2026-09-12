@@ -1,9 +1,9 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-echo ================================================
-echo   Application Management - LOCAL DEVELOPMENT
-echo ================================================
+echo ===============================================================
+echo   APPLICATION MANAGEMENT - FULL LOCAL CONTROL PLANE
+echo ===============================================================
 echo.
 where node >nul 2>nul
 if errorlevel 1 (
@@ -11,10 +11,10 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
-node scripts\run-local.mjs
+node scripts\run-local-system.mjs --local
 if errorlevel 1 (
   echo.
-  echo [ERROR] Local server dung voi loi. Xem thong bao phia tren.
+  echo [ERROR] He thong local dung voi loi. Xem thong bao phia tren.
   pause
   exit /b 1
 )
