@@ -88,7 +88,7 @@ if (baumanControl && baumanControl === baumanRuntime) {
 }
 
 const gate = fs.readFileSync("worker/preview-access.ts", "utf8");
-for (const token of ["APPLICATION_MANAGEMENT", "Authorization: Bearer <preview-secret>", "HMAC-SHA-256", "HttpOnly", "SameSite=Strict", "secretNeverInUrl"]) {
+for (const token of ["application-management-preview-session-v1", "Authorization: Bearer <preview-secret>", "HMAC-SHA-256", "HttpOnly", "SameSite=Strict", "secretNeverInUrl"]) {
   if (!gate.includes(token)) throw new Error(`Application preview access gate thiếu: ${token}`);
 }
 
