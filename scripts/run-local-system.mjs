@@ -11,6 +11,14 @@ const isWindows = process.platform === "win32";
 const npm = isWindows ? "npm.cmd" : "npm";
 const npx = isWindows ? "npx.cmd" : "npx";
 
+function commandSpec(command, args) {
+  if (!isWindows || !/\.cmd$/i.test(command)) return { file: command, args };
+  return {
+    file: process.env.ComSpec || "cmd.exe",
+    args: ["/d", "/s", "/c", command, ...args],
+  };
+}
+
 function parseArgs(argv) {
   const options = {
     mode: "local",
@@ -90,7 +98,8 @@ function ephemeralSecret() {
 }
 
 function commandResult(command, args, cwd, env = process.env) {
-  return spawnSync(command, args, { cwd, env, stdio: "inherit", shell: false });
+  const spec = commandSpec(command, args);
+  return spawnSync(spec.file, spec.args, { cwd, env, stdio: "inherit", shell: false });
 }
 
 function runChecked(label, command, args, cwd, env = process.env) {
@@ -156,7 +165,8 @@ function migrateLocalDatabases(paths, skipMigrate) {
 }
 
 function spawnService({ name, command, args, cwd, env }) {
-  const child = spawn(command, args, {
+  const spec = commandSpec(command, args);
+  const child = spawn(spec.file, spec.args, {
     cwd,
     env: { ...process.env, ...env },
     stdio: ["ignore", "pipe", "pipe"],
