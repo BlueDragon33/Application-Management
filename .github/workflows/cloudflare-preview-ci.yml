@@ -6,16 +6,20 @@ on:
     paths:
       - ".github/workflows/cloudflare-preview-ci.yml"
       - ".github/workflows/deploy-application-management-preview.yml"
+      - ".github/workflows/verify-preview-stack.yml"
       - "wrangler.cloudflare.example.jsonc"
       - "wrangler.local.jsonc"
       - "vite.config.ts"
       - "worker/index.ts"
-      - "app/cloudflare-access-auth.ts"
+      - "worker/preview-access.ts"
+      - "app/chatgpt-auth.ts"
       - "app/client-origin.server.ts"
       - "scripts/prepare-cloudflare-preview.mjs"
       - "scripts/validate-cloudflare-preview.mjs"
       - "scripts/validate-cloudflare-build-artifact.mjs"
+      - "scripts/verify-preview-stack.mjs"
       - "docs/CLOUDFLARE_DEPLOYMENT_TRACK.md"
+      - "docs/CLOUDFLARE_PREVIEW_BOOTSTRAP_RUNBOOK.md"
 
 permissions:
   contents: read
@@ -27,9 +31,8 @@ jobs:
     env:
       APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID: 33333333-3333-4333-8333-333333333333
       APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID: 44444444-4444-4444-8444-444444444444
+      APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET: ci-only-preview-access-secret-000000000001
       CONTROL_OWNER_EMAILS: owner@example.com
-      CF_ACCESS_TEAM_DOMAIN: https://example-team.cloudflareaccess.com
-      CF_ACCESS_AUD: preview-audience-0123456789
       BOI_ECH_BASE_URL: ""
       HEALTH_CARE_BASE_URL: ""
       RU_LIFE_BASE_URL: ""
