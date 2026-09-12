@@ -47,20 +47,22 @@ export async function dismissedNotificationHashes(actor: string) {
 /**
  * Client-owned automation is the source of truth. A client is advertised as
  * supporting auto approval only after its live policy endpoint answers.
- * Historic central audit is used solely as an enabled-state fallback and may
- * never fabricate a live capability. Auto-block is likewise live-only.
+ * Bauman is included as a candidate even while the legacy operations route
+ * still names only Bơi/Health, so support can be promoted solely by a live
+ * Bauman capability probe. Historic central audit never fabricates support.
  */
 export async function readAutoApprovalSettings(supportedAppIds: readonly string[]) {
-  const fallback = await auditAutoApprovalFallback(supportedAppIds);
+  const effectiveAppIds = [...new Set([...supportedAppIds, "bauman-master-ai"])] as string[];
+  const fallback = await auditAutoApprovalFallback(effectiveAppIds);
   const autoApproveSupported = new Set<string>();
   const autoApproveEnabled = new Set<string>();
   const autoBlockSupported = new Set<string>();
   const autoBlockEnabled = new Set<string>();
   const pendingBlockAfterHoursByApp: Record<string, number> = {};
-  const probes = await readClientAutoApprovalStates(supportedAppIds);
+  const probes = await readClientAutoApprovalStates(effectiveAppIds);
 
   probes.forEach((probe, index) => {
-    const appId = supportedAppIds[index];
+    const appId = effectiveAppIds[index];
     if (probe.status === "fulfilled") {
       autoApproveSupported.add(appId);
       if (probe.value.enabled) autoApproveEnabled.add(appId);
@@ -75,10 +77,10 @@ export async function readAutoApprovalSettings(supportedAppIds: readonly string[
   });
 
   return {
-    autoApproveAppIds: supportedAppIds.filter((id) => autoApproveEnabled.has(id)),
-    autoApproveSupportedAppIds: supportedAppIds.filter((id) => autoApproveSupported.has(id)),
-    autoBlockPendingAppIds: supportedAppIds.filter((id) => autoBlockEnabled.has(id)),
-    autoBlockPendingSupportedAppIds: supportedAppIds.filter((id) => autoBlockSupported.has(id)),
+    autoApproveAppIds: effectiveAppIds.filter((id) => autoApproveEnabled.has(id)),
+    autoApproveSupportedAppIds: effectiveAppIds.filter((id) => autoApproveSupported.has(id)),
+    autoBlockPendingAppIds: effectiveAppIds.filter((id) => autoBlockEnabled.has(id)),
+    autoBlockPendingSupportedAppIds: effectiveAppIds.filter((id) => autoBlockSupported.has(id)),
     pendingBlockAfterHoursByApp,
   };
 }
