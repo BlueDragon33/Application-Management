@@ -24,8 +24,7 @@ declare namespace Cloudflare {
     LOCAL_DEV_USER_EMAIL?: string;
     LOCAL_DEV_USER_NAME?: string;
 
-    // Cloudflare Access authentication adapter.
-    CF_ACCESS_TEAM_DOMAIN?: string;
-    CF_ACCESS_AUD?: string;
+    // Cloudflare preview gate. Must be installed with `wrangler secret put`, never as a plain var.
+    APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET?: string;
   }
 }
