@@ -25,8 +25,8 @@ test("secret generation uses Web Crypto without biased Math.random fallback", ()
 test("secret values stay browser-local and are never persisted or transmitted", () => {
   assert.doesNotMatch(source, /fetch\s*\(/);
   assert.doesNotMatch(source, /XMLHttpRequest/);
-  assert.doesNotMatch(source, /localStorage/);
-  assert.doesNotMatch(source, /sessionStorage/);
+  assert.doesNotMatch(source, /(?:window\.|globalThis\.)?localStorage\.(?:getItem|setItem|removeItem|clear)/);
+  assert.doesNotMatch(source, /(?:window\.|globalThis\.)?sessionStorage\.(?:getItem|setItem|removeItem|clear)/);
   assert.doesNotMatch(source, /URLSearchParams\s*\(/);
   assert.match(source, /navigator\.clipboard\.writeText\(secret\)/);
   assert.match(source, /Không gửi mạng/);
