@@ -18,6 +18,8 @@ const systemLauncher = fs.readFileSync("scripts/run-local-system.mjs", "utf8");
 const bat = fs.readFileSync("RUN_LOCAL.bat", "utf8");
 const centerOnlyBat = fs.readFileSync("RUN_LOCAL_CENTER_ONLY.bat", "utf8");
 const home = fs.readFileSync("app/page.tsx", "utf8");
+const localQuickAccess = fs.readFileSync("app/local-quick-access.tsx", "utf8");
+const contractDiagnostics = fs.readFileSync("app/tools/contract-diagnostics/page.tsx", "utf8");
 
 test("local auth is explicit and loopback-only", () => {
   assert.ok(auth.includes('runtime.LOCAL_DEV_AUTH !== "1"'));
@@ -55,9 +57,15 @@ test("Windows launchers invoke npm and npx through cmd.exe for Node 24 compatibi
   assert.ok(systemLauncher.includes('spawnSync(spec.file, spec.args'));
 });
 
-test("management home exposes the local secret generator", () => {
+test("management home exposes local tools without falsifying contract state", () => {
   assert.match(home, /href="\/tools\/secret-generator"/);
-  assert.match(home, /Tạo Key \/ Secret/);
+  assert.match(home, /LocalQuickAccess/);
+  assert.match(localQuickAccess, /Không phụ thuộc trạng thái contract quản trị/);
+  for (const port of [3001, 3002, 3004, 3005]) assert.ok(localQuickAccess.includes(`127.0.0.1:${port}`));
+  assert.match(localQuickAccess, /\/tools\/contract-diagnostics/);
+  assert.match(contractDiagnostics, /connectOperationsDashboard/);
+  assert.match(contractDiagnostics, /item\.note/);
+  assert.match(contractDiagnostics, /Trạng thái “Chờ contract” ở dashboard không được giả lập thành “Đã kết nối”/);
 });
 
 test("local secrets remain untracked and dev bindings are serve-only", () => {

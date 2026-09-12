@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireChatGPTUser } from "./chatgpt-auth";
 import ApplicationHub from "./application-hub";
+import LocalQuickAccess from "./local-quick-access";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +9,7 @@ export default async function Home() {
   const user = await requireChatGPTUser("/");
   return <>
     <ApplicationHub user={{ displayName: user.displayName, email: user.email }} />
+    <LocalQuickAccess />
     <Link
       href="/tools/secret-generator"
       aria-label="Mở công cụ tạo Key và Secret"
