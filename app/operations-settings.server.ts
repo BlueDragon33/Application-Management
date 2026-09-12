@@ -48,8 +48,8 @@ export async function dismissedNotificationHashes(actor: string) {
  * Client-owned automation is the source of truth. A client is advertised as
  * supporting auto approval only after its live policy endpoint answers.
  * Bauman is included as a candidate even while the legacy operations route
- * still names only Bơi/Health, so support can be promoted solely by a live
- * Bauman capability probe. Historic central audit never fabricates support.
+ * keeps its older static candidate list, so support can be promoted solely
+ * by a live Bauman capability probe. Historic central audit never fabricates support.
  */
 export async function readAutoApprovalSettings(supportedAppIds: readonly string[]) {
   const effectiveAppIds = [...new Set([...supportedAppIds, "bauman-master-ai"])] as string[];
