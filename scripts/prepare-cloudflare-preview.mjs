@@ -43,20 +43,6 @@ function exactHttpsOrigin(name, optional = true) {
   return url.origin;
 }
 
-function teamDomain() {
-  const value = required("CF_ACCESS_TEAM_DOMAIN").replace(/\/+$/, "");
-  if (!/^https:\/\/[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.cloudflareaccess\.com$/i.test(value)) {
-    throw new Error("CF_ACCESS_TEAM_DOMAIN must be an exact https://<team>.cloudflareaccess.com origin.");
-  }
-  return value;
-}
-
-function audience() {
-  const value = required("CF_ACCESS_AUD");
-  if (!/^[A-Za-z0-9._:-]{8,256}$/.test(value)) throw new Error("CF_ACCESS_AUD has an invalid format.");
-  return value;
-}
-
 function ownerEmails() {
   const values = required("CONTROL_OWNER_EMAILS")
     .split(",")
@@ -99,8 +85,6 @@ let source = fs.readFileSync(TEMPLATE, "utf8");
 const replacements = {
   __APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID__: d1Id(),
   __CONTROL_OWNER_EMAILS__: ownerEmails(),
-  __CF_ACCESS_TEAM_DOMAIN__: teamDomain(),
-  __CF_ACCESS_AUD__: audience(),
   __APPLICATION_MANAGEMENT_BUILD_REVISION__: revision(),
   ...Object.fromEntries(Object.entries(clients).map(([key, value]) => [`__${key}__`, value])),
 };
@@ -111,6 +95,7 @@ for (const [token, rawValue] of Object.entries(replacements)) {
 }
 if (/__[A-Z0-9_]+__/.test(source)) throw new Error("Cloudflare preview config still contains unresolved placeholders.");
 if (/"LOCAL_DEV_AUTH"\s*:/.test(source)) throw new Error("LOCAL_DEV_AUTH must never be materialized into Cloudflare preview.");
+if (source.includes("APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET")) throw new Error("Preview access secret must remain a Worker secret and never enter Wrangler vars.");
 if (source.includes(LEGACY_SITES_D1_ID) || source.includes(LOCAL_D1_ID)) throw new Error("Generated preview config references a forbidden D1 identity.");
 if (source.includes(".chatgpt.site")) throw new Error("Generated preview config contains a ChatGPT Sites fallback.");
 
@@ -118,4 +103,5 @@ fs.writeFileSync(OUTPUT, source);
 console.log("Application Management Cloudflare preview config materialized safely.");
 console.log("Worker: application-management-preview");
 console.log("D1: application-management-preview-db (isolated preview database)");
+console.log("Access: application-level preview secret installed separately as a Worker secret");
 console.log(`Configured client origins: ${Object.entries(clients).filter(([, value]) => value).map(([key]) => key).join(", ") || "none"}`);
