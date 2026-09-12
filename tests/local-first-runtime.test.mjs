@@ -19,6 +19,7 @@ const bat = fs.readFileSync("RUN_LOCAL.bat", "utf8");
 const centerOnlyBat = fs.readFileSync("RUN_LOCAL_CENTER_ONLY.bat", "utf8");
 const home = fs.readFileSync("app/page.tsx", "utf8");
 const localQuickAccess = fs.readFileSync("app/local-quick-access.tsx", "utf8");
+const localWebLaunch = fs.readFileSync("app/api/local-web-launch/route.ts", "utf8");
 const contractDiagnostics = fs.readFileSync("app/tools/contract-diagnostics/page.tsx", "utf8");
 
 test("local auth is explicit and loopback-only", () => {
@@ -57,17 +58,25 @@ test("Windows launchers invoke npm and npx through cmd.exe for Node 24 compatibi
   assert.ok(systemLauncher.includes('spawnSync(spec.file, spec.args'));
 });
 
-test("management home integrates local web fallback without floating duplicate panels", () => {
+test("management home uses verified local web launcher and compact device labels", () => {
   assert.match(home, /LocalQuickAccess/);
   assert.equal(home.includes('href="/tools/secret-generator"'), false);
   assert.equal(localQuickAccess.includes('position: "fixed"'), false);
+  assert.match(localQuickAccess, /renameDeviceActions/);
+  assert.match(localQuickAccess, /button\.textContent = "Tự động"/);
+  assert.match(localQuickAccess, /button\.textContent = "Xóa hết"/);
   assert.match(localQuickAccess, /replacePendingWebCells/);
-  assert.match(localQuickAccess, /Chờ contract/);
-  assert.match(localQuickAccess, /Truy cập web ↗/);
+  assert.match(localQuickAccess, /\/api\/local-web-launch\?app=/);
+  assert.equal(localQuickAccess.includes("http://127.0.0.1:3001"), false);
   assert.match(localQuickAccess, /Chưa có Web/);
   assert.match(localQuickAccess, /\/tools\/secret-generator/);
   assert.match(localQuickAccess, /\/tools\/contract-diagnostics/);
-  for (const port of [3001, 3002, 3004, 3005]) assert.ok(localQuickAccess.includes(`127.0.0.1:${port}`));
+
+  assert.match(localWebLaunch, /getChatGPTUser/);
+  assert.match(localWebLaunch, /Local Web Launcher chỉ hoạt động trên localhost\/127\.0\.0\.1/);
+  assert.match(localWebLaunch, /Response\.redirect\(target\.url, 307\)/);
+  for (const port of [3001, 3002, 3004, 3005]) assert.ok(localWebLaunch.includes(`127.0.0.1:${port}`));
+
   assert.match(contractDiagnostics, /connectOperationsDashboard/);
   assert.match(contractDiagnostics, /item\.note/);
   assert.match(contractDiagnostics, /Trạng thái “Chờ contract” ở dashboard không được giả lập thành “Đã kết nối”/);
