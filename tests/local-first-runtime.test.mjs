@@ -57,12 +57,17 @@ test("Windows launchers invoke npm and npx through cmd.exe for Node 24 compatibi
   assert.ok(systemLauncher.includes('spawnSync(spec.file, spec.args'));
 });
 
-test("management home exposes local tools without falsifying contract state", () => {
-  assert.match(home, /href="\/tools\/secret-generator"/);
+test("management home integrates local web fallback without floating duplicate panels", () => {
   assert.match(home, /LocalQuickAccess/);
-  assert.match(localQuickAccess, /Không phụ thuộc trạng thái contract quản trị/);
-  for (const port of [3001, 3002, 3004, 3005]) assert.ok(localQuickAccess.includes(`127.0.0.1:${port}`));
+  assert.equal(home.includes('href="/tools/secret-generator"'), false);
+  assert.equal(localQuickAccess.includes('position: "fixed"'), false);
+  assert.match(localQuickAccess, /replacePendingWebCells/);
+  assert.match(localQuickAccess, /Chờ contract/);
+  assert.match(localQuickAccess, /Truy cập web ↗/);
+  assert.match(localQuickAccess, /Chưa có Web/);
+  assert.match(localQuickAccess, /\/tools\/secret-generator/);
   assert.match(localQuickAccess, /\/tools\/contract-diagnostics/);
+  for (const port of [3001, 3002, 3004, 3005]) assert.ok(localQuickAccess.includes(`127.0.0.1:${port}`));
   assert.match(contractDiagnostics, /connectOperationsDashboard/);
   assert.match(contractDiagnostics, /item\.note/);
   assert.match(contractDiagnostics, /Trạng thái “Chờ contract” ở dashboard không được giả lập thành “Đã kết nối”/);

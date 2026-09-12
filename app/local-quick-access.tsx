@@ -1,90 +1,83 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import styles from "./center-admin.module.css";
 
-const LOCAL_LINKS = [
-  { label: "Bơi ếch", href: "http://127.0.0.1:3004/" },
-  { label: "Sức khỏe Y tế", href: "http://127.0.0.1:3001/suc-khoe-tre" },
-  { label: "Hòa nhập Nga", href: "http://127.0.0.1:3002/" },
-  { label: "Bauman Runtime", href: "http://127.0.0.1:3005/" },
+const LOCAL_WEB_TARGETS = [
+  { names: ["Bơi ếch"], href: "http://127.0.0.1:3004/" },
+  { names: ["Sức khỏe Y tế"], href: "http://127.0.0.1:3001/suc-khoe-tre" },
+  { names: ["Hòa nhập Nga"], href: "http://127.0.0.1:3002/" },
+  { names: ["Bauman Hub", "Bauman"], href: "http://127.0.0.1:3005/" },
+] as const;
+
+const TOOL_LINKS = [
+  { id: "secret-generator", label: "Tạo Key / Secret", href: "/tools/secret-generator" },
+  { id: "contract-diagnostics", label: "Chẩn đoán contract", href: "/tools/contract-diagnostics" },
 ] as const;
 
 function isLoopback(hostname: string) {
   return hostname === "127.0.0.1" || hostname === "localhost" || hostname === "::1" || hostname === "[::1]";
 }
 
-export default function LocalQuickAccess() {
-  const [visible, setVisible] = useState(false);
+function installToolLinks() {
+  const signout = document.querySelector<HTMLAnchorElement>('a[href^="/signout-with-chatgpt"]');
+  const menu = signout?.parentElement;
+  if (!menu || !signout) return;
 
+  for (const tool of TOOL_LINKS) {
+    if (menu.querySelector(`[data-control-tool="${tool.id}"]`)) continue;
+    const link = document.createElement("a");
+    link.href = tool.href;
+    link.textContent = tool.label;
+    link.dataset.controlTool = tool.id;
+    menu.insertBefore(link, signout);
+  }
+}
+
+function localTargetForRow(text: string) {
+  return LOCAL_WEB_TARGETS.find((target) => target.names.some((name) => text.includes(name))) ?? null;
+}
+
+function replacePendingWebCells() {
+  const pendingCells = [...document.querySelectorAll<HTMLSpanElement>("span")]
+    .filter((node) => node.textContent?.trim() === "Chờ contract");
+
+  for (const pending of pendingCells) {
+    const row = pending.closest("article");
+    if (!row) continue;
+    const rowText = row.textContent ?? "";
+    const target = localTargetForRow(rowText);
+
+    if (!target) {
+      if (rowText.includes("GrowUP")) pending.textContent = "Chưa có Web";
+      continue;
+    }
+
+    const link = document.createElement("a");
+    link.href = target.href;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.className = styles.directAccess;
+    link.textContent = "Truy cập web ↗";
+    link.dataset.localWebFallback = "true";
+    pending.replaceWith(link);
+  }
+}
+
+export default function LocalQuickAccess() {
   useEffect(() => {
-    setVisible(isLoopback(window.location.hostname));
+    const loopback = isLoopback(window.location.hostname);
+
+    const synchronize = () => {
+      installToolLinks();
+      if (loopback) replacePendingWebCells();
+    };
+
+    synchronize();
+    const observer = new MutationObserver(synchronize);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
   }, []);
 
-  if (!visible) return null;
-
-  return (
-    <aside
-      aria-label="Truy cập nhanh hệ thống local"
-      style={{
-        position: "fixed",
-        left: 20,
-        bottom: 20,
-        zIndex: 91,
-        width: 250,
-        padding: 14,
-        borderRadius: 16,
-        border: "1px solid rgba(255,255,255,.13)",
-        background: "rgba(8, 30, 24, .96)",
-        boxShadow: "0 16px 38px rgba(0,0,0,.32)",
-        color: "#eefcf7",
-        backdropFilter: "blur(12px)",
-      }}
-    >
-      <strong style={{ display: "block", fontSize: 14, marginBottom: 4 }}>LOCAL · Truy cập trực tiếp</strong>
-      <small style={{ display: "block", opacity: .72, lineHeight: 1.35, marginBottom: 10 }}>
-        Không phụ thuộc trạng thái contract quản trị.
-      </small>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 7 }}>
-        {LOCAL_LINKS.map((item) => (
-          <a
-            key={item.href}
-            href={item.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              color: "#f5fffb",
-              textDecoration: "none",
-              background: "rgba(18,118,94,.68)",
-              border: "1px solid rgba(93,224,188,.18)",
-              borderRadius: 10,
-              padding: "8px 9px",
-              fontSize: 12,
-              fontWeight: 750,
-              textAlign: "center",
-            }}
-          >
-            {item.label} ↗
-          </a>
-        ))}
-      </div>
-      <a
-        href="/tools/contract-diagnostics"
-        style={{
-          display: "block",
-          marginTop: 8,
-          padding: "8px 10px",
-          borderRadius: 10,
-          border: "1px solid rgba(246,195,74,.28)",
-          background: "rgba(94,72,14,.34)",
-          color: "#ffe9a5",
-          textDecoration: "none",
-          fontSize: 12,
-          fontWeight: 800,
-          textAlign: "center",
-        }}
-      >
-        Chẩn đoán contract →
-      </a>
-    </aside>
-  );
+  return null;
 }
