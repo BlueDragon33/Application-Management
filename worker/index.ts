@@ -107,6 +107,15 @@ function previewUnauthorized(request: Request) {
   );
 }
 
+async function routeNativeAutoApproval(request: Request) {
+  const url = new URL(request.url);
+  if (request.method !== "POST" || url.pathname !== "/api/operations") return request;
+  const payload = await request.clone().json().catch(() => null) as { action?: unknown } | null;
+  if (payload?.action !== "set-auto-approval") return request;
+  url.pathname = "/api/operations-auto-approval";
+  return new Request(url, request);
+}
+
 const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
@@ -135,6 +144,7 @@ const worker = {
       request = authenticated;
     }
 
+    request = await routeNativeAutoApproval(request);
     return handler.fetch(request, env, ctx);
   },
 };
