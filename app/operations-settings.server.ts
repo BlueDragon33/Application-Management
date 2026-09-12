@@ -45,13 +45,14 @@ export async function dismissedNotificationHashes(actor: string) {
 }
 
 /**
- * Client-owned automation is the source of truth. The central audit log is
- * consulted only if a client is temporarily unreachable, so a stale audit
- * entry can never override a live client policy. Auto-block support itself is
- * never inferred from audit: it is enabled only by a live client capability.
+ * Client-owned automation is the source of truth. A client is advertised as
+ * supporting auto approval only after its live policy endpoint answers.
+ * Historic central audit is used solely as an enabled-state fallback and may
+ * never fabricate a live capability. Auto-block is likewise live-only.
  */
 export async function readAutoApprovalSettings(supportedAppIds: readonly string[]) {
   const fallback = await auditAutoApprovalFallback(supportedAppIds);
+  const autoApproveSupported = new Set<string>();
   const autoApproveEnabled = new Set<string>();
   const autoBlockSupported = new Set<string>();
   const autoBlockEnabled = new Set<string>();
@@ -61,6 +62,7 @@ export async function readAutoApprovalSettings(supportedAppIds: readonly string[
   probes.forEach((probe, index) => {
     const appId = supportedAppIds[index];
     if (probe.status === "fulfilled") {
+      autoApproveSupported.add(appId);
       if (probe.value.enabled) autoApproveEnabled.add(appId);
       if (probe.value.autoBlockSupported) {
         autoBlockSupported.add(appId);
@@ -74,7 +76,7 @@ export async function readAutoApprovalSettings(supportedAppIds: readonly string[
 
   return {
     autoApproveAppIds: supportedAppIds.filter((id) => autoApproveEnabled.has(id)),
-    autoApproveSupportedAppIds: [...supportedAppIds],
+    autoApproveSupportedAppIds: supportedAppIds.filter((id) => autoApproveSupported.has(id)),
     autoBlockPendingAppIds: supportedAppIds.filter((id) => autoBlockEnabled.has(id)),
     autoBlockPendingSupportedAppIds: supportedAppIds.filter((id) => autoBlockSupported.has(id)),
     pendingBlockAfterHoursByApp,
