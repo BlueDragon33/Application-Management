@@ -8,16 +8,20 @@ const root = path.resolve(here, "..");
 const varsPath = path.join(root, ".dev.vars");
 const varsExamplePath = path.join(root, ".dev.vars.example");
 const localUrl = "http://127.0.0.1:3000";
+const isWindows = process.platform === "win32";
 
-function command(name) {
-  if (process.platform !== "win32") return name;
-  if (name === "npm") return "npm.cmd";
-  if (name === "npx") return "npx.cmd";
-  return name;
+function commandSpec(name, args) {
+  if (!isWindows) return { file: name, args };
+  const executable = name === "npm" || name === "npx" ? `${name}.cmd` : name;
+  return {
+    file: process.env.ComSpec || "cmd.exe",
+    args: ["/d", "/s", "/c", executable, ...args],
+  };
 }
 
 function run(name, args, options = {}) {
-  execFileSync(command(name), args, {
+  const command = commandSpec(name, args);
+  execFileSync(command.file, command.args, {
     cwd: root,
     stdio: "inherit",
     env: options.env ?? process.env,
@@ -70,8 +74,8 @@ function migrateLocalD1(env) {
 
 function openBrowser() {
   try {
-    if (process.platform === "win32") {
-      spawn("cmd", ["/c", "start", "", localUrl], { detached: true, stdio: "ignore" }).unref();
+    if (isWindows) {
+      spawn(process.env.ComSpec || "cmd.exe", ["/d", "/s", "/c", "start", "", localUrl], { detached: true, stdio: "ignore" }).unref();
     } else if (process.platform === "darwin") {
       spawn("open", [localUrl], { detached: true, stdio: "ignore" }).unref();
     } else {
@@ -97,7 +101,8 @@ function main() {
   console.log("[local] Auth local chỉ được chấp nhận trên localhost/127.0.0.1/[::1].");
   console.log("[local] Ctrl+C để dừng server.");
 
-  const server = spawn(command("npm"), ["run", "dev", "--", "--host", "127.0.0.1", "--port", "3000"], {
+  const npm = commandSpec("npm", ["run", "dev", "--", "--host", "127.0.0.1", "--port", "3000"]);
+  const server = spawn(npm.file, npm.args, {
     cwd: root,
     stdio: "inherit",
     env,
