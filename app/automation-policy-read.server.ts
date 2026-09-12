@@ -1,5 +1,6 @@
 import { issueBoiBrowserBridge } from "./boi-ech.server";
 import { issueHealthBrowserBridge, probeHealthManagementContract } from "./health-care.server";
+import { issueBaumanBrowserBridge } from "./bauman.server";
 
 const AUTOMATION_READ_ACTOR = "automation-state@application-management.local";
 const AUTOMATION_READ_DEVICE_ID = "0".repeat(64);
@@ -57,6 +58,24 @@ async function readHealthAutomation() {
   };
 }
 
+async function readBaumanAutomation() {
+  const bridge = await issueBaumanBrowserBridge(AUTOMATION_READ_ACTOR, "viewer", AUTOMATION_READ_DEVICE_ID);
+  const status = await automationJson(bridge, "/api/control/status");
+  const capabilities = record(status.capabilities);
+  const endpoints = record(status.endpoints);
+  if (capabilities.deviceAutoApproval !== true || endpoints.automation !== "/api/control/automation") {
+    throw new Error("BAUMAN_AUTO_APPROVAL_CONTRACT_NOT_LIVE");
+  }
+  const payload = await automationJson(bridge, "/api/control/automation");
+  const automation = record(payload.automation);
+  return {
+    autoApproveEnabled: automation.autoApproveDevices === true,
+    autoBlockSupported: false,
+    autoBlockEnabled: false,
+    pendingBlockAfterHours: null as number | null,
+  };
+}
+
 /** Read-only policy probes. No registration/device mutation is performed here. */
 export async function readClientAutoApprovalStates(supportedAppIds: readonly string[]) {
   return Promise.allSettled(supportedAppIds.map(async (appId) => {
@@ -66,6 +85,10 @@ export async function readClientAutoApprovalStates(supportedAppIds: readonly str
     }
     if (appId === "health-care") {
       const state = await readHealthAutomation();
+      return { appId, ...state, enabled: state.autoApproveEnabled };
+    }
+    if (appId === "bauman-master-ai") {
+      const state = await readBaumanAutomation();
       return { appId, ...state, enabled: state.autoApproveEnabled };
     }
     throw new Error(`AUTO_APPROVAL_READER_MISSING_${appId}`);
