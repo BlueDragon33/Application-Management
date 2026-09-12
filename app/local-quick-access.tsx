@@ -74,18 +74,15 @@ function replacePendingWebCells() {
 
 export default function LocalQuickAccess() {
   useEffect(() => {
-    const loopback = isLoopback(window.location.hostname);
-
-    const synchronize = () => {
-      installToolLinks();
-      renameDeviceActions();
-      if (loopback) replacePendingWebCells();
-    };
-
-    synchronize();
-    const observer = new MutationObserver(synchronize);
-    observer.observe(document.body, { childList: true, subtree: true });
-    return () => observer.disconnect();
+    // IMPORTANT: do not mutate React-owned DOM from here. The previous
+    // insertBefore/replaceWith/textContent patch caused React reconciliation
+    // to throw removeChild NotFoundError in local development. Keep this
+    // compatibility component inert until these controls are rendered
+    // natively by ApplicationHub.
+    void installToolLinks;
+    void renameDeviceActions;
+    void replacePendingWebCells;
+    void isLoopback;
   }, []);
 
   return null;
