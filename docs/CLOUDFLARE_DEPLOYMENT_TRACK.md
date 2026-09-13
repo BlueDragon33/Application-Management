@@ -152,3 +152,7 @@ Worker xóa/ghi đè mọi header identity do client tự gửi và chỉ tạo 
 ## Production
 
 Preview không tự promote production. Không tạo production promotion cho tới khi CI, preview migration, read-back và E2E control-plane đều pass. Cơ chế access production sẽ được quyết định riêng; không mặc định sao chép preview secret gate thành production auth.
+
+## No-publish QA checkpoint
+
+Sau khi hợp nhất giao diện chính theo mẫu đã duyệt, có thể dùng một PR tài liệu chạm vào file này để kích hoạt `Application Management Cloudflare Preview CI`. Workflow đó chỉ chạy regression, materialize cấu hình preview, build với preview bindings, kiểm artifact và `wrangler deploy --dry-run`; **không deploy preview và không publish production**. Đây là checkpoint phù hợp trước khi thực hiện bất kỳ publish nào.
