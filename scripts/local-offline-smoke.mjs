@@ -5,7 +5,9 @@ import { fileURLToPath } from "node:url";
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const root = resolve(scriptDir, "..");
 const launcherPath = join(root, "scripts", "run-local-system.mjs");
+const centralOrigin = "http://127.0.0.1:3000";
 const forwarded = process.argv.slice(2).filter((arg) => arg !== "--local" && arg !== "--no-browser");
+const primaryAppIds = ["boi-ech", "health-care", "ru-life", "bauman-master-ai"];
 
 if (forwarded.some((arg) => arg === "--hybrid" || arg === "--mode=hybrid")) {
   throw new Error("local:offline-smoke chỉ chạy chế độ local; không cho phép hybrid/remote fallback.");
@@ -17,11 +19,15 @@ const checks = [
   ["Bauman Control", "http://127.0.0.1:3003/health"],
   ["Bơi ếch", "http://127.0.0.1:3004/api/control/overview?activityDays=0"],
   ["Bauman Runtime", "http://127.0.0.1:3005/_local/health"],
-  ["Application Management", "http://127.0.0.1:3000/"],
+  ["Application Management", `${centralOrigin}/`],
 ];
 
 function wait(ms) {
   return new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
+}
+
+function base64Url(bytes) {
+  return Buffer.from(bytes).toString("base64url");
 }
 
 async function requestReady(name, url, cancelSignal, timeoutMs = 240_000) {
@@ -45,8 +51,20 @@ async function requestReady(name, url, cancelSignal, timeoutMs = 240_000) {
   throw new Error(`${name} không sẵn sàng: ${last}`);
 }
 
+async function postJson(path, body, cancelSignal) {
+  const response = await fetch(`${centralOrigin}${path}`, {
+    method: "POST",
+    redirect: "manual",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+    signal: AbortSignal.any([cancelSignal, AbortSignal.timeout(12_000)]),
+  });
+  const data = await response.json().catch(() => null);
+  return { response, data };
+}
+
 async function assertCentralUi(cancelSignal) {
-  const response = await fetch("http://127.0.0.1:3000/", {
+  const response = await fetch(`${centralOrigin}/`, {
     redirect: "manual",
     signal: AbortSignal.any([cancelSignal, AbortSignal.timeout(2_000)]),
   });
@@ -55,6 +73,73 @@ async function assertCentralUi(cancelSignal) {
   if (!html.includes("Quản trị Ứng dụng")) {
     throw new Error("Trang local đã chạy nhưng không render tiêu đề Quản trị Ứng dụng.");
   }
+}
+
+async function localOwnerCredential(cancelSignal) {
+  const keyPair = await crypto.subtle.generateKey(
+    { name: "ECDSA", namedCurve: "P-256" },
+    true,
+    ["sign", "verify"],
+  );
+  const publicKey = await crypto.subtle.exportKey("jwk", keyPair.publicKey);
+  const registered = await postJson("/api/device", { action: "register", publicKey }, cancelSignal);
+  if (registered.response.status !== 200 || !registered.data?.device) {
+    throw new Error(`Đăng ký thiết bị owner local thất bại · HTTP ${registered.response.status} · ${registered.data?.error ?? "phản hồi không hợp lệ"}`);
+  }
+  const device = registered.data.device;
+  if (device.status !== "approved" || device.role !== "owner" || !device.owner) {
+    throw new Error(`Thiết bị local không được xác nhận Owner/approved: ${JSON.stringify({ status: device.status, role: device.role, owner: device.owner })}`);
+  }
+  return { privateKey: keyPair.privateKey, device };
+}
+
+async function signedProof(credential, cancelSignal) {
+  const challengeResult = await postJson(
+    "/api/device",
+    { action: "challenge", deviceId: credential.device.deviceId },
+    cancelSignal,
+  );
+  if (challengeResult.response.status !== 200 || typeof challengeResult.data?.challenge !== "string") {
+    throw new Error(`Không lấy được challenge local · HTTP ${challengeResult.response.status} · ${challengeResult.data?.error ?? "phản hồi không hợp lệ"}`);
+  }
+  const challenge = challengeResult.data.challenge;
+  const message = new TextEncoder().encode(`learning-control:${credential.device.deviceId}:${challenge}`);
+  const signature = await crypto.subtle.sign(
+    { name: "ECDSA", hash: "SHA-256" },
+    credential.privateKey,
+    message,
+  );
+  return {
+    deviceId: credential.device.deviceId,
+    challenge,
+    signature: base64Url(new Uint8Array(signature)),
+  };
+}
+
+async function assertCentralControlHandshake(cancelSignal) {
+  const credential = await localOwnerCredential(cancelSignal);
+  const proof = await signedProof(credential, cancelSignal);
+  const result = await postJson("/api/operations", { action: "bootstrap", ...proof }, cancelSignal);
+  if (result.response.status !== 200 || !result.data) {
+    throw new Error(`Operations bootstrap local thất bại · HTTP ${result.response.status} · ${result.data?.error ?? "phản hồi không hợp lệ"}`);
+  }
+  if (result.data.actor?.role !== "owner") {
+    throw new Error(`Operations bootstrap không xác nhận actor Owner: ${JSON.stringify(result.data.actor ?? null)}`);
+  }
+  if (!Array.isArray(result.data.summaries)) {
+    throw new Error("Operations bootstrap không trả summaries hợp lệ.");
+  }
+  const summaryMap = new Map(result.data.summaries.map((item) => [item.appId, item]));
+  const failures = [];
+  for (const appId of primaryAppIds) {
+    const summary = summaryMap.get(appId);
+    if (!summary) failures.push(`${appId}: missing`);
+    else if (summary.connection !== "connected") failures.push(`${appId}: ${summary.connection} · ${summary.note ?? "không có ghi chú"}`);
+  }
+  if (failures.length) {
+    throw new Error(`Central → client handshake chưa đạt: ${failures.join(" | ")}`);
+  }
+  console.log(`[offline-smoke] PASS Central control handshake · ${primaryAppIds.join(", ")} = connected`);
 }
 
 function stop(child) {
@@ -91,10 +176,11 @@ async function main() {
         }
         await assertCentralUi(cancel.signal);
         console.log("[offline-smoke] PASS Application Management render · Quản trị Ứng dụng");
+        await assertCentralControlHandshake(cancel.signal);
       })(),
       earlyExit,
     ]);
-    console.log("\n[offline-smoke] PASS · Full local stack hoạt động trên 127.0.0.1:3000–3005, không publish.");
+    console.log("\n[offline-smoke] PASS · Full local stack + central control handshake hoạt động trên 127.0.0.1:3000–3005, không publish.");
   } finally {
     cancel.abort();
     stop(child);
