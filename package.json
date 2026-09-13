@@ -14,6 +14,7 @@
     "local:doctor:strict": "node scripts/local-system-doctor.mjs --strict-ports",
     "local:system": "node scripts/run-local-system.mjs --local",
     "local:system:hybrid": "node scripts/run-local-system.mjs --hybrid",
+    "local:offline-smoke": "node scripts/local-offline-smoke.mjs",
     "build": "bash scripts/build-verified.sh",
     "preview": "npm run build && vite preview",
     "start": "vinext start",
