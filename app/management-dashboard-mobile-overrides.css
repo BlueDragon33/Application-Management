@@ -1,0 +1,47 @@
+@media (max-width: 760px) {
+  [aria-label="Điều hướng quản trị"][aria-label="Điều hướng quản trị"] {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  [aria-label="Điều hướng quản trị"][aria-label="Điều hướng quản trị"]::-webkit-scrollbar {
+    display: none;
+  }
+
+  [aria-label="Điều hướng quản trị"][aria-label="Điều hướng quản trị"] button,
+  [aria-label="Điều hướng quản trị"][aria-label="Điều hướng quản trị"] button:nth-child(n+6) {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 20px 12px;
+    justify-items: center;
+    align-content: center;
+    gap: 2px;
+    flex: 0 0 82px;
+    min-height: 49px;
+    padding: 4px 3px;
+    scroll-snap-align: start;
+  }
+
+  [aria-label="Điều hướng quản trị"][aria-label="Điều hướng quản trị"] button > span:nth-child(2) {
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    color: inherit;
+    font-size: 8px;
+    font-weight: 700;
+    line-height: 12px;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  [aria-label="Điều hướng quản trị"][aria-label="Điều hướng quản trị"] button b {
+    right: 3px;
+    top: 2px;
+  }
+}
