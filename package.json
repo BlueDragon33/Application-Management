@@ -12,7 +12,7 @@
     "local:db": "wrangler d1 migrations apply learning-management-db --local --config wrangler.local.jsonc",
     "local:doctor": "node scripts/local-system-doctor.mjs",
     "local:doctor:strict": "node scripts/local-system-doctor.mjs --strict-ports",
-    "local:system": "node scripts/run-local-system.mjs --local",
+    "local:system": "node scripts/run-local-offline-v2.mjs",
     "local:system:hybrid": "node scripts/run-local-system.mjs --hybrid",
     "local:offline-smoke": "node scripts/local-offline-smoke.mjs",
     "build": "bash scripts/build-verified.sh",
