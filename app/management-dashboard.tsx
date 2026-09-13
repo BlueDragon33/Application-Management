@@ -36,6 +36,7 @@ type UserRow = {
 const PRIMARY_APP_IDS = ["bauman-master-ai", "boi-ech", "health-care", "ru-life"] as const;
 const primaryIdSet = new Set<string>(PRIMARY_APP_IDS);
 const primaryApps = applicationRegistry.filter((application) => primaryIdSet.has(application.id));
+const validViews: readonly View[] = ["overview", "applications", "devices", "users", "approvals", "access", "audit", "sync", "settings"];
 
 const navItems: Array<{ view: View; label: string; icon: string }> = [
   { view: "overview", label: "Tổng quan", icon: "⌂" },
@@ -59,6 +60,15 @@ const viewTitle: Record<View, { title: string; subtitle: string }> = {
   audit: { title: "Nhật ký hệ thống", subtitle: "Nhật ký bảo mật và thay đổi quyền của control-plane Application Management." },
   sync: { title: "Đồng bộ dữ liệu", subtitle: "Theo dõi kết nối, lần đồng bộ và cảnh báo giữa Trung tâm với từng client." },
   settings: { title: "Cài đặt", subtitle: "Thiết bị quản trị Trung tâm, vai trò và các ranh giới an toàn của hệ thống." },
+};
+
+const auditLabels: Record<string, string> = {
+  control_device_approved: "Cấp quyền thiết bị quản trị",
+  control_device_blocked: "Khóa thiết bị quản trị",
+  control_member_deactivated: "Thu hồi tài khoản quản trị",
+  control_member_deleted: "Xóa tài khoản quản trị",
+  operations_notifications_cleared: "Xóa thông báo hộp việc",
+  application_auto_approval_updated: "Cập nhật duyệt tự động",
 };
 
 function appIcon(application: ApplicationConfig) {
@@ -177,12 +187,21 @@ export default function ManagementDashboard({ user }: { user: { displayName: str
   }
 
   useEffect(() => {
+    const viewFromUrl = () => {
+      const requested = new URLSearchParams(window.location.search).get("view");
+      setView(requested && validViews.includes(requested as View) ? requested as View : "overview");
+    };
     const cached = readCachedOperations();
     if (cached) setOperations(cached);
+    viewFromUrl();
     setClock(new Date());
     void initialize();
     const timer = window.setInterval(() => setClock(new Date()), 1_000);
-    return () => window.clearInterval(timer);
+    window.addEventListener("popstate", viewFromUrl);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("popstate", viewFromUrl);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -207,14 +226,23 @@ export default function ManagementDashboard({ user }: { user: { displayName: str
   const devices = useMemo(() => (operations?.devices ?? []).filter((item) => primaryIdSet.has(item.appId)), [operations]);
   const workItems = useMemo(() => (operations?.workItems ?? []).filter((item) => primaryIdSet.has(item.appId)), [operations]);
   const normalizedSearch = search.trim().toLowerCase();
+  const filteredApps = useMemo(() => primaryApps.filter((application) => {
+    if (!normalizedSearch) return true;
+    const summary = summaryMap.get(application.id);
+    const haystack = `${application.name} ${application.shortName} ${application.scope} ${application.capabilities.join(" ")} ${summary?.note ?? ""}`.toLowerCase();
+    return haystack.includes(normalizedSearch);
+  }), [normalizedSearch, summaryMap]);
   const filteredDevices = useMemo(() => devices.filter((device) => {
     if (!normalizedSearch) return true;
     return `${device.appName} ${device.userLabel} ${device.deviceCode} ${device.deviceTypeLabel}`.toLowerCase().includes(normalizedSearch);
   }), [devices, normalizedSearch]);
   const pendingDevices = devices.filter((device) => device.status === "pending");
   const approvedDevices = devices.filter((device) => device.status === "approved");
+  const attentionDevices = devices.filter((device) => device.status === "pending" || device.attention !== "none");
+  const deviceWorkItemIds = useMemo(() => new Set(devices.map((device) => `${device.appId}:device:${device.deviceId}`)), [devices]);
+  const distinctWorkItems = useMemo(() => workItems.filter((item) => !deviceWorkItemIds.has(item.id)), [workItems, deviceWorkItemIds]);
   const syncWarnings = primaryApps.filter((application) => connectionFor(application, summaryMap.get(application.id)) !== "connected").length;
-  const notificationCount = workItems.length + pendingDevices.length;
+  const notificationCount = attentionDevices.length + distinctWorkItems.length;
 
   const users = useMemo(() => {
     const map = new Map<string, UserRow>();
@@ -242,7 +270,7 @@ export default function ManagementDashboard({ user }: { user: { displayName: str
   const recentActivities = useMemo(() => {
     const audit = (center?.auditLog ?? []).map((entry) => ({
       id: `audit:${entry.id}`,
-      title: entry.action.replaceAll("_", " "),
+      title: auditLabels[entry.action] ?? entry.action.replaceAll("_", " "),
       detail: entry.target,
       at: entry.createdAt,
       appId: "audit",
@@ -319,6 +347,8 @@ export default function ManagementDashboard({ user }: { user: { displayName: str
 
   function switchView(next: View) {
     setView(next);
+    const nextUrl = next === "overview" ? "/" : `/?view=${next}`;
+    if (`${window.location.pathname}${window.location.search}` !== nextUrl) window.history.pushState({ view: next }, "", nextUrl);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -327,7 +357,7 @@ export default function ManagementDashboard({ user }: { user: { displayName: str
   }
 
   const queueDevices = filteredDevices.filter((device) => device.status === "pending" || device.attention !== "none");
-  const queueWork = workItems.filter((item) => !normalizedSearch || `${item.appName} ${item.title} ${item.detail}`.toLowerCase().includes(normalizedSearch));
+  const queueWork = distinctWorkItems.filter((item) => !normalizedSearch || `${item.appName} ${item.title} ${item.detail}`.toLowerCase().includes(normalizedSearch));
   const title = viewTitle[view];
 
   return <main className={styles.shell}>
@@ -347,7 +377,7 @@ export default function ManagementDashboard({ user }: { user: { displayName: str
         <div className={styles.productTitle}><span className={styles.productLogo}>◆</span><div><strong>Quản trị Ứng dụng</strong><small>Trung tâm quản lý và điều phối các ứng dụng</small></div></div>
         <label className={styles.searchBox}><span>⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm kiếm ứng dụng, thiết bị, người dùng…"/></label>
         <span className={styles.production}><i/>Production</span>
-        <button className={styles.bell} onClick={() => switchView("approvals")} aria-label="Mở yêu cầu chờ duyệt">♟{notificationCount > 0 ? <b>{notificationCount}</b> : null}</button>
+        <button className={styles.bell} onClick={() => switchView("approvals")} aria-label="Mở yêu cầu chờ duyệt">🔔{notificationCount > 0 ? <b>{notificationCount}</b> : null}</button>
         <details className={styles.account}><summary><span>{initials(user.displayName)}</span><div><strong>{user.displayName}</strong><small>{roleLabels[access.role]}</small></div><b>⌄</b></summary><div><small>{user.email}</small><button onClick={() => switchView("settings")}>Cài đặt quản trị</button><a href="/signout-with-chatgpt?return_to=%2F">Đăng xuất</a></div></details>
       </header>
 
@@ -357,6 +387,7 @@ export default function ManagementDashboard({ user }: { user: { displayName: str
         {notice ? <div className={styles.notice}>{notice}</div> : null}
 
         {view === "overview" ? <Overview
+          apps={filteredApps}
           operations={operations}
           summaryMap={summaryMap}
           devices={devices}
@@ -373,7 +404,7 @@ export default function ManagementDashboard({ user }: { user: { displayName: str
           launchClientWeb={launchClientWeb}
         /> : null}
 
-        {view === "applications" ? <section className={styles.fullPanel}><SectionTitle title="Các ứng dụng đang quản lý"/><div className={styles.appGridLarge}>{primaryApps.map((application) => <ApplicationCard key={application.id} application={application} summary={summaryMap.get(application.id)} pendingFallback={devices.filter((d) => d.appId === application.id && d.status === "pending").length} webBusy={webBusy} launchClientWeb={launchClientWeb}/>)}</div></section> : null}
+        {view === "applications" ? <section className={styles.fullPanel}><SectionTitle title="Các ứng dụng đang quản lý"/><div className={styles.appGridLarge}>{filteredApps.map((application) => <ApplicationCard key={application.id} application={application} summary={summaryMap.get(application.id)} pendingFallback={devices.filter((d) => d.appId === application.id && d.status === "pending").length} webBusy={webBusy} launchClientWeb={launchClientWeb}/>)}{!filteredApps.length ? <Empty text="Không tìm thấy ứng dụng phù hợp."/> : null}</div></section> : null}
 
         {view === "devices" ? <section className={styles.fullPanel}><SectionTitle title="Thiết bị từ các ứng dụng" action={<span className={styles.muted}>{filteredDevices.length} thiết bị trong dữ liệu hiện tại</span>}/><DeviceTable devices={filteredDevices} actionBusy={actionBusy} manage={manageClientDevice}/></section> : null}
 
@@ -381,11 +412,11 @@ export default function ManagementDashboard({ user }: { user: { displayName: str
 
         {view === "approvals" ? <section className={styles.fullPanel}><SectionTitle title="Hàng đợi duyệt trung tâm" action={<span className={styles.muted}>{queueDevices.length + queueWork.length} mục cần chú ý</span>}/><ApprovalQueue devices={queueDevices} workItems={queueWork} actionBusy={actionBusy} manage={manageClientDevice}/></section> : null}
 
-        {view === "access" ? <section className={styles.fullPanel}><SectionTitle title="Thanh toán & Quyền theo ứng dụng"/><div className={styles.accessGrid}>{primaryApps.map((application) => <article key={application.id} className={styles.accessCard}><div><AppMark application={application}/><div><h3>{application.shortName}</h3><p>{application.scope}</p></div></div><h4>Năng lực đã công bố</h4><ul>{application.capabilities.map((capability) => <li key={capability}>✓ {capability}</li>)}</ul><div className={styles.cardActions}><Link href={application.href} className={styles.primaryAction}>Quản trị</Link><button onClick={() => void launchClientWeb(application.id)} disabled={webBusy === application.id}>{webBusy === application.id ? "Đang mở…" : "Truy cập web ↗"}</button></div></article>)}</div><p className={styles.boundaryNote}>Trung tâm không tạo trạng thái thanh toán giả. Chi tiết thanh toán, thời hạn và quyền nghiệp vụ chỉ hiển thị khi client tương ứng công bố contract dữ liệu thật.</p></section> : null}
+        {view === "access" ? <section className={styles.fullPanel}><SectionTitle title="Thanh toán & Quyền theo ứng dụng"/><div className={styles.accessGrid}>{filteredApps.map((application) => <article key={application.id} className={styles.accessCard}><div><AppMark application={application}/><div><h3>{application.shortName}</h3><p>{application.scope}</p></div></div><h4>Năng lực đã công bố</h4><ul>{application.capabilities.map((capability) => <li key={capability}>✓ {capability}</li>)}</ul><div className={styles.cardActions}><Link href={application.href} className={styles.primaryAction}>Quản trị</Link><button onClick={() => void launchClientWeb(application.id)} disabled={webBusy === application.id}>{webBusy === application.id ? "Đang mở…" : "Truy cập web ↗"}</button></div></article>)}{!filteredApps.length ? <Empty text="Không tìm thấy ứng dụng phù hợp."/> : null}</div><p className={styles.boundaryNote}>Trung tâm không tạo trạng thái thanh toán giả. Chi tiết thanh toán, thời hạn và quyền nghiệp vụ chỉ hiển thị khi client tương ứng công bố contract dữ liệu thật.</p></section> : null}
 
-        {view === "audit" ? <section className={styles.fullPanel}><SectionTitle title="Nhật ký hệ thống" action={<span className={styles.muted}>{center.auditLog.length} sự kiện gần nhất</span>}/><div className={styles.auditList}>{center.auditLog.map((entry) => <article key={entry.id}><time>{new Intl.DateTimeFormat("vi-VN", { dateStyle: "short", timeStyle: "short" }).format(new Date(entry.createdAt))}</time><div><strong>{entry.action.replaceAll("_", " ")}</strong><small>{entry.actor}</small></div><code>{entry.target}</code></article>)}{!center.auditLog.length ? <Empty text="Chưa có sự kiện audit Trung tâm."/> : null}</div></section> : null}
+        {view === "audit" ? <section className={styles.fullPanel}><SectionTitle title="Nhật ký hệ thống" action={<span className={styles.muted}>{center.auditLog.length} sự kiện gần nhất</span>}/><div className={styles.auditList}>{center.auditLog.map((entry) => <article key={entry.id}><time>{new Intl.DateTimeFormat("vi-VN", { dateStyle: "short", timeStyle: "short" }).format(new Date(entry.createdAt))}</time><div><strong>{auditLabels[entry.action] ?? entry.action.replaceAll("_", " ")}</strong><small>{entry.actor}</small></div><code>{entry.target}</code></article>)}{!center.auditLog.length ? <Empty text="Chưa có sự kiện audit Trung tâm."/> : null}</div></section> : null}
 
-        {view === "sync" ? <section className={styles.fullPanel}><SectionTitle title="Tình trạng đồng bộ" action={<button className={styles.linkButton} onClick={() => void refreshOperations()} disabled={syncing}>↻ Làm mới</button>}/><div className={styles.syncPageList}>{primaryApps.map((application) => { const summary = summaryMap.get(application.id); const connection = connectionFor(application, summary); return <article key={application.id}><AppMark application={application}/><div><strong>{application.shortName}</strong><small>{summary?.note ?? application.contractNote}</small></div><SyncBadge connection={connection}/><span>{operations?.generatedAt ? `Cập nhật ${relativeTime(operations.generatedAt)}` : "Chưa có dữ liệu"}</span><Link href={application.href}>Kiểm tra →</Link></article>; })}</div></section> : null}
+        {view === "sync" ? <section className={styles.fullPanel}><SectionTitle title="Tình trạng đồng bộ" action={<button className={styles.linkButton} onClick={() => void refreshOperations()} disabled={syncing}>↻ Làm mới</button>}/><div className={styles.syncPageList}>{filteredApps.map((application) => { const summary = summaryMap.get(application.id); const connection = connectionFor(application, summary); return <article key={application.id}><AppMark application={application}/><div><strong>{application.shortName}</strong><small>{summary?.note ?? application.contractNote}</small></div><SyncBadge connection={connection}/><span>{operations?.generatedAt ? `Cập nhật ${relativeTime(operations.generatedAt)}` : "Chưa có dữ liệu"}</span><Link href={application.href}>Kiểm tra →</Link></article>; })}{!filteredApps.length ? <Empty text="Không tìm thấy ứng dụng phù hợp."/> : null}</div></section> : null}
 
         {view === "settings" ? <Settings center={center} access={access} actionBusy={actionBusy} manageControlDevice={manageControlDevice}/> : null}
       </div>
@@ -396,6 +427,7 @@ export default function ManagementDashboard({ user }: { user: { displayName: str
 }
 
 function Overview({
+  apps,
   operations,
   summaryMap,
   devices,
@@ -411,6 +443,7 @@ function Overview({
   manageClientDevice,
   launchClientWeb,
 }: {
+  apps: ApplicationConfig[];
   operations: OperationsBootstrap | null;
   summaryMap: Map<string, OperationsSummary>;
   devices: OperationsDevice[];
@@ -437,11 +470,11 @@ function Overview({
     <section className={styles.overviewGrid}>
       <div className={styles.appsPanel}>
         <SectionTitle title="Các ứng dụng đang quản lý" action={<button className={styles.linkButton} onClick={() => switchView("applications")}>Xem tất cả</button>}/>
-        <div className={styles.appGrid}>{primaryApps.map((application) => <ApplicationCard key={application.id} application={application} summary={summaryMap.get(application.id)} pendingFallback={devices.filter((device) => device.appId === application.id && device.status === "pending").length} webBusy={webBusy} launchClientWeb={launchClientWeb}/>)}</div>
+        <div className={styles.appGrid}>{apps.map((application) => <ApplicationCard key={application.id} application={application} summary={summaryMap.get(application.id)} pendingFallback={devices.filter((device) => device.appId === application.id && device.status === "pending").length} webBusy={webBusy} launchClientWeb={launchClientWeb}/>)}{!apps.length ? <Empty text="Không tìm thấy ứng dụng phù hợp."/> : null}</div>
       </div>
 
       <aside className={styles.rightRail}>
-        <section className={styles.sidePanel}><SectionTitle title="Tình trạng đồng bộ" action={<button className={styles.linkButton} onClick={() => switchView("sync")}>Xem chi tiết</button>}/><div className={styles.syncList}>{primaryApps.map((application) => { const summary = summaryMap.get(application.id); const connection = connectionFor(application, summary); return <article key={application.id}><AppMark application={application}/><strong>{application.shortName}</strong><SyncBadge connection={connection}/><small>{operations?.generatedAt ? relativeTime(operations.generatedAt) : "Chưa có dữ liệu"}</small></article>; })}</div>{syncWarnings > 0 ? <div className={styles.syncHint}>Cần cập nhật trạng thái xác minh từ ứng dụng con.</div> : null}</section>
+        <section className={styles.sidePanel}><SectionTitle title="Tình trạng đồng bộ" action={<button className={styles.linkButton} onClick={() => switchView("sync")}>Xem chi tiết</button>}/><div className={styles.syncList}>{apps.map((application) => { const summary = summaryMap.get(application.id); const connection = connectionFor(application, summary); return <article key={application.id}><AppMark application={application}/><strong>{application.shortName}</strong><SyncBadge connection={connection}/><small>{operations?.generatedAt ? relativeTime(operations.generatedAt) : "Chưa có dữ liệu"}</small></article>; })}{!apps.length ? <Empty text="Không tìm thấy ứng dụng phù hợp."/> : null}</div>{syncWarnings > 0 ? <div className={styles.syncHint}>Cần cập nhật trạng thái xác minh từ ứng dụng con.</div> : null}</section>
         <section className={styles.sidePanel}><SectionTitle title="Hoạt động gần đây" action={<button className={styles.linkButton} onClick={() => switchView("audit")}>Xem tất cả</button>}/><div className={styles.activityList}>{recentActivities.map((activity) => <article key={activity.id}><span data-app={activity.appId}>•</span><div><strong>{activity.title}</strong><small>{activity.detail}</small></div><time>{relativeTime(activity.at)}</time></article>)}{!recentActivities.length ? <Empty text="Chưa có hoạt động gần đây."/> : null}</div></section>
       </aside>
     </section>
@@ -457,13 +490,13 @@ function ApplicationCard({ application, summary, pendingFallback, webBusy, launc
   const pending = summary?.pendingCount ?? pendingFallback;
   return <article className={styles.appCard} data-app={application.id}>
     <header><AppMark application={application}/><div><h3>{application.shortName}</h3><small>{application.id === "bauman-master-ai" ? "Quản trị học tập" : application.id === "boi-ech" ? "Học tập" : application.id === "health-care" ? "Chăm sóc sức khỏe" : "Hòa nhập"}</small><span className={styles.onlineLabel}><i data-tone={statusTone(connection)}/>{connection === "connected" ? "Online" : connection === "unavailable" ? "Offline" : "Cần kiểm tra"}</span></div>{typeof pending === "number" && pending > 0 ? <b className={styles.pendingBadge}>{pending}<small>Yêu cầu chờ duyệt</small></b> : null}</header>
-    <footer><Link href={application.href} className={styles.primaryAction}>Quản trị</Link><button onClick={() => void launchClientWeb(application.id)} disabled={webBusy === application.id}>{webBusy === application.id ? "Đang mở…" : "↗ Truy cập web"}</button><span className={styles.connectionSwitch} data-on={connection === "connected"}><i/></span></footer>
+    <footer><Link href={application.href} className={styles.primaryAction}>Quản trị</Link><button onClick={() => void launchClientWeb(application.id)} disabled={webBusy === application.id}>{webBusy === application.id ? "Đang mở…" : "↗ Truy cập web"}</button><SyncBadge connection={connection}/></footer>
   </article>;
 }
 
 function ApprovalQueue({ devices, workItems, actionBusy, manage }: { devices: OperationsDevice[]; workItems: OperationsWorkItem[]; actionBusy: string; manage: (device: OperationsDevice, operation: "approve" | "remove") => Promise<void> }) {
   const hasRows = devices.length > 0 || workItems.length > 0;
-  return <div className={styles.queueTable}><div className={styles.queueHead}><span>Ứng dụng</span><span>Loại yêu cầu</span><span>Thiết bị / người dùng</span><span>Trạng thái</span><span>Thao tác</span></div>{devices.map((device) => { const application = appFor(device.appId); const rowBusy = actionBusy === `${device.appId}:${device.deviceId}`; return <div className={styles.queueRow} key={`device:${device.appId}:${device.deviceId}`}><div className={styles.appCell}>{application ? <AppMark application={application}/> : null}<strong>{device.appName}</strong></div><span>{device.status === "pending" ? "Duyệt thiết bị" : "Xác minh thiết bị"}</span><div><strong>{device.userLabel}</strong><small>{device.deviceCode}</small></div><span className={styles.queueStatus} data-tone={device.status === "pending" ? "pending" : "alert"}>{device.status === "pending" ? "Chờ duyệt" : "Cần xử lý"}</span><div className={styles.rowActions}>{device.canApprove ? <button disabled={rowBusy} onClick={() => void manage(device, "approve")}>Duyệt</button> : null}{device.canRemove ? <button className={styles.rejectButton} disabled={rowBusy} onClick={() => void manage(device, "remove")}>Từ chối</button> : null}{!device.canApprove && !device.canRemove ? <Link href={device.href}>Xử lý</Link> : null}</div></div>; })}{workItems.map((item) => { const application = appFor(item.appId); return <div className={styles.queueRow} key={`work:${item.id}`}><div className={styles.appCell}>{application ? <AppMark application={application}/> : null}<strong>{item.appName}</strong></div><span>{item.kind === "connection" ? "Kết nối" : item.kind === "environment" ? "Môi trường" : "Thiết bị"}</span><div><strong>{item.title}</strong><small>{item.detail}</small></div><span className={styles.queueStatus} data-tone={item.priority === "high" ? "alert" : "pending"}>{item.priority === "high" ? "Cần xử lý" : "Cần xem"}</span><div className={styles.rowActions}><Link href={item.href}>Xử lý</Link></div></div>; })}{!hasRows ? <Empty text="Không có yêu cầu chờ duyệt trong dữ liệu hiện tại."/> : null}</div>;
+  return <div className={styles.queueTable}><div className={styles.queueHead}><span>Ứng dụng</span><span>Loại yêu cầu</span><span>Thiết bị / người dùng</span><span>Trạng thái</span><span>Thao tác</span></div>{devices.map((device) => { const application = appFor(device.appId); const rowBusy = actionBusy === `${device.appId}:${device.deviceId}`; const removeLabel = device.status === "pending" ? "Từ chối" : device.appId === "boi-ech" ? "Loại bỏ" : "Khóa"; return <div className={styles.queueRow} key={`device:${device.appId}:${device.deviceId}`}><div className={styles.appCell}>{application ? <AppMark application={application}/> : null}<strong>{device.appName}</strong></div><span>{device.status === "pending" ? "Duyệt thiết bị" : "Xác minh thiết bị"}</span><div><strong>{device.userLabel}</strong><small>{device.deviceCode}</small></div><span className={styles.queueStatus} data-tone={device.status === "pending" ? "pending" : "alert"}>{device.status === "pending" ? "Chờ duyệt" : "Cần xử lý"}</span><div className={styles.rowActions}>{device.canApprove ? <button disabled={rowBusy} onClick={() => void manage(device, "approve")}>Duyệt</button> : null}{device.canRemove ? <button className={styles.rejectButton} disabled={rowBusy} onClick={() => void manage(device, "remove")}>{removeLabel}</button> : null}{!device.canApprove && !device.canRemove ? <Link href={device.href}>Xử lý</Link> : null}</div></div>; })}{workItems.map((item) => { const application = appFor(item.appId); return <div className={styles.queueRow} key={`work:${item.id}`}><div className={styles.appCell}>{application ? <AppMark application={application}/> : null}<strong>{item.appName}</strong></div><span>{item.kind === "connection" ? "Kết nối" : item.kind === "environment" ? "Môi trường" : "Thiết bị"}</span><div><strong>{item.title}</strong><small>{item.detail}</small></div><span className={styles.queueStatus} data-tone={item.priority === "high" ? "alert" : "pending"}>{item.priority === "high" ? "Cần xử lý" : "Cần xem"}</span><div className={styles.rowActions}><Link href={item.href}>Xử lý</Link></div></div>; })}{!hasRows ? <Empty text="Không có yêu cầu chờ duyệt trong dữ liệu hiện tại."/> : null}</div>;
 }
 
 function DeviceTable({ devices, actionBusy, manage }: { devices: OperationsDevice[]; actionBusy: string; manage: (device: OperationsDevice, operation: "approve" | "remove") => Promise<void> }) {
