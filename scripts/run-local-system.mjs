@@ -149,7 +149,7 @@ function migrateLocalDatabases(paths, skipMigrate) {
   runChecked(
     "Migration D1 local · Sức khỏe Y tế",
     npx,
-    ["wrangler", "d1", "migrations", "apply", "suc-khoe-tre-db", "--local", "--config", "wrangler.d1.jsonc"],
+    ["wrangler", "d1", "migrations", "apply", "health-care-local-db", "--local", "--config", "wrangler.local.jsonc"],
     paths.health,
   );
   runChecked(
@@ -167,7 +167,7 @@ function migrateLocalDatabases(paths, skipMigrate) {
   runChecked(
     "Migration D1 local · Bơi ếch",
     npx,
-    ["wrangler", "d1", "migrations", "apply", "boi-ech-db", "--local", "--config", "wrangler.d1.jsonc"],
+    ["wrangler", "d1", "migrations", "apply", "boi-ech-local", "--local", "--config", "wrangler.local.jsonc"],
     paths.boi,
   );
 }
@@ -255,8 +255,10 @@ async function main() {
   };
 
   for (const [key, path] of Object.entries(paths)) requirePath(path, key);
+  requirePath(join(paths.health, "wrangler.local.jsonc"), "Health_Care/wrangler.local.jsonc");
   requirePath(join(paths.ruLife, "wrangler.local.jsonc"), "RU_LIFE/wrangler.local.jsonc");
   requirePath(join(paths.baumanControl, "wrangler.local.jsonc"), "Bauman control-service/wrangler.local.jsonc");
+  requirePath(join(paths.boi, "wrangler.local.jsonc"), "BOIECH_AI/boi-ech/wrangler.local.jsonc");
   requirePath(join(paths.baumanRuntime, "scripts", "serve-local-runtime.mjs"), "Bauman scripts/serve-local-runtime.mjs");
   requirePorts([3000, 3001, 3002, 3003, 3004, 3005]);
 
@@ -279,19 +281,20 @@ async function main() {
   const commonClientEnv = {
     APPLICATION_MANAGEMENT_ORIGIN: centralOrigin,
     LOCAL_CONTROL_PLANE: "true",
+    WRANGLER_LOG_PATH: ".wrangler/wrangler.log",
   };
 
   children.push(spawnService({
     name: "HEALTH",
-    command: npm,
-    args: ["run", "dev", "--", "--host", "127.0.0.1", "--port", "3001"],
+    command: npx,
+    args: ["vite", "--host", "127.0.0.1", "--port", "3001"],
     cwd: paths.health,
     env: { ...commonClientEnv, HEALTH_CONTROL_SERVICE_SECRET: healthSecret },
   }));
   children.push(spawnService({
     name: "RU",
-    command: npm,
-    args: ["run", "dev", "--", "--host", "127.0.0.1", "--port", "3002"],
+    command: npx,
+    args: ["vite", "--host", "127.0.0.1", "--port", "3002"],
     cwd: paths.ruLife,
     env: { ...commonClientEnv, RU_LIFE_CONTROL_SERVICE_SECRET: ruSecret },
   }));
@@ -305,12 +308,12 @@ async function main() {
       "--var", `BAUMAN_APP_ORIGIN:${baumanRuntimeOrigin}`,
     ],
     cwd: paths.baumanControl,
-    env: {},
+    env: { WRANGLER_SEND_METRICS: "false" },
   }));
   children.push(spawnService({
     name: "BOI",
-    command: npm,
-    args: ["run", "dev", "--", "--host", "127.0.0.1", "--port", "3004"],
+    command: npx,
+    args: ["vite", "--host", "127.0.0.1", "--port", "3004"],
     cwd: paths.boi,
     env: { ...commonClientEnv, CONTROL_SERVICE_SECRET: boiSecret },
   }));
@@ -347,8 +350,8 @@ async function main() {
 
   children.push(spawnService({
     name: "ADMIN",
-    command: npm,
-    args: ["run", "dev", "--", "--host", "127.0.0.1", "--port", "3000"],
+    command: npx,
+    args: ["vite", "--host", "127.0.0.1", "--port", "3000"],
     cwd: paths.central,
     env: centralEnv,
   }));
