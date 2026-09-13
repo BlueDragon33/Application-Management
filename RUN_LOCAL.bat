@@ -2,7 +2,7 @@
 setlocal
 cd /d "%~dp0"
 echo ===============================================================
-echo   APPLICATION MANAGEMENT - FULL LOCAL CONTROL PLANE
+echo   APPLICATION MANAGEMENT - FULL LOCAL CONTROL PLANE V2
 echo ===============================================================
 echo.
 where node >nul 2>nul
@@ -11,7 +11,7 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
-node scripts\run-local-system.mjs --local
+node scripts\run-local-offline-v2.mjs
 if errorlevel 1 (
   echo.
   echo [ERROR] He thong local dung voi loi. Xem thong bao phia tren.
