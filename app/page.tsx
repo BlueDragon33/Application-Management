@@ -1,5 +1,5 @@
 import { requireChatGPTUser } from "./chatgpt-auth";
-import ApplicationHub from "./application-hub";
+import ManagementDashboard from "./management-dashboard";
 import LocalQuickAccess from "./local-quick-access";
 
 export const dynamic = "force-dynamic";
@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default async function Home() {
   const user = await requireChatGPTUser("/");
   return <>
-    <ApplicationHub user={{ displayName: user.displayName, email: user.email }} />
+    <ManagementDashboard user={{ displayName: user.displayName, email: user.email }} />
     <LocalQuickAccess />
   </>;
 }
