@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn, spawnSync } from "node:child_process";
@@ -20,7 +20,13 @@ function commandSpec(command, args) {
 
 function run(command, args, cwd, stdio = "inherit") {
   const spec = commandSpec(command, args);
-  return spawnSync(spec.file, spec.args, { cwd, stdio, shell: false, env: process.env });
+  const env = {
+    ...process.env,
+    CI: process.env.CI || "1",
+    WRANGLER_SEND_METRICS: "false",
+    npm_config_update_notifier: "false",
+  };
+  return spawnSync(spec.file, spec.args, { cwd, stdio, shell: false, env });
 }
 
 function checked(label, command, args, cwd) {
@@ -28,6 +34,24 @@ function checked(label, command, args, cwd) {
   const result = run(command, args, cwd);
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error(`${label} thất bại với mã ${result.status}.`);
+}
+
+function checkedWithLocalStateRecovery(label, command, args, cwd) {
+  console.log(`\n[offline-v2] ${label}`);
+  let result = run(command, args, cwd);
+  if (!result.error && result.status === 0) return;
+
+  const statePath = join(cwd, ".wrangler", "state");
+  console.warn(`[offline-v2] ${label} lỗi ở lần đầu. Đây là D1 local nên sẽ xóa state Wrangler cục bộ và thử lại một lần.`);
+  try {
+    if (existsSync(statePath)) rmSync(statePath, { recursive: true, force: true });
+  } catch (error) {
+    console.warn(`[offline-v2] Không thể dọn ${statePath}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
+  result = run(command, args, cwd);
+  if (result.error) throw result.error;
+  if (result.status !== 0) throw new Error(`${label} vẫn thất bại sau khi làm mới local state (mã ${result.status}).`);
 }
 
 function ensurePath(path, label) {
@@ -127,7 +151,7 @@ async function main() {
     ["wrangler", "d1", "migrations", "apply", "health-care-local-db", "--local", "--config", "wrangler.local.jsonc"], paths.health);
   checked("Migration D1 local · Hòa nhập Nga", npx,
     ["wrangler", "d1", "migrations", "apply", "ru-life-local", "--local", "--config", "wrangler.local.jsonc"], paths.ruLife);
-  checked("Migration D1 local · Bauman Control", npx,
+  checkedWithLocalStateRecovery("Migration D1 local · Bauman Control", npx,
     ["wrangler", "d1", "migrations", "apply", "bauman-control-local", "--local", "--config", "wrangler.local.jsonc"], paths.baumanControl);
   checked("Migration D1 local · Bơi ếch", npx,
     ["wrangler", "d1", "migrations", "apply", "boi-ech-local", "--local", "--config", "wrangler.local.jsonc"], paths.boi);
