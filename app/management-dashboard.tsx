@@ -21,6 +21,7 @@ import {
 import styles from "./management-dashboard.module.css";
 
 type View = "overview" | "applications" | "devices" | "users" | "approvals" | "access" | "audit" | "sync" | "settings";
+type ControlDeviceOperation = "approve" | "block" | "deactivate-member" | "delete-member";
 
 type UserRow = {
   key: string;
@@ -329,15 +330,27 @@ export default function ManagementDashboard({ user }: { user: { displayName: str
     }
   }
 
-  async function manageControlDevice(device: ControlAdminDevice, operation: "approve" | "block") {
+  async function manageControlDevice(device: ControlAdminDevice, operation: ControlDeviceOperation, selectedRole?: "reviewer" | "publisher") {
     if (!access || access.role !== "owner" || device.owner || device.deviceId === access.deviceId) return;
     if (operation === "block" && !window.confirm(`Khóa thiết bị quản trị ${device.deviceCode}?`)) return;
+    if (operation === "deactivate-member" && !window.confirm(`Thu hồi toàn bộ quyền quản trị của ${device.email}? Tất cả thiết bị của tài khoản này sẽ bị khóa.`)) return;
+    if (operation === "delete-member") {
+      const confirmation = window.prompt(`Nhập chính xác email để xóa tài khoản đã thu hồi:\n${device.email}`);
+      if (confirmation?.trim().toLowerCase() !== device.email.toLowerCase()) {
+        setNotice("Đã hủy xóa vì chuỗi xác nhận không khớp.");
+        return;
+      }
+    }
     setActionBusy(`control:${device.deviceId}`);
     setNotice("");
     try {
-      const result = await centerAdminAction({ action: "manage-control-device", operation, targetDeviceId: device.deviceId, role: "reviewer", displayName: device.displayName });
+      const result = await centerAdminAction({ action: "manage-control-device", operation, targetDeviceId: device.deviceId, role: selectedRole ?? "reviewer", displayName: device.displayName });
       setCenter((current) => current ? { ...current, controlDevices: result.controlDevices ?? current.controlDevices, auditLog: result.auditLog ?? current.auditLog } : current);
-      setNotice("Đã cập nhật thiết bị quản trị.");
+      const message = operation === "approve" ? "Đã cấp quyền thiết bị quản trị."
+        : operation === "block" ? "Đã khóa thiết bị quản trị."
+        : operation === "deactivate-member" ? "Đã thu hồi tài khoản quản trị và khóa các thiết bị liên quan."
+        : "Đã xóa tài khoản quản trị đã thu hồi.";
+      setNotice(message);
     } catch (caught) {
       setNotice(caught instanceof Error ? caught.message : "Không thể cập nhật thiết bị quản trị.");
     } finally {
@@ -503,8 +516,9 @@ function DeviceTable({ devices, actionBusy, manage }: { devices: OperationsDevic
   return <div className={styles.deviceTable}><div className={styles.tableHead}><span>Thiết bị</span><span>Người dùng</span><span>Ứng dụng</span><span>Trạng thái</span><span>Hoạt động</span><span>Thao tác</span></div>{devices.map((device) => { const busy = actionBusy === `${device.appId}:${device.deviceId}`; return <div className={styles.tableRow} key={`${device.appId}:${device.deviceId}`}><div><strong>{device.deviceTypeLabel}</strong><small>{device.deviceCode}</small></div><span>{device.userLabel}</span><span>{device.appName}</span><span className={styles.deviceState} data-state={device.status}>{device.status === "approved" ? "Đã duyệt" : device.status === "pending" ? "Chờ duyệt" : device.status === "blocked" ? "Đã khóa" : "Chưa rõ"}</span><span>{device.active ? "● Online" : relativeTime(device.lastSeenAt)}</span><div className={styles.rowActions}>{device.canApprove && device.status === "pending" ? <button disabled={busy} onClick={() => void manage(device, "approve")}>Duyệt</button> : null}{device.canRemove ? <button className={styles.rejectButton} disabled={busy} onClick={() => void manage(device, "remove")}>{device.appId === "boi-ech" ? "Loại bỏ" : "Khóa"}</button> : null}<Link href={device.href}>Quản trị</Link></div></div>; })}{!devices.length ? <Empty text="Không tìm thấy thiết bị phù hợp."/> : null}</div>;
 }
 
-function Settings({ center, access, actionBusy, manageControlDevice }: { center: CenterBootstrap; access: AdminAccess; actionBusy: string; manageControlDevice: (device: ControlAdminDevice, operation: "approve" | "block") => Promise<void> }) {
-  return <section className={styles.settingsGrid}><div className={styles.fullPanel}><SectionTitle title="Thiết bị quản trị Trung tâm" action={<span className={styles.muted}>{center.controlDevices.length} thiết bị</span>}/><div className={styles.controlDevices}>{center.controlDevices.map((device) => { const protectedDevice = device.owner || device.deviceId === access.deviceId; const busy = actionBusy === `control:${device.deviceId}`; return <article key={device.deviceId}><span className={styles.controlPresence} data-online={device.active}/><div><strong>{device.displayName || device.email}</strong><small>{device.email}</small><code>{device.deviceCode}</code></div><div><small>Vai trò</small><strong>{roleLabels[device.role]}</strong></div><div><small>Trạng thái</small><strong>{device.status === "approved" ? "Đã cấp quyền" : device.status === "pending" ? "Chờ duyệt" : "Đã khóa"}</strong></div><div className={styles.rowActions}>{protectedDevice ? <span className={styles.protected}>Được bảo vệ</span> : access.role === "owner" ? <>{device.status === "pending" ? <button disabled={busy} onClick={() => void manageControlDevice(device, "approve")}>Cấp quyền</button> : null}<button className={styles.rejectButton} disabled={busy} onClick={() => void manageControlDevice(device, "block")}>Khóa</button></> : <span>Chỉ Owner được sửa</span>}</div></article>; })}</div></div><div className={styles.fullPanel}><SectionTitle title="Nguyên tắc vận hành"/><div className={styles.rules}><article><b>01</b><div><strong>Client sở hữu dữ liệu</strong><p>Registry thiết bị, phiên truy cập và dữ liệu nghiệp vụ vẫn nằm ở ứng dụng tương ứng.</p></div></article><article><b>02</b><div><strong>Trung tâm điều phối</strong><p>Application Management chỉ đọc contract và gửi lệnh quản trị có xác minh.</p></div></article><article><b>03</b><div><strong>Không hiển thị dữ liệu giả</strong><p>Chỉ số, badge và trạng thái chỉ xuất hiện từ dữ liệu thật hoặc hiển thị rõ là chưa có dữ liệu.</p></div></article></div></div></section>;
+function Settings({ center, access, actionBusy, manageControlDevice }: { center: CenterBootstrap; access: AdminAccess; actionBusy: string; manageControlDevice: (device: ControlAdminDevice, operation: ControlDeviceOperation, selectedRole?: "reviewer" | "publisher") => Promise<void> }) {
+  const [approvalRoles, setApprovalRoles] = useState<Record<string, "reviewer" | "publisher">>({});
+  return <section className={styles.settingsGrid}><div className={styles.fullPanel}><SectionTitle title="Thiết bị quản trị Trung tâm" action={<span className={styles.muted}>{center.controlDevices.length} thiết bị</span>}/><div className={styles.controlDevices}>{center.controlDevices.map((device) => { const protectedDevice = device.owner || device.deviceId === access.deviceId; const busy = actionBusy === `control:${device.deviceId}`; const approvalRole = approvalRoles[device.deviceId] ?? (device.role === "publisher" ? "publisher" : "reviewer"); return <article key={device.deviceId}><span className={styles.controlPresence} data-online={device.active}/><div><strong>{device.displayName || device.email}</strong><small>{device.email}</small><code>{device.deviceCode}</code></div><div><small>Vai trò</small><strong>{roleLabels[device.role]}</strong></div><div><small>Trạng thái</small><strong>{device.status === "approved" ? "Đã cấp quyền" : device.status === "pending" ? "Chờ duyệt" : "Đã khóa"}</strong></div><div className={styles.rowActions}>{protectedDevice ? <span className={styles.protected}>Được bảo vệ</span> : access.role !== "owner" ? <span>Chỉ Owner được sửa</span> : device.status === "pending" ? <><select value={approvalRole} disabled={busy} onChange={(event) => setApprovalRoles((current) => ({ ...current, [device.deviceId]: event.target.value as "reviewer" | "publisher" }))}><option value="reviewer">Kiểm duyệt viên</option><option value="publisher">Người xuất bản</option></select><button disabled={busy} onClick={() => void manageControlDevice(device, "approve", approvalRole)}>Cấp quyền</button><button className={styles.rejectButton} disabled={busy} onClick={() => void manageControlDevice(device, "block")}>Từ chối</button></> : device.memberStatus === "inactive" ? <button className={styles.rejectButton} disabled={busy} onClick={() => void manageControlDevice(device, "delete-member")}>Xóa tài khoản</button> : <>{device.status !== "blocked" ? <button disabled={busy} onClick={() => void manageControlDevice(device, "block")}>Khóa máy</button> : null}<button className={styles.rejectButton} disabled={busy} onClick={() => void manageControlDevice(device, "deactivate-member")}>Thu hồi tài khoản</button></>}</div></article>; })}</div></div><div className={styles.fullPanel}><SectionTitle title="Nguyên tắc vận hành"/><div className={styles.rules}><article><b>01</b><div><strong>Client sở hữu dữ liệu</strong><p>Registry thiết bị, phiên truy cập và dữ liệu nghiệp vụ vẫn nằm ở ứng dụng tương ứng.</p></div></article><article><b>02</b><div><strong>Trung tâm điều phối</strong><p>Application Management chỉ đọc contract và gửi lệnh quản trị có xác minh.</p></div></article><article><b>03</b><div><strong>Không hiển thị dữ liệu giả</strong><p>Chỉ số, badge và trạng thái chỉ xuất hiện từ dữ liệu thật hoặc hiển thị rõ là chưa có dữ liệu.</p></div></article></div></div></section>;
 }
 
 function Empty({ text }: { text: string }) {
