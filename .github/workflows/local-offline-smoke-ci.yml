@@ -1,0 +1,74 @@
+name: Application Management Local Offline Smoke
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/local-offline-smoke-ci.yml"
+      - "package.json"
+      - "scripts/local-offline-smoke.mjs"
+      - "scripts/run-local-system.mjs"
+      - "scripts/local-system-doctor.mjs"
+      - "app/**"
+      - "worker/**"
+      - "migrations/**"
+      - "wrangler.local.jsonc"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: application-management-local-offline-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  local-offline-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout Application Management
+        uses: actions/checkout@v4
+        with:
+          path: Application-Management
+
+      - name: Checkout Health Care
+        uses: actions/checkout@v4
+        with:
+          repository: BlueDragon33/Health_Care
+          path: Health_Care
+          persist-credentials: false
+
+      - name: Checkout RU LIFE
+        uses: actions/checkout@v4
+        with:
+          repository: BlueDragon33/RU_LIFE
+          path: RU_LIFE
+          persist-credentials: false
+
+      - name: Checkout Bauman system
+        uses: actions/checkout@v4
+        with:
+          repository: BlueDragon33/Bauman-master-ai-system
+          path: Bauman-master-ai-system
+          persist-credentials: false
+
+      - name: Checkout Boi Ech
+        uses: actions/checkout@v4
+        with:
+          repository: BlueDragon33/BOIECH_AI
+          path: BOIECH_AI
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+
+      - name: Local topology doctor
+        working-directory: Application-Management
+        run: node scripts/local-system-doctor.mjs --apps-root "$GITHUB_WORKSPACE"
+
+      - name: Full local offline smoke
+        working-directory: Application-Management
+        run: node scripts/local-offline-smoke.mjs --apps-root "$GITHUB_WORKSPACE"
