@@ -109,8 +109,16 @@ function runChecked(label, command, args, cwd, env = process.env) {
   if (result.status !== 0) throw new Error(`${label} thất bại với mã ${result.status}.`);
 }
 
-function ensureDependencies(label, cwd, useCi, skipInstall) {
+function hasNpmLockfile(cwd) {
+  return existsSync(join(cwd, "package-lock.json")) || existsSync(join(cwd, "npm-shrinkwrap.json"));
+}
+
+function ensureDependencies(label, cwd, preferCi, skipInstall) {
   if (skipInstall || existsSync(join(cwd, "node_modules"))) return;
+  const useCi = preferCi && hasNpmLockfile(cwd);
+  if (preferCi && !useCi) {
+    console.log(`[local-system] ${label} chưa có npm lockfile; chuyển an toàn từ npm ci sang npm install.`);
+  }
   runChecked(`Cài dependency · ${label}`, npm, [useCi ? "ci" : "install", "--no-audit", "--no-fund"], cwd);
 }
 
