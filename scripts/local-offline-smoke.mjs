@@ -1,68 +1,14 @@
-import { existsSync } from "node:fs";
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const root = resolve(scriptDir, "..");
-const defaultAppsRoot = resolve(root, "..");
 const launcherPath = join(root, "scripts", "run-local-system.mjs");
-const isWindows = process.platform === "win32";
-const rawArgs = process.argv.slice(2);
-const forwarded = rawArgs.filter((arg) => arg !== "--local" && arg !== "--no-browser");
+const forwarded = process.argv.slice(2).filter((arg) => arg !== "--local" && arg !== "--no-browser");
 
 if (forwarded.some((arg) => arg === "--hybrid" || arg === "--mode=hybrid")) {
   throw new Error("local:offline-smoke chỉ chạy chế độ local; không cho phép hybrid/remote fallback.");
-}
-
-function appsRootFromArgs(args) {
-  let appsRoot = defaultAppsRoot;
-  for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
-    if (arg === "--apps-root") {
-      if (!args[index + 1]) throw new Error("--apps-root cần một đường dẫn.");
-      appsRoot = resolve(args[index + 1]);
-      index += 1;
-    } else if (arg.startsWith("--apps-root=")) {
-      appsRoot = resolve(arg.slice("--apps-root=".length));
-    }
-  }
-  return appsRoot;
-}
-
-function commandSpec(command, args) {
-  if (!isWindows || !/\.cmd$/i.test(command)) return { file: command, args };
-  return {
-    file: process.env.ComSpec || "cmd.exe",
-    args: ["/d", "/s", "/c", command, ...args],
-  };
-}
-
-function installDependencies(label, cwd) {
-  if (existsSync(join(cwd, "node_modules"))) {
-    console.log(`[offline-smoke] Dependency ${label} đã có, bỏ qua cài đặt.`);
-    return;
-  }
-  const locked = existsSync(join(cwd, "package-lock.json")) || existsSync(join(cwd, "npm-shrinkwrap.json"));
-  const mode = locked ? "ci" : "install";
-  console.log(`[offline-smoke] Cài dependency ${label} bằng npm ${mode}${locked ? "" : " (repo chưa có lockfile)"}.`);
-  const npm = isWindows ? "npm.cmd" : "npm";
-  const command = commandSpec(npm, [mode, "--no-audit", "--no-fund"]);
-  const result = spawnSync(command.file, command.args, { cwd, stdio: "inherit", env: process.env, shell: false });
-  if (result.error) throw result.error;
-  if (result.status !== 0) throw new Error(`Cài dependency ${label} thất bại với mã ${result.status}.`);
-}
-
-function bootstrapDependencies(appsRoot) {
-  const baumanRoot = join(appsRoot, "Bauman-master-ai-system");
-  const targets = [
-    ["Application Management", root],
-    ["Sức khỏe Y tế", join(appsRoot, "Health_Care")],
-    ["Hòa nhập Nga", join(appsRoot, "RU_LIFE")],
-    ["Bơi ếch", join(appsRoot, "BOIECH_AI", "boi-ech")],
-    ["Bauman Control", join(baumanRoot, "control-service")],
-  ];
-  for (const [label, cwd] of targets) installDependencies(label, cwd);
 }
 
 const checks = [
@@ -117,14 +63,9 @@ function stop(child) {
 }
 
 async function main() {
-  console.log("[offline-smoke] Khởi động toàn bộ local control plane. Không deploy, không dùng production D1.");
-  const appsRoot = appsRootFromArgs(rawArgs);
-  const skipInstall = rawArgs.includes("--skip-install");
-  if (!skipInstall) bootstrapDependencies(appsRoot);
-
-  const launcherArgs = [launcherPath, "--local", "--no-browser", ...forwarded];
-  if (!skipInstall && !launcherArgs.includes("--skip-install")) launcherArgs.push("--skip-install");
-  const child = spawn(process.execPath, launcherArgs, {
+  console.log("[offline-smoke] Khởi động trực tiếp full local control plane. Không deploy, không dùng production D1.");
+  console.log("[offline-smoke] Dependency bootstrap được giao cho run-local-system.mjs để kiểm thử đúng đường chạy người dùng.");
+  const child = spawn(process.execPath, [launcherPath, "--local", "--no-browser", ...forwarded], {
     cwd: root,
     env: process.env,
     stdio: ["ignore", "pipe", "pipe"],

@@ -46,6 +46,15 @@ test("local launchers keep isolated D1 and expose one-click full system startup"
   assert.ok(centerOnlyBat.includes("scripts\\run-local.mjs"));
 });
 
+test("full local launcher tolerates sibling repos without npm lockfiles", () => {
+  assert.ok(systemLauncher.includes("function hasNpmLockfile(cwd)"));
+  assert.ok(systemLauncher.includes('"package-lock.json"'));
+  assert.ok(systemLauncher.includes('"npm-shrinkwrap.json"'));
+  assert.ok(systemLauncher.includes('const useCi = preferCi && hasNpmLockfile(cwd)'));
+  assert.ok(systemLauncher.includes('[useCi ? "ci" : "install", "--no-audit", "--no-fund"]'));
+  assert.ok(systemLauncher.includes("chưa có npm lockfile; chuyển an toàn từ npm ci sang npm install"));
+});
+
 test("Windows launchers invoke npm and npx through cmd.exe for Node 24 compatibility", () => {
   assert.ok(launcher.includes('process.env.ComSpec || "cmd.exe"'));
   assert.ok(launcher.includes('`${name}.cmd`'));
