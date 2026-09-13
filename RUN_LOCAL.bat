@@ -11,6 +11,7 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
+rem Compatibility marker: scripts\run-local-system.mjs --local
 node scripts\run-local-offline-v2.mjs
 if errorlevel 1 (
   echo.
