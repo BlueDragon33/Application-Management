@@ -1,0 +1,33 @@
+name: One-shot central device control patch
+
+on:
+  push:
+    paths:
+      - '.github/workflows/one-shot-remove-central-bulk-device-control.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.0'
+      - name: Apply targeted patch
+        run: node scripts/one-shot-remove-central-bulk-device-control.mjs
+      - name: Commit patch
+        run: |
+          if git diff --quiet -- app/application-hub.tsx; then
+            echo "No patch needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/application-hub.tsx
+          git commit -m "Remove central bulk client device control"
+          git push
