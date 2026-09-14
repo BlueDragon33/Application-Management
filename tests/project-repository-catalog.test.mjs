@@ -10,6 +10,8 @@ const registry = source("app/project-registry.ts");
 const quickActions = source("app/quick-management-actions.tsx");
 const projectsPage = source("app/projects/projects-catalog.tsx");
 const liveRoute = source("app/api/projects/repositories/route.ts");
+const repositoryWatch = source("scripts/check-project-repositories.mjs");
+const repositoryWatchWorkflow = source(".github/workflows/project-repository-watch.yml");
 
 const repositories = [
   "BlueDragon33/Application-Management",
@@ -55,4 +57,33 @@ test("project catalog can reconcile registry with live public GitHub repositorie
   assert.match(projectsPage, /Kiểm tra GitHub/);
   assert.match(projectsPage, /Repo mới chưa đưa vào quản lý/);
   assert.match(projectsPage, /Repo đã đăng ký nhưng không còn thấy công khai/);
+});
+
+test("verified legacy sources remain visible without inflating repository count", () => {
+  for (const token of [
+    "Learning-Management / learning-management",
+    "quan-ly-hoc-tap",
+    "Russian_Bauman_Elearning",
+    "subjects/russian",
+    "Math_Bauman_Elearning",
+    "subjects/programming",
+    "subjects/signal",
+    "subjects/systems",
+    "subjects/foundation",
+    "subjects/research",
+  ]) assert.ok(registry.includes(token), `missing recovered source token: ${token}`);
+  assert.match(registry, /legacyProjectSources/);
+  assert.match(registry, /legacyProjectSourceCount = legacyProjectSources\.length/);
+  assert.match(projectsPage, /Source\/module cũ/);
+  assert.match(projectsPage, /Legacy \/ module nằm trong repo hiện hữu/);
+  assert.match(projectsPage, /githubSourceUrl/);
+});
+
+test("scheduled repository watch fails for new unmanaged public repositories", () => {
+  assert.match(repositoryWatch, /New public repositories are not registered in Application Management/);
+  assert.match(repositoryWatch, /process\.exitCode = 1/);
+  assert.match(repositoryWatch, /notPubliclyVisible/);
+  assert.match(repositoryWatchWorkflow, /workflow_dispatch:/);
+  assert.match(repositoryWatchWorkflow, /cron: "0 2 \* \* \*"/);
+  assert.match(repositoryWatchWorkflow, /node scripts\/check-project-repositories\.mjs/);
 });
