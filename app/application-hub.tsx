@@ -568,44 +568,6 @@ export default function ApplicationHub({ user }: { user: { displayName: string; 
   finally { setActionBusy(""); }
 }
 
-async function removeVisibleClientDevices() {
-  const matched = filterClientDevices(operations?.devices ?? [], appFilter, deviceFilter, timeFilter, search);
-  const targets = matched.filter((device) => device.canRemove);
-  const fallbackCount = matched.length - targets.length;
-  if (!targets.length) {
-    setNotice(matched.length ? "Các thiết bị phù hợp bộ lọc cần xử lý trong quản trị app tương ứng." : "Không có thiết bị phù hợp để xử lý.");
-    return;
-  }
-  const permanentCount = targets.filter((device) => device.appId === "boi-ech").length;
-  const blockCount = targets.length - permanentCount;
-  const appScope = appFilter === "all" ? "tất cả ứng dụng" : applicationFor(appFilter)?.shortName ?? appFilter;
-  const deviceScope = deviceFilter === "all" ? "tất cả loại thiết bị" : deviceFilter;
-  const timeScope = timeFilter === "all" ? "mọi thời gian" : `${timeFilter} ngày`;
-  const summary = [
-    `Xử lý ${targets.length}/${matched.length} thiết bị phù hợp bộ lọc (${appScope} · ${deviceScope} · ${timeScope})?`,
-    matched.length > 24 ? `Bảng chỉ hiển thị 24 dòng đầu nhưng thao tác sẽ áp dụng toàn bộ ${matched.length} thiết bị đã đồng bộ phù hợp bộ lọc.` : "",
-    blockCount ? `${blockCount} thiết bị sẽ bị khóa và thu hồi quyền/phiên.` : "",
-    permanentCount ? `${permanentCount} thiết bị Bơi ếch sẽ bị xóa vĩnh viễn.` : "",
-    fallbackCount ? `${fallbackCount} thiết bị không hỗ trợ trực tiếp sẽ được giữ lại để Vào quản trị app.` : "",
-  ].filter(Boolean).join("\n");
-  if (!window.confirm(summary)) return;
-
-  setActionBusy("bulk-remove"); setNotice("");
-  let succeeded = 0;
-  let failed = 0;
-  for (const device of targets) {
-    try {
-      await operationsAction({ action: "manage-client-device", operation: "remove", appId: device.appId, deviceId: device.deviceId, deviceCode: device.deviceCode });
-      succeeded += 1;
-    } catch {
-      failed += 1;
-    }
-  }
-  const synced = await refreshOperations();
-  if (!synced && succeeded) setNotice(`Backend đã xác minh ${succeeded} thao tác; Trung tâm chưa đồng bộ lại được. Hãy bấm Đồng bộ. ${failed ? `${failed} thao tác lỗi.` : ""}`);
-  else setNotice(`Đã xử lý và đồng bộ ${succeeded}/${targets.length} thiết bị.${failed ? ` ${failed} thao tác lỗi.` : ""}${fallbackCount ? ` ${fallbackCount} thiết bị cần Vào quản trị app.` : ""}`);
-  setActionBusy("");
-}
 
   async function saveAutomation(appIds: string[], autoBlockAppIds: string[], pendingBlockAfterHoursByApp: Record<string, number>) {
     setActionBusy("auto-approval"); setNotice("");
@@ -660,8 +622,6 @@ async function removeVisibleClientDevices() {
   const title = viewTitles[view];
   const workItems = operations?.workItems ?? [];
   const devices = operations?.devices ?? [];
-  const filteredClientDevices = filterClientDevices(devices, appFilter, deviceFilter, timeFilter, search);
-  const bulkRemovableCount = filteredClientDevices.filter((device) => device.canRemove).length;
   const selectedBackground = appearanceBackgrounds.find((item) => item.id === appearance.background) ?? appearanceBackgrounds[0];
   const shellStyle = { "--qt-user-font": appearance.font, "--qt-user-background": selectedBackground.value, "--qt-user-font-size": `${appearance.fontSize}px` } as CSSProperties;
   const readableCss = `
@@ -731,7 +691,7 @@ async function removeVisibleClientDevices() {
 
         {view === "inbox" ? <section className={styles.panel}><SectionHeader icon="inbox" title="Yêu cầu chờ duyệt theo ứng dụng" meta={operational ? `${operational.workItems}` : "…"} action={<div className={styles.clientDeviceActions}><button className={styles.autoApprovalButton} onClick={() => setAutoApprovalOpen(true)} disabled={role !== "owner" || Boolean(actionBusy)}>Tự động</button><button className={styles.rowAction} onClick={() => void refreshOperations()} disabled={operationsBusy || Boolean(actionBusy)}><Icon name="refresh" size={15}/> Làm mới</button><button className={styles.clearNotifications} onClick={() => void dismissNotifications()} disabled={!workItems.length || Boolean(actionBusy)}>{actionBusy === "dismiss-notifications" ? "Đang xóa…" : "Xóa hết"}</button></div>}/><GroupedWorkInbox items={workItems} loading={operationsBusy && !operations} search={search} appFilter={appFilter}/></section> : null}
         {view === "applications" ? <section className={styles.panel}><SectionHeader icon="apps" title="Danh sách client cấp 1" meta={`${applicationRegistry.length} ứng dụng`}/><ApplicationTable summaries={operations?.summaries ?? []} loading={operationsBusy && !operations} search={search} appFilter={appFilter} launchWeb={(appId) => void launchClientWeb(appId)} busyLaunch={webLaunchBusy}/></section> : null}
-        {view === "client-devices" ? <section className={styles.panel}><SectionHeader icon="device" title="Thiết bị mới / thiết bị cần xác minh" meta="Registry vẫn thuộc client" action={<div className={styles.clientDeviceActions}><button className={styles.autoApprovalButton} onClick={() => setAutoApprovalOpen(true)} disabled={role !== "owner"}>Tự động</button><button className={styles.clearNotifications} onClick={() => void removeVisibleClientDevices()} disabled={Boolean(actionBusy) || bulkRemovableCount === 0}>{actionBusy === "bulk-remove" ? "Đang xử lý…" : `Loại bỏ tất cả${bulkRemovableCount ? ` (${bulkRemovableCount})` : ""}`}</button></div>}/><DeviceFilters appFilter={appFilter} setAppFilter={setAppFilter} deviceFilter={deviceFilter} setDeviceFilter={setDeviceFilter} timeFilter={timeFilter} setTimeFilter={setTimeFilter}/><ClientDeviceTable devices={devices} loading={operationsBusy && !operations} appFilter={appFilter} deviceFilter={deviceFilter} timeFilter={timeFilter} search={search} busyDevice={actionBusy} run={(device, operation) => void manageClientDevice(device, operation)}/></section> : null}
+        {view === "client-devices" ? <section className={styles.panel}><SectionHeader icon="device" title="Thiết bị mới / thiết bị cần xác minh" meta="Registry vẫn thuộc client" action={<div className={styles.clientDeviceActions}><button className={styles.autoApprovalButton} onClick={() => setAutoApprovalOpen(true)} disabled={role !== "owner" || Boolean(actionBusy)}>Tự động</button><button className={styles.rowAction} onClick={() => void refreshOperations()} disabled={operationsBusy || Boolean(actionBusy)}><Icon name="refresh" size={15}/> Làm mới</button></div>}/><DeviceFilters appFilter={appFilter} setAppFilter={setAppFilter} deviceFilter={deviceFilter} setDeviceFilter={setDeviceFilter} timeFilter={timeFilter} setTimeFilter={setTimeFilter}/><ClientDeviceTable devices={devices} loading={operationsBusy && !operations} appFilter={appFilter} deviceFilter={deviceFilter} timeFilter={timeFilter} search={search} busyDevice={actionBusy} run={(device, operation) => void manageClientDevice(device, operation)}/></section> : null}
 
         {view === "alerts" ? <section className={styles.alertsLayout}>
           <div className={styles.panel}><SectionHeader icon="alert" title="Cảnh báo cần xử lý" meta={`${highAlerts.length} mức cao`}/><WorkTable items={workItems.filter((item) => item.priority === "high")} loading={operationsBusy && !operations} search={search} appFilter={appFilter}/></div>
