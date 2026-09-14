@@ -78,6 +78,7 @@ async function main() {
   const options = parseArgs(process.argv.slice(2));
   const reporter = createReporter();
   const baumanRoot = join(options.appsRoot, "Bauman-master-ai-system");
+  const growUpRoot = join(options.appsRoot, "GrowUP_MyChildren");
   const paths = {
     central: centralRoot,
     health: join(options.appsRoot, "Health_Care"),
@@ -85,6 +86,8 @@ async function main() {
     baumanRuntime: baumanRoot,
     baumanControl: join(baumanRoot, "control-service"),
     boi: join(options.appsRoot, "BOIECH_AI", "boi-ech"),
+    growUp: growUpRoot,
+    growUpControl: join(growUpRoot, "control-service"),
   };
 
   if (nodeVersionOk()) reporter.pass("Node.js", process.versions.node);
@@ -96,7 +99,8 @@ async function main() {
     [join(paths.central, "package.json"), "Application Management package"],
     [join(paths.central, "wrangler.local.jsonc"), "Application Management local D1"],
     [join(paths.central, ".dev.vars.example"), "Application Management local auth sample"],
-    [join(paths.central, "scripts", "run-local-system.mjs"), "Full-system launcher"],
+    [join(paths.central, "scripts", "run-local-system.mjs"), "Core local-system launcher"],
+    [join(paths.central, "scripts", "run-all.mjs"), "Full-stack launcher"],
     [join(paths.health, "package.json"), "Health package"],
     [join(paths.health, "vite.config.ts"), "Health local bindings"],
     [join(paths.health, "wrangler.d1.jsonc"), "Health local D1 config"],
@@ -108,12 +112,16 @@ async function main() {
     [join(paths.baumanControl, "wrangler.local.jsonc"), "Bauman Control local D1 config"],
     [join(paths.baumanRuntime, "index.html"), "Bauman learning runtime"],
     [join(paths.baumanRuntime, "assets", "js", "platform", "runtime-config.js"), "Bauman runtime control config"],
-    [join(paths.baumanRuntime, "assets", "js", "platform", "device-access-gate.js"), "Bauman Device Gate v4"],
+    [join(paths.baumanRuntime, "assets", "js", "platform", "device-access-gate.js"), "Bauman Device Gate"],
     [join(paths.baumanRuntime, "assets", "css", "device-access-gate.css"), "Bauman Device Gate styles"],
     [join(paths.baumanRuntime, "scripts", "serve-local-runtime.mjs"), "Bauman local static runtime server"],
     [join(paths.boi, "package.json"), "Bơi ếch package"],
     [join(paths.boi, "vite.config.ts"), "Bơi ếch local bindings"],
     [join(paths.boi, "wrangler.d1.jsonc"), "Bơi ếch local D1 config"],
+    [join(paths.growUp, "index.html"), "GrowUP runtime"],
+    [join(paths.growUp, "control", "application-management.contract.json"), "GrowUP management contract"],
+    [join(paths.growUp, "control", "local-device-gateway.js"), "GrowUP local device gateway"],
+    [join(paths.growUpControl, "local-control.mjs"), "GrowUP local Control Service"],
   ];
   for (const [path, label] of requiredFiles) checkFile(reporter, path, label);
 
@@ -130,8 +138,13 @@ async function main() {
 
   const launcherPath = join(paths.central, "scripts", "run-local-system.mjs");
   const launcher = text(launcherPath);
-  if (syntaxCheck(launcherPath)) reporter.pass("Launcher syntax", "node --check PASS");
-  else reporter.fail("Launcher syntax", "Không parse được scripts/run-local-system.mjs");
+  if (syntaxCheck(launcherPath)) reporter.pass("Core launcher syntax", "node --check PASS");
+  else reporter.fail("Core launcher syntax", "Không parse được scripts/run-local-system.mjs");
+
+  const runAllPath = join(paths.central, "scripts", "run-all.mjs");
+  const runAll = text(runAllPath);
+  if (syntaxCheck(runAllPath)) reporter.pass("Full-stack launcher syntax", "node --check PASS");
+  else reporter.fail("Full-stack launcher syntax", "Không parse được scripts/run-all.mjs");
 
   if (launcher && !launcher.includes('"--remote"') && !launcher.includes("workers.dev")) {
     reporter.pass("Local D1 isolation", "Launcher không dùng --remote/workers.dev");
@@ -159,7 +172,7 @@ async function main() {
     reporter.pass("Bauman runtime gate wiring", "index.html nạp Device Gate trước ứng dụng học");
   } else reporter.fail("Bauman runtime gate wiring", "index.html chưa nạp đủ runtime config/gate.");
 
-  if (hasAll(runtimeConfig, ["bauman-control-v4", "http://127.0.0.1:3003", "deviceAccess: true"]) && hasAll(runtimeGate, [
+  if (hasAll(runtimeConfig, ["http://127.0.0.1:3003", "deviceAccess: true"]) && hasAll(runtimeGate, [
     "/api/device/register",
     "/api/device/challenge",
     "/api/device/verify",
@@ -168,7 +181,7 @@ async function main() {
     "P-256",
     "offline-grace",
   ])) reporter.pass("Bauman Device Gate contract", "P-256 + session + heartbeat + offline grace");
-  else reporter.fail("Bauman Device Gate contract", "Device Gate không khớp contract v4.");
+  else reporter.fail("Bauman Device Gate contract", "Device Gate không khớp contract điều khiển hiện tại.");
 
   const healthVite = text(join(paths.health, "vite.config.ts"));
   if (hasAll(healthVite, ["HEALTH_CONTROL_SERVICE_SECRET", "APPLICATION_MANAGEMENT_ORIGIN", "LOCAL_CONTROL_ALLOW_LAN"])) {
@@ -185,7 +198,31 @@ async function main() {
     reporter.pass("Bơi ếch local bridge", "Bindings local đã có");
   } else reporter.fail("Bơi ếch local bridge", "Bơi ếch chưa có đủ local control bindings.");
 
-  const portResults = await Promise.all([3000, 3001, 3002, 3003, 3004, 3005].map(async (port) => [port, await portFree(port)]));
+  const growUpRuntimeEntry = text(join(paths.growUp, "src", "runtime-entry.js"));
+  const growUpGateway = text(join(paths.growUp, "control", "local-device-gateway.js"));
+  const growUpControlPath = join(paths.growUpControl, "local-control.mjs");
+  const growUpControl = text(growUpControlPath);
+  if (hasAll(growUpRuntimeEntry, ["loopbackHosts", "../control/local-device-gateway.js"]) && hasAll(growUpGateway, ["P-256", "SHA-256", "127.0.0.1:3007"])) {
+    reporter.pass("GrowUP local device gateway", "Runtime :3006 chỉ nạp gateway trên loopback và đăng ký vào Control :3007");
+  } else reporter.fail("GrowUP local device gateway", "GrowUP integration branch chưa nối runtime loopback với gateway thiết bị.");
+
+  if (syntaxCheck(growUpControlPath) && hasAll(growUpControl, [
+    "/api/control/status",
+    "/api/control/devices",
+    "/api/control/device-commands",
+    "/api/control/audit",
+    "deviceIdempotentCommands: true",
+    "optimisticConcurrency: true",
+    "childRecordsExposed: false",
+    "healthRecordsExposed: false",
+  ])) reporter.pass("GrowUP local Control contract", "Registry GU + command idempotency + optimistic concurrency + privacy boundary đã có");
+  else reporter.fail("GrowUP local Control contract", "GrowUP Control Service chưa đủ contract quản trị an toàn.");
+
+  if (hasAll(runAll, ["GROWUP_PORT = 3006", "GROWUP_CONTROL_PORT = 3007", "GROWUP_CONTROL_SERVICE_SECRET", "run-local-system.mjs"])) {
+    reporter.pass("GrowUP full-stack launcher wiring", "run:all nối Runtime :3006, Control :3007 và Application Management");
+  } else reporter.fail("GrowUP full-stack launcher wiring", "run:all chưa nối đủ GrowUP Runtime/Control với Trung tâm.");
+
+  const portResults = await Promise.all([3000, 3001, 3002, 3003, 3004, 3005, 3006, 3007].map(async (port) => [port, await portFree(port)]));
   for (const [port, free] of portResults) {
     if (free) reporter.pass(`Port ${port}`, "Đang trống");
     else if (options.strictPorts) reporter.fail(`Port ${port}`, "Đang có tiến trình lắng nghe");
