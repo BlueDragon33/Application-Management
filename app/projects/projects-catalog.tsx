@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { githubRepositoryUrl, projectRepositories, type ProjectRepositoryGroup } from "../project-registry";
+import { githubRepositoryUrl, githubSourceUrl, legacyProjectSources, projectRepositories, type ProjectRepositoryGroup } from "../project-registry";
 import styles from "./projects-catalog.module.css";
 
 const groupLabels: Record<ProjectRepositoryGroup, string> = {
@@ -61,6 +61,10 @@ export default function ProjectsCatalog() {
     const matchesQuery = !normalized || `${project.name} ${project.repository} ${project.summary} ${project.relatedTo ?? ""}`.toLowerCase().includes(normalized);
     return matchesGroup && matchesQuery;
   }), [group, normalized]);
+  const legacySources = useMemo(() => {
+    if (group !== "all" && group !== "learning") return [];
+    return legacyProjectSources.filter((source) => !normalized || `${source.legacyName} ${source.currentName} ${source.repository} ${source.sourcePath} ${source.note}`.toLowerCase().includes(normalized));
+  }, [group, normalized]);
 
   const managed = projectRepositories.filter((project) => Boolean(project.managementHref)).length;
   const active = projectRepositories.filter((project) => project.state === "operational" || project.state === "developing").length;
@@ -83,12 +87,13 @@ export default function ProjectsCatalog() {
 
   return <main className={styles.shell}>
     <header className={styles.topbar}>
-      <div><span className={styles.eyebrow}>APPLICATION MANAGEMENT · GITHUB PROJECT CATALOG</span><h1>Toàn bộ dự án GitHub</h1><p>Một danh mục duy nhất cho mọi repo. Repo có contract quản trị thật sẽ mở khu quản trị nội bộ; repo kỹ thuật vẫn được theo dõi đầy đủ nhưng không tạo nút điều khiển giả.</p></div>
+      <div><span className={styles.eyebrow}>APPLICATION MANAGEMENT · GITHUB PROJECT CATALOG</span><h1>Toàn bộ dự án GitHub</h1><p>Một danh mục duy nhất cho mọi repo và source legacy đã xác minh. Repo có contract quản trị thật sẽ mở khu quản trị nội bộ; repo kỹ thuật vẫn được theo dõi đầy đủ nhưng không tạo nút điều khiển giả.</p></div>
       <div className={styles.topActions}><button type="button" onClick={() => void checkGitHub()} disabled={checking}>{checking ? "Đang kiểm tra…" : "↻ Kiểm tra GitHub"}</button><Link className={styles.back} href="/">← Quản trị Ứng dụng</Link></div>
     </header>
 
     <section className={styles.summary}>
       <article><span>Repo đã đăng ký</span><strong>{projectRepositories.length}</strong></article>
+      <article><span>Source/module cũ</span><strong>{legacyProjectSources.length}</strong></article>
       <article><span>Có khu quản trị</span><strong>{managed}</strong></article>
       <article><span>Đang vận hành/phát triển</span><strong>{active}</strong></article>
       <article><span>Kỹ thuật & R&D</span><strong>{technical}</strong></article>
@@ -104,7 +109,7 @@ export default function ProjectsCatalog() {
     </section> : null}
 
     <section className={styles.toolbar}>
-      <input className={styles.search} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm repo, dự án, lĩnh vực…" />
+      <input className={styles.search} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm repo, dự án, module cũ, lĩnh vực…" />
       <div className={styles.filters}>
         <button data-active={group === "all"} onClick={() => setGroup("all")}>Tất cả</button>
         {(Object.keys(groupLabels) as ProjectRepositoryGroup[]).map((key) => <button key={key} data-active={group === key} onClick={() => setGroup(key)}>{groupLabels[key]}</button>)}
@@ -123,7 +128,18 @@ export default function ProjectsCatalog() {
           <a href={githubRepositoryUrl(project.repository)} target="_blank" rel="noreferrer">GitHub ↗</a>
         </div>
       </article>)}
-      {!projects.length ? <div className={styles.empty}>Không có dự án phù hợp bộ lọc.</div> : null}
+      {!projects.length ? <div className={styles.empty}>Không có repo phù hợp bộ lọc.</div> : null}
     </section>
+
+    {(group === "all" || group === "learning") ? <section className={styles.legacySection}>
+      <div className={styles.legacyHeading}><div><span>SOURCE ĐÃ TÌM LẠI</span><h2>Legacy / module nằm trong repo hiện hữu</h2></div><p>Các mục này không tính là repo mới. Chúng giữ dấu vết tên cũ và trỏ thẳng tới source thực đã xác minh để không bị “mất” lần nữa.</p></div>
+      <div className={styles.legacyGrid}>{legacySources.map((source) => <article key={source.id} className={styles.legacyCard}>
+        <div><span className={styles.legacyBadge}>{source.state === "verified-alias" ? "Tên cũ đã đối chiếu" : "Module đã xác minh"}</span><h3>{source.legacyName}</h3><strong>{source.currentName}</strong></div>
+        <code>{source.repository}{source.sourcePath ? `/${source.sourcePath}` : ""}</code>
+        <p>{source.note}</p>
+        <a href={githubSourceUrl(source.repository, source.branch, source.sourcePath)} target="_blank" rel="noreferrer">Mở source trên GitHub ↗</a>
+      </article>)}</div>
+      {!legacySources.length ? <div className={styles.empty}>Không có source legacy phù hợp tìm kiếm.</div> : null}
+    </section> : null}
   </main>;
 }
