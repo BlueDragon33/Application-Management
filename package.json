@@ -15,6 +15,7 @@
     "local:system": "node scripts/run-local-offline-v2.mjs",
     "local:system:hybrid": "node scripts/run-local-system.mjs --hybrid",
     "local:offline-smoke": "node scripts/local-offline-smoke.mjs",
+    "run:all": "node scripts/run-all.mjs",
     "projects:check": "node scripts/check-project-repositories.mjs",
     "build": "bash scripts/build-verified.sh",
     "preview": "npm run build && vite preview",
