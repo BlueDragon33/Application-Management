@@ -71,7 +71,7 @@ test("central Health device actions use commandId expectedStatus retry-safe muta
   assert.match(healthActionBlock, /actor\.role !== "publisher" && actor\.role !== "owner"/);
   assert.match(healthActionBlock, /issueHealthBrowserBridge\(actor\.email, actor\.role, actor\.deviceId\)/);
   assert.match(healthActionBlock, /const commandId = suppliedCommandId \|\| crypto\.randomUUID\(\)/);
-  assert.match(healthActionBlock, /expectedStatus,/);
+  assert.match(healthActionBlock, /bridgeCommandJson\([^\n]+\{[^\n]*expectedStatus\s*\}\)/);
   assert.match(healthActionBlock, /bridge\.deviceCommandsTarget/);
   assert.match(healthActionBlock, /DEVICE_COMMAND_READBACK_MISMATCH/);
   assert.match(healthActionBlock, /verifyDeviceStatus\(bridge, "\/api\/control\/devices", deviceId, expected\)/);
