@@ -7,6 +7,7 @@ const operations = fs.readFileSync("app/api/operations/route.ts", "utf8");
 const hub = fs.readFileSync("app/application-hub.tsx", "utf8");
 const admin = fs.readFileSync("app/apps/growup-mychildren/growup-admin.tsx", "utf8");
 const page = fs.readFileSync("app/apps/growup-mychildren/page.tsx", "utf8");
+const appControl = fs.readFileSync("app/api/apps/growup-mychildren/control/route.ts", "utf8");
 const env = fs.readFileSync("cloudflare-env.d.ts", "utf8");
 
 function mustContain(source, snippets) {
@@ -32,7 +33,7 @@ test("GrowUP direct-site bridge verifies the live privacy contract", () => {
   assert.ok(env.includes('GROWUP_BASE_URL?: string'));
 });
 
-test("operations probes GrowUP but does not invent remote device operations", () => {
+test("global operations still does not invent GrowUP production device operations", () => {
   mustContain(operations, [
     'probeGrowUpManagementContract',
     'async function loadGrowUp()',
@@ -41,7 +42,7 @@ test("operations probes GrowUP but does not invent remote device operations", ()
     'hasOperationalData: contract.remoteAdminReady',
     'Direct site contract đã xác minh; dữ liệu trẻ em vẫn ở phía GrowUP.',
   ]);
-  assert.equal(operations.includes('if (appId === "growup-mychildren")'), false, "GrowUP must not expose invented device operations before its backend exists");
+  assert.equal(operations.includes('if (appId === "growup-mychildren")'), false, "Global production operations must remain contract-gated");
 });
 
 test("central table opens the verified client URL while admin remains internal", () => {
@@ -53,15 +54,20 @@ test("central table opens the verified client URL while admin remains internal",
   assert.equal(hub.includes('<a href={application.href} target="_blank"'), false);
 });
 
-test("GrowUP admin exposes verified direct launch without claiming deep admin readiness", () => {
+test("GrowUP admin exposes local E2E control while keeping production readiness separate", () => {
   mustContain(page, [
     'probeGrowUpManagementContract',
     'site={{ url: siteUrl, error: siteError, remoteAdminReady }}',
   ]);
   mustContain(admin, [
     'Mở Site GrowUP ↗',
-    'Mở GrowUP MyChildren ↗',
-    'Direct web launch không đồng nghĩa với quyền đọc dữ liệu trẻ em.',
-    'site.remoteAdminReady ? "Backend sẵn sàng" : "Tiếp tục khóa"',
+    'Local control đã kết nối',
+    'Production remote admin',
+    'Không đánh dấu xanh từ local test',
+  ]);
+  mustContain(appControl, [
+    'verifyControlProof(payload)',
+    'GROWUP_REGISTRY_INSTANCE_MISMATCH',
+    'DEVICE_COMMAND_READBACK_MISMATCH',
   ]);
 });
