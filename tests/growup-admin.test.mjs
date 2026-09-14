@@ -31,8 +31,10 @@ test("GrowUP exposes real local device operations without pretending production 
   assert.match(admin, /Admin API local/);
   assert.match(admin, /Production remote admin/);
   assert.match(admin, /Không đánh dấu xanh từ local test/);
-  assert.match(admin, />Duyệt</);
-  assert.match(admin, />Khóa</);
+  assert.match(admin, /"Duyệt"/);
+  assert.match(admin, /Khóa thiết bị GrowUP/);
+  assert.match(admin, /manage\(device, "approve"\)/);
+  assert.match(admin, /manage\(device, "block"\)/);
   assert.match(api, /verifyControlProof/);
   assert.match(api, /DEVICE_COMMAND_READBACK_MISMATCH/);
   assert.doesNotMatch(admin, /delete-child-record|health-record-api/);
