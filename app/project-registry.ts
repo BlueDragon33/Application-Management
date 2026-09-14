@@ -13,6 +13,17 @@ export type ProjectRepositoryConfig = {
   relatedTo?: string;
 };
 
+export type LegacyProjectSource = {
+  id: string;
+  legacyName: string;
+  repository: string;
+  branch: string;
+  sourcePath: string;
+  state: "verified-module" | "verified-alias";
+  currentName: string;
+  note: string;
+};
+
 export const projectRepositories: readonly ProjectRepositoryConfig[] = [
   {
     id: "application-management",
@@ -122,8 +133,107 @@ export const projectRepositories: readonly ProjectRepositoryConfig[] = [
   },
 ];
 
+export const legacyProjectSources: readonly LegacyProjectSource[] = [
+  {
+    id: "legacy-learning-management",
+    legacyName: "Learning-Management / learning-management",
+    repository: "BlueDragon33/BOIECH_AI",
+    branch: "main",
+    sourcePath: "quan-ly-hoc-tap",
+    state: "verified-module",
+    currentName: "Quản lý học tập trong BOIECH_AI",
+    note: "Source cũ vẫn còn đầy đủ dưới repo cha, gồm app, database, Drizzle, README và cấu hình build. Không tạo repo rỗng trùng lặp.",
+  },
+  {
+    id: "legacy-russian-bauman",
+    legacyName: "Russian_Bauman_Elearning",
+    repository: "BlueDragon33/Bauman-master-ai-system",
+    branch: "main",
+    sourcePath: "subjects/russian",
+    state: "verified-module",
+    currentName: "Tiếng Nga trong Bauman Hub",
+    note: "Source môn Tiếng Nga đã được nhập vào cây subjects của Bauman Hub; đây là module thật, không phải repo đã mất.",
+  },
+  {
+    id: "legacy-math-bauman-elearning",
+    legacyName: "Math_Bauman_Elearning",
+    repository: "BlueDragon33/Math_Bauman",
+    branch: "main",
+    sourcePath: "",
+    state: "verified-alias",
+    currentName: "Math_Bauman",
+    note: "Tên legacy hiện tương ứng repo Math_Bauman độc lập; Bauman Hub đồng thời có subjects/math làm điểm tích hợp nội bộ.",
+  },
+  {
+    id: "bauman-subject-ai",
+    legacyName: "Bauman AI module",
+    repository: "BlueDragon33/Bauman-master-ai-system",
+    branch: "main",
+    sourcePath: "subjects/ai",
+    state: "verified-module",
+    currentName: "AI",
+    note: "Module môn học hiện hữu trong Bauman Hub.",
+  },
+  {
+    id: "bauman-subject-programming",
+    legacyName: "Bauman Programming module",
+    repository: "BlueDragon33/Bauman-master-ai-system",
+    branch: "main",
+    sourcePath: "subjects/programming",
+    state: "verified-module",
+    currentName: "Lập trình",
+    note: "Module môn học hiện hữu trong Bauman Hub.",
+  },
+  {
+    id: "bauman-subject-signal",
+    legacyName: "Bauman Signal module",
+    repository: "BlueDragon33/Bauman-master-ai-system",
+    branch: "main",
+    sourcePath: "subjects/signal",
+    state: "verified-module",
+    currentName: "Tín hiệu",
+    note: "Module môn học hiện hữu trong Bauman Hub.",
+  },
+  {
+    id: "bauman-subject-systems",
+    legacyName: "Bauman Systems module",
+    repository: "BlueDragon33/Bauman-master-ai-system",
+    branch: "main",
+    sourcePath: "subjects/systems",
+    state: "verified-module",
+    currentName: "Hệ thống",
+    note: "Module môn học hiện hữu trong Bauman Hub.",
+  },
+  {
+    id: "bauman-subject-foundation",
+    legacyName: "Bauman Foundation module",
+    repository: "BlueDragon33/Bauman-master-ai-system",
+    branch: "main",
+    sourcePath: "subjects/foundation",
+    state: "verified-module",
+    currentName: "Nền tảng",
+    note: "Module môn học hiện hữu trong Bauman Hub.",
+  },
+  {
+    id: "bauman-subject-research",
+    legacyName: "Bauman Research module",
+    repository: "BlueDragon33/Bauman-master-ai-system",
+    branch: "main",
+    sourcePath: "subjects/research",
+    state: "verified-module",
+    currentName: "Nghiên cứu",
+    note: "Module môn học hiện hữu trong Bauman Hub.",
+  },
+];
+
 export const projectRepositoryCount = projectRepositories.length;
+export const legacyProjectSourceCount = legacyProjectSources.length;
 
 export function githubRepositoryUrl(repository: string) {
   return `https://github.com/${repository}`;
+}
+
+export function githubSourceUrl(repository: string, branch: string, sourcePath: string) {
+  if (!sourcePath) return githubRepositoryUrl(repository);
+  return `https://github.com/${repository}/tree/${encodeURIComponent(branch)}/${sourcePath.split("/").map(encodeURIComponent).join("/")}`;
 }
