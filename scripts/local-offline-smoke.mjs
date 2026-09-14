@@ -6,6 +6,7 @@ const scriptDir = dirname(fileURLToPath(import.meta.url));
 const root = resolve(scriptDir, "..");
 const launcherPath = join(root, "scripts", "run-all.mjs");
 const forwarded = process.argv.slice(2).filter((arg) => arg !== "--local" && arg !== "--no-browser");
+const centralOrigin = "http://127.0.0.1:3000";
 
 if (forwarded.some((arg) => arg === "--hybrid" || arg === "--mode=hybrid")) {
   throw new Error("local:offline-smoke chỉ chạy chế độ local; không cho phép hybrid/remote fallback.");
@@ -19,7 +20,15 @@ const checks = [
   ["Bauman Runtime", "http://127.0.0.1:3005/_local/health"],
   ["GrowUP Runtime", "http://127.0.0.1:3006/control/application-management.contract.json"],
   ["GrowUP Control", "http://127.0.0.1:3007/health"],
-  ["Application Management", "http://127.0.0.1:3000/"],
+  ["Application Management", `${centralOrigin}/`],
+];
+
+const expectedManagedApps = [
+  "boi-ech",
+  "health-care",
+  "ru-life",
+  "bauman-master-ai",
+  "growup-mychildren",
 ];
 
 function wait(ms) {
@@ -47,8 +56,24 @@ async function requestReady(name, url, cancelSignal, timeoutMs = 240_000) {
   throw new Error(`${name} không sẵn sàng: ${last}`);
 }
 
+async function requestJson(path, body, cancelSignal, timeoutMs = 20_000) {
+  const response = await fetch(`${centralOrigin}${path}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+    cache: "no-store",
+    signal: AbortSignal.any([cancelSignal, AbortSignal.timeout(timeoutMs)]),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const detail = payload && typeof payload === "object" && typeof payload.error === "string" ? payload.error : `HTTP ${response.status}`;
+    throw new Error(`${path} thất bại: ${detail}`);
+  }
+  return payload;
+}
+
 async function assertCentralUi(cancelSignal) {
-  const response = await fetch("http://127.0.0.1:3000/", {
+  const response = await fetch(`${centralOrigin}/`, {
     redirect: "manual",
     signal: AbortSignal.any([cancelSignal, AbortSignal.timeout(2_000)]),
   });
@@ -57,6 +82,54 @@ async function assertCentralUi(cancelSignal) {
   if (!html.includes("Quản trị Ứng dụng")) {
     throw new Error("Trang local đã chạy nhưng không render tiêu đề Quản trị Ứng dụng.");
   }
+}
+
+async function assertAuthenticatedOperations(cancelSignal) {
+  const keyPair = await crypto.subtle.generateKey(
+    { name: "ECDSA", namedCurve: "P-256" },
+    true,
+    ["sign", "verify"],
+  );
+  const publicKey = await crypto.subtle.exportKey("jwk", keyPair.publicKey);
+  const registered = await requestJson("/api/device", { action: "register", publicKey }, cancelSignal);
+  const device = registered?.device;
+  if (!device || typeof device.deviceId !== "string" || !/^[a-f0-9]{64}$/.test(device.deviceId)) {
+    throw new Error("Thiết bị smoke local không được đăng ký với deviceId hợp lệ.");
+  }
+  if (device.status !== "approved" || device.role !== "owner") {
+    throw new Error(`Thiết bị smoke local phải là Owner approved, nhận ${device.status ?? "unknown"}/${device.role ?? "unknown"}.`);
+  }
+
+  const challengePayload = await requestJson("/api/device", { action: "challenge", deviceId: device.deviceId }, cancelSignal);
+  const challenge = challengePayload?.challenge;
+  if (typeof challenge !== "string" || !/^[A-Za-z0-9_-]{40,100}$/.test(challenge)) {
+    throw new Error("Challenge quản trị local không hợp lệ.");
+  }
+
+  const message = new TextEncoder().encode(`learning-control:${device.deviceId}:${challenge}`);
+  const signed = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, keyPair.privateKey, message);
+  const signature = Buffer.from(signed).toString("base64url");
+  const bootstrap = await requestJson("/api/operations", {
+    action: "bootstrap",
+    deviceId: device.deviceId,
+    challenge,
+    signature,
+  }, cancelSignal, 35_000);
+
+  if (!Array.isArray(bootstrap?.summaries)) throw new Error("Operations bootstrap không trả danh sách ứng dụng.");
+  const summaryById = new Map(bootstrap.summaries.map((item) => [item?.appId, item]));
+  const failed = [];
+  for (const appId of expectedManagedApps) {
+    const summary = summaryById.get(appId);
+    if (!summary || summary.connection !== "connected") {
+      failed.push(`${appId}: ${summary?.connection ?? "missing"}${summary?.note ? ` · ${summary.note}` : ""}`);
+    }
+  }
+  if (failed.length) {
+    throw new Error(`Operations bridge chưa kết nối đủ 5 ứng dụng: ${failed.join(" | ")}`);
+  }
+
+  console.log(`[offline-smoke] PASS Authenticated operations bridge · ${expectedManagedApps.length}/5 ứng dụng connected`);
 }
 
 function stop(child) {
@@ -93,10 +166,11 @@ async function main() {
         }
         await assertCentralUi(cancel.signal);
         console.log("[offline-smoke] PASS Application Management render · Quản trị Ứng dụng");
+        await assertAuthenticatedOperations(cancel.signal);
       })(),
       earlyExit,
     ]);
-    console.log("\n[offline-smoke] PASS · Full local stack hoạt động trên 127.0.0.1:3000–3007, không publish.");
+    console.log("\n[offline-smoke] PASS · Full local stack và authenticated operations bridge hoạt động trên 127.0.0.1:3000–3007, không publish.");
   } finally {
     cancel.abort();
     stop(child);
