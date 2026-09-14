@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 
 const bridge = fs.readFileSync("app/growup.server.ts", "utf8");
 const operations = fs.readFileSync("app/api/operations/route.ts", "utf8");
+const registry = fs.readFileSync("app/application-registry.ts", "utf8");
 const hub = fs.readFileSync("app/application-hub.tsx", "utf8");
 const admin = fs.readFileSync("app/apps/growup-mychildren/growup-admin.tsx", "utf8");
 const page = fs.readFileSync("app/apps/growup-mychildren/page.tsx", "utf8");
@@ -33,16 +34,29 @@ test("GrowUP direct-site bridge verifies the live privacy contract", () => {
   assert.ok(env.includes('GROWUP_BASE_URL?: string'));
 });
 
-test("global operations still does not invent GrowUP production device operations", () => {
+test("global operations uses the real GrowUP local registry without promoting production readiness", () => {
   mustContain(operations, [
     'probeGrowUpManagementContract',
-    'async function loadGrowUp()',
-    '{ id: "growup-mychildren", run: () => loadGrowUp() }',
+    'issueGrowUpBrowserBridge',
+    'async function loadGrowUp(actor: ControlDeviceState)',
+    '{ id: "growup-mychildren", run: () => loadGrowUp(actor) }',
+    'bridgeJson(bridge, "/api/control/devices")',
+    'registryInstanceId: bridge.registryInstanceId',
     'webHref: `${contract.baseUrl}/`',
-    'hasOperationalData: contract.remoteAdminReady',
-    'Direct site contract đã xác minh; dữ liệu trẻ em vẫn ở phía GrowUP.',
+    'Direct site contract và registry GU- đã xác minh; Trung tâm chỉ đồng bộ metadata thiết bị, dữ liệu trẻ em/sức khỏe vẫn ở phía GrowUP.',
+    'if (appId === "growup-mychildren")',
+    'GROWUP_REGISTRY_INSTANCE_MISMATCH',
   ]);
-  assert.equal(operations.includes('if (appId === "growup-mychildren")'), false, "Global production operations must remain contract-gated");
+  mustContain(registry, [
+    'id: "growup-mychildren"',
+    'contractState: "pending"',
+  ]);
+  mustContain(bridge, [
+    'remoteAdminReady',
+    'childRecordsExposed === false',
+    'healthRecordsExposed === false',
+  ]);
+  assert.equal(operations.includes('devices: [] as ClientDevice[]'), false, "GrowUP local registry must no longer be hidden from central operations");
 });
 
 test("central table opens the verified client URL while admin remains internal", () => {
