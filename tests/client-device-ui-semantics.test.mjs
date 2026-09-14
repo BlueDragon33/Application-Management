@@ -2,58 +2,65 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
 
-const hub = fs.readFileSync("app/application-hub.tsx", "utf8");
+const dashboard = fs.readFileSync("app/management-dashboard-v2.tsx", "utf8");
+const controls = fs.readFileSync("app/management-controls.tsx", "utf8");
 
-test("client device table distinguishes block from destructive Boi deletion", () => {
-  assert.match(hub, /clientRemoveLabel/);
-  assert.match(hub, /device\.appId === "boi-ech" \? "Xóa vĩnh viễn" : "Khóa"/);
-  assert.match(hub, /Bản ghi thiết bị vẫn được giữ để audit/);
+test("client device table distinguishes destructive Boi deletion from reversible client blocking", () => {
+  assert.match(dashboard, /device\.appId === "boi-ech"/);
+  assert.match(dashboard, /Xóa vĩnh viễn thiết bị/);
+  assert.match(dashboard, /Khóa thiết bị/);
+  assert.match(dashboard, /device\.appId === "boi-ech" \? "Loại bỏ" : "Khóa"/);
 });
 
 test("client actions are verified before UI refresh and never optimistic-delete rows", () => {
-  const start = hub.indexOf("async function manageClientDevice");
-  const end = hub.indexOf("async function removeVisibleClientDevices", start);
+  const start = dashboard.indexOf("async function manageClientDevice");
+  const end = dashboard.indexOf("async function dismissNotifications", start);
   assert.ok(start >= 0 && end > start);
-  const block = hub.slice(start, end);
+  const block = dashboard.slice(start, end);
   assert.match(block, /await operationsAction/);
+  assert.match(block, /clearCachedOperations\(\)/);
   assert.match(block, /await refreshOperations\(\)/);
+  assert.match(block, /expectedStatus: device\.status/);
+  assert.match(block, /registryInstanceId: device\.registryInstanceId/);
   assert.doesNotMatch(block, /current\.devices\.filter|setOperations\(\(current\)/);
 });
 
-test("device table falls back to app administration when direct action is unavailable", () => {
-  assert.match(hub, /Vào quản trị app/);
-  assert.match(hub, /needsAppAdmin/);
+test("device table falls back to the owning app administration when no direct action exists", () => {
+  assert.match(dashboard, /<Link href=\{device\.href\}>Quản trị<\/Link>/);
+  assert.match(dashboard, /!device\.canApprove && !device\.canRemove \? <Link href=\{device\.href\}>Xử lý<\/Link>/);
 });
 
-test("bulk removal follows the complete active filter set, not only 24 rendered rows", () => {
-  const start = hub.indexOf("async function removeVisibleClientDevices");
-  const end = hub.indexOf("async function saveAutomation", start);
+test("clearing notifications never removes source devices", () => {
+  const start = dashboard.indexOf("async function dismissNotifications");
+  const end = dashboard.indexOf("async function saveAutomation", start);
   assert.ok(start >= 0 && end > start);
-  const bulk = hub.slice(start, end);
-  assert.match(bulk, /const matched = filterClientDevices\(operations\?\.devices \?\? \[\], appFilter, deviceFilter, timeFilter, search\);/);
-  assert.match(bulk, /const targets = matched\.filter\(\(device\) => device\.canRemove\);/);
-  assert.doesNotMatch(bulk, /filterClientDevices\([^;]+\)\.slice\(0,\s*24\)/s);
-  assert.match(bulk, /Bảng chỉ hiển thị 24 dòng đầu nhưng thao tác sẽ áp dụng toàn bộ/);
+  const block = dashboard.slice(start, end);
+  assert.match(block, /action: "dismiss-notifications"/);
+  assert.match(block, /workItemIds: ids/);
+  assert.match(block, /Dữ liệu và yêu cầu thiết bị gốc vẫn được giữ nguyên trong mục Thiết bị/);
+  assert.doesNotMatch(block, /manage-client-device|current\.devices\.filter/);
 });
 
-test("table rendering may stay capped while bulk count uses the full filtered set", () => {
-  assert.match(hub, /const filteredClientDevices = filterClientDevices\(devices, appFilter, deviceFilter, timeFilter, search\);/);
-  assert.match(hub, /bulkRemovableCount = filteredClientDevices\.filter\(\(device\) => device\.canRemove\)\.length/);
-  assert.match(hub, /visible\.slice\(0, limit\)\.map/);
+test("notification queue follows visible work items while the Devices view keeps the full registry", () => {
+  assert.match(dashboard, /const visibleWorkItemIds = useMemo/);
+  assert.match(dashboard, /const notificationDevices = useMemo/);
+  assert.match(dashboard, /const notificationCount = notificationDevices\.length \+ distinctWorkItems\.length/);
+  assert.match(dashboard, /const queueDevices = filteredDevices\.filter\(\(device\) => visibleWorkItemIds\.has/);
+  assert.match(dashboard, /DeviceTable devices=\{filteredDevices\}/);
 });
 
 test("returning from app administration triggers read-only resync", () => {
-  assert.match(hub, /visibilitychange/);
-  assert.match(hub, /window\.addEventListener\("focus"/);
-  assert.match(hub, /read-only registry resync/);
+  assert.match(dashboard, /visibilitychange/);
+  assert.match(dashboard, /window\.addEventListener\("focus"/);
+  assert.match(dashboard, /void refreshOperations\(\)/);
 });
 
-test("automatic removal is enabled only for clients advertising a safe auto-block contract", () => {
-  assert.match(hub, /Tự động loại bỏ theo ứng dụng/);
-  assert.match(hub, /autoBlockPendingSupportedAppIds/);
-  assert.match(hub, /Khóa thiết bị pending quá hạn, giữ registry và audit/);
-  assert.match(hub, /Sau 24 giờ/);
-  assert.match(hub, /Sau 7 ngày/);
-  assert.match(hub, /Sau 30 ngày/);
-  assert.match(hub, /Không tự động xóa vĩnh viễn thiết bị/);
+test("automatic rejection or blocking is shown only for clients advertising a safe contract", () => {
+  assert.match(controls, /autoRejectSupportedAppIds/);
+  assert.match(controls, /autoBlockPendingSupportedAppIds/);
+  assert.match(controls, /Không tự động xóa vĩnh viễn thiết bị/);
+  assert.match(controls, /Sau 24 giờ/);
+  assert.match(controls, /Sau 7 ngày/);
+  assert.match(controls, /Sau 30 ngày/);
+  assert.match(controls, /set-auto-block-pending/);
 });
