@@ -22,6 +22,7 @@ function bool(value: unknown) {
 }
 
 function numberOrNull(value: unknown) {
+  if (value === null || value === undefined || value === "") return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
@@ -139,11 +140,14 @@ export async function POST(request: Request) {
       if (!current) return json({ error: "Thiết bị Bơi ếch không còn trong registry.", code: "DEVICE_NOT_FOUND" }, 404);
       const expectedPaymentStatus = text(payload.expectedPaymentStatus);
       const expectedAccessGroup = text(payload.expectedAccessGroup);
-      if (expectedPaymentStatus && text(current.paymentStatus) !== expectedPaymentStatus) return json({ error: "Trạng thái thanh toán đã thay đổi. Hãy đồng bộ lại.", code: "PAYMENT_STATE_CONFLICT" }, 409);
-      if (expectedAccessGroup && text(current.accessGroup) !== expectedAccessGroup) return json({ error: "Nhóm quyền đã thay đổi. Hãy đồng bộ lại.", code: "ACCESS_STATE_CONFLICT" }, 409);
+      const currentPaymentStatus = text(current.paymentStatus);
+      const currentAccessGroup = text(current.accessGroup);
+      if (expectedPaymentStatus && currentPaymentStatus !== expectedPaymentStatus) return json({ error: "Trạng thái thanh toán đã thay đổi. Hãy đồng bộ lại.", code: "PAYMENT_STATE_CONFLICT" }, 409);
+      if (expectedAccessGroup && currentAccessGroup !== expectedAccessGroup) return json({ error: "Nhóm quyền đã thay đổi. Hãy đồng bộ lại.", code: "ACCESS_STATE_CONFLICT" }, 409);
       if (!bool(current.registrationComplete)) return json({ error: "Hồ sơ người học chưa đầy đủ nên chưa thể thay đổi quyền.", code: "REGISTRATION_INCOMPLETE" }, 409);
-      if (operation === "require-payment" && text(current.accessGroup) !== "unassigned") return json({ error: "Tài khoản đã được phân nhóm quyền, không thể gửi yêu cầu thanh toán mới.", code: "ACCESS_STATE_CONFLICT" }, 409);
-      if (operation === "grant-free" && text(current.paymentStatus) === "paid_verified") return json({ error: "Tài khoản đã xác minh thanh toán, không chuyển sang miễn phí tại Trung tâm.", code: "PAYMENT_STATE_CONFLICT" }, 409);
+      if (operation === "require-payment" && (currentAccessGroup !== "unassigned" || currentPaymentStatus !== "unassigned")) return json({ error: "Tài khoản đã bắt đầu hoặc hoàn tất luồng thanh toán/phân quyền; không gửi lại yêu cầu thanh toán.", code: "PAYMENT_STATE_CONFLICT" }, 409);
+      if (operation === "renew-access" && currentAccessGroup === "unassigned") return json({ error: "Tài khoản chưa được phân quyền nên chưa thể gia hạn.", code: "ACCESS_STATE_CONFLICT" }, 409);
+      if (operation === "grant-free" && currentPaymentStatus === "paid_verified") return json({ error: "Tài khoản đã xác minh thanh toán, không chuyển sang miễn phí tại Trung tâm.", code: "PAYMENT_STATE_CONFLICT" }, 409);
 
       const command = await bridgeJson(bridge, "/api/control/overview", { method: "POST", body: { action: operation, deviceId } });
       if (!command.ok) return json(command.payload, command.status);
