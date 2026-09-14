@@ -127,7 +127,7 @@ export async function probeHealthManagementContract(): Promise<HealthContractPro
 
     if (!valid) {
       throw new HealthBridgeError(
-        "Contract của Sức khỏe Y tế chưa đạt phiên bản quản trị v3 có idempotent device commands.",
+        "Contract của Sức khỏe Y tế chưa hỗ trợ đầy đủ các lệnh thiết bị an toàn theo chuẩn quản trị hiện tại.",
         409,
         { code: "HEALTH_CARE_CONTRACT_MISMATCH", baseUrl, originSource: origin.source },
       );
