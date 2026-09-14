@@ -113,9 +113,9 @@ export default function AccessManagement({ query = "" }: { query?: string }) {
       <div className={styles.tableHead}><span>Thiết bị</span><span>Người học</span><span>Thanh toán</span><span>Quyền</span><span>Thời hạn</span><span>Thao tác</span></div>
       {devices.map((device) => {
         const rowBusy = actionBusy === device.deviceId;
-        const canGrantFree = device.registrationComplete && device.paymentStatus !== "paid_verified" && device.accessGroup !== "free";
-        const canRequirePayment = device.registrationComplete && device.accessGroup === "unassigned";
-        const canRenew = device.registrationComplete && device.status !== "blocked" && (device.accessExpired || device.accessExpiringSoon || device.accessGroup !== "unassigned");
+        const canGrantFree = device.registrationComplete && device.paymentStatus !== "paid_verified" && device.paymentStatus !== "proof_submitted" && device.accessGroup !== "free";
+        const canRequirePayment = device.registrationComplete && device.accessGroup === "unassigned" && device.paymentStatus === "unassigned";
+        const canRenew = device.registrationComplete && device.status !== "blocked" && device.accessGroup !== "unassigned" && (device.accessExpired || device.accessExpiringSoon || Boolean(device.accessExpiresAt));
         return <div className={styles.tableRow} key={device.deviceId}>
           <div><strong>{device.deviceCode}</strong><small>{device.active ? "● Online" : `Seen ${formatDate(device.lastSeenAt)}`}</small></div>
           <div><strong>{device.learnerName}</strong><small>{device.personCode ?? (device.registrationComplete ? "Đã đủ hồ sơ" : "Chưa đủ hồ sơ")}</small></div>
