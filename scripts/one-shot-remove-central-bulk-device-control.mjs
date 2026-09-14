@@ -29,7 +29,7 @@ replaceOnce(
 
 if (source.includes("Loại bỏ tất cả")) throw new Error("Vẫn còn nhãn bulk destructive control trong application-hub.tsx");
 if (source.includes("removeVisibleClientDevices")) throw new Error("Vẫn còn removeVisibleClientDevices trong application-hub.tsx");
-if (!source.includes("Yêu cầu chờ duyệt") || !source.includes(">Xóa hết</button>")) throw new Error("Không được làm mất controls của hàng đợi chờ duyệt");
+if (!source.includes("Yêu cầu chờ duyệt") || !source.includes('"Xóa hết"')) throw new Error("Không được làm mất controls của hàng đợi chờ duyệt");
 
 writeFileSync(path, source, "utf8");
 console.log("Patched application-hub.tsx: removed central bulk destructive device control; kept per-app automation and safe refresh.");
