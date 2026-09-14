@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const root = resolve(scriptDir, "..");
-const launcherPath = join(root, "scripts", "run-local-system.mjs");
+const launcherPath = join(root, "scripts", "run-all.mjs");
 const forwarded = process.argv.slice(2).filter((arg) => arg !== "--local" && arg !== "--no-browser");
 
 if (forwarded.some((arg) => arg === "--hybrid" || arg === "--mode=hybrid")) {
@@ -17,6 +17,8 @@ const checks = [
   ["Bauman Control", "http://127.0.0.1:3003/health"],
   ["Bơi ếch", "http://127.0.0.1:3004/api/control/overview?activityDays=0"],
   ["Bauman Runtime", "http://127.0.0.1:3005/_local/health"],
+  ["GrowUP Runtime", "http://127.0.0.1:3006/control/application-management.contract.json"],
+  ["GrowUP Control", "http://127.0.0.1:3007/health"],
   ["Application Management", "http://127.0.0.1:3000/"],
 ];
 
@@ -63,8 +65,8 @@ function stop(child) {
 }
 
 async function main() {
-  console.log("[offline-smoke] Khởi động trực tiếp full local control plane. Không deploy, không dùng production D1.");
-  console.log("[offline-smoke] Dependency bootstrap được giao cho run-local-system.mjs để kiểm thử đúng đường chạy người dùng.");
+  console.log("[offline-smoke] Khởi động full local stack gồm 5 client qua run:all. Không deploy, không dùng production D1.");
+  console.log("[offline-smoke] Dependency bootstrap được giao cho run-all/run-local-system để kiểm thử đúng đường chạy người dùng.");
   const child = spawn(process.execPath, [launcherPath, "--local", "--no-browser", ...forwarded], {
     cwd: root,
     env: process.env,
@@ -94,7 +96,7 @@ async function main() {
       })(),
       earlyExit,
     ]);
-    console.log("\n[offline-smoke] PASS · Full local stack hoạt động trên 127.0.0.1:3000–3005, không publish.");
+    console.log("\n[offline-smoke] PASS · Full local stack hoạt động trên 127.0.0.1:3000–3007, không publish.");
   } finally {
     cancel.abort();
     stop(child);
