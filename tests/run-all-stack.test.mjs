@@ -30,3 +30,9 @@ test("run all validates GrowUP runtime and control service before starting the c
   assert.match(runAll, /local-device-gateway\.js/);
   assert.match(runAll, /randomBytes\(48\)/);
 });
+
+test("run all tears down GrowUP processes when startup validation fails", () => {
+  assert.match(runAll, /try \{[\s\S]*await waitFor\(`\$\{GROWUP_CONTROL_ORIGIN\}\/health`\)[\s\S]*await verifyGrowUpContract\(\)[\s\S]*\} catch \(error\) \{\s*close\(\);\s*throw error;\s*\}/);
+  assert.match(runAll, /kill\(controlChild, signal\)/);
+  assert.match(runAll, /growUpServer\?\.close/);
+});
