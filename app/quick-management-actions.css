@@ -44,6 +44,19 @@
   background: #eaf4ff;
 }
 
+.management-quick-actions__count {
+  min-width: 18px;
+  height: 18px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #285b91;
+  color: #fff;
+  font-size: 9px;
+  line-height: 1;
+}
+
 .management-quick-actions button:last-child {
   border-color: #bfe3d0;
   background: #edf9f3;
@@ -73,5 +86,11 @@
 
   .management-quick-actions button span {
     font-size: 9px;
+  }
+
+  .management-quick-actions__count {
+    min-width: 16px;
+    height: 16px;
+    font-size: 8px;
   }
 }
