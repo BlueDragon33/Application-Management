@@ -13,14 +13,20 @@ test("run all exposes one command for the complete managed local stack", () => {
   assert.equal(packageJson.scripts["run:all"], "node scripts/run-all.mjs");
   assert.match(runAll, /GrowUP_MyChildren/);
   assert.match(runAll, /GROWUP_PORT = 3006/);
+  assert.match(runAll, /GROWUP_CONTROL_PORT = 3007/);
   assert.match(runAll, /GROWUP_BASE_URL: GROWUP_ORIGIN/);
+  assert.match(runAll, /GROWUP_CONTROL_LOCAL_BASE_URL: GROWUP_CONTROL_ORIGIN/);
+  assert.match(runAll, /GROWUP_CONTROL_SERVICE_SECRET: growUpSecret/);
+  assert.match(runAll, /control-service["'], ["']local-control\.mjs/);
   assert.match(runAll, /run-local-system\.mjs/);
-  assert.match(runAll, /control\/application-management\.contract\.json/);
+  assert.match(runAll, /control["'], ["']application-management\.contract\.json/);
 });
 
-test("run all validates GrowUP identity before starting the central control plane", () => {
+test("run all validates GrowUP runtime and control service before starting the central control plane", () => {
   assert.match(runAll, /growup-mychildren/);
   assert.match(runAll, /BlueDragon33\/GrowUP_MyChildren/);
   assert.match(runAll, /verifyGrowUpContract/);
-  assert.match(runAll, /Not found/);
+  assert.match(runAll, /GROWUP_CONTROL_ORIGIN.*health/);
+  assert.match(runAll, /local-device-gateway\.js/);
+  assert.match(runAll, /randomBytes\(48\)/);
 });
