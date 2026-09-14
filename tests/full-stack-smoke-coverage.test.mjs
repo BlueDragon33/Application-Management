@@ -16,6 +16,7 @@ test("local offline smoke covers all five managed clients including GrowUP", () 
   assert.match(smoke, /3000–3007/);
 
   assert.match(workflow, /repository: BlueDragon33\/GrowUP_MyChildren/);
+  assert.match(workflow, /ref: integration\/application-management-local-control/);
   assert.match(workflow, /path: GrowUP_MyChildren/);
   assert.match(workflow, /scripts\/run-all\.mjs/);
   for (const repository of ["Health_Care", "RU_LIFE", "Bauman-master-ai-system", "BOIECH_AI", "GrowUP_MyChildren"]) {
