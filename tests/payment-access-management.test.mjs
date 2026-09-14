@@ -22,6 +22,15 @@ test("Boi Ech payment/access API is proof-gated and verifies live state", () => 
   assert.match(api, /\["grant-free", "require-payment", "renew-access"\]/);
 });
 
+test("Boi Ech access transitions do not overwrite submitted proof or renew unassigned accounts", () => {
+  assert.match(api, /operation === "require-payment" && \(currentAccessGroup !== "unassigned" \|\| currentPaymentStatus !== "unassigned"\)/);
+  assert.match(api, /operation === "renew-access" && currentAccessGroup === "unassigned"/);
+  assert.match(api, /operation === "grant-free" && currentPaymentStatus === "paid_verified"/);
+  assert.match(view, /device\.accessGroup === "unassigned" && device\.paymentStatus === "unassigned"/);
+  assert.match(view, /device\.paymentStatus !== "proof_submitted"/);
+  assert.match(view, /device\.accessGroup !== "unassigned"/);
+});
+
 test("payment client signs requests with the approved QT device", () => {
   assert.match(client, /connectAdminCenter/);
   assert.match(client, /ECDSA/);
