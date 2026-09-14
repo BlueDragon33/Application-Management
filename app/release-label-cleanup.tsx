@@ -6,6 +6,7 @@ const replacements = new Map([
   ["Quản trị Ứng dụng Ver2", "Quản trị Ứng dụng"],
   ["Kiểm soát Ver2", "Kiểm soát vận hành"],
   ["v2.0", ""],
+  ["Contract Bauman chưa xác nhận device control v4 sẵn sàng.", "Contract Bauman chưa xác nhận điều khiển thiết bị sẵn sàng."],
 ]);
 
 function cleanVisibleReleaseLabels(root: ParentNode) {
