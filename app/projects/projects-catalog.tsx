@@ -117,17 +117,19 @@ export default function ProjectsCatalog() {
     </section>
 
     <section className={styles.grid}>
-      {projects.map((project) => <article className={styles.card} key={project.id}>
+      {projects.map((project) => { const repoUrl = githubRepositoryUrl(project.repository); return <article className={styles.card} key={project.id}>
         <div className={styles.cardHead}><span className={styles.mark}>{initials(project.name)}</span><span className={styles.state} data-state={project.state}>{stateLabels[project.state]}</span></div>
         <h2>{project.name}</h2>
         <span className={styles.repo}>{project.repository}</span>
         <p>{project.summary}</p>
         <div className={styles.meta}><span>{groupLabels[project.group]}</span><span>branch: {project.defaultBranch}</span>{project.relatedTo ? <span>Thuộc {project.relatedTo}</span> : null}</div>
         <div className={styles.actions}>
-          {project.managementHref ? <Link href={project.managementHref}>Quản trị</Link> : <a href={githubRepositoryUrl(project.repository)} target="_blank" rel="noreferrer">Mở repo</a>}
-          <a href={githubRepositoryUrl(project.repository)} target="_blank" rel="noreferrer">GitHub ↗</a>
+          {project.managementHref ? <Link href={project.managementHref}>Quản trị</Link> : null}
+          <a href={repoUrl} target="_blank" rel="noreferrer">Code ↗</a>
+          <a href={`${repoUrl}/issues`} target="_blank" rel="noreferrer">Issues ↗</a>
+          <a href={`${repoUrl}/actions`} target="_blank" rel="noreferrer">Actions ↗</a>
         </div>
-      </article>)}
+      </article>; })}
       {!projects.length ? <div className={styles.empty}>Không có repo phù hợp bộ lọc.</div> : null}
     </section>
 
