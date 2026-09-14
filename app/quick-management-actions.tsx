@@ -5,6 +5,10 @@ function openView(view?: string) {
   window.location.assign(target);
 }
 
+function openProjects() {
+  window.location.assign("/projects");
+}
+
 function syncAll() {
   try {
     for (let index = window.sessionStorage.length - 1; index >= 0; index -= 1) {
@@ -23,6 +27,7 @@ export default function QuickManagementActions() {
   return <aside className="management-quick-actions" aria-label="Thao tác quản trị nhanh">
     <span className="management-quick-actions__label">Thao tác nhanh</span>
     <button type="button" onClick={() => openView("applications")} title="Mở danh sách ứng dụng">▦ <span>Ứng dụng</span></button>
+    <button type="button" onClick={openProjects} title="Mở danh mục toàn bộ dự án GitHub">◆ <span>Dự án GitHub</span></button>
     <button type="button" onClick={() => openView("devices")} title="Mở quản trị thiết bị">▣ <span>Thiết bị</span></button>
     <button type="button" onClick={() => openView("approvals")} title="Mở hàng đợi chờ duyệt">✓ <span>Chờ duyệt</span></button>
     <button type="button" onClick={syncAll} title="Xóa cache trạng thái và đọc lại toàn bộ dữ liệu">↻ <span>Đồng bộ tất cả</span></button>
