@@ -1,5 +1,6 @@
 "use client";
 
+import { clearCachedOperations } from "./admin-device-client";
 import { legacyProjectSourceCount, projectRepositoryCount } from "./project-registry";
 
 function openView(view?: string) {
@@ -12,16 +13,7 @@ function openProjects() {
 }
 
 function syncAll() {
-  try {
-    for (let index = window.sessionStorage.length - 1; index >= 0; index -= 1) {
-      const key = window.sessionStorage.key(index);
-      if (key?.startsWith("application-management:operations:")) {
-        window.sessionStorage.removeItem(key);
-      }
-    }
-  } catch {
-    // Cache is optional; a reload still forces the dashboard to request fresh data.
-  }
+  clearCachedOperations();
   window.location.reload();
 }
 
