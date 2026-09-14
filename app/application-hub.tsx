@@ -27,7 +27,8 @@ type TimeFilter = "all" | "1" | "7" | "30";
 type IconName = "home" | "inbox" | "apps" | "device" | "alert" | "audit" | "settings" | "search" | "filter" | "bell" | "cube" | "calendar" | "chevron" | "refresh" | "shield" | "laptop" | "phone" | "tablet" | "clock" | "file" | "wifi";
 type AppearanceFont = "Inter" | "Times New Roman" | "Arial" | "Georgia" | "Verdana";
 type AppearanceBackground = "standard" | "emerald" | "navy" | "graphite" | "burgundy";
-type AppearanceSettings = { font: AppearanceFont; background: AppearanceBackground };
+type AppearanceFontSize = 14 | 16 | 18 | 20;
+type AppearanceSettings = { font: AppearanceFont; background: AppearanceBackground; fontSize: AppearanceFontSize };
 type ExtendedOperationsSettings = OperationsBootstrap["settings"] & {
   autoBlockPendingAppIds?: string[];
   autoBlockPendingSupportedAppIds?: string[];
@@ -36,6 +37,12 @@ type ExtendedOperationsSettings = OperationsBootstrap["settings"] & {
 
 const appearanceStorageKey = "application-management:appearance:v1";
 const appearanceFonts: AppearanceFont[] = ["Inter", "Times New Roman", "Arial", "Georgia", "Verdana"];
+const appearanceFontSizes: Array<{ value: AppearanceFontSize; label: string; hint: string }> = [
+  { value: 14, label: "Nhỏ", hint: "14 px" },
+  { value: 16, label: "Mặc định", hint: "16 px · dễ đọc" },
+  { value: 18, label: "Lớn", hint: "18 px" },
+  { value: 20, label: "Rất lớn", hint: "20 px" },
+];
 const appearanceBackgrounds: Array<{ id: AppearanceBackground; label: string; value: string }> = [
   { id: "standard", label: "Xanh vàng chuẩn", value: "radial-gradient(circle at 73% 6%, rgba(123,112,26,.17), transparent 30%), radial-gradient(circle at 28% 70%, rgba(37,91,55,.12), transparent 33%), linear-gradient(132deg,#0d1a13 0%,#172019 56%,#201d0e 100%)" },
   { id: "emerald", label: "Lục bảo sâu", value: "radial-gradient(circle at 76% 8%,rgba(25,122,91,.26),transparent 31%),linear-gradient(135deg,#071b15,#0d2f24 58%,#102219)" },
@@ -58,7 +65,7 @@ const auditLabels: Record<string, string> = {
 
 const viewTitles: Record<CenterView, { title: string; description: string }> = {
   overview: { title: "Bảng điều phối quản trị ứng dụng", description: "Kiểm soát tập trung các client độc lập, cảnh báo thiết bị mới và điều phối kiểm duyệt theo từng ứng dụng." },
-  inbox: { title: "Hộp việc ưu tiên", description: "Tập trung sự kiện cần chú ý từ từng client và mở đúng nơi sở hữu dữ liệu để xử lý." },
+  inbox: { title: "Yêu cầu chờ duyệt", description: "Tập trung các yêu cầu cần xử lý từ từng ứng dụng, hỗ trợ tự động duyệt hoặc tự động từ chối theo policy của từng client." },
   applications: { title: "Ứng dụng đang quản lý", description: "Theo dõi trạng thái kết nối, hàng đợi và thiết bị online của từng client cấp 1." },
   "client-devices": { title: "Thiết bị mới theo ứng dụng", description: "Thiết bị được đọc từ registry của client sở hữu; Trung tâm không sao chép dữ liệu thiết bị." },
   alerts: { title: "Cảnh báo vận hành", description: "Ưu tiên mất kết nối, thay đổi môi trường thiết bị và sự kiện cần can thiệp nhanh." },
@@ -221,14 +228,14 @@ function GroupedWorkInbox({ items, loading, search, appFilter }: { items: Operat
     items: items.filter((item) => item.appId === application.id && matchesApp(item.appId, appFilter)),
   })).filter((group) => group.items.length > 0);
   if (loading) return <LoadingRows count={5}/>;
-  if (!groups.length) return <div className={styles.emptyState}>Không còn thông báo cần chú ý.</div>;
+  if (!groups.length) return <div className={styles.emptyState}>Không còn yêu cầu cần chú ý.</div>;
   return <div className={styles.workGroups}>
     {groups.map(({ application, items: appItems }) => {
       const expanded = expandedApp === application.id;
       return <section key={application.id} className={styles.workGroup} data-expanded={expanded}>
         <button className={styles.workGroupButton} onClick={() => setExpandedApp(expanded ? null : application.id)} aria-expanded={expanded}>
           <AppBadge appId={application.id} initials={application.initials}/>
-          <span><strong>{application.shortName}</strong><small>{appItems.length} việc đang cần chú ý</small></span>
+          <span><strong>{application.shortName}</strong><small>{appItems.length} yêu cầu đang cần xử lý</small></span>
           <b>{appItems.length}</b><i><Icon name="chevron" size={18}/></i>
         </button>
         {expanded ? <WorkTable items={appItems} loading={false} search={search} appFilter={application.id} limit={60}/> : null}
@@ -253,27 +260,27 @@ function AutoApprovalDialog({ open, settings, busy, close, save }: {
   const autoBlockSupported = new Set(extended.autoBlockPendingSupportedAppIds ?? []);
   return <div className={styles.dialogScrim} role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) close(); }}>
     <section className={styles.dialogCard} role="dialog" aria-modal="true" aria-labelledby="auto-approval-title">
-      <header><div><span>QUY TẮC THIẾT BỊ</span><h2 id="auto-approval-title">Tự động xử lý theo ứng dụng</h2></div><button onClick={close} aria-label="Đóng">×</button></header>
-      <p>Chỉ bật quy tắc khi app sở hữu registry đã công bố contract thật. Trung tâm chỉ cấu hình policy; tác vụ tự động chạy tại backend của app và Đồng bộ vẫn luôn chỉ đọc.</p>
+      <header><div><span>QUY TẮC CHỜ DUYỆT</span><h2 id="auto-approval-title">Tự động xử lý theo ứng dụng</h2></div><button onClick={close} aria-label="Đóng">×</button></header>
+      <p>Mỗi ứng dụng có policy riêng. Trung tâm chỉ cho bật Tự động khi backend của ứng dụng đã công bố contract thật; không tự tạo trạng thái duyệt giả ở giao diện.</p>
       <div className={styles.dialogChoices}>
-        <strong>Duyệt tự động theo ứng dụng</strong>
+        <strong>Tự động duyệt theo ứng dụng</strong>
         {applicationRegistry.map((application) => {
           const enabled = supported.has(application.id);
           return <label key={`approve:${application.id}`} data-disabled={!enabled}>
             <input type="checkbox" disabled={!enabled || busy} checked={selected.includes(application.id)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, application.id] : current.filter((id) => id !== application.id))}/>
-            <AppBadge appId={application.id} initials={application.initials}/><span><strong>{application.shortName}</strong><small>{enabled ? "Đã có contract duyệt tự động" : "Chờ contract duyệt tự động"}</small></span>
+            <AppBadge appId={application.id} initials={application.initials}/><span><strong>{application.shortName}</strong><small>{enabled ? "Tự động duyệt đã được backend hỗ trợ" : "Chờ contract tự động duyệt"}</small></span>
           </label>;
         })}
       </div>
       <div className={styles.dialogChoices}>
-        <strong>Tự động loại bỏ theo ứng dụng</strong>
+        <strong>Tự động từ chối theo ứng dụng</strong>
         {applicationRegistry.map((application) => {
           const enabled = autoBlockSupported.has(application.id);
           const checked = autoBlockSelected.includes(application.id);
           const hours = pendingBlockHours[application.id] ?? 168;
           return <label key={`remove:${application.id}`} data-disabled={!enabled}>
             <input type="checkbox" disabled={!enabled || busy} checked={checked} onChange={(event) => setAutoBlockSelected((current) => event.target.checked ? [...current, application.id] : current.filter((id) => id !== application.id))}/>
-            <AppBadge appId={application.id} initials={application.initials}/><span><strong>{application.shortName}</strong><small>{enabled ? "Khóa thiết bị pending quá hạn, giữ registry và audit" : application.id === "boi-ech" ? "Không tự động xóa vĩnh viễn thiết bị" : "Chờ contract tự động khóa an toàn"}</small>{enabled && checked ? <select value={hours} disabled={busy} onClick={(event) => event.stopPropagation()} onChange={(event) => setPendingBlockHours((current) => ({ ...current, [application.id]: Number(event.target.value) }))}><option value={24}>Sau 24 giờ</option><option value={168}>Sau 7 ngày</option><option value={720}>Sau 30 ngày</option></select> : null}</span>
+            <AppBadge appId={application.id} initials={application.initials}/><span><strong>{application.shortName}</strong><small>{enabled ? "Tự động từ chối/khóa yêu cầu pending quá hạn, vẫn giữ audit" : application.id === "boi-ech" ? "Không tự động xóa vĩnh viễn thiết bị" : "Chờ contract tự động từ chối an toàn"}</small>{enabled && checked ? <select value={hours} disabled={busy} onClick={(event) => event.stopPropagation()} onChange={(event) => setPendingBlockHours((current) => ({ ...current, [application.id]: Number(event.target.value) }))}><option value={24}>Sau 24 giờ</option><option value={168}>Sau 7 ngày</option><option value={720}>Sau 30 ngày</option></select> : null}</span>
           </label>;
         })}
       </div>
@@ -288,6 +295,7 @@ function AppearanceDialog({ open, value, close, change }: { open: boolean; value
     <section className={`${styles.dialogCard} ${styles.appearanceCard}`} role="dialog" aria-modal="true" aria-labelledby="appearance-title">
       <header><div><span>CÁ NHÂN HÓA</span><h2 id="appearance-title">Giao diện</h2></div><button onClick={close} aria-label="Đóng">×</button></header>
       <div className={styles.appearanceSection}><strong>Phông chữ</strong><div className={styles.fontChoices}>{appearanceFonts.map((font) => <button key={font} data-active={value.font === font} style={{ fontFamily: font }} onClick={() => change({ ...value, font })}>{font}</button>)}</div></div>
+      <div className={styles.appearanceSection}><strong>Cỡ chữ</strong><div className={styles.fontChoices} style={{ gridTemplateColumns: "repeat(4,minmax(0,1fr))" }}>{appearanceFontSizes.map((option) => <button key={option.value} data-active={value.fontSize === option.value} onClick={() => change({ ...value, fontSize: option.value })}><strong>{option.label}</strong><small style={{ display: "block", marginTop: 4, opacity: .72 }}>{option.hint}</small></button>)}</div></div>
       <div className={styles.appearanceSection}><strong>Background</strong><div className={styles.backgroundChoices}>{appearanceBackgrounds.map((background) => <button key={background.id} data-active={value.background === background.id} onClick={() => change({ ...value, background: background.id })}><i style={{ background: background.value }}/><span>{background.label}</span></button>)}</div></div>
       <footer><button className={styles.primaryButton} onClick={close}>Xong</button></footer>
     </section>
@@ -404,7 +412,7 @@ export default function ApplicationHub({ user }: { user: { displayName: string; 
   const [autoApprovalOpen, setAutoApprovalOpen] = useState(false);
   const [appearanceOpen, setAppearanceOpen] = useState(false);
   const [appearanceHydrated, setAppearanceHydrated] = useState(false);
-  const [appearance, setAppearance] = useState<AppearanceSettings>({ font: "Inter", background: "standard" });
+  const [appearance, setAppearance] = useState<AppearanceSettings>({ font: "Inter", background: "standard", fontSize: 16 });
 
   async function refreshOperations() {
   setOperationsBusy(true); setOperationsError("");
@@ -471,7 +479,9 @@ export default function ApplicationHub({ user }: { user: { displayName: string; 
           const saved = JSON.parse(raw) as Partial<AppearanceSettings>;
           const font = appearanceFonts.includes(saved.font as AppearanceFont) ? saved.font as AppearanceFont : "Inter";
           const background = appearanceBackgrounds.some((item) => item.id === saved.background) ? saved.background as AppearanceBackground : "standard";
-          setAppearance({ font, background });
+          const savedSize = Number(saved.fontSize);
+          const fontSize = appearanceFontSizes.some((item) => item.value === savedSize) ? savedSize as AppearanceFontSize : 16;
+          setAppearance({ font, background, fontSize });
         }
       } catch { /* Keep the safe default theme. */ }
       setAppearanceHydrated(true);
@@ -521,7 +531,7 @@ export default function ApplicationHub({ user }: { user: { displayName: string; 
 
   async function dismissNotifications() {
     const ids = operations?.workItems.map((item) => item.id) ?? [];
-    if (!ids.length || !window.confirm(`Xóa toàn bộ ${ids.length} thông báo đang hiển thị?`)) return;
+    if (!ids.length || !window.confirm(`Xóa toàn bộ ${ids.length} mục đang hiển thị khỏi danh sách chờ duyệt của tài khoản này? Dữ liệu nghiệp vụ gốc tại ứng dụng không bị xóa.`)) return;
     setActionBusy("dismiss-notifications"); setNotice("");
     try {
       const result = await operationsAction({ action: "dismiss-notifications", workItemIds: ids });
@@ -531,8 +541,8 @@ export default function ApplicationHub({ user }: { user: { displayName: string; 
         const workItems = current.workItems.filter((item) => !dismissed.has(item.id));
         return { ...current, workItems, metrics: { ...current.metrics, workItems: workItems.length, alerts: workItems.filter((item) => item.priority === "high").length } };
       });
-      setNotice("Đã xóa toàn bộ thông báo khỏi hộp việc của tài khoản này.");
-    } catch (caught) { setNotice(caught instanceof Error ? caught.message : "Không thể xóa thông báo."); }
+      setNotice("Đã dọn toàn bộ mục hiển thị khỏi danh sách chờ duyệt; dữ liệu nghiệp vụ tại app vẫn được giữ nguyên.");
+    } catch (caught) { setNotice(caught instanceof Error ? caught.message : "Không thể xóa danh sách hiển thị."); }
     finally { setActionBusy(""); }
   }
 
@@ -653,11 +663,19 @@ async function removeVisibleClientDevices() {
   const filteredClientDevices = filterClientDevices(devices, appFilter, deviceFilter, timeFilter, search);
   const bulkRemovableCount = filteredClientDevices.filter((device) => device.canRemove).length;
   const selectedBackground = appearanceBackgrounds.find((item) => item.id === appearance.background) ?? appearanceBackgrounds[0];
-  const shellStyle = { "--qt-user-font": appearance.font, "--qt-user-background": selectedBackground.value } as CSSProperties;
+  const shellStyle = { "--qt-user-font": appearance.font, "--qt-user-background": selectedBackground.value, "--qt-user-font-size": `${appearance.fontSize}px` } as CSSProperties;
+  const readableCss = `
+    .${styles.shell}{font-size:var(--qt-user-font-size,16px);line-height:1.5}
+    .${styles.nav} button>strong,.${styles.searchBox} input,.${styles.quickFilter} select,.${styles.appearanceButton},.${styles.pageHeader} p,.${styles.sectionHeader}>button,.${styles.emptyState},.${styles.notice},.${styles.operationsWarning}{font-size:var(--qt-user-font-size,16px)!important}
+    .${styles.userMenu}>summary strong,.${styles.metricGrid} span,.${styles.workGroupButton}>span strong,.${styles.dialogCard} p,.${styles.dialogChoices} strong,.${styles.fontChoices} button,.${styles.deviceFilters} select{font-size:calc(var(--qt-user-font-size,16px) - 1px)!important}
+    .${styles.userMenu}>summary small,.${styles.metricGrid} small,.${styles.tableHead},.${styles.workRow}>div>strong,.${styles.workRow}>span,.${styles.appCell}>strong,.${styles.appCell}>div strong,.${styles.deviceTableHead},.${styles.clientDeviceRow},.${styles.clientDeviceRow} div>strong,.${styles.applicationHead},.${styles.applicationRow},.${styles.connectionState},.${styles.manageButton},.${styles.directAccess},.${styles.rowAction},.${styles.workGroupButton}>span small,.${styles.connectionList} strong,.${styles.contractList} strong,.${styles.auditList} strong,.${styles.adminDeviceRow}>div>strong{font-size:calc(var(--qt-user-font-size,16px) - 2px)!important}
+    .${styles.workRow} small,.${styles.appCell}>div small,.${styles.clientDeviceRow} div>small,.${styles.connectionList} small,.${styles.contractList} small,.${styles.auditList} small,.${styles.adminDeviceRow} small,.${styles.contractPending},.${styles.dialogChoices} small,.${styles.backgroundChoices} button{font-size:calc(var(--qt-user-font-size,16px) - 4px)!important}
+    .${styles.sectionHeader} h2{font-size:calc(var(--qt-user-font-size,16px) + 3px)!important}
+  `;
 
   const navItems: Array<{ view: CenterView; label: string; icon: IconName; count?: number }> = [
     { view: "overview", label: "Tổng quan", icon: "home" },
-    { view: "inbox", label: "Hộp việc", icon: "inbox", count: operational?.workItems },
+    { view: "inbox", label: "Yêu cầu chờ duyệt", icon: "inbox", count: operational?.workItems },
     { view: "applications", label: "Ứng dụng", icon: "apps" },
     { view: "client-devices", label: "Thiết bị mới", icon: "device", count: operational?.pendingDevices },
     { view: "alerts", label: "Cảnh báo", icon: "alert", count: operational?.alerts },
@@ -666,6 +684,7 @@ async function removeVisibleClientDevices() {
   ];
 
   return <main className={styles.shell} style={shellStyle}>
+    <style>{readableCss}</style>
     <aside className={styles.sidebar}>
       <div className={styles.brand}><div className={styles.brandMark}>QT</div><div><span>TRUNG TÂM ĐIỀU PHỐI</span><strong>QUẢN TRỊ ỨNG DỤNG</strong></div></div>
       <nav className={styles.nav} aria-label="Điều hướng quản trị">{navItems.map((item) => <button key={item.view} data-active={view === item.view || (item.view === "settings" && view === "devices")} onClick={() => switchView(item.view)} title={item.label}><i><Icon name={item.icon} size={22}/></i><strong>{item.label}</strong>{item.count ? <b>{item.count}</b> : null}</button>)}</nav>
@@ -694,13 +713,13 @@ async function removeVisibleClientDevices() {
             <button onClick={() => switchView("applications")} data-tone="teal"><i><Icon name="cube" size={29}/></i><div><span>Tổng ứng dụng</span><strong>{applicationRegistry.length}</strong><small>Client đang quản lý</small></div><Icon name="chevron" size={20}/></button>
             <button onClick={() => switchView("client-devices")} data-tone="amber"><i><Icon name="device" size={28}/></i><div><span>Thiết bị mới chờ duyệt</span><strong>{operationsBusy && !operations ? "…" : operational?.pendingDevices ?? "—"}</strong><small>Registry của từng client</small></div><Icon name="chevron" size={20}/></button>
             <button onClick={() => switchView("alerts")} data-tone="red"><i><Icon name="alert" size={29}/></i><div><span>Cảnh báo hôm nay</span><strong>{operationsBusy && !operations ? "…" : operational?.alerts ?? "—"}</strong><small>{highAlerts.length ? `${highAlerts.length} ưu tiên cao` : "Không có cảnh báo cao"}</small></div><Icon name="chevron" size={20}/></button>
-            <button onClick={() => switchView("inbox")} data-tone="gold"><i><Icon name="file" size={28}/></i><div><span>Ca kiểm duyệt cần xử lý</span><strong>{operationsBusy && !operations ? "…" : operational?.workItems ?? "—"}</strong><small>Không tạo số liệu giả</small></div><Icon name="chevron" size={20}/></button>
+            <button onClick={() => switchView("inbox")} data-tone="gold"><i><Icon name="file" size={28}/></i><div><span>Yêu cầu chờ duyệt</span><strong>{operationsBusy && !operations ? "…" : operational?.workItems ?? "—"}</strong><small>Gom theo từng ứng dụng</small></div><Icon name="chevron" size={20}/></button>
           </section>
 
           <section className={styles.dashboardGrid}>
-            <div className={styles.panel}><SectionHeader icon="inbox" title="Hộp việc ưu tiên" meta={operational ? `${operational.workItems}` : "…"} action={<button onClick={() => switchView("inbox")}>Xem tất cả <span>→</span></button>}/><WorkTable items={workItems} loading={operationsBusy && !operations} search={search} appFilter={appFilter} limit={4}/></div>
+            <div className={styles.panel}><SectionHeader icon="inbox" title="Yêu cầu chờ duyệt" meta={operational ? `${operational.workItems}` : "…"} action={<button onClick={() => switchView("inbox")}>Xem tất cả <span>→</span></button>}/><WorkTable items={workItems} loading={operationsBusy && !operations} search={search} appFilter={appFilter} limit={4}/></div>
             <div className={styles.panel}><SectionHeader icon="device" title="Thiết bị mới theo ứng dụng" meta={operational ? `${operational.pendingDevices}` : "…"} action={<button onClick={() => switchView("client-devices")}>Xem tất cả <span>→</span></button>}/><DeviceFilters appFilter={appFilter} setAppFilter={setAppFilter} deviceFilter={deviceFilter} setDeviceFilter={setDeviceFilter} timeFilter={timeFilter} setTimeFilter={setTimeFilter}/><ClientDeviceTable devices={devices} loading={operationsBusy && !operations} appFilter={appFilter} deviceFilter={deviceFilter} timeFilter={timeFilter} search={search} limit={4}/></div>
-            <div className={`${styles.panel} ${styles.applicationPanel}`}><SectionHeader icon="cube" title="Ứng dụng đang quản lý" meta="Một hàng / một client" action={<button onClick={() => switchView("applications")}>Quản lý ứng dụng <span>→</span></button>}/><ApplicationTable summaries={operations?.summaries ?? []} loading={operationsBusy && !operations} search={search} appFilter={appFilter} launchWeb={(appId) => void launchClientWeb(appId)} busyLaunch={webLaunchBusy}/></div>
+            <div className={`${styles.panel} ${styles.applicationPanel}`}><SectionHeader icon="cube" title="Ứng dụng đang quản lý" meta={`${applicationRegistry.length} client cấp 1`} action={<button onClick={() => switchView("applications")}>Quản lý ứng dụng <span>→</span></button>}/><ApplicationTable summaries={operations?.summaries ?? []} loading={operationsBusy && !operations} search={search} appFilter="all" launchWeb={(appId) => void launchClientWeb(appId)} busyLaunch={webLaunchBusy}/></div>
             <div className={styles.panel}><SectionHeader icon="bell" title="Cảnh báo nhanh" meta={highAlerts.length ? `${highAlerts.length}` : undefined} action={<button onClick={() => switchView("alerts")}>Xem tất cả <span>→</span></button>}/><div className={styles.alertTiles}>
               <button onClick={() => switchView("client-devices")} data-tone="amber"><span><Icon name="device" size={24}/></span><div><small>Thiết bị mới</small><strong>{operational?.pendingDevices ?? "—"}</strong><em>Chờ duyệt</em></div></button>
               <button onClick={() => switchView("alerts")} data-tone="red"><span><Icon name="wifi" size={24}/></span><div><small>App mất kết nối</small><strong>{operations ? unavailableCount : "—"}</strong><em>Cần kiểm tra ngay</em></div></button>
@@ -710,9 +729,9 @@ async function removeVisibleClientDevices() {
           </section>
         </> : null}
 
-        {view === "inbox" ? <section className={styles.panel}><SectionHeader icon="inbox" title="Việc cần chú ý theo ứng dụng" meta={operational ? `${operational.workItems}` : "…"} action={<button className={styles.clearNotifications} onClick={() => void dismissNotifications()} disabled={!workItems.length || actionBusy === "dismiss-notifications"}>{actionBusy === "dismiss-notifications" ? "Đang xóa…" : "Xóa hết thông báo"}</button>}/><GroupedWorkInbox items={workItems} loading={operationsBusy && !operations} search={search} appFilter={appFilter}/></section> : null}
+        {view === "inbox" ? <section className={styles.panel}><SectionHeader icon="inbox" title="Yêu cầu chờ duyệt theo ứng dụng" meta={operational ? `${operational.workItems}` : "…"} action={<div className={styles.clientDeviceActions}><button className={styles.autoApprovalButton} onClick={() => setAutoApprovalOpen(true)} disabled={role !== "owner" || Boolean(actionBusy)}>Tự động</button><button className={styles.rowAction} onClick={() => void refreshOperations()} disabled={operationsBusy || Boolean(actionBusy)}><Icon name="refresh" size={15}/> Làm mới</button><button className={styles.clearNotifications} onClick={() => void dismissNotifications()} disabled={!workItems.length || Boolean(actionBusy)}>{actionBusy === "dismiss-notifications" ? "Đang xóa…" : "Xóa hết"}</button></div>}/><GroupedWorkInbox items={workItems} loading={operationsBusy && !operations} search={search} appFilter={appFilter}/></section> : null}
         {view === "applications" ? <section className={styles.panel}><SectionHeader icon="apps" title="Danh sách client cấp 1" meta={`${applicationRegistry.length} ứng dụng`}/><ApplicationTable summaries={operations?.summaries ?? []} loading={operationsBusy && !operations} search={search} appFilter={appFilter} launchWeb={(appId) => void launchClientWeb(appId)} busyLaunch={webLaunchBusy}/></section> : null}
-        {view === "client-devices" ? <section className={styles.panel}><SectionHeader icon="device" title="Thiết bị mới / thiết bị cần xác minh" meta="Registry vẫn thuộc client" action={<div className={styles.clientDeviceActions}><button className={styles.autoApprovalButton} onClick={() => setAutoApprovalOpen(true)} disabled={role !== "owner"}>Duyệt tự động</button><button className={styles.clearNotifications} onClick={() => void removeVisibleClientDevices()} disabled={Boolean(actionBusy) || bulkRemovableCount === 0}>{actionBusy === "bulk-remove" ? "Đang xử lý…" : `Loại bỏ tất cả${bulkRemovableCount ? ` (${bulkRemovableCount})` : ""}`}</button></div>}/><DeviceFilters appFilter={appFilter} setAppFilter={setAppFilter} deviceFilter={deviceFilter} setDeviceFilter={setDeviceFilter} timeFilter={timeFilter} setTimeFilter={setTimeFilter}/><ClientDeviceTable devices={devices} loading={operationsBusy && !operations} appFilter={appFilter} deviceFilter={deviceFilter} timeFilter={timeFilter} search={search} busyDevice={actionBusy} run={(device, operation) => void manageClientDevice(device, operation)}/></section> : null}
+        {view === "client-devices" ? <section className={styles.panel}><SectionHeader icon="device" title="Thiết bị mới / thiết bị cần xác minh" meta="Registry vẫn thuộc client" action={<div className={styles.clientDeviceActions}><button className={styles.autoApprovalButton} onClick={() => setAutoApprovalOpen(true)} disabled={role !== "owner"}>Tự động</button><button className={styles.clearNotifications} onClick={() => void removeVisibleClientDevices()} disabled={Boolean(actionBusy) || bulkRemovableCount === 0}>{actionBusy === "bulk-remove" ? "Đang xử lý…" : `Loại bỏ tất cả${bulkRemovableCount ? ` (${bulkRemovableCount})` : ""}`}</button></div>}/><DeviceFilters appFilter={appFilter} setAppFilter={setAppFilter} deviceFilter={deviceFilter} setDeviceFilter={setDeviceFilter} timeFilter={timeFilter} setTimeFilter={setTimeFilter}/><ClientDeviceTable devices={devices} loading={operationsBusy && !operations} appFilter={appFilter} deviceFilter={deviceFilter} timeFilter={timeFilter} search={search} busyDevice={actionBusy} run={(device, operation) => void manageClientDevice(device, operation)}/></section> : null}
 
         {view === "alerts" ? <section className={styles.alertsLayout}>
           <div className={styles.panel}><SectionHeader icon="alert" title="Cảnh báo cần xử lý" meta={`${highAlerts.length} mức cao`}/><WorkTable items={workItems.filter((item) => item.priority === "high")} loading={operationsBusy && !operations} search={search} appFilter={appFilter}/></div>
