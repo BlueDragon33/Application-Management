@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - '.github/workflows/one-shot-remove-central-bulk-device-control.yml'
+      - 'scripts/one-shot-remove-central-bulk-device-control.mjs'
 
 permissions:
   contents: write
