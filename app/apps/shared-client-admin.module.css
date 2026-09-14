@@ -1,0 +1,81 @@
+.scope {
+  --client-admin-bg: #f7f8f2;
+  --client-admin-surface: rgba(255, 255, 250, .96);
+  --client-admin-surface-soft: #eef3e8;
+  --client-admin-text: #1d3228;
+  --client-admin-muted: #66796e;
+  --client-admin-line: rgba(45, 87, 65, .16);
+  --client-admin-green: #2f6b4f;
+  --client-admin-green-deep: #1f513c;
+  --client-admin-accent: #6f9b63;
+  --client-admin-danger: #a84945;
+  min-height: 100dvh;
+  color: var(--client-admin-text);
+  background:
+    radial-gradient(circle at 82% 7%, rgba(143, 177, 117, .16), transparent 27rem),
+    linear-gradient(180deg, #fbfcf7 0%, var(--client-admin-bg) 100%);
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.scope :global(h1),
+.scope :global(h2),
+.scope :global(h3) {
+  color: var(--client-admin-text);
+  letter-spacing: -.015em;
+}
+
+.scope :global(p),
+.scope :global(label),
+.scope :global(input),
+.scope :global(select),
+.scope :global(textarea),
+.scope :global(button),
+.scope :global(a) {
+  font-size: 16px;
+}
+
+.scope :global(button),
+.scope :global(a[role="button"]) {
+  min-height: 42px;
+  border-radius: 10px;
+}
+
+.scope :global(input),
+.scope :global(select),
+.scope :global(textarea) {
+  min-height: 42px;
+  border-radius: 10px;
+}
+
+.scope :global(button:focus-visible),
+.scope :global(a:focus-visible),
+.scope :global(input:focus-visible),
+.scope :global(select:focus-visible),
+.scope :global(textarea:focus-visible) {
+  outline: 3px solid rgba(70, 130, 96, .28);
+  outline-offset: 2px;
+}
+
+.scope :global(table) {
+  font-size: 15px;
+}
+
+.scope :global(small) {
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+@media (max-width: 720px) {
+  .scope {
+    font-size: 16px;
+  }
+
+  .scope :global(button),
+  .scope :global(a[role="button"]),
+  .scope :global(input),
+  .scope :global(select) {
+    min-height: 44px;
+  }
+}
