@@ -15,6 +15,7 @@ const standard = fs.readFileSync("docs/LOCAL_FIRST_RELEASE_STANDARD.md", "utf8")
 const cloudflareTrack = fs.readFileSync("docs/CLOUDFLARE_DEPLOYMENT_TRACK.md", "utf8");
 const launcher = fs.readFileSync("scripts/run-local.mjs", "utf8");
 const systemLauncher = fs.readFileSync("scripts/run-local-system.mjs", "utf8");
+const offlineSmoke = fs.readFileSync("scripts/local-offline-smoke.mjs", "utf8");
 const bat = fs.readFileSync("RUN_LOCAL.bat", "utf8");
 const centerOnlyBat = fs.readFileSync("RUN_LOCAL_CENTER_ONLY.bat", "utf8");
 const home = fs.readFileSync("app/page.tsx", "utf8");
@@ -53,6 +54,17 @@ test("full local launcher tolerates sibling repos without npm lockfiles", () => 
   assert.ok(systemLauncher.includes('const useCi = preferCi && hasNpmLockfile(cwd)'));
   assert.ok(systemLauncher.includes('[useCi ? "ci" : "install", "--no-audit", "--no-fund"]'));
   assert.ok(systemLauncher.includes("chưa có npm lockfile; chuyển an toàn từ npm ci sang npm install"));
+});
+
+test("offline smoke exercises signed owner proof and all primary client handshakes", () => {
+  assert.ok(offlineSmoke.includes('const primaryAppIds = ["boi-ech", "health-care", "ru-life", "bauman-master-ai"]'));
+  assert.ok(offlineSmoke.includes('crypto.subtle.generateKey'));
+  assert.ok(offlineSmoke.includes('new TextEncoder().encode(`learning-control:${credential.device.deviceId}:${challenge}`)'));
+  assert.ok(offlineSmoke.includes('crypto.subtle.sign'));
+  assert.ok(offlineSmoke.includes('postJson("/api/operations", { action: "bootstrap", ...proof }'));
+  assert.ok(offlineSmoke.includes('summary.connection !== "connected"'));
+  assert.ok(offlineSmoke.includes('Central control handshake'));
+  assert.equal(offlineSmoke.includes("--mode=hybrid") && offlineSmoke.includes("không cho phép hybrid/remote fallback"), true);
 });
 
 test("Windows launchers invoke npm and npx through cmd.exe for Node 24 compatibility", () => {
