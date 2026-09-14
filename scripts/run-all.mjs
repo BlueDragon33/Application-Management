@@ -152,38 +152,43 @@ async function main() {
     }
   });
 
-  await waitFor(`${GROWUP_CONTROL_ORIGIN}/health`);
-  console.log(`[RUN-ALL] GrowUP Control sẵn sàng · ${GROWUP_CONTROL_ORIGIN}`);
+  try {
+    await waitFor(`${GROWUP_CONTROL_ORIGIN}/health`);
+    console.log(`[RUN-ALL] GrowUP Control sẵn sàng · ${GROWUP_CONTROL_ORIGIN}`);
 
-  growUpServer = await startGrowUpServer(growUpRoot);
-  await verifyGrowUpContract();
-  console.log(`[RUN-ALL] GrowUP Runtime sẵn sàng · ${GROWUP_ORIGIN}`);
+    growUpServer = await startGrowUpServer(growUpRoot);
+    await verifyGrowUpContract();
+    console.log(`[RUN-ALL] GrowUP Runtime sẵn sàng · ${GROWUP_ORIGIN}`);
 
-  centralChild = spawn(process.execPath, [join(scriptDir, "run-local-system.mjs"), ...forwarded], {
-    cwd: centralRoot,
-    env: {
-      ...process.env,
-      GROWUP_BASE_URL: GROWUP_ORIGIN,
-      GROWUP_CONTROL_LOCAL_BASE_URL: GROWUP_CONTROL_ORIGIN,
-      GROWUP_CONTROL_SERVICE_SECRET: growUpSecret,
-    },
-    stdio: "inherit",
-    shell: false,
-  });
-
-  centralChild.on("error", (error) => {
-    console.error(`[RUN-ALL] Không khởi động được local control plane: ${error.message}`);
-    close();
-    process.exitCode = 1;
-  });
-  centralChild.on("exit", (code, signal) => {
-    closing = true;
-    kill(controlChild);
-    growUpServer?.close(() => {
-      if (signal) console.log(`[RUN-ALL] Local control plane dừng bởi ${signal}.`);
-      process.exit(code ?? 0);
+    centralChild = spawn(process.execPath, [join(scriptDir, "run-local-system.mjs"), ...forwarded], {
+      cwd: centralRoot,
+      env: {
+        ...process.env,
+        GROWUP_BASE_URL: GROWUP_ORIGIN,
+        GROWUP_CONTROL_LOCAL_BASE_URL: GROWUP_CONTROL_ORIGIN,
+        GROWUP_CONTROL_SERVICE_SECRET: growUpSecret,
+      },
+      stdio: "inherit",
+      shell: false,
     });
-  });
+
+    centralChild.on("error", (error) => {
+      console.error(`[RUN-ALL] Không khởi động được local control plane: ${error.message}`);
+      close();
+      process.exitCode = 1;
+    });
+    centralChild.on("exit", (code, signal) => {
+      closing = true;
+      kill(controlChild);
+      growUpServer?.close(() => {
+        if (signal) console.log(`[RUN-ALL] Local control plane dừng bởi ${signal}.`);
+        process.exit(code ?? 0);
+      });
+    });
+  } catch (error) {
+    close();
+    throw error;
+  }
 }
 
 main().catch((error) => {
