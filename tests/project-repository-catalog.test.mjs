@@ -12,6 +12,7 @@ const projectsPage = source("app/projects/projects-catalog.tsx");
 const liveRoute = source("app/api/projects/repositories/route.ts");
 const repositoryWatch = source("scripts/check-project-repositories.mjs");
 const repositoryWatchWorkflow = source(".github/workflows/project-repository-watch.yml");
+const pkg = JSON.parse(source("package.json"));
 
 const repositories = [
   "BlueDragon33/Application-Management",
@@ -45,6 +46,7 @@ test("technical repositories stay catalogued without fake management contracts",
 test("central dashboard exposes the GitHub project catalog", () => {
   assert.match(quickActions, /window\.location\.assign\("\/projects"\)/);
   assert.match(quickActions, /Dự án GitHub/);
+  assert.match(quickActions, /projectRepositoryCount/);
   assert.match(projectsPage, /projectRepositories/);
   assert.match(projectsPage, /Toàn bộ dự án GitHub/);
 });
@@ -57,6 +59,14 @@ test("project catalog can reconcile registry with live public GitHub repositorie
   assert.match(projectsPage, /Kiểm tra GitHub/);
   assert.match(projectsPage, /Repo mới chưa đưa vào quản lý/);
   assert.match(projectsPage, /Repo đã đăng ký nhưng không còn thấy công khai/);
+});
+
+test("every project card exposes real GitHub code issues and actions surfaces", () => {
+  assert.match(projectsPage, /Code ↗/);
+  assert.match(projectsPage, /Issues ↗/);
+  assert.match(projectsPage, /Actions ↗/);
+  assert.match(projectsPage, /`\$\{repoUrl\}\/issues`/);
+  assert.match(projectsPage, /`\$\{repoUrl\}\/actions`/);
 });
 
 test("verified legacy sources remain visible without inflating repository count", () => {
@@ -80,6 +90,7 @@ test("verified legacy sources remain visible without inflating repository count"
 });
 
 test("scheduled repository watch fails for new unmanaged public repositories", () => {
+  assert.equal(pkg.scripts["projects:check"], "node scripts/check-project-repositories.mjs");
   assert.match(repositoryWatch, /New public repositories are not registered in Application Management/);
   assert.match(repositoryWatch, /process\.exitCode = 1/);
   assert.match(repositoryWatch, /notPubliclyVisible/);
