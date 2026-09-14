@@ -6,13 +6,13 @@ const healthBridge = fs.readFileSync("app/health-care.server.ts", "utf8");
 const originResolver = fs.readFileSync("app/client-origin.server.ts", "utf8");
 const operations = fs.readFileSync("app/api/operations/route.ts", "utf8");
 const registry = fs.readFileSync("app/application-registry.ts", "utf8");
-const hub = fs.readFileSync("app/application-hub.tsx", "utf8");
+const dashboard = fs.readFileSync("app/management-dashboard-v2.tsx", "utf8");
 
 function mustContain(source, snippets) {
   for (const snippet of snippets) assert.ok(source.includes(snippet), `Missing: ${snippet}`);
 }
 
-test("Health bridge verifies management contract v3 with idempotent device commands before issuing tickets", () => {
+test("Health bridge verifies its current management contract with idempotent device commands before issuing tickets", () => {
   mustContain(healthBridge, [
     'const TOKEN_ISSUER = "application-management"',
     'const TOKEN_AUDIENCE = "health-care-control"',
@@ -80,10 +80,11 @@ test("central Health device actions use commandId expectedStatus retry-safe muta
   assert.equal(/delete-spam-device/.test(healthActionBlock), false, "Health must not inherit Boi Ech permanent delete semantics");
 });
 
-test("global auto-approval dialog can safely control Health_Care", () => {
+test("global auto-approval dialog can safely control Health_Care while Bauman remains independently contract-gated", () => {
   mustContain(operations, [
-    'const AUTO_APPROVE_SUPPORTED_APP_IDS = ["boi-ech", "health-care"] as const',
+    'const AUTO_APPROVE_SUPPORTED_APP_IDS = ["boi-ech", "health-care", "bauman-master-ai"] as const',
     'appIds.includes("health-care")',
+    'appIds.includes("bauman-master-ai")',
     '"/api/control/automation"',
     'autoApproveDevices: healthEnabled',
     'rememberAutoApproval(actor.email, "health-care", healthEnabled)',
@@ -112,14 +113,14 @@ test("Health direct web launch uses a purpose-scoped 60 second ticket in local o
   assert.match(operations, /if \(appId !== "health-care"\).*WEB_LAUNCH_CONTRACT_MISSING/);
 });
 
-test("application table opens Health runtime instead of the internal admin route", () => {
-  mustContain(hub, [
+test("application dashboard opens Health runtime instead of the internal admin route", () => {
+  mustContain(dashboard, [
     'launchClientWeb',
     'summary?.webHref',
-    'summary.managedWebLaunch',
+    'summary?.managedWebLaunch',
     'action: "launch-client-web", appId',
     'window.open("about:blank", "_blank")',
     'popup.location.replace(result.launchUrl)',
   ]);
-  assert.equal(/summary\?\.directWebAccess \? <Link href=\{application\.href\} target="_blank"/.test(hub), false, "Direct web access must not point to internal /apps route");
+  assert.equal(/summary\?\.directWebAccess \? <Link href=\{application\.href\} target="_blank"/.test(dashboard), false, "Direct web access must not point to internal /apps route");
 });
