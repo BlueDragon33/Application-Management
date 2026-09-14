@@ -9,6 +9,7 @@ function source(path) {
 const registry = source("app/project-registry.ts");
 const quickActions = source("app/quick-management-actions.tsx");
 const projectsPage = source("app/projects/projects-catalog.tsx");
+const liveRoute = source("app/api/projects/repositories/route.ts");
 
 const repositories = [
   "BlueDragon33/Application-Management",
@@ -44,4 +45,14 @@ test("central dashboard exposes the GitHub project catalog", () => {
   assert.match(quickActions, /Dự án GitHub/);
   assert.match(projectsPage, /projectRepositories/);
   assert.match(projectsPage, /Toàn bộ dự án GitHub/);
+});
+
+test("project catalog can reconcile registry with live public GitHub repositories", () => {
+  assert.match(liveRoute, /api\.github\.com\/users\/\$\{GITHUB_OWNER\}\/repos\?per_page=100&sort=updated/);
+  assert.match(liveRoute, /const unmanaged = repositories\.filter/);
+  assert.match(liveRoute, /notVisiblePublicly/);
+  assert.match(liveRoute, /cache: "no-store"/);
+  assert.match(projectsPage, /Kiểm tra GitHub/);
+  assert.match(projectsPage, /Repo mới chưa đưa vào quản lý/);
+  assert.match(projectsPage, /Repo đã đăng ký nhưng không còn thấy công khai/);
 });
