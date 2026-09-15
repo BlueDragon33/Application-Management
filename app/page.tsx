@@ -2,6 +2,7 @@ import { requireChatGPTUser } from "./chatgpt-auth";
 import ApplicationHub from "./management-dashboard-v2";
 import "./management-dashboard-mobile-overrides.css";
 import "./management-dashboard-ver2-overrides.css";
+import "./management-dashboard-16x9.css";
 import "./quick-management-actions.css";
 import LocalQuickAccess from "./local-quick-access";
 import QuickManagementActions from "./quick-management-actions";
