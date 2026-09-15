@@ -90,10 +90,10 @@ export default function BaumanAdmin({ application, user }: { application: Applic
   const modules = children.filter((item) => item.state === "module").length;
 
   const readiness = useMemo<Readiness[]>(() => [
-    { label: "Runtime Bauman", state: "available", note: "Runtime học tập và Device Gate v4 đã có trong Bauman main; production vẫn phải xác minh origin/deploy riêng." },
+    { label: "Runtime Bauman", state: "available", note: "Runtime học tập và Device Gate đã có trong Bauman main; production vẫn phải xác minh origin/deploy riêng." },
     { label: "Inventory sub-client", state: "available", note: "Math_Bauman + các module môn học vẫn thuộc topology của Bauman Hub." },
     { label: "Device registry BM-", state: liveConnected ? "available" : "implemented", note: liveConnected ? "Registry BM- đang phản hồi qua control-plane." : "Backend BM- đã triển khai nhưng runtime hiện tại chưa xác nhận kết nối live." },
-    { label: "P-256 device gateway", state: liveConnected ? "available" : "implemented", note: liveConnected ? "Gateway thiết bị đang được đọc qua Bauman Control v4." : "Challenge/session P-256 đã triển khai và đã qua local E2E; chưa suy diễn production từ CI." },
+    { label: "P-256 device gateway", state: liveConnected ? "available" : "implemented", note: liveConnected ? "Gateway thiết bị đang được đọc qua Bauman Control." : "Challenge/session P-256 đã triển khai và đã qua local E2E; chưa suy diễn production từ CI." },
     { label: "Duyệt / Khóa thiết bị", state: liveConnected ? "available" : "implemented", note: "Thao tác đi qua commandId + expectedStatus, sau đó đọc lại registry. Khóa giữ registry và thu hồi phiên." },
     { label: "Audit API", state: liveConnected ? "available" : "implemented", note: "Audit thuộc Bauman; Trung tâm không sao chép registry sang database khác." },
     { label: "Content review API", state: "missing", note: "Luồng duyệt/sửa/xuất bản nội dung Bauman chưa có contract độc lập." },
