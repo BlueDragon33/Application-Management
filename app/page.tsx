@@ -5,7 +5,6 @@ import "./management-dashboard-ver2-overrides.css";
 import "./quick-management-actions.css";
 import LocalQuickAccess from "./local-quick-access";
 import QuickManagementActions from "./quick-management-actions";
-import ReleaseLabelCleanup from "./release-label-cleanup";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +14,5 @@ export default async function Home() {
     <ApplicationHub user={{ displayName: user.displayName, email: user.email }} />
     <LocalQuickAccess />
     <QuickManagementActions />
-    <ReleaseLabelCleanup />
   </>;
 }
