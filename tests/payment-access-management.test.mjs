@@ -19,13 +19,13 @@ test("Boi Ech payment/access API is proof-gated and verifies live state", () => 
   assert.match(api, /ACCESS_STATE_CONFLICT/);
   assert.match(api, /readbackMatches\(operation, updated\)/);
   assert.match(api, /ACCESS_READBACK_MISMATCH/);
-  assert.match(api, /\["grant-free", "require-payment", "renew-access"\]/);
+  assert.match(api, /\["grant-free", "require-payment", "renew-access", "verify-payment", "reject-payment"\]/);
 });
 
 test("Boi Ech access transitions do not overwrite submitted proof or renew unassigned accounts", () => {
   assert.match(api, /operation === "require-payment" && \(currentAccessGroup !== "unassigned" \|\| currentPaymentStatus !== "unassigned"\)/);
   assert.match(api, /operation === "renew-access" && currentAccessGroup === "unassigned"/);
-  assert.match(api, /operation === "grant-free" && currentPaymentStatus === "paid_verified"/);
+  assert.match(api, /operation === "grant-free" && \["proof_submitted", "paid_verified"\]\.includes\(currentPaymentStatus\)/);
   assert.match(view, /device\.accessGroup === "unassigned" && device\.paymentStatus === "unassigned"/);
   assert.match(view, /device\.paymentStatus !== "proof_submitted"/);
   assert.match(view, /device\.accessGroup !== "unassigned"/);
@@ -43,8 +43,10 @@ test("payment client signs requests with the approved QT device", () => {
 test("central access UI uses real Boi states and does not blindly verify payment", () => {
   assert.match(view, /paymentStatus/);
   assert.match(view, /Có ảnh chờ xác minh/);
-  assert.match(view, /Đối chiếu ảnh/);
-  assert.match(view, /không cho xác minh chuyển khoản chỉ dựa vào trạng thái/);
+  assert.match(view, /đối chiếu nội dung ảnh\/giao dịch trước khi xác minh/i);
+  assert.match(view, /Nút xác minh\/từ chối chỉ xuất hiện sau khi ảnh đã được mở/);
+  assert.match(view, /loadBoiPaymentProof\(device\)/);
+  assert.match(view, /reviewProof\("verify-payment"\)/);
   assert.doesNotMatch(view, /manageBoiAccess\(device, "verify-payment"\)/);
   assert.match(view, /Không có mô hình thanh toán chung được Trung tâm tự suy diễn/);
   assert.match(dashboard, /<AccessManagement query=\{normalizedSearch\}\/>/);
