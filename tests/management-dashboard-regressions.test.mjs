@@ -16,6 +16,19 @@ test("reference dashboard keeps all nine management sections reachable on mobile
   assert.match(mobile, /span:nth-child\(2\)[\s\S]*display:\s*block/);
 });
 
+test("desktop dashboard is constrained to a centered 16:9 laptop frame", () => {
+  const page = source("app/page.tsx");
+  const laptop = source("app/management-dashboard-16x9.css");
+  assert.match(page, /management-dashboard-16x9\.css/);
+  assert.match(laptop, /min-aspect-ratio:\s*16\s*\/\s*10/);
+  assert.match(laptop, /--qt-dashboard-inline-size:[\s\S]*1\.7777778[\s\S]*1240px/);
+  assert.match(laptop, /height:\s*100svh/);
+  assert.match(laptop, /overflow-x:\s*hidden/);
+  assert.match(laptop, /grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(laptop, /max-height:\s*158px/);
+  assert.match(laptop, /scrollbar-gutter:\s*stable/);
+});
+
 test("central queue does not double count device-derived work items", () => {
   const dashboard = source("app/management-dashboard.tsx");
   assert.match(dashboard, /deviceWorkItemIds/);
