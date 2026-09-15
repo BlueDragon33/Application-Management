@@ -11,6 +11,7 @@ import {
   type BoiAccessDevice,
   type BoiAccessOperation,
 } from "./boi-access-client";
+import proofStyles from "./access-management.module.css";
 import styles from "./management-dashboard.module.css";
 
 const paymentLabels: Record<BoiAccessDevice["paymentStatus"], string> = {
@@ -41,7 +42,7 @@ function tone(device: BoiAccessDevice) {
 
 type ProofViewer = { device: BoiAccessDevice; url: string };
 
-export default function AccessManagement({ query = "", role = "reviewer" }: { query?: string; role?: string }) {
+export default function AccessManagement({ query = "" }: { query?: string }) {
   const [data, setData] = useState<BoiAccessBootstrap | null>(null);
   const [busy, setBusy] = useState(true);
   const [actionBusy, setActionBusy] = useState("");
@@ -50,7 +51,7 @@ export default function AccessManagement({ query = "", role = "reviewer" }: { qu
   const [rejectNote, setRejectNote] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const canReviewPayment = role === "publisher" || role === "owner";
+  const canReviewPayment = data?.role === "publisher" || data?.role === "owner";
 
   async function refresh() {
     setBusy(true);
@@ -209,14 +210,14 @@ export default function AccessManagement({ query = "", role = "reviewer" }: { qu
       </article>)}
     </div>
 
-    {proof ? <div className={styles.proofBackdrop} role="presentation" onMouseDown={() => setProof(null)}>
-      <section className={styles.proofDialog} role="dialog" aria-modal="true" aria-labelledby="payment-proof-title" onMouseDown={(event) => event.stopPropagation()}>
+    {proof ? <div className={proofStyles.proofBackdrop} role="presentation" onMouseDown={() => setProof(null)}>
+      <section className={proofStyles.proofDialog} role="dialog" aria-modal="true" aria-labelledby="payment-proof-title" onMouseDown={(event) => event.stopPropagation()}>
         <header><div><h2 id="payment-proof-title">Chứng từ thanh toán</h2><p>{proof.device.learnerName} · {proof.device.deviceCode}</p></div><button type="button" onClick={() => setProof(null)} aria-label="Đóng">×</button></header>
-        <div className={styles.proofMeta}><span>Số tiền <strong>{proof.device.paymentAmount.toLocaleString("vi-VN")}đ</strong></span><span>Gửi lúc <strong>{formatDate(proof.device.paymentSubmittedAt)}</strong></span></div>
-        <div className={styles.proofImageWrap}><img src={proof.url} alt={`Chứng từ thanh toán của ${proof.device.learnerName}`} /></div>
+        <div className={proofStyles.proofMeta}><span>Số tiền <strong>{proof.device.paymentAmount.toLocaleString("vi-VN")}đ</strong></span><span>Gửi lúc <strong>{formatDate(proof.device.paymentSubmittedAt)}</strong></span></div>
+        <div className={proofStyles.proofImageWrap}><img src={proof.url} alt={`Chứng từ thanh toán của ${proof.device.learnerName}`} /></div>
         <p className={styles.boundaryNote}>Ảnh này chỉ là Blob URL tạm thời trong trình duyệt và sẽ được thu hồi khi đóng cửa sổ. Hãy đối chiếu nội dung ảnh/giao dịch trước khi xác minh.</p>
-        <label className={styles.proofRejectNote}>Lý do nếu từ chối<textarea value={rejectNote} onChange={(event) => setRejectNote(event.target.value.slice(0, 500))} placeholder="Ví dụ: Số tiền/nội dung chuyển khoản chưa đúng hoặc ảnh chưa đủ thông tin." maxLength={500}/><small>{rejectNote.trim().length}/500 · tối thiểu 5 ký tự khi từ chối</small></label>
-        <footer><Link href="/apps/boi-ech">Mở quản trị Bơi ếch</Link><button type="button" className={styles.rejectProofButton} disabled={actionBusy === proof.device.deviceId || rejectNote.trim().length < 5} onClick={() => void reviewProof("reject-payment")}>Từ chối chứng từ</button><button type="button" className={styles.verifyProofButton} disabled={actionBusy === proof.device.deviceId} onClick={() => void reviewProof("verify-payment")}>{actionBusy === proof.device.deviceId ? "Đang xử lý…" : "Xác minh thanh toán"}</button></footer>
+        <label className={proofStyles.proofRejectNote}>Lý do nếu từ chối<textarea value={rejectNote} onChange={(event) => setRejectNote(event.target.value.slice(0, 500))} placeholder="Ví dụ: Số tiền/nội dung chuyển khoản chưa đúng hoặc ảnh chưa đủ thông tin." maxLength={500}/><small>{rejectNote.trim().length}/500 · tối thiểu 5 ký tự khi từ chối</small></label>
+        <footer><Link href="/apps/boi-ech">Mở quản trị Bơi ếch</Link><button type="button" className={proofStyles.rejectProofButton} disabled={actionBusy === proof.device.deviceId || rejectNote.trim().length < 5} onClick={() => void reviewProof("reject-payment")}>Từ chối chứng từ</button><button type="button" className={proofStyles.verifyProofButton} disabled={actionBusy === proof.device.deviceId} onClick={() => void reviewProof("verify-payment")}>{actionBusy === proof.device.deviceId ? "Đang xử lý…" : "Xác minh thanh toán"}</button></footer>
       </section>
     </div> : null}
   </section>;
