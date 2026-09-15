@@ -342,6 +342,24 @@ export async function connectOperationsDashboard() {
 export async function operationsAction(body: Record<string, unknown>) {
   const { credential, access } = await approvedSession();
   if (access.status !== "approved") throw new AdminApiError("Thiết bị quản trị chưa được cấp quyền.", { device: access });
+
+  if (body.action === "manage-client-device" && body.appId === "growup-mychildren") {
+    const operation = body.operation === "approve" ? "approve" : body.operation === "remove" ? "block" : "";
+    if (!operation) throw new AdminApiError("Thao tác thiết bị GrowUP không hợp lệ.", { code: "INVALID_OPERATION" });
+    const result = await secureApi("/api/apps/growup-mychildren/control", credential, access, {
+      action: "manage-device",
+      operation,
+      deviceId: body.deviceId,
+      expectedStatus: body.expectedStatus,
+      registryInstanceId: body.registryInstanceId,
+    });
+    const deviceId = typeof body.deviceId === "string" ? body.deviceId : "";
+    return {
+      ...result,
+      ...(operation === "approve" ? { approvedDeviceId: deviceId } : { removedDeviceId: deviceId }),
+    } as OperationsActionResponse;
+  }
+
   return await secureApi("/api/operations", credential, access, body) as OperationsActionResponse;
 }
 
