@@ -81,6 +81,22 @@ async function requestJson(path, body, cancelSignal, timeoutMs = 20_000) {
   return payload;
 }
 
+async function signedControlBody(deviceId, keyPair, body, cancelSignal) {
+  const challengePayload = await requestJson("/api/device", { action: "challenge", deviceId }, cancelSignal);
+  const challenge = challengePayload?.challenge;
+  if (typeof challenge !== "string" || !/^[A-Za-z0-9_-]{40,100}$/.test(challenge)) {
+    throw new Error("Challenge quản trị local không hợp lệ.");
+  }
+  const message = new TextEncoder().encode(`learning-control:${deviceId}:${challenge}`);
+  const signed = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, keyPair.privateKey, message);
+  return {
+    ...body,
+    deviceId,
+    challenge,
+    signature: Buffer.from(signed).toString("base64url"),
+  };
+}
+
 async function assertCentralUi(cancelSignal) {
   const response = await fetch(`${centralOrigin}/`, {
     redirect: "manual",
@@ -114,21 +130,12 @@ async function assertAuthenticatedOperations(cancelSignal) {
     throw new Error(`Thiết bị smoke local phải là Owner approved, nhận ${device.status ?? "unknown"}/${device.role ?? "unknown"}.`);
   }
 
-  const challengePayload = await requestJson("/api/device", { action: "challenge", deviceId: device.deviceId }, cancelSignal);
-  const challenge = challengePayload?.challenge;
-  if (typeof challenge !== "string" || !/^[A-Za-z0-9_-]{40,100}$/.test(challenge)) {
-    throw new Error("Challenge quản trị local không hợp lệ.");
-  }
-
-  const message = new TextEncoder().encode(`learning-control:${device.deviceId}:${challenge}`);
-  const signed = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, keyPair.privateKey, message);
-  const signature = Buffer.from(signed).toString("base64url");
-  const bootstrap = await requestJson("/api/operations", {
-    action: "bootstrap",
-    deviceId: device.deviceId,
-    challenge,
-    signature,
-  }, cancelSignal, 35_000);
+  const bootstrap = await requestJson(
+    "/api/operations",
+    await signedControlBody(device.deviceId, keyPair, { action: "bootstrap" }, cancelSignal),
+    cancelSignal,
+    35_000,
+  );
 
   if (!Array.isArray(bootstrap?.summaries)) throw new Error("Operations bootstrap không trả danh sách ứng dụng.");
   const summaryById = new Map(bootstrap.summaries.map((item) => [item?.appId, item]));
@@ -144,6 +151,20 @@ async function assertAuthenticatedOperations(cancelSignal) {
   }
 
   console.log(`[offline-smoke] PASS Authenticated operations bridge · ${expectedManagedApps.length}/5 ứng dụng connected`);
+
+  const boiAccess = await requestJson(
+    "/api/apps/boi-ech/access",
+    await signedControlBody(device.deviceId, keyPair, { action: "bootstrap" }, cancelSignal),
+    cancelSignal,
+    35_000,
+  );
+  if (boiAccess?.application !== "boi-ech" || !Array.isArray(boiAccess?.devices)) {
+    throw new Error("Thanh toán & Quyền Bơi ếch không trả bootstrap registry hợp lệ.");
+  }
+  if (!boiAccess.counts || typeof boiAccess.counts !== "object" || boiAccess.counts.total !== boiAccess.devices.length) {
+    throw new Error("Thanh toán & Quyền Bơi ếch trả tổng hợp không khớp registry thiết bị.");
+  }
+  console.log(`[offline-smoke] PASS Thanh toán & Quyền Bơi ếch · signed bootstrap · ${boiAccess.devices.length} thiết bị`);
 }
 
 function stop(child) {
@@ -184,7 +205,7 @@ async function main() {
       })(),
       earlyExit,
     ]);
-    console.log("\n[offline-smoke] PASS · Full local stack và authenticated operations bridge hoạt động trên 127.0.0.1:3000–3007, không publish.");
+    console.log("\n[offline-smoke] PASS · Full local stack, authenticated operations bridge và quản trị quyền hoạt động trên 127.0.0.1:3000–3007, không publish.");
   } finally {
     cancel.abort();
     stop(child);
