@@ -31,6 +31,15 @@ const expectedManagedApps = [
   "growup-mychildren",
 ];
 
+const forbiddenRenderedLabels = [
+  "Quản trị Ứng dụng Ver2",
+  "Kiểm soát Ver2",
+  "v2.0",
+  "device control v4",
+  "Bauman Control v4",
+  "Device Gate v4",
+];
+
 function wait(ms) {
   return new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
 }
@@ -81,6 +90,11 @@ async function assertCentralUi(cancelSignal) {
   const html = await response.text();
   if (!html.includes("Quản trị Ứng dụng")) {
     throw new Error("Trang local đã chạy nhưng không render tiêu đề Quản trị Ứng dụng.");
+  }
+  for (const label of forbiddenRenderedLabels) {
+    if (html.includes(label)) {
+      throw new Error(`Trang local không được render nhãn phiên bản/phát hành ${JSON.stringify(label)}.`);
+    }
   }
 }
 
@@ -165,7 +179,7 @@ async function main() {
           console.log(`[offline-smoke] PASS ${name} · HTTP ${response.status}`);
         }
         await assertCentralUi(cancel.signal);
-        console.log("[offline-smoke] PASS Application Management render · Quản trị Ứng dụng");
+        console.log("[offline-smoke] PASS Application Management render · Quản trị Ứng dụng · không nhãn phiên bản phát hành");
         await assertAuthenticatedOperations(cancel.signal);
       })(),
       earlyExit,
