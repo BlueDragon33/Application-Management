@@ -367,7 +367,7 @@ async function main() {
   console.log(" Hòa nhập Nga    : http://127.0.0.1:3002");
   console.log(" Bauman Control  : http://127.0.0.1:3003 · D1 bauman-control-local");
   console.log(" Bơi ếch         : http://127.0.0.1:3004");
-  console.log(` Bauman Runtime  : ${baumanRuntimeOrigin} · Device Gate v4`);
+  console.log(` Bauman Runtime  : ${baumanRuntimeOrigin} · Device Gate`);
   console.log("---------------------------------------------------------------");
   console.log(" D1 local nằm trong .wrangler của từng repo và KHÔNG phải D1 production.");
   console.log(" Secret liên-app chỉ tồn tại trong process hiện tại, không ghi vào GitHub.");
