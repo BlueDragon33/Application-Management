@@ -125,6 +125,7 @@ export default function BaumanAdmin({ application, user }: { application: Applic
         deviceCode: device.deviceCode,
         operation,
         expectedStatus: device.status,
+        registryInstanceId: device.registryInstanceId ?? undefined,
         commandId: crypto.randomUUID(),
       });
       const refreshed = await connectOperationsDashboard();
