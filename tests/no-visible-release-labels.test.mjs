@@ -13,6 +13,8 @@ const visibleSources = [
   "app/access-management.tsx",
   "app/projects/projects-catalog.tsx",
   "app/api/operations/route.ts",
+  "scripts/run-local-system.mjs",
+  "scripts/run-all.mjs",
 ];
 
 const forbiddenVisibleLabels = [
