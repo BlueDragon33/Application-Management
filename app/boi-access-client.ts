@@ -30,6 +30,7 @@ export type BoiAccessDevice = {
 export type BoiAccessBootstrap = {
   ok: true;
   application: "boi-ech";
+  role: AdminAccess["role"];
   devices: BoiAccessDevice[];
   counts: {
     total: number;
@@ -97,8 +98,8 @@ async function approvedSession() {
   return session;
 }
 
-async function call(body: Record<string, unknown>) {
-  const session = await approvedSession();
+async function call(body: Record<string, unknown>, sessionOverride?: Awaited<ReturnType<typeof approvedSession>>) {
+  const session = sessionOverride ?? await approvedSession();
   const response = await fetch("/api/apps/boi-ech/access", {
     method: "POST",
     credentials: "same-origin",
@@ -112,7 +113,9 @@ async function call(body: Record<string, unknown>) {
 }
 
 export async function connectBoiAccessManagement() {
-  return await call({ action: "bootstrap" }) as unknown as BoiAccessBootstrap;
+  const session = await approvedSession();
+  const payload = await call({ action: "bootstrap" }, session) as unknown as Omit<BoiAccessBootstrap, "role">;
+  return { ...payload, role: session.access.role } as BoiAccessBootstrap;
 }
 
 export async function loadBoiPaymentProof(device: BoiAccessDevice) {
