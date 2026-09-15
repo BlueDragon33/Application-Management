@@ -43,6 +43,7 @@ export type BoiAccessBootstrap = {
   generatedAt: string;
 };
 
+export type BoiAccessOperation = "grant-free" | "require-payment" | "renew-access" | "verify-payment" | "reject-payment";
 type ErrorPayload = { error?: string; code?: string; [key: string]: unknown };
 
 function base64Url(bytes: Uint8Array) {
@@ -90,9 +91,14 @@ async function proof(access: AdminAccess) {
   return { deviceId: access.deviceId, challenge: nonce, signature: base64Url(new Uint8Array(signature)) };
 }
 
-async function call(body: Record<string, unknown>) {
+async function approvedSession() {
   const session = await connectAdminCenter();
   if (session.access.status !== "approved") throw new Error("Thiết bị quản trị chưa được cấp quyền.");
+  return session;
+}
+
+async function call(body: Record<string, unknown>) {
+  const session = await approvedSession();
   const response = await fetch("/api/apps/boi-ech/access", {
     method: "POST",
     credentials: "same-origin",
@@ -109,12 +115,31 @@ export async function connectBoiAccessManagement() {
   return await call({ action: "bootstrap" }) as unknown as BoiAccessBootstrap;
 }
 
-export async function manageBoiAccess(device: BoiAccessDevice, operation: "grant-free" | "require-payment" | "renew-access") {
+export async function loadBoiPaymentProof(device: BoiAccessDevice) {
+  const session = await approvedSession();
+  const response = await fetch("/api/apps/boi-ech/access", {
+    method: "POST",
+    credentials: "same-origin",
+    cache: "no-store",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ action: "payment-proof", deviceId: device.deviceId, ...await proof(session.access) }),
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({})) as ErrorPayload;
+    throw new Error(payload.error || "Không thể tải chứng từ thanh toán Bơi ếch.");
+  }
+  const contentType = (response.headers.get("content-type") ?? "").split(";", 1)[0].trim().toLowerCase();
+  if (!["image/jpeg", "image/png", "image/webp"].includes(contentType)) throw new Error("Chứng từ thanh toán không có định dạng ảnh hợp lệ.");
+  return await response.blob();
+}
+
+export async function manageBoiAccess(device: BoiAccessDevice, operation: BoiAccessOperation, note = "") {
   return await call({
     action: "manage-access",
     operation,
     deviceId: device.deviceId,
     expectedPaymentStatus: device.paymentStatus,
     expectedAccessGroup: device.accessGroup,
+    ...(operation === "reject-payment" ? { note: note.trim().slice(0, 500) } : {}),
   });
 }
