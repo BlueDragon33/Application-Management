@@ -5,9 +5,11 @@ import { useEffect, useMemo, useState } from "react";
 import { applicationRegistry } from "./application-registry";
 import {
   connectBoiAccessManagement,
+  loadBoiPaymentProof,
   manageBoiAccess,
   type BoiAccessBootstrap,
   type BoiAccessDevice,
+  type BoiAccessOperation,
 } from "./boi-access-client";
 import styles from "./management-dashboard.module.css";
 
@@ -37,12 +39,18 @@ function tone(device: BoiAccessDevice) {
   return device.status;
 }
 
-export default function AccessManagement({ query = "" }: { query?: string }) {
+type ProofViewer = { device: BoiAccessDevice; url: string };
+
+export default function AccessManagement({ query = "", role = "reviewer" }: { query?: string; role?: string }) {
   const [data, setData] = useState<BoiAccessBootstrap | null>(null);
   const [busy, setBusy] = useState(true);
   const [actionBusy, setActionBusy] = useState("");
+  const [proofBusy, setProofBusy] = useState("");
+  const [proof, setProof] = useState<ProofViewer | null>(null);
+  const [rejectNote, setRejectNote] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const canReviewPayment = role === "publisher" || role === "owner";
 
   async function refresh() {
     setBusy(true);
@@ -64,13 +72,18 @@ export default function AccessManagement({ query = "" }: { query?: string }) {
     return () => window.clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    const url = proof?.url;
+    return () => { if (url) URL.revokeObjectURL(url); };
+  }, [proof?.url]);
+
   const normalized = query.trim().toLowerCase();
   const devices = useMemo(() => (data?.devices ?? []).filter((device) => {
     if (!normalized) return true;
     return `${device.learnerName} ${device.personCode ?? ""} ${device.deviceCode} ${paymentLabels[device.paymentStatus]} ${accessLabels[device.accessGroup]}`.toLowerCase().includes(normalized);
   }), [data?.devices, normalized]);
 
-  async function manage(device: BoiAccessDevice, operation: "grant-free" | "require-payment" | "renew-access") {
+  async function manage(device: BoiAccessDevice, operation: Extract<BoiAccessOperation, "grant-free" | "require-payment" | "renew-access">) {
     const description = operation === "grant-free" ? "mở tài khoản miễn phí" : operation === "require-payment" ? "gửi yêu cầu thanh toán" : "gia hạn quyền truy cập";
     if (!window.confirm(`Xác nhận ${description} cho ${device.learnerName || device.deviceCode}?`)) return;
     setActionBusy(device.deviceId);
@@ -82,6 +95,56 @@ export default function AccessManagement({ query = "" }: { query?: string }) {
       setNotice(synced ? `Đã ${description} và đọc lại trạng thái từ Bơi ếch.` : `Backend đã ${description}, nhưng Trung tâm chưa đọc lại được trạng thái.`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Không thể cập nhật thanh toán/quyền.");
+      await refresh();
+    } finally {
+      setActionBusy("");
+    }
+  }
+
+  async function openProof(device: BoiAccessDevice) {
+    if (!canReviewPayment) {
+      setError("Chỉ Publisher/Owner mới được xem và xử lý chứng từ thanh toán.");
+      return;
+    }
+    setProofBusy(device.deviceId);
+    setNotice("");
+    setError("");
+    try {
+      const blob = await loadBoiPaymentProof(device);
+      setRejectNote("");
+      setProof({ device, url: URL.createObjectURL(blob) });
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Không thể tải chứng từ thanh toán.");
+      await refresh();
+    } finally {
+      setProofBusy("");
+    }
+  }
+
+  async function reviewProof(operation: "verify-payment" | "reject-payment") {
+    if (!proof) return;
+    const device = proof.device;
+    const note = rejectNote.trim();
+    if (operation === "reject-payment" && note.length < 5) {
+      setError("Hãy nhập lý do từ chối ít nhất 5 ký tự để người học biết cần sửa gì.");
+      return;
+    }
+    const message = operation === "verify-payment"
+      ? `Xác nhận chứng từ của ${device.learnerName || device.deviceCode} là hợp lệ và cấp quyền trả phí?`
+      : `Từ chối chứng từ của ${device.learnerName || device.deviceCode}? Ảnh hiện tại sẽ bị xóa khỏi kho và người học phải gửi lại.`;
+    if (!window.confirm(message)) return;
+    setActionBusy(device.deviceId);
+    setError("");
+    setNotice("");
+    try {
+      await manageBoiAccess(device, operation, note);
+      setProof(null);
+      setRejectNote("");
+      const synced = await refresh();
+      const description = operation === "verify-payment" ? "xác minh thanh toán" : "từ chối chứng từ";
+      setNotice(synced ? `Đã ${description} và đọc lại trạng thái từ Bơi ếch.` : `Backend đã ${description}, nhưng Trung tâm chưa đọc lại được trạng thái.`);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Không thể xử lý chứng từ thanh toán.");
       await refresh();
     } finally {
       setActionBusy("");
@@ -101,18 +164,18 @@ export default function AccessManagement({ query = "" }: { query?: string }) {
     {notice ? <div className={styles.notice}>{notice}</div> : null}
 
     <div className={styles.accessGrid}>
-      <article className={styles.accessCard}><h4>Tài khoản trả phí</h4><strong>{counts?.paid ?? "—"}</strong><p>Đã xác minh và đang thuộc nhóm trả phí.</p></article>
+      <article className={styles.accessCard}><h4>Tài khoản trả phí</h4><strong>{counts?.paid ?? "—"}</strong><p>Thuộc nhóm trả phí; trạng thái xác minh được đọc trực tiếp từ Bơi ếch.</p></article>
       <article className={styles.accessCard}><h4>Tài khoản miễn phí</h4><strong>{counts?.free ?? "—"}</strong><p>Được quản trị viên cấp quyền miễn phí.</p></article>
-      <article className={styles.accessCard}><h4>Ảnh chờ xác minh</h4><strong>{counts?.proofSubmitted ?? "—"}</strong><p>Phải đối chiếu ảnh/giao dịch trong khu quản trị Bơi ếch trước khi xác minh.</p></article>
+      <article className={styles.accessCard}><h4>Ảnh chờ xác minh</h4><strong>{counts?.proofSubmitted ?? "—"}</strong><p>Publisher/Owner có thể xem ảnh tạm thời và xử lý ngay tại Trung tâm.</p></article>
       <article className={styles.accessCard}><h4>Sắp/đã hết hạn</h4><strong>{counts ? counts.expired + counts.expiringSoon : "—"}</strong><p>{counts ? `${counts.expired} đã hết hạn · ${counts.expiringSoon} sắp hết hạn` : "Chưa có dữ liệu"}</p></article>
     </div>
 
-    <p className={styles.boundaryNote}>Trung tâm không cho xác minh chuyển khoản chỉ dựa vào trạng thái. Khi có ảnh chứng từ, hãy mở “Đối chiếu ảnh” để xem ảnh trong Bơi ếch rồi mới xác minh tại client.</p>
+    <p className={styles.boundaryNote}>Chứng từ chỉ được tải theo yêu cầu qua kết nối đã ký, không lưu vào dữ liệu Trung tâm và không cache. Nút xác minh/từ chối chỉ xuất hiện sau khi ảnh đã được mở; từ chối sẽ xóa ảnh cũ ở Bơi ếch và yêu cầu người học gửi lại.</p>
 
     <div className={styles.deviceTable}>
       <div className={styles.tableHead}><span>Thiết bị</span><span>Người học</span><span>Thanh toán</span><span>Quyền</span><span>Thời hạn</span><span>Thao tác</span></div>
       {devices.map((device) => {
-        const rowBusy = actionBusy === device.deviceId;
+        const rowBusy = actionBusy === device.deviceId || proofBusy === device.deviceId;
         const canGrantFree = device.registrationComplete && device.paymentStatus !== "paid_verified" && device.paymentStatus !== "proof_submitted" && device.accessGroup !== "free";
         const canRequirePayment = device.registrationComplete && device.accessGroup === "unassigned" && device.paymentStatus === "unassigned";
         const canRenew = device.registrationComplete && device.status !== "blocked" && device.accessGroup !== "unassigned" && (device.accessExpired || device.accessExpiringSoon || Boolean(device.accessExpiresAt));
@@ -126,7 +189,9 @@ export default function AccessManagement({ query = "" }: { query?: string }) {
             {canGrantFree ? <button disabled={rowBusy} onClick={() => void manage(device, "grant-free")}>Miễn phí</button> : null}
             {canRequirePayment ? <button disabled={rowBusy} onClick={() => void manage(device, "require-payment")}>Yêu cầu trả phí</button> : null}
             {canRenew ? <button disabled={rowBusy} onClick={() => void manage(device, "renew-access")}>Gia hạn</button> : null}
-            {device.paymentStatus === "proof_submitted" ? <Link href="/apps/boi-ech">Đối chiếu ảnh →</Link> : <Link href="/apps/boi-ech">Quản trị</Link>}
+            {device.paymentStatus === "proof_submitted" && canReviewPayment ? <button disabled={rowBusy} onClick={() => void openProof(device)}>{proofBusy === device.deviceId ? "Đang tải ảnh…" : "Xem chứng từ"}</button> : null}
+            {device.paymentStatus === "proof_submitted" && !canReviewPayment ? <span className={styles.protected}>Cần Publisher/Owner</span> : null}
+            <Link href="/apps/boi-ech">Quản trị</Link>
           </div>
         </div>;
       })}
@@ -143,5 +208,16 @@ export default function AccessManagement({ query = "" }: { query?: string }) {
         <div className={styles.cardActions}><Link href={application.href} className={styles.primaryAction}>Quản trị</Link>{application.publicUrl ? <a href={application.publicUrl} target="_blank" rel="noreferrer">Truy cập web ↗</a> : null}</div>
       </article>)}
     </div>
+
+    {proof ? <div className={styles.proofBackdrop} role="presentation" onMouseDown={() => setProof(null)}>
+      <section className={styles.proofDialog} role="dialog" aria-modal="true" aria-labelledby="payment-proof-title" onMouseDown={(event) => event.stopPropagation()}>
+        <header><div><h2 id="payment-proof-title">Chứng từ thanh toán</h2><p>{proof.device.learnerName} · {proof.device.deviceCode}</p></div><button type="button" onClick={() => setProof(null)} aria-label="Đóng">×</button></header>
+        <div className={styles.proofMeta}><span>Số tiền <strong>{proof.device.paymentAmount.toLocaleString("vi-VN")}đ</strong></span><span>Gửi lúc <strong>{formatDate(proof.device.paymentSubmittedAt)}</strong></span></div>
+        <div className={styles.proofImageWrap}><img src={proof.url} alt={`Chứng từ thanh toán của ${proof.device.learnerName}`} /></div>
+        <p className={styles.boundaryNote}>Ảnh này chỉ là Blob URL tạm thời trong trình duyệt và sẽ được thu hồi khi đóng cửa sổ. Hãy đối chiếu nội dung ảnh/giao dịch trước khi xác minh.</p>
+        <label className={styles.proofRejectNote}>Lý do nếu từ chối<textarea value={rejectNote} onChange={(event) => setRejectNote(event.target.value.slice(0, 500))} placeholder="Ví dụ: Số tiền/nội dung chuyển khoản chưa đúng hoặc ảnh chưa đủ thông tin." maxLength={500}/><small>{rejectNote.trim().length}/500 · tối thiểu 5 ký tự khi từ chối</small></label>
+        <footer><Link href="/apps/boi-ech">Mở quản trị Bơi ếch</Link><button type="button" className={styles.rejectProofButton} disabled={actionBusy === proof.device.deviceId || rejectNote.trim().length < 5} onClick={() => void reviewProof("reject-payment")}>Từ chối chứng từ</button><button type="button" className={styles.verifyProofButton} disabled={actionBusy === proof.device.deviceId} onClick={() => void reviewProof("verify-payment")}>{actionBusy === proof.device.deviceId ? "Đang xử lý…" : "Xác minh thanh toán"}</button></footer>
+      </section>
+    </div> : null}
   </section>;
 }
