@@ -1,0 +1,36 @@
+/* Ver2 feature-restoration overrides. Keep these global so both CSS-module shells can share the controls. */
+header:has(> button[aria-label="Mở yêu cầu chờ duyệt"]) {
+  grid-template-columns: minmax(215px, 300px) minmax(260px, 1fr) auto auto auto auto !important;
+}
+
+/* GrowUP is a first-class app and receives a distinct marker when rendered by the light dashboard. */
+[data-app="growup-mychildren"] {
+  --qt-app-accent: #8a741b;
+}
+
+/* Readability floor: user chose 16px as the default; tiny legacy helper text must not fall below a useful size. */
+main button,
+main input,
+main select,
+main textarea {
+  font-size: max(.82em, 13px);
+}
+
+@media (max-width: 1120px) {
+  header:has(> button[aria-label="Mở yêu cầu chờ duyệt"]) {
+    grid-template-columns: auto minmax(180px, 1fr) auto auto auto !important;
+  }
+  header:has(> button[aria-label="Mở yêu cầu chờ duyệt"]) > :first-child {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  header:has(> button[aria-label="Mở yêu cầu chờ duyệt"]) {
+    grid-template-columns: minmax(0,1fr) auto auto !important;
+  }
+  header:has(> button[aria-label="Mở yêu cầu chờ duyệt"]) > span,
+  header:has(> button[aria-label="Mở yêu cầu chờ duyệt"]) > button:not([aria-label="Mở yêu cầu chờ duyệt"]):not(:has(span)) {
+    display: none;
+  }
+}

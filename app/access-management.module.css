@@ -1,0 +1,128 @@
+.proofBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(8, 29, 56, .58);
+  backdrop-filter: blur(5px);
+}
+
+.proofDialog {
+  width: min(760px, 100%);
+  max-height: min(92vh, 900px);
+  overflow: auto;
+  padding: 18px;
+  border: 1px solid #cfdeed;
+  border-radius: 16px;
+  background: #fff;
+  color: #17395f;
+  box-shadow: 0 24px 70px rgba(5, 30, 62, .28);
+}
+
+.proofDialog > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.proofDialog h2 { margin: 0 0 4px; font-size: 18px; }
+.proofDialog header p { margin: 0; color: #73879b; font-size: 11px; }
+.proofDialog header > button {
+  width: 34px;
+  height: 34px;
+  border: 1px solid #d6e1ec;
+  border-radius: 9px;
+  background: #f7faff;
+  color: #526a83;
+  font: inherit;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.proofMeta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.proofMeta span {
+  padding: 9px 11px;
+  border: 1px solid #e0e8f0;
+  border-radius: 9px;
+  background: #f8fbfe;
+  color: #718499;
+  font-size: 10px;
+}
+
+.proofMeta strong { display: block; margin-top: 3px; color: #254a71; font-size: 12px; }
+.proofImageWrap {
+  display: grid;
+  place-items: center;
+  min-height: 260px;
+  max-height: 52vh;
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid #dbe5ef;
+  border-radius: 12px;
+  background: #eef4fa;
+}
+.proofImageWrap img { display: block; max-width: 100%; max-height: 48vh; object-fit: contain; border-radius: 7px; }
+
+.proofRejectNote { display: grid; gap: 6px; margin-top: 12px; color: #536e89; font-size: 10px; font-weight: 700; }
+.proofRejectNote textarea {
+  min-height: 72px;
+  resize: vertical;
+  padding: 9px 10px;
+  border: 1px solid #cfdae6;
+  border-radius: 9px;
+  outline: none;
+  color: #203f60;
+  background: #fbfdff;
+  font: inherit;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.proofRejectNote textarea:focus { border-color: #6aa6e8; box-shadow: 0 0 0 3px rgba(38, 126, 226, .1); }
+.proofRejectNote small { color: #8a9aab; font-weight: 500; }
+
+.proofDialog > footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #e8eef5;
+}
+.proofDialog > footer a,
+.proofDialog > footer button {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border: 1px solid #cfdeed;
+  border-radius: 8px;
+  background: #fff;
+  color: #37536f;
+  text-decoration: none;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.proofDialog > footer button:disabled { opacity: .5; cursor: not-allowed; }
+.proofDialog > footer .rejectProofButton { border-color: #ef9a9b; background: #fff3f2; color: #c83d43; }
+.proofDialog > footer .verifyProofButton { border-color: #23805a; background: #eaf8f1; color: #137648; }
+
+@media (max-width: 640px) {
+  .proofBackdrop { padding: 8px; }
+  .proofDialog { padding: 13px; border-radius: 12px; }
+  .proofMeta { grid-template-columns: 1fr; }
+  .proofDialog > footer { display: grid; grid-template-columns: 1fr; }
+}

@@ -44,18 +44,14 @@ export async function dismissedNotificationHashes(actor: string) {
   }
 }
 
-/**
- * Client-owned automation is the source of truth. A client is advertised as
- * supporting auto approval only after its live policy endpoint answers.
- * Bauman is included as a candidate even while the legacy operations route
- * keeps its older static candidate list, so support can be promoted solely
- * by a live Bauman capability probe. Historic central audit never fabricates support.
- */
+/** Client-owned automation is the source of truth; unsupported apps remain visible in the UI but disabled. */
 export async function readAutoApprovalSettings(supportedAppIds: readonly string[]) {
   const effectiveAppIds = [...new Set([...supportedAppIds, "bauman-master-ai"])] as string[];
   const fallback = await auditAutoApprovalFallback(effectiveAppIds);
   const autoApproveSupported = new Set<string>();
   const autoApproveEnabled = new Set<string>();
+  const autoRejectSupported = new Set<string>();
+  const autoRejectEnabled = new Set<string>();
   const autoBlockSupported = new Set<string>();
   const autoBlockEnabled = new Set<string>();
   const pendingBlockAfterHoursByApp: Record<string, number> = {};
@@ -66,6 +62,10 @@ export async function readAutoApprovalSettings(supportedAppIds: readonly string[
     if (probe.status === "fulfilled") {
       autoApproveSupported.add(appId);
       if (probe.value.enabled) autoApproveEnabled.add(appId);
+      if (probe.value.autoRejectSupported) {
+        autoRejectSupported.add(appId);
+        if (probe.value.autoRejectEnabled) autoRejectEnabled.add(appId);
+      }
       if (probe.value.autoBlockSupported) {
         autoBlockSupported.add(appId);
         if (probe.value.autoBlockEnabled) autoBlockEnabled.add(appId);
@@ -79,6 +79,8 @@ export async function readAutoApprovalSettings(supportedAppIds: readonly string[
   return {
     autoApproveAppIds: effectiveAppIds.filter((id) => autoApproveEnabled.has(id)),
     autoApproveSupportedAppIds: effectiveAppIds.filter((id) => autoApproveSupported.has(id)),
+    autoRejectAppIds: effectiveAppIds.filter((id) => autoRejectEnabled.has(id)),
+    autoRejectSupportedAppIds: effectiveAppIds.filter((id) => autoRejectSupported.has(id)),
     autoBlockPendingAppIds: effectiveAppIds.filter((id) => autoBlockEnabled.has(id)),
     autoBlockPendingSupportedAppIds: effectiveAppIds.filter((id) => autoBlockSupported.has(id)),
     pendingBlockAfterHoursByApp,
@@ -101,6 +103,10 @@ export async function rememberDismissedNotifications(actor: string, workItemIds:
 
 export async function rememberAutoApproval(actor: string, appId: string, enabled: boolean) {
   await writeAudit(actor, "application_auto_approval_updated", appId, { enabled, defaultAccessDays: 60, defaultDeviceLimit: 100 });
+}
+
+export async function rememberAutoReject(actor: string, appId: string, enabled: boolean) {
+  await writeAudit(actor, "application_auto_reject_updated", appId, { enabled });
 }
 
 export async function rememberAutoBlockPending(actor: string, appId: string, enabled: boolean, pendingBlockAfterHours: number) {

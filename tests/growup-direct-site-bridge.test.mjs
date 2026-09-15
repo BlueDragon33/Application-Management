@@ -4,9 +4,11 @@ import assert from "node:assert/strict";
 
 const bridge = fs.readFileSync("app/growup.server.ts", "utf8");
 const operations = fs.readFileSync("app/api/operations/route.ts", "utf8");
+const registry = fs.readFileSync("app/application-registry.ts", "utf8");
 const hub = fs.readFileSync("app/application-hub.tsx", "utf8");
 const admin = fs.readFileSync("app/apps/growup-mychildren/growup-admin.tsx", "utf8");
 const page = fs.readFileSync("app/apps/growup-mychildren/page.tsx", "utf8");
+const appControl = fs.readFileSync("app/api/apps/growup-mychildren/control/route.ts", "utf8");
 const env = fs.readFileSync("cloudflare-env.d.ts", "utf8");
 
 function mustContain(source, snippets) {
@@ -32,16 +34,29 @@ test("GrowUP direct-site bridge verifies the live privacy contract", () => {
   assert.ok(env.includes('GROWUP_BASE_URL?: string'));
 });
 
-test("operations probes GrowUP but does not invent remote device operations", () => {
+test("global operations uses the real GrowUP local registry without promoting production readiness", () => {
   mustContain(operations, [
     'probeGrowUpManagementContract',
-    'async function loadGrowUp()',
-    '{ id: "growup-mychildren", run: () => loadGrowUp() }',
+    'issueGrowUpBrowserBridge',
+    'async function loadGrowUp(actor: ControlDeviceState)',
+    '{ id: "growup-mychildren", run: () => loadGrowUp(actor) }',
+    'bridgeJson(bridge, "/api/control/devices")',
+    'registryInstanceId: bridge.registryInstanceId',
     'webHref: `${contract.baseUrl}/`',
-    'hasOperationalData: contract.remoteAdminReady',
-    'Direct site contract đã xác minh; dữ liệu trẻ em vẫn ở phía GrowUP.',
+    'Direct site contract và registry GU- đã xác minh; Trung tâm chỉ đồng bộ metadata thiết bị, dữ liệu trẻ em/sức khỏe vẫn ở phía GrowUP.',
+    'if (appId === "growup-mychildren")',
+    'GROWUP_REGISTRY_INSTANCE_MISMATCH',
   ]);
-  assert.equal(operations.includes('if (appId === "growup-mychildren")'), false, "GrowUP must not expose invented device operations before its backend exists");
+  mustContain(registry, [
+    'id: "growup-mychildren"',
+    'contractState: "pending"',
+  ]);
+  mustContain(bridge, [
+    'remoteAdminReady',
+    'childRecordsExposed === false',
+    'healthRecordsExposed === false',
+  ]);
+  assert.equal(operations.includes('devices: [] as ClientDevice[]'), false, "GrowUP local registry must no longer be hidden from central operations");
 });
 
 test("central table opens the verified client URL while admin remains internal", () => {
@@ -53,15 +68,20 @@ test("central table opens the verified client URL while admin remains internal",
   assert.equal(hub.includes('<a href={application.href} target="_blank"'), false);
 });
 
-test("GrowUP admin exposes verified direct launch without claiming deep admin readiness", () => {
+test("GrowUP admin exposes local E2E control while keeping production readiness separate", () => {
   mustContain(page, [
     'probeGrowUpManagementContract',
     'site={{ url: siteUrl, error: siteError, remoteAdminReady }}',
   ]);
   mustContain(admin, [
     'Mở Site GrowUP ↗',
-    'Mở GrowUP MyChildren ↗',
-    'Direct web launch không đồng nghĩa với quyền đọc dữ liệu trẻ em.',
-    'site.remoteAdminReady ? "Backend sẵn sàng" : "Tiếp tục khóa"',
+    'Local control đã kết nối',
+    'Production remote admin',
+    'Không đánh dấu xanh từ local test',
+  ]);
+  mustContain(appControl, [
+    'verifyControlProof(payload)',
+    'GROWUP_REGISTRY_INSTANCE_MISMATCH',
+    'DEVICE_COMMAND_READBACK_MISMATCH',
   ]);
 });

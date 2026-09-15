@@ -36,6 +36,8 @@ async function readBoiAutomation() {
   const payload = await automationJson(bridge, "/api/control/overview?activityDays=0");
   return {
     autoApproveEnabled: record(payload.automation).enabled === true,
+    autoRejectSupported: false,
+    autoRejectEnabled: false,
     autoBlockSupported: false,
     autoBlockEnabled: false,
     pendingBlockAfterHours: null as number | null,
@@ -52,6 +54,8 @@ async function readHealthAutomation() {
   const rawHours = Math.round(Number(automation.pendingBlockAfterHours));
   return {
     autoApproveEnabled: automation.autoApproveDevices === true,
+    autoRejectSupported: false,
+    autoRejectEnabled: false,
     autoBlockSupported: contract.capabilities.includes("device-auto-block-pending"),
     autoBlockEnabled: automation.autoBlockPendingDevices === true,
     pendingBlockAfterHours: [24, 168, 720].includes(rawHours) ? rawHours : 168,
@@ -70,6 +74,8 @@ async function readBaumanAutomation() {
   const automation = record(payload.automation);
   return {
     autoApproveEnabled: automation.autoApproveDevices === true,
+    autoRejectSupported: capabilities.deviceAutoReject === true,
+    autoRejectEnabled: automation.autoRejectDevices === true,
     autoBlockSupported: false,
     autoBlockEnabled: false,
     pendingBlockAfterHours: null as number | null,

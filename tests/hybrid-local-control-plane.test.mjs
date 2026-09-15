@@ -7,7 +7,8 @@ function source(path) {
 }
 
 const resolver = source("app/client-origin.server.ts");
-const launcher = source("scripts/run-local-system.mjs");
+const runtimeLauncher = source("scripts/run-local-system.mjs");
+const offlineBootstrap = source("scripts/run-local-offline-v2.mjs");
 const auth = source("app/chatgpt-auth.ts");
 const pkg = JSON.parse(source("package.json"));
 
@@ -27,8 +28,8 @@ test("local port convention keeps Bauman control and learning runtime physically
   assert.match(resolver, /bauman-master-ai[\s\S]*127\.0\.0\.1:3003/);
   assert.match(resolver, /bauman-runtime[\s\S]*BAUMAN_APP_ORIGIN[\s\S]*BAUMAN_APP_LOCAL_ORIGIN[\s\S]*127\.0\.0\.1:3005/);
   assert.match(resolver, /boi-ech[\s\S]*127\.0\.0\.1:3004/);
-  assert.match(launcher, /baumanRuntimeOrigin = "http:\/\/127\.0\.0\.1:3005"/);
-  assert.match(launcher, /BAUMAN_APP_LOCAL_ORIGIN: baumanRuntimeOrigin/);
+  assert.match(runtimeLauncher, /baumanRuntimeOrigin = "http:\/\/127\.0\.0\.1:3005"/);
+  assert.match(runtimeLauncher, /BAUMAN_APP_LOCAL_ORIGIN: baumanRuntimeOrigin/);
 });
 
 test("all managed client bridges use the shared resolver and no chatgpt.site fallback", () => {
@@ -42,39 +43,45 @@ test("all managed client bridges use the shared resolver and no chatgpt.site fal
   assert.match(bauman, /runtimeBaseUrl: runtimeOrigin\?\.baseUrl \?\? null/);
 });
 
-test("full local launcher keeps repos independent and local databases isolated", () => {
+test("offline bootstrap keeps repos independent and migrates isolated local databases before runtime launch", () => {
   for (const token of ["Health_Care", "RU_LIFE", "Bauman-master-ai-system", "BOIECH_AI", "Application Management"]) {
-    assert.ok(launcher.includes(token), `missing launcher repo token: ${token}`);
+    assert.ok(offlineBootstrap.includes(token), `missing bootstrap repo token: ${token}`);
   }
+  assert.match(offlineBootstrap, /wrangler\.local\.jsonc/);
+  assert.match(offlineBootstrap, /Migration D1 local · Application Management/);
+  assert.match(offlineBootstrap, /Migration D1 local · Sức khỏe Y tế/);
+  assert.match(offlineBootstrap, /Migration D1 local · Hòa nhập Nga/);
+  assert.match(offlineBootstrap, /Migration D1 local · Bauman Control/);
+  assert.match(offlineBootstrap, /Migration D1 local · Bơi ếch/);
+  assert.match(offlineBootstrap, /"bauman-control-local", "--local", "--config", "wrangler\.local\.jsonc"/);
+  assert.match(offlineBootstrap, /run-local-system\.mjs/);
+  assert.match(offlineBootstrap, /"--local", "--skip-install", "--skip-migrate"/);
+  assert.doesNotMatch(offlineBootstrap, /"--remote"/);
+  assert.doesNotMatch(offlineBootstrap, /workers\.dev/);
+});
+
+test("runtime launcher keeps six loopback services isolated and issues ephemeral secrets", () => {
   for (const port of [3000, 3001, 3002, 3003, 3004, 3005]) {
-    assert.ok(launcher.includes(String(port)), `missing local port ${port}`);
+    assert.ok(runtimeLauncher.includes(String(port)), `missing local port ${port}`);
   }
-  assert.match(launcher, /randomBytes\(48\)\.toString\("base64url"\)/);
-  assert.match(launcher, /"--local"/);
-  assert.match(launcher, /wrangler\.local\.jsonc/);
-  assert.match(launcher, /wrangler\.d1\.jsonc/);
-  assert.match(launcher, /Migration D1 local · Bauman Control/);
-  assert.match(launcher, /"bauman-control-local", "--local", "--config", "wrangler\.local\.jsonc"/);
-  assert.match(launcher, /Bauman control-service\/wrangler\.local\.jsonc/);
-  assert.match(launcher, /"wrangler", "dev", "--local", "--config", "wrangler\.local\.jsonc"/);
-  assert.match(launcher, /BAUMAN_APP_ORIGIN/);
-  assert.match(launcher, /BAUMAN_APP_LOCAL_ORIGIN/);
-  assert.match(launcher, /scripts\/serve-local-runtime\.mjs/);
-  assert.match(launcher, /BAUMAN-RUNTIME/);
-  assert.match(launcher, /_local\/health/);
-  assert.doesNotMatch(launcher, /"--remote"/);
-  assert.doesNotMatch(launcher, /workers\.dev/);
+  assert.match(runtimeLauncher, /randomBytes\(48\)\.toString\("base64url"\)/);
+  assert.match(runtimeLauncher, /wrangler\.local\.jsonc/);
+  assert.match(runtimeLauncher, /BAUMAN_APP_ORIGIN/);
+  assert.match(runtimeLauncher, /BAUMAN_APP_LOCAL_ORIGIN/);
+  assert.doesNotMatch(runtimeLauncher, /"--remote"/);
+  assert.doesNotMatch(runtimeLauncher, /workers\.dev/);
 });
 
 test("launcher uses the existing loopback-only development auth instead of creating a second auth bypass", () => {
-  assert.match(launcher, /LOCAL_DEV_AUTH/);
+  assert.match(runtimeLauncher, /LOCAL_DEV_AUTH/);
   assert.match(auth, /runtime\.LOCAL_DEV_AUTH !== "1"/);
   assert.match(auth, /LOOPBACK_HOST\.test\(host\)/);
-  assert.doesNotMatch(launcher, /LOCAL_ADMIN_PASSWORD|passwordHash|bcrypt|PBKDF2/i);
+  assert.doesNotMatch(runtimeLauncher, /LOCAL_ADMIN_PASSWORD|passwordHash|bcrypt|PBKDF2/i);
+  assert.doesNotMatch(offlineBootstrap, /LOCAL_ADMIN_PASSWORD|passwordHash|bcrypt|PBKDF2/i);
 });
 
-test("package exposes central-only and full-system launch paths separately", () => {
+test("package exposes central-only, offline full-system and hybrid launch paths separately", () => {
   assert.equal(pkg.scripts.local, "node scripts/run-local.mjs");
-  assert.equal(pkg.scripts["local:system"], "node scripts/run-local-system.mjs --local");
+  assert.equal(pkg.scripts["local:system"], "node scripts/run-local-offline-v2.mjs");
   assert.equal(pkg.scripts["local:system:hybrid"], "node scripts/run-local-system.mjs --hybrid");
 });

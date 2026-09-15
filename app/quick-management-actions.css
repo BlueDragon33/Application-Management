@@ -1,0 +1,96 @@
+.management-quick-actions {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px;
+  border: 1px solid rgba(49, 102, 168, .18);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .96);
+  box-shadow: 0 14px 34px rgba(35, 73, 116, .16);
+  backdrop-filter: blur(14px);
+}
+
+.management-quick-actions__label {
+  padding: 0 5px 0 3px;
+  color: #6f86a1;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.management-quick-actions button {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid #d6e3f1;
+  border-radius: 8px;
+  background: #f7faff;
+  color: #285b91;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.management-quick-actions button:hover {
+  border-color: #a9c9ec;
+  background: #eaf4ff;
+}
+
+.management-quick-actions__count {
+  min-width: 18px;
+  height: 18px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #285b91;
+  color: #fff;
+  font-size: 9px;
+  line-height: 1;
+}
+
+.management-quick-actions button:last-child {
+  border-color: #bfe3d0;
+  background: #edf9f3;
+  color: #15744c;
+}
+
+@media (max-width: 760px) {
+  .management-quick-actions {
+    right: 8px;
+    bottom: 70px;
+    left: 8px;
+    justify-content: space-between;
+    gap: 4px;
+    padding: 6px;
+    overflow-x: auto;
+  }
+
+  .management-quick-actions__label {
+    display: none;
+  }
+
+  .management-quick-actions button {
+    flex: 1 0 auto;
+    min-height: 40px;
+    padding: 0 9px;
+  }
+
+  .management-quick-actions button span {
+    font-size: 9px;
+  }
+
+  .management-quick-actions__count {
+    min-width: 16px;
+    height: 16px;
+    font-size: 8px;
+  }
+}

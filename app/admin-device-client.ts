@@ -98,6 +98,7 @@ export type OperationsDevice = {
   attention: "new" | "environment" | "none";
   canApprove: boolean;
   canRemove: boolean;
+  registryInstanceId?: string | null;
 };
 
 export type OperationsSummary = {
@@ -113,11 +114,17 @@ export type OperationsSummary = {
   attentionCount: number | null;
   note: string;
   directWebAccess: boolean;
+  registryInstanceId?: string | null;
 };
 
 export type OperationsSettings = {
   autoApproveAppIds: string[];
   autoApproveSupportedAppIds: string[];
+  autoBlockPendingAppIds?: string[];
+  autoBlockPendingSupportedAppIds?: string[];
+  pendingBlockAfterHoursByApp?: Record<string, number>;
+  autoRejectAppIds?: string[];
+  autoRejectSupportedAppIds?: string[];
 };
 
 export type OperationsWorkItem = {
@@ -291,17 +298,25 @@ async function approvedSession() {
 
 let approvedSessionPromise: Promise<{ credential: Credential; access: AdminAccess }> | null = null;
 const operationsCacheKey = "application-management:operations:v1";
+const OPERATIONS_CACHE_TTL_MS = 60_000;
 
 export function readCachedOperations() {
   try {
     const raw = window.sessionStorage.getItem(operationsCacheKey);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as OperationsBootstrap;
-    if (!parsed.generatedAt || Date.now() - Date.parse(parsed.generatedAt) > 10 * 60_000) return null;
+    if (!parsed.generatedAt || Date.now() - Date.parse(parsed.generatedAt) > OPERATIONS_CACHE_TTL_MS) {
+      window.sessionStorage.removeItem(operationsCacheKey);
+      return null;
+    }
     return parsed;
   } catch {
     return null;
   }
+}
+
+export function clearCachedOperations() {
+  try { window.sessionStorage.removeItem(operationsCacheKey); } catch { /* optional cache */ }
 }
 
 function cacheOperations(bootstrap: OperationsBootstrap) {
@@ -327,6 +342,24 @@ export async function connectOperationsDashboard() {
 export async function operationsAction(body: Record<string, unknown>) {
   const { credential, access } = await approvedSession();
   if (access.status !== "approved") throw new AdminApiError("Thiết bị quản trị chưa được cấp quyền.", { device: access });
+
+  if (body.action === "manage-client-device" && body.appId === "growup-mychildren") {
+    const operation = body.operation === "approve" ? "approve" : body.operation === "remove" ? "block" : "";
+    if (!operation) throw new AdminApiError("Thao tác thiết bị GrowUP không hợp lệ.", { code: "INVALID_OPERATION" });
+    const result = await secureApi("/api/apps/growup-mychildren/control", credential, access, {
+      action: "manage-device",
+      operation,
+      deviceId: body.deviceId,
+      expectedStatus: body.expectedStatus,
+      registryInstanceId: body.registryInstanceId,
+    });
+    const deviceId = typeof body.deviceId === "string" ? body.deviceId : "";
+    return {
+      ...result,
+      ...(operation === "approve" ? { approvedDeviceId: deviceId } : { removedDeviceId: deviceId }),
+    } as OperationsActionResponse;
+  }
+
   return await secureApi("/api/operations", credential, access, body) as OperationsActionResponse;
 }
 
