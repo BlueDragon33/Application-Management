@@ -36,12 +36,15 @@ test("Bauman device mutations are owner-only idempotent compare-and-set commands
   assert.match(admin, /action: "manage-client-device"/);
   assert.match(admin, /commandId: crypto\.randomUUID\(\)/);
   assert.match(admin, /expectedStatus: device\.status/);
+  assert.match(admin, /registryInstanceId: device\.registryInstanceId \?\? undefined/);
   assert.match(admin, /await connectOperationsDashboard\(\)/);
   assert.match(admin, /Registry và audit sẽ được giữ lại/);
   assert.match(admin, /các phiên Bauman hiện tại sẽ bị thu hồi/);
 
   assert.match(operations, /appId === "bauman-master-ai"/);
   assert.match(operations, /actor\.role !== "owner"/);
+  assert.match(operations, /suppliedRegistryInstanceId/);
+  assert.match(operations, /BAUMAN_REGISTRY_INSTANCE_MISMATCH/);
   assert.match(operations, /deviceIdempotentCommands/);
   assert.match(operations, /optimisticConcurrency/);
   assert.match(operations, /DEVICE_STATE_CONFLICT/);
