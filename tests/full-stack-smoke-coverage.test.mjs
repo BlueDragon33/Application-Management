@@ -30,11 +30,22 @@ test("offline smoke proves authenticated operations connectivity instead of port
   assert.match(smoke, /crypto\.subtle\.generateKey/);
   assert.match(smoke, /action: "register"/);
   assert.match(smoke, /action: "challenge"/);
-  assert.match(smoke, /learning-control:\$\{device\.deviceId\}:\$\{challenge\}/);
+  assert.match(smoke, /learning-control:\$\{deviceId\}:\$\{challenge\}/);
   assert.match(smoke, /crypto\.subtle\.sign/);
-  assert.match(smoke, /requestJson\("\/api\/operations"/);
+  assert.match(smoke, /requestJson\(\s*"\/api\/operations"/s);
   assert.match(smoke, /summary\.connection !== "connected"/);
   for (const appId of ["boi-ech", "health-care", "ru-life", "bauman-master-ai", "growup-mychildren"]) {
     assert.match(smoke, new RegExp(`"${appId}"`));
   }
+});
+
+test("offline smoke proves the real Boi payment and access bridge is signed and readable", () => {
+  const smoke = source("scripts/local-offline-smoke.mjs");
+
+  assert.match(smoke, /async function signedControlBody/);
+  assert.match(smoke, /requestJson\(\s*"\/api\/apps\/boi-ech\/access"/s);
+  assert.match(smoke, /action: "bootstrap"/);
+  assert.match(smoke, /boiAccess\?\.application !== "boi-ech"/);
+  assert.match(smoke, /boiAccess\.counts\.total !== boiAccess\.devices\.length/);
+  assert.match(smoke, /PASS Thanh toán & Quyền Bơi ếch · signed bootstrap/);
 });
