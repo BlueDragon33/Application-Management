@@ -1,0 +1,616 @@
+/* Reference-dashboard skin
+   Desktop: optimized for a 16:9 control-room viewport.
+   Tablet: optimized for a 3:2 viewport.
+   Phone: optimized for a 19.5:9 portrait viewport.
+   This file intentionally overrides presentation only; data ownership and backend actions stay unchanged. */
+
+:root {
+  --am-bg-0: #061b15;
+  --am-bg-1: #08271f;
+  --am-bg-2: #0d3529;
+  --am-panel: rgba(9, 39, 30, .90);
+  --am-panel-2: rgba(12, 48, 37, .94);
+  --am-line: rgba(99, 221, 179, .16);
+  --am-line-strong: rgba(99, 221, 179, .28);
+  --am-text: #f1f7f4;
+  --am-muted: #91aea4;
+  --am-emerald: #22d39f;
+  --am-cyan: #35d9cf;
+  --am-gold: #efbf4f;
+  --am-red: #f26a62;
+  --am-blue: #4aa7ff;
+}
+
+body {
+  background: var(--am-bg-0) !important;
+}
+
+/* Root shell */
+main[class*="shell"] {
+  --navy: #0b3a31 !important;
+  --navy-2: #0f5748 !important;
+  --blue: #29c69d !important;
+  --line: var(--am-line) !important;
+  --soft: rgba(255,255,255,.035) !important;
+  --text: var(--am-text) !important;
+  --muted: var(--am-muted) !important;
+  min-height: 100dvh !important;
+  background:
+    radial-gradient(circle at 79% 8%, rgba(54, 165, 114, .16), transparent 28%),
+    radial-gradient(circle at 34% 74%, rgba(27, 103, 82, .12), transparent 34%),
+    linear-gradient(135deg, #071a14 0%, #0b251c 56%, #111f15 100%) !important;
+  color: var(--am-text) !important;
+}
+
+main[class*="shell"] > aside {
+  background:
+    radial-gradient(circle at 16% 22%, rgba(27, 142, 111, .22), transparent 33%),
+    linear-gradient(180deg, #073b31 0%, #062a24 100%) !important;
+  border-right: 1px solid rgba(73, 201, 161, .18) !important;
+  box-shadow: 10px 0 36px rgba(0,0,0,.18) !important;
+}
+
+main[class*="shell"] button,
+main[class*="shell"] a,
+main[class*="shell"] summary {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Sidebar */
+[aria-label="Điều hướng quản trị"] button {
+  color: #cee5dc !important;
+  border: 1px solid transparent !important;
+}
+
+[aria-label="Điều hướng quản trị"] button:hover {
+  background: rgba(255,255,255,.055) !important;
+}
+
+[aria-label="Điều hướng quản trị"] button[data-active="true"] {
+  color: #fff !important;
+  border-color: rgba(72, 223, 177, .20) !important;
+  background: linear-gradient(90deg, rgba(20, 181, 137, .34), rgba(36, 134, 102, .25)) !important;
+  box-shadow: inset 3px 0 0 #37e2b4, 0 8px 18px rgba(0,0,0,.11) !important;
+}
+
+/* Top bar */
+main[class*="shell"] > section > header:first-child {
+  background: rgba(5, 26, 20, .93) !important;
+  border-bottom: 1px solid rgba(111, 194, 165, .17) !important;
+  box-shadow: 0 10px 28px rgba(0,0,0,.14) !important;
+  backdrop-filter: blur(18px) !important;
+}
+
+main[class*="shell"] > section > header:first-child input {
+  color: #effbf7 !important;
+}
+
+main[class*="shell"] > section > header:first-child input::placeholder {
+  color: #7f9e94 !important;
+}
+
+main[class*="shell"] > section > header:first-child label {
+  border-color: rgba(107, 184, 160, .25) !important;
+  background: rgba(16, 55, 43, .72) !important;
+  color: #a9c7bc !important;
+}
+
+main[class*="shell"] > section > header:first-child details > summary > span {
+  color: #effff9 !important;
+  border-color: rgba(58, 207, 161, .26) !important;
+  background: linear-gradient(145deg, #197b63, #0d4c41) !important;
+}
+
+/* General page typography */
+main[class*="shell"] h1,
+main[class*="shell"] h2,
+main[class*="shell"] h3,
+main[class*="shell"] strong {
+  color: var(--am-text);
+}
+
+main[class*="shell"] p,
+main[class*="shell"] small,
+main[class*="shell"] em,
+main[class*="shell"] time {
+  color: var(--am-muted);
+}
+
+/* Dashboard cards/panels */
+main[class*="shell"] article,
+main[class*="shell"] section[class*="Panel"],
+main[class*="shell"] div[class*="Panel"] {
+  border-color: var(--am-line) !important;
+}
+
+main[class*="shell"] [class*="appsPanel"],
+main[class*="shell"] [class*="sidePanel"],
+main[class*="shell"] [class*="queuePanel"],
+main[class*="shell"] [class*="processPanel"],
+main[class*="shell"] [class*="fullPanel"] {
+  background: linear-gradient(145deg, rgba(12, 47, 36, .96), rgba(7, 33, 25, .95)) !important;
+  border: 1px solid var(--am-line) !important;
+  box-shadow: 0 10px 26px rgba(0,0,0,.13), inset 0 1px 0 rgba(255,255,255,.018) !important;
+}
+
+main[class*="shell"] [class*="sectionTitle"] h2 {
+  color: #edf7f3 !important;
+}
+
+main[class*="shell"] [class*="sectionTitle"] h2::before {
+  border-color: #34d8ad !important;
+}
+
+main[class*="shell"] [class*="linkButton"],
+main[class*="shell"] [class*="syncButton"] {
+  color: #52dfbc !important;
+}
+
+main[class*="shell"] [class*="syncButton"] {
+  border-color: rgba(73, 205, 163, .21) !important;
+  background: rgba(15, 77, 60, .62) !important;
+}
+
+/* KPI row */
+main[class*="shell"] [class*="metrics"] button {
+  border-color: rgba(104, 200, 169, .16) !important;
+  background: linear-gradient(145deg, rgba(16, 60, 46, .94), rgba(9, 42, 32, .96)) !important;
+  box-shadow: 0 9px 20px rgba(0,0,0,.13) !important;
+}
+
+main[class*="shell"] [class*="metrics"] small,
+main[class*="shell"] [class*="metrics"] em {
+  color: #8fac9f !important;
+}
+
+main[class*="shell"] [class*="metrics"] strong {
+  color: #f4faf7 !important;
+}
+
+main[class*="shell"] [class*="metrics"] button[data-tone="blue"] > span {
+  background: linear-gradient(145deg, #32b6ff, #2877e8) !important;
+}
+main[class*="shell"] [class*="metrics"] button[data-tone="amber"] > span {
+  background: linear-gradient(145deg, #ffc756, #e79a26) !important;
+}
+main[class*="shell"] [class*="metrics"] button[data-tone="green"] > span {
+  background: linear-gradient(145deg, #3cdfa5, #129469) !important;
+}
+main[class*="shell"] [class*="metrics"] button[data-tone="red"] > span {
+  background: linear-gradient(145deg, #ff766d, #d94949) !important;
+}
+
+/* App cards */
+main[class*="shell"] [class*="appCard"] {
+  background: linear-gradient(150deg, rgba(15, 57, 44, .97), rgba(8, 39, 30, .97)) !important;
+  border-color: rgba(100, 206, 171, .16) !important;
+  box-shadow: 0 7px 18px rgba(0,0,0,.11) !important;
+}
+
+main[class*="shell"] [class*="appCard"] header {
+  background: linear-gradient(90deg, rgba(255,255,255,.025), rgba(255,255,255,.008)) !important;
+}
+
+main[class*="shell"] [class*="appCard"] footer a,
+main[class*="shell"] [class*="appCard"] footer button,
+main[class*="shell"] [class*="cardActions"] a,
+main[class*="shell"] [class*="cardActions"] button,
+main[class*="shell"] [class*="rowActions"] button {
+  color: #dbece6 !important;
+  border-color: rgba(108, 191, 164, .20) !important;
+  background: rgba(255,255,255,.035) !important;
+}
+
+main[class*="shell"] [class*="primaryAction"] {
+  color: white !important;
+  border-color: #1bc998 !important;
+  background: linear-gradient(135deg, #18b98b, #08745d) !important;
+  box-shadow: 0 5px 12px rgba(8, 99, 77, .24) !important;
+}
+
+main[class*="shell"] [class*="syncBadge"][data-tone="ok"] {
+  color: #35dea9 !important;
+  background: rgba(18, 146, 105, .18) !important;
+}
+main[class*="shell"] [class*="syncBadge"][data-tone="warn"] {
+  color: #f5c25b !important;
+  background: rgba(181, 127, 22, .16) !important;
+}
+main[class*="shell"] [class*="syncBadge"][data-tone="bad"] {
+  color: #ff7b72 !important;
+  background: rgba(174, 54, 54, .16) !important;
+}
+
+/* Lists and tables */
+main[class*="shell"] [class*="queueHead"],
+main[class*="shell"] [class*="tableHead"] {
+  color: #a7bdb4 !important;
+  background: rgba(255,255,255,.035) !important;
+  border-color: var(--am-line) !important;
+}
+
+main[class*="shell"] [class*="queueRow"],
+main[class*="shell"] [class*="tableRow"],
+main[class*="shell"] [class*="activityList"] article,
+main[class*="shell"] [class*="syncList"] article,
+main[class*="shell"] [class*="syncPageList"] article,
+main[class*="shell"] [class*="auditList"] article,
+main[class*="shell"] [class*="controlDevices"] article {
+  border-color: rgba(255,255,255,.065) !important;
+}
+
+main[class*="shell"] [class*="queueRow"] > span,
+main[class*="shell"] [class*="tableRow"] > span,
+main[class*="shell"] [class*="syncPageList"] article > span {
+  color: #a1b7ae !important;
+}
+
+main[class*="shell"] [class*="pendingBadge"] {
+  color: #ff8377 !important;
+  background: rgba(185, 59, 52, .17) !important;
+}
+
+main[class*="shell"] [class*="notice"] {
+  color: #a9efd8 !important;
+  border-color: rgba(57, 207, 159, .20) !important;
+  background: rgba(22, 126, 93, .16) !important;
+}
+
+main[class*="shell"] [class*="warning"] {
+  color: #f2c69e !important;
+  border-color: rgba(235, 151, 80, .24) !important;
+  background: rgba(158, 86, 41, .17) !important;
+}
+
+/* Footer */
+main[class*="shell"] [class*="statusFooter"] {
+  color: #77988c !important;
+  border-color: rgba(101, 180, 154, .14) !important;
+  background: rgba(4, 24, 18, .75) !important;
+}
+
+/* DESKTOP / LAPTOP — target 16:9, keep the overview inside one control-room frame whenever possible. */
+@media (min-width: 1200px) and (min-aspect-ratio: 4/3) {
+  main[class*="shell"] {
+    grid-template-columns: 180px minmax(0, 1fr) !important;
+  }
+
+  main[class*="shell"] > aside {
+    height: 100dvh !important;
+    padding: 13px 10px 10px !important;
+  }
+
+  [aria-label="Điều hướng quản trị"] {
+    gap: 3px !important;
+  }
+
+  [aria-label="Điều hướng quản trị"] button {
+    min-height: 42px !important;
+    padding: 7px 8px !important;
+    border-radius: 8px !important;
+    font-size: 11px !important;
+  }
+
+  main[class*="shell"] > section > header:first-child {
+    min-height: 64px !important;
+    grid-template-columns: minmax(220px, 290px) minmax(300px, 1fr) auto auto auto !important;
+    gap: 11px !important;
+    padding: 9px 18px !important;
+  }
+
+  main[class*="shell"] [class*="page"] {
+    width: min(1500px, calc(100% - 26px)) !important;
+    padding: 14px 0 16px !important;
+  }
+
+  main[class*="shell"] [class*="pageHeading"] {
+    margin-bottom: 11px !important;
+  }
+
+  main[class*="shell"] [class*="pageHeading"] h1 {
+    font-family: Georgia, "Times New Roman", serif !important;
+    font-size: clamp(24px, 2vw, 33px) !important;
+    letter-spacing: -.025em !important;
+  }
+
+  main[class*="shell"] [class*="pageHeading"] p {
+    max-width: 900px !important;
+    font-size: 11px !important;
+  }
+
+  main[class*="shell"] [class*="metrics"] {
+    gap: 9px !important;
+    margin-bottom: 10px !important;
+  }
+
+  main[class*="shell"] [class*="metrics"] button {
+    min-height: 88px !important;
+    padding: 10px 11px !important;
+  }
+
+  main[class*="shell"] [class*="metrics"] button > span {
+    flex-basis: 42px !important;
+    height: 42px !important;
+  }
+
+  main[class*="shell"] [class*="overviewGrid"] {
+    grid-template-columns: minmax(0, 1.75fr) minmax(310px, .75fr) !important;
+    gap: 10px !important;
+    margin-bottom: 10px !important;
+  }
+
+  main[class*="shell"] [class*="rightRail"] {
+    gap: 10px !important;
+  }
+
+  main[class*="shell"] [class*="appsPanel"],
+  main[class*="shell"] [class*="sidePanel"],
+  main[class*="shell"] [class*="queuePanel"],
+  main[class*="shell"] [class*="fullPanel"] {
+    padding: 9px !important;
+    border-radius: 10px !important;
+  }
+
+  main[class*="shell"] [class*="appGrid"] {
+    gap: 8px !important;
+  }
+
+  main[class*="shell"] [class*="appCard"] header {
+    min-height: 72px !important;
+    padding: 9px !important;
+  }
+
+  main[class*="shell"] [class*="appCard"] footer {
+    padding: 0 9px 9px !important;
+  }
+
+  main[class*="shell"] [class*="queuePanel"] {
+    margin-top: 0 !important;
+  }
+
+  main[class*="shell"] [class*="processPanel"] {
+    display: none !important;
+  }
+}
+
+/* TABLET — target 3:2. Compact rail, readable two-column metrics, no horizontal overflow. */
+@media (min-width: 761px) and (max-width: 1199px) {
+  main[class*="shell"] {
+    grid-template-columns: 76px minmax(0, 1fr) !important;
+  }
+
+  main[class*="shell"] > aside {
+    padding: 10px 7px !important;
+  }
+
+  [aria-label="Điều hướng quản trị"] button {
+    grid-template-columns: 1fr !important;
+    justify-items: center !important;
+    min-height: 47px !important;
+    padding: 7px 3px !important;
+  }
+
+  [aria-label="Điều hướng quản trị"] button > span:nth-child(2) {
+    display: none !important;
+  }
+
+  main[class*="shell"] > section > header:first-child {
+    grid-template-columns: minmax(0,1fr) auto auto !important;
+    gap: 8px !important;
+    padding: 8px 11px !important;
+  }
+
+  main[class*="shell"] > section > header:first-child > div:first-child,
+  main[class*="shell"] > section > header:first-child > span[class*="production"] {
+    display: none !important;
+  }
+
+  main[class*="shell"] [class*="page"] {
+    width: min(100% - 20px, 1120px) !important;
+    padding: 13px 0 20px !important;
+  }
+
+  main[class*="shell"] [class*="metrics"] {
+    grid-template-columns: repeat(2, minmax(0,1fr)) !important;
+    gap: 8px !important;
+  }
+
+  main[class*="shell"] [class*="overviewGrid"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  main[class*="shell"] [class*="rightRail"] {
+    grid-template-columns: repeat(2, minmax(0,1fr)) !important;
+  }
+
+  main[class*="shell"] [class*="appGrid"] {
+    grid-template-columns: repeat(2, minmax(0,1fr)) !important;
+  }
+
+  main[class*="shell"] [class*="processPanel"] {
+    display: none !important;
+  }
+}
+
+/* PHONE — target 19.5:9 portrait. Bottom navigation remains reachable and every table can scroll safely. */
+@media (max-width: 760px) {
+  main[class*="shell"] {
+    display: block !important;
+    padding-bottom: 72px !important;
+    overflow-x: clip !important;
+  }
+
+  main[class*="shell"] > aside {
+    position: fixed !important;
+    inset: auto 0 0 0 !important;
+    z-index: 40 !important;
+    width: 100% !important;
+    height: 66px !important;
+    padding: 6px 7px !important;
+    border-top: 1px solid rgba(87, 190, 158, .18) !important;
+    border-right: 0 !important;
+    box-shadow: 0 -9px 24px rgba(0,0,0,.24) !important;
+  }
+
+  [aria-label="Điều hướng quản trị"] {
+    display: flex !important;
+    gap: 4px !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+  }
+
+  [aria-label="Điều hướng quản trị"]::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  [aria-label="Điều hướng quản trị"] button {
+    flex: 0 0 78px !important;
+    min-height: 52px !important;
+    grid-template-columns: 1fr !important;
+    grid-template-rows: 20px 12px !important;
+    justify-items: center !important;
+    align-content: center !important;
+    gap: 2px !important;
+    padding: 4px 3px !important;
+    border-radius: 9px !important;
+  }
+
+  [aria-label="Điều hướng quản trị"] button > span:nth-child(2) {
+    display: block !important;
+    width: 100% !important;
+    overflow: hidden !important;
+    font-size: 8px !important;
+    font-weight: 700 !important;
+    line-height: 12px !important;
+    text-align: center !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  main[class*="shell"] > section > header:first-child {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 30 !important;
+    grid-template-columns: minmax(0,1fr) 38px auto !important;
+    min-height: 58px !important;
+    gap: 7px !important;
+    padding: 8px 9px !important;
+  }
+
+  main[class*="shell"] > section > header:first-child > div:first-child,
+  main[class*="shell"] > section > header:first-child > span[class*="production"] {
+    display: none !important;
+  }
+
+  main[class*="shell"] > section > header:first-child label {
+    height: 39px !important;
+  }
+
+  main[class*="shell"] [class*="account"] summary > div {
+    display: none !important;
+  }
+
+  main[class*="shell"] [class*="page"] {
+    width: calc(100% - 16px) !important;
+    padding: 11px 0 18px !important;
+  }
+
+  main[class*="shell"] [class*="pageHeading"] {
+    align-items: flex-start !important;
+    gap: 8px !important;
+    margin-bottom: 10px !important;
+  }
+
+  main[class*="shell"] [class*="pageHeading"] h1 {
+    font-size: 19px !important;
+    line-height: 1.12 !important;
+  }
+
+  main[class*="shell"] [class*="pageHeading"] p {
+    font-size: 10px !important;
+    line-height: 1.4 !important;
+  }
+
+  main[class*="shell"] [class*="metrics"] {
+    grid-template-columns: repeat(2, minmax(0,1fr)) !important;
+    gap: 7px !important;
+    margin-bottom: 9px !important;
+  }
+
+  main[class*="shell"] [class*="metrics"] button {
+    min-height: 84px !important;
+    gap: 7px !important;
+    padding: 9px !important;
+  }
+
+  main[class*="shell"] [class*="metrics"] button > span {
+    flex-basis: 36px !important;
+    height: 36px !important;
+    font-size: 20px !important;
+  }
+
+  main[class*="shell"] [class*="metrics"] small {
+    font-size: 8px !important;
+  }
+
+  main[class*="shell"] [class*="metrics"] strong {
+    font-size: 18px !important;
+  }
+
+  main[class*="shell"] [class*="metrics"] em {
+    display: none !important;
+  }
+
+  main[class*="shell"] [class*="overviewGrid"],
+  main[class*="shell"] [class*="rightRail"],
+  main[class*="shell"] [class*="appGrid"],
+  main[class*="shell"] [class*="appGridLarge"],
+  main[class*="shell"] [class*="accessGrid"],
+  main[class*="shell"] [class*="rules"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  main[class*="shell"] [class*="appsPanel"],
+  main[class*="shell"] [class*="sidePanel"],
+  main[class*="shell"] [class*="queuePanel"],
+  main[class*="shell"] [class*="fullPanel"] {
+    padding: 9px !important;
+    border-radius: 10px !important;
+  }
+
+  main[class*="shell"] [class*="appCard"] footer {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  main[class*="shell"] [class*="appCard"] footer [class*="syncBadge"] {
+    grid-column: 1 / -1 !important;
+    justify-self: start !important;
+  }
+
+  main[class*="shell"] [class*="queueTable"],
+  main[class*="shell"] [class*="userTable"],
+  main[class*="shell"] [class*="auditList"],
+  main[class*="shell"] [class*="syncPageList"],
+  main[class*="shell"] [class*="controlDevices"] {
+    overflow-x: auto !important;
+    overscroll-behavior-inline: contain !important;
+  }
+
+  main[class*="shell"] [class*="queueHead"],
+  main[class*="shell"] [class*="queueRow"] {
+    min-width: 720px !important;
+  }
+
+  main[class*="shell"] [class*="tableHead"],
+  main[class*="shell"] [class*="tableRow"] {
+    min-width: 680px !important;
+  }
+
+  main[class*="shell"] [class*="processPanel"] {
+    display: none !important;
+  }
+
+  main[class*="shell"] [class*="statusFooter"] {
+    display: none !important;
+  }
+}
