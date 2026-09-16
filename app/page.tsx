@@ -1,6 +1,5 @@
 import { requireChatGPTUser } from "./chatgpt-auth";
-import ApplicationHub from "./management-dashboard";
-import "./management-dashboard-mobile-overrides.css";
+import ApplicationHub from "./application-hub";
 import LocalQuickAccess from "./local-quick-access";
 
 export const dynamic = "force-dynamic";
