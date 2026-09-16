@@ -5,12 +5,18 @@ echo ===============================================================
 echo   APPLICATION MANAGEMENT - OFFLINE CORE
 echo   BAUMAN HUB + CAC MON BEN TRONG + BOI ECH
 echo ===============================================================
+for /f "delims=" %%i in ('git rev-parse --short HEAD 2^>nul') do set SOURCE_COMMIT=%%i
+if defined SOURCE_COMMIT echo   SOURCE COMMIT: %SOURCE_COMMIT%
 echo.
 where node >nul 2>nul
 if errorlevel 1 (
   echo [ERROR] Chua cai Node.js. Can Node.js 22.13.0 tro len.
   pause
   exit /b 1
+)
+if exist "node_modules\.vite" (
+  echo [offline-core] Xoa cache bien dich Vite cu...
+  rmdir /s /q "node_modules\.vite"
 )
 node scripts\run-local-offline-v2.mjs
 if errorlevel 1 (
