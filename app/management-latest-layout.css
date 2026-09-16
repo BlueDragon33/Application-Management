@@ -1,0 +1,171 @@
+/* Latest accepted control-room composition.
+   Keep the main desktop view inside one 16:9 screen while allowing long lists
+   to scroll inside their own panels. Tablet/phone continue to use the base
+   responsive rules from management-modern-overview.css. */
+
+@media (min-width: 1200px) and (min-aspect-ratio: 4/3) {
+  .modernPage {
+    width: min(1600px, calc(100% - 22px));
+    padding-top: 9px;
+    padding-bottom: 10px;
+  }
+
+  .modernMetrics {
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .modernMetrics > button {
+    min-height: 76px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .modernBoard {
+    grid-template-columns: minmax(0, 1.12fr) minmax(460px, .98fr);
+    grid-template-rows: minmax(190px, .92fr) minmax(118px, .58fr) minmax(190px, .92fr);
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  /* Final panel order: left = applications then priority work;
+     right = alerts -> quick actions -> new devices. */
+  .modernAppsPanel {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .modernWorkPanel {
+    grid-column: 1;
+    grid-row: 2 / span 2;
+  }
+
+  .modernAlertsPanel {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .modernQuickPanel {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .modernDevicePanel {
+    grid-column: 2;
+    grid-row: 3;
+  }
+
+  .modernPanelTitle {
+    min-height: 38px;
+    padding: 6px 10px;
+  }
+
+  .modernPanelTitle h2 {
+    font-size: 13px;
+  }
+
+  /* Application list: show at most three rows in the viewport. */
+  .modernAppsTable {
+    max-height: 160px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-bottom: 5px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(54, 215, 172, .65) rgba(255, 255, 255, .035);
+  }
+
+  .modernAppsTable::-webkit-scrollbar,
+  .modernWorkTable::-webkit-scrollbar,
+  .modernDeviceTable::-webkit-scrollbar {
+    width: 7px;
+    height: 7px;
+  }
+
+  .modernAppsTable::-webkit-scrollbar-thumb,
+  .modernWorkTable::-webkit-scrollbar-thumb,
+  .modernDeviceTable::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgba(54, 215, 172, .62);
+  }
+
+  .modernAppsTable::-webkit-scrollbar-track,
+  .modernWorkTable::-webkit-scrollbar-track,
+  .modernDeviceTable::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, .03);
+  }
+
+  .modernAppsHead {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #113d32;
+  }
+
+  .modernAppsRow {
+    min-height: 40px;
+  }
+
+  /* Long queues stay inside their boxes instead of increasing page height. */
+  .modernWorkTable {
+    max-height: 278px;
+    overflow: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(54, 215, 172, .65) rgba(255, 255, 255, .035);
+  }
+
+  .modernWorkTable .modernTableHead,
+  .modernDeviceTable .modernTableHead {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #113d32;
+  }
+
+  .modernDeviceTable {
+    max-height: 122px;
+    overflow: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(54, 215, 172, .65) rgba(255, 255, 255, .035);
+  }
+
+  .modernTableRow {
+    min-height: 40px;
+  }
+
+  .modernAlertTiles {
+    height: calc(100% - 38px);
+    align-content: stretch;
+  }
+
+  .modernAlertTiles button {
+    min-height: 62px;
+  }
+
+  .modernQuickPanel {
+    padding: 5px 8px 7px;
+  }
+
+  .modernQuickPanel > header {
+    min-height: 22px;
+  }
+
+  .modernQuickGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .modernQuickGrid button {
+    min-height: 31px;
+    padding: 4px 6px;
+  }
+
+  .modernMiniFilters {
+    padding-top: 5px;
+    padding-bottom: 5px;
+  }
+
+  .modernMiniFilters select,
+  .modernMiniFilters button {
+    height: 27px;
+  }
+}
