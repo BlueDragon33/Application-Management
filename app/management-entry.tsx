@@ -4,10 +4,14 @@ import { useEffect, useState } from "react";
 import ManagementDashboard from "./management-dashboard";
 import ManagementModernOverview from "./management-modern-overview";
 
+const OPERATIONS_CACHE_KEY = "application-management:operations:v1";
+
 export default function ManagementEntry({ user }: { user: { displayName: string; email: string } }) {
   const [mode, setMode] = useState<"overview" | "legacy" | null>(null);
 
   useEffect(() => {
+    try { window.sessionStorage.removeItem(OPERATIONS_CACHE_KEY); } catch { /* local cache is optional */ }
+
     const resolve = () => {
       const view = new URLSearchParams(window.location.search).get("view");
       setMode(!view || view === "overview" ? "overview" : "legacy");
