@@ -327,7 +327,10 @@ export async function connectOperationsDashboard() {
 export async function operationsAction(body: Record<string, unknown>) {
   const { credential, access } = await approvedSession();
   if (access.status !== "approved") throw new AdminApiError("Thiết bị quản trị chưa được cấp quyền.", { device: access });
-  return await secureApi("/api/operations", credential, access, body) as OperationsActionResponse;
+  const appId = typeof body.appId === "string" ? body.appId : "";
+  const focusedDeviceAction = body.action === "manage-client-device" && (appId === "boi-ech" || appId === "bauman-master-ai");
+  const path = focusedDeviceAction ? "/api/focused-device-operation" : "/api/operations";
+  return await secureApi(path, credential, access, body) as OperationsActionResponse;
 }
 
 export async function centerAdminAction(body: Record<string, unknown>) {
