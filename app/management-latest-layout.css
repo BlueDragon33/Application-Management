@@ -64,9 +64,9 @@
     font-size: 13px;
   }
 
-  /* Application list: show at most three rows in the viewport. */
+  /* Header (30px) + exactly three compact rows (3 x 40px) + padding. */
   .modernAppsTable {
-    max-height: 160px;
+    max-height: 155px;
     overflow-y: auto;
     overflow-x: hidden;
     padding-bottom: 5px;
@@ -157,6 +157,11 @@
   .modernQuickGrid button {
     min-height: 31px;
     padding: 4px 6px;
+  }
+
+  /* Button 8 duplicates the same refresh call as "Đồng bộ tất cả". */
+  .modernQuickGrid > button:nth-child(8) {
+    display: none;
   }
 
   .modernMiniFilters {
