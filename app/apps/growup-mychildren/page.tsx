@@ -1,5 +1,6 @@
 import { requireChatGPTUser } from "../../chatgpt-auth";
 import { probeGrowUpManagementContract } from "../../growup.server";
+import shared from "../shared-client-admin.module.css";
 import GrowUpAdmin from "./growup-admin";
 
 export const dynamic = "force-dynamic";
@@ -16,8 +17,10 @@ export default async function GrowUpAdminPage() {
   } catch (error) {
     siteError = error instanceof Error ? error.message : "Không thể xác minh Site GrowUP.";
   }
-  return <GrowUpAdmin
-    user={{ displayName: user.displayName, email: user.email }}
-    site={{ url: siteUrl, error: siteError, remoteAdminReady }}
-  />;
+  return <div className={shared.scope}>
+    <GrowUpAdmin
+      user={{ displayName: user.displayName, email: user.email }}
+      site={{ url: siteUrl, error: siteError, remoteAdminReady }}
+    />
+  </div>;
 }
