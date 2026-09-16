@@ -60,7 +60,7 @@ function applyFontThroughReact(size: number) {
 }
 
 function stepFont(direction: -1 | 1) {
-  const current = fontSizeFromDialog() ?? Number(getAppearance().fontSize) || 14;
+  const current = (fontSizeFromDialog() ?? Number(getAppearance().fontSize)) || 14;
   const index = Math.max(0, FONT_STEPS.findIndex((value) => value === current));
   applyFontThroughReact(FONT_STEPS[Math.max(0, Math.min(FONT_STEPS.length - 1, index + direction))]);
 }
