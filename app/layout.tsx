@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import RuntimeUiFixes from "./runtime-ui-fixes";
 
 export const metadata: Metadata = {
   title: "Application Management · Trung tâm quản trị ứng dụng",
@@ -15,5 +14,5 @@ export const metadata: Metadata = {
 export const viewport = { themeColor: "#173b33" };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="vi"><body><RuntimeUiFixes/>{children}</body></html>;
+  return <html lang="vi"><body>{children}</body></html>;
 }
