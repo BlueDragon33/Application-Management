@@ -1,4 +1,4 @@
-import { existsSync, writeFileSync, rmSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn, spawnSync } from "node:child_process";
@@ -33,25 +33,9 @@ function checked(label, command, args, cwd) {
   console.log(`\n[offline-core] ${label}`);
   const result = run(command, args, cwd);
   if (result.error) throw result.error;
-  if (result.status !== 0) throw new Error(`${label} thất bại với mã ${result.status}.`);
-}
-
-function checkedWithLocalStateRecovery(label, command, args, cwd) {
-  console.log(`\n[offline-core] ${label}`);
-  let result = run(command, args, cwd);
-  if (!result.error && result.status === 0) return;
-
-  const statePath = join(cwd, ".wrangler", "state");
-  console.warn(`[offline-core] ${label} lỗi ở lần đầu. Đây là D1 local nên sẽ xóa state Wrangler cục bộ và thử lại một lần.`);
-  try {
-    if (existsSync(statePath)) rmSync(statePath, { recursive: true, force: true });
-  } catch (error) {
-    console.warn(`[offline-core] Không thể dọn ${statePath}: ${error instanceof Error ? error.message : String(error)}`);
+  if (result.status !== 0) {
+    throw new Error(`${label} thất bại với mã ${result.status}. Dữ liệu local được giữ nguyên; hệ thống không tự xóa registry.`);
   }
-
-  result = run(command, args, cwd);
-  if (result.error) throw result.error;
-  if (result.status !== 0) throw new Error(`${label} vẫn thất bại sau khi làm mới local state (mã ${result.status}).`);
 }
 
 function ensurePath(path, label) {
@@ -139,12 +123,13 @@ async function main() {
 
   checked("Migration D1 local · Application Management", npx,
     ["wrangler", "d1", "migrations", "apply", "learning-management-db", "--local", "--config", "wrangler.local.jsonc"], paths.central);
-  checkedWithLocalStateRecovery("Migration D1 local · Bauman Control", npx,
+  checked("Migration D1 local · Bauman Control", npx,
     ["wrangler", "d1", "migrations", "apply", "bauman-control-local", "--local", "--config", "wrangler.local.jsonc"], paths.baumanControl);
   checked("Migration D1 local · Bơi ếch", npx,
     ["wrangler", "d1", "migrations", "apply", "boi-ech-local", "--local", "--config", "wrangler.local.jsonc"], paths.boi);
 
   console.log("\n[offline-core] Bootstrap hoàn tất. Khởi động Application Management + Bauman Hub + Bơi ếch...");
+  console.log("[offline-core] Registry Bauman được giữ nguyên giữa các lần chạy; không còn cơ chế tự xóa .wrangler/state.");
   const launcher = join(paths.central, "scripts", "run-local-system.mjs");
   const args = [launcher, "--local", "--skip-install", "--skip-migrate", "--apps-root", options.appsRoot];
   if (options.noBrowser) args.push("--no-browser");
