@@ -21,14 +21,25 @@ test("desktop control room keeps the accepted panel order", () => {
   assert.match(css, /\.modernDevicePanel\s*\{[\s\S]*?grid-column:\s*2;[\s\S]*?grid-row:\s*3;/);
 });
 
-test("applications and long queues scroll inside their panels", () => {
+test("applications are paged three at a time with up/down controls", () => {
+  const dashboard = source("app/management-modern-overview.tsx");
+  assert.match(dashboard, /const APP_WINDOW_SIZE = 3/);
+  assert.match(dashboard, /const visibleApps = primaryApps\.slice\(safeAppOffset, safeAppOffset \+ APP_WINDOW_SIZE\)/);
+  assert.match(dashboard, /Ứng dụng trước/);
+  assert.match(dashboard, /Ứng dụng tiếp theo/);
+  assert.match(dashboard, /tối đa 3 ứng dụng mỗi lượt/);
+});
+
+test("long queues stay scrollable inside their panels", () => {
   const css = source("app/management-latest-layout.css");
   assert.match(css, /\.modernAppsTable\s*\{[\s\S]*?max-height:\s*155px;[\s\S]*?overflow-y:\s*auto;/);
   assert.match(css, /\.modernWorkTable\s*\{[\s\S]*?overflow:\s*auto;/);
   assert.match(css, /\.modernDeviceTable\s*\{[\s\S]*?overflow:\s*auto;/);
 });
 
-test("duplicate quick refresh action is not shown on desktop", () => {
-  const css = source("app/management-latest-layout.css");
-  assert.match(css, /\.modernQuickGrid\s*>\s*button:nth-child\(8\)\s*\{[\s\S]*?display:\s*none;/);
+test("duplicate quick refresh action is removed from the dashboard", () => {
+  const dashboard = source("app/management-modern-overview.tsx");
+  assert.doesNotMatch(dashboard, /Làm mới trạng thái/);
+  assert.match(dashboard, /Đồng bộ tất cả/);
+  assert.match(dashboard, /Xem nhật ký/);
 });
