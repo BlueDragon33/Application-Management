@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync, rmSync } from "node:fs";
+import { existsSync, writeFileSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn, spawnSync } from "node:child_process";
@@ -30,23 +30,23 @@ function run(command, args, cwd, stdio = "inherit") {
 }
 
 function checked(label, command, args, cwd) {
-  console.log(`\n[offline-v2] ${label}`);
+  console.log(`\n[offline-core] ${label}`);
   const result = run(command, args, cwd);
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error(`${label} thất bại với mã ${result.status}.`);
 }
 
 function checkedWithLocalStateRecovery(label, command, args, cwd) {
-  console.log(`\n[offline-v2] ${label}`);
+  console.log(`\n[offline-core] ${label}`);
   let result = run(command, args, cwd);
   if (!result.error && result.status === 0) return;
 
   const statePath = join(cwd, ".wrangler", "state");
-  console.warn(`[offline-v2] ${label} lỗi ở lần đầu. Đây là D1 local nên sẽ xóa state Wrangler cục bộ và thử lại một lần.`);
+  console.warn(`[offline-core] ${label} lỗi ở lần đầu. Đây là D1 local nên sẽ xóa state Wrangler cục bộ và thử lại một lần.`);
   try {
     if (existsSync(statePath)) rmSync(statePath, { recursive: true, force: true });
   } catch (error) {
-    console.warn(`[offline-v2] Không thể dọn ${statePath}: ${error instanceof Error ? error.message : String(error)}`);
+    console.warn(`[offline-core] Không thể dọn ${statePath}: ${error instanceof Error ? error.message : String(error)}`);
   }
 
   result = run(command, args, cwd);
@@ -64,17 +64,17 @@ function hasNpmLockfile(cwd) {
 
 function ensureDependencies(label, cwd, preferCi = true) {
   if (existsSync(join(cwd, "node_modules"))) {
-    console.log(`[offline-v2] ${label}: node_modules đã có, bỏ qua cài lại.`);
+    console.log(`[offline-core] ${label}: node_modules đã có, bỏ qua cài lại.`);
     return;
   }
 
   if (preferCi && hasNpmLockfile(cwd)) {
-    console.log(`\n[offline-v2] Cài dependency · ${label} · thử npm ci`);
+    console.log(`\n[offline-core] Cài dependency · ${label} · thử npm ci`);
     const ci = run(npm, ["ci", "--no-audit", "--no-fund"], cwd);
     if (!ci.error && ci.status === 0) return;
-    console.warn(`[offline-v2] npm ci của ${label} không dùng được; tự chuyển sang npm install để tiếp tục local.`);
+    console.warn(`[offline-core] npm ci của ${label} không dùng được; tự chuyển sang npm install.`);
   } else if (preferCi) {
-    console.log(`[offline-v2] ${label} chưa có npm lockfile; dùng npm install.`);
+    console.log(`[offline-core] ${label} chưa có npm lockfile; dùng npm install.`);
   }
 
   checked(`Cài dependency · ${label} · npm install`, npm, ["install", "--no-audit", "--no-fund"], cwd);
@@ -83,7 +83,7 @@ function ensureDependencies(label, cwd, preferCi = true) {
 function writeLocalConfigIfNeeded(path, content, label) {
   if (existsSync(path)) return;
   writeFileSync(path, content, "utf8");
-  console.log(`[offline-v2] Đã tạo ${label} chỉ cho local.`);
+  console.log(`[offline-core] Đã tạo ${label} chỉ cho local.`);
 }
 
 function parseArgs(argv) {
@@ -120,8 +120,7 @@ async function main() {
   const baumanRoot = join(options.appsRoot, "Bauman-master-ai-system");
   const paths = {
     central: centralRoot,
-    health: join(options.appsRoot, "Health_Care"),
-    ruLife: join(options.appsRoot, "RU_LIFE"),
+    baumanRuntime: baumanRoot,
     baumanControl: join(baumanRoot, "control-service"),
     boi: join(options.appsRoot, "BOIECH_AI", "boi-ech"),
   };
@@ -129,34 +128,23 @@ async function main() {
   for (const [key, value] of Object.entries(paths)) ensurePath(value, key);
 
   writeLocalConfigIfNeeded(
-    join(paths.health, "wrangler.local.jsonc"),
-    localConfig("health-care-local", "health-care-local-db"),
-    "Health_Care/wrangler.local.jsonc",
-  );
-  writeLocalConfigIfNeeded(
     join(paths.boi, "wrangler.local.jsonc"),
     localConfig("boi-ech-local", "boi-ech-local"),
     "BOIECH_AI/boi-ech/wrangler.local.jsonc",
   );
 
   ensureDependencies("Application Management", paths.central, true);
-  ensureDependencies("Sức khỏe Y tế", paths.health, true);
-  ensureDependencies("Hòa nhập Nga", paths.ruLife, true);
   ensureDependencies("Bơi ếch", paths.boi, true);
   ensureDependencies("Bauman Control", paths.baumanControl, false);
 
   checked("Migration D1 local · Application Management", npx,
     ["wrangler", "d1", "migrations", "apply", "learning-management-db", "--local", "--config", "wrangler.local.jsonc"], paths.central);
-  checked("Migration D1 local · Sức khỏe Y tế", npx,
-    ["wrangler", "d1", "migrations", "apply", "health-care-local-db", "--local", "--config", "wrangler.local.jsonc"], paths.health);
-  checked("Migration D1 local · Hòa nhập Nga", npx,
-    ["wrangler", "d1", "migrations", "apply", "ru-life-local", "--local", "--config", "wrangler.local.jsonc"], paths.ruLife);
   checkedWithLocalStateRecovery("Migration D1 local · Bauman Control", npx,
     ["wrangler", "d1", "migrations", "apply", "bauman-control-local", "--local", "--config", "wrangler.local.jsonc"], paths.baumanControl);
   checked("Migration D1 local · Bơi ếch", npx,
     ["wrangler", "d1", "migrations", "apply", "boi-ech-local", "--local", "--config", "wrangler.local.jsonc"], paths.boi);
 
-  console.log("\n[offline-v2] Bootstrap local hoàn tất. Khởi động 6 runtime trên 127.0.0.1:3000–3005...");
+  console.log("\n[offline-core] Bootstrap hoàn tất. Khởi động Application Management + Bauman Hub + Bơi ếch...");
   const launcher = join(paths.central, "scripts", "run-local-system.mjs");
   const args = [launcher, "--local", "--skip-install", "--skip-migrate", "--apps-root", options.appsRoot];
   if (options.noBrowser) args.push("--no-browser");
@@ -174,6 +162,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(`\n[offline-v2] FAIL · ${error instanceof Error ? error.message : String(error)}`);
+  console.error(`\n[offline-core] FAIL · ${error instanceof Error ? error.message : String(error)}`);
   process.exitCode = 1;
 });
