@@ -18,6 +18,7 @@ if exist "node_modules\.vite" (
   echo [offline-core] Xoa cache bien dich Vite cu...
   rmdir /s /q "node_modules\.vite"
 )
+start "" /b node scripts\open-local-bauman.mjs
 node scripts\run-local-offline-v2.mjs
 if errorlevel 1 (
   echo.
