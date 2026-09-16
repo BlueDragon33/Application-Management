@@ -8,25 +8,61 @@ const FONT_MIGRATION_KEY = "application-management:font-step-20260916";
 const OPERATIONS_CACHE_KEY = "application-management:operations:v1";
 const SUPPORTED_APPS = new Set(["boi-ech", "bauman-master-ai"]);
 const FONT_STEPS = [14, 16, 18, 20] as const;
+const PAGE_HEADER_TITLES = new Set([
+  "Bảng điều phối quản trị ứng dụng",
+  "Yêu cầu chờ duyệt",
+  "Ứng dụng đang quản lý",
+  "Thiết bị mới theo ứng dụng",
+  "Cảnh báo vận hành",
+  "Thiết bị quản trị Trung tâm",
+  "Nhật ký hệ thống",
+  "Cấu hình & ranh giới",
+]);
+const UNSUPPORTED_APP_LABELS = ["Sức khỏe Y tế", "Hòa nhập Nga", "GrowUP"];
 
 type Appearance = { font?: string; background?: string; fontSize?: number };
+
+type DeviceFilters = {
+  appId: string;
+  deviceType: string;
+  timeRange: string;
+  search: string;
+};
 
 function getAppearance(): Appearance {
   try { return JSON.parse(localStorage.getItem(APPEARANCE_KEY) || "{}"); } catch { return {}; }
 }
 
+function normalizedFontSize(size: number) {
+  return FONT_STEPS.includes(size as (typeof FONT_STEPS)[number]) ? size as (typeof FONT_STEPS)[number] : 14;
+}
+
 function setFontSize(size: number) {
-  const next = FONT_STEPS.includes(size as (typeof FONT_STEPS)[number]) ? size : 14;
+  const next = normalizedFontSize(size);
   const appearance = getAppearance();
   localStorage.setItem(APPEARANCE_KEY, JSON.stringify({ ...appearance, fontSize: next }));
   document.querySelectorAll<HTMLElement>("main").forEach((node) => node.style.setProperty("--qt-user-font-size", `${next}px`));
 }
 
+function fontSizeFromDialog() {
+  const active = Array.from(document.querySelectorAll<HTMLButtonElement>('button[data-active="true"]'))
+    .find((button) => /(?:14|16|18|20)\s*px/.test(button.textContent || ""));
+  const matched = active?.textContent?.match(/(14|16|18|20)\s*px/);
+  return matched ? Number(matched[1]) : null;
+}
+
+function applyFontThroughReact(size: number) {
+  const next = normalizedFontSize(size);
+  const nativeButton = Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
+    .find((button) => !button.closest("[data-runtime-font-step]") && button.textContent?.includes(`${next} px`));
+  if (nativeButton) nativeButton.click();
+  setFontSize(next);
+}
+
 function stepFont(direction: -1 | 1) {
-  const appearance = getAppearance();
-  const current = Number(appearance.fontSize) || 14;
+  const current = fontSizeFromDialog() ?? Number(getAppearance().fontSize) || 14;
   const index = Math.max(0, FONT_STEPS.findIndex((value) => value === current));
-  setFontSize(FONT_STEPS[Math.max(0, Math.min(FONT_STEPS.length - 1, index + direction))]);
+  applyFontThroughReact(FONT_STEPS[Math.max(0, Math.min(FONT_STEPS.length - 1, index + direction))]);
 }
 
 function migrateFontOneStepDown() {
@@ -46,20 +82,51 @@ function readOperations(): OperationsBootstrap | null {
   } catch { return null; }
 }
 
-function appFilterFromPage() {
-  const selects = Array.from(document.querySelectorAll<HTMLSelectElement>("select"));
-  const appSelect = selects.find((select) => Array.from(select.options).some((option) => option.value === "boi-ech") && Array.from(select.options).some((option) => option.value === "bauman-master-ai"));
-  return appSelect?.value || "all";
+function selectByOptions(required: string[]) {
+  return Array.from(document.querySelectorAll<HTMLSelectElement>("select"))
+    .find((select) => {
+      const values = new Set(Array.from(select.options).map((option) => option.value));
+      return required.every((value) => values.has(value));
+    });
 }
 
-function targetDevices(all = false) {
+function currentDeviceFilters(): DeviceFilters {
+  const appSelect = selectByOptions(["boi-ech", "bauman-master-ai"]);
+  const typeSelect = selectByOptions(["desktop", "tablet", "phone", "unknown"]);
+  const timeSelect = selectByOptions(["1", "7", "30", "all"]);
+  const search = Array.from(document.querySelectorAll<HTMLInputElement>("input"))
+    .find((input) => input.placeholder?.includes("Tìm theo ứng dụng"))?.value.trim().toLowerCase() || "";
+  return {
+    appId: appSelect?.value || "all",
+    deviceType: typeSelect?.value || "all",
+    timeRange: timeSelect?.value || "all",
+    search,
+  };
+}
+
+function inTimeRange(device: OperationsDevice, timeRange: string) {
+  if (timeRange === "all") return true;
+  const raw = device.attention === "environment" ? device.lastSeenAt ?? device.createdAt : device.createdAt ?? device.lastSeenAt;
+  if (!raw) return false;
+  const parsed = Date.parse(raw);
+  const days = Number(timeRange);
+  return Number.isFinite(parsed) && Number.isFinite(days) && Date.now() - parsed <= days * 86_400_000;
+}
+
+function targetDevices() {
   const data = readOperations();
   if (!data) return [] as OperationsDevice[];
-  const filter = appFilterFromPage();
-  return data.devices.filter((device) => SUPPORTED_APPS.has(device.appId)
-    && (filter === "all" || device.appId === filter)
-    && (all || device.status === "pending")
-    && device.canRemove);
+  const filters = currentDeviceFilters();
+  return data.devices.filter((device) => {
+    const haystack = `${device.appName} ${device.deviceCode} ${device.userLabel} ${device.deviceTypeLabel}`.toLowerCase();
+    return SUPPORTED_APPS.has(device.appId)
+      && device.status === "pending"
+      && device.canRemove
+      && (filters.appId === "all" || device.appId === filters.appId)
+      && (filters.deviceType === "all" || device.deviceType === filters.deviceType)
+      && inTimeRange(device, filters.timeRange)
+      && (!filters.search || haystack.includes(filters.search));
+  });
 }
 
 async function removeDevice(device: OperationsDevice) {
@@ -74,14 +141,14 @@ async function removeDevice(device: OperationsDevice) {
 }
 
 async function bulkRemove() {
-  const devices = targetDevices(false);
+  const devices = targetDevices();
   if (!devices.length) {
-    window.alert("Không có thiết bị chờ duyệt của Bơi ếch/Bauman Hub để xóa hoặc khóa.");
+    window.alert("Không có thiết bị chờ duyệt của Bơi ếch/Bauman Hub trong bộ lọc hiện tại để xử lý.");
     return;
   }
   const boi = devices.filter((item) => item.appId === "boi-ech").length;
   const bauman = devices.filter((item) => item.appId === "bauman-master-ai").length;
-  if (!window.confirm(`Xử lý toàn bộ ${devices.length} thiết bị chờ duyệt đang chọn?\nBơi ếch: xóa vĩnh viễn ${boi}.\nBauman Hub: khóa ${bauman}.`)) return;
+  if (!window.confirm(`Xử lý toàn bộ ${devices.length} thiết bị chờ duyệt trong bộ lọc hiện tại?\nBơi ếch: xóa vĩnh viễn ${boi}.\nBauman Hub: khóa ${bauman}.`)) return;
   const button = document.querySelector<HTMLButtonElement>("[data-runtime-bulk-remove]");
   if (button) { button.disabled = true; button.textContent = "Đang xử lý…"; }
   const failures: string[] = [];
@@ -95,11 +162,13 @@ async function bulkRemove() {
 }
 
 function hideRedundantHeader() {
-  const title = Array.from(document.querySelectorAll("h1")).find((node) => node.textContent?.includes("Bảng điều phối quản trị ứng dụng"));
-  if (title) (title.closest("header") as HTMLElement | null)?.style.setProperty("display", "none", "important");
+  document.querySelectorAll<HTMLHeadingElement>("h1").forEach((title) => {
+    if (!PAGE_HEADER_TITLES.has(title.textContent?.trim() || "")) return;
+    (title.closest("header") as HTMLElement | null)?.style.setProperty("display", "none", "important");
+  });
 
   document.querySelectorAll<HTMLElement>("small").forEach((node) => {
-    if (/^v\d/i.test(node.textContent?.trim() || "")) node.style.display = "none";
+    if (/^(?:v|ver(?:sion)?\.?)[\s-]*\d/i.test(node.textContent?.trim() || "")) node.style.display = "none";
   });
 
   Array.from(document.querySelectorAll<HTMLElement>("body *")).forEach((node) => {
@@ -118,17 +187,40 @@ function limitAppChoices() {
     Array.from(select.options).forEach((option) => {
       if (option.value !== "all" && option.value !== "boi-ech" && option.value !== "bauman-master-ai") option.remove();
     });
+    if (select.value !== "all" && !SUPPORTED_APPS.has(select.value)) {
+      select.value = "all";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    }
   });
 
   document.querySelectorAll<HTMLElement>("article").forEach((row) => {
     const text = row.textContent || "";
-    const looksLikeAppRow = /Truy cập web|Vào quản trị/.test(text);
-    if (looksLikeAppRow && !/Bơi ếch|Bauman Hub|Bauman Master AI/.test(text)) row.style.display = "none";
+    const looksLikeAppRow = /Truy cập web|Vào quản trị|Quản trị\s*→/.test(text);
+    if (looksLikeAppRow && UNSUPPORTED_APP_LABELS.some((label) => text.includes(label))) row.style.display = "none";
+  });
+
+  document.querySelectorAll<HTMLElement>("label").forEach((row) => {
+    const text = row.textContent || "";
+    if (UNSUPPORTED_APP_LABELS.some((label) => text.includes(label)) && row.querySelector('input[type="checkbox"]')) row.style.display = "none";
+  });
+
+  Array.from(document.querySelectorAll<HTMLElement>("button")).forEach((button) => {
+    if (!button.textContent?.includes("Tổng ứng dụng")) return;
+    const count = button.querySelector("strong");
+    if (count && count.textContent !== "2") count.textContent = "2";
+  });
+
+  document.querySelectorAll<HTMLElement>("span").forEach((node) => {
+    const text = node.textContent?.trim() || "";
+    if (/^\d+\s+(?:client cấp 1|ứng dụng)$/.test(text) && text !== "2 client cấp 1" && text !== "2 ứng dụng") {
+      node.textContent = text.endsWith("ứng dụng") ? "2 ứng dụng" : "2 client cấp 1";
+    }
   });
 }
 
 function enhanceAppearanceDialog() {
-  const dialog = Array.from(document.querySelectorAll<HTMLElement>("section")).find((node) => node.getAttribute("role") === "dialog" && node.textContent?.includes("Cỡ chữ"));
+  const dialog = Array.from(document.querySelectorAll<HTMLElement>("section"))
+    .find((node) => node.getAttribute("role") === "dialog" && node.textContent?.includes("Cỡ chữ"));
   if (!dialog || dialog.querySelector("[data-runtime-font-step]")) return;
   const sections = Array.from(dialog.querySelectorAll<HTMLElement>("div"));
   const sizeSection = sections.find((node) => node.textContent?.trim().startsWith("Cỡ chữ"));
@@ -136,14 +228,14 @@ function enhanceAppearanceDialog() {
   const controls = document.createElement("div");
   controls.setAttribute("data-runtime-font-step", "1");
   controls.style.cssText = "display:flex;gap:8px;margin-top:10px;align-items:center";
-  controls.innerHTML = '<button type="button" data-font-minus style="min-width:44px;padding:8px 12px">A−</button><span style="opacity:.75">Tăng/giảm nhanh cỡ chữ nội dung</span><button type="button" data-font-plus style="min-width:44px;padding:8px 12px">A+</button>';
+  controls.innerHTML = '<button type="button" data-font-minus style="min-width:44px;padding:8px 12px">A−</button><span style="flex:1;opacity:.75">Tăng/giảm nhanh cỡ chữ nội dung</span><button type="button" data-font-plus style="min-width:44px;padding:8px 12px">A+</button>';
   controls.querySelector<HTMLButtonElement>("[data-font-minus]")?.addEventListener("click", () => stepFont(-1));
   controls.querySelector<HTMLButtonElement>("[data-font-plus]")?.addEventListener("click", () => stepFont(1));
   sizeSection.appendChild(controls);
 }
 
 function addBulkRemoveButton() {
-  if (!new URLSearchParams(location.search).get("view")?.includes("client-devices")) return;
+  if (new URLSearchParams(location.search).get("view") !== "client-devices") return;
   if (document.querySelector("[data-runtime-bulk-remove]")) return;
   const heading = Array.from(document.querySelectorAll("h2")).find((node) => node.textContent?.includes("Thiết bị mới"));
   const header = heading?.parentElement?.parentElement;
@@ -152,6 +244,7 @@ function addBulkRemoveButton() {
   button.type = "button";
   button.setAttribute("data-runtime-bulk-remove", "1");
   button.textContent = "Xóa/khóa tất cả";
+  button.title = "Chỉ xử lý thiết bị chờ duyệt đang khớp bộ lọc; Bơi ếch xóa vĩnh viễn, Bauman Hub khóa quyền";
   button.style.cssText = "margin-left:8px;padding:7px 11px;border-radius:8px;border:1px solid #a94b4b;background:#6d2323;color:#fff;cursor:pointer";
   button.addEventListener("click", () => void bulkRemove());
   header.appendChild(button);
@@ -159,7 +252,7 @@ function addBulkRemoveButton() {
 
 function interceptBrokenRemove(event: MouseEvent) {
   const button = (event.target as HTMLElement | null)?.closest("button");
-  if (!button) return;
+  if (!button || button.hasAttribute("data-runtime-bulk-remove")) return;
   const label = button.textContent?.trim() || "";
   if (label !== "Xóa vĩnh viễn" && label !== "Khóa") return;
   const row = button.closest("article");
