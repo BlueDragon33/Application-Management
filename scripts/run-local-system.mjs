@@ -116,9 +116,7 @@ function hasNpmLockfile(cwd) {
 function ensureDependencies(label, cwd, preferCi, skipInstall) {
   if (skipInstall || existsSync(join(cwd, "node_modules"))) return;
   const useCi = preferCi && hasNpmLockfile(cwd);
-  if (preferCi && !useCi) {
-    console.log(`[local-system] ${label} chưa có npm lockfile; chuyển an toàn từ npm ci sang npm install.`);
-  }
+  if (preferCi && !useCi) console.log(`[local-system] ${label} chưa có npm lockfile; chuyển an toàn từ npm ci sang npm install.`);
   runChecked(`Cài dependency · ${label}`, npm, [useCi ? "ci" : "install", "--no-audit", "--no-fund"], cwd);
 }
 
@@ -145,18 +143,6 @@ function migrateLocalDatabases(paths, skipMigrate) {
     npx,
     ["wrangler", "d1", "migrations", "apply", "learning-management-db", "--local", "--config", "wrangler.local.jsonc"],
     paths.central,
-  );
-  runChecked(
-    "Migration D1 local · Sức khỏe Y tế",
-    npx,
-    ["wrangler", "d1", "migrations", "apply", "health-care-local-db", "--local", "--config", "wrangler.local.jsonc"],
-    paths.health,
-  );
-  runChecked(
-    "Migration D1 local · Hòa nhập Nga",
-    npx,
-    ["wrangler", "d1", "migrations", "apply", "ru-life-local", "--local", "--config", "wrangler.local.jsonc"],
-    paths.ruLife,
   );
   runChecked(
     "Migration D1 local · Bauman Control",
@@ -247,24 +233,18 @@ async function main() {
   const baumanRoot = join(options.appsRoot, "Bauman-master-ai-system");
   const paths = {
     central: centralRoot,
-    health: join(options.appsRoot, "Health_Care"),
-    ruLife: join(options.appsRoot, "RU_LIFE"),
     baumanRuntime: baumanRoot,
     baumanControl: join(baumanRoot, "control-service"),
     boi: join(options.appsRoot, "BOIECH_AI", "boi-ech"),
   };
 
   for (const [key, path] of Object.entries(paths)) requirePath(path, key);
-  requirePath(join(paths.health, "wrangler.local.jsonc"), "Health_Care/wrangler.local.jsonc");
-  requirePath(join(paths.ruLife, "wrangler.local.jsonc"), "RU_LIFE/wrangler.local.jsonc");
   requirePath(join(paths.baumanControl, "wrangler.local.jsonc"), "Bauman control-service/wrangler.local.jsonc");
   requirePath(join(paths.boi, "wrangler.local.jsonc"), "BOIECH_AI/boi-ech/wrangler.local.jsonc");
   requirePath(join(paths.baumanRuntime, "scripts", "serve-local-runtime.mjs"), "Bauman scripts/serve-local-runtime.mjs");
-  requirePorts([3000, 3001, 3002, 3003, 3004, 3005]);
+  requirePorts([3000, 3003, 3004, 3005]);
 
   ensureDependencies("Application Management", paths.central, true, options.skipInstall);
-  ensureDependencies("Sức khỏe Y tế", paths.health, true, options.skipInstall);
-  ensureDependencies("Hòa nhập Nga", paths.ruLife, true, options.skipInstall);
   ensureDependencies("Bơi ếch", paths.boi, true, options.skipInstall);
   ensureDependencies("Bauman Control", paths.baumanControl, false, options.skipInstall);
 
@@ -273,8 +253,6 @@ async function main() {
 
   const centralOrigin = "http://127.0.0.1:3000";
   const baumanRuntimeOrigin = "http://127.0.0.1:3005";
-  const healthSecret = ephemeralSecret();
-  const ruSecret = ephemeralSecret();
   const baumanSecret = ephemeralSecret();
   const boiSecret = ephemeralSecret();
 
@@ -284,20 +262,6 @@ async function main() {
     WRANGLER_LOG_PATH: ".wrangler/wrangler.log",
   };
 
-  children.push(spawnService({
-    name: "HEALTH",
-    command: npx,
-    args: ["vite", "--host", "127.0.0.1", "--port", "3001"],
-    cwd: paths.health,
-    env: { ...commonClientEnv, HEALTH_CONTROL_SERVICE_SECRET: healthSecret },
-  }));
-  children.push(spawnService({
-    name: "RU",
-    command: npx,
-    args: ["vite", "--host", "127.0.0.1", "--port", "3002"],
-    cwd: paths.ruLife,
-    env: { ...commonClientEnv, RU_LIFE_CONTROL_SERVICE_SECRET: ruSecret },
-  }));
   children.push(spawnService({
     name: "BAUMAN-CONTROL",
     command: npx,
@@ -326,26 +290,21 @@ async function main() {
   }));
 
   await Promise.all([
-    waitForEndpoint("Sức khỏe Y tế", "http://127.0.0.1:3001/api/control/contract"),
-    waitForEndpoint("Hòa nhập Nga", "http://127.0.0.1:3002/api/control/status"),
     waitForEndpoint("Bauman Control", "http://127.0.0.1:3003/health"),
     waitForEndpoint("Bơi ếch", "http://127.0.0.1:3004/api/control/overview?activityDays=0"),
-    waitForEndpoint("Bauman Runtime", `${baumanRuntimeOrigin}/_local/health`),
+    waitForEndpoint("Bauman Hub + môn học", `${baumanRuntimeOrigin}/_local/health`),
   ]);
 
   const centralEnv = {
     ...devVars,
     LOCAL_DEV_AUTH: "1",
     CONTROL_PLANE_NETWORK_MODE: options.mode,
-    HEALTH_CARE_LOCAL_BASE_URL: "http://127.0.0.1:3001",
-    HEALTH_CONTROL_SERVICE_SECRET: healthSecret,
-    RU_LIFE_LOCAL_BASE_URL: "http://127.0.0.1:3002",
-    RU_LIFE_CONTROL_SERVICE_SECRET: ruSecret,
     BAUMAN_CONTROL_LOCAL_BASE_URL: "http://127.0.0.1:3003",
     BAUMAN_APP_LOCAL_ORIGIN: baumanRuntimeOrigin,
     BAUMAN_CONTROL_SERVICE_SECRET: baumanSecret,
     BOI_ECH_LOCAL_BASE_URL: "http://127.0.0.1:3004",
     CONTROL_SERVICE_SECRET: boiSecret,
+    LOCAL_ACTIVE_APPLICATIONS: "bauman-master-ai,boi-ech",
   };
 
   children.push(spawnService({
@@ -359,19 +318,18 @@ async function main() {
   await waitForEndpoint("Application Management", centralOrigin);
 
   console.log("\n===============================================================");
-  console.log(" Local Control Plane đang hoạt động");
+  console.log(" Local Control Plane đang hoạt động · BAUMAN + BƠI ẾCH");
   console.log("===============================================================");
   console.log(` Chế độ          : ${options.mode}`);
   console.log(` Trung tâm       : ${centralOrigin}`);
-  console.log(" Sức khỏe Y tế   : http://127.0.0.1:3001");
-  console.log(" Hòa nhập Nga    : http://127.0.0.1:3002");
   console.log(" Bauman Control  : http://127.0.0.1:3003 · D1 bauman-control-local");
   console.log(" Bơi ếch         : http://127.0.0.1:3004");
-  console.log(` Bauman Runtime  : ${baumanRuntimeOrigin} · Device Gate v4`);
+  console.log(` Bauman Hub      : ${baumanRuntimeOrigin}`);
+  console.log(" Môn Bauman      : chạy bên trong Bauman Hub, không cần port riêng");
   console.log("---------------------------------------------------------------");
+  console.log(" Health_Care, Hòa nhập Nga và GrowUP KHÔNG được khởi động trong cấu hình này.");
   console.log(" D1 local nằm trong .wrangler của từng repo và KHÔNG phải D1 production.");
   console.log(" Secret liên-app chỉ tồn tại trong process hiện tại, không ghi vào GitHub.");
-  console.log(" Bauman Runtime phải được duyệt bằng mã BM- trong Application Management trước khi mở nội dung học.");
   console.log(" Nhấn Ctrl+C để dừng toàn bộ hệ thống.");
   console.log("===============================================================\n");
 
