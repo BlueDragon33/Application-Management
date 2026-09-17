@@ -1,0 +1,282 @@
+/* Final visual pass for the approved Application Management dashboard.
+   Scope: presentation only. Keep all device/app/business logic in
+   management-dashboard-v2.tsx unchanged. */
+
+@media (min-width: 1200px) and (min-aspect-ratio: 4/3) {
+  .amv2-shell {
+    height: 100dvh;
+    min-height: 100dvh;
+    grid-template-columns: 266px minmax(0, 1fr);
+    overflow: hidden;
+  }
+
+  .amv2-sidebar {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .amv2-workspace {
+    height: 100dvh;
+    min-height: 0;
+    grid-template-rows: 72px minmax(0, 1fr);
+    overflow: hidden;
+  }
+
+  .amv2-topbar {
+    min-height: 72px;
+    padding: 9px 18px;
+  }
+
+  .amv2-content {
+    width: min(1660px, calc(100% - 24px));
+    height: 100%;
+    min-height: 0;
+    grid-template-rows: 82px minmax(0, 1fr);
+    gap: 8px;
+    padding: 8px 0 9px;
+    overflow: hidden;
+  }
+
+  .amv2-page-head {
+    min-height: 82px;
+    height: 82px;
+  }
+
+  .amv2-page-head h1 {
+    margin-bottom: 6px;
+    font-size: clamp(30px, 2.15vw, 37px);
+    line-height: 1;
+  }
+
+  .amv2-page-head p {
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .amv2-clock {
+    min-width: 360px;
+    min-height: 70px;
+  }
+
+  .amv2-stage[data-view="overview"] {
+    height: 100%;
+    min-height: 0;
+    grid-template-rows: 104px minmax(0, 1fr);
+    gap: 10px;
+    overflow: hidden;
+  }
+
+  .amv2-metrics {
+    height: 104px;
+    min-height: 104px;
+    gap: 10px;
+  }
+
+  .amv2-metrics > button {
+    min-height: 104px;
+    padding: 11px 13px;
+    grid-template-columns: 54px minmax(0, 1fr) 15px;
+  }
+
+  .amv2-metrics > button > i {
+    width: 52px;
+    height: 52px;
+    font-size: 25px;
+  }
+
+  .amv2-metrics small {
+    font-size: 13px;
+  }
+
+  .amv2-metrics strong {
+    font-size: 31px;
+  }
+
+  .amv2-metrics em {
+    font-size: 10.5px;
+  }
+
+  /* The left split is intentionally aligned with the bottom edge of Quick
+     Actions. Both lower panels share row 3 and therefore share one baseline. */
+  .amv2-overview-grid {
+    height: 100%;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1.12fr) minmax(520px, .94fr);
+    grid-template-rows: 136px 188px minmax(220px, 1fr);
+    gap: 10px 12px;
+    overflow: hidden;
+  }
+
+  .amv2-priority-panel {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+  }
+
+  .amv2-alert-panel {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .amv2-quick-panel {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .amv2-apps-panel {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .amv2-devices-panel {
+    grid-column: 2;
+    grid-row: 3;
+  }
+
+  .amv2-panel,
+  .amv2-priority-panel,
+  .amv2-alert-panel,
+  .amv2-quick-panel,
+  .amv2-apps-panel,
+  .amv2-devices-panel {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .amv2-panel-title {
+    min-height: 48px;
+    height: 48px;
+    padding: 8px 12px;
+  }
+
+  .amv2-panel-title h2,
+  .amv2-quick-panel > header h2 {
+    font-size: 18px;
+    line-height: 1.1;
+  }
+
+  .amv2-panel-title > button {
+    font-size: 11px;
+  }
+
+  .amv2-priority-table,
+  .amv2-app-table,
+  .amv2-device-table {
+    height: calc(100% - 48px);
+    min-height: 0;
+    overflow: auto;
+  }
+
+  .amv2-priority-head,
+  .amv2-app-head,
+  .amv2-device-head {
+    min-height: 42px;
+    font-size: 10.5px;
+  }
+
+  .amv2-priority-row,
+  .amv2-app-row,
+  .amv2-device-row {
+    min-height: 56px;
+    font-size: 11px;
+  }
+
+  .amv2-app-head,
+  .amv2-app-row {
+    grid-template-columns:
+      minmax(150px, 1.24fr)
+      minmax(98px, .78fr)
+      minmax(86px, .64fr)
+      minmax(86px, .64fr)
+      minmax(118px, .9fr)
+      82px
+      82px;
+  }
+
+  .amv2-web-action,
+  .amv2-manage-action {
+    min-height: 36px;
+    font-size: 11px;
+    border-radius: 8px;
+  }
+
+  .amv2-app-cell strong {
+    font-size: 11.5px;
+  }
+
+  .amv2-app-cell i {
+    width: 34px;
+    height: 34px;
+  }
+
+  .amv2-alert-grid {
+    height: calc(100% - 48px);
+    padding: 0 10px 10px;
+  }
+
+  .amv2-alert-grid small {
+    font-size: 10.5px;
+  }
+
+  .amv2-alert-grid strong {
+    font-size: 26px;
+  }
+
+  .amv2-quick-panel {
+    padding: 8px 10px 10px;
+  }
+
+  .amv2-quick-panel > header {
+    min-height: 32px;
+  }
+
+  .amv2-quick-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .amv2-quick-grid button {
+    min-height: 38px;
+    font-size: 10.5px;
+  }
+
+  .amv2-device-head,
+  .amv2-device-row {
+    grid-template-columns: minmax(130px, 1.05fr) minmax(95px, .75fr) minmax(120px, 1fr) minmax(86px, .7fr) minmax(120px, .92fr);
+  }
+
+  .amv2-device-row > div:last-child {
+    gap: 5px;
+  }
+
+  .amv2-device-row button {
+    min-height: 33px;
+    padding: 0 9px;
+    font-size: 10.5px;
+  }
+
+  .amv2-empty {
+    min-height: 120px;
+  }
+
+  .amv2-priority-table .amv2-empty {
+    height: calc(100% - 42px);
+    min-height: 120px;
+  }
+
+  /* No decorative/pager/footer strips on the approved dashboard. */
+  .modernAppsPager,
+  .modernScrollFooter,
+  [class*="scrollFooter"],
+  [class*="sidebarFooter"] small {
+    display: none !important;
+  }
+}
+
+/* Keep page changes visually stable: no entry transform, overlay or fade stack. */
+.amv2-stage,
+.amv2-stage > *,
+.amv2-page-panel,
+.amv2-overview-grid {
+  animation: none !important;
+  transform: none !important;
+}
