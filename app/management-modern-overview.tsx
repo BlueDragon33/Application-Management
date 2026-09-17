@@ -15,7 +15,17 @@ import {
   type OperationsWorkItem,
 } from "./admin-device-client";
 
-const primaryApps = applicationRegistry;
+type ManagementTheme = "emerald" | "jade" | "midnight" | "graphite";
+
+const THEME_STORAGE_KEY = "application-management:theme:v1";
+const PRIMARY_APP_IDS = new Set(["boi-ech", "bauman-master-ai"]);
+const primaryApps = applicationRegistry.filter((app) => PRIMARY_APP_IDS.has(app.id));
+const themeOptions: Array<{ value: ManagementTheme; label: string }> = [
+  { value: "emerald", label: "Xanh lục chuẩn" },
+  { value: "jade", label: "Ngọc lục" },
+  { value: "midnight", label: "Xanh đêm" },
+  { value: "graphite", label: "Than chì" },
+];
 
 const navItems = [
   ["overview", "⌂", "Tổng quan"],
@@ -34,9 +44,7 @@ function appFor(id: string) {
 function appGlyph(app: ApplicationConfig) {
   if (app.id === "bauman-master-ai") return "◇";
   if (app.id === "boi-ech") return "≋";
-  if (app.id === "health-care") return "♥";
-  if (app.id === "ru-life") return "✈";
-  return "GU";
+  return "◆";
 }
 
 function relativeTime(value: string | null | undefined) {
@@ -97,6 +105,7 @@ export default function ManagementModernOverview({ user }: { user: { displayName
   const [search, setSearch] = useState("");
   const [appFilter, setAppFilter] = useState("all");
   const [webMenu, setWebMenu] = useState(false);
+  const [theme, setTheme] = useState<ManagementTheme>("emerald");
 
   async function refreshOperations(silent = false) {
     if (!silent) setSyncing(true);
@@ -127,7 +136,24 @@ export default function ManagementModernOverview({ user }: { user: { displayName
     }
   }
 
+  function changeTheme(next: ManagementTheme) {
+    setTheme(next);
+    try { window.localStorage.setItem(THEME_STORAGE_KEY, next); } catch { /* local preference is optional */ }
+    document.documentElement.dataset.managementTheme = next;
+  }
+
   useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(THEME_STORAGE_KEY) as ManagementTheme | null;
+      if (saved && themeOptions.some((option) => option.value === saved)) {
+        setTheme(saved);
+        document.documentElement.dataset.managementTheme = saved;
+      } else {
+        document.documentElement.dataset.managementTheme = "emerald";
+      }
+    } catch {
+      document.documentElement.dataset.managementTheme = "emerald";
+    }
     void initialize();
     const onFocus = () => void refreshOperations(true);
     window.addEventListener("focus", onFocus);
@@ -257,14 +283,13 @@ export default function ManagementModernOverview({ user }: { user: { displayName
 
   const notificationCount = workItems.length + pendingDevices.length;
   const onlineApps = primaryApps.filter((app) => connection(summaryMap.get(app.id), app) === "connected").length;
-  const totalOnlineDevices = summaries.reduce((sum, item) => sum + (item.onlineCount ?? 0), 0);
   const systemHealthy = unavailable === 0;
 
-  return <main className="modernAdminShell">
+  return <main className="modernAdminShell" data-theme={theme}>
     <aside className="modernSidebar">
       <div className="modernBrand"><div>QT</div><span><small>TRUNG TÂM ĐIỀU PHỐI</small><strong>QUẢN TRỊ ỨNG DỤNG</strong><em>Kết nối · Kiểm soát · Phát triển</em></span></div>
       <nav aria-label="Điều hướng quản trị hiện đại">{navItems.map(([view, icon, label]) => <button key={view} data-active={view === "overview"} onClick={() => go(view)}><i>{icon}</i><span>{label}</span>{view === "approvals" && notificationCount ? <b>{notificationCount}</b> : null}</button>)}</nav>
-      <section className="modernSystemHealth"><header><span>▣</span><div><small>Trạng thái hệ thống</small><strong>{systemHealthy ? "Hoạt động ổn định" : "Cần kiểm tra"}</strong></div></header><div><span>Ứng dụng quản lý</span><b>{primaryApps.length}</b></div><div><span>Kết nối tốt</span><b>{onlineApps}</b></div><div><span>Thiết bị chờ duyệt</span><b>{pendingDevices.length}</b></div></section>
+      <section className="modernSystemHealth"><header><span>●</span><div><small>Trạng thái hệ thống</small><strong>{systemHealthy ? "Hoạt động ổn định" : "Cần kiểm tra"}</strong></div></header><div><span>Ứng dụng quản lý</span><b>{primaryApps.length}</b></div><div><span>Kết nối tốt</span><b>{onlineApps}</b></div><div><span>Thiết bị chờ duyệt</span><b>{pendingDevices.length}</b></div></section>
     </aside>
 
     <section className="modernWorkspace">
@@ -273,7 +298,7 @@ export default function ManagementModernOverview({ user }: { user: { displayName
         <label className="modernFilter"><span>▽</span><select value={appFilter} onChange={(event) => setAppFilter(event.target.value)}><option value="all">Bộ lọc nhanh</option>{primaryApps.map((app) => <option key={app.id} value={app.id}>{app.shortName}</option>)}</select></label>
         <button className="modernBell" onClick={() => go("approvals")}>♧{notificationCount ? <b>{notificationCount}</b> : null}</button>
         <span className="modernOnline"><i/>Hệ thống kết nối<small>Dữ liệu đã cập nhật</small></span>
-        <details className="modernAccount"><summary><span>{initials(user.displayName)}</span><div><strong>{user.displayName}</strong><small>{roleLabels[access.role]}</small></div><b>⌄</b></summary><div><small>{user.email}</small><button onClick={() => go("settings")}>Cài đặt quản trị</button><a href="/signout-with-chatgpt?return_to=%2F">Đăng xuất</a></div></details>
+        <details className="modernAccount"><summary><span>{initials(user.displayName)}</span><div><strong>{user.displayName}</strong><small>{roleLabels[access.role]}</small></div><b>⌄</b></summary><div><small>{user.email}</small><label className="modernThemePicker"><span>Giao diện</span><select value={theme} onChange={(event) => changeTheme(event.target.value as ManagementTheme)}>{themeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><button onClick={() => go("settings")}>Cài đặt quản trị</button><a href="/signout-with-chatgpt?return_to=%2F">Đăng xuất</a></div></details>
       </header>
 
       <div className="modernPage">
@@ -287,9 +312,9 @@ export default function ManagementModernOverview({ user }: { user: { displayName
         </section>
 
         <section className="modernBoard modernBoardCompact">
-          <section className="modernPanel modernAppsPanel"><PanelTitle icon="◇" title="Ứng dụng đang quản lý" onClick={() => go("applications")}/><div className="modernAppsTable"><div className="modernAppsHead"><span>Ứng dụng</span><span>Nhóm nghiệp vụ</span><span>Việc chờ xử lý</span><span>Thiết bị online</span><span>Trạng thái</span><span>Quản trị</span><span>Website</span></div>{visibleApps.map((app) => { const summary = summaryMap.get(app.id); const state = connection(summary, app); const pending = summary?.pendingCount ?? devices.filter((item) => item.appId === app.id && item.status === "pending").length; const hasWeb = Boolean(summary?.webHref || app.publicUrl); return <div className="modernAppsRow" key={app.id}><AppCell appId={app.id} name={app.shortName}/><span>{app.id === "health-care" ? "Y tế" : app.id === "ru-life" ? "Nga" : app.id === "boi-ech" ? "Học tập" : app.id === "growup-mychildren" ? "Gia đình" : "Học thuật"}</span><strong>{summary?.pendingCount == null ? "—" : pending}</strong><strong>{summary?.onlineCount ?? "—"}</strong><b data-state={state}><i/>{connectionText(state)}</b><button className="modernManageAction" onClick={() => window.location.assign(app.href)}>Vào quản trị →</button><button className="modernWebAction" disabled={!hasWeb || actionBusy === `web:${app.id}`} onClick={() => void launchWeb(app.id)}>{actionBusy === `web:${app.id}` ? "Đang mở…" : hasWeb ? "Truy cập web ↗" : "Chờ contract"}</button></div>; })}{!visibleApps.length ? <EmptyRow text="Không tìm thấy ứng dụng phù hợp."/> : null}</div></section>
+          <section className="modernPanel modernAppsPanel"><PanelTitle icon="◇" title="Ứng dụng đang quản lý" onClick={() => go("applications")}/><div className="modernAppsTable"><div className="modernAppsHead"><span>Ứng dụng</span><span>Nhóm nghiệp vụ</span><span>Việc chờ xử lý</span><span>Thiết bị online</span><span>Trạng thái</span><span>Quản trị</span><span>Website</span></div>{visibleApps.map((app) => { const summary = summaryMap.get(app.id); const state = connection(summary, app); const pending = summary?.pendingCount ?? devices.filter((item) => item.appId === app.id && item.status === "pending").length; const hasWeb = Boolean(summary?.webHref || app.publicUrl); return <div className="modernAppsRow" key={app.id}><AppCell appId={app.id} name={app.shortName}/><span>{app.id === "boi-ech" ? "Học tập" : "Học thuật"}</span><strong>{summary?.pendingCount == null ? "—" : pending}</strong><strong>{summary?.onlineCount ?? "—"}</strong><b data-state={state}><i/>{connectionText(state)}</b><button className="modernManageAction" onClick={() => window.location.assign(app.href)}>Vào quản trị →</button><button className="modernWebAction" disabled={!hasWeb || actionBusy === `web:${app.id}`} onClick={() => void launchWeb(app.id)}>{actionBusy === `web:${app.id}` ? "Đang mở…" : hasWeb ? "Truy cập web ↗" : "Chờ contract"}</button></div>; })}{!visibleApps.length ? <EmptyRow text="Không tìm thấy ứng dụng phù hợp."/> : null}</div></section>
 
-          <section className="modernPanel modernQuickPanel"><header><h2>⚡ Thao tác nhanh</h2></header><div className="modernQuickGrid"><button onClick={() => go("applications")}>◇<span>Quản trị ứng dụng</span></button><button data-active={webMenu} onClick={() => setWebMenu((value) => !value)}>◎<span>Truy cập web</span></button><button onClick={() => go("approvals")}>▣<span>Duyệt thiết bị</span></button><button data-danger="true" disabled={Boolean(actionBusy)} onClick={() => void clearNotifications()}>⌫<span>{actionBusy === "clear" ? "Đang xóa…" : "Xóa hết thông báo"}</span></button><button disabled={Boolean(actionBusy)} onClick={() => void enableAutoApproval()}>⚙<span>{actionBusy === "auto" ? "Đang lưu…" : "Duyệt tự động"}</span></button><button disabled={syncing} onClick={() => void refreshOperations()}>{syncing ? "…" : "↻"}<span>{syncing ? "Đang đồng bộ…" : "Đồng bộ dữ liệu"}</span></button></div>{webMenu ? <div className="modernWebMenu">{primaryApps.map((app) => <button key={app.id} disabled={Boolean(actionBusy)} onClick={() => void launchWeb(app.id)}><span>{app.shortName}</span><b>{actionBusy === `web:${app.id}` ? "Đang mở…" : "Mở ↗"}</b></button>)}</div> : null}</section>
+          <section className="modernPanel modernQuickPanel"><header><h2>⚡ Thao tác nhanh</h2></header><div className="modernQuickGrid"><button onClick={() => go("applications")}><i>◇</i><span><strong>Quản trị ứng dụng</strong><small>Cấu hình và giám sát</small></span><b>›</b></button><button data-active={webMenu} onClick={() => setWebMenu((value) => !value)}><i>◎</i><span><strong>Truy cập web</strong><small>Mở ứng dụng sử dụng</small></span><b>›</b></button><button onClick={() => go("approvals")}><i>▣</i><span><strong>Duyệt thiết bị</strong><small>Xem và phê duyệt mới</small></span><b>›</b></button><button disabled={Boolean(actionBusy)} onClick={() => void enableAutoApproval()}><i>⚙</i><span><strong>{actionBusy === "auto" ? "Đang lưu…" : "Duyệt tự động"}</strong><small>Thiết lập quy tắc duyệt</small></span><b>›</b></button><button data-danger="true" disabled={Boolean(actionBusy)} onClick={() => void clearNotifications()}><i>⌫</i><span><strong>{actionBusy === "clear" ? "Đang xóa…" : "Xóa hết thông báo"}</strong><small>Đánh dấu danh sách đã đọc</small></span><b>›</b></button><button disabled={syncing} onClick={() => void refreshOperations()}><i>{syncing ? "…" : "↻"}</i><span><strong>{syncing ? "Đang đồng bộ…" : "Đồng bộ dữ liệu"}</strong><small>Cập nhật dữ liệu hệ thống</small></span><b>›</b></button></div>{webMenu ? <div className="modernWebMenu">{primaryApps.map((app) => <button key={app.id} disabled={Boolean(actionBusy)} onClick={() => void launchWeb(app.id)}><span>{app.shortName}</span><b>{actionBusy === `web:${app.id}` ? "Đang mở…" : "Mở ↗"}</b></button>)}</div> : null}</section>
 
           <section className="modernPanel modernWorkPanel"><PanelTitle icon="☷" title="Hộp việc ưu tiên" count={workItems.length} onClick={() => go("approvals")}/><div className="modernTable modernWorkTable"><div className="modernTableHead"><span>Ứng dụng</span><span>Sự kiện</span><span>Thiết bị</span><span>Thời gian</span><span>Trạng thái</span><span>Thao tác</span></div>{visibleWork.map((item) => <div className="modernTableRow" key={item.id}><AppCell appId={item.appId} name={item.appName}/><span>{item.title}</span><span>{item.deviceType || "Thiết bị"}</span><span>{relativeTime(item.occurredAt)}</span><b data-tone={workTone(item)}>{item.priority === "high" ? "Ưu tiên cao" : item.kind === "environment" ? "Cần kiểm tra" : item.kind === "connection" ? "Theo dõi" : "Chờ duyệt"}</b><button onClick={() => go("approvals")}>Xem</button></div>)}{!visibleWork.length ? <EmptyRow text="Không có việc phù hợp với bộ lọc hiện tại."/> : null}</div></section>
 
