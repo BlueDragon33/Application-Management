@@ -32,6 +32,10 @@ function normalizedStatus(value: unknown): DeviceStatus {
   return value === "pending" || value === "approved" || value === "blocked" ? value : "unknown";
 }
 
+function normalizedDeviceCode(value: unknown) {
+  return text(value).trim().toUpperCase();
+}
+
 function validDeviceId(value: string) {
   return value.length >= 1 && value.length <= 256 && !/[\u0000-\u001f\u007f]/.test(value);
 }
@@ -46,6 +50,18 @@ function rows(data: UnknownRecord) {
 
 function rowByDeviceId(data: UnknownRecord, deviceId: string) {
   return rows(data).find((item) => text(item.deviceId) === deviceId) ?? null;
+}
+
+function rowByDeviceCode(data: UnknownRecord, deviceCode: string) {
+  if (!deviceCode || deviceCode === "—") return null;
+  return rows(data).find((item) => normalizedDeviceCode(item.deviceCode) === deviceCode) ?? null;
+}
+
+function resolveLiveDevice(data: UnknownRecord, deviceId: string, deviceCode: string) {
+  const byId = rowByDeviceId(data, deviceId);
+  if (byId) return { row: byId, rebound: false };
+  const byCode = rowByDeviceCode(data, deviceCode);
+  return byCode ? { row: byCode, rebound: text(byCode.deviceId) !== deviceId } : null;
 }
 
 async function bridgeJson(bridge: Bridge, path: string, init?: { method?: "GET" | "POST"; body?: UnknownRecord }) {
@@ -109,8 +125,20 @@ async function handleBoi(actor: ControlDeviceState, payload: Record<string, unkn
 
   const bridge = await issueBoiBrowserBridge(actor.email, actor.role);
   const before = await bridgeJson(bridge, "/api/control/overview?activityDays=0");
-  const current = rowByDeviceId(before, deviceId);
-  if (!current) return json({ error: "Thiết bị Bơi ếch không còn trong registry.", code: "DEVICE_NOT_FOUND" }, 404);
+  const suppliedDeviceCode = normalizedDeviceCode(payload.deviceCode);
+  const resolved = resolveLiveDevice(before, deviceId, suppliedDeviceCode);
+  if (!resolved) {
+    return json({
+      ok: true,
+      code: "STALE_DEVICE_REMOVED",
+      stale: true,
+      removedDeviceId: deviceId,
+      message: "Thiết bị Bơi ếch đã rời registry; danh sách cần được đồng bộ lại.",
+    });
+  }
+  const current = resolved.row;
+  const liveDeviceId = text(current.deviceId);
+  if (!validDeviceId(liveDeviceId)) return json({ error: "Registry Bơi ếch trả về deviceId không hợp lệ.", code: "INVALID_LIVE_DEVICE_ID" }, 502);
 
   const liveStatus = normalizedStatus(current.status);
   const conflict = assertSnapshot(payload, liveStatus, "Bơi ếch");
@@ -120,22 +148,27 @@ async function handleBoi(actor: ControlDeviceState, payload: Record<string, unkn
     if (liveStatus !== "pending") return json({ error: "Thiết bị Bơi ếch không còn ở trạng thái chờ duyệt.", code: "DEVICE_STATE_CONFLICT" }, 409);
     await bridgeJson(bridge, "/api/control/overview", {
       method: "POST",
-      body: { action: "grant-free", deviceId },
+      body: { action: "grant-free", deviceId: liveDeviceId },
     });
     const after = await bridgeJson(bridge, "/api/control/overview?activityDays=0");
-    const updated = rowByDeviceId(after, deviceId);
+    const updated = rowByDeviceId(after, liveDeviceId);
     if (!updated || normalizedStatus(updated.status) === "pending") {
       return json({ error: "Bơi ếch chưa xác nhận quyền truy cập sau thao tác duyệt.", code: "DEVICE_COMMAND_READBACK_MISMATCH" }, 502);
     }
-    return json({ ok: true, verified: true, verifiedStatus: normalizedStatus(updated.status), approvedDeviceId: deviceId });
+    return json({
+      ok: true,
+      verified: true,
+      verifiedStatus: normalizedStatus(updated.status),
+      approvedDeviceId: liveDeviceId,
+      reboundFromDeviceId: resolved.rebound ? deviceId : undefined,
+    });
   }
 
   if (liveStatus === "blocked" || liveStatus === "unknown") {
     return json({ error: "Thiết bị Bơi ếch đã bị khóa hoặc trạng thái không xác định.", code: "DEVICE_STATE_CONFLICT" }, 409);
   }
 
-  const liveDeviceCode = text(current.deviceCode).toUpperCase();
-  const suppliedDeviceCode = text(payload.deviceCode).toUpperCase();
+  const liveDeviceCode = normalizedDeviceCode(current.deviceCode);
   const deviceCode = liveDeviceCode || suppliedDeviceCode;
   if (!/^BE-[A-Z0-9-]{8,60}$/.test(deviceCode)) {
     return json({ error: "Mã xác nhận thiết bị Bơi ếch không hợp lệ.", code: "INVALID_DEVICE_CODE" }, 400);
@@ -146,13 +179,19 @@ async function handleBoi(actor: ControlDeviceState, payload: Record<string, unkn
 
   await bridgeJson(bridge, "/api/control/overview", {
     method: "POST",
-    body: { action: "delete-spam-device", deviceId, confirmDeviceCode: deviceCode, deleteReason: "spam" },
+    body: { action: "delete-spam-device", deviceId: liveDeviceId, confirmDeviceCode: deviceCode, deleteReason: "spam" },
   });
   const after = await bridgeJson(bridge, "/api/control/overview?activityDays=0");
-  if (rowByDeviceId(after, deviceId)) {
+  if (rowByDeviceId(after, liveDeviceId)) {
     return json({ error: "Bơi ếch chưa xác nhận thiết bị đã được xóa.", code: "DEVICE_COMMAND_READBACK_MISMATCH" }, 502);
   }
-  return json({ ok: true, verified: true, verifiedStatus: "deleted", removedDeviceId: deviceId });
+  return json({
+    ok: true,
+    verified: true,
+    verifiedStatus: "deleted",
+    removedDeviceId: liveDeviceId,
+    reboundFromDeviceId: resolved.rebound ? deviceId : undefined,
+  });
 }
 
 async function handleBauman(actor: ControlDeviceState, payload: Record<string, unknown>, operation: "approve" | "remove", deviceId: string) {
@@ -178,8 +217,25 @@ async function handleBauman(actor: ControlDeviceState, payload: Record<string, u
   }
 
   const before = await bridgeJson(bridge, devicesPath);
-  const current = rowByDeviceId(before, deviceId);
-  if (!current) return json({ error: "Thiết bị Bauman không còn trong registry.", code: "DEVICE_NOT_FOUND" }, 404);
+  const suppliedDeviceCode = normalizedDeviceCode(payload.deviceCode);
+  const resolved = resolveLiveDevice(before, deviceId, suppliedDeviceCode);
+  if (!resolved) {
+    return json({
+      ok: true,
+      code: "STALE_DEVICE_REMOVED",
+      stale: true,
+      removedDeviceId: deviceId,
+      message: "Thiết bị Bauman đã rời registry; danh sách Trung tâm sẽ được đồng bộ lại.",
+    });
+  }
+
+  const current = resolved.row;
+  const liveDeviceId = text(current.deviceId);
+  if (!validDeviceId(liveDeviceId)) return json({ error: "Registry Bauman trả về deviceId không hợp lệ.", code: "INVALID_LIVE_DEVICE_ID" }, 502);
+  const liveDeviceCode = normalizedDeviceCode(current.deviceCode);
+  if (suppliedDeviceCode && liveDeviceCode && suppliedDeviceCode !== liveDeviceCode) {
+    return json({ error: "Mã thiết bị Bauman đã thay đổi; Trung tâm cần đồng bộ lại trước khi thao tác.", code: "DEVICE_STATE_CONFLICT" }, 409);
+  }
 
   const liveStatus = normalizedStatus(current.status);
   const conflict = assertSnapshot(payload, liveStatus, "Bauman");
@@ -199,7 +255,7 @@ async function handleBauman(actor: ControlDeviceState, payload: Record<string, u
   const expectedResult = operation === "approve" ? "approved" as const : "blocked" as const;
   const command = await bridgeCommandJson(bridge, commandPath, {
     commandId,
-    deviceId,
+    deviceId: liveDeviceId,
     operation: operation === "approve" ? "approve" : "block",
     expectedStatus: liveStatus,
   });
@@ -208,7 +264,7 @@ async function handleBauman(actor: ControlDeviceState, payload: Record<string, u
   }
 
   const after = await bridgeJson(bridge, devicesPath);
-  const updated = rowByDeviceId(after, deviceId);
+  const updated = rowByDeviceId(after, liveDeviceId);
   if (!updated || normalizedStatus(updated.status) !== expectedResult) {
     return json({ error: `Bauman chưa xác nhận trạng thái ${expectedResult} sau thao tác.`, code: "DEVICE_COMMAND_READBACK_MISMATCH" }, 502);
   }
@@ -219,7 +275,8 @@ async function handleBauman(actor: ControlDeviceState, payload: Record<string, u
     verifiedStatus: expectedResult,
     commandId,
     commandReplayed: bool(command.replayed),
-    ...(operation === "approve" ? { approvedDeviceId: deviceId } : { removedDeviceId: deviceId }),
+    reboundFromDeviceId: resolved.rebound ? deviceId : undefined,
+    ...(operation === "approve" ? { approvedDeviceId: liveDeviceId } : { removedDeviceId: liveDeviceId }),
   });
 }
 
