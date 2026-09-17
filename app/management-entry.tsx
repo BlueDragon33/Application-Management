@@ -1,18 +1,10 @@
 "use client";
 
-import ManagementDashboard from "./management-dashboard";
+import ManagementDashboardV2 from "./management-dashboard-v2";
 
-/*
- * One persistent management shell owns every tab, including Tổng quan.
- *
- * Previously the root swapped between ManagementModernOverview and
- * ManagementDashboard. Even when both trees were kept mounted, changing from
- * Tổng quan to Hộp việc changed the entire shell, which produced the visible
- * flash/overlay effect reported in local use. The dashboard already owns its
- * view state and updates the URL with history.pushState, so keeping this one
- * shell mounted gives tab changes the same visual/layout context and preserves
- * loaded state between views.
- */
+/* One persistent shell owns every tab. The approved image layout is now the
+   production/local management UI, so tab changes only swap the content view
+   inside the same mounted shell and never repaint a second dashboard on top. */
 export default function ManagementEntry({ user }: { user: { displayName: string; email: string } }) {
-  return <ManagementDashboard user={user} />;
+  return <ManagementDashboardV2 user={user} />;
 }
