@@ -12,34 +12,43 @@ test("latest runtime refinements stay mounted in the root layout", () => {
   assert.match(layout, /<RuntimeUiFixes\s*\/>/);
 });
 
-test("desktop control room keeps the accepted panel order", () => {
+test("desktop overview uses the compact two-column composition", () => {
   const css = source("app/management-latest-layout.css");
   assert.match(css, /\.modernAppsPanel\s*\{[\s\S]*?grid-column:\s*1;[\s\S]*?grid-row:\s*1;/);
-  assert.match(css, /\.modernWorkPanel\s*\{[\s\S]*?grid-column:\s*1;[\s\S]*?grid-row:\s*2\s*\/\s*span\s*2;/);
-  assert.match(css, /\.modernAlertsPanel\s*\{[\s\S]*?grid-column:\s*2;[\s\S]*?grid-row:\s*1;/);
-  assert.match(css, /\.modernQuickPanel\s*\{[\s\S]*?grid-column:\s*2;[\s\S]*?grid-row:\s*2;/);
-  assert.match(css, /\.modernDevicePanel\s*\{[\s\S]*?grid-column:\s*2;[\s\S]*?grid-row:\s*3;/);
+  assert.match(css, /\.modernQuickPanel\s*\{[\s\S]*?grid-column:\s*2;[\s\S]*?grid-row:\s*1;/);
+  assert.match(css, /\.modernWorkPanel\s*\{[\s\S]*?grid-column:\s*1;[\s\S]*?grid-row:\s*2;/);
+  assert.match(css, /\.modernDevicePanel\s*\{[\s\S]*?grid-column:\s*2;[\s\S]*?grid-row:\s*2;/);
 });
 
-test("applications are paged three at a time with up/down controls", () => {
+test("overview removes the large page header, quick-alert panel and app pager", () => {
   const dashboard = source("app/management-modern-overview.tsx");
-  assert.match(dashboard, /const APP_WINDOW_SIZE = 3/);
-  assert.match(dashboard, /const visibleApps = primaryApps\.slice\(safeAppOffset, safeAppOffset \+ APP_WINDOW_SIZE\)/);
-  assert.match(dashboard, /Ứng dụng trước/);
-  assert.match(dashboard, /Ứng dụng tiếp theo/);
-  assert.match(dashboard, /tối đa 3 ứng dụng mỗi lượt/);
+  assert.doesNotMatch(dashboard, /className="modernPageHeader"/);
+  assert.doesNotMatch(dashboard, /className="modernPanel modernAlertsPanel"/);
+  assert.doesNotMatch(dashboard, /modernAppsPager/);
+  assert.doesNotMatch(dashboard, /tối đa 3 ứng dụng mỗi lượt/);
 });
 
-test("long queues stay scrollable inside their panels", () => {
+test("application table has separate management and website columns", () => {
+  const dashboard = source("app/management-modern-overview.tsx");
   const css = source("app/management-latest-layout.css");
-  assert.match(css, /\.modernAppsTable\s*\{[\s\S]*?max-height:\s*155px;[\s\S]*?overflow-y:\s*auto;/);
+  assert.match(dashboard, /<span>Quản trị<\/span><span>Website<\/span>/);
+  assert.match(dashboard, /className="modernManageAction"/);
+  assert.match(dashboard, /className="modernWebAction"/);
+  assert.match(css, /grid-template-columns:[^;]*minmax\(112px, \.82fr\)[^;]*minmax\(112px, \.82fr\)/);
+});
+
+test("long tables stay scrollable inside panels and cells cannot bleed across columns", () => {
+  const css = source("app/management-latest-layout.css");
+  assert.match(css, /\.modernAppsTable\s*\{[\s\S]*?max-height:\s*194px;[\s\S]*?overflow:\s*auto;/);
   assert.match(css, /\.modernWorkTable\s*\{[\s\S]*?overflow:\s*auto;/);
   assert.match(css, /\.modernDeviceTable\s*\{[\s\S]*?overflow:\s*auto;/);
+  assert.match(css, /text-overflow:\s*ellipsis/);
+  assert.match(css, /white-space:\s*nowrap/);
 });
 
-test("duplicate quick refresh action is removed from the dashboard", () => {
+test("quick actions remain compact and do not duplicate a refresh action", () => {
   const dashboard = source("app/management-modern-overview.tsx");
   assert.doesNotMatch(dashboard, /Làm mới trạng thái/);
-  assert.match(dashboard, /Đồng bộ tất cả/);
-  assert.match(dashboard, /Xem nhật ký/);
+  assert.match(dashboard, /Đồng bộ dữ liệu/);
+  assert.match(dashboard, /Duyệt thiết bị/);
 });
