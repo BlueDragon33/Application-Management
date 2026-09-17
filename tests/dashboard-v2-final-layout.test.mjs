@@ -15,13 +15,21 @@ test("page mounts the final dashboard style after base/reference styles", () => 
   assert.ok(base >= 0 && ref > base && views > ref && final > views);
 });
 
-test("approved overview order and shared bottom baseline stay locked", () => {
+test("overview keeps Applications above Priority and right rail in final order", () => {
   const css = source("app/management-dashboard-v2-final.css");
-  assert.match(css, /\.amv2-priority-panel\s*\{[\s\S]*?grid-column:\s*1;[\s\S]*?grid-row:\s*1\s*\/\s*span\s*2;/);
+  assert.match(css, /\.amv2-apps-panel\s*\{[\s\S]*?grid-column:\s*1;[\s\S]*?grid-row:\s*1\s*\/\s*span\s*2;/);
+  assert.match(css, /\.amv2-priority-panel\s*\{[\s\S]*?grid-column:\s*1;[\s\S]*?grid-row:\s*3;/);
   assert.match(css, /\.amv2-alert-panel\s*\{[\s\S]*?grid-column:\s*2;[\s\S]*?grid-row:\s*1;/);
   assert.match(css, /\.amv2-quick-panel\s*\{[\s\S]*?grid-column:\s*2;[\s\S]*?grid-row:\s*2;/);
-  assert.match(css, /\.amv2-apps-panel\s*\{[\s\S]*?grid-column:\s*1;[\s\S]*?grid-row:\s*3;/);
   assert.match(css, /\.amv2-devices-panel\s*\{[\s\S]*?grid-column:\s*2;[\s\S]*?grid-row:\s*3;/);
+});
+
+test("quick actions reserve all nine slots and keep Giao diện visible", () => {
+  const css = source("app/management-dashboard-v2-final.css");
+  const ui = source("app/management-dashboard-v2.tsx");
+  assert.match(css, /\.amv2-quick-grid\s*\{[\s\S]*?grid-template-rows:\s*repeat\(3,/);
+  assert.match(css, /\.amv2-quick-grid\s*>\s*button:nth-child\(8\)[\s\S]*?visibility:\s*visible\s*!important/);
+  assert.match(ui, /<span>Giao diện<\/span>/);
 });
 
 test("application actions remain separate Website and Quản Trị columns", () => {
