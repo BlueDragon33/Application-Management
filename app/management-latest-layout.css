@@ -1,15 +1,104 @@
-/* Reference layout requested for the management overview.
-   Keep information density high, remove decorative/footer chrome and prevent
-   table content from leaking across columns. */
+/* Approved reference composition for the management control room.
+   Goal: larger readable controls, dense 16:9 use, two-column control surface,
+   no decorative footer strips, and no table leakage. */
 
 .modernAlertsPanel,
 .modernAppsPager {
   display: none !important;
 }
 
+.modernAdminShell[data-theme="emerald"] {
+  --m-bg: #061a14;
+  --m-bg-soft: #0a2a21;
+  --m-panel: rgba(7, 49, 37, .96);
+  --m-panel-2: rgba(11, 62, 46, .96);
+  --m-line: rgba(73, 215, 168, .18);
+  --m-line-strong: rgba(73, 215, 168, .31);
+  --m-text: #f5faf8;
+  --m-muted: #91aba1;
+  --m-green: #35dfa9;
+}
+
+.modernAdminShell[data-theme="jade"] {
+  --m-bg: #031d1b;
+  --m-bg-soft: #07342f;
+  --m-panel: rgba(5, 55, 49, .96);
+  --m-panel-2: rgba(10, 74, 64, .96);
+  --m-line: rgba(80, 226, 194, .20);
+  --m-line-strong: rgba(80, 226, 194, .34);
+  --m-text: #f2fffb;
+  --m-muted: #8fb7ab;
+  --m-green: #45e2b5;
+}
+
+.modernAdminShell[data-theme="midnight"] {
+  --m-bg: #07111c;
+  --m-bg-soft: #0b2030;
+  --m-panel: rgba(9, 31, 46, .96);
+  --m-panel-2: rgba(12, 43, 62, .96);
+  --m-line: rgba(80, 181, 232, .19);
+  --m-line-strong: rgba(80, 181, 232, .32);
+  --m-text: #f2f8fc;
+  --m-muted: #8fa9ba;
+  --m-green: #56d9bd;
+}
+
+.modernAdminShell[data-theme="graphite"] {
+  --m-bg: #111614;
+  --m-bg-soft: #1a2420;
+  --m-panel: rgba(24, 34, 30, .97);
+  --m-panel-2: rgba(31, 44, 39, .97);
+  --m-line: rgba(169, 202, 188, .15);
+  --m-line-strong: rgba(169, 202, 188, .27);
+  --m-text: #f5f7f6;
+  --m-muted: #9aa8a2;
+  --m-green: #58d9ae;
+}
+
+.modernAdminShell[data-theme="jade"] .modernSidebar,
+.modernAdminShell[data-theme="midnight"] .modernSidebar,
+.modernAdminShell[data-theme="graphite"] .modernSidebar,
+.modernAdminShell[data-theme="jade"] .modernTopbar,
+.modernAdminShell[data-theme="midnight"] .modernTopbar,
+.modernAdminShell[data-theme="graphite"] .modernTopbar {
+  background: color-mix(in srgb, var(--m-bg-soft) 94%, #000 6%);
+}
+
+.modernThemePicker {
+  display: grid;
+  grid-template-columns: 64px minmax(0,1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 6px 9px;
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 8px;
+  background: rgba(255,255,255,.035);
+  color: #cfe1da;
+}
+
+.modernThemePicker > span {
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.modernThemePicker select {
+  min-width: 0;
+  height: 28px;
+  border: 1px solid rgba(102, 214, 175, .18);
+  border-radius: 6px;
+  outline: 0;
+  padding: 0 7px;
+  background: rgba(7, 42, 32, .92);
+  color: #eaf7f2;
+  font-size: 10px;
+}
+
+.modernThemePicker option { color: #14251f; background: #fff; }
+
 .modernAppsHead,
 .modernAppsRow {
-  grid-template-columns: minmax(150px, 1.35fr) minmax(88px, .76fr) minmax(72px, .68fr) minmax(72px, .68fr) minmax(104px, .88fr) minmax(112px, .82fr) minmax(112px, .82fr) !important;
+  grid-template-columns: minmax(160px, 1.3fr) minmax(105px, .82fr) minmax(92px, .72fr) minmax(92px, .72fr) minmax(118px, .92fr) minmax(126px, .92fr) minmax(132px, .96fr) !important;
 }
 
 .modernAppsHead > *,
@@ -22,17 +111,15 @@
 .modernAppsHead > span,
 .modernAppsRow > span,
 .modernAppsRow > strong,
-.modernAppsRow > b {
+.modernAppsRow > b,
+.modernTableRow > span,
+.modernTableRow > b {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.modernAppCell {
-  min-width: 0;
-  overflow: hidden;
-}
-
+.modernAppCell,
 .modernAppCell strong {
   min-width: 0;
   overflow: hidden;
@@ -44,249 +131,379 @@
 .modernWebAction {
   width: 100%;
   min-width: 0;
-  min-height: 28px;
-  padding: 4px 7px !important;
+  min-height: 36px;
+  padding: 7px 9px !important;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  border-radius: 8px !important;
+  font-size: 10px !important;
+  font-weight: 750 !important;
 }
 
 .modernWebAction {
-  border-color: rgba(70, 195, 164, .18) !important;
-  background: rgba(18, 87, 68, .58) !important;
-  color: #79e5c5 !important;
+  border-color: rgba(70, 195, 164, .20) !important;
+  background: rgba(18, 87, 68, .62) !important;
+  color: #89efd1 !important;
 }
 
 .modernWebAction:disabled {
   background: rgba(255,255,255,.025) !important;
-  color: #6f8c82 !important;
+  color: #708b82 !important;
 }
 
-@media (min-width: 1200px) and (min-aspect-ratio: 4/3) {
+@media (min-width: 1200px) {
+  .modernAdminShell {
+    grid-template-columns: 278px minmax(0,1fr) !important;
+    font-size: 14px;
+  }
+
+  .modernSidebar {
+    padding: 18px 14px 14px !important;
+  }
+
+  .modernBrand {
+    min-height: 88px !important;
+    grid-template-columns: 58px minmax(0,1fr) !important;
+    gap: 13px !important;
+    padding-bottom: 16px !important;
+  }
+
+  .modernBrand > div {
+    width: 58px !important;
+    height: 58px !important;
+    border-radius: 16px !important;
+    font-size: 22px !important;
+  }
+
+  .modernBrand small { font-size: 10px !important; }
+  .modernBrand strong { font-size: 16px !important; }
+  .modernBrand em { font-size: 9px !important; }
+
+  .modernSidebar nav {
+    gap: 6px !important;
+    padding-top: 16px !important;
+  }
+
+  .modernSidebar nav button {
+    min-height: 54px !important;
+    grid-template-columns: 34px minmax(0,1fr) auto !important;
+    gap: 10px !important;
+    padding: 9px 12px !important;
+    border-radius: 11px !important;
+  }
+
+  .modernSidebar nav i { font-size: 20px !important; }
+  .modernSidebar nav span { font-size: 13px !important; }
+  .modernSidebar nav b { min-width: 24px !important; height: 24px !important; font-size: 10px !important; }
+
+  .modernSystemHealth {
+    padding: 14px !important;
+    border-radius: 13px !important;
+  }
+
+  .modernSystemHealth header { margin-bottom: 12px !important; }
+  .modernSystemHealth header small { font-size: 9px !important; }
+  .modernSystemHealth header strong { font-size: 13px !important; }
+  .modernSystemHealth > div { padding: 5px 0 !important; font-size: 10px !important; }
+  .modernSystemHealth > div b { font-size: 10px !important; }
+
+  .modernTopbar {
+    min-height: 78px !important;
+    grid-template-columns: minmax(360px,1fr) 170px 46px 178px minmax(210px,.62fr) !important;
+    gap: 13px !important;
+    padding: 12px 22px !important;
+  }
+
+  .modernSearch,
+  .modernFilter {
+    height: 50px !important;
+    border-radius: 10px !important;
+  }
+
+  .modernSearch { padding: 0 15px !important; }
+  .modernSearch input { font-size: 13px !important; }
+  .modernFilter select { font-size: 12px !important; }
+  .modernBell { width: 46px !important; height: 46px !important; font-size: 20px !important; }
+
+  .modernOnline {
+    min-height: 48px !important;
+    padding: 7px 12px !important;
+    font-size: 10px !important;
+  }
+
+  .modernOnline small { font-size: 8px !important; }
+  .modernAccount summary { min-width: 210px !important; grid-template-columns: 46px minmax(110px,1fr) 16px !important; }
+  .modernAccount summary > span { width: 44px !important; height: 44px !important; font-size: 11px !important; }
+  .modernAccount summary strong { font-size: 12px !important; }
+  .modernAccount summary small { font-size: 9px !important; }
+  .modernAccount > div { top: 54px !important; width: 250px !important; padding: 13px !important; }
+  .modernAccount > div small,
+  .modernAccount > div button,
+  .modernAccount > div a { font-size: 10px !important; }
+
   .modernPage {
-    width: min(1600px, calc(100% - 22px));
-    padding-top: 8px;
-    padding-bottom: 10px;
+    width: min(1700px, calc(100% - 26px)) !important;
+    padding: 14px 0 18px !important;
   }
 
   .modernNotice {
-    margin-bottom: 7px;
+    min-height: 44px !important;
+    margin-bottom: 10px !important;
+    padding: 9px 13px !important;
+    font-size: 11px !important;
   }
 
   .modernMetrics {
-    gap: 8px;
-    margin-bottom: 8px;
+    gap: 12px !important;
+    margin-bottom: 12px !important;
   }
 
   .modernMetrics > button {
-    min-height: 70px;
-    padding: 7px 9px;
+    min-height: 100px !important;
+    padding: 12px 14px !important;
+    border-radius: 13px !important;
   }
 
   .modernMetrics > button > i {
-    width: 38px;
-    height: 38px;
+    width: 50px !important;
+    height: 50px !important;
+    border-radius: 13px !important;
+    font-size: 23px !important;
   }
 
-  .modernMetrics strong {
-    font-size: 22px;
-  }
+  .modernMetrics small { font-size: 12px !important; }
+  .modernMetrics strong { margin-top: 3px !important; font-size: 28px !important; }
+  .modernMetrics em { margin-top: 4px !important; font-size: 9.5px !important; }
+  .modernMetrics > button > b { font-size: 21px !important; }
 
   .modernBoard.modernBoardCompact {
-    grid-template-columns: minmax(0, 1.23fr) minmax(455px, .97fr);
-    grid-template-rows: minmax(235px, .95fr) minmax(220px, 1.05fr);
-    gap: 8px;
-    align-items: stretch;
+    display: grid !important;
+    grid-template-columns: minmax(0,1.08fr) minmax(520px,.92fr) !important;
+    grid-template-rows: minmax(300px,auto) minmax(300px,auto) !important;
+    gap: 12px !important;
+    align-items: stretch !important;
   }
 
-  .modernAppsPanel {
-    grid-column: 1;
-    grid-row: 1;
-    min-height: 0;
-  }
+  .modernAppsPanel { grid-column: 1 !important; grid-row: 1 !important; }
+  .modernQuickPanel { grid-column: 2 !important; grid-row: 1 !important; }
+  .modernWorkPanel { grid-column: 1 !important; grid-row: 2 !important; }
+  .modernDevicePanel { grid-column: 2 !important; grid-row: 2 !important; }
 
-  .modernQuickPanel {
-    grid-column: 2;
-    grid-row: 1;
-    min-height: 0;
-  }
-
-  .modernWorkPanel {
-    grid-column: 1;
-    grid-row: 2;
-    min-height: 0;
-  }
-
-  .modernDevicePanel {
-    grid-column: 2;
-    grid-row: 2;
-    min-height: 0;
+  .modernPanel {
+    min-width: 0 !important;
+    border-radius: 14px !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.022), 0 12px 26px rgba(0,0,0,.08) !important;
   }
 
   .modernPanelTitle {
-    min-height: 36px;
-    padding: 5px 9px;
+    min-height: 50px !important;
+    padding: 9px 13px !important;
   }
 
-  .modernPanelTitle h2 {
-    font-size: 12.5px;
+  .modernPanelTitle h2,
+  .modernQuickPanel > header h2 {
+    font-size: 17px !important;
+    line-height: 1.2 !important;
   }
+
+  .modernPanelTitle > div > span { font-size: 18px !important; }
+  .modernPanelTitle > div > b { min-width: 25px !important; height: 25px !important; font-size: 10px !important; }
+  .modernPanelTitle > button { font-size: 10.5px !important; }
 
   .modernAppsTable {
-    max-height: 194px;
-    overflow: auto;
-    padding: 0 7px 6px;
+    max-height: none !important;
+    overflow: auto !important;
+    padding: 0 10px 10px !important;
     scrollbar-width: thin;
-    scrollbar-color: rgba(54, 215, 172, .62) rgba(255, 255, 255, .025);
-  }
-
-  .modernAppsTable::-webkit-scrollbar,
-  .modernWorkTable::-webkit-scrollbar,
-  .modernDeviceTable::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-
-  .modernAppsTable::-webkit-scrollbar-thumb,
-  .modernWorkTable::-webkit-scrollbar-thumb,
-  .modernDeviceTable::-webkit-scrollbar-thumb {
-    border-radius: 999px;
-    background: rgba(54, 215, 172, .60);
-  }
-
-  .modernAppsTable::-webkit-scrollbar-track,
-  .modernWorkTable::-webkit-scrollbar-track,
-  .modernDeviceTable::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, .025);
-  }
-
-  .modernAppsHead,
-  .modernWorkTable .modernTableHead,
-  .modernDeviceTable .modernTableHead {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    background: #113d32;
+    scrollbar-color: rgba(54,215,172,.62) rgba(255,255,255,.025);
   }
 
   .modernAppsHead {
-    min-height: 28px;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 2 !important;
+    min-height: 42px !important;
+    padding: 0 10px !important;
+    border-radius: 8px !important;
+    background: rgba(27, 92, 72, .52) !important;
+    font-size: 10px !important;
   }
 
   .modernAppsRow {
-    min-height: 33px;
-    gap: 6px;
+    min-height: 58px !important;
+    gap: 8px !important;
+    padding: 5px 10px !important;
+    font-size: 10.5px !important;
   }
 
-  .modernAppsRow button {
-    font-size: 7.2px;
-  }
-
-  .modernWorkTable {
-    max-height: 183px;
-    overflow: auto;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(54, 215, 172, .62) rgba(255, 255, 255, .025);
-  }
-
-  .modernDeviceTable {
-    max-height: 145px;
-    overflow: auto;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(54, 215, 172, .62) rgba(255, 255, 255, .025);
-  }
-
-  .modernTableRow {
-    min-height: 36px;
-  }
-
-  .modernTableRow > span,
-  .modernTableRow > b {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+  .modernAppCell { gap: 9px !important; }
+  .modernAppCell i { width: 36px !important; height: 36px !important; border-radius: 9px !important; font-size: 14px !important; }
+  .modernAppCell strong { font-size: 11.5px !important; }
 
   .modernQuickPanel {
-    padding: 6px 8px 8px;
+    padding: 10px 12px 12px !important;
   }
 
   .modernQuickPanel > header {
-    min-height: 29px;
-  }
-
-  .modernQuickPanel > header h2 {
-    font-size: 12px;
+    min-height: 40px !important;
+    display: flex !important;
+    align-items: center !important;
+    padding: 0 2px 5px !important;
   }
 
   .modernQuickGrid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px;
+    display: grid !important;
+    grid-template-columns: repeat(2,minmax(0,1fr)) !important;
+    gap: 10px !important;
   }
 
   .modernQuickGrid button {
-    min-height: 47px;
-    padding: 6px 7px;
+    min-height: 76px !important;
+    display: grid !important;
+    grid-template-columns: 38px minmax(0,1fr) 16px !important;
+    align-items: center !important;
+    gap: 10px !important;
+    padding: 10px 12px !important;
+    border-radius: 11px !important;
+    text-align: left !important;
   }
 
-  .modernQuickGrid span {
-    font-size: 7.5px;
+  .modernQuickGrid button > i {
+    width: 38px !important;
+    height: 38px !important;
+    display: grid !important;
+    place-items: center !important;
+    border-radius: 10px !important;
+    background: rgba(36,190,145,.16) !important;
+    color: #64e8bf !important;
+    font-style: normal !important;
+    font-size: 17px !important;
+  }
+
+  .modernQuickGrid button > span {
+    display: grid !important;
+    gap: 3px !important;
+    min-width: 0 !important;
+  }
+
+  .modernQuickGrid button > span strong {
+    color: #f0f8f5 !important;
+    font-size: 11.5px !important;
+    line-height: 1.2 !important;
+  }
+
+  .modernQuickGrid button > span small {
+    color: #7f9f94 !important;
+    font-size: 8.5px !important;
+    line-height: 1.25 !important;
+  }
+
+  .modernQuickGrid button > b {
+    color: #59deb5 !important;
+    font-size: 18px !important;
+  }
+
+  .modernQuickGrid button[data-danger="true"] > i {
+    background: rgba(220,80,69,.19) !important;
+    color: #ff8d82 !important;
+  }
+
+  .modernWorkTable,
+  .modernDeviceTable {
+    max-height: 240px !important;
+    overflow: auto !important;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(54,215,172,.62) rgba(255,255,255,.025);
+  }
+
+  .modernWorkTable .modernTableHead,
+  .modernDeviceTable .modernTableHead {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 2 !important;
+    min-height: 42px !important;
+    background: rgba(27, 92, 72, .52) !important;
+    font-size: 10px !important;
+  }
+
+  .modernTableRow {
+    min-height: 58px !important;
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
+    font-size: 10.5px !important;
+  }
+
+  .modernTableRow > button,
+  .modernRowActions button {
+    min-height: 34px !important;
+    padding: 6px 9px !important;
+    border-radius: 7px !important;
+    font-size: 9.5px !important;
   }
 
   .modernMiniFilters {
-    padding-top: 5px;
-    padding-bottom: 5px;
-    gap: 5px;
+    gap: 8px !important;
+    padding: 8px 11px !important;
   }
 
   .modernMiniFilters select,
   .modernMiniFilters button {
-    height: 28px;
+    height: 38px !important;
+    border-radius: 8px !important;
+    font-size: 10px !important;
   }
 
-  .modernRowActions {
-    min-width: 0;
-    gap: 4px;
+  .modernEmptyRow {
+    min-height: 90px !important;
+    font-size: 10px !important;
   }
 
-  .modernRowActions button {
-    min-width: 0;
-    padding-left: 6px;
-    padding-right: 6px;
-    white-space: nowrap;
+  .modernWebMenu {
+    grid-template-columns: repeat(2,minmax(0,1fr)) !important;
+    gap: 7px !important;
+    margin-top: 8px !important;
   }
+
+  .modernWebMenu button {
+    min-height: 38px !important;
+    font-size: 10px !important;
+  }
+}
+
+@media (min-width: 1500px) and (min-height: 850px) {
+  .modernBoard.modernBoardCompact {
+    grid-template-rows: minmax(320px,auto) minmax(330px,auto) !important;
+  }
+
+  .modernAppsRow,
+  .modernTableRow { min-height: 62px !important; }
+  .modernQuickGrid button { min-height: 82px !important; }
+  .modernWorkTable,
+  .modernDeviceTable { max-height: 270px !important; }
 }
 
 @media (max-width: 1199px) {
   .modernBoard.modernBoardCompact {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto;
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto !important;
   }
 
   .modernAppsPanel,
   .modernQuickPanel,
   .modernWorkPanel,
   .modernDevicePanel {
-    grid-column: 1;
-    grid-row: auto;
+    grid-column: 1 !important;
+    grid-row: auto !important;
   }
 
-  .modernAppsTable {
-    overflow: auto;
-  }
-
+  .modernAppsTable { overflow: auto; }
   .modernAppsHead,
-  .modernAppsRow {
-    min-width: 900px;
-  }
-
-  .modernQuickGrid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
+  .modernAppsRow { min-width: 980px; }
+  .modernQuickGrid { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
 }
 
 @media (max-width: 760px) {
-  .modernQuickGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+  .modernQuickGrid { grid-template-columns: 1fr !important; }
+  .modernThemePicker { grid-template-columns: 1fr; }
 }
