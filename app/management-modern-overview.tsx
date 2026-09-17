@@ -15,21 +15,16 @@ import {
   type OperationsWorkItem,
 } from "./admin-device-client";
 
-const PRIMARY_APP_IDS = new Set(["bauman-master-ai", "boi-ech", "health-care", "ru-life"]);
-const primaryApps = applicationRegistry.filter((app) => PRIMARY_APP_IDS.has(app.id));
-const APP_WINDOW_SIZE = 3;
+const primaryApps = applicationRegistry;
 
 const navItems = [
   ["overview", "⌂", "Tổng quan"],
   ["approvals", "▧", "Hộp việc"],
   ["applications", "▦", "Ứng dụng"],
-  ["devices", "▣", "Thiết bị"],
-  ["users", "♙", "Người dùng"],
-  ["approvals", "✓", "Yêu cầu chờ duyệt"],
-  ["access", "▤", "Thanh toán & Quyền"],
-  ["audit", "≣", "Nhật ký hệ thống"],
-  ["sync", "↻", "Đồng bộ dữ liệu"],
-  ["settings", "⚙", "Cài đặt"],
+  ["devices", "▣", "Thiết bị mới"],
+  ["sync", "△", "Cảnh báo"],
+  ["audit", "≣", "Nhật ký"],
+  ["settings", "⚙", "Cấu hình"],
 ] as const;
 
 function appFor(id: string) {
@@ -37,10 +32,11 @@ function appFor(id: string) {
 }
 
 function appGlyph(app: ApplicationConfig) {
-  if (app.id === "bauman-master-ai") return "🎓";
+  if (app.id === "bauman-master-ai") return "◇";
   if (app.id === "boi-ech") return "≋";
   if (app.id === "health-care") return "♥";
-  return "✈";
+  if (app.id === "ru-life") return "✈";
+  return "GU";
 }
 
 function relativeTime(value: string | null | undefined) {
@@ -68,7 +64,7 @@ function connectionText(value: ReturnType<typeof connection>) {
   if (value === "connected") return "Kết nối tốt";
   if (value === "unavailable") return "Mất kết nối";
   if (value === "warning") return "Có cảnh báo";
-  return "Đang hoàn thiện";
+  return "Chờ backend";
 }
 
 function deviceKind(device: OperationsDevice) {
@@ -100,9 +96,7 @@ export default function ManagementModernOverview({ user }: { user: { displayName
   const [notice, setNotice] = useState("");
   const [search, setSearch] = useState("");
   const [appFilter, setAppFilter] = useState("all");
-  const [clock, setClock] = useState<Date | null>(null);
   const [webMenu, setWebMenu] = useState(false);
-  const [appOffset, setAppOffset] = useState(0);
 
   async function refreshOperations(silent = false) {
     if (!silent) setSyncing(true);
@@ -134,37 +128,35 @@ export default function ManagementModernOverview({ user }: { user: { displayName
   }
 
   useEffect(() => {
-    setClock(new Date());
     void initialize();
-    const timer = window.setInterval(() => setClock(new Date()), 1000);
     const onFocus = () => void refreshOperations(true);
     window.addEventListener("focus", onFocus);
-    return () => { window.clearInterval(timer); window.removeEventListener("focus", onFocus); };
+    return () => window.removeEventListener("focus", onFocus);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const summaries = useMemo(() => (operations?.summaries ?? []).filter((item) => PRIMARY_APP_IDS.has(item.appId)), [operations]);
+  const summaries = useMemo(() => operations?.summaries ?? [], [operations]);
   const summaryMap = useMemo(() => new Map(summaries.map((item) => [item.appId, item])), [summaries]);
-  const devices = useMemo(() => (operations?.devices ?? []).filter((item) => PRIMARY_APP_IDS.has(item.appId)), [operations]);
-  const workItems = useMemo(() => (operations?.workItems ?? []).filter((item) => PRIMARY_APP_IDS.has(item.appId)), [operations]);
+  const devices = useMemo(() => operations?.devices ?? [], [operations]);
+  const workItems = useMemo(() => operations?.workItems ?? [], [operations]);
   const pendingDevices = devices.filter((item) => item.status === "pending");
   const unavailable = primaryApps.filter((app) => connection(summaryMap.get(app.id), app) === "unavailable").length;
-  const contractPending = primaryApps.filter((app) => app.contractState !== "connected").length;
-  const environmentAlerts = devices.filter((item) => item.attention === "environment").length;
   const searchValue = search.trim().toLowerCase();
-  const maxAppOffset = Math.max(0, primaryApps.length - APP_WINDOW_SIZE);
-  const safeAppOffset = Math.min(appOffset, maxAppOffset);
-  const visibleApps = primaryApps.slice(safeAppOffset, safeAppOffset + APP_WINDOW_SIZE);
+
+  const visibleApps = primaryApps.filter((app) => {
+    if (!searchValue) return true;
+    return `${app.name} ${app.shortName} ${app.scope}`.toLowerCase().includes(searchValue);
+  });
 
   const visibleWork = workItems.filter((item) => {
     if (appFilter !== "all" && item.appId !== appFilter) return false;
     return !searchValue || `${item.appName} ${item.title} ${item.detail}`.toLowerCase().includes(searchValue);
-  }).slice(0, 4);
+  }).slice(0, 6);
 
   const visibleDevices = pendingDevices.filter((item) => {
     if (appFilter !== "all" && item.appId !== appFilter) return false;
     return !searchValue || `${item.appName} ${item.userLabel} ${item.deviceCode}`.toLowerCase().includes(searchValue);
-  }).slice(0, 4);
+  }).slice(0, 6);
 
   function go(view: string) {
     window.location.assign(view === "overview" ? "/" : `/?view=${encodeURIComponent(view)}`);
@@ -179,11 +171,23 @@ export default function ManagementModernOverview({ user }: { user: { displayName
     setActionBusy(`${device.appId}:${device.deviceId}`);
     setNotice("");
     try {
-      await operationsAction({ action: "manage-client-device", operation, appId: device.appId, deviceId: device.deviceId, deviceCode: device.deviceCode });
+      const result = await operationsAction({
+        action: "manage-client-device",
+        operation,
+        appId: device.appId,
+        deviceId: device.deviceId,
+        deviceCode: device.deviceCode,
+        expectedStatus: device.status,
+      });
       const synced = await refreshOperations(true);
-      setNotice(synced ? (operation === "approve" ? `Đã duyệt và đồng bộ ${device.deviceCode}.` : `Đã xử lý và đồng bộ ${device.deviceCode}.`) : "Backend đã xử lý nhưng Trung tâm chưa đọc lại được trạng thái.");
+      if (result.code === "STALE_DEVICE_REMOVED") {
+        setNotice(`Thiết bị ${device.deviceCode} không còn trong registry; danh sách đã được đồng bộ lại.`);
+      } else {
+        setNotice(synced ? (operation === "approve" ? `Đã duyệt và đồng bộ ${device.deviceCode}.` : `Đã xử lý và đồng bộ ${device.deviceCode}.`) : "Backend đã xử lý nhưng Trung tâm chưa đọc lại được trạng thái.");
+      }
     } catch (caught) {
       setNotice(caught instanceof Error ? caught.message : "Không thể cập nhật thiết bị.");
+      await refreshOperations(true);
     } finally {
       setActionBusy("");
     }
@@ -259,42 +263,37 @@ export default function ManagementModernOverview({ user }: { user: { displayName
   return <main className="modernAdminShell">
     <aside className="modernSidebar">
       <div className="modernBrand"><div>QT</div><span><small>TRUNG TÂM ĐIỀU PHỐI</small><strong>QUẢN TRỊ ỨNG DỤNG</strong><em>Kết nối · Kiểm soát · Phát triển</em></span></div>
-      <nav aria-label="Điều hướng quản trị hiện đại">{navItems.map(([view, icon, label], index) => <button key={`${view}:${index}`} data-active={view === "overview"} onClick={() => go(view)}><i>{icon}</i><span>{label}</span>{view === "approvals" && index > 4 && notificationCount ? <b>{notificationCount}</b> : null}</button>)}</nav>
-      <section className="modernSystemHealth"><header><span>▣</span><div><small>Trạng thái hệ thống</small><strong>{systemHealthy ? "Hoạt động ổn định" : "Cần kiểm tra"}</strong></div></header><div><span>Ứng dụng</span><b>{onlineApps}/{primaryApps.length}</b></div><div><span>Thiết bị online</span><b>{totalOnlineDevices}</b></div><div><span>Đồng bộ dữ liệu</span><b>{syncing ? "Đang chạy" : "Sẵn sàng"}</b></div></section>
-      <blockquote>Quản trị tập trung<br/>Vận hành an toàn<br/>Phát triển bền vững</blockquote>
+      <nav aria-label="Điều hướng quản trị hiện đại">{navItems.map(([view, icon, label]) => <button key={view} data-active={view === "overview"} onClick={() => go(view)}><i>{icon}</i><span>{label}</span>{view === "approvals" && notificationCount ? <b>{notificationCount}</b> : null}</button>)}</nav>
+      <section className="modernSystemHealth"><header><span>▣</span><div><small>Trạng thái hệ thống</small><strong>{systemHealthy ? "Hoạt động ổn định" : "Cần kiểm tra"}</strong></div></header><div><span>Ứng dụng quản lý</span><b>{primaryApps.length}</b></div><div><span>Kết nối tốt</span><b>{onlineApps}</b></div><div><span>Thiết bị chờ duyệt</span><b>{pendingDevices.length}</b></div></section>
     </aside>
 
     <section className="modernWorkspace">
       <header className="modernTopbar">
-        <label className="modernSearch"><span>⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm theo ứng dụng, thiết bị, người dùng, sự kiện…"/><kbd>Ctrl + K</kbd></label>
+        <label className="modernSearch"><span>⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm theo ứng dụng, thiết bị, người dùng…"/></label>
         <label className="modernFilter"><span>▽</span><select value={appFilter} onChange={(event) => setAppFilter(event.target.value)}><option value="all">Bộ lọc nhanh</option>{primaryApps.map((app) => <option key={app.id} value={app.id}>{app.shortName}</option>)}</select></label>
         <button className="modernBell" onClick={() => go("approvals")}>♧{notificationCount ? <b>{notificationCount}</b> : null}</button>
-        <span className="modernOnline"><i/>Hệ thống online<small>Đồng bộ dữ liệu</small></span>
+        <span className="modernOnline"><i/>Hệ thống kết nối<small>Dữ liệu đã cập nhật</small></span>
         <details className="modernAccount"><summary><span>{initials(user.displayName)}</span><div><strong>{user.displayName}</strong><small>{roleLabels[access.role]}</small></div><b>⌄</b></summary><div><small>{user.email}</small><button onClick={() => go("settings")}>Cài đặt quản trị</button><a href="/signout-with-chatgpt?return_to=%2F">Đăng xuất</a></div></details>
       </header>
 
       <div className="modernPage">
-        <header className="modernPageHeader"><div><h1>Bảng điều phối quản trị ứng dụng</h1><p>Kiểm soát tập trung các ứng dụng, thiết bị, người dùng, phê duyệt và điều phối hệ thống theo thời gian thực.</p></div><section><span>▣</span><div><small>{clock ? new Intl.DateTimeFormat("vi-VN", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }).format(clock) : ""}</small><strong>{clock ? new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(clock) : ""}</strong></div><i/><div><small>Hệ thống</small><strong>{systemHealthy ? "Hoạt động ổn định" : `${unavailable} ứng dụng cần kiểm tra`}</strong></div><button disabled={syncing} onClick={() => void refreshOperations()}>{syncing ? "…" : "↻"}</button></section></header>
-
         {notice ? <div className="modernNotice">{notice}</div> : null}
 
         <section className="modernMetrics">
-          <button onClick={() => go("applications")} data-tone="teal"><i>◇</i><div><small>Tổng ứng dụng</small><strong>{primaryApps.length}</strong><em>{onlineApps} ứng dụng đang kết nối</em></div><b>›</b></button>
-          <button onClick={() => go("approvals")} data-tone="gold"><i>▣</i><div><small>Thiết bị mới chờ duyệt</small><strong>{pendingDevices.length}</strong><em>Cần xem xét và xử lý</em></div><b>›</b></button>
-          <button onClick={() => go("sync")} data-tone="red"><i>△</i><div><small>Cảnh báo hôm nay</small><strong>{workItems.filter((item) => item.priority === "high").length + unavailable}</strong><em>{unavailable ? `${unavailable} app mất kết nối` : "Không có app mất kết nối"}</em></div><b>›</b></button>
-          <button onClick={() => go("approvals")} data-tone="blue"><i>▤</i><div><small>Ca kiểm duyệt cần xử lý</small><strong>{notificationCount}</strong><em>Thiết bị và sự kiện chờ duyệt</em></div><b>›</b></button>
+          <button onClick={() => go("applications")} data-tone="teal"><i>◇</i><div><small>Tổng ứng dụng</small><strong>{primaryApps.length}</strong><em>Ứng dụng đang quản lý</em></div><b>›</b></button>
+          <button onClick={() => go("approvals")} data-tone="gold"><i>▣</i><div><small>Thiết bị mới chờ duyệt</small><strong>{pendingDevices.length}</strong><em>Thiết bị cần cấp quyền</em></div><b>›</b></button>
+          <button onClick={() => go("sync")} data-tone="red"><i>△</i><div><small>Cảnh báo hôm nay</small><strong>{workItems.filter((item) => item.priority === "high").length + unavailable}</strong><em>{unavailable ? `${unavailable} app mất kết nối` : "Không có cảnh báo cao"}</em></div><b>›</b></button>
+          <button onClick={() => go("approvals")} data-tone="blue"><i>▤</i><div><small>Ca kiểm duyệt cần xử lý</small><strong>{notificationCount}</strong><em>Yêu cầu đang chờ xử lý</em></div><b>›</b></button>
         </section>
 
-        <section className="modernBoard">
-          <section className="modernPanel modernWorkPanel"><PanelTitle icon="☷" title="Hộp việc ưu tiên" count={workItems.length} onClick={() => go("approvals")}/><div className="modernTable modernWorkTable"><div className="modernTableHead"><span>Ứng dụng</span><span>Sự kiện</span><span>Thiết bị</span><span>Thời gian</span><span>Trạng thái</span><span>Thao tác</span></div>{visibleWork.map((item) => <div className="modernTableRow" key={item.id}><AppCell appId={item.appId} name={item.appName}/><span>{item.title}</span><span>{item.deviceType || "Thiết bị"}</span><span>{relativeTime(item.occurredAt)}</span><b data-tone={workTone(item)}>{item.priority === "high" ? "Ưu tiên cao" : item.kind === "environment" ? "Cần kiểm tra" : item.kind === "connection" ? "Theo dõi" : "Chờ duyệt"}</b><button onClick={() => go("approvals")}>Xem</button></div>)}{!visibleWork.length ? <EmptyRow text="Không có sự kiện phù hợp."/> : null}</div></section>
+        <section className="modernBoard modernBoardCompact">
+          <section className="modernPanel modernAppsPanel"><PanelTitle icon="◇" title="Ứng dụng đang quản lý" onClick={() => go("applications")}/><div className="modernAppsTable"><div className="modernAppsHead"><span>Ứng dụng</span><span>Nhóm nghiệp vụ</span><span>Việc chờ xử lý</span><span>Thiết bị online</span><span>Trạng thái</span><span>Quản trị</span><span>Website</span></div>{visibleApps.map((app) => { const summary = summaryMap.get(app.id); const state = connection(summary, app); const pending = summary?.pendingCount ?? devices.filter((item) => item.appId === app.id && item.status === "pending").length; const hasWeb = Boolean(summary?.webHref || app.publicUrl); return <div className="modernAppsRow" key={app.id}><AppCell appId={app.id} name={app.shortName}/><span>{app.id === "health-care" ? "Y tế" : app.id === "ru-life" ? "Nga" : app.id === "boi-ech" ? "Học tập" : app.id === "growup-mychildren" ? "Gia đình" : "Học thuật"}</span><strong>{summary?.pendingCount == null ? "—" : pending}</strong><strong>{summary?.onlineCount ?? "—"}</strong><b data-state={state}><i/>{connectionText(state)}</b><button className="modernManageAction" onClick={() => window.location.assign(app.href)}>Vào quản trị →</button><button className="modernWebAction" disabled={!hasWeb || actionBusy === `web:${app.id}`} onClick={() => void launchWeb(app.id)}>{actionBusy === `web:${app.id}` ? "Đang mở…" : hasWeb ? "Truy cập web ↗" : "Chờ contract"}</button></div>; })}{!visibleApps.length ? <EmptyRow text="Không tìm thấy ứng dụng phù hợp."/> : null}</div></section>
 
-          <section className="modernPanel modernDevicePanel"><PanelTitle icon="▣" title="Thiết bị mới theo ứng dụng" count={pendingDevices.length} onClick={() => go("devices")}/><div className="modernMiniFilters"><select value={appFilter} onChange={(event) => setAppFilter(event.target.value)}><option value="all">Tất cả ứng dụng</option>{primaryApps.map((app) => <option key={app.id} value={app.id}>{app.shortName}</option>)}</select><select defaultValue="all"><option value="all">Tất cả thiết bị</option><option value="desktop">Desktop</option><option value="tablet">Tablet</option><option value="phone">Điện thoại</option></select><button>7 ngày qua⌄</button></div><div className="modernTable modernDeviceTable"><div className="modernTableHead"><span>Ứng dụng</span><span>Thiết bị</span><span>Người dùng</span><span>Thời gian</span><span>Thao tác</span></div>{visibleDevices.map((device) => { const rowBusy = actionBusy === `${device.appId}:${device.deviceId}`; return <div className="modernTableRow" key={`${device.appId}:${device.deviceId}`}><AppCell appId={device.appId} name={device.appName}/><span>{deviceKind(device)}</span><span>{device.userLabel}</span><span>{relativeTime(device.createdAt)}</span><div className="modernRowActions">{device.canApprove ? <button disabled={rowBusy} onClick={() => void manageDevice(device, "approve")}>Duyệt</button> : null}{device.canRemove ? <button data-danger="true" disabled={rowBusy} onClick={() => void manageDevice(device, "remove")}>{device.appId === "boi-ech" ? "Từ chối" : "Khóa"}</button> : null}<button onClick={() => go("devices")}>Chi tiết</button></div></div>; })}{!visibleDevices.length ? <EmptyRow text="Không có thiết bị chờ duyệt."/> : null}</div></section>
+          <section className="modernPanel modernQuickPanel"><header><h2>⚡ Thao tác nhanh</h2></header><div className="modernQuickGrid"><button onClick={() => go("applications")}>◇<span>Quản trị ứng dụng</span></button><button data-active={webMenu} onClick={() => setWebMenu((value) => !value)}>◎<span>Truy cập web</span></button><button onClick={() => go("approvals")}>▣<span>Duyệt thiết bị</span></button><button data-danger="true" disabled={Boolean(actionBusy)} onClick={() => void clearNotifications()}>⌫<span>{actionBusy === "clear" ? "Đang xóa…" : "Xóa hết thông báo"}</span></button><button disabled={Boolean(actionBusy)} onClick={() => void enableAutoApproval()}>⚙<span>{actionBusy === "auto" ? "Đang lưu…" : "Duyệt tự động"}</span></button><button disabled={syncing} onClick={() => void refreshOperations()}>{syncing ? "…" : "↻"}<span>{syncing ? "Đang đồng bộ…" : "Đồng bộ dữ liệu"}</span></button></div>{webMenu ? <div className="modernWebMenu">{primaryApps.map((app) => <button key={app.id} disabled={Boolean(actionBusy)} onClick={() => void launchWeb(app.id)}><span>{app.shortName}</span><b>{actionBusy === `web:${app.id}` ? "Đang mở…" : "Mở ↗"}</b></button>)}</div> : null}</section>
 
-          <section className="modernPanel modernAppsPanel"><PanelTitle icon="◇" title="Ứng dụng đang quản lý" onClick={() => go("applications")}/><div className="modernAppsTable"><div className="modernAppsHead"><span>Ứng dụng</span><span>Nhóm nghiệp vụ</span><span>Việc chờ xử lý</span><span>Thiết bị online</span><span>Trạng thái</span><span>Thao tác</span></div>{visibleApps.map((app) => { const summary = summaryMap.get(app.id); const state = connection(summary, app); const pending = summary?.pendingCount ?? devices.filter((item) => item.appId === app.id && item.status === "pending").length; return <div className="modernAppsRow" key={app.id}><AppCell appId={app.id} name={app.shortName}/><span>{app.id === "health-care" ? "Y tế" : app.id === "ru-life" ? "Nga" : app.id === "boi-ech" ? "Học tập" : "Học thuật"}</span><strong>{pending}</strong><strong>{summary?.onlineCount ?? 0}</strong><b data-state={state}><i/>{connectionText(state)}</b><button onClick={() => window.location.assign(app.href)}>Vào quản trị</button></div>; })}</div><footer className="modernAppsPager"><span>{primaryApps.length} ứng dụng · tối đa 3 ứng dụng mỗi lượt</span><div><button aria-label="Ứng dụng trước" disabled={safeAppOffset === 0} onClick={() => setAppOffset((value) => Math.max(0, value - 1))}>↑</button><button aria-label="Ứng dụng tiếp theo" disabled={safeAppOffset >= maxAppOffset} onClick={() => setAppOffset((value) => Math.min(maxAppOffset, value + 1))}>↓</button></div></footer></section>
+          <section className="modernPanel modernWorkPanel"><PanelTitle icon="☷" title="Hộp việc ưu tiên" count={workItems.length} onClick={() => go("approvals")}/><div className="modernTable modernWorkTable"><div className="modernTableHead"><span>Ứng dụng</span><span>Sự kiện</span><span>Thiết bị</span><span>Thời gian</span><span>Trạng thái</span><span>Thao tác</span></div>{visibleWork.map((item) => <div className="modernTableRow" key={item.id}><AppCell appId={item.appId} name={item.appName}/><span>{item.title}</span><span>{item.deviceType || "Thiết bị"}</span><span>{relativeTime(item.occurredAt)}</span><b data-tone={workTone(item)}>{item.priority === "high" ? "Ưu tiên cao" : item.kind === "environment" ? "Cần kiểm tra" : item.kind === "connection" ? "Theo dõi" : "Chờ duyệt"}</b><button onClick={() => go("approvals")}>Xem</button></div>)}{!visibleWork.length ? <EmptyRow text="Không có việc phù hợp với bộ lọc hiện tại."/> : null}</div></section>
 
-          <section className="modernPanel modernAlertsPanel"><PanelTitle icon="♧" title="Cảnh báo nhanh" onClick={() => go("sync")}/><div className="modernAlertTiles"><button data-tone="red" onClick={() => go("approvals")}><i>▣</i><span><small>Thiết bị mới</small><strong>{pendingDevices.length}</strong><em>Chờ duyệt</em></span></button><button data-tone="red" onClick={() => go("sync")}><i>⌁</i><span><small>App mất kết nối</small><strong>{unavailable}</strong><em>Cần kiểm tra ngay</em></span></button><button data-tone="gold" onClick={() => go("approvals")}><i>◷</i><span><small>Môi trường thay đổi</small><strong>{environmentAlerts}</strong><em>Cần xác minh</em></span></button><button data-tone="blue" onClick={() => go("applications")}><i>▤</i><span><small>Contract chờ hoàn tất</small><strong>{contractPending}</strong><em>Trong các ứng dụng</em></span></button></div></section>
-
-          <section className="modernPanel modernQuickPanel"><header><h2>⚡ Thao tác nhanh</h2></header><div className="modernQuickGrid"><button onClick={() => go("applications")}>◇<span>Quản trị ứng dụng</span></button><button data-active={webMenu} onClick={() => setWebMenu((value) => !value)}>◎<span>Truy cập web</span></button><button onClick={() => go("approvals")}>▣<span>Duyệt thiết bị</span></button><button onClick={() => go("access")}>⬡<span>Phê duyệt quyền</span></button><button data-danger="true" disabled={Boolean(actionBusy)} onClick={() => void clearNotifications()}>⌫<span>{actionBusy === "clear" ? "Đang xóa…" : "Xóa hết thông báo"}</span></button><button disabled={Boolean(actionBusy)} onClick={() => void enableAutoApproval()}>⚙<span>{actionBusy === "auto" ? "Đang lưu…" : "Duyệt tự động"}</span></button><button disabled={syncing} onClick={() => void refreshOperations()}>↻<span>{syncing ? "Đang đồng bộ…" : "Đồng bộ tất cả"}</span></button><button onClick={() => go("audit")}>▤<span>Xem nhật ký</span></button></div>{webMenu ? <div className="modernWebMenu">{primaryApps.map((app) => <button key={app.id} disabled={Boolean(actionBusy)} onClick={() => void launchWeb(app.id)}><span>{app.shortName}</span><b>{actionBusy === `web:${app.id}` ? "Đang mở…" : "Mở ↗"}</b></button>)}</div> : null}</section>
+          <section className="modernPanel modernDevicePanel"><PanelTitle icon="▣" title="Thiết bị mới theo ứng dụng" count={pendingDevices.length} onClick={() => go("devices")}/><div className="modernMiniFilters"><select value={appFilter} onChange={(event) => setAppFilter(event.target.value)}><option value="all">Tất cả ứng dụng</option>{primaryApps.map((app) => <option key={app.id} value={app.id}>{app.shortName}</option>)}</select><select defaultValue="all"><option value="all">Tất cả thiết bị</option><option value="desktop">Desktop</option><option value="tablet">Tablet</option><option value="phone">Điện thoại</option></select><button>7 ngày qua⌄</button></div><div className="modernTable modernDeviceTable"><div className="modernTableHead"><span>Ứng dụng</span><span>Thiết bị</span><span>Người dùng</span><span>Thời gian</span><span>Thao tác</span></div>{visibleDevices.map((device) => { const rowBusy = actionBusy === `${device.appId}:${device.deviceId}`; return <div className="modernTableRow" key={`${device.appId}:${device.deviceId}`}><AppCell appId={device.appId} name={device.appName}/><span>{deviceKind(device)}</span><span>{device.userLabel}</span><span>{relativeTime(device.createdAt)}</span><div className="modernRowActions">{device.canApprove ? <button disabled={rowBusy} onClick={() => void manageDevice(device, "approve")}>Duyệt</button> : null}{device.canRemove ? <button data-danger="true" disabled={rowBusy} onClick={() => void manageDevice(device, "remove")}>{device.appId === "boi-ech" ? "Từ chối" : "Khóa"}</button> : null}<button onClick={() => go("devices")}>Chi tiết</button></div></div>; })}{!visibleDevices.length ? <EmptyRow text="Không có thiết bị mới/cảnh báo trong phạm vi đang chọn."/> : null}</div></section>
         </section>
       </div>
     </section>
