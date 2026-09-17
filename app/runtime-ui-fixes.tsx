@@ -6,19 +6,8 @@ import { operationsAction, type OperationsBootstrap, type OperationsDevice } fro
 const APPEARANCE_KEY = "application-management:appearance:v1";
 const FONT_MIGRATION_KEY = "application-management:font-step-20260916";
 const OPERATIONS_CACHE_KEY = "application-management:operations:v1";
-const SUPPORTED_APPS = new Set(["boi-ech", "bauman-master-ai"]);
+const BULK_SUPPORTED_APPS = new Set(["boi-ech", "bauman-master-ai"]);
 const FONT_STEPS = [14, 16, 18, 20] as const;
-const PAGE_HEADER_TITLES = new Set([
-  "Bảng điều phối quản trị ứng dụng",
-  "Yêu cầu chờ duyệt",
-  "Ứng dụng đang quản lý",
-  "Thiết bị mới theo ứng dụng",
-  "Cảnh báo vận hành",
-  "Thiết bị quản trị Trung tâm",
-  "Nhật ký hệ thống",
-  "Cấu hình & ranh giới",
-]);
-const UNSUPPORTED_APP_LABELS = ["Sức khỏe Y tế", "Hòa nhập Nga", "GrowUP"];
 
 type Appearance = { font?: string; background?: string; fontSize?: number };
 
@@ -92,7 +81,7 @@ function selectByOptions(required: string[]) {
 
 function currentDeviceFilters(): DeviceFilters {
   const appSelect = selectByOptions(["boi-ech", "bauman-master-ai"]);
-  const typeSelect = selectByOptions(["desktop", "tablet", "phone", "unknown"]);
+  const typeSelect = selectByOptions(["desktop", "tablet", "phone"]);
   const timeSelect = selectByOptions(["1", "7", "30", "all"]);
   const search = Array.from(document.querySelectorAll<HTMLInputElement>("input"))
     .find((input) => input.placeholder?.includes("Tìm theo ứng dụng"))?.value.trim().toLowerCase() || "";
@@ -119,7 +108,7 @@ function targetDevices() {
   const filters = currentDeviceFilters();
   return data.devices.filter((device) => {
     const haystack = `${device.appName} ${device.deviceCode} ${device.userLabel} ${device.deviceTypeLabel}`.toLowerCase();
-    return SUPPORTED_APPS.has(device.appId)
+    return BULK_SUPPORTED_APPS.has(device.appId)
       && device.status === "pending"
       && device.canRemove
       && (filters.appId === "all" || device.appId === filters.appId)
@@ -143,12 +132,12 @@ async function removeDevice(device: OperationsDevice) {
 async function bulkRemove() {
   const devices = targetDevices();
   if (!devices.length) {
-    window.alert("Không có thiết bị chờ duyệt của Bơi ếch/Bauman Hub trong bộ lọc hiện tại để xử lý.");
+    window.alert("Không có thiết bị chờ duyệt Bơi ếch/Bauman Hub phù hợp bộ lọc hiện tại.");
     return;
   }
   const boi = devices.filter((item) => item.appId === "boi-ech").length;
   const bauman = devices.filter((item) => item.appId === "bauman-master-ai").length;
-  if (!window.confirm(`Xử lý toàn bộ ${devices.length} thiết bị chờ duyệt trong bộ lọc hiện tại?\nBơi ếch: xóa vĩnh viễn ${boi}.\nBauman Hub: khóa ${bauman}.`)) return;
+  if (!window.confirm(`Xử lý ${devices.length} thiết bị chờ duyệt?\nBơi ếch: xóa vĩnh viễn ${boi}.\nBauman Hub: khóa ${bauman}.`)) return;
   const button = document.querySelector<HTMLButtonElement>("[data-runtime-bulk-remove]");
   if (button) { button.disabled = true; button.textContent = "Đang xử lý…"; }
   const failures: string[] = [];
@@ -161,12 +150,7 @@ async function bulkRemove() {
   window.location.reload();
 }
 
-function hideRedundantHeader() {
-  document.querySelectorAll<HTMLHeadingElement>("h1").forEach((title) => {
-    if (!PAGE_HEADER_TITLES.has(title.textContent?.trim() || "")) return;
-    (title.closest("header") as HTMLElement | null)?.style.setProperty("display", "none", "important");
-  });
-
+function hideLegacyChrome() {
   document.querySelectorAll<HTMLElement>("small").forEach((node) => {
     if (/^(?:v|ver(?:sion)?\.?)[\s-]*\d/i.test(node.textContent?.trim() || "")) node.style.display = "none";
   });
@@ -176,44 +160,6 @@ function hideRedundantHeader() {
       const parent = node.parentElement;
       if (parent) parent.style.display = "none";
       else node.style.display = "none";
-    }
-  });
-}
-
-function limitAppChoices() {
-  document.querySelectorAll<HTMLSelectElement>("select").forEach((select) => {
-    const values = Array.from(select.options).map((option) => option.value);
-    if (!values.includes("boi-ech") || !values.includes("bauman-master-ai")) return;
-    Array.from(select.options).forEach((option) => {
-      if (option.value !== "all" && option.value !== "boi-ech" && option.value !== "bauman-master-ai") option.remove();
-    });
-    if (select.value !== "all" && !SUPPORTED_APPS.has(select.value)) {
-      select.value = "all";
-      select.dispatchEvent(new Event("change", { bubbles: true }));
-    }
-  });
-
-  document.querySelectorAll<HTMLElement>("article").forEach((row) => {
-    const text = row.textContent || "";
-    const looksLikeAppRow = /Truy cập web|Vào quản trị|Quản trị\s*→/.test(text);
-    if (looksLikeAppRow && UNSUPPORTED_APP_LABELS.some((label) => text.includes(label))) row.style.display = "none";
-  });
-
-  document.querySelectorAll<HTMLElement>("label").forEach((row) => {
-    const text = row.textContent || "";
-    if (UNSUPPORTED_APP_LABELS.some((label) => text.includes(label)) && row.querySelector('input[type="checkbox"]')) row.style.display = "none";
-  });
-
-  Array.from(document.querySelectorAll<HTMLElement>("button")).forEach((button) => {
-    if (!button.textContent?.includes("Tổng ứng dụng")) return;
-    const count = button.querySelector("strong");
-    if (count && count.textContent !== "2") count.textContent = "2";
-  });
-
-  document.querySelectorAll<HTMLElement>("span").forEach((node) => {
-    const text = node.textContent?.trim() || "";
-    if (/^\d+\s+(?:client cấp 1|ứng dụng)$/.test(text) && text !== "2 client cấp 1" && text !== "2 ứng dụng") {
-      node.textContent = text.endsWith("ứng dụng") ? "2 ứng dụng" : "2 client cấp 1";
     }
   });
 }
@@ -235,47 +181,20 @@ function enhanceAppearanceDialog() {
 }
 
 function addBulkRemoveButton() {
-  if (new URLSearchParams(location.search).get("view") !== "client-devices") return;
+  const view = new URLSearchParams(location.search).get("view");
+  if (view !== "devices" && view !== "client-devices") return;
   if (document.querySelector("[data-runtime-bulk-remove]")) return;
-  const heading = Array.from(document.querySelectorAll("h2")).find((node) => node.textContent?.includes("Thiết bị mới"));
-  const header = heading?.parentElement?.parentElement;
+  const heading = Array.from(document.querySelectorAll("h2")).find((node) => node.textContent?.includes("Thiết bị"));
+  const header = heading?.closest("header") ?? heading?.parentElement;
   if (!header) return;
   const button = document.createElement("button");
   button.type = "button";
   button.setAttribute("data-runtime-bulk-remove", "1");
   button.textContent = "Xóa/khóa tất cả";
-  button.title = "Chỉ xử lý thiết bị chờ duyệt đang khớp bộ lọc; Bơi ếch xóa vĩnh viễn, Bauman Hub khóa quyền";
-  button.style.cssText = "margin-left:8px;padding:7px 11px;border-radius:8px;border:1px solid #a94b4b;background:#6d2323;color:#fff;cursor:pointer";
+  button.title = "Bơi ếch xóa vĩnh viễn; Bauman Hub khóa quyền. Chỉ áp dụng thiết bị pending đang khớp bộ lọc.";
+  button.style.cssText = "margin-left:auto;padding:7px 11px;border-radius:8px;border:1px solid #a94b4b;background:#6d2323;color:#fff;cursor:pointer";
   button.addEventListener("click", () => void bulkRemove());
   header.appendChild(button);
-}
-
-function interceptBrokenRemove(event: MouseEvent) {
-  const button = (event.target as HTMLElement | null)?.closest("button");
-  if (!button || button.hasAttribute("data-runtime-bulk-remove")) return;
-  const label = button.textContent?.trim() || "";
-  if (label !== "Xóa vĩnh viễn" && label !== "Khóa") return;
-  const row = button.closest("article");
-  if (!row) return;
-  const data = readOperations();
-  if (!data) return;
-  const device = data.devices.find((item) => SUPPORTED_APPS.has(item.appId) && row.textContent?.includes(item.deviceCode));
-  if (!device) return;
-  event.preventDefault();
-  event.stopPropagation();
-  event.stopImmediatePropagation();
-  const verb = device.appId === "boi-ech" ? "xóa vĩnh viễn" : "khóa";
-  if (!window.confirm(`${verb[0].toUpperCase()}${verb.slice(1)} thiết bị ${device.deviceCode}?`)) return;
-  button.setAttribute("disabled", "true");
-  button.textContent = "Đang xử lý…";
-  void removeDevice(device).then(() => {
-    sessionStorage.removeItem(OPERATIONS_CACHE_KEY);
-    window.location.reload();
-  }).catch((error) => {
-    button.removeAttribute("disabled");
-    button.textContent = label;
-    window.alert(error instanceof Error ? error.message : "Không thể cập nhật thiết bị.");
-  });
 }
 
 export default function RuntimeUiFixes() {
@@ -284,20 +203,17 @@ export default function RuntimeUiFixes() {
     const apply = () => {
       const appearance = getAppearance();
       setFontSize(Number(appearance.fontSize) || 14);
-      hideRedundantHeader();
-      limitAppChoices();
+      hideLegacyChrome();
       enhanceAppearanceDialog();
       addBulkRemoveButton();
     };
     apply();
     const observer = new MutationObserver(apply);
     observer.observe(document.body, { childList: true, subtree: true });
-    document.addEventListener("click", interceptBrokenRemove, true);
     const onPopState = () => window.setTimeout(apply, 0);
     window.addEventListener("popstate", onPopState);
     return () => {
       observer.disconnect();
-      document.removeEventListener("click", interceptBrokenRemove, true);
       window.removeEventListener("popstate", onPopState);
     };
   }, []);
