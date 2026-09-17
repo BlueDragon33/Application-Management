@@ -1,5 +1,5 @@
 import { existsSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn, spawnSync } from "node:child_process";
 
@@ -47,6 +47,15 @@ function hasCoreApps(root) {
     && existsSync(join(root, "BOIECH_AI", "boi-ech"));
 }
 
+function ensureCanonicalCentralWorkspace() {
+  const workspaceName = basename(defaultAppsRoot).toLowerCase();
+  if (workspaceName === "baumanweb") return;
+  throw new Error(
+    `Application Management đang chạy từ bản sao legacy: ${centralRoot}. `
+    + `Từ nay chỉ sử dụng <ổ đĩa>:\\BaumanWeb\\Application-Management để tránh chạy nhầm phiên bản.`,
+  );
+}
+
 function resolveAppsRoot(requestedRoot, explicitRoot) {
   if (explicitRoot) return requestedRoot;
 
@@ -54,18 +63,10 @@ function resolveAppsRoot(requestedRoot, explicitRoot) {
   const candidates = [
     envRoot ? resolve(envRoot) : null,
     requestedRoot,
-    join(requestedRoot, "BaumanWeb"),
-    join(requestedRoot, "Apps"),
   ].filter(Boolean);
 
   const selected = candidates.find((candidate) => hasCoreApps(candidate));
-  if (selected) {
-    if (selected !== requestedRoot) {
-      console.log(`[offline-core] Tự phát hiện workspace ứng dụng: ${selected}`);
-    }
-    return selected;
-  }
-
+  if (selected) return selected;
   return requestedRoot;
 }
 
@@ -130,6 +131,7 @@ async function main() {
     throw new Error(`Cần Node.js >= 22.13.0, hiện tại ${process.versions.node}.`);
   }
 
+  ensureCanonicalCentralWorkspace();
   const options = parseArgs(process.argv.slice(2));
   options.appsRoot = resolveAppsRoot(options.appsRoot, options.explicitAppsRoot);
 
@@ -143,8 +145,8 @@ async function main() {
 
   if (!hasCoreApps(options.appsRoot)) {
     throw new Error(
-      `Không tìm thấy workspace Bauman + Bơi ếch. Đã kiểm tra quanh ${defaultAppsRoot}. `
-      + `Có thể chạy lại với --apps-root "E:\\BaumanWeb" nếu repo nằm tại E:\\BaumanWeb\\Bauman-master-ai-system và E:\\BaumanWeb\\BOIECH_AI.`,
+      `Không tìm thấy Bauman Hub + Bơi ếch trong workspace chuẩn ${defaultAppsRoot}. `
+      + `Cấu trúc cần là BaumanWeb\\Application-Management, BaumanWeb\\Bauman-master-ai-system và BaumanWeb\\BOIECH_AI\\boi-ech.`,
     );
   }
 
@@ -168,7 +170,7 @@ async function main() {
     ["wrangler", "d1", "migrations", "apply", "boi-ech-local", "--local", "--config", "wrangler.local.jsonc"], paths.boi);
 
   console.log("\n[offline-core] Bootstrap hoàn tất. Khởi động Application Management + Bauman Hub + Bơi ếch...");
-  console.log(`[offline-core] Workspace ứng dụng: ${options.appsRoot}`);
+  console.log(`[offline-core] Workspace chuẩn: ${options.appsRoot}`);
   console.log("[offline-core] Registry Bauman được giữ nguyên giữa các lần chạy; không còn cơ chế tự xóa .wrangler/state.");
   const launcher = join(paths.central, "scripts", "run-local-system.mjs");
   const args = [launcher, "--local", "--skip-install", "--skip-migrate", "--apps-root", options.appsRoot];
