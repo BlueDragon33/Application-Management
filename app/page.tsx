@@ -3,6 +3,7 @@ import ManagementEntry from "./management-entry";
 import "./management-dashboard-v2.css";
 import "./management-dashboard-v2-reference.css";
 import "./management-dashboard-v2-views.css";
+import "./management-dashboard-v2-final.css";
 import LocalQuickAccess from "./local-quick-access";
 
 export const dynamic = "force-dynamic";
