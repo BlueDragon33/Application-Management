@@ -1,11 +1,5 @@
 import { requireChatGPTUser } from "./chatgpt-auth";
 import ManagementEntry from "./management-entry";
-import "./management-dashboard-mobile-overrides.css";
-import "./management-dashboard-reference-layout.css";
-import "./management-quick-actions.css";
-import "./management-modern-overview.css";
-import "./management-latest-layout.css";
-import "./management-dashboard-image-layout.css";
 import "./management-dashboard-v2.css";
 import "./management-dashboard-v2-reference.css";
 import LocalQuickAccess from "./local-quick-access";
