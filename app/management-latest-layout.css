@@ -1,13 +1,76 @@
-/* Latest accepted control-room composition.
-   Keep the main desktop view inside one 16:9 screen while allowing long lists
-   to scroll inside their own panels. Tablet/phone continue to use the base
-   responsive rules from management-modern-overview.css. */
+/* Reference layout requested for the management overview.
+   Keep information density high, remove decorative/footer chrome and prevent
+   table content from leaking across columns. */
+
+.modernAlertsPanel,
+.modernAppsPager {
+  display: none !important;
+}
+
+.modernAppsHead,
+.modernAppsRow {
+  grid-template-columns: minmax(150px, 1.35fr) minmax(88px, .76fr) minmax(72px, .68fr) minmax(72px, .68fr) minmax(104px, .88fr) minmax(112px, .82fr) minmax(112px, .82fr) !important;
+}
+
+.modernAppsHead > *,
+.modernAppsRow > *,
+.modernTableHead > *,
+.modernTableRow > * {
+  min-width: 0;
+}
+
+.modernAppsHead > span,
+.modernAppsRow > span,
+.modernAppsRow > strong,
+.modernAppsRow > b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.modernAppCell {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.modernAppCell strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.modernManageAction,
+.modernWebAction {
+  width: 100%;
+  min-width: 0;
+  min-height: 28px;
+  padding: 4px 7px !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.modernWebAction {
+  border-color: rgba(70, 195, 164, .18) !important;
+  background: rgba(18, 87, 68, .58) !important;
+  color: #79e5c5 !important;
+}
+
+.modernWebAction:disabled {
+  background: rgba(255,255,255,.025) !important;
+  color: #6f8c82 !important;
+}
 
 @media (min-width: 1200px) and (min-aspect-ratio: 4/3) {
   .modernPage {
     width: min(1600px, calc(100% - 22px));
-    padding-top: 9px;
+    padding-top: 8px;
     padding-bottom: 10px;
+  }
+
+  .modernNotice {
+    margin-bottom: 7px;
   }
 
   .modernMetrics {
@@ -16,137 +79,88 @@
   }
 
   .modernMetrics > button {
-    min-height: 76px;
-    padding-top: 8px;
-    padding-bottom: 8px;
+    min-height: 70px;
+    padding: 7px 9px;
   }
 
-  .modernBoard {
-    grid-template-columns: minmax(0, 1.12fr) minmax(460px, .98fr);
-    grid-template-rows: minmax(220px, 1fr) minmax(118px, .54fr) minmax(190px, .86fr);
+  .modernMetrics > button > i {
+    width: 38px;
+    height: 38px;
+  }
+
+  .modernMetrics strong {
+    font-size: 22px;
+  }
+
+  .modernBoard.modernBoardCompact {
+    grid-template-columns: minmax(0, 1.23fr) minmax(455px, .97fr);
+    grid-template-rows: minmax(235px, .95fr) minmax(220px, 1.05fr);
     gap: 8px;
     align-items: stretch;
   }
 
-  /* Final panel order: left = applications then priority work;
-     right = alerts -> quick actions -> new devices. */
   .modernAppsPanel {
     grid-column: 1;
     grid-row: 1;
-  }
-
-  .modernWorkPanel {
-    grid-column: 1;
-    grid-row: 2 / span 2;
-  }
-
-  .modernAlertsPanel {
-    grid-column: 2;
-    grid-row: 1;
+    min-height: 0;
   }
 
   .modernQuickPanel {
     grid-column: 2;
+    grid-row: 1;
+    min-height: 0;
+  }
+
+  .modernWorkPanel {
+    grid-column: 1;
     grid-row: 2;
+    min-height: 0;
   }
 
   .modernDevicePanel {
     grid-column: 2;
-    grid-row: 3;
+    grid-row: 2;
+    min-height: 0;
   }
 
   .modernPanelTitle {
-    min-height: 38px;
-    padding: 6px 10px;
+    min-height: 36px;
+    padding: 5px 9px;
   }
 
   .modernPanelTitle h2 {
-    font-size: 13px;
+    font-size: 12.5px;
   }
 
-  /* Header (30px) + exactly three compact rows (3 x 40px) + padding. */
   .modernAppsTable {
-    max-height: 155px;
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding-bottom: 5px;
+    max-height: 194px;
+    overflow: auto;
+    padding: 0 7px 6px;
     scrollbar-width: thin;
-    scrollbar-color: rgba(54, 215, 172, .65) rgba(255, 255, 255, .035);
+    scrollbar-color: rgba(54, 215, 172, .62) rgba(255, 255, 255, .025);
   }
 
   .modernAppsTable::-webkit-scrollbar,
   .modernWorkTable::-webkit-scrollbar,
   .modernDeviceTable::-webkit-scrollbar {
-    width: 7px;
-    height: 7px;
+    width: 6px;
+    height: 6px;
   }
 
   .modernAppsTable::-webkit-scrollbar-thumb,
   .modernWorkTable::-webkit-scrollbar-thumb,
   .modernDeviceTable::-webkit-scrollbar-thumb {
     border-radius: 999px;
-    background: rgba(54, 215, 172, .62);
+    background: rgba(54, 215, 172, .60);
   }
 
   .modernAppsTable::-webkit-scrollbar-track,
   .modernWorkTable::-webkit-scrollbar-track,
   .modernDeviceTable::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, .03);
+    background: rgba(255, 255, 255, .025);
   }
 
-  .modernAppsHead {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    background: #113d32;
-  }
-
-  .modernAppsRow {
-    min-height: 40px;
-  }
-
-  .modernAppsPager {
-    min-height: 27px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    padding: 3px 9px 4px;
-    border-top: 1px solid rgba(255, 255, 255, .055);
-    color: #79a397;
-    font-size: 7px;
-  }
-
-  .modernAppsPager > div {
-    display: flex;
-    gap: 5px;
-  }
-
-  .modernAppsPager button {
-    width: 27px;
-    height: 24px;
-    display: grid;
-    place-items: center;
-    padding: 0;
-    border: 1px solid rgba(66, 211, 167, .25);
-    border-radius: 6px;
-    background: rgba(14, 86, 66, .52);
-    color: #61e3bd;
-  }
-
-  .modernAppsPager button:disabled {
-    opacity: .28;
-    cursor: default;
-  }
-
-  /* Long queues stay inside their boxes instead of increasing page height. */
-  .modernWorkTable {
-    max-height: 278px;
-    overflow: auto;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(54, 215, 172, .65) rgba(255, 255, 255, .035);
-  }
-
+  .modernAppsHead,
   .modernWorkTable .modernTableHead,
   .modernDeviceTable .modernTableHead {
     position: sticky;
@@ -155,78 +169,124 @@
     background: #113d32;
   }
 
-  .modernDeviceTable {
-    max-height: 122px;
+  .modernAppsHead {
+    min-height: 28px;
+  }
+
+  .modernAppsRow {
+    min-height: 33px;
+    gap: 6px;
+  }
+
+  .modernAppsRow button {
+    font-size: 7.2px;
+  }
+
+  .modernWorkTable {
+    max-height: 183px;
     overflow: auto;
     scrollbar-width: thin;
-    scrollbar-color: rgba(54, 215, 172, .65) rgba(255, 255, 255, .035);
+    scrollbar-color: rgba(54, 215, 172, .62) rgba(255, 255, 255, .025);
+  }
+
+  .modernDeviceTable {
+    max-height: 145px;
+    overflow: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(54, 215, 172, .62) rgba(255, 255, 255, .025);
   }
 
   .modernTableRow {
-    min-height: 40px;
+    min-height: 36px;
   }
 
-  .modernAlertTiles {
-    height: calc(100% - 38px);
-    align-content: stretch;
-  }
-
-  .modernAlertTiles button {
-    min-height: 62px;
+  .modernTableRow > span,
+  .modernTableRow > b {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .modernQuickPanel {
-    padding: 5px 8px 7px;
+    padding: 6px 8px 8px;
   }
 
   .modernQuickPanel > header {
-    min-height: 22px;
+    min-height: 29px;
+  }
+
+  .modernQuickPanel > header h2 {
+    font-size: 12px;
   }
 
   .modernQuickGrid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 4px;
+    gap: 6px;
   }
 
   .modernQuickGrid button {
-    min-height: 31px;
-    padding: 4px 6px;
+    min-height: 47px;
+    padding: 6px 7px;
+  }
+
+  .modernQuickGrid span {
+    font-size: 7.5px;
   }
 
   .modernMiniFilters {
     padding-top: 5px;
     padding-bottom: 5px;
+    gap: 5px;
   }
 
   .modernMiniFilters select,
   .modernMiniFilters button {
-    height: 27px;
+    height: 28px;
+  }
+
+  .modernRowActions {
+    min-width: 0;
+    gap: 4px;
+  }
+
+  .modernRowActions button {
+    min-width: 0;
+    padding-left: 6px;
+    padding-right: 6px;
+    white-space: nowrap;
   }
 }
 
 @media (max-width: 1199px) {
-  .modernAppsPager {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    padding: 6px 9px;
-    border-top: 1px solid rgba(255, 255, 255, .055);
-    color: #789d92;
-    font-size: 7px;
+  .modernBoard.modernBoardCompact {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
   }
 
-  .modernAppsPager > div {
-    display: flex;
-    gap: 5px;
+  .modernAppsPanel,
+  .modernQuickPanel,
+  .modernWorkPanel,
+  .modernDevicePanel {
+    grid-column: 1;
+    grid-row: auto;
   }
 
-  .modernAppsPager button {
-    min-width: 29px;
-    height: 27px;
-    border: 1px solid rgba(66, 211, 167, .23);
-    border-radius: 6px;
-    background: rgba(14, 86, 66, .48);
-    color: #61e3bd;
+  .modernAppsTable {
+    overflow: auto;
+  }
+
+  .modernAppsHead,
+  .modernAppsRow {
+    min-width: 900px;
+  }
+
+  .modernQuickGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .modernQuickGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
