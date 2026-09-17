@@ -1,0 +1,166 @@
+/* Keep non-overview management views visually aligned with the approved
+   dark control-room reference. CSS-module class names retain the source/module
+   prefix in local development, so these selectors only bridge the legacy view. */
+
+html[data-management-theme] body {
+  background: #061a14;
+}
+
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__shell"] {
+  --navy: #0a5b49;
+  --navy-2: #0b745b;
+  --blue: #2ed7a3;
+  --line: rgba(92, 204, 168, .18);
+  --soft: rgba(10, 47, 37, .92);
+  --text: #eef8f4;
+  --muted: #8da79e;
+  grid-template-columns: 220px minmax(0, 1fr);
+  background: linear-gradient(135deg, #061914 0%, #0a281f 58%, #0c1f18 100%);
+  color: var(--text);
+}
+
+html[data-management-theme="jade"] [class*="management-dashboard-module__"][class*="__shell"] {
+  --navy: #087064;
+  --navy-2: #0a8c79;
+  --blue: #48e0b9;
+  background: linear-gradient(135deg, #031d1b, #08372f 60%, #092720);
+}
+
+html[data-management-theme="midnight"] [class*="management-dashboard-module__"][class*="__shell"] {
+  --navy: #133b58;
+  --navy-2: #164f70;
+  --blue: #63bde6;
+  --line: rgba(94, 181, 224, .19);
+  --soft: rgba(12, 38, 54, .94);
+  --text: #eef7fb;
+  --muted: #91a9b7;
+  background: linear-gradient(135deg, #07121d, #0b2534 60%, #0d1b25);
+}
+
+html[data-management-theme="graphite"] [class*="management-dashboard-module__"][class*="__shell"] {
+  --navy: #34443d;
+  --navy-2: #40554c;
+  --blue: #69caa8;
+  --line: rgba(165, 199, 184, .16);
+  --soft: rgba(30, 41, 36, .95);
+  --text: #f2f6f4;
+  --muted: #9aa8a2;
+  background: linear-gradient(135deg, #111614, #1a2420 60%, #171d1a);
+}
+
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__sidebar"] {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--navy) 84%, #06251d), #052b24 100%);
+  border-right: 1px solid var(--line);
+  box-shadow: 8px 0 24px rgba(0,0,0,.15);
+}
+
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__nav"] button {
+  color: #d8e9e2;
+}
+
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__nav"] button[data-active="true"] {
+  background: linear-gradient(120deg, rgba(34, 189, 143, .48), rgba(29, 127, 98, .62));
+  box-shadow: inset 3px 0 0 #43e0b1;
+}
+
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__topbar"] {
+  background: rgba(5, 28, 22, .95);
+  border-bottom: 1px solid var(--line);
+  color: var(--text);
+}
+
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__productTitle"] strong,
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__pageHeading"] h1,
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__sectionTitle"] h2,
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__account"] summary strong {
+  color: #f1f8f5;
+}
+
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__productTitle"] small,
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__pageHeading"] p,
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__muted"] {
+  color: var(--muted);
+}
+
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__searchBox"] {
+  border-color: var(--line);
+  background: rgba(13, 55, 43, .72);
+  color: #9cb7ad;
+}
+
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__searchBox"] input {
+  color: #eef8f4;
+}
+
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__production"] {
+  background: rgba(31, 164, 121, .14);
+  color: #4be0ae;
+}
+
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__account"] > div {
+  border-color: var(--line);
+  background: #0b3025;
+  box-shadow: 0 18px 42px rgba(0,0,0,.28);
+}
+
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__account"] > div button,
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__account"] > div a {
+  background: rgba(255,255,255,.045);
+  color: #d9ebe4;
+}
+
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__page"] {
+  width: min(1500px, calc(100% - 30px));
+}
+
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__fullPanel"],
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__appsPanel"],
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__sidePanel"],
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__queuePanel"],
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__processPanel"],
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__appCard"],
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__accessCard"] {
+  border-color: var(--line);
+  background: rgba(8, 48, 36, .94);
+  color: var(--text);
+  box-shadow: 0 8px 22px rgba(0,0,0,.08);
+}
+
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__appCard"] header {
+  background: linear-gradient(90deg, rgba(10,55,42,.98), rgba(9,46,35,.98));
+}
+
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__appCard"] h3,
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__activityList"] strong,
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__tableRow"],
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__queueRow"] {
+  color: #dbece6;
+}
+
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__tableHead"],
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__queueHead"] {
+  border-color: var(--line);
+  background: rgba(25, 88, 68, .55);
+  color: #b9d0c7;
+}
+
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__tableRow"],
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__queueRow"],
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__activityList"] article,
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__syncList"] article,
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__auditList"] article,
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__controlDevices"] article {
+  border-bottom-color: rgba(154, 206, 187, .12);
+}
+
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__syncButton"] {
+  border-color: var(--line);
+  background: rgba(12, 61, 46, .82);
+  color: #63e5bb;
+}
+
+html[data-management-theme] [class*="management-dashboard-module__"][class*="__statusFooter"] {
+  border-top-color: var(--line);
+  background: rgba(6, 31, 24, .88);
+  color: #809f93;
+}
