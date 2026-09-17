@@ -24,7 +24,7 @@ test("overview matches the approved panel order", () => {
 test("application table uses separate Website and Quản Trị columns with short actions", () => {
   const ui = source("app/management-dashboard-v2.tsx");
   assert.match(ui, /<span>Website<\/span><span>Quản Trị<\/span>/);
-  assert.match(ui, />Đến<\/button>/);
+  assert.match(ui, /hasWeb \? "Đến" : "Chờ"/);
   assert.match(ui, />Vào<\/Link>/);
 });
 
