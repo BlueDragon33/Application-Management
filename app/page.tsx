@@ -5,6 +5,7 @@ import "./management-dashboard-reference-layout.css";
 import "./management-quick-actions.css";
 import "./management-modern-overview.css";
 import "./management-latest-layout.css";
+import "./management-dashboard-image-layout.css";
 import LocalQuickAccess from "./local-quick-access";
 
 export const dynamic = "force-dynamic";
