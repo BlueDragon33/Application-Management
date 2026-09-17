@@ -28,6 +28,14 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
+echo [local-system] Kiem tra va don cac runtime local cu...
+node scripts\cleanup-local-runtime.mjs
+if errorlevel 1 (
+  echo.
+  echo [ERROR] Khong the giai phong day du cac port local. Xem thong bao phia tren.
+  pause
+  exit /b 1
+)
 if exist "node_modules\.vite" (
   echo [offline-core] Xoa cache bien dich Vite cu...
   rmdir /s /q "node_modules\.vite"
