@@ -1,0 +1,202 @@
+/* Compact, no-horizontal-scroll presentation for dashboard tables.
+   Loaded after all v2 layout styles so it only refines presentation. */
+
+.amv2-panel-title > div,
+.amv2-panel-title h2,
+.amv2-app-head > *,
+.amv2-app-row > *,
+.amv2-priority-head > *,
+.amv2-priority-row > *,
+.amv2-device-head > *,
+.amv2-device-row > * {
+  min-width: 0;
+}
+
+.amv2-panel-title h2 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Requested shorter application-table labels. */
+.amv2-app-head > span:nth-child(2),
+.amv2-app-head > span:nth-child(3),
+.amv2-app-head > span:nth-child(4) {
+  font-size: 0 !important;
+}
+.amv2-app-head > span:nth-child(2)::after { content: "Phân loại"; font-size: 10.5px; }
+.amv2-app-head > span:nth-child(3)::after { content: "Chờ xử lý"; font-size: 10.5px; }
+.amv2-app-head > span:nth-child(4)::after { content: "Online"; font-size: 10.5px; }
+
+/* Keep action headings and controls on one visual axis. */
+.amv2-app-head > span:nth-child(3),
+.amv2-app-head > span:nth-child(4),
+.amv2-app-head > span:nth-child(6),
+.amv2-app-head > span:nth-child(7),
+.amv2-app-row > strong:nth-child(3),
+.amv2-app-row > strong:nth-child(4) {
+  text-align: center;
+  justify-self: center;
+}
+
+.amv2-web-action,
+.amv2-manage-action {
+  width: 100% !important;
+  max-width: 76px;
+  justify-self: center;
+  margin: 0 auto;
+  text-align: center;
+}
+
+/* Remove horizontal table scrolling. All widths must resolve inside the box. */
+.amv2-app-table,
+.amv2-priority-table,
+.amv2-device-table,
+.amv2-app-table.full {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
+.amv2-app-head,
+.amv2-app-row,
+.amv2-priority-head,
+.amv2-priority-row,
+.amv2-device-head,
+.amv2-device-row {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+.amv2-app-head,
+.amv2-app-row {
+  grid-template-columns:
+    minmax(118px, 1.28fr)
+    minmax(70px, .72fr)
+    minmax(68px, .62fr)
+    minmax(50px, .5fr)
+    minmax(96px, .92fr)
+    minmax(68px, .66fr)
+    minmax(68px, .66fr) !important;
+  gap: 5px !important;
+}
+
+.amv2-app-head > span,
+.amv2-app-row > span,
+.amv2-app-row > strong,
+.amv2-app-row > b,
+.amv2-app-cell strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.amv2-priority-head,
+.amv2-priority-row {
+  grid-template-columns:
+    minmax(62px, .68fr)
+    minmax(100px, .9fr)
+    minmax(112px, 1.25fr)
+    minmax(72px, .68fr)
+    minmax(58px, .58fr)
+    minmax(70px, .66fr) !important;
+  gap: 5px !important;
+}
+
+.amv2-priority-head > span:nth-child(1),
+.amv2-priority-head > span:nth-child(5) {
+  font-size: 0 !important;
+}
+.amv2-priority-head > span:nth-child(1)::after { content: "Loại"; font-size: 10.5px; }
+.amv2-priority-head > span:nth-child(5)::after { content: "Ưu tiên"; font-size: 10.5px; }
+
+.amv2-priority-head > span,
+.amv2-priority-row > span,
+.amv2-priority-row > b,
+.amv2-priority-row > em {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.amv2-device-head,
+.amv2-device-row {
+  grid-template-columns:
+    minmax(105px, 1.02fr)
+    minmax(72px, .72fr)
+    minmax(96px, .94fr)
+    minmax(72px, .68fr)
+    minmax(106px, .94fr) !important;
+  gap: 5px !important;
+}
+
+.amv2-device-head > span,
+.amv2-device-row > span,
+.amv2-device-row .amv2-app-cell strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.amv2-device-row > div:last-child {
+  min-width: 0;
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px !important;
+}
+
+.amv2-device-row > div:last-child button,
+.amv2-device-row > div:last-child a {
+  min-width: 0;
+  width: 100%;
+  padding-inline: 5px !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Shorten only presentation labels that otherwise consume useful panel width. */
+.amv2-devices-panel .amv2-panel-title h2 {
+  font-size: 0 !important;
+}
+.amv2-devices-panel .amv2-panel-title h2::after {
+  content: "Thiết bị mới";
+  font-size: 18px;
+}
+
+.amv2-alert-grid button:nth-child(3) small,
+.amv2-alert-grid button:nth-child(4) small {
+  font-size: 0 !important;
+}
+.amv2-alert-grid button:nth-child(3) small::after { content: "Môi trường"; font-size: 10.5px; }
+.amv2-alert-grid button:nth-child(4) small::after { content: "Chờ kết nối"; font-size: 10.5px; }
+
+@media (min-width: 1200px) and (max-width: 1450px) {
+  .amv2-app-head,
+  .amv2-app-row {
+    grid-template-columns:
+      minmax(105px, 1.2fr)
+      minmax(62px, .68fr)
+      minmax(62px, .58fr)
+      minmax(46px, .44fr)
+      minmax(86px, .84fr)
+      minmax(62px, .6fr)
+      minmax(62px, .6fr) !important;
+    gap: 4px !important;
+  }
+
+  .amv2-app-head > span:nth-child(2)::after,
+  .amv2-app-head > span:nth-child(3)::after,
+  .amv2-app-head > span:nth-child(4)::after,
+  .amv2-priority-head > span:nth-child(1)::after,
+  .amv2-priority-head > span:nth-child(5)::after {
+    font-size: 10px;
+  }
+
+  .amv2-web-action,
+  .amv2-manage-action {
+    max-width: 68px;
+    min-height: 34px !important;
+    font-size: 10px !important;
+  }
+}
