@@ -15,11 +15,28 @@ test("focused endpoint accepts live Boi/Bauman registry ids instead of assuming 
   assert.match(route, /appId === "bauman-master-ai"/);
 });
 
+test("focused endpoint reconciles stale registry ids by stable deviceCode", () => {
+  const route = source("app/api/focused-device-operation/route.ts");
+  assert.match(route, /function rowByDeviceCode/);
+  assert.match(route, /function resolveLiveDevice/);
+  assert.match(route, /rowByDeviceId\(data, deviceId\)/);
+  assert.match(route, /rowByDeviceCode\(data, deviceCode\)/);
+  assert.match(route, /deviceId: liveDeviceId/);
+  assert.match(route, /reboundFromDeviceId/);
+});
+
+test("a truly stale Bauman row becomes a soft resync instead of a hard registry error", () => {
+  const route = source("app/api/focused-device-operation/route.ts");
+  assert.match(route, /code: "STALE_DEVICE_REMOVED"/);
+  assert.match(route, /Thiết bị Bauman đã rời registry/);
+  assert.doesNotMatch(route, /Thiết bị Bauman không còn trong registry/);
+});
+
 test("focused Boi remove is a verified permanent registry deletion", () => {
   const route = source("app/api/focused-device-operation/route.ts");
   assert.match(route, /delete-spam-device/);
   assert.match(route, /confirmDeviceCode: deviceCode/);
-  assert.match(route, /rowByDeviceId\(after, deviceId\)/);
+  assert.match(route, /rowByDeviceId\(after, liveDeviceId\)/);
   assert.match(route, /verifiedStatus: "deleted"/);
 });
 
@@ -34,13 +51,10 @@ test("focused Bauman remove is a capability-gated idempotent block with readback
   assert.match(route, /normalizedStatus\(updated\.status\) !== expectedResult/);
 });
 
-test("operations client focuses dashboard data on Boi and Bauman and supplies expectedStatus", () => {
+test("operations client focuses device commands through the dedicated endpoint", () => {
   const client = source("app/admin-device-client.ts");
   assert.match(client, /focusedOperationsAppIds = new Set\(\["boi-ech", "bauman-master-ai"\]\)/);
   assert.match(client, /function focusOperationsBootstrap/);
-  assert.match(client, /bootstrap\.summaries\.filter/);
-  assert.match(client, /bootstrap\.devices\.filter/);
-  assert.match(client, /bootstrap\.workItems\.filter/);
   assert.match(client, /expectedStatus: snapshot\.status/);
   assert.match(client, /"\/api\/focused-device-operation"/);
 });
@@ -57,9 +71,10 @@ test("runtime bulk remove respects filters and preserves Boi delete versus Bauma
   assert.match(ui, /Bauman Hub: khóa/);
 });
 
-test("runtime compact UI removes version/header clutter and provides font step controls", () => {
+test("runtime UI no longer filters published applications but keeps compact chrome and font controls", () => {
   const ui = source("app/runtime-ui-fixes.tsx");
-  assert.match(ui, /PAGE_HEADER_TITLES/);
+  assert.doesNotMatch(ui, /limitAppChoices/);
+  assert.doesNotMatch(ui, /UNSUPPORTED_APP_LABELS/);
   assert.match(ui, /Cuộn để xem thêm/);
   assert.match(ui, /data-font-minus/);
   assert.match(ui, /data-font-plus/);
