@@ -1,0 +1,199 @@
+/* Approved reference image for Application Management overview.
+   This file is intentionally presentation-only. All device, approval, sync,
+   website and admin actions remain owned by management-dashboard-v2.tsx. */
+
+@media (min-width: 1200px) and (min-aspect-ratio: 4/3) {
+  .amv2-shell {
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+    grid-template-columns: 266px minmax(0, 1fr) !important;
+    overflow: hidden !important;
+  }
+
+  .amv2-workspace {
+    height: 100dvh !important;
+    grid-template-rows: 72px minmax(0, 1fr) !important;
+    overflow: hidden !important;
+  }
+
+  .amv2-content {
+    width: min(1660px, calc(100% - 26px)) !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    grid-template-rows: 80px minmax(0, 1fr) !important;
+    gap: 9px !important;
+    padding: 10px 0 10px !important;
+    overflow: hidden !important;
+  }
+
+  .amv2-page-head {
+    min-height: 80px !important;
+    height: 80px !important;
+  }
+
+  .amv2-page-head h1 {
+    font-size: clamp(28px, 2vw, 36px) !important;
+    line-height: 1.02 !important;
+  }
+
+  .amv2-page-head p {
+    font-size: 11.5px !important;
+  }
+
+  .amv2-stage[data-view="overview"] {
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-rows: 104px minmax(0, 1fr) !important;
+    gap: 10px !important;
+    overflow: hidden !important;
+  }
+
+  .amv2-metrics {
+    min-height: 104px !important;
+    height: 104px !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .amv2-metrics > button {
+    min-height: 104px !important;
+    height: 104px !important;
+  }
+
+  /* Reference layout:
+       LEFT:  Priority work -> Managed applications
+       RIGHT: Quick alerts -> Quick actions -> New devices
+     Both bottom panels terminate on the same baseline close to viewport bottom. */
+  .amv2-overview-grid {
+    min-height: 0 !important;
+    height: 100% !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.12fr) minmax(520px, .94fr) !important;
+    grid-template-rows: 134px 182px minmax(210px, 1fr) !important;
+    gap: 10px 12px !important;
+    overflow: hidden !important;
+  }
+
+  .amv2-priority-panel {
+    grid-column: 1 !important;
+    grid-row: 1 / span 2 !important;
+  }
+
+  .amv2-alert-panel {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+  }
+
+  .amv2-quick-panel {
+    grid-column: 2 !important;
+    grid-row: 2 !important;
+  }
+
+  .amv2-apps-panel {
+    grid-column: 1 !important;
+    grid-row: 3 !important;
+  }
+
+  .amv2-devices-panel {
+    grid-column: 2 !important;
+    grid-row: 3 !important;
+  }
+
+  .amv2-panel {
+    min-width: 0 !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .amv2-panel-title {
+    min-height: 48px !important;
+    height: 48px !important;
+    padding: 8px 12px !important;
+  }
+
+  .amv2-panel-title h2,
+  .amv2-quick-panel > header h2 {
+    font-size: 17px !important;
+  }
+
+  /* The priority/application boundary sits level with the bottom of the
+     quick-action region. This is achieved by the shared row-3 start line. */
+  .amv2-priority-table {
+    height: calc(100% - 48px) !important;
+    min-height: 0 !important;
+    overflow: auto !important;
+  }
+
+  .amv2-app-table,
+  .amv2-device-table {
+    height: calc(100% - 48px) !important;
+    min-height: 0 !important;
+    overflow: auto !important;
+  }
+
+  /* There are no artificial footer/pager strips in the approved layout. */
+  .amv2-apps-panel footer,
+  .amv2-devices-panel footer,
+  .amv2-priority-panel footer,
+  .amv2-apps-panel [class*="pager"],
+  .amv2-devices-panel [class*="pager"],
+  .amv2-priority-panel [class*="pager"] {
+    display: none !important;
+  }
+
+  /* Managed-app table: Website immediately left of Quản Trị, compact actions. */
+  .amv2-app-head,
+  .amv2-app-row {
+    grid-template-columns:
+      minmax(145px, 1.25fr)
+      minmax(95px, .8fr)
+      minmax(85px, .65fr)
+      minmax(85px, .65fr)
+      minmax(115px, .9fr)
+      78px
+      78px !important;
+    gap: 7px !important;
+  }
+
+  .amv2-web-action,
+  .amv2-manage-action {
+    min-height: 34px !important;
+    height: 34px !important;
+    padding: 0 8px !important;
+    font-size: 10px !important;
+    white-space: nowrap !important;
+  }
+
+  .amv2-priority-row > *,
+  .amv2-app-row > *,
+  .amv2-device-row > * {
+    min-width: 0 !important;
+  }
+
+  .amv2-priority-row > span,
+  .amv2-app-row > span,
+  .amv2-app-row > strong,
+  .amv2-app-row > b,
+  .amv2-device-row > span {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  /* No page-wide motion. Switching tabs changes only the persistent content
+     stage, avoiding the old flash/overlay effect. */
+  .amv2-content,
+  .amv2-stage,
+  .amv2-page-panel,
+  .amv2-overview-grid {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+@media (max-width: 1199px) {
+  .amv2-app-head,
+  .amv2-app-row {
+    grid-template-columns: minmax(145px, 1.25fr) minmax(95px, .8fr) minmax(85px, .65fr) minmax(85px, .65fr) minmax(115px, .9fr) 76px 76px;
+  }
+}
