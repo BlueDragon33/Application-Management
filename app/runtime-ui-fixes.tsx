@@ -6,17 +6,19 @@ import { operationsAction, type OperationsBootstrap, type OperationsDevice } fro
 const APPEARANCE_KEY = "application-management:appearance:v1";
 const FONT_MIGRATION_KEY = "application-management:font-step-20260916";
 const OPERATIONS_CACHE_KEY = "application-management:operations:v1";
-const BULK_SUPPORTED_APPS = new Set(["boi-ech", "bauman-master-ai"]);
+const ACTIVE_APPS = new Set(["boi-ech", "bauman-master-ai"]);
+const UNSUPPORTED_APP_LABELS = ["Sức khỏe Y tế", "Hòa nhập Nga", "GrowUP"];
 const FONT_STEPS = [14, 16, 18, 20] as const;
+const REDUNDANT_PAGE_TITLES = new Set([
+  "Bảng điều phối quản trị ứng dụng",
+  "Ứng dụng đang quản lý",
+  "Thiết bị mới theo ứng dụng",
+  "Hộp việc ưu tiên",
+  "Yêu cầu chờ duyệt",
+]);
 
 type Appearance = { font?: string; background?: string; fontSize?: number };
-
-type DeviceFilters = {
-  appId: string;
-  deviceType: string;
-  timeRange: string;
-  search: string;
-};
+type DeviceFilters = { appId: string; deviceType: string; timeRange: string; search: string };
 
 function getAppearance(): Appearance {
   try { return JSON.parse(localStorage.getItem(APPEARANCE_KEY) || "{}"); } catch { return {}; }
@@ -85,12 +87,7 @@ function currentDeviceFilters(): DeviceFilters {
   const timeSelect = selectByOptions(["1", "7", "30", "all"]);
   const search = Array.from(document.querySelectorAll<HTMLInputElement>("input"))
     .find((input) => input.placeholder?.includes("Tìm theo ứng dụng"))?.value.trim().toLowerCase() || "";
-  return {
-    appId: appSelect?.value || "all",
-    deviceType: typeSelect?.value || "all",
-    timeRange: timeSelect?.value || "all",
-    search,
-  };
+  return { appId: appSelect?.value || "all", deviceType: typeSelect?.value || "all", timeRange: timeSelect?.value || "all", search };
 }
 
 function inTimeRange(device: OperationsDevice, timeRange: string) {
@@ -108,7 +105,7 @@ function targetDevices() {
   const filters = currentDeviceFilters();
   return data.devices.filter((device) => {
     const haystack = `${device.appName} ${device.deviceCode} ${device.userLabel} ${device.deviceTypeLabel}`.toLowerCase();
-    return BULK_SUPPORTED_APPS.has(device.appId)
+    return ACTIVE_APPS.has(device.appId)
       && device.status === "pending"
       && device.canRemove
       && (filters.appId === "all" || device.appId === filters.appId)
@@ -150,18 +147,126 @@ async function bulkRemove() {
   window.location.reload();
 }
 
-function hideLegacyChrome() {
+function panelForHeading(heading: HTMLElement) {
+  let node: HTMLElement | null = heading.parentElement;
+  for (let depth = 0; node && depth < 5; depth += 1, node = node.parentElement) {
+    const className = typeof node.className === "string" ? node.className.toLowerCase() : "";
+    if (node.tagName === "SECTION" || className.includes("panel")) return node;
+  }
+  return heading.parentElement?.parentElement ?? null;
+}
+
+function hideRedundantChrome() {
+  document.querySelectorAll<HTMLHeadingElement>("h1").forEach((heading) => {
+    if (!REDUNDANT_PAGE_TITLES.has(heading.textContent?.trim() || "")) return;
+    (heading.closest("header") as HTMLElement | null)?.style.setProperty("display", "none", "important");
+  });
+
+  document.querySelectorAll<HTMLHeadingElement>("h2").forEach((heading) => {
+    if (heading.textContent?.trim() !== "Cảnh báo nhanh") return;
+    panelForHeading(heading)?.style.setProperty("display", "none", "important");
+  });
+
   document.querySelectorAll<HTMLElement>("small").forEach((node) => {
     if (/^(?:v|ver(?:sion)?\.?)[\s-]*\d/i.test(node.textContent?.trim() || "")) node.style.display = "none";
   });
 
   Array.from(document.querySelectorAll<HTMLElement>("body *")).forEach((node) => {
-    if (node.children.length === 0 && node.textContent?.trim() === "Cuộn để xem thêm") {
+    if (node.children.length !== 0) return;
+    const text = node.textContent?.trim() || "";
+    if (text === "Cuộn để xem thêm" || /\d+\s+ứng dụng\s*·\s*tối đa\s*3\s+ứng dụng/i.test(text)) {
       const parent = node.parentElement;
       if (parent) parent.style.display = "none";
       else node.style.display = "none";
     }
   });
+}
+
+function filterInactiveApplications() {
+  document.querySelectorAll<HTMLSelectElement>("select").forEach((select) => {
+    const values = Array.from(select.options).map((option) => option.value);
+    if (!values.includes("boi-ech") || !values.includes("bauman-master-ai")) return;
+    Array.from(select.options).forEach((option) => {
+      if (option.value !== "all" && !ACTIVE_APPS.has(option.value)) option.remove();
+    });
+    if (select.value !== "all" && !ACTIVE_APPS.has(select.value)) {
+      select.value = "all";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  });
+
+  document.querySelectorAll<HTMLElement>("article, .modernAppsRow").forEach((row) => {
+    const rowText = row.textContent || "";
+    if (UNSUPPORTED_APP_LABELS.some((label) => rowText.includes(label))) row.style.display = "none";
+  });
+
+  Array.from(document.querySelectorAll<HTMLElement>("button")).forEach((button) => {
+    if (!button.textContent?.includes("Tổng ứng dụng")) return;
+    const count = button.querySelector("strong");
+    if (count) count.textContent = "2";
+  });
+
+  Array.from(document.querySelectorAll<HTMLElement>("span, div")).forEach((node) => {
+    const text = node.textContent?.trim() || "";
+    if (text === "Ứng dụng quản lý") {
+      const count = node.parentElement?.querySelector("b, strong");
+      if (count && /^\d+$/.test(count.textContent?.trim() || "")) count.textContent = "2";
+    }
+  });
+}
+
+function repairApplicationColumns() {
+  const headers = Array.from(document.querySelectorAll<HTMLElement>("div"))
+    .filter((node) => {
+      const text = node.textContent?.replace(/\s+/g, " ").trim() || "";
+      return text.includes("Ứng dụng") && text.includes("Nhóm nghiệp vụ") && text.includes("Thiết bị online") && text.includes("Trạng thái") && (text.includes("Website") || text.includes("Truy cập web"));
+    });
+
+  for (const header of headers) {
+    const directText = Array.from(header.children).map((child) => child.textContent?.trim()).filter(Boolean);
+    if (directText.length < 6) continue;
+    const template = "minmax(150px,1.35fr) minmax(88px,.76fr) minmax(72px,.68fr) minmax(72px,.68fr) minmax(104px,.88fr) minmax(112px,.82fr) minmax(112px,.82fr)";
+    header.style.display = "grid";
+    header.style.gridTemplateColumns = template;
+    header.style.gap = "7px";
+    const table = header.parentElement;
+    if (!table) continue;
+    Array.from(table.children).forEach((row) => {
+      if (!(row instanceof HTMLElement) || row === header) return;
+      if (row.children.length < 6) return;
+      row.style.display = "grid";
+      row.style.gridTemplateColumns = template;
+      row.style.gap = "7px";
+      Array.from(row.children).forEach((cell) => {
+        if (!(cell instanceof HTMLElement)) return;
+        cell.style.minWidth = "0";
+        cell.style.overflow = "hidden";
+        cell.style.textOverflow = "ellipsis";
+      });
+    });
+  }
+}
+
+function compactDashboardGrid() {
+  const headings = Array.from(document.querySelectorAll<HTMLHeadingElement>("h2"));
+  const apps = headings.find((h) => h.textContent?.trim() === "Ứng dụng đang quản lý");
+  const quick = headings.find((h) => h.textContent?.trim() === "Thao tác nhanh");
+  const work = headings.find((h) => ["Hộp việc ưu tiên", "Yêu cầu chờ duyệt"].includes(h.textContent?.trim() || ""));
+  const devices = headings.find((h) => h.textContent?.includes("Thiết bị mới"));
+  const appPanel = apps ? panelForHeading(apps) : null;
+  const quickPanel = quick ? panelForHeading(quick) : null;
+  const workPanel = work ? panelForHeading(work) : null;
+  const devicePanel = devices ? panelForHeading(devices) : null;
+  const parent = appPanel?.parentElement;
+  if (!parent || !quickPanel || !workPanel || !devicePanel || quickPanel.parentElement !== parent || workPanel.parentElement !== parent || devicePanel.parentElement !== parent) return;
+  parent.style.display = "grid";
+  parent.style.gridTemplateColumns = "minmax(0,1.22fr) minmax(430px,.98fr)";
+  parent.style.gridTemplateRows = "minmax(220px,auto) minmax(210px,auto)";
+  parent.style.gap = "8px";
+  appPanel.style.gridColumn = "1"; appPanel.style.gridRow = "1";
+  quickPanel.style.gridColumn = "2"; quickPanel.style.gridRow = "1";
+  workPanel.style.gridColumn = "1"; workPanel.style.gridRow = "2";
+  devicePanel.style.gridColumn = "2"; devicePanel.style.gridRow = "2";
 }
 
 function enhanceAppearanceDialog() {
@@ -203,7 +308,10 @@ export default function RuntimeUiFixes() {
     const apply = () => {
       const appearance = getAppearance();
       setFontSize(Number(appearance.fontSize) || 14);
-      hideLegacyChrome();
+      hideRedundantChrome();
+      filterInactiveApplications();
+      repairApplicationColumns();
+      compactDashboardGrid();
       enhanceAppearanceDialog();
       addBulkRemoveButton();
     };
