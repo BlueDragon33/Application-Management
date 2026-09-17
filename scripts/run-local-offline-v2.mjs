@@ -42,6 +42,33 @@ function ensurePath(path, label) {
   if (!existsSync(path)) throw new Error(`${label} chưa tồn tại: ${path}`);
 }
 
+function hasCoreApps(root) {
+  return existsSync(join(root, "Bauman-master-ai-system"))
+    && existsSync(join(root, "BOIECH_AI", "boi-ech"));
+}
+
+function resolveAppsRoot(requestedRoot, explicitRoot) {
+  if (explicitRoot) return requestedRoot;
+
+  const envRoot = process.env.APPLICATION_APPS_ROOT?.trim();
+  const candidates = [
+    envRoot ? resolve(envRoot) : null,
+    requestedRoot,
+    join(requestedRoot, "BaumanWeb"),
+    join(requestedRoot, "Apps"),
+  ].filter(Boolean);
+
+  const selected = candidates.find((candidate) => hasCoreApps(candidate));
+  if (selected) {
+    if (selected !== requestedRoot) {
+      console.log(`[offline-core] Tự phát hiện workspace ứng dụng: ${selected}`);
+    }
+    return selected;
+  }
+
+  return requestedRoot;
+}
+
 function hasNpmLockfile(cwd) {
   return existsSync(join(cwd, "package-lock.json")) || existsSync(join(cwd, "npm-shrinkwrap.json"));
 }
@@ -71,15 +98,18 @@ function writeLocalConfigIfNeeded(path, content, label) {
 }
 
 function parseArgs(argv) {
-  const options = { appsRoot: defaultAppsRoot, noBrowser: false };
+  const options = { appsRoot: defaultAppsRoot, explicitAppsRoot: false, noBrowser: false };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--no-browser") options.noBrowser = true;
     else if (arg === "--apps-root") {
       if (!argv[i + 1]) throw new Error("--apps-root cần đường dẫn.");
       options.appsRoot = resolve(argv[++i]);
-    } else if (arg.startsWith("--apps-root=")) options.appsRoot = resolve(arg.slice(12));
-    else throw new Error(`Tham số không hỗ trợ: ${arg}`);
+      options.explicitAppsRoot = true;
+    } else if (arg.startsWith("--apps-root=")) {
+      options.appsRoot = resolve(arg.slice(12));
+      options.explicitAppsRoot = true;
+    } else throw new Error(`Tham số không hỗ trợ: ${arg}`);
   }
   return options;
 }
@@ -101,6 +131,8 @@ async function main() {
   }
 
   const options = parseArgs(process.argv.slice(2));
+  options.appsRoot = resolveAppsRoot(options.appsRoot, options.explicitAppsRoot);
+
   const baumanRoot = join(options.appsRoot, "Bauman-master-ai-system");
   const paths = {
     central: centralRoot,
@@ -108,6 +140,13 @@ async function main() {
     baumanControl: join(baumanRoot, "control-service"),
     boi: join(options.appsRoot, "BOIECH_AI", "boi-ech"),
   };
+
+  if (!hasCoreApps(options.appsRoot)) {
+    throw new Error(
+      `Không tìm thấy workspace Bauman + Bơi ếch. Đã kiểm tra quanh ${defaultAppsRoot}. `
+      + `Có thể chạy lại với --apps-root "E:\\BaumanWeb" nếu repo nằm tại E:\\BaumanWeb\\Bauman-master-ai-system và E:\\BaumanWeb\\BOIECH_AI.`,
+    );
+  }
 
   for (const [key, value] of Object.entries(paths)) ensurePath(value, key);
 
@@ -129,6 +168,7 @@ async function main() {
     ["wrangler", "d1", "migrations", "apply", "boi-ech-local", "--local", "--config", "wrangler.local.jsonc"], paths.boi);
 
   console.log("\n[offline-core] Bootstrap hoàn tất. Khởi động Application Management + Bauman Hub + Bơi ếch...");
+  console.log(`[offline-core] Workspace ứng dụng: ${options.appsRoot}`);
   console.log("[offline-core] Registry Bauman được giữ nguyên giữa các lần chạy; không còn cơ chế tự xóa .wrangler/state.");
   const launcher = join(paths.central, "scripts", "run-local-system.mjs");
   const args = [launcher, "--local", "--skip-install", "--skip-migrate", "--apps-root", options.appsRoot];
