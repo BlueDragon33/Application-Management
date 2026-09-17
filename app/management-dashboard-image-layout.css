@@ -1,0 +1,146 @@
+/* Persistent-shell overview layout based on the approved 16:9 reference image.
+   Presentation only: business logic and client actions remain in management-dashboard.tsx. */
+
+@media (min-width: 1200px) and (min-aspect-ratio: 4/3) {
+  main[class*="shell"] {
+    grid-template-columns: 264px minmax(0, 1fr) !important;
+    min-height: 100dvh !important;
+  }
+
+  main[class*="shell"] > aside {
+    height: 100dvh !important;
+    position: sticky !important;
+    top: 0 !important;
+  }
+
+  main[class*="shell"] > section {
+    min-height: 100dvh !important;
+    overflow: hidden !important;
+  }
+
+  main[class*="shell"] [class*="page"] {
+    width: min(1580px, calc(100% - 28px)) !important;
+    height: calc(100dvh - 70px) !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.08fr) minmax(500px, .92fr) !important;
+    grid-template-rows: auto auto minmax(0, 1fr) minmax(0, .92fr) !important;
+    gap: 10px 12px !important;
+    padding: 10px 0 12px !important;
+    overflow: hidden !important;
+  }
+
+  main[class*="shell"] [class*="pageHeading"] {
+    grid-column: 1 / -1 !important;
+    grid-row: 1 !important;
+    min-height: 70px !important;
+    margin: 0 !important;
+  }
+
+  main[class*="shell"] [class*="pageHeading"] h1 {
+    margin: 0 0 5px !important;
+    font: 700 clamp(26px, 2.1vw, 36px)/1.02 Georgia, "Times New Roman", serif !important;
+  }
+
+  main[class*="shell"] [class*="pageHeading"] p {
+    margin: 0 !important;
+    font-size: 11px !important;
+  }
+
+  main[class*="shell"] [class*="metrics"] {
+    grid-column: 1 / -1 !important;
+    grid-row: 2 !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    margin: 0 !important;
+  }
+
+  main[class*="shell"] [class*="metrics"] button {
+    min-height: 94px !important;
+  }
+
+  /* Flatten the overview wrapper so its two children can be positioned as
+     independent grid items without remounting or duplicating the shell. */
+  main[class*="shell"] [class*="overviewGrid"] {
+    display: contents !important;
+  }
+
+  /* Priority queue sits above the application list on the left. */
+  main[class*="shell"] [class*="queuePanel"] {
+    grid-column: 1 !important;
+    grid-row: 3 !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+  }
+
+  main[class*="shell"] [class*="appsPanel"] {
+    grid-column: 1 !important;
+    grid-row: 4 !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+  }
+
+  /* Existing right rail becomes the right control stack and spans the same
+     vertical area as queue + application panels. */
+  main[class*="shell"] [class*="rightRail"] {
+    grid-column: 2 !important;
+    grid-row: 3 / span 2 !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-rows: minmax(0, .42fr) minmax(0, .58fr) !important;
+    gap: 10px !important;
+    overflow: hidden !important;
+  }
+
+  main[class*="shell"] [class*="sidePanel"] {
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  main[class*="shell"] [class*="processPanel"] {
+    display: none !important;
+  }
+
+  main[class*="shell"] [class*="appGrid"],
+  main[class*="shell"] [class*="queueTable"],
+  main[class*="shell"] [class*="syncList"],
+  main[class*="shell"] [class*="activityList"] {
+    max-height: calc(100% - 45px) !important;
+    overflow: auto !important;
+    scrollbar-width: thin !important;
+  }
+
+  main[class*="shell"] [class*="sectionTitle"] {
+    min-height: 44px !important;
+    margin: 0 !important;
+  }
+
+  main[class*="shell"] [class*="sectionTitle"] h2 {
+    font-size: 17px !important;
+  }
+
+  main[class*="shell"] [class*="appCard"] {
+    min-height: 72px !important;
+  }
+
+  main[class*="shell"] [class*="statusFooter"] {
+    display: none !important;
+  }
+}
+
+/* Tab changes happen in one shell; avoid page-entry animations or transitions
+   that make the new panel look like it is painting over the previous one. */
+main[class*="shell"] [class*="page"] > section,
+main[class*="shell"] [class*="page"] > div {
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  main[class*="shell"] [class*="fullPanel"],
+  main[class*="shell"] [class*="settingsGrid"] {
+    transition: opacity 120ms ease !important;
+  }
+}
