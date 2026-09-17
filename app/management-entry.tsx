@@ -6,8 +6,10 @@ import ManagementModernOverview from "./management-modern-overview";
 
 const OPERATIONS_CACHE_KEY = "application-management:operations:v1";
 
+type EntryMode = "overview" | "legacy";
+
 export default function ManagementEntry({ user }: { user: { displayName: string; email: string } }) {
-  const [mode, setMode] = useState<"overview" | "legacy" | null>(null);
+  const [mode, setMode] = useState<EntryMode | null>(null);
 
   useEffect(() => {
     try { window.sessionStorage.removeItem(OPERATIONS_CACHE_KEY); } catch { /* local cache is optional */ }
@@ -47,9 +49,15 @@ export default function ManagementEntry({ user }: { user: { displayName: string;
     return <div className="managementEntryLoading" aria-label="Đang mở giao diện quản trị" />;
   }
 
-  if (mode === "overview") {
-    return <ManagementModernOverview user={user} />;
-  }
-
-  return <ManagementDashboard user={user} />;
+  /* Keep both shells mounted. Switching tabs only toggles visibility, so the
+     browser never tears down one complete dashboard and mounts another on top
+     of it. State, cached data and layout remain warm between tab changes. */
+  return <>
+    <div hidden={mode !== "overview"} aria-hidden={mode !== "overview"}>
+      <ManagementModernOverview user={user} />
+    </div>
+    <div hidden={mode !== "legacy"} aria-hidden={mode !== "legacy"}>
+      <ManagementDashboard user={user} />
+    </div>
+  </>;
 }
