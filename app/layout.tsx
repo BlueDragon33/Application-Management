@@ -14,6 +14,8 @@ export const metadata: Metadata = {
 
 export const viewport = { themeColor: "#173b33" };
 
+const themeBootstrap = `try{const k="application-management:theme:v1";const a=["emerald","jade","midnight","graphite"];const t=localStorage.getItem(k);document.documentElement.dataset.managementTheme=a.includes(t||"")?t:"emerald"}catch{document.documentElement.dataset.managementTheme="emerald"}`;
+
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="vi"><body><RuntimeUiFixes/>{children}</body></html>;
+  return <html lang="vi"><head><script dangerouslySetInnerHTML={{ __html: themeBootstrap }}/></head><body><RuntimeUiFixes/>{children}</body></html>;
 }
