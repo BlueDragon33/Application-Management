@@ -91,41 +91,40 @@
   /* Final order requested by the user:
      LEFT  : Applications above, Priority work below.
      RIGHT : Quick alerts -> Quick actions -> New devices.
-     Apps spans the same top area as Alerts + Quick actions, so both columns
-     remain visually balanced. Priority work and New devices share one bottom
-     row and therefore the same baseline. */
+     !important is intentional here because the earlier reference stylesheet
+     also used !important for the old placement. This final layer must win. */
   .amv2-overview-grid {
-    height: 100%;
-    min-height: 0;
-    grid-template-columns: minmax(0, 1.12fr) minmax(520px, .94fr);
-    grid-template-rows: 132px 218px minmax(210px, 1fr);
-    gap: 10px 12px;
-    overflow: hidden;
+    height: 100% !important;
+    min-height: 0 !important;
+    grid-template-columns: minmax(0, 1.12fr) minmax(520px, .94fr) !important;
+    grid-template-rows: 132px 218px minmax(210px, 1fr) !important;
+    gap: 10px 12px !important;
+    overflow: hidden !important;
   }
 
   .amv2-apps-panel {
-    grid-column: 1;
-    grid-row: 1 / span 2;
+    grid-column: 1 !important;
+    grid-row: 1 / span 2 !important;
   }
 
   .amv2-priority-panel {
-    grid-column: 1;
-    grid-row: 3;
+    grid-column: 1 !important;
+    grid-row: 3 !important;
   }
 
   .amv2-alert-panel {
-    grid-column: 2;
-    grid-row: 1;
+    grid-column: 2 !important;
+    grid-row: 1 !important;
   }
 
   .amv2-quick-panel {
-    grid-column: 2;
-    grid-row: 2;
+    grid-column: 2 !important;
+    grid-row: 2 !important;
   }
 
   .amv2-devices-panel {
-    grid-column: 2;
-    grid-row: 3;
+    grid-column: 2 !important;
+    grid-row: 3 !important;
   }
 
   .amv2-panel,
@@ -174,8 +173,6 @@
     font-size: 11px;
   }
 
-  /* Applications gets the largest left-side area. Keep columns roomy and
-     actions short so nothing spills out of its cell. */
   .amv2-app-head,
   .amv2-app-row {
     grid-template-columns:
@@ -207,9 +204,6 @@
   .amv2-alert-grid small { font-size: 10.5px; }
   .amv2-alert-grid strong { font-size: 26px; }
 
-  /* Give Quick Actions enough room for all 9 controls in a true 3x3 grid.
-     This also restores the Appearance/Giao diện action that was being clipped
-     by the previous shorter panel. */
   .amv2-quick-panel {
     padding: 10px 12px 12px;
   }
@@ -230,8 +224,6 @@
     border-radius: 8px;
   }
 
-  /* Giao diện is the eighth quick action in ManagementDashboardV2. Ensure it
-     cannot be hidden by stale presentation rules from earlier iterations. */
   .amv2-quick-grid > button:nth-child(8) {
     display: flex !important;
     visibility: visible !important;
@@ -258,7 +250,6 @@
     min-height: 100px;
   }
 
-  /* No decorative/pager/footer strips on the approved dashboard. */
   .modernAppsPager,
   .modernScrollFooter,
   [class*="scrollFooter"],
@@ -267,8 +258,6 @@
   }
 }
 
-/* Common laptop heights: keep Applications above Priority and preserve the
-   complete 3x3 Quick Actions block without extending the page. */
 @media (min-width: 1200px) and (max-height: 900px) {
   .amv2-overview-grid {
     grid-template-rows: 120px 196px minmax(188px, 1fr) !important;
@@ -293,7 +282,6 @@
   }
 }
 
-/* Keep page changes visually stable: no entry transform, overlay or fade stack. */
 .amv2-stage,
 .amv2-stage > *,
 .amv2-page-panel,
