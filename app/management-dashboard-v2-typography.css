@@ -1,0 +1,138 @@
+/* Final typography/visibility guard loaded last.
+   Use native system fonts with full Vietnamese glyph support and keep all
+   quick actions visible inside the dashboard panel. */
+
+.amv2-shell,
+.amv2-shell * {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", "Helvetica Neue", Arial, sans-serif !important;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.amv2-brand > div {
+  font-size: 22px !important;
+  font-weight: 800 !important;
+  line-height: 1 !important;
+  letter-spacing: 0 !important;
+}
+
+.amv2-brand small {
+  font-size: 10px !important;
+  font-weight: 750 !important;
+  line-height: 1.15 !important;
+  letter-spacing: .02em !important;
+}
+
+.amv2-brand strong {
+  font-size: 15px !important;
+  font-weight: 800 !important;
+  line-height: 1.2 !important;
+  letter-spacing: 0 !important;
+}
+
+.amv2-sidebar blockquote {
+  font-size: 11px !important;
+  font-style: italic !important;
+  line-height: 1.45 !important;
+}
+
+.amv2-page-head h1 {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", "Helvetica Neue", Arial, sans-serif !important;
+  font-size: clamp(30px, 2vw, 37px) !important;
+  font-weight: 780 !important;
+  line-height: 1.08 !important;
+  letter-spacing: -.015em !important;
+  word-spacing: 0 !important;
+}
+
+.amv2-page-head p {
+  font-size: 12px !important;
+  font-weight: 450 !important;
+  line-height: 1.4 !important;
+  letter-spacing: 0 !important;
+}
+
+.amv2-clock strong {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", "Helvetica Neue", Arial, sans-serif !important;
+  font-weight: 760 !important;
+}
+
+.amv2-panel-title h2,
+.amv2-quick-panel > header h2 {
+  font-size: 18px !important;
+  font-weight: 760 !important;
+  line-height: 1.15 !important;
+  letter-spacing: 0 !important;
+}
+
+.amv2-metrics small,
+.amv2-app-head,
+.amv2-priority-head,
+.amv2-device-head,
+.amv2-view-table .head {
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+}
+
+.amv2-app-row,
+.amv2-priority-row,
+.amv2-device-row,
+.amv2-view-table .row,
+.amv2-quick-grid button,
+.amv2-alert-grid button,
+.amv2-web-action,
+.amv2-manage-action,
+.amv2-sidebar nav button,
+.amv2-search input,
+.amv2-filter select {
+  letter-spacing: 0 !important;
+}
+
+/* Keep all nine quick actions inside the box at every desktop height. */
+@media (min-width: 1200px) {
+  .amv2-quick-panel {
+    overflow: hidden !important;
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+  }
+
+  .amv2-quick-panel > header {
+    min-height: 30px !important;
+    height: auto !important;
+  }
+
+  .amv2-quick-grid {
+    height: 100% !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    grid-template-rows: repeat(3, minmax(0, 1fr)) !important;
+    align-content: stretch !important;
+  }
+
+  .amv2-quick-grid > button {
+    display: flex !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  /* Giao diện is the eighth action. Give it a visible accent so it cannot
+     disappear visually among the other actions. */
+  .amv2-quick-grid > button:nth-child(8) {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    border-color: rgba(73, 224, 184, .48) !important;
+    background: rgba(11, 112, 84, .82) !important;
+    color: #f3fffb !important;
+  }
+}
+
+@media (max-width: 1199px) {
+  .amv2-page-head h1 {
+    font-size: clamp(24px, 4vw, 31px) !important;
+  }
+}
