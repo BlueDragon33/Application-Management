@@ -6,21 +6,34 @@ function source(path) {
   return fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }
 
-test("approved dashboard layout is mounted after legacy presentation layers", () => {
+test("root mounts the current v2 presentation stack in deterministic order", () => {
   const page = source("app/page.tsx");
-  assert.match(page, /management-dashboard-image-layout\.css/);
+  const files = [
+    "management-dashboard-v2.css",
+    "management-dashboard-v2-reference.css",
+    "management-dashboard-v2-views.css",
+    "management-dashboard-v2-final.css",
+    "management-dashboard-v2-compact-tables.css",
+    "management-dashboard-v2-typography.css",
+  ];
+  let previous = -1;
+  for (const file of files) {
+    const index = page.indexOf(file);
+    assert.ok(index > previous, `${file} must load after the previous layer`);
+    previous = index;
+  }
 });
 
-test("desktop overview places queue above applications and keeps a right rail", () => {
-  const css = source("app/management-dashboard-image-layout.css");
-  assert.match(css, /\[class\*="queuePanel"\][\s\S]*grid-column:\s*1[\s\S]*grid-row:\s*3/);
-  assert.match(css, /\[class\*="appsPanel"\][\s\S]*grid-column:\s*1[\s\S]*grid-row:\s*4/);
-  assert.match(css, /\[class\*="rightRail"\][\s\S]*grid-column:\s*2[\s\S]*grid-row:\s*3 \/ span 2/);
+test("current final layout owns desktop overview placement", () => {
+  const css = source("app/management-dashboard-v2-final.css");
+  assert.match(css, /\.amv2-apps-panel/);
+  assert.match(css, /\.amv2-priority-panel/);
+  assert.match(css, /\.amv2-alert-panel/);
+  assert.match(css, /\.amv2-devices-panel/);
 });
 
-test("desktop overview fills one viewport and removes decorative process/footer strips", () => {
-  const css = source("app/management-dashboard-image-layout.css");
-  assert.match(css, /height:\s*calc\(100dvh - 70px\)/);
-  assert.match(css, /\[class\*="processPanel"\][\s\S]*display:\s*none/);
-  assert.match(css, /\[class\*="statusFooter"\][\s\S]*display:\s*none/);
+test("dashboard shell is constrained to one desktop viewport", () => {
+  const css = source("app/management-dashboard-v2-final.css");
+  assert.match(css, /\.amv2-shell[\s\S]*height:\s*100dvh/);
+  assert.match(css, /overflow:\s*hidden/);
 });
