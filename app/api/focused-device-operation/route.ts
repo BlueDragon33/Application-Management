@@ -184,7 +184,12 @@ async function handleBoi(actor: ControlDeviceState, payload: Record<string, unkn
   return json({ ok: true, verified: true, verifiedStatus: "deleted", removedDeviceId: liveDeviceId, reboundFromDeviceId: resolved.rebound ? deviceId : undefined });
 }
 
-async function handleBauman(actor: ControlDeviceState, payload: Record<string, unknown>, operation: "approve" | "remove", deviceId: string) {
+async function handleBauman(
+  actor: ControlDeviceState,
+  payload: Record<string, unknown>,
+  operation: "approve" | "remove" | "unblock" | "set-edit-permission",
+  deviceId: string,
+) {
   if (actor.role !== "owner") return json({ error: "Bauman yêu cầu quyền Chủ hệ thống để thay đổi thiết bị.", code: "OWNER_REQUIRED" }, 403);
 
   const bridge = await issueBaumanBrowserBridge(actor.email, actor.role, actor.deviceId);
@@ -197,10 +202,12 @@ async function handleBauman(actor: ControlDeviceState, payload: Record<string, u
     devicesPath !== "/api/control/devices"
     || commandPath !== "/api/control/device-commands"
     || !bool(capabilities.deviceRegistry)
-    || !bool(capabilities.deviceApproval)
     || !bool(capabilities.deviceIdempotentCommands)
     || !bool(capabilities.optimisticConcurrency)
-  ) return json({ error: "Contract Bauman chưa xác nhận device control sẵn sàng.", code: "BAUMAN_DEVICE_COMMAND_CONTRACT_NOT_LIVE" }, 409);
+    || ((operation === "approve" || operation === "remove") && !bool(capabilities.deviceApproval))
+    || (operation === "unblock" && !bool(capabilities.deviceUnblock))
+    || (operation === "set-edit-permission" && !bool(capabilities.deviceEditPermission))
+  ) return json({ error: "Contract Bauman chưa xác nhận capability thiết bị tương ứng.", code: "BAUMAN_DEVICE_COMMAND_CONTRACT_NOT_LIVE" }, 409);
 
   const suppliedDeviceCode = normalizedDeviceCode(payload.deviceCode);
   let before = await bridgeJson(bridge, devicesPath);
@@ -231,22 +238,38 @@ async function handleBauman(actor: ControlDeviceState, payload: Record<string, u
   if (conflict) return conflict;
   if (operation === "approve" && liveStatus !== "pending") return json({ error: "Thiết bị Bauman không còn ở trạng thái chờ duyệt.", code: "DEVICE_STATE_CONFLICT" }, 409);
   if (operation === "remove" && liveStatus !== "pending" && liveStatus !== "approved") return json({ error: "Thiết bị Bauman đã bị khóa hoặc trạng thái không xác định.", code: "DEVICE_STATE_CONFLICT" }, 409);
+  if (operation === "unblock" && liveStatus !== "blocked") return json({ error: "Chỉ thiết bị Bauman đang bị khóa mới được mở khóa.", code: "DEVICE_STATE_CONFLICT" }, 409);
+  const editEnabled = typeof payload.editEnabled === "boolean" ? payload.editEnabled : null;
+  if (operation === "set-edit-permission" && (liveStatus !== "approved" || editEnabled === null)) {
+    return json({ error: "Quyền sửa chỉ thay đổi trên thiết bị Bauman đã duyệt và phải có editEnabled boolean.", code: "DEVICE_EDIT_PERMISSION_CONFLICT" }, 409);
+  }
 
   const suppliedCommandId = text(payload.commandId).toLowerCase();
   if (suppliedCommandId && !validCommandId(suppliedCommandId)) return json({ error: "commandId không hợp lệ.", code: "INVALID_COMMAND_ID" }, 400);
   const commandId = suppliedCommandId || crypto.randomUUID();
-  const expectedResult = operation === "approve" ? "approved" as const : "blocked" as const;
+  const expectedResult = operation === "remove" ? "blocked" as const : "approved" as const;
+  const upstreamOperation = operation === "approve"
+    ? "approve"
+    : operation === "remove"
+      ? "block"
+      : operation === "unblock"
+        ? "unblock"
+        : "set_edit_permission";
   const command = await bridgeCommandJson(bridge, commandPath, {
     commandId,
     deviceId: liveDeviceId,
-    operation: operation === "approve" ? "approve" : "block",
+    operation: upstreamOperation,
     expectedStatus: liveStatus,
+    ...(operation === "set-edit-permission" ? { editEnabled } : {}),
   });
   if (text(command.commandId).toLowerCase() !== commandId || normalizedStatus(command.status) !== expectedResult) return json({ error: "Bauman chưa xác nhận commandId hoặc trạng thái kết quả.", code: "DEVICE_COMMAND_READBACK_MISMATCH" }, 502);
 
   const after = await bridgeJson(bridge, devicesPath);
   const updated = rowByDeviceId(after, liveDeviceId);
-  if (!updated || normalizedStatus(updated.status) !== expectedResult) return json({ error: `Bauman chưa xác nhận trạng thái ${expectedResult} sau thao tác.`, code: "DEVICE_COMMAND_READBACK_MISMATCH" }, 502);
+  if (!updated || normalizedStatus(updated.status) !== expectedResult
+    || (operation === "set-edit-permission" && bool(updated.editEnabled) !== editEnabled)) {
+    return json({ error: `Bauman chưa xác nhận trạng thái/quyền sau thao tác ${operation}.`, code: "DEVICE_COMMAND_READBACK_MISMATCH" }, 502);
+  }
 
   return json({
     ok: true,
@@ -256,7 +279,10 @@ async function handleBauman(actor: ControlDeviceState, payload: Record<string, u
     commandReplayed: bool(command.replayed),
     reconciledBy: resolved.reason,
     reboundFromDeviceId: resolved.rebound ? deviceId : undefined,
-    ...(operation === "approve" ? { approvedDeviceId: liveDeviceId } : { removedDeviceId: liveDeviceId }),
+    ...(operation === "approve" ? { approvedDeviceId: liveDeviceId } : {}),
+    ...(operation === "remove" ? { removedDeviceId: liveDeviceId } : {}),
+    ...(operation === "unblock" ? { unblockedDeviceId: liveDeviceId } : {}),
+    ...(operation === "set-edit-permission" ? { editPermissionDeviceId: liveDeviceId, editEnabled } : {}),
   });
 }
 
@@ -270,9 +296,14 @@ export async function POST(request: Request) {
     const deviceId = text(payload.deviceId);
 
     if (payload.action !== "manage-client-device") return json({ error: "Thao tác điều phối không hợp lệ.", code: "INVALID_OPERATIONS_ACTION" }, 400);
-    if (operation !== "approve" && operation !== "remove") return json({ error: "Thao tác thiết bị không hợp lệ.", code: "INVALID_DEVICE_OPERATION" }, 400);
+    if (operation !== "approve" && operation !== "remove" && operation !== "unblock" && operation !== "set-edit-permission") {
+      return json({ error: "Thao tác thiết bị không hợp lệ.", code: "INVALID_DEVICE_OPERATION" }, 400);
+    }
     if (!validDeviceId(deviceId)) return json({ error: "Mã thiết bị không hợp lệ.", code: "INVALID_DEVICE_ID" }, 400);
-    if (appId === "boi-ech") return await handleBoi(actor, payload, operation, deviceId);
+    if (appId === "boi-ech") {
+      if (operation !== "approve" && operation !== "remove") return json({ error: "Bơi ếch không hỗ trợ thao tác này.", code: "CLIENT_ACTION_UNAVAILABLE" }, 409);
+      return await handleBoi(actor, payload, operation, deviceId);
+    }
     if (appId === "bauman-master-ai") return await handleBauman(actor, payload, operation, deviceId);
     return json({ error: "Endpoint này chỉ xử lý Bơi ếch và Bauman Hub.", code: "CLIENT_ACTION_UNAVAILABLE" }, 409);
   } catch (error) {
