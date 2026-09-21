@@ -56,8 +56,13 @@ test("focused Bauman remove is a capability-gated idempotent block with readback
   assert.match(route, /deviceIdempotentCommands/);
   assert.match(route, /optimisticConcurrency/);
   assert.match(route, /commandId/);
-  assert.match(route, /operation: operation === "approve" \? "approve" : "block"/);
+  assert.match(route, /payload\.operation === "unblock"|operation === "unblock"/);
+  assert.match(route, /set-edit-permission/);
+  assert.match(route, /set_edit_permission/);
+  assert.match(route, /capabilities\.deviceUnblock/);
+  assert.match(route, /capabilities\.deviceEditPermission/);
   assert.match(route, /normalizedStatus\(updated\.status\) !== expectedResult/);
+  assert.match(route, /bool\(updated\.editEnabled\) !== editEnabled/);
 });
 
 test("operations client focuses device commands through the dedicated endpoint", () => {
