@@ -94,7 +94,7 @@ export default function BaumanAdmin({ application, user }: { application: Applic
     { label: "Inventory sub-client", state: "available", note: "Math_Bauman + các module môn học vẫn thuộc topology của Bauman Hub." },
     { label: "Device registry BM-", state: liveConnected ? "available" : "implemented", note: liveConnected ? "Registry BM- đang phản hồi qua control-plane." : "Backend BM- đã triển khai nhưng runtime hiện tại chưa xác nhận kết nối live." },
     { label: "P-256 device gateway", state: liveConnected ? "available" : "implemented", note: liveConnected ? "Gateway thiết bị đang được đọc qua Bauman Control v4." : "Challenge/session P-256 đã triển khai và đã qua local E2E; chưa suy diễn production từ CI." },
-    { label: "Duyệt / Khóa thiết bị", state: liveConnected ? "available" : "implemented", note: "Thao tác đi qua commandId + expectedStatus, sau đó đọc lại registry. Khóa giữ registry và thu hồi phiên." },
+    { label: "Duyệt / Khóa / Mở khóa / Quyền sửa", state: liveConnected ? "available" : "implemented", note: "Mutation đi qua commandId + expectedStatus và capability live. Quyền truy cập tách riêng quyền sửa; khóa giữ registry và thu hồi phiên." },
     { label: "Audit API", state: liveConnected ? "available" : "implemented", note: "Audit thuộc Bauman; Trung tâm không sao chép registry sang database khác." },
     { label: "Content review API", state: "missing", note: "Luồng duyệt/sửa/xuất bản nội dung Bauman chưa có contract độc lập." },
   ], [liveConnected]);
@@ -108,12 +108,17 @@ export default function BaumanAdmin({ application, user }: { application: Applic
         ? { eyebrow: "LIVE ADMIN CONTRACT", title: "Độ sẵn sàng quản trị", description: "Phân biệt rõ phần đã triển khai, phần đang phản hồi live và phần chưa có backend." }
         : { eyebrow: "BAUMAN HUB · CLIENT CONTROL", title: "Quản trị Bauman Hub", description: "Bauman là client cha. Thiết bị, quyền truy cập và topology được điều phối tại đây; runtime học tập vẫn chạy độc lập." }, [view]);
 
-  async function manageDevice(device: OperationsDevice, operation: "approve" | "remove") {
+  async function manageDevice(
+    device: OperationsDevice,
+    operation: "approve" | "remove" | "unblock" | "set-edit-permission",
+    editEnabled?: boolean,
+  ) {
     if (!access || access.role !== "owner") {
       setError("Bauman yêu cầu quyền Chủ hệ thống để thay đổi thiết bị.");
       return;
     }
     if (operation === "remove" && !window.confirm(`Khóa thiết bị ${device.deviceCode}? Registry và audit sẽ được giữ lại, các phiên Bauman hiện tại sẽ bị thu hồi.`)) return;
+    if (operation === "unblock" && !window.confirm(`Mở khóa thiết bị ${device.deviceCode}? Thiết bị sẽ trở lại trạng thái được cấp quyền nhưng quyền sửa vẫn giữ theo registry.`)) return;
     const actionKey = `${device.deviceId}:${operation}`;
     setActioning(actionKey);
     setError("");
@@ -126,6 +131,7 @@ export default function BaumanAdmin({ application, user }: { application: Applic
         operation,
         expectedStatus: device.status,
         commandId: crypto.randomUUID(),
+        ...(operation === "set-edit-permission" ? { editEnabled: Boolean(editEnabled) } : {}),
       });
       const refreshed = await connectOperationsDashboard();
       setAccess(refreshed.access);
@@ -177,12 +183,15 @@ export default function BaumanAdmin({ application, user }: { application: Applic
         {devices.length ? <div className={baumanStyles.deviceAdminList}>{devices.map((device) => {
           const approving = actioning === `${device.deviceId}:approve`;
           const blocking = actioning === `${device.deviceId}:remove`;
+          const unblocking = actioning === `${device.deviceId}:unblock`;
+          const editing = actioning === `${device.deviceId}:set-edit-permission`;
           return <article key={device.deviceId} data-status={device.status}>
             <div className={baumanStyles.deviceAdminIdentity}><span>{device.deviceType === "phone" ? "PH" : device.deviceType === "tablet" ? "TB" : "PC"}</span><div><strong>{device.deviceCode}</strong><small>{device.userLabel}</small></div></div>
-            <dl><div><dt>Trạng thái</dt><dd data-status={device.status}>{deviceStatusLabel[device.status]}</dd></div><div><dt>Loại</dt><dd>{device.deviceTypeLabel}</dd></div><div><dt>Hoạt động cuối</dt><dd>{formatTime(device.lastSeenAt)}</dd></div><div><dt>Đăng ký</dt><dd>{formatTime(device.createdAt)}</dd></div></dl>
+            <dl><div><dt>Trạng thái</dt><dd data-status={device.status}>{deviceStatusLabel[device.status]}</dd></div><div><dt>Loại</dt><dd>{device.deviceTypeLabel}</dd></div><div><dt>Quyền sửa</dt><dd>{device.editEnabled ? "Được phép" : "Tắt"}</dd></div><div><dt>Hoạt động cuối</dt><dd>{formatTime(device.lastSeenAt)}</dd></div><div><dt>Đăng ký</dt><dd>{formatTime(device.createdAt)}</dd></div></dl>
             <div className={baumanStyles.deviceAdminActions}>
               {device.status === "pending" ? <button data-action="approve" onClick={() => void manageDevice(device, "approve")} disabled={!device.canApprove || Boolean(actioning)}>{approving ? "Đang duyệt…" : "Duyệt"}</button> : null}
-              {device.status !== "blocked" ? <button data-action="block" onClick={() => void manageDevice(device, "remove")} disabled={!device.canRemove || Boolean(actioning)}>{blocking ? "Đang khóa…" : "Khóa"}</button> : <span>Registry được giữ lại</span>}
+              {device.status === "approved" ? <button data-action="edit-permission" onClick={() => void manageDevice(device, "set-edit-permission", !device.editEnabled)} disabled={!device.canEditPermission || Boolean(actioning)}>{editing ? "Đang cập nhật…" : device.editEnabled ? "Tắt quyền sửa" : "Bật quyền sửa"}</button> : null}
+              {device.status !== "blocked" ? <button data-action="block" onClick={() => void manageDevice(device, "remove")} disabled={!device.canRemove || Boolean(actioning)}>{blocking ? "Đang khóa…" : "Khóa"}</button> : <button data-action="unblock" onClick={() => void manageDevice(device, "unblock")} disabled={!device.canUnblock || Boolean(actioning)}>{unblocking ? "Đang mở khóa…" : "Mở khóa"}</button>}
             </div>
           </article>;
         })}</div> : <div className={baumanStyles.deviceAdminEmpty}><strong>{liveConnected ? "Chưa có thiết bị Bauman trong registry." : "Chưa đọc được registry Bauman."}</strong><p>{liveConnected ? "Mở runtime Bauman trên thiết bị mới để Device Gate đăng ký mã BM-, sau đó yêu cầu sẽ xuất hiện tại đây." : "Kiểm tra Bauman Control URL, secret, D1 binding và BAUMAN_APP_ORIGIN. Trung tâm không tạo dữ liệu thiết bị giả."}</p></div>}
