@@ -62,6 +62,8 @@ test("GrowUP admin exposes verified direct launch without claiming deep admin re
     'Mở Site GrowUP ↗',
     'Mở GrowUP MyChildren ↗',
     'Direct web launch không đồng nghĩa với quyền đọc dữ liệu trẻ em.',
-    'site.remoteAdminReady ? "Backend sẵn sàng" : "Tiếp tục khóa"',
+    'siteState.remoteAdminReady ? "Backend sẵn sàng" : "Tiếp tục khóa"',
+    'connectOperationsDashboard',
+    'remoteAdminReady: summary.remoteAdminReady === true',
   ]);
 });
