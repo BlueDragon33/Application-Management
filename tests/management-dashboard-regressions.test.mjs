@@ -6,14 +6,16 @@ function source(path) {
   return fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }
 
-test("reference dashboard keeps all nine management sections reachable on mobile", () => {
+test("dashboard v2 keeps every management view reachable on narrow screens", () => {
   const page = source("app/page.tsx");
-  const mobile = source("app/management-dashboard-mobile-overrides.css");
-  assert.match(page, /management-dashboard-mobile-overrides\.css/);
-  assert.match(mobile, /Điều hướng quản trị/);
-  assert.match(mobile, /button:nth-child\(n\+6\)[\s\S]*display:\s*grid/);
-  assert.match(mobile, /overflow-x:\s*auto/);
-  assert.match(mobile, /span:nth-child\(2\)[\s\S]*display:\s*block/);
+  const dashboard = source("app/management-dashboard-v2.tsx");
+  const css = source("app/management-dashboard-v2.css");
+  assert.match(page, /management-dashboard-v2\.css/);
+  for (const label of ["Tổng quan", "Hộp việc", "Ứng dụng", "Thiết bị mới", "Cảnh báo", "Nhật ký", "Cấu hình"]) {
+    assert.match(dashboard, new RegExp(label));
+  }
+  assert.match(css, /@media \(max-width: 700px\)/);
+  assert.match(css, /\.amv2-sidebar nav[\s\S]*overflow-x:\s*auto/);
 });
 
 test("central queue does not double count device-derived work items", () => {
