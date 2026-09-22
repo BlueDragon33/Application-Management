@@ -11,7 +11,7 @@ import {
 } from "../../admin-device-client";
 import styles from "./health-care-admin.module.css";
 
-type View = "devices" | "access" | "content" | "audit";
+type View = "overview" | "devices" | "access" | "content" | "audit";
 type DeviceType = "desktop" | "phone" | "tablet";
 type DeviceStatus = "pending" | "approved" | "blocked";
 
@@ -174,7 +174,7 @@ function Gate({ access, error, busy, retry }: { access: AdminAccess | null; erro
 }
 
 export default function HealthCareAdmin({ user }: { user: { displayName: string; email: string } }) {
-  const [view, setView] = useState<View>("devices");
+  const [view, setView] = useState<View>("overview");
   const [access, setAccess] = useState<AdminAccess | null>(null);
   const [bridge, setBridge] = useState<ApplicationBridge | null>(null);
   const [status, setStatus] = useState<HealthStatus | null>(null);
@@ -213,6 +213,7 @@ export default function HealthCareAdmin({ user }: { user: { displayName: string;
       setAccess(result.access);
       if (!result.bootstrap) {
         setBridge(null);
+        if (result.access.status === "approved") setError("Health_Care chưa trả bridge quản trị hợp lệ. Không bật thao tác giả.");
         return;
       }
       const nextBridge = result.bootstrap.bridge;
@@ -246,8 +247,18 @@ export default function HealthCareAdmin({ user }: { user: { displayName: string;
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void loadAll(); }, 0);
-    return () => window.clearTimeout(timer);
-  }, []);
+    const onFocus = () => { if (access?.status === "approved") void refreshLight(); };
+    const onVisibility = () => { if (document.visibilityState === "visible" && access?.status === "approved") void refreshLight(); };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+    // Access changes are intentionally handled by explicit bridge refreshes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [access?.status]);
 
   async function refreshLight() {
     try {
@@ -394,11 +405,12 @@ export default function HealthCareAdmin({ user }: { user: { displayName: string;
     <aside className={styles.sidebar}>
       <Link href="/" className={styles.serverLink}><span>AM</span><div><small>CONTROL PLANE</small><strong>Application Management</strong></div></Link>
       <div className={styles.appBrand}><span>YT</span><div><small>CLIENT ĐỘC LẬP</small><strong>Sức khỏe Y tế</strong></div></div>
-      <nav>
-        <button data-active={view === "devices"} onClick={() => setView("devices")}><b>01</b><div><strong>Thiết bị & quyền</strong><small>SK registry của Health</small></div></button>
-        <button data-active={view === "access"} onClick={() => setView("access")}><b>02</b><div><strong>Policy & phiên</strong><small>Truy cập và session</small></div></button>
-        {canReview ? <button data-active={view === "content"} onClick={() => setView("content")}><b>03</b><div><strong>Duyệt nội dung</strong><small>Health content only</small></div></button> : null}
-        {canReview ? <button data-active={view === "audit"} onClick={() => setView("audit")}><b>04</b><div><strong>Audit ứng dụng</strong><small>Không phải audit Trung tâm</small></div></button> : null}
+      <nav aria-label="Quản trị Sức khỏe Y tế">
+        <button data-active={view === "overview"} onClick={() => setView("overview")}><b>01</b><div><strong>Tổng quan</strong><small>Control & trạng thái</small></div></button>
+        <button data-active={view === "devices"} onClick={() => setView("devices")}><b>02</b><div><strong>Thiết bị & quyền</strong><small>SK registry của Health</small></div></button>
+        <button data-active={view === "access"} onClick={() => setView("access")}><b>03</b><div><strong>Policy & phiên</strong><small>Truy cập và session</small></div></button>
+        {canReview ? <button data-active={view === "content"} onClick={() => setView("content")}><b>04</b><div><strong>Duyệt nội dung</strong><small>Health content only</small></div></button> : null}
+        {canReview ? <button data-active={view === "audit"} onClick={() => setView("audit")}><b>05</b><div><strong>Audit ứng dụng</strong><small>Không phải audit Trung tâm</small></div></button> : null}
       </nav>
       <div className={styles.boundary}><strong>RANH GIỚI CLIENT</strong><p>Health_Care tự sở hữu runtime, D1, thiết bị SK, session và audit. Hồ sơ sức khỏe cá nhân không đi vào Application Management.</p></div>
       <div className={styles.user}><span>{user.displayName.slice(0,1).toUpperCase()}</span><div><strong>{user.displayName}</strong><small>{roleLabels[role]} · {access.deviceCode}</small></div></div>
@@ -406,12 +418,31 @@ export default function HealthCareAdmin({ user }: { user: { displayName: string;
 
     <section className={styles.main}>
       <header className={styles.topbar}>
-        <div><span>HEALTH CARE / CLIENT CONTROL</span><h1>{view === "devices" ? "Thiết bị & quyền truy cập" : view === "access" ? "Policy & phiên truy cập" : view === "content" ? "Duyệt nội dung Sức khỏe Y tế" : "Audit ứng dụng Health_Care"}</h1><p>{view === "devices" ? "Quản lý đúng registry SK của Health_Care, không dùng thiết bị Bơi ếch hay QT làm thiết bị người dùng." : view === "access" ? "Policy và session được lưu, thực thi và audit tại Health_Care." : view === "content" ? "Chỉ xử lý phiên bản nội dung do Health_Care gửi lên quy trình kiểm duyệt." : "Đây là nhật ký nghiệp vụ Health_Care; nhật ký quyền QT vẫn ở Application Management."}</p></div>
+        <div><span>HEALTH CARE · CLIENT CONTROL</span><h1>{view === "overview" ? "Quản trị Sức khỏe Y tế" : view === "devices" ? "Thiết bị & quyền truy cập" : view === "access" ? "Policy & phiên truy cập" : view === "content" ? "Duyệt nội dung Sức khỏe Y tế" : "Audit ứng dụng Health_Care"}</h1><p>{view === "overview" ? "Theo dõi contract, registry SK, session và quyền quản trị theo cùng cấu trúc Bauman Hub; dữ liệu sức khỏe vẫn ở Health_Care." : view === "devices" ? "Quản lý đúng registry SK của Health_Care, không dùng thiết bị Bơi ếch hay QT làm thiết bị người dùng." : view === "access" ? "Policy và session được lưu, thực thi và audit tại Health_Care." : view === "content" ? "Chỉ xử lý phiên bản nội dung do Health_Care gửi lên quy trình kiểm duyệt." : "Đây là nhật ký nghiệp vụ Health_Care; nhật ký quyền QT vẫn ở Application Management."}</p></div>
         <button onClick={() => void loadAll()} disabled={busy}>{busy ? "Đang đồng bộ…" : "Đồng bộ"}</button>
       </header>
 
       {error ? <div className={styles.error}>{error}</div> : null}
       {notice ? <div className={styles.notice}>{notice}</div> : null}
+
+      {view === "overview" ? <>
+        <section className={styles.metrics}>
+          <article><span>Kết nối Health</span><strong>{status?.service === "online" ? "Đang hoạt động" : status ? "Tạm dừng" : "Đang đọc"}</strong><small>{status?.controlProtocol ?? "Chờ control contract"}</small></article>
+          <article data-alert={(status?.devices.pending ?? 0) > 0}><span>Thiết bị SK</span><strong>{status?.devices.total ?? devices.length}</strong><small>{status?.devices.pending ?? 0} chờ duyệt · {devices.filter((item) => item.active).length} online</small></article>
+          <article><span>Phiên truy cập</span><strong>{status?.sessions.active ?? sessions.filter((item) => item.active).length}</strong><small>{status?.sessions.total ?? sessions.length} phiên trong ledger Health</small></article>
+          <article><span>Vai trò quản trị</span><strong>{roleLabels[role]}</strong><small>{canOwn ? "Có quyền policy" : canManage ? "Có quyền thiết bị" : canReview ? "Có quyền kiểm duyệt" : "Chỉ xem"}</small></article>
+        </section>
+        <section className={styles.accessGrid}>
+          <article className={styles.policyCard}>
+            <header><div><span>CONTROL CONTRACT</span><h2>Health_Care sở hữu dữ liệu và registry SK</h2></div><b data-online={status?.service === "online"}>{status?.service === "online" ? "Live" : "Kiểm tra"}</b></header>
+            <div className={styles.policyForm}><p>Application Management chỉ cấp vé quản trị ngắn hạn. Thiết bị SK, session, audit và policy được đọc/ghi trực tiếp tại Health_Care.</p><small>Contract v{status?.contractVersion ?? "—"} · {status?.capabilities?.length ?? 0} capability · {status?.boundary.healthDataInControlPlane === false ? "Không đưa hồ sơ sức khỏe vào control-plane" : "Cần kiểm tra boundary"}</small></div>
+          </article>
+          <article className={styles.sessionCard}>
+            <header><div><span>QUICK STATUS</span><h2>Trạng thái cần chú ý</h2></div><b>{(status?.devices.pending ?? 0) + devices.filter((item) => item.environmentChanged).length}</b></header>
+            <div><section><div><strong>Thiết bị chờ duyệt</strong><small>{status?.devices.pending ?? 0} thiết bị đang chờ quyết định</small></div><span>{status?.devices.pending ?? 0}</span><button onClick={() => setView("devices")}>Mở danh sách</button></section><section><div><strong>Môi trường thay đổi</strong><small>Chỉ xác nhận sau khi đã kiểm tra thiết bị</small></div><span>{devices.filter((item) => item.environmentChanged).length}</span><button onClick={() => { setDeviceFilter("environment"); setView("devices"); }}>Kiểm tra</button></section></div>
+          </article>
+        </section>
+      </> : null}
 
       {view === "devices" ? <>
         <section className={styles.metrics}>
