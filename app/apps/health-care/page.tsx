@@ -1,11 +1,9 @@
 import { requireChatGPTUser } from "../../chatgpt-auth";
 import HealthCareAdmin from "./health-care-admin";
-import reference from "./health-care-admin-pixel-match.module.css";
-import complete from "./health-care-admin-complete.module.css";
 
 export const dynamic = "force-dynamic";
 
 export default async function HealthCareAdminPage() {
   const user = await requireChatGPTUser("/apps/health-care");
-  return <div className={reference.scope}><div className={complete.scope}><HealthCareAdmin user={{ displayName: user.displayName, email: user.email }} /></div></div>;
+  return <HealthCareAdmin user={{ displayName: user.displayName, email: user.email }} />;
 }

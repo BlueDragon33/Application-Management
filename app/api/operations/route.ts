@@ -54,6 +54,7 @@ type ClientSummary = {
   attentionCount: number | null;
   note: string;
   directWebAccess: boolean;
+  remoteAdminReady?: boolean;
 };
 
 type WorkItem = {
@@ -305,6 +306,7 @@ async function loadGrowUp() {
     webHref: `${contract.baseUrl}/`,
     managedWebLaunch: false,
     hasOperationalData: contract.remoteAdminReady,
+    remoteAdminReady: contract.remoteAdminReady,
   };
 }
 
@@ -316,6 +318,7 @@ function summary(
   webHref: string | null = null,
   managedWebLaunch = false,
   hasOperationalDataOverride?: boolean,
+  remoteAdminReady?: boolean,
 ): ClientSummary {
   const connected = connection === "connected";
   const hasOperationalData = hasOperationalDataOverride ?? connected;
@@ -327,7 +330,7 @@ function summary(
     connection, onlineCount: hasOperationalData ? devices.filter((device) => device.active).length : null,
     pendingCount: hasOperationalData ? devices.filter((device) => device.status === "pending").length : null,
     attentionCount: hasOperationalData ? devices.filter((device) => device.attention !== "none").length : null,
-    note, directWebAccess: connected && Boolean(webHref),
+    note, directWebAccess: connected && Boolean(webHref), remoteAdminReady,
   };
 }
 
@@ -371,6 +374,7 @@ async function buildBootstrap(actor: ControlDeviceState) {
       result.value.webHref,
       result.value.managedWebLaunch,
       result.value.hasOperationalData,
+      result.id === "growup-mychildren" && "remoteAdminReady" in result.value ? Boolean(result.value.remoteAdminReady) : undefined,
     ));
     for (const device of result.value.devices) {
       const item = workFromDevice(device);
