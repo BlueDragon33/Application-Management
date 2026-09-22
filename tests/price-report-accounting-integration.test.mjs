@@ -70,3 +70,14 @@ test('PriceReport bridge issues short-lived HMAC admin tickets for the KT contro
   assert.match(server, /expiresAt = Date\.now\(\) \+ 5 \* 60 \* 1000/);
   assert.match(server, /mode: "capability-gated"/);
 });
+
+
+test('PriceReport device mutations use optimistic concurrency, idempotent command and verified read-back', () => {
+  assert.match(operations, /if \(appId === "price-report-tunggiabao"\)/);
+  assert.match(operations, /PRICE_REPORT_DEVICE_COMMAND_CONTRACT_NOT_LIVE/);
+  assert.match(operations, /expectedStatus !== liveStatus/);
+  assert.match(operations, /const commandId = suppliedCommandId \|\| crypto\.randomUUID\(\)/);
+  assert.match(operations, /operation: operation === "approve" \? "approve" : "block"/);
+  assert.match(operations, /DEVICE_COMMAND_READBACK_MISMATCH/);
+  assert.match(operations, /await verifyDeviceStatus\(bridge, devicesPath, deviceId, expected\)/);
+});
