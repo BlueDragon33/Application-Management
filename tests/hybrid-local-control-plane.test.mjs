@@ -52,7 +52,10 @@ test("full local launcher keeps repos independent and local databases isolated",
   assert.match(launcher, /randomBytes\(48\)\.toString\("base64url"\)/);
   assert.match(launcher, /"--local"/);
   assert.match(launcher, /wrangler\.local\.jsonc/);
-  assert.match(launcher, /wrangler\.d1\.jsonc/);
+  assert.match(launcher, /Health_Care\/wrangler\.local\.jsonc/);
+  assert.match(launcher, /RU_LIFE\/wrangler\.local\.jsonc/);
+  assert.match(launcher, /health-care-local-db/);
+  assert.match(launcher, /ru-life-local/);
   assert.match(launcher, /Migration D1 local · Bauman Control/);
   assert.match(launcher, /"bauman-control-local", "--local", "--config", "wrangler\.local\.jsonc"/);
   assert.match(launcher, /Bauman control-service\/wrangler\.local\.jsonc/);
@@ -75,6 +78,6 @@ test("launcher uses the existing loopback-only development auth instead of creat
 
 test("package exposes central-only and full-system launch paths separately", () => {
   assert.equal(pkg.scripts.local, "node scripts/run-local.mjs");
-  assert.equal(pkg.scripts["local:system"], "node scripts/run-local-system.mjs --local");
+  assert.equal(pkg.scripts["local:system"], "node scripts/run-local-offline-v2.mjs");
   assert.equal(pkg.scripts["local:system:hybrid"], "node scripts/run-local-system.mjs --hybrid");
 });
