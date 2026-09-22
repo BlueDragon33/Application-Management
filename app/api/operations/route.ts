@@ -5,7 +5,7 @@ import { issueHealthBrowserBridge, issueHealthWebLaunch } from "../../health-car
 import { issueRuLifeBrowserBridge } from "../../ru-life.server";
 import { issueBaumanBrowserBridge } from "../../bauman.server";
 import { probeGrowUpManagementContract } from "../../growup.server";
-import { probePriceReportManagementContract } from "../../price-report.server";
+import { issuePriceReportBrowserBridge, probePriceReportManagementContract } from "../../price-report.server";
 import {
   dismissedNotificationHashes,
   hashWorkItem,
@@ -106,6 +106,15 @@ function typeLabel(type: ClientDevice["deviceType"]) {
   return type === "desktop" ? "Máy tính" : type === "phone" ? "Điện thoại" : type === "tablet" ? "Tablet / iPad" : "Chưa phân loại";
 }
 
+function timeValue(value: unknown) {
+  if (typeof value === "string" && value.trim()) return value;
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+  }
+  return "";
+}
+
 async function bridgeJson(bridge: Bridge, path: string, init?: { method?: "GET" | "POST"; body?: UnknownRecord }) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
@@ -191,7 +200,7 @@ function deviceFrom(
   const row = record(raw);
   const detectedType = normalizedType(row[options.typeKey]);
   const deviceType = detectedType === "unknown" && options.defaultType ? options.defaultType : detectedType;
-  const createdAt = text(row.createdAt) || null;
+  const createdAt = timeValue(row.createdAt) || null;
   const status = normalizedStatus(row.status);
   const userLabel = options.userKeys.map((key) => text(row[key])).find(Boolean)
     || text(row.label) || text(row.autoLabel) || text(row.deviceCode) || "Thiết bị chưa gắn người dùng";
@@ -204,7 +213,7 @@ function deviceFrom(
   return {
     appId, appName, href, deviceId: text(row.deviceId), deviceCode: text(row.deviceCode, "—"), deviceType,
     deviceTypeLabel: typeLabel(deviceType), userLabel, status, active: bool(row.active), createdAt,
-    lastSeenAt: text(row.lastSeenAt) || text(row.lastActivityAt) || null,
+    lastSeenAt: timeValue(row.lastSeenAt) || timeValue(row.lastActivityAt) || null,
     attention: environmentChanged ? "environment" : recent && status === "pending" ? "new" : "none",
     canApprove: options.approve === true && status === "pending" && approvalReady,
     canRemove: options.remove === true && status !== "blocked",
@@ -311,17 +320,70 @@ async function loadGrowUp() {
   };
 }
 
-async function loadPriceReport() {
+async function loadPriceReport(actor: ControlDeviceState) {
   const config = app("price-report-tunggiabao");
   const contract = await probePriceReportManagementContract();
-  return {
-    config,
-    devices: [] as ClientDevice[],
-    webHref: `${contract.baseUrl}/`,
-    managedWebLaunch: false,
-    hasOperationalData: contract.remoteAdminReady,
-    remoteAdminReady: contract.remoteAdminReady,
-  };
+
+  try {
+    const bridge = await issuePriceReportBrowserBridge(actor.email, actor.role, actor.deviceId);
+    const status = await bridgeJson(bridge, "/api/control/status");
+    const endpoints = record(status.endpoints);
+    const capabilities = record(status.capabilities);
+    const devicesPath = text(endpoints.devices);
+    const commandPath = text(endpoints.deviceCommands);
+    const remoteAdminReady =
+      devicesPath === "/api/control/devices"
+      && commandPath === "/api/control/device-commands"
+      && bool(capabilities.deviceRegistry)
+      && bool(capabilities.deviceApproval)
+      && bool(capabilities.deviceIdempotentCommands)
+      && bool(capabilities.optimisticConcurrency)
+      && bool(capabilities.p256ChallengeProof)
+      && bool(capabilities.revocableDeviceSessions);
+
+    if (!remoteAdminReady) {
+      return {
+        config,
+        devices: [] as ClientDevice[],
+        webHref: `${contract.baseUrl}/`,
+        managedWebLaunch: false,
+        hasOperationalData: false,
+        remoteAdminReady: false,
+        controlNote: "KT Control đang phản hồi nhưng capability device-control chưa sẵn sàng hoàn toàn.",
+      };
+    }
+
+    const data = await bridgeJson(bridge, devicesPath);
+    const canManage = actor.role === "owner";
+    const devices = rows(data).map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
+      typeKey: "deviceType",
+      userKeys: ["displayName", "label", "platform", "browser"],
+      approve: canManage,
+      remove: canManage,
+      approvalRequiresRegistrationComplete: false,
+      defaultType: "desktop",
+    }));
+
+    return {
+      config,
+      devices,
+      webHref: `${contract.baseUrl}/`,
+      managedWebLaunch: false,
+      hasOperationalData: true,
+      remoteAdminReady: true,
+      controlNote: "KT Control Service live: registry, P-256 session, idempotent command và audit đã xác nhận.",
+    };
+  } catch (error) {
+    return {
+      config,
+      devices: [] as ClientDevice[],
+      webHref: `${contract.baseUrl}/`,
+      managedWebLaunch: false,
+      hasOperationalData: false,
+      remoteAdminReady: false,
+      controlNote: error instanceof Error ? error.message : "KT Control chưa kết nối.",
+    };
+  }
 }
 
 function summary(
@@ -354,7 +416,7 @@ async function buildBootstrap(actor: ControlDeviceState) {
     { id: "health-care", run: () => loadHealth(actor) },
     { id: "ru-life", run: () => loadRu(actor) },
     { id: "bauman-master-ai", run: () => loadBauman(actor) },
-    { id: "price-report-tunggiabao", run: () => loadPriceReport() },
+    { id: "price-report-tunggiabao", run: () => loadPriceReport(actor) },
     { id: "growup-mychildren", run: () => loadGrowUp() },
   ] as const;
   const settled = await Promise.all(loaders.map(async (loader) => {
@@ -381,7 +443,7 @@ async function buildBootstrap(actor: ControlDeviceState) {
     const note = result.id === "growup-mychildren"
       ? `${config.contractNote} Direct site contract đã xác minh; dữ liệu trẻ em vẫn ở phía GrowUP.`
       : result.id === "price-report-tunggiabao"
-        ? `${config.contractNote} Contract Web có thể kết nối độc lập với remote device-control readiness.`
+        ? `${config.contractNote} ${"controlNote" in result.value ? String(result.value.controlNote || "") : ""}`.trim()
         : config.contractNote;
     summaries.push(summary(
       config,
