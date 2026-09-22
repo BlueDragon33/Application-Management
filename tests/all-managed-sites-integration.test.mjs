@@ -15,6 +15,16 @@ test("operations dashboard does not hide managed clients on the browser", () => 
   assert.match(client, /return parsed;/);
 });
 
+test("dashboard v2 renders the registry instead of a second hard-coded app allow-list", () => {
+  const dashboard = read("app/management-dashboard-v2.tsx");
+  assert.match(dashboard, /const activeApps = applicationRegistry;/);
+  assert.match(dashboard, /activeApps\.map\(\(app\) => app\.id\)/);
+  assert.doesNotMatch(dashboard, /ACTIVE_APP_IDS/);
+  for (const id of ["boi-ech", "health-care", "ru-life", "bauman-master-ai", "growup-mychildren"]) {
+    assert.match(read("app/application-registry.ts"), new RegExp(`id: "${id}"`));
+  }
+});
+
 test("server bootstrap connects every registered level-1 client without faking GrowUP admin", () => {
   const operations = read("app/api/operations/route.ts");
   for (const loader of ["loadBoi(actor)", "loadHealth(actor)", "loadRu(actor)", "loadBauman(actor)", "loadGrowUp()"]) {
