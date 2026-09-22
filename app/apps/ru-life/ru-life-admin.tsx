@@ -11,7 +11,7 @@ import {
 } from "../../admin-device-client";
 import styles from "./ru-life-admin.module.css";
 
-type View = "devices" | "sessions" | "audit";
+type View = "overview" | "devices" | "sessions" | "audit";
 type DeviceStatus = "pending" | "approved" | "blocked";
 type DeviceClass = "computer" | "phone" | "tablet" | "unknown";
 type Filter = "all" | DeviceStatus | "online";
@@ -148,7 +148,7 @@ function Gate({ access, error, retry, busy }: { access: AdminAccess | null; erro
 }
 
 export default function RuLifeAdmin({ user, publicUrl }: { user: { displayName: string; email: string }; publicUrl: string }) {
-  const [view, setView] = useState<View>("devices");
+  const [view, setView] = useState<View>("overview");
   const [access, setAccess] = useState<AdminAccess | null>(null);
   const [bridge, setBridge] = useState<ApplicationBridge | null>(null);
   const [devices, setDevices] = useState<RuDevice[]>([]);
@@ -184,7 +184,11 @@ export default function RuLifeAdmin({ user, publicUrl }: { user: { displayName: 
     try {
       const result = await connectRuLifeAdmin();
       setAccess(result.access);
-      if (!result.bootstrap?.bridge) return;
+      if (!result.bootstrap?.bridge) {
+        setBridge(null);
+        if (result.access.status === "approved") setError("RU_LIFE chưa trả bridge quản trị hợp lệ. Không bật thao tác giả.");
+        return;
+      }
       const currentBridge = result.bootstrap.bridge;
       setBridge(currentBridge);
       const mayReadAudit = ["reviewer", "publisher", "owner"].includes(result.access.role);
@@ -216,11 +220,19 @@ export default function RuLifeAdmin({ user, publicUrl }: { user: { displayName: 
         searchRef.current?.focus();
       }
     };
+    const onFocus = () => { if (access?.status === "approved") void load(); };
+    const onVisibility = () => { if (document.visibilityState === "visible" && access?.status === "approved") void load(); };
     window.addEventListener("keydown", onKeyDown);
-    return () => { window.clearTimeout(timer); window.removeEventListener("keydown", onKeyDown); };
-    // Initial control-plane handshake is intentionally tied to the mounted admin shell.
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [access?.status]);
 
   async function refreshAudit(currentBridge: ApplicationBridge) {
     if (!canReview) return;
@@ -313,12 +325,14 @@ export default function RuLifeAdmin({ user, publicUrl }: { user: { displayName: 
     online: devices.filter((item) => item.active).length,
   };
   const filterCount: Record<Filter, number> = { all: devices.length, online: counts.online, pending: counts.pending, approved: counts.approved, blocked: counts.blocked };
-  const pageTitle = view === "devices" ? "Thiết bị & quyền Hòa nhập Nga" : view === "sessions" ? "Phiên truy cập Hòa nhập Nga" : "Audit ứng dụng Hòa nhập Nga";
-  const pageDescription = view === "devices"
-    ? "RU_LIFE tự nhận diện, phân loại và lưu thiết bị. Application Management chỉ gắn người dùng, cấp/khóa quyền qua signed Control API."
-    : view === "sessions"
-      ? "Phiên do RU_LIFE phát sau challenge P-256; Trung tâm chỉ gửi lệnh thu hồi qua API quản trị."
-      : "Nhật ký nằm trong RU_LIFE; Trung tâm chỉ đọc theo quyền reviewer/publisher/owner.";
+  const pageTitle = view === "overview" ? "Quản trị Hòa nhập Nga" : view === "devices" ? "Thiết bị & quyền Hòa nhập Nga" : view === "sessions" ? "Phiên truy cập Hòa nhập Nga" : "Audit ứng dụng Hòa nhập Nga";
+  const pageDescription = view === "overview"
+    ? "Theo dõi registry HN, phiên truy cập và contract RU_LIFE theo cùng cấu trúc Bauman Hub; dữ liệu nghiệp vụ vẫn thuộc RU_LIFE."
+    : view === "devices"
+      ? "RU_LIFE tự nhận diện, phân loại và lưu thiết bị. Application Management chỉ gắn người dùng, cấp/khóa quyền qua signed Control API."
+      : view === "sessions"
+        ? "Phiên do RU_LIFE phát sau challenge P-256; Trung tâm chỉ gửi lệnh thu hồi qua API quản trị."
+        : "Nhật ký nằm trong RU_LIFE; Trung tâm chỉ đọc theo quyền reviewer/publisher/owner.";
 
   return <main className={styles.shell}>
     <aside className={styles.sidebar}>
@@ -330,6 +344,7 @@ export default function RuLifeAdmin({ user, publicUrl }: { user: { displayName: 
         <div className={styles.brand}><span>HN</span><div><strong>Hòa nhập Nga</strong><small>RU_LIFE</small></div></div>
       </div>
       <nav aria-label="Quản trị Hòa nhập Nga">
+        <button data-active={view === "overview"} onClick={() => setView("overview")}><i><Icon name="apps" size={20}/></i><div><strong>Tổng quan</strong><small>Control & trạng thái</small></div></button>
         <button data-active={view === "devices"} onClick={() => setView("devices")}><i><Icon name="monitor" size={20}/></i><div><strong>Thiết bị & quyền</strong><small>Registry HN trong RU_LIFE</small></div></button>
         <button data-active={view === "sessions"} onClick={() => setView("sessions")}><i><Icon name="clock" size={20}/></i><div><strong>Phiên truy cập</strong><small>RU_LIFE phát · 15 phút</small></div></button>
         {canReview ? <button data-active={view === "audit"} onClick={() => setView("audit")}><i><Icon name="audit" size={20}/></i><div><strong>Audit Hòa nhập Nga</strong><small>Đọc từ RU_LIFE</small></div></button> : null}
@@ -343,13 +358,29 @@ export default function RuLifeAdmin({ user, publicUrl }: { user: { displayName: 
       <header className={styles.topbar}>
         <div className={styles.heading}><span>RU_LIFE / SIGNED REMOTE CONTROL</span><h1>{pageTitle}</h1><p>{pageDescription}</p></div>
         <div className={styles.topActions}>
-          <button className={styles.notificationButton} title="Thiết bị đang chờ duyệt" aria-label={`${counts.pending} thiết bị đang chờ duyệt`}><Icon name="bell" size={21}/>{counts.pending ? <b>{counts.pending}</b> : null}</button>
-          <a className={styles.clientPicker} href={publicUrl} target="_blank" rel="noreferrer" title="Mở site RU_LIFE độc lập"><span>RU</span><strong>Hòa nhập Nga</strong><Icon name="external" size={14}/></a>
+          <button className={styles.notificationButton} title="Mở thiết bị đang chờ duyệt" aria-label={`${counts.pending} thiết bị đang chờ duyệt`} onClick={() => { setFilter("pending"); setView("devices"); }}><Icon name="bell" size={21}/>{counts.pending ? <b>{counts.pending}</b> : null}</button>
+          {publicUrl ? <a className={styles.clientPicker} href={publicUrl} target="_blank" rel="noreferrer" title="Mở site RU_LIFE độc lập"><span>RU</span><strong>Hòa nhập Nga</strong><Icon name="external" size={14}/></a> : null}
           <button className={styles.syncButton} onClick={() => void load()} disabled={busy}><Icon name="sync" size={18}/><span>{busy ? "Đang đồng bộ…" : "Đồng bộ"}</span><small>Cập nhật từ RU_LIFE</small></button>
         </div>
       </header>
       {error ? <div className={styles.error} role="alert">{error}</div> : null}
       {notice ? <div className={styles.notice} role="status">{notice}</div> : null}
+
+      {view === "overview" ? <>
+        <section className={styles.metrics} aria-label="Tổng quan Hòa nhập Nga">
+          <button data-tone="blue" onClick={() => setView("devices")}><i><Icon name="monitor" size={28}/></i><div><span>Tổng thiết bị HN</span><strong>{devices.length}</strong><small>Registry thuộc RU_LIFE</small></div><b>›</b></button>
+          <button data-tone="amber" onClick={() => { setFilter("pending"); setView("devices"); }}><i><Icon name="hourglass" size={28}/></i><div><span>Chờ duyệt</span><strong>{counts.pending}</strong><small>Cần gắn người dùng trước khi cấp quyền</small></div><b>›</b></button>
+          <button data-tone="green" onClick={() => setView("sessions")}><i><Icon name="clock" size={28}/></i><div><span>Phiên hoạt động</span><strong>{sessions.filter((item) => item.active).length}</strong><small>{counts.online} thiết bị đang online</small></div><b>›</b></button>
+          <button data-tone="red" onClick={() => { setFilter("blocked"); setView("devices"); }}><i><Icon name="lock" size={28}/></i><div><span>Đã khóa</span><strong>{counts.blocked}</strong><small>Session bị thu hồi tại RU_LIFE</small></div><b>›</b></button>
+        </section>
+        <section className={styles.sessionPanel}>
+          <header><div><span>CONTROL CONTRACT</span><h2>RU_LIFE giữ registry HN và session ledger</h2><p>Application Management chỉ nhận vé quản trị ngắn hạn, gửi lệnh có kiểm soát và đọc lại trạng thái từ client.</p></div><strong>{roleLabels[role]}</strong></header>
+          <div className={styles.sessionList}>
+            <article><div><strong>Thiết bị chờ xử lý</strong><small>{counts.pending} thiết bị cần quyết định</small></div><div><span data-active={counts.pending > 0}>{counts.pending ? "Cần xử lý" : "Ổn định"}</span><small>Không tự động duyệt nếu chưa đủ thông tin người dùng</small></div><div><small>Namespace</small><small>HN- thuộc RU_LIFE</small></div><button onClick={() => { setFilter("pending"); setView("devices"); }}>Mở</button></article>
+            <article><div><strong>Audit client</strong><small>{canReview ? `${audit.length} sự kiện đã đọc` : "Vai trò hiện tại không đọc audit"}</small></div><div><span data-active={canReview}>{canReview ? "Có quyền đọc" : "Chỉ xem"}</span><small>Không sao chép registry vào Trung tâm</small></div><div><small>Site</small><small>{publicUrl ? "Đã có URL xác minh" : "Chưa công bố URL"}</small></div>{canReview ? <button onClick={() => setView("audit")}>Xem</button> : <span/>}</article>
+          </div>
+        </section>
+      </> : null}
 
       {view === "devices" ? <>
         <section className={styles.metrics} aria-label="Tổng quan thiết bị HN">
