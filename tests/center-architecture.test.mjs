@@ -200,10 +200,10 @@ test("Boi Ech has a physically isolated client control center", () => {
   const route = source("app/apps/boi-ech/page.tsx");
   const client = source("app/apps/boi-ech/boi-ech-control-center.tsx");
   assert.match(route, /BoiEchControlCenter/);
-  assert.match(route, /Application Management/);
   assert.doesNotMatch(route, /boiBoundary|\.\.\/\.\.\/control-center/);
+  assert.match(client, /Application Management/);
   assert.match(client, /type Dashboard =/);
-  assert.match(client, /"devices" \| "ai" \| "content"/);
+  assert.match(client, /"overview" \| "devices" \| "ai" \| "content"/);
   assert.doesNotMatch(client, /"approvals"|"audit"|manage-control-device|controlDevices|application-list|roleCapabilities/);
   assert.match(client, /Quyền QT và audit Trung tâm nằm ở Application Management/);
 });
