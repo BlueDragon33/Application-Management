@@ -22,9 +22,11 @@ import {
 type View = "overview" | "approvals" | "applications" | "devices" | "alerts" | "audit" | "settings";
 type ControlDeviceOperation = "approve" | "block" | "deactivate-member" | "delete-member";
 
-const ACTIVE_APP_IDS = ["boi-ech", "bauman-master-ai"] as const;
-const activeAppSet = new Set<string>(ACTIVE_APP_IDS);
-const activeApps = applicationRegistry.filter((app) => activeAppSet.has(app.id));
+// The registry is the single source of truth for what belongs to the central
+// management surface. Do not maintain a second hard-coded allow-list here:
+// doing so can leave a real client connected on the server but invisible in UI.
+const activeApps = applicationRegistry;
+const activeAppSet = new Set<string>(activeApps.map((app) => app.id));
 const validViews: readonly View[] = ["overview", "approvals", "applications", "devices", "alerts", "audit", "settings"];
 
 const navItems: Array<{ view: View; label: string; icon: string }> = [
