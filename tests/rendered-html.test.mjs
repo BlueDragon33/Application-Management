@@ -37,7 +37,7 @@ test("declares Application Management as the authenticated root product", async 
   const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 
   assert.match(page, /requireChatGPTUser\("\/"\)/);
-  assert.match(page, /<ApplicationHub/);
+  assert.match(page, /<ManagementEntry/);
   assert.match(layout, /Application Management · Trung tâm quản trị ứng dụng/);
   assert.match(layout, /codex-preview/);
   assert.equal(packageJson.displayName, "Application Management");
