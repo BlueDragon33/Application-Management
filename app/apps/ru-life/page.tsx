@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default async function RuLifeAdminPage() {
   const user = await requireChatGPTUser("/apps/ru-life");
   const application = getApplicationConfig("ru-life");
-  const publicUrl = application?.publicUrl ?? "https://hoa-nhap-nga.dinhnam3391.chatgpt.site";
+  const publicUrl = application?.publicUrl ?? "";
 
   return <RuLifeAdmin
     user={{ displayName: user.displayName, email: user.email }}
