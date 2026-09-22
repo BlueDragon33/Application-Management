@@ -61,9 +61,10 @@ test("focused Bauman remove is a capability-gated idempotent block with readback
 });
 
 
-test("operations client reserves the hardened endpoint for Boi and Bauman mutations only", () => {
+test("operations client reserves the focused endpoint for Boi/Bauman and keeps PriceReport on generic operations", () => {
   const client = source("app/admin-device-client.ts");
   assert.match(client, /reconciledDeviceActionAppIds = new Set\(\["boi-ech", "bauman-master-ai"\]\)/);
+  assert.doesNotMatch(client, /price-report-tunggiabao"\]\)/);
   assert.doesNotMatch(client, /focusOperationsBootstrap/);
   assert.match(client, /expectedStatus: snapshot\.status/);
   assert.match(client, /"\/api\/focused-device-operation"/);
@@ -85,4 +86,21 @@ test("runtime helper no longer filters applications or rewrites management layou
   assert.match(ui, /removeUnwantedFooterStrips/);
   assert.match(ui, /modernAppsPager/);
   assert.match(ui, /Cuộn để xem thêm/);
+});
+
+test("PriceReport mutations stay on generic operations and require live KT capabilities with verified readback", () => {
+  const route = source("app/api/operations/route.ts");
+  const focused = source("app/api/focused-device-operation/route.ts");
+  assert.doesNotMatch(focused, /price-report-tunggiabao/);
+  assert.match(route, /if \(appId === "price-report-tunggiabao"\)/);
+  assert.match(route, /issuePriceReportBrowserBridge/);
+  assert.match(route, /capabilities\.deviceRegistry/);
+  assert.match(route, /capabilities\.deviceApproval/);
+  assert.match(route, /capabilities\.deviceIdempotentCommands/);
+  assert.match(route, /capabilities\.optimisticConcurrency/);
+  assert.match(route, /capabilities\.p256ChallengeProof/);
+  assert.match(route, /capabilities\.revocableDeviceSessions/);
+  assert.match(route, /operation: operation === "approve" \? "approve" : "block"/);
+  assert.match(route, /commandId/);
+  assert.match(route, /await verifyDeviceStatus\(bridge, devicesPath, deviceId, expected\)/);
 });

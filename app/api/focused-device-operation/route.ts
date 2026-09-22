@@ -260,6 +260,7 @@ async function handleBauman(actor: ControlDeviceState, payload: Record<string, u
   });
 }
 
+
 export async function POST(request: Request) {
   try {
     const payload = await request.json() as Record<string, unknown>;
@@ -274,7 +275,7 @@ export async function POST(request: Request) {
     if (!validDeviceId(deviceId)) return json({ error: "Mã thiết bị không hợp lệ.", code: "INVALID_DEVICE_ID" }, 400);
     if (appId === "boi-ech") return await handleBoi(actor, payload, operation, deviceId);
     if (appId === "bauman-master-ai") return await handleBauman(actor, payload, operation, deviceId);
-    return json({ error: "Endpoint này chỉ xử lý Bơi ếch và Bauman Hub.", code: "CLIENT_ACTION_UNAVAILABLE" }, 409);
+    return json({ error: "Endpoint này chỉ xử lý client đã công bố device-command reconciliation.", code: "CLIENT_ACTION_UNAVAILABLE" }, 409);
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : "Không thể cập nhật thiết bị client.", code: "OPERATIONS_UNAVAILABLE" }, 500);
   }

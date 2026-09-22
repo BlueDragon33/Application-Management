@@ -1,3 +1,6 @@
+import { resolveClientOrigin } from "./client-origin.server";
+import type { ControlRole } from "./control-device.server";
+
 const CONTRACT_PATH = "/management-contract.json";
 const CONTRACT_TIMEOUT_MS = 4_500;
 const APPLICATION_ID = "price-report-tunggiabao";
@@ -144,4 +147,82 @@ export async function probePriceReportManagementContract(): Promise<PriceReportC
   } finally {
     clearTimeout(timeout);
   }
+}
+
+
+const CONTROL_TOKEN_ISSUER = "application-management";
+const CONTROL_TOKEN_AUDIENCE = "price-report-control";
+const CONTROL_TOKEN_APP = "price-report-tunggiabao";
+
+async function controlConfiguration() {
+  let origin;
+  try {
+    origin = await resolveClientOrigin("price-report-control");
+  } catch (error) {
+    throw new PriceReportBridgeError(
+      error instanceof Error ? error.message : "PriceReport KT Control chưa được cấu hình origin.",
+      503,
+      { code: "PRICE_REPORT_CONTROL_NOT_CONFIGURED" },
+    );
+  }
+
+  let values: Record<string, unknown> = {};
+  try {
+    const workers = await import("cloudflare:workers");
+    values = workers.env as unknown as Record<string, unknown>;
+  } catch {
+    values = process.env as unknown as Record<string, unknown>;
+  }
+  const secret = typeof values.PRICE_REPORT_CONTROL_SERVICE_SECRET === "string"
+    ? values.PRICE_REPORT_CONTROL_SERVICE_SECRET
+    : "";
+  if (secret.length < 32) {
+    throw new PriceReportBridgeError(
+      "PriceReport KT Control chưa được cấu hình secret.",
+      503,
+      { code: "PRICE_REPORT_CONTROL_SECRET_NOT_CONFIGURED", baseUrl: origin.baseUrl },
+    );
+  }
+  return { ...origin, secret };
+}
+
+function bridgeBase64Url(bytes: Uint8Array) {
+  let binary = "";
+  bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
+}
+
+async function bridgeSignature(secret: string, value: string) {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  return bridgeBase64Url(new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(value))));
+}
+
+export async function issuePriceReportBrowserBridge(actor: string, role: ControlRole, controlDeviceId: string) {
+  const { baseUrl, secret, source } = await controlConfiguration();
+  const expiresAt = Date.now() + 5 * 60 * 1000;
+  const payload = bridgeBase64Url(new TextEncoder().encode(JSON.stringify({
+    iss: CONTROL_TOKEN_ISSUER,
+    aud: CONTROL_TOKEN_AUDIENCE,
+    app: CONTROL_TOKEN_APP,
+    actor: actor.trim().toLowerCase().slice(0, 160),
+    role,
+    controlDeviceId,
+    jti: bridgeBase64Url(crypto.getRandomValues(new Uint8Array(18))),
+    exp: expiresAt,
+  })));
+  const signedInput = `v1.${payload}`;
+  return {
+    baseUrl,
+    token: `${signedInput}.${await bridgeSignature(secret, signedInput)}`,
+    expiresAt,
+    application: CONTROL_TOKEN_APP as const,
+    mode: "capability-gated" as const,
+    originSource: source,
+  };
 }

@@ -4,19 +4,36 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   connectOperationsDashboard,
+  operationsAction,
   roleLabels,
   type AdminAccess,
   type OperationsBootstrap,
+  type OperationsDevice,
   type OperationsSummary,
 } from "../../admin-device-client";
 import type { ApplicationConfig } from "../../application-registry";
 import styles from "../../application-admin.module.css";
+import deviceStyles from "./price-report-admin.module.css";
 
 type View = "overview" | "devices" | "experience" | "contract";
 type ReadinessState = "available" | "implemented" | "missing";
 type Readiness = { label: string; state: ReadinessState; note: string };
 
 const APP_ID = "price-report-tunggiabao";
+
+const deviceStatusLabel: Record<OperationsDevice["status"], string> = {
+  pending: "Chờ duyệt",
+  approved: "Đã cấp quyền",
+  blocked: "Đã khóa",
+  unknown: "Chưa xác định",
+};
+
+function formatTime(value: string | null) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return new Intl.DateTimeFormat("vi-VN", { dateStyle: "short", timeStyle: "short" }).format(date);
+}
 
 const connectionLabel: Record<OperationsSummary["connection"], string> = {
   connected: "Contract đã kết nối",
@@ -41,6 +58,7 @@ export default function PriceReportAdmin({ application, user }: { application: A
   const [operations, setOperations] = useState<OperationsBootstrap | null>(null);
   const [view, setView] = useState<View>("overview");
   const [busy, setBusy] = useState(true);
+  const [actioning, setActioning] = useState("");
   const [error, setError] = useState("");
 
   async function load() {
@@ -64,6 +82,10 @@ export default function PriceReportAdmin({ application, user }: { application: A
   }, []);
 
   const summary = useMemo(() => operations?.summaries.find((item) => item.appId === APP_ID) ?? null, [operations]);
+  const devices = useMemo(() => operations?.devices.filter((item) => item.appId === APP_ID) ?? [], [operations]);
+  const pending = devices.filter((device) => device.status === "pending").length;
+  const approved = devices.filter((device) => device.status === "approved").length;
+  const blocked = devices.filter((device) => device.status === "blocked").length;
   const webConnected = summary?.connection === "connected" && Boolean(summary.webHref);
   const remoteAdminReady = summary?.remoteAdminReady === true;
 
@@ -77,6 +99,44 @@ export default function PriceReportAdmin({ application, user }: { application: A
     { label: "Duyệt / Khóa thiết bị", state: remoteAdminReady ? "available" : "missing", note: remoteAdminReady ? "Có thể điều khiển thiết bị qua contract." : "Đang khóa thao tác cho tới khi client có Control API thật." },
     { label: "Remote audit", state: remoteAdminReady ? "available" : "missing", note: remoteAdminReady ? "Audit thiết bị thuộc PriceReport." : "Hiện audit quản trị thiết bị từ xa chưa tồn tại." },
   ], [remoteAdminReady, webConnected]);
+
+
+  async function manageDevice(device: OperationsDevice, operation: "approve" | "remove") {
+    if (!access || access.role !== "owner") {
+      setError("PriceReport yêu cầu quyền Chủ hệ thống để thay đổi thiết bị.");
+      return;
+    }
+    if (!remoteAdminReady) {
+      setError("KT Control chưa xác nhận capability quản trị thiết bị live.");
+      return;
+    }
+    if (operation === "remove" && !window.confirm(`Khóa thiết bị ${device.deviceCode}? Registry/audit sẽ được giữ và mọi phiên KT đang hoạt động sẽ bị thu hồi.`)) return;
+
+    const actionKey = `${device.deviceId}:${operation}`;
+    setActioning(actionKey);
+    setError("");
+    try {
+      await operationsAction({
+        action: "manage-client-device",
+        appId: APP_ID,
+        deviceId: device.deviceId,
+        deviceCode: device.deviceCode,
+        deviceType: device.deviceType,
+        userLabel: device.userLabel,
+        operation,
+        expectedStatus: device.status,
+        commandId: crypto.randomUUID(),
+      });
+      const refreshed = await connectOperationsDashboard();
+      setAccess(refreshed.access);
+      setOperations(refreshed.bootstrap);
+      if (!refreshed.bootstrap) throw new Error("Control-plane chưa trả lại registry KT- sau thao tác.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Không thể cập nhật thiết bị PriceReport.");
+    } finally {
+      setActioning("");
+    }
+  }
 
   if (!access || access.status !== "approved") return <Gate access={access} busy={busy} error={error} retry={() => void load()} />;
 
@@ -96,7 +156,7 @@ export default function PriceReportAdmin({ application, user }: { application: A
       <nav className={styles.clientNav}>
         <span className={styles.navGroup}>QUẢN TRỊ KẾ TOÁN</span>
         <button data-active={view === "overview"} onClick={() => setView("overview")}><span>01</span><div><strong>Tổng quan</strong><small>Runtime & ranh giới</small></div></button>
-        <button data-active={view === "devices"} onClick={() => setView("devices")}><span>02</span><div><strong>Thiết bị & quyền</strong><small>KT- registry model</small></div></button>
+        <button data-active={view === "devices"} onClick={() => setView("devices")}><span>02</span><div><strong>Thiết bị & quyền</strong><small>{pending} chờ · {approved} duyệt · {blocked} khóa</small></div></button>
         <button data-active={view === "experience"} onClick={() => setView("experience")}><span>03</span><div><strong>Giao diện thiết bị</strong><small>Desktop · Tablet · Phone</small></div></button>
         <button data-active={view === "contract"} onClick={() => setView("contract")}><span>04</span><div><strong>Contract</strong><small>{readiness.filter((item) => item.state === "available").length}/{readiness.length} sẵn sàng</small></div></button>
       </nav>
@@ -121,7 +181,7 @@ export default function PriceReportAdmin({ application, user }: { application: A
           <article><span>Nhóm nghiệp vụ</span><strong>Kế toán</strong><small>Báo giá · bảng giá</small></article>
           <article data-state={webConnected ? "connected" : "migrating"}><span>Web contract</span><strong>{webConnected ? "Đã nối" : "Đang xác minh"}</strong><small>management-contract.json</small></article>
           <article data-state="connected"><span>Phân loại thiết bị</span><strong>3 lớp</strong><small>Máy tính · Tablet · Điện thoại</small></article>
-          <article data-state={remoteAdminReady ? "connected" : "migrating"}><span>Remote admin</span><strong>{remoteAdminReady ? "Sẵn sàng" : "Chưa bật"}</strong><small>Chờ registry / gateway KT-</small></article>
+          <article data-state={remoteAdminReady ? "connected" : "migrating"}><span>Remote admin</span><strong>{remoteAdminReady ? "Sẵn sàng" : "Chưa bật"}</strong><small>{remoteAdminReady ? `${devices.length} thiết bị · ${summary?.onlineCount ?? 0} online` : "Chờ registry / gateway KT-"}</small></article>
         </section>
 
         <section className={styles.clientPanel}>
@@ -145,19 +205,30 @@ export default function PriceReportAdmin({ application, user }: { application: A
       </> : null}
 
       {view === "devices" ? <section className={styles.clientPanel}>
-        <div className={styles.panelHeader}><div><span>DEVICE REGISTRY MODEL</span><h2>Thiết bị PriceReport</h2></div><p>Thiết kế cùng nguyên tắc với Bauman: registry thuộc client, control-plane đọc qua API, mutation phải đọc lại trạng thái.</p></div>
-        <div className={styles.endpointList}>
-          {application.deviceExperiences.map((device, index) => <article key={device.id}>
-            <span className={styles.endpointIcon}>{index + 1}</span>
-            <div><small>{device.id.toUpperCase()}</small><strong>{device.label}</strong><p>{device.viewport} · {device.interaction}</p></div>
-            <dl>
-              <div><dt>UI shell</dt><dd>{device.shell}</dd></div>
-              <div><dt>Navigation</dt><dd>{device.navigation}</dd></div>
-              <div><dt>Mật độ</dt><dd>{device.density}</dd></div>
-            </dl>
-          </article>)}
+        <div className={styles.panelHeader}><div><span>KT DEVICE REGISTRY</span><h2>Thiết bị PriceReport do client sở hữu</h2></div><p>{remoteAdminReady ? `Đã đồng bộ ${devices.length} thiết bị. Duyệt/Khóa dùng commandId + expectedStatus + read-back; khóa thu hồi session nhưng giữ registry/audit.` : "KT Control chưa phản hồi đủ capability; mọi mutation bị khóa fail-closed."}</p></div>
+        <div className={deviceStyles.deviceSummary}>
+          <div><span>Chờ duyệt</span><strong>{pending}</strong></div>
+          <div><span>Đã cấp quyền</span><strong>{approved}</strong></div>
+          <div><span>Đã khóa</span><strong>{blocked}</strong></div>
+          <div><span>Online</span><strong>{summary?.onlineCount ?? "—"}</strong></div>
         </div>
-        <div className={styles.guardrailBlock}><span>REMOTE ACTIONS</span><p>{remoteAdminReady ? "Registry KT- đã có backend; có thể triển khai mutation xác minh read-back." : "Duyệt / Khóa / Thu hồi phiên đang bị khóa vì PriceReport chưa có Device Registry + Gateway server-side. Đây là trạng thái chủ động, không phải lỗi UI."}</p></div>
+        {devices.length ? <div className={deviceStyles.deviceList}>{devices.map((device) => {
+          const approving = actioning === `${device.deviceId}:approve`;
+          const blocking = actioning === `${device.deviceId}:remove`;
+          return <article key={device.deviceId} data-status={device.status}>
+            <div className={deviceStyles.deviceIdentity}><span>{device.deviceType === "phone" ? "PH" : device.deviceType === "tablet" ? "TB" : "PC"}</span><div><strong>{device.deviceCode}</strong><small>{device.userLabel}</small></div></div>
+            <dl>
+              <div><dt>Trạng thái</dt><dd data-status={device.status}>{deviceStatusLabel[device.status]}</dd></div>
+              <div><dt>Loại</dt><dd>{device.deviceTypeLabel}</dd></div>
+              <div><dt>Hoạt động cuối</dt><dd>{formatTime(device.lastSeenAt)}</dd></div>
+              <div><dt>Đăng ký</dt><dd>{formatTime(device.createdAt)}</dd></div>
+            </dl>
+            <div className={deviceStyles.deviceActions}>
+              {device.status === "pending" ? <button data-action="approve" onClick={() => void manageDevice(device, "approve")} disabled={!device.canApprove || Boolean(actioning)}>{approving ? "Đang duyệt…" : "Duyệt"}</button> : null}
+              {device.status !== "blocked" ? <button data-action="block" onClick={() => void manageDevice(device, "remove")} disabled={!device.canRemove || Boolean(actioning)}>{blocking ? "Đang khóa…" : "Khóa"}</button> : <span>Registry được giữ lại</span>}
+            </div>
+          </article>;
+        })}</div> : <div className={deviceStyles.deviceEmpty}><strong>{remoteAdminReady ? "Chưa có thiết bị KT- đăng ký" : "KT Control chưa live"}</strong><p>{remoteAdminReady ? "Mở PriceReport trên thiết bị mới để client tạo P-256 identity và đăng ký vào registry." : "Sau khi D1/control origin/secret được deploy và read-back PASS, thiết bị live sẽ xuất hiện tại đây."}</p></div>}
       </section> : null}
 
       {view === "experience" ? <section className={styles.clientPanel}>

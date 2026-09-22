@@ -1,0 +1,109 @@
+.deviceSummary{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  border-bottom:1px solid #edf1f6;
+  background:#f8fbf9;
+}
+.deviceSummary>div{
+  min-height:80px;
+  display:grid;
+  align-content:center;
+  gap:5px;
+  padding:14px 18px;
+  border-left:1px solid #edf1f6;
+}
+.deviceSummary>div:first-child{border-left:0}
+.deviceSummary span{color:#738196;font-size:12px}
+.deviceSummary strong{color:#173b69;font-size:23px}
+
+.deviceList{display:grid}
+.deviceList>article{
+  display:grid;
+  grid-template-columns:minmax(220px,.9fr) minmax(420px,1.45fr) auto;
+  align-items:center;
+  gap:18px;
+  min-height:108px;
+  padding:15px 20px;
+  border-top:1px solid #edf1f6;
+  background:#fff;
+}
+.deviceList>article:first-child{border-top:0}
+.deviceList>article[data-status="pending"]{box-shadow:inset 3px 0 #d7a745}
+.deviceList>article[data-status="approved"]{box-shadow:inset 3px 0 #4bd69e}
+.deviceList>article[data-status="blocked"]{box-shadow:inset 3px 0 #df8477;opacity:.82}
+
+.deviceIdentity{
+  min-width:0;
+  display:grid;
+  grid-template-columns:46px minmax(0,1fr);
+  align-items:center;
+  gap:11px;
+}
+.deviceIdentity>span{
+  width:46px;height:46px;display:grid;place-items:center;border-radius:12px;
+  border:1px solid #c7e4d9;background:#eef8f4;color:#176249;
+  font-size:11px;font-weight:900;letter-spacing:.08em;
+}
+.deviceIdentity>div{min-width:0;display:grid;gap:4px}
+.deviceIdentity strong{overflow:hidden;color:#243247;font-size:13px;text-overflow:ellipsis;white-space:nowrap}
+.deviceIdentity small{overflow:hidden;color:#738196;font-size:11px;text-overflow:ellipsis;white-space:nowrap}
+
+.deviceList dl{
+  margin:0;
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:8px;
+}
+.deviceList dl>div{
+  min-width:0;display:grid;gap:4px;padding:9px 10px;border-radius:9px;
+  background:#f7f9fc;border:1px solid #edf1f6;
+}
+.deviceList dt{color:#7b8999;font-size:10px;text-transform:uppercase;letter-spacing:.04em}
+.deviceList dd{margin:0;overflow:hidden;color:#344258;font-size:11px;text-overflow:ellipsis;white-space:nowrap}
+.deviceList dd[data-status="pending"]{color:#a06c0e}
+.deviceList dd[data-status="approved"]{color:#18785f}
+.deviceList dd[data-status="blocked"]{color:#a84437}
+
+.deviceActions{
+  min-width:128px;
+  display:flex;justify-content:flex-end;align-items:center;gap:7px;flex-wrap:wrap;
+}
+.deviceActions button{
+  min-width:62px;min-height:36px;padding:0 11px;border-radius:8px;
+  border:1px solid #dbe2ec;background:#fff;color:#173b69;font:inherit;font-size:12px;font-weight:800;cursor:pointer;
+}
+.deviceActions button[data-action="approve"]{border-color:#b9dfd3;background:#f1fbf7;color:#18785f}
+.deviceActions button[data-action="block"]{border-color:#efc5c0;background:#fff3f1;color:#8b2118}
+.deviceActions button:disabled{opacity:.4;cursor:default}
+.deviceActions>span{max-width:130px;color:#7d8794;font-size:11px;line-height:1.4;text-align:right}
+
+.deviceEmpty{
+  min-height:220px;display:grid;place-content:center;justify-items:center;gap:8px;padding:30px;text-align:center;
+}
+.deviceEmpty::before{
+  content:"KT";width:54px;height:54px;display:grid;place-items:center;border-radius:15px;
+  border:1px solid #c7e4d9;background:#eef8f4;color:#176249;font-size:14px;font-weight:900;
+}
+.deviceEmpty strong{margin-top:4px;color:#243247;font-size:14px}
+.deviceEmpty p{max-width:560px;margin:0;color:#738196;font-size:12px;line-height:1.55}
+
+@media(max-width:1180px){
+  .deviceList>article{grid-template-columns:minmax(210px,.8fr) minmax(0,1.2fr)}
+  .deviceActions{grid-column:1/-1;justify-content:flex-end;min-width:0}
+  .deviceList dl{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:760px){
+  .deviceSummary{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .deviceList>article{grid-template-columns:1fr;gap:12px;padding:14px}
+  .deviceList dl{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .deviceActions{grid-column:auto;justify-content:stretch}
+  .deviceActions button{flex:1;min-height:42px}
+  .deviceActions>span{max-width:none;text-align:left}
+}
+@media(max-width:430px){
+  .deviceSummary>div{min-height:68px;padding:11px 12px}
+  .deviceSummary strong{font-size:19px}
+  .deviceIdentity{grid-template-columns:40px minmax(0,1fr)}
+  .deviceIdentity>span{width:40px;height:40px;border-radius:10px}
+  .deviceList dl{grid-template-columns:1fr}
+}

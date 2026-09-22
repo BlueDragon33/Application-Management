@@ -22,3 +22,10 @@ CONTROL_OWNER_EMAILS=local.owner@example.test
 # PriceReport Tùng Gia Bảo is a static GitHub Pages client in phase 1.
 # Override only when testing another deployment origin.
 # PRICE_REPORT_BASE_URL=https://bluedragon33.github.io/PriceReport_Tunggiabao
+
+
+# PriceReport KT Control Service
+# PRICE_REPORT_CONTROL_LOCAL_BASE_URL=http://127.0.0.1:3006
+# PRICE_REPORT_CONTROL_BASE_URL=https://<price-report-control-worker-origin>
+# PRICE_REPORT_CONTROL_SERVICE_SECRET=local-only-price-report-control-secret-change-me-0001
+# PRICE_REPORT_BASE_URL=https://bluedragon33.github.io/PriceReport_Tunggiabao
