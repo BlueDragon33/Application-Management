@@ -60,36 +60,29 @@ test("focused Bauman remove is a capability-gated idempotent block with readback
   assert.match(route, /normalizedStatus\(updated\.status\) !== expectedResult/);
 });
 
-test("operations client focuses device commands through the dedicated endpoint", () => {
+
+test("operations client reserves the hardened endpoint for Boi and Bauman mutations only", () => {
   const client = source("app/admin-device-client.ts");
-  assert.match(client, /focusedOperationsAppIds = new Set\(\["boi-ech", "bauman-master-ai"\]\)/);
-  assert.match(client, /function focusOperationsBootstrap/);
+  assert.match(client, /reconciledDeviceActionAppIds = new Set\(\["boi-ech", "bauman-master-ai"\]\)/);
+  assert.doesNotMatch(client, /focusOperationsBootstrap/);
   assert.match(client, /expectedStatus: snapshot\.status/);
   assert.match(client, /"\/api\/focused-device-operation"/);
 });
 
-test("runtime bulk remove respects filters and preserves Boi delete versus Bauman block wording", () => {
-  const ui = source("app/runtime-ui-fixes.tsx");
-  assert.match(ui, /function currentDeviceFilters/);
-  assert.match(ui, /function targetDevices/);
-  assert.match(ui, /device\.status === "pending"/);
-  assert.match(ui, /filters\.deviceType/);
-  assert.match(ui, /inTimeRange\(device, filters\.timeRange\)/);
+
+test("dashboard v2 preserves Boi permanent deletion versus non-destructive client blocking", () => {
+  const ui = source("app/management-dashboard-v2.tsx");
+  assert.match(ui, /const destructive = device\.appId === "boi-ech"/);
+  assert.match(ui, /Xóa vĩnh viễn thiết bị/);
+  assert.match(ui, /Khóa thiết bị/);
   assert.match(ui, /expectedStatus: device\.status/);
-  assert.match(ui, /Bơi ếch: xóa vĩnh viễn/);
-  assert.match(ui, /Bauman Hub: khóa/);
 });
 
-test("runtime UI keeps only the active offline clients and removes redundant dashboard chrome", () => {
+
+test("runtime helper no longer filters applications or rewrites management layout", () => {
   const ui = source("app/runtime-ui-fixes.tsx");
-  assert.match(ui, /const ACTIVE_APPS = new Set\(\["boi-ech", "bauman-master-ai"\]\)/);
-  assert.match(ui, /function filterInactiveApplications/);
-  assert.match(ui, /function hideRedundantChrome/);
-  assert.match(ui, /Cảnh báo nhanh/);
+  assert.doesNotMatch(ui, /ACTIVE_APPS|filterInactiveApplications|repairApplicationColumns|data-font-minus|data-font-plus/);
+  assert.match(ui, /removeUnwantedFooterStrips/);
+  assert.match(ui, /modernAppsPager/);
   assert.match(ui, /Cuộn để xem thêm/);
-  assert.match(ui, /function repairApplicationColumns/);
-  assert.match(ui, /gridTemplateColumns/);
-  assert.match(ui, /data-font-minus/);
-  assert.match(ui, /data-font-plus/);
-  assert.match(ui, /migrateFontOneStepDown/);
 });
