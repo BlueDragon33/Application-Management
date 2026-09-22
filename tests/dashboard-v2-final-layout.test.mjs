@@ -46,9 +46,9 @@ test("application actions remain separate Website and Quản Trị columns", () 
   const ui = source("app/management-dashboard-v2.tsx");
   assert.match(ui, /<span>Website<\/span><span>Quản Trị<\/span>/);
   assert.match(ui, /className="amv2-web-action"/);
-  assert.match(ui, />Đến</);
+  assert.match(ui, /hasWeb \? "Đến" : "Chờ"/);
   assert.match(ui, /className="amv2-manage-action"/);
-  assert.match(ui, />Vào</);
+  assert.match(ui, />Vào<\/Link>/);
 });
 
 test("whole dashboard stays in one desktop viewport and tab changes do not animate whole pages", () => {
