@@ -61,9 +61,10 @@ test("focused Bauman remove is a capability-gated idempotent block with readback
 });
 
 
-test("operations client reserves the hardened endpoint for reconciled Boi, Bauman and PriceReport mutations", () => {
+test("operations client reserves the focused endpoint for Boi/Bauman and keeps PriceReport on generic operations", () => {
   const client = source("app/admin-device-client.ts");
-  assert.match(client, /reconciledDeviceActionAppIds = new Set\(\["boi-ech", "bauman-master-ai", "price-report-tunggiabao"\]\)/);
+  assert.match(client, /reconciledDeviceActionAppIds = new Set\(\["boi-ech", "bauman-master-ai"\]\)/);
+  assert.doesNotMatch(client, /price-report-tunggiabao"\]\)/);
   assert.doesNotMatch(client, /focusOperationsBootstrap/);
   assert.match(client, /expectedStatus: snapshot\.status/);
   assert.match(client, /"\/api\/focused-device-operation"/);
@@ -87,9 +88,11 @@ test("runtime helper no longer filters applications or rewrites management layou
   assert.match(ui, /Cuộn để xem thêm/);
 });
 
-test("focused PriceReport mutations require live KT capabilities and verified readback", () => {
-  const route = source("app/api/focused-device-operation/route.ts");
-  assert.match(route, /handlePriceReport/);
+test("PriceReport mutations stay on generic operations and require live KT capabilities with verified readback", () => {
+  const route = source("app/api/operations/route.ts");
+  const focused = source("app/api/focused-device-operation/route.ts");
+  assert.doesNotMatch(focused, /price-report-tunggiabao/);
+  assert.match(route, /if \(appId === "price-report-tunggiabao"\)/);
   assert.match(route, /issuePriceReportBrowserBridge/);
   assert.match(route, /capabilities\.deviceRegistry/);
   assert.match(route, /capabilities\.deviceApproval/);
@@ -99,6 +102,5 @@ test("focused PriceReport mutations require live KT capabilities and verified re
   assert.match(route, /capabilities\.revocableDeviceSessions/);
   assert.match(route, /operation: operation === "approve" \? "approve" : "block"/);
   assert.match(route, /commandId/);
-  assert.match(route, /KT registry chưa xác nhận trạng thái/);
-  assert.match(route, /appId === "price-report-tunggiabao"/);
+  assert.match(route, /await verifyDeviceStatus\(bridge, devicesPath, deviceId, expected\)/);
 });
