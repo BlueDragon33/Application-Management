@@ -3,6 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn, spawnSync } from "node:child_process";
+import { reconcileBoiLocalMigrationJournal } from "./local-d1-migration-reconcile.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const centralRoot = resolve(scriptDir, "..");
@@ -162,6 +163,10 @@ function migrateLocalDatabases(paths, skipMigrate) {
     ["wrangler", "d1", "migrations", "apply", "bauman-control-local", "--local", "--config", "wrangler.local.jsonc"],
     paths.baumanControl,
   );
+  const boiRepair = reconcileBoiLocalMigrationJournal(paths.boi);
+  if (boiRepair.repaired) {
+    console.warn("[local-system] Đã đồng bộ journal 0016 của Bơi ếch với schema local hiện có; không xóa dữ liệu.");
+  }
   runChecked(
     "Migration D1 local · Bơi ếch",
     npx,
