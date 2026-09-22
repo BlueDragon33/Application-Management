@@ -1,5 +1,5 @@
 export type ControlPlaneNetworkMode = "production" | "local" | "hybrid";
-export type ManagedClientId = "health-care" | "ru-life" | "boi-ech" | "bauman-master-ai" | "bauman-runtime";
+export type ManagedClientId = "health-care" | "ru-life" | "boi-ech" | "bauman-master-ai" | "bauman-runtime" | "price-report-control";
 export type ClientOriginSource = "production" | "local";
 
 export type ClientOriginResolution = {
@@ -48,6 +48,12 @@ const CLIENTS: Record<ManagedClientId, ClientOriginSpec> = {
     localEnv: "BOI_ECH_LOCAL_BASE_URL",
     localDefault: "http://127.0.0.1:3004",
     probePath: "/api/control/overview?activityDays=0",
+  },
+  "price-report-control": {
+    productionEnv: "PRICE_REPORT_CONTROL_BASE_URL",
+    localEnv: "PRICE_REPORT_CONTROL_LOCAL_BASE_URL",
+    localDefault: "http://127.0.0.1:3006",
+    probePath: "/api/control/status",
   },
 };
 
