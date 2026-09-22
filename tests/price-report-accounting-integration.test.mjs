@@ -17,12 +17,18 @@ test('PriceReport is a first-class Kế toán client in the registry', () => {
   assert.match(registry, /deviceExperiences: standardDeviceExperiences/);
 });
 
-test('operations dashboard probes PriceReport contract without inventing remote devices', () => {
+test('operations dashboard probes PriceReport Web contract and live KT control capabilities', () => {
   assert.match(operations, /probePriceReportManagementContract/);
-  assert.match(operations, /id: "price-report-tunggiabao", run: \(\) => loadPriceReport\(\)/);
+  assert.match(operations, /issuePriceReportBrowserBridge/);
+  assert.match(operations, /id: "price-report-tunggiabao", run: \(\) => loadPriceReport\(actor\)/);
+  assert.match(operations, /capabilities\.deviceRegistry/);
+  assert.match(operations, /capabilities\.deviceApproval/);
+  assert.match(operations, /capabilities\.deviceIdempotentCommands/);
+  assert.match(operations, /capabilities\.optimisticConcurrency/);
+  assert.match(operations, /capabilities\.p256ChallengeProof/);
+  assert.match(operations, /capabilities\.revocableDeviceSessions/);
+  assert.match(operations, /await bridgeJson\(bridge, devicesPath\)/);
   assert.match(operations, /group: config\.category/);
-  assert.match(operations, /devices: \[\] as ClientDevice\[\]/);
-  assert.match(operations, /hasOperationalData: contract\.remoteAdminReady/);
 });
 
 test('PriceReport contract probe enforces accounting boundary and KT device taxonomy', () => {
@@ -36,18 +42,31 @@ test('PriceReport contract probe enforces accounting boundary and KT device taxo
   assert.match(server, /readiness\.deviceGateway === "available"/);
 });
 
-test('accounting admin workspace follows Bauman hierarchy but locks fake device mutations', () => {
+test('accounting admin workspace follows Bauman hierarchy and capability-gates real KT mutations', () => {
   assert.match(page, /getApplicationConfig\("price-report-tunggiabao"\)/);
   assert.match(admin, /type View = "overview" \| "devices" \| "experience" \| "contract"/);
   assert.match(admin, /Thiết bị & quyền/);
   assert.match(admin, /Giao diện thiết bị/);
   assert.match(admin, /Remote registry KT-/);
-  assert.match(admin, /Duyệt \/ Khóa thiết bị/);
-  assert.doesNotMatch(admin, /operationsAction\(/);
+  assert.match(admin, /operationsAction\(/);
+  assert.match(admin, /expectedStatus: device\.status/);
+  assert.match(admin, /commandId: crypto\.randomUUID\(\)/);
+  assert.match(admin, /!remoteAdminReady/);
 });
 
 test('main dashboard exposes the Kế toán group and PriceReport boundary', () => {
   assert.match(hub, /application\.id === "price-report-tunggiabao"/);
   assert.match(hub, /Báo giá · Excel\/PDF\/OCR · thiết bị KT-/);
   assert.match(hub, /group: application\.category/);
+});
+
+
+test('PriceReport bridge issues short-lived HMAC admin tickets for the KT control service', () => {
+  assert.match(server, /resolveClientOrigin\("price-report-control"\)/);
+  assert.match(server, /PRICE_REPORT_CONTROL_SERVICE_SECRET/);
+  assert.match(server, /CONTROL_TOKEN_AUDIENCE = "price-report-control"/);
+  assert.match(server, /CONTROL_TOKEN_APP = "price-report-tunggiabao"/);
+  assert.match(server, /issuePriceReportBrowserBridge/);
+  assert.match(server, /expiresAt = Date\.now\(\) \+ 5 \* 60 \* 1000/);
+  assert.match(server, /mode: "capability-gated"/);
 });
