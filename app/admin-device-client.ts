@@ -296,7 +296,7 @@ const operationsCacheKey = "application-management:operations:v1";
 // Bơi ếch và Bauman dùng endpoint hardening riêng để reconcile live registry.
 // Danh sách này chỉ quyết định đường mutation; tuyệt đối không được dùng để ẩn
 // Health_Care, Hòa nhập Nga hoặc các client khác khỏi dashboard quản trị.
-const reconciledDeviceActionAppIds = new Set(["boi-ech", "bauman-master-ai"]);
+const reconciledDeviceActionAppIds = new Set(["boi-ech", "bauman-master-ai", "price-report-tunggiabao"]);
 
 export function readCachedOperations() {
   try {
