@@ -8,8 +8,8 @@ function source(path) {
 
 test("dashboard v2 keeps the approved one-screen overview composition", () => {
   const css = source("app/management-dashboard-v2-reference.css");
-  assert.match(css, /\.amv2-stage\[data-view="overview"\][\s\S]*grid-template-rows:\s*104px minmax\(0, 1fr\)/);
-  assert.match(css, /\.amv2-overview-grid[\s\S]*grid-template-rows:\s*134px 182px minmax\(210px, 1fr\)/);
+  assert.match(css, /\.amv2-stage\[data-view="overview"\][\s\S]*grid-template-rows:\s*106px minmax\(0, 1fr\)/);
+  assert.match(css, /\.amv2-overview-grid[\s\S]*grid-template-rows:\s*136px 182px minmax\(214px, 1fr\)/);
   assert.match(css, /\.amv2-priority-panel[\s\S]*grid-row:\s*1 \/ span 2/);
   assert.match(css, /\.amv2-apps-panel[\s\S]*grid-row:\s*3/);
   assert.match(css, /\.amv2-devices-panel[\s\S]*grid-row:\s*3/);
