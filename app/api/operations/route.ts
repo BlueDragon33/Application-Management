@@ -681,6 +681,70 @@ export async function POST(request: Request) {
         });
       }
 
+      if (appId === "price-report-tunggiabao") {
+        if (actor.role !== "owner") return json({ error: "PriceReport yêu cầu quyền Chủ hệ thống để thay đổi thiết bị.", code: "OWNER_REQUIRED" }, 403);
+        const bridge = await issuePriceReportBrowserBridge(actor.email, actor.role, actor.deviceId);
+        const status = await bridgeJson(bridge, "/api/control/status");
+        const endpoints = record(status.endpoints);
+        const capabilities = record(status.capabilities);
+        const devicesPath = text(endpoints.devices);
+        const commandPath = text(endpoints.deviceCommands);
+        if (
+          devicesPath !== "/api/control/devices"
+          || commandPath !== "/api/control/device-commands"
+          || !bool(capabilities.deviceRegistry)
+          || !bool(capabilities.deviceApproval)
+          || !bool(capabilities.deviceIdempotentCommands)
+          || !bool(capabilities.optimisticConcurrency)
+          || !bool(capabilities.p256ChallengeProof)
+          || !bool(capabilities.revocableDeviceSessions)
+        ) {
+          return json({ error: "KT Control chưa xác nhận đầy đủ device-control capability.", code: "PRICE_REPORT_DEVICE_COMMAND_CONTRACT_NOT_LIVE" }, 409);
+        }
+
+        const before = await bridgeJson(bridge, devicesPath);
+        const current = rowByDeviceId(before, deviceId);
+        if (!current) return json({ error: "Thiết bị PriceReport không còn trong registry KT-.", code: "DEVICE_NOT_FOUND" }, 404);
+
+        const liveStatus = normalizedStatus(current.status);
+        const suppliedExpected = normalizedStatus(payload.expectedStatus);
+        const expectedStatus = suppliedExpected === "unknown" ? liveStatus : suppliedExpected;
+        if (expectedStatus !== liveStatus) {
+          return json({ error: `Snapshot PriceReport đã thay đổi: expected ${expectedStatus}, hiện tại ${liveStatus}.`, code: "DEVICE_STATE_CONFLICT" }, 409);
+        }
+        if (operation === "approve" && expectedStatus !== "pending") {
+          return json({ error: "Thiết bị PriceReport không còn ở trạng thái chờ duyệt.", code: "DEVICE_STATE_CONFLICT" }, 409);
+        }
+        if (operation === "remove" && expectedStatus !== "pending" && expectedStatus !== "approved") {
+          return json({ error: "Thiết bị PriceReport đã bị khóa hoặc trạng thái không xác định.", code: "DEVICE_STATE_CONFLICT" }, 409);
+        }
+
+        const suppliedCommandId = text(payload.commandId).toLowerCase();
+        if (suppliedCommandId && !validCommandId(suppliedCommandId)) {
+          return json({ error: "commandId không hợp lệ.", code: "INVALID_COMMAND_ID" }, 400);
+        }
+        const commandId = suppliedCommandId || crypto.randomUUID();
+        const expected = operation === "approve" ? "approved" as const : "blocked" as const;
+        const command = await bridgeCommandJson(bridge, commandPath, {
+          commandId,
+          deviceId,
+          operation: operation === "approve" ? "approve" : "block",
+          expectedStatus,
+        });
+        if (text(command.commandId).toLowerCase() !== commandId || normalizedStatus(command.status) !== expected) {
+          return json({ error: "KT Control chưa xác nhận commandId hoặc trạng thái kết quả.", code: "DEVICE_COMMAND_READBACK_MISMATCH" }, 502);
+        }
+        await verifyDeviceStatus(bridge, devicesPath, deviceId, expected);
+        return json({
+          ok: true,
+          verified: true,
+          verifiedStatus: expected,
+          commandId,
+          commandReplayed: bool(command.replayed),
+          ...(operation === "approve" ? { approvedDeviceId: deviceId } : { removedDeviceId: deviceId }),
+        });
+      }
+
       if (appId === "bauman-master-ai") {
         if (actor.role !== "owner") return json({ error: "Bauman yêu cầu quyền Chủ hệ thống để thay đổi thiết bị.", code: "OWNER_REQUIRED" }, 403);
         const bridge = await issueBaumanBrowserBridge(actor.email, actor.role, actor.deviceId);
