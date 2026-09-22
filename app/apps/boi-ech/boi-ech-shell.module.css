@@ -1,120 +1,294 @@
 .scope {
   min-height: 100dvh;
-  background: #f2eee5;
+  background: #f3f6fa;
+}
+
+/* Bauman Hub is the visual/admin-shell reference. Keep Bơi ếch business
+   components intact, but normalize the shell, hierarchy and status surfaces. */
+.scope :global(.control-shell) {
+  min-height: 100dvh;
+  grid-template-columns: 300px minmax(0, 1fr);
+  background: #f3f6fa !important;
+  color: #172033 !important;
+  font-family: Inter, "Segoe UI", Arial, sans-serif !important;
 }
 
 .scope :global(.control-sidebar) {
-  background: linear-gradient(180deg, #143932 0%, #102e29 100%);
-  border-right: 1px solid rgba(255,255,255,.06);
-  box-shadow: 12px 0 36px rgba(13,34,29,.12);
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  background: #fff !important;
+  border-right: 1px solid #e1e7ef !important;
+  box-shadow: 8px 0 28px rgba(18, 38, 63, .04) !important;
+  color: #172033 !important;
 }
+
+.scope :global(.control-back-link) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 4px 12px;
+  border-bottom: 1px solid #edf1f6;
+  color: #173b69;
+  text-decoration: none;
+}
+.scope :global(.control-back-link > span) {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: #edf4fc;
+  color: #173b69;
+  font-size: 18px;
+  font-weight: 900;
+}
+.scope :global(.control-back-link div) { display: grid; gap: 2px; }
+.scope :global(.control-back-link small) { color: #74849a; font-size: 11px; letter-spacing: .08em; font-weight: 800; }
+.scope :global(.control-back-link strong) { color: #172033; font-size: 14px; }
 
 .scope :global(.control-brand) {
-  padding-bottom: 14px;
-  border-bottom: 1px solid rgba(255,255,255,.07);
+  padding: 10px 4px 14px;
+  border-bottom: 1px solid #edf1f6 !important;
 }
-
 .scope :global(.control-brand .brand-seal) {
-  background: #ecd28a;
-  color: #21453b;
-  box-shadow: none;
+  background: #173b69 !important;
+  color: #fff !important;
+  box-shadow: 0 6px 16px rgba(23, 59, 105, .12) !important;
 }
+.scope :global(.control-brand span) { color: #718197 !important; letter-spacing: .1em; }
+.scope :global(.control-brand strong) { color: #172033 !important; }
 
-.scope :global(.control-brand span) {
-  color: #91b4a9;
-  letter-spacing: .12em;
-}
-
-.scope :global(.control-brand strong) {
-  color: #f1eee4;
-}
-
-.scope :global(.control-sidebar nav) {
-  gap: 6px;
-}
-
+.scope :global(.control-sidebar nav) { display: grid; gap: 7px; }
 .scope :global(.control-sidebar nav button) {
-  min-height: 48px;
-  border-radius: 11px;
-  border: 1px solid transparent;
-  transition: background .16s ease, border-color .16s ease, transform .16s ease;
+  min-height: 56px;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  padding: 9px 11px;
+  border: 1px solid transparent !important;
+  border-radius: 12px !important;
+  background: transparent !important;
+  color: #243247 !important;
+  text-align: left;
+  transition: .15s ease;
 }
-
 .scope :global(.control-sidebar nav button:hover) {
-  background: rgba(255,255,255,.05);
-  transform: translateX(1px);
+  background: #f6f9fc !important;
+  border-color: #e5eaf1 !important;
+  transform: none !important;
 }
-
 .scope :global(.control-sidebar nav button.active) {
-  background: rgba(86,157,137,.21);
-  border-color: rgba(143,208,189,.13);
-  box-shadow: inset 3px 0 #8fd0bd;
+  background: #edf4fc !important;
+  border-color: #cdddef !important;
+  box-shadow: inset 3px 0 #173b69 !important;
+}
+.scope :global(.control-sidebar nav button > i) {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: #edf4fc;
+  color: #174f91;
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 900;
+}
+.scope :global(.control-sidebar nav button > span) { min-width: 0; display: grid; gap: 2px; }
+.scope :global(.control-sidebar nav button > span strong) { font-size: 14px; color: #243247; }
+.scope :global(.control-sidebar nav button > span small) {
+  overflow: hidden;
+  color: #708096;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .scope :global(.client-boundary-note) {
   display: grid;
   gap: 5px;
   margin-top: auto;
-  padding: 12px 13px;
-  border: 1px solid rgba(255,255,255,.08);
-  border-radius: 12px;
-  background: rgba(255,255,255,.045);
+  padding: 13px;
+  border: 1px solid #efd9ad !important;
+  border-radius: 13px;
+  background: #fff7e8 !important;
 }
-
-.scope :global(.client-boundary-note strong) {
-  color: #b7ddd1;
-  font-size: 10px;
-  letter-spacing: .04em;
-}
-
-.scope :global(.client-boundary-note span) {
-  color: #87a89e;
-  font-size: 9px;
-  line-height: 1.5;
-}
-
-.scope :global(.control-main) {
-  background: radial-gradient(circle at 100% 0%, rgba(40,92,77,.05), transparent 31%), #f2eee5;
-}
-
-.scope :global(.topbar) {
-  border-bottom-color: rgba(25,62,52,.1);
-  background: rgba(242,238,229,.93);
-  backdrop-filter: blur(14px);
-}
-
-.scope :global(.topbar > div:first-child > span) {
-  color: #53766d;
-  letter-spacing: .1em;
-}
-
-.scope :global(.topbar h1) {
-  color: #172c27;
-}
-
-.scope :global(.summary-grid article),
-.scope :global(.operations-inbox),
-.scope :global(.manual-device-card),
-.scope :global(.device-toolbar) {
-  border-color: rgba(32,72,61,.12);
-  box-shadow: 0 10px 28px rgba(30,55,48,.035);
-}
+.scope :global(.client-boundary-note strong) { color: #7a5516 !important; font-size: 12px; }
+.scope :global(.client-boundary-note span) { color: #816d46 !important; font-size: 11px; line-height: 1.5; }
 
 .scope :global(.signed-user) {
-  border-top: 1px solid rgba(255,255,255,.07);
+  border-top: 1px solid #edf1f6 !important;
   padding-top: 12px;
+  color: #172033;
+}
+.scope :global(.signed-user a) { color: #173b69 !important; }
+
+.scope :global(.control-main) {
+  min-width: 0;
+  padding: 0 24px 36px;
+  background: #f3f6fa !important;
+  color: #172033 !important;
+}
+.scope :global(.topbar) {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  min-height: 112px;
+  margin: 0 !important;
+  padding: 14px 0 !important;
+  border-bottom: 1px solid #e1e7ef !important;
+  background: rgba(243, 246, 250, .96) !important;
+  backdrop-filter: blur(15px);
+}
+.scope :global(.topbar > div:first-child > span) { color: #60738c !important; letter-spacing: .1em; }
+.scope :global(.topbar h1) {
+  margin: 5px 0 3px;
+  color: #172033 !important;
+  font-family: Inter, "Segoe UI", Arial, sans-serif !important;
+  font-size: clamp(28px, 3vw, 40px) !important;
+}
+.scope :global(.topbar > div:first-child > p) {
+  max-width: 820px;
+  margin: 0;
+  color: #66758a;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.scope :global(.sync-state) { color: #536276 !important; }
+.scope :global(.topbar-actions .button) {
+  border-color: #dbe2ec !important;
+  background: #fff !important;
+  color: #173b69 !important;
+  box-shadow: none !important;
+}
+.scope :global(.topbar-actions .button:last-child) {
+  border-color: #173b69 !important;
+  background: #173b69 !important;
+  color: #fff !important;
 }
 
-.scope :global(.signed-user a) {
-  color: #91c6b6;
+.scope :global(.summary-grid) {
+  gap: 12px !important;
+  margin-top: 20px;
+}
+.scope :global(.summary-grid article) {
+  min-height: 112px !important;
+  border: 1px solid #e1e7ef !important;
+  border-radius: 16px !important;
+  background: #fff !important;
+  color: #172033 !important;
+  box-shadow: 0 8px 24px rgba(18, 38, 63, .05) !important;
+}
+.scope :global(.summary-grid article span) { color: #68778a !important; }
+.scope :global(.summary-grid article strong) { color: #172033 !important; font-family: inherit !important; }
+.scope :global(.summary-grid article small) { color: #7a8899 !important; }
+
+.scope :global(.operations-inbox),
+.scope :global(.manual-device-card),
+.scope :global(.device-toolbar),
+.scope :global(.boi-overview-boundary) {
+  border: 1px solid #e1e7ef !important;
+  border-radius: 14px !important;
+  background: #fff !important;
+  color: #172033 !important;
+  box-shadow: 0 8px 24px rgba(18, 38, 63, .04) !important;
+}
+.scope :global(.operations-inbox button) {
+  border-color: #dbe2ec !important;
+  background: #f7f9fc !important;
+  color: #173b69 !important;
+}
+.scope :global(.manual-device-card input),
+.scope :global(.device-toolbar input) {
+  border-color: #dbe2ec !important;
+  background: #fff !important;
+  color: #172033 !important;
+}
+.scope :global(.filter-pills button) {
+  border-color: #dbe2ec !important;
+  background: #f7f9fc !important;
+  color: #536276 !important;
+}
+.scope :global(.filter-pills button.active) {
+  border-color: #8ab2e0 !important;
+  background: #edf4fc !important;
+  color: #173b69 !important;
+}
+.scope :global(.laptop-grid .account-card) {
+  border-color: #e1e7ef !important;
+  background: #fff !important;
+  color: #172033 !important;
+  box-shadow: 0 8px 24px rgba(18, 38, 63, .04) !important;
+}
+.scope :global(.account-copy span),
+.scope :global(.account-copy strong) { color: #172033 !important; }
+.scope :global(.account-copy small) { color: #718197 !important; }
+
+.scope :global(.boi-overview-boundary) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 16px;
+  align-items: center;
+  margin-top: 14px;
+  padding: 16px 18px;
+  border-color: #efd9ad !important;
+  background: #fff7e8 !important;
+}
+.scope :global(.boi-overview-boundary strong) { color: #654b1d; font-size: 14px; }
+.scope :global(.boi-overview-boundary p) { grid-column: 1; margin: 0; color: #816d46; font-size: 12px; line-height: 1.5; }
+.scope :global(.boi-overview-boundary button) {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  min-height: 40px;
+  padding: 0 13px;
+  border: 1px solid #173b69;
+  border-radius: 9px;
+  background: #173b69;
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
 }
 
-@media (max-width: 760px) {
-  .scope :global(.client-boundary-note) {
-    margin-top: 6px;
-  }
+.scope :global(.alert.warning) {
+  border-color: #efc5c0 !important;
+  background: #fff0ee !important;
+  color: #842219 !important;
+}
+.scope :global(.notice) {
+  border-color: #b9dfd3 !important;
+  background: #eef8f4 !important;
+  color: #17604b !important;
+}
 
-  .scope :global(.control-sidebar nav button) {
-    min-height: 44px;
+@media (max-width: 1180px) {
+  .scope :global(.control-shell) { grid-template-columns: 250px minmax(0, 1fr); }
+}
+
+@media (max-width: 820px) {
+  .scope :global(.control-shell) { display: block; }
+  .scope :global(.control-sidebar) {
+    position: relative;
+    height: auto;
+    border-right: 0 !important;
+    border-bottom: 1px solid #e1e7ef !important;
   }
+  .scope :global(.control-main) { padding: 0 16px 28px; }
+  .scope :global(.topbar) { position: static; align-items: flex-start; }
+  .scope :global(.control-sidebar nav) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .scope :global(.boi-overview-boundary) { grid-template-columns: 1fr; }
+  .scope :global(.boi-overview-boundary button) { grid-column: 1; grid-row: auto; justify-self: start; }
+}
+
+@media (max-width: 560px) {
+  .scope :global(.control-sidebar nav) { grid-template-columns: 1fr; }
+  .scope :global(.topbar) { display: grid; }
+  .scope :global(.topbar > div:first-child > p) { display: none; }
 }
