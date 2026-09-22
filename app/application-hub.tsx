@@ -127,11 +127,12 @@ function formatClock(value: Date | null) {
 }
 
 function appDomain(application: ApplicationConfig) {
-  if (application.id === "health-care") return { group: "Y tế", boundary: "Kiểm duyệt y tế · quy tắc y khoa · audit y tế" };
-  if (application.id === "ru-life") return { group: "Nga", boundary: "Kiểm duyệt Nga · OCR thuốc · thiết bị HN · audit Nga" };
-  if (application.id === "boi-ech") return { group: "Học tập", boundary: "Thiết bị học · tiến độ · AI · thanh toán · duyệt sửa" };
-  if (application.id === "bauman-master-ai") return { group: "Học thuật", boundary: "Bauman Hub · sub-client môn học · contract BM" };
-  return { group: "Gia đình", boundary: "Phát triển 3–18 · privacy-first · contract GU" };
+  if (application.id === "health-care") return { group: application.category, boundary: "Kiểm duyệt y tế · quy tắc y khoa · audit y tế" };
+  if (application.id === "ru-life") return { group: application.category, boundary: "Kiểm duyệt Nga · OCR thuốc · thiết bị HN · audit Nga" };
+  if (application.id === "boi-ech") return { group: application.category, boundary: "Thiết bị học · tiến độ · AI · thanh toán · duyệt sửa" };
+  if (application.id === "bauman-master-ai") return { group: application.category, boundary: "Bauman Hub · sub-client môn học · contract BM" };
+  if (application.id === "price-report-tunggiabao") return { group: application.category, boundary: "Báo giá · Excel/PDF/OCR · thiết bị KT- · UI thích ứng" };
+  return { group: application.category, boundary: "Phát triển 3–18 · privacy-first · contract GU" };
 }
 
 function applicationFor(id: string) {
