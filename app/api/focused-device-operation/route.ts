@@ -1,7 +1,6 @@
 import { verifyControlProof, type ControlDeviceState } from "../../control-device.server";
 import { issueBoiBrowserBridge } from "../../boi-ech.server";
 import { issueBaumanBrowserBridge } from "../../bauman.server";
-import { issuePriceReportBrowserBridge } from "../../price-report.server";
 
 export const dynamic = "force-dynamic";
 
@@ -262,86 +261,6 @@ async function handleBauman(actor: ControlDeviceState, payload: Record<string, u
 }
 
 
-async function handlePriceReport(actor: ControlDeviceState, payload: Record<string, unknown>, operation: "approve" | "remove", deviceId: string) {
-  if (actor.role !== "owner") return json({ error: "PriceReport yêu cầu quyền Chủ hệ thống để thay đổi thiết bị.", code: "OWNER_REQUIRED" }, 403);
-
-  const bridge = await issuePriceReportBrowserBridge(actor.email, actor.role, actor.deviceId);
-  const status = await bridgeJson(bridge, "/api/control/status");
-  const endpoints = record(status.endpoints);
-  const capabilities = record(status.capabilities);
-  const devicesPath = text(endpoints.devices);
-  const commandPath = text(endpoints.deviceCommands);
-  if (
-    devicesPath !== "/api/control/devices"
-    || commandPath !== "/api/control/device-commands"
-    || !bool(capabilities.deviceRegistry)
-    || !bool(capabilities.deviceApproval)
-    || !bool(capabilities.deviceIdempotentCommands)
-    || !bool(capabilities.optimisticConcurrency)
-    || !bool(capabilities.p256ChallengeProof)
-    || !bool(capabilities.revocableDeviceSessions)
-  ) return json({ error: "Contract PriceReport chưa xác nhận KT device control sẵn sàng.", code: "PRICE_REPORT_DEVICE_COMMAND_CONTRACT_NOT_LIVE" }, 409);
-
-  const suppliedDeviceCode = normalizedDeviceCode(payload.deviceCode);
-  let before = await bridgeJson(bridge, devicesPath);
-  let resolved = resolveLiveDevice(before, deviceId, suppliedDeviceCode);
-  if (!resolved) {
-    await new Promise((resolve) => setTimeout(resolve, 180));
-    before = await bridgeJson(bridge, devicesPath);
-    resolved = resolveLiveDevice(before, deviceId, suppliedDeviceCode);
-  }
-  if (!resolved) {
-    return json({
-      ok: true,
-      code: "STALE_DEVICE_REMOVED",
-      stale: true,
-      removedDeviceId: deviceId,
-      message: "Thiết bị PriceReport cũ đã rời registry KT-; Trung tâm sẽ tải lại registry live.",
-    });
-  }
-
-  const current = resolved.row;
-  const liveDeviceId = text(current.deviceId);
-  if (!/^[a-f0-9]{64}$/.test(liveDeviceId)) return json({ error: "Registry KT- trả deviceId không hợp lệ.", code: "INVALID_LIVE_DEVICE_ID" }, 502);
-
-  const liveStatus = normalizedStatus(current.status);
-  const conflict = assertSnapshot(payload, liveStatus, "PriceReport");
-  if (conflict) return conflict;
-  if (operation === "approve" && liveStatus !== "pending") return json({ error: "Thiết bị PriceReport không còn ở trạng thái chờ duyệt.", code: "DEVICE_STATE_CONFLICT" }, 409);
-  if (operation === "remove" && liveStatus !== "pending" && liveStatus !== "approved") return json({ error: "Thiết bị PriceReport đã bị khóa hoặc trạng thái không xác định.", code: "DEVICE_STATE_CONFLICT" }, 409);
-
-  const suppliedCommandId = text(payload.commandId).toLowerCase();
-  if (suppliedCommandId && !validCommandId(suppliedCommandId)) return json({ error: "commandId không hợp lệ.", code: "INVALID_COMMAND_ID" }, 400);
-  const commandId = suppliedCommandId || crypto.randomUUID();
-  const expectedResult = operation === "approve" ? "approved" as const : "blocked" as const;
-  const command = await bridgeCommandJson(bridge, commandPath, {
-    commandId,
-    deviceId: liveDeviceId,
-    operation: operation === "approve" ? "approve" : "block",
-    expectedStatus: liveStatus,
-  });
-  if (text(command.commandId).toLowerCase() !== commandId || normalizedStatus(command.status) !== expectedResult) {
-    return json({ error: "KT Control chưa xác nhận commandId hoặc trạng thái kết quả.", code: "DEVICE_COMMAND_READBACK_MISMATCH" }, 502);
-  }
-
-  const after = await bridgeJson(bridge, devicesPath);
-  const updated = rowByDeviceId(after, liveDeviceId);
-  if (!updated || normalizedStatus(updated.status) !== expectedResult) {
-    return json({ error: `KT registry chưa xác nhận trạng thái ${expectedResult} sau thao tác.`, code: "DEVICE_COMMAND_READBACK_MISMATCH" }, 502);
-  }
-
-  return json({
-    ok: true,
-    verified: true,
-    verifiedStatus: expectedResult,
-    commandId,
-    commandReplayed: bool(command.replayed),
-    reconciledBy: resolved.reason,
-    reboundFromDeviceId: resolved.rebound ? deviceId : undefined,
-    ...(operation === "approve" ? { approvedDeviceId: liveDeviceId } : { removedDeviceId: liveDeviceId }),
-  });
-}
-
 export async function POST(request: Request) {
   try {
     const payload = await request.json() as Record<string, unknown>;
@@ -356,7 +275,6 @@ export async function POST(request: Request) {
     if (!validDeviceId(deviceId)) return json({ error: "Mã thiết bị không hợp lệ.", code: "INVALID_DEVICE_ID" }, 400);
     if (appId === "boi-ech") return await handleBoi(actor, payload, operation, deviceId);
     if (appId === "bauman-master-ai") return await handleBauman(actor, payload, operation, deviceId);
-    if (appId === "price-report-tunggiabao") return await handlePriceReport(actor, payload, operation, deviceId);
     return json({ error: "Endpoint này chỉ xử lý client đã công bố device-command reconciliation.", code: "CLIENT_ACTION_UNAVAILABLE" }, 409);
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : "Không thể cập nhật thiết bị client.", code: "OPERATIONS_UNAVAILABLE" }, 500);
