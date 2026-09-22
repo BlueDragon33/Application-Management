@@ -390,3 +390,7 @@
   .dialogScrim { padding: 10px; }
   .fontChoices, .backgroundChoices { grid-template-columns: repeat(2,minmax(0,1fr)); }
 }
+
+
+/* Accounting client badge */
+.appBadge[data-app="price-report-tunggiabao"]{background:#eef7f2;color:#20664f;border-color:#cfe5da}

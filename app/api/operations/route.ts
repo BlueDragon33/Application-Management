@@ -5,6 +5,7 @@ import { issueHealthBrowserBridge, issueHealthWebLaunch } from "../../health-car
 import { issueRuLifeBrowserBridge } from "../../ru-life.server";
 import { issueBaumanBrowserBridge } from "../../bauman.server";
 import { probeGrowUpManagementContract } from "../../growup.server";
+import { probePriceReportManagementContract } from "../../price-report.server";
 import {
   dismissedNotificationHashes,
   hashWorkItem,
@@ -310,6 +311,19 @@ async function loadGrowUp() {
   };
 }
 
+async function loadPriceReport() {
+  const config = app("price-report-tunggiabao");
+  const contract = await probePriceReportManagementContract();
+  return {
+    config,
+    devices: [] as ClientDevice[],
+    webHref: `${contract.baseUrl}/`,
+    managedWebLaunch: false,
+    hasOperationalData: contract.remoteAdminReady,
+    remoteAdminReady: contract.remoteAdminReady,
+  };
+}
+
 function summary(
   config: ReturnType<typeof app>,
   devices: ClientDevice[],
@@ -326,7 +340,7 @@ function summary(
     appId: config.id, appName: config.shortName, href: config.href,
     webHref: connected ? webHref : null,
     managedWebLaunch: connected && managedWebLaunch,
-    group: config.id === "health-care" ? "Y tế" : config.id === "ru-life" ? "Nga" : config.id === "boi-ech" ? "Học tập" : config.id === "bauman-master-ai" ? "Học thuật" : "Gia đình",
+    group: config.category,
     connection, onlineCount: hasOperationalData ? devices.filter((device) => device.active).length : null,
     pendingCount: hasOperationalData ? devices.filter((device) => device.status === "pending").length : null,
     attentionCount: hasOperationalData ? devices.filter((device) => device.attention !== "none").length : null,
@@ -340,6 +354,7 @@ async function buildBootstrap(actor: ControlDeviceState) {
     { id: "health-care", run: () => loadHealth(actor) },
     { id: "ru-life", run: () => loadRu(actor) },
     { id: "bauman-master-ai", run: () => loadBauman(actor) },
+    { id: "price-report-tunggiabao", run: () => loadPriceReport() },
     { id: "growup-mychildren", run: () => loadGrowUp() },
   ] as const;
   const settled = await Promise.all(loaders.map(async (loader) => {
@@ -365,7 +380,9 @@ async function buildBootstrap(actor: ControlDeviceState) {
     devices.push(...result.value.devices);
     const note = result.id === "growup-mychildren"
       ? `${config.contractNote} Direct site contract đã xác minh; dữ liệu trẻ em vẫn ở phía GrowUP.`
-      : config.contractNote;
+      : result.id === "price-report-tunggiabao"
+        ? `${config.contractNote} Contract Web có thể kết nối độc lập với remote device-control readiness.`
+        : config.contractNote;
     summaries.push(summary(
       config,
       result.value.devices,
@@ -374,7 +391,7 @@ async function buildBootstrap(actor: ControlDeviceState) {
       result.value.webHref,
       result.value.managedWebLaunch,
       result.value.hasOperationalData,
-      result.id === "growup-mychildren" && "remoteAdminReady" in result.value ? Boolean(result.value.remoteAdminReady) : undefined,
+      "remoteAdminReady" in result.value ? Boolean(result.value.remoteAdminReady) : undefined,
     ));
     for (const device of result.value.devices) {
       const item = workFromDevice(device);

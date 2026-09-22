@@ -17,3 +17,8 @@ CONTROL_OWNER_EMAILS=local.owner@example.test
 # BAUMAN_CONTROL_SERVICE_SECRET=local-only-bauman-control-secret-change-me-0001
 # BOI_ECH_LOCAL_BASE_URL=http://127.0.0.1:3004
 # CONTROL_SERVICE_SECRET=local-only-boi-control-secret-change-me-0001
+
+
+# PriceReport Tùng Gia Bảo is a static GitHub Pages client in phase 1.
+# Override only when testing another deployment origin.
+# PRICE_REPORT_BASE_URL=https://bluedragon33.github.io/PriceReport_Tunggiabao
