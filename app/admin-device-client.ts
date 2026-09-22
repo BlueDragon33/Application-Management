@@ -113,6 +113,7 @@ export type OperationsSummary = {
   attentionCount: number | null;
   note: string;
   directWebAccess: boolean;
+  remoteAdminReady?: boolean;
 };
 
 export type OperationsSettings = {
