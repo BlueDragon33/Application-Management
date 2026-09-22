@@ -43,7 +43,9 @@ function ensurePath(path, label) {
 }
 
 function hasCoreApps(root) {
-  return existsSync(join(root, "Bauman-master-ai-system"))
+  return existsSync(join(root, "Health_Care"))
+    && existsSync(join(root, "RU_LIFE"))
+    && existsSync(join(root, "Bauman-master-ai-system"))
     && existsSync(join(root, "BOIECH_AI", "boi-ech"));
 }
 
@@ -138,6 +140,8 @@ async function main() {
   const baumanRoot = join(options.appsRoot, "Bauman-master-ai-system");
   const paths = {
     central: centralRoot,
+    health: join(options.appsRoot, "Health_Care"),
+    ruLife: join(options.appsRoot, "RU_LIFE"),
     baumanRuntime: baumanRoot,
     baumanControl: join(baumanRoot, "control-service"),
     boi: join(options.appsRoot, "BOIECH_AI", "boi-ech"),
@@ -145,12 +149,15 @@ async function main() {
 
   if (!hasCoreApps(options.appsRoot)) {
     throw new Error(
-      `Không tìm thấy Bauman Hub + Bơi ếch trong workspace chuẩn ${defaultAppsRoot}. `
-      + `Cấu trúc cần là BaumanWeb\\Application-Management, BaumanWeb\\Bauman-master-ai-system và BaumanWeb\\BOIECH_AI\\boi-ech.`,
+      `Không tìm thấy đủ Health_Care + Hòa nhập Nga + Bauman Hub + Bơi ếch trong workspace chuẩn ${defaultAppsRoot}. `
+      + `Cấu trúc cần có BaumanWeb\\Application-Management, Health_Care, RU_LIFE, Bauman-master-ai-system và BOIECH_AI\\boi-ech.`,
     );
   }
 
   for (const [key, value] of Object.entries(paths)) ensurePath(value, key);
+
+  ensurePath(join(paths.health, "wrangler.local.jsonc"), "Health_Care/wrangler.local.jsonc");
+  ensurePath(join(paths.ruLife, "wrangler.local.jsonc"), "RU_LIFE/wrangler.local.jsonc");
 
   writeLocalConfigIfNeeded(
     join(paths.boi, "wrangler.local.jsonc"),
@@ -159,17 +166,23 @@ async function main() {
   );
 
   ensureDependencies("Application Management", paths.central, true);
+  ensureDependencies("Sức khỏe Y tế", paths.health, true);
+  ensureDependencies("Hòa nhập Nga", paths.ruLife, true);
   ensureDependencies("Bơi ếch", paths.boi, true);
   ensureDependencies("Bauman Control", paths.baumanControl, false);
 
   checked("Migration D1 local · Application Management", npx,
     ["wrangler", "d1", "migrations", "apply", "learning-management-db", "--local", "--config", "wrangler.local.jsonc"], paths.central);
+  checked("Migration D1 local · Sức khỏe Y tế", npx,
+    ["wrangler", "d1", "migrations", "apply", "health-care-local-db", "--local", "--config", "wrangler.local.jsonc"], paths.health);
+  checked("Migration D1 local · Hòa nhập Nga", npx,
+    ["wrangler", "d1", "migrations", "apply", "ru-life-local", "--local", "--config", "wrangler.local.jsonc"], paths.ruLife);
   checked("Migration D1 local · Bauman Control", npx,
     ["wrangler", "d1", "migrations", "apply", "bauman-control-local", "--local", "--config", "wrangler.local.jsonc"], paths.baumanControl);
   checked("Migration D1 local · Bơi ếch", npx,
     ["wrangler", "d1", "migrations", "apply", "boi-ech-local", "--local", "--config", "wrangler.local.jsonc"], paths.boi);
 
-  console.log("\n[offline-core] Bootstrap hoàn tất. Khởi động Application Management + Bauman Hub + Bơi ếch...");
+  console.log("\n[offline-core] Bootstrap hoàn tất. Khởi động Application Management + Health_Care + Hòa nhập Nga + Bauman Hub + Bơi ếch...");
   console.log(`[offline-core] Workspace chuẩn: ${options.appsRoot}`);
   console.log("[offline-core] Registry Bauman được giữ nguyên giữa các lần chạy; không còn cơ chế tự xóa .wrangler/state.");
   const launcher = join(paths.central, "scripts", "run-local-system.mjs");

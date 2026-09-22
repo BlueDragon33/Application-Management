@@ -291,30 +291,11 @@ async function approvedSession() {
 
 let approvedSessionPromise: Promise<{ credential: Credential; access: AdminAccess }> | null = null;
 const operationsCacheKey = "application-management:operations:v1";
-const focusedOperationsAppIds = new Set(["boi-ech", "bauman-master-ai"]);
 
-function focusOperationsBootstrap(bootstrap: OperationsBootstrap): OperationsBootstrap {
-  const summaries = bootstrap.summaries.filter((item) => focusedOperationsAppIds.has(item.appId));
-  const devices = bootstrap.devices.filter((item) => focusedOperationsAppIds.has(item.appId));
-  const workItems = bootstrap.workItems.filter((item) => focusedOperationsAppIds.has(item.appId));
-  return {
-    ...bootstrap,
-    summaries,
-    devices,
-    workItems,
-    settings: {
-      ...bootstrap.settings,
-      autoApproveAppIds: bootstrap.settings.autoApproveAppIds.filter((id) => focusedOperationsAppIds.has(id)),
-      autoApproveSupportedAppIds: bootstrap.settings.autoApproveSupportedAppIds.filter((id) => focusedOperationsAppIds.has(id)),
-    },
-    metrics: {
-      applications: summaries.length,
-      pendingDevices: devices.filter((device) => device.status === "pending").length,
-      alerts: workItems.filter((item) => item.priority === "high").length,
-      workItems: workItems.length,
-    },
-  };
-}
+// Bơi ếch và Bauman dùng endpoint hardening riêng để reconcile live registry.
+// Danh sách này chỉ quyết định đường mutation; tuyệt đối không được dùng để ẩn
+// Health_Care, Hòa nhập Nga hoặc các client khác khỏi dashboard quản trị.
+const reconciledDeviceActionAppIds = new Set(["boi-ech", "bauman-master-ai"]);
 
 export function readCachedOperations() {
   try {
@@ -322,7 +303,7 @@ export function readCachedOperations() {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as OperationsBootstrap;
     if (!parsed.generatedAt || Date.now() - Date.parse(parsed.generatedAt) > 10 * 60_000) return null;
-    return focusOperationsBootstrap(parsed);
+    return parsed;
   } catch {
     return null;
   }
@@ -343,8 +324,7 @@ export async function connectAdminCenter() {
 export async function connectOperationsDashboard() {
   const { credential, access } = await approvedSession();
   if (access.status !== "approved") return { access, bootstrap: null as OperationsBootstrap | null };
-  const rawBootstrap = await secureApi("/api/operations", credential, access, { action: "bootstrap" }) as unknown as OperationsBootstrap;
-  const bootstrap = focusOperationsBootstrap(rawBootstrap);
+  const bootstrap = await secureApi("/api/operations", credential, access, { action: "bootstrap" }) as unknown as OperationsBootstrap;
   cacheOperations(bootstrap);
   return { access, bootstrap };
 }
@@ -353,7 +333,7 @@ export async function operationsAction(body: Record<string, unknown>) {
   const { credential, access } = await approvedSession();
   if (access.status !== "approved") throw new AdminApiError("Thiết bị quản trị chưa được cấp quyền.", { device: access });
   const appId = typeof body.appId === "string" ? body.appId : "";
-  const focusedDeviceAction = body.action === "manage-client-device" && focusedOperationsAppIds.has(appId);
+  const focusedDeviceAction = body.action === "manage-client-device" && reconciledDeviceActionAppIds.has(appId);
   let actionBody = body;
   if (focusedDeviceAction && typeof body.expectedStatus !== "string") {
     const deviceId = typeof body.deviceId === "string" ? body.deviceId : "";

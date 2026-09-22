@@ -6,10 +6,12 @@ function source(path) {
   return fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }
 
-test("runtime footer cleanup remains mounted in the root layout", () => {
+test("root uses dashboard v2 directly without a legacy runtime DOM mutation layer", () => {
   const layout = source("app/layout.tsx");
-  assert.match(layout, /import RuntimeUiFixes from "\.\/runtime-ui-fixes"/);
-  assert.match(layout, /<RuntimeUiFixes\s*\/>/);
+  const page = source("app/page.tsx");
+  assert.doesNotMatch(layout, /RuntimeUiFixes/);
+  assert.match(page, /ManagementEntry/);
+  assert.match(page, /management-dashboard-v2-final\.css/);
 });
 
 test("desktop overview restores the published control-room panel order", () => {

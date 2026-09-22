@@ -18,6 +18,8 @@ test("cleanup only auto-stops listeners recognized as BaumanWeb stack", () => {
   const cleanup = read("scripts/cleanup-local-runtime.mjs");
   assert.match(cleanup, /belongsToLocalStack/);
   assert.match(cleanup, /application-management/);
+  assert.match(cleanup, /health-care/);
+  assert.match(cleanup, /ru-life/);
   assert.match(cleanup, /boi-ech/);
   assert.match(cleanup, /bauman-master-ai-system/);
   assert.match(cleanup, /Không tự dừng tiến trình không thuộc BaumanWeb/);
@@ -25,7 +27,7 @@ test("cleanup only auto-stops listeners recognized as BaumanWeb stack", () => {
 
 test("cleanup covers all reserved local control-plane ports", () => {
   const cleanup = read("scripts/cleanup-local-runtime.mjs");
-  for (const port of [3000, 3003, 3004, 3005]) {
+  for (const port of [3000, 3001, 3002, 3003, 3004, 3005]) {
     assert.match(cleanup, new RegExp(String(port)));
   }
 });

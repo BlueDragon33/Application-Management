@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 
 const isWindows = process.platform === "win32";
-const ports = [3000, 3003, 3004, 3005];
+const ports = [3000, 3001, 3002, 3003, 3004, 3005];
 const workspaceRoot = resolve(process.cwd(), "..").replaceAll("/", "\\").toLowerCase();
 
 function sleep(ms) {
@@ -12,7 +12,7 @@ function sleep(ms) {
 
 function windowsListeners() {
   const ps = [
-    "$ports = @(3000,3003,3004,3005)",
+    "$ports = @(3000,3001,3002,3003,3004,3005)",
     "$items = foreach ($port in $ports) {",
     "  $conn = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1",
     "  if ($conn) {",
@@ -56,6 +56,8 @@ function belongsToLocalStack(item) {
   if (!cmd) return false;
   if (cmd.includes(workspaceRoot)) return true;
   if (item.Port === 3000 && cmd.includes("application-management")) return true;
+  if (item.Port === 3001 && (cmd.includes("health_care") || cmd.includes("health-care"))) return true;
+  if (item.Port === 3002 && (cmd.includes("ru_life") || cmd.includes("ru-life"))) return true;
   if (item.Port === 3003 && (cmd.includes("bauman-master-ai-system") || cmd.includes("control-service"))) return true;
   if (item.Port === 3004 && (cmd.includes("boiech_ai") || cmd.includes("boi-ech"))) return true;
   if (item.Port === 3005 && cmd.includes("bauman-master-ai-system")) return true;
@@ -73,7 +75,7 @@ function stop(item) {
 
 const initial = listeners();
 if (!initial.length) {
-  console.log("[local-system] Không có runtime cũ chiếm các port 3000/3003/3004/3005.");
+  console.log("[local-system] Không có runtime cũ chiếm các port 3000–3005.");
   process.exit(0);
 }
 
