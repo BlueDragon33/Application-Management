@@ -201,7 +201,7 @@ async function main() {
   runChecked(
     "Migration D1 local · PriceReport Control",
     npx,
-    ["wrangler", "d1", "migrations", "apply", "price-report-control-local-db", "--local", "--config", "wrangler.local.jsonc"],
+    ["--yes", "wrangler@4.136.3", "d1", "migrations", "apply", "price-report-control-local-db", "--local", "--config", "wrangler.local.jsonc"],
     priceControlRoot,
   );
 
@@ -218,7 +218,7 @@ async function main() {
     name: "PRICE-CONTROL",
     command: npx,
     args: [
-      "wrangler", "dev", "--local", "--config", "wrangler.local.jsonc", "--ip", "127.0.0.1", "--port", String(PRICE_CONTROL_PORT),
+      "--yes", "wrangler@4.136.3", "dev", "--local", "--config", "wrangler.local.jsonc", "--ip", "127.0.0.1", "--port", String(PRICE_CONTROL_PORT),
       "--var", `PRICE_REPORT_CONTROL_SERVICE_SECRET:${priceSecret}`,
       "--var", `APPLICATION_MANAGEMENT_ORIGIN:${CENTRAL_ORIGIN}`,
       "--var", `PRICE_REPORT_APP_ORIGIN:${PRICE_ORIGIN}`,
