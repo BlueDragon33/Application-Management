@@ -53,10 +53,13 @@ test("focused Bauman remove is a capability-gated idempotent block with readback
   const route = source("app/api/focused-device-operation/route.ts");
   assert.match(route, /deviceRegistry/);
   assert.match(route, /deviceApproval/);
+  assert.match(route, /deviceUnblock/);
+  assert.match(route, /deviceEditPermission/);
   assert.match(route, /deviceIdempotentCommands/);
   assert.match(route, /optimisticConcurrency/);
   assert.match(route, /commandId/);
-  assert.match(route, /operation: operation === "approve" \? "approve" : "block"/);
+  assert.match(route, /const upstreamOperation = operation === "approve"/);
+  assert.match(route, /"set_edit_permission"/);
   assert.match(route, /normalizedStatus\(updated\.status\) !== expectedResult/);
 });
 
@@ -119,4 +122,16 @@ test("focused device mutations require an explicit expectedStatus snapshot", () 
   assert.match(route, /expectedStatus === "unknown"/);
   assert.match(route, /code: "INVALID_EXPECTED_STATUS"/);
   assert.doesNotMatch(route, /supplied === "unknown" \? liveStatus : supplied/);
+});
+
+
+test("focused Bauman v6 supports unblock and independent edit permission with readback", () => {
+  const route = source("app/api/focused-device-operation/route.ts");
+  assert.match(route, /operation !== "unblock"/);
+  assert.match(route, /operation !== "set-edit-permission"/);
+  assert.match(route, /Chỉ thiết bị Bauman đang bị khóa mới được mở khóa/);
+  assert.match(route, /DEVICE_EDIT_PERMISSION_CONFLICT/);
+  assert.match(route, /bool\(updated\.editEnabled\) !== editEnabled/);
+  assert.match(route, /unblockedDeviceId/);
+  assert.match(route, /editPermissionDeviceId/);
 });
