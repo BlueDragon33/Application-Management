@@ -114,6 +114,7 @@ export type OperationsSummary = {
   note: string;
   directWebAccess: boolean;
   remoteAdminReady?: boolean;
+  issueCode?: string;
 };
 
 export type OperationsSettings = {
