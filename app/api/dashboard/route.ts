@@ -1,4 +1,4 @@
-import { issueBoiBrowserBridge } from "../../boi-ech.server";
+import { UpstreamError, issueBoiBrowserBridge } from "../../boi-ech.server";
 import {
   ControlAccessError,
   controlErrorResponse,
@@ -47,6 +47,12 @@ export async function POST(request: Request) {
       boiBridge: await issueBoiBrowserBridge(actorDevice.email, actorDevice.role),
     });
   } catch (error) {
+    if (error instanceof UpstreamError) {
+      const payload = error.payload && typeof error.payload === "object" && !Array.isArray(error.payload)
+        ? error.payload as Record<string, unknown>
+        : {};
+      return json({ error: error.message, code: typeof payload.code === "string" ? payload.code : "BOI_ECH_UPSTREAM_ERROR" }, error.status);
+    }
     return controlErrorResponse(error);
   }
 }
