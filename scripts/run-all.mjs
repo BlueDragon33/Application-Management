@@ -149,7 +149,7 @@ async function waitFor(url, timeoutMs = 45_000) {
     try {
       const response = await fetch(url, { cache: "no-store", redirect: "manual", signal: AbortSignal.timeout(1_000) });
       last = `HTTP ${response.status}`;
-      if (response.status < 500) return response;
+      if (response.ok) return response;
     } catch (error) {
       last = error instanceof Error ? error.message : String(error);
     }
