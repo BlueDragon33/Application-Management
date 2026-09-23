@@ -29,6 +29,20 @@ test("desktop dashboard is constrained to a centered 16:9 laptop frame", () => {
   assert.match(laptop, /scrollbar-gutter:\s*stable/);
 });
 
+test("tablet and phone dashboards honor the requested device aspect contracts", () => {
+  const page = source("app/page.tsx");
+  const aspects = source("app/management-dashboard-device-aspects.css");
+  const mobile = source("app/management-dashboard-mobile-overrides.css");
+  assert.match(page, /management-dashboard-device-aspects\.css/);
+  assert.match(aspects, /min-width:\s*761px[\s\S]*max-width:\s*1120px/);
+  assert.match(aspects, /--qt-tablet-inline-size:[\s\S]*\*\s*1\.5/);
+  assert.match(aspects, /max-width:\s*760px[\s\S]*orientation:\s*portrait/);
+  assert.match(aspects, /--qt-phone-inline-size:[\s\S]*\*\s*0\.4615385/);
+  assert.match(aspects, /queueTable[\s\S]*deviceTable[\s\S]*userTable[\s\S]*overflow:\s*auto/);
+  assert.match(aspects, /tableHead[\s\S]*queueHead[\s\S]*position:\s*sticky/);
+  assert.match(mobile, /button:nth-child\(n\+6\)[\s\S]*display:\s*grid/);
+});
+
 test("central queue does not double count device-derived work items", () => {
   const dashboard = source("app/management-dashboard.tsx");
   assert.match(dashboard, /deviceWorkItemIds/);
