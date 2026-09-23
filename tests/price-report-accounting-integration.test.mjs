@@ -89,3 +89,10 @@ test('registry copy distinguishes local KT control from production readiness', (
   assert.match(admin, /KT Control live đã xác minh/);
   assert.match(admin, /mọi mutation bị khóa fail-closed/);
 });
+
+
+test('generic device mutations reject missing optimistic-concurrency snapshots', () => {
+  const occurrences = operations.match(/code: "INVALID_EXPECTED_STATUS"/g) ?? [];
+  assert.equal(occurrences.length, 5);
+  assert.doesNotMatch(operations, /suppliedExpected === "unknown" \? liveStatus : suppliedExpected/);
+});
