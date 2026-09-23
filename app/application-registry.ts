@@ -107,7 +107,7 @@ export const applicationRegistry: readonly ApplicationConfig[] = [
     initials: "KT", category: "Kế toán", tier: "client", status: "warning", contractState: "migrating",
     repository: "BlueDragon33/PriceReport_Tunggiabao",
     scope: "Client kế toán/báo giá local-first. Dữ liệu báo giá, khách hàng, danh mục và backup nằm tại client; Application Management chỉ đọc contract quản trị và metadata thiết bị được công bố an toàn.",
-    contractNote: "Management contract V1 và KT Control đã có registry/device-control thật trong local stack, gồm P-256 session, optimistic concurrency, idempotent command và read-back. Production vẫn giữ trạng thái migrating cho tới khi origin/secret/deployment live được xác minh.",
+    contractNote: "Management contract và KT Control đã có registry/device-control thật trong local stack, gồm P-256 session, optimistic concurrency, idempotent command và read-back. Production vẫn giữ trạng thái migrating cho tới khi origin/secret/deployment live được xác minh.",
     devicePolicy: "Namespace KT- · client tự phân loại máy tính/tablet-iPad/điện thoại · UI đối ứng theo device class · không dùng LocalStorage client để giả lập quyền quản trị từ xa.",
     deviceExperiences: standardDeviceExperiences,
     capabilities: ["Báo giá & bảng giá", "Excel / PDF / OCR", "Phân loại thiết bị KT-", "UI theo loại thiết bị", "Backup local/PC", "Management contract"],
