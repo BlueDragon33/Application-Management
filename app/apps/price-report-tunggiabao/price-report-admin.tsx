@@ -141,11 +141,11 @@ export default function PriceReportAdmin({ application, user }: { application: A
   if (!access || access.status !== "approved") return <Gate access={access} busy={busy} error={error} retry={() => void load()} />;
 
   const title = view === "devices"
-    ? ["DEVICE ACCESS · KT-", "Thiết bị & quyền", "Chuẩn hóa registry thiết bị kiểu Bauman nhưng không bật mutation khi backend PriceReport chưa tồn tại."]
+    ? ["DEVICE ACCESS · KT-", "Thiết bị & quyền", remoteAdminReady ? "KT Control live đã xác minh; Duyệt/Khóa dùng optimistic concurrency, command idempotent và read-back." : "KT Control chưa đủ capability; mọi mutation bị khóa fail-closed."]
     : view === "experience"
       ? ["DEVICE EXPERIENCE", "Giao diện theo loại thiết bị", "Mỗi lớp thiết bị có viewport, mật độ, điều hướng và kiểu tương tác riêng."]
       : view === "contract"
-        ? ["MANAGEMENT CONTRACT", "Độ sẵn sàng quản trị", "Phân biệt rõ contract Web đã có với remote device control chưa có backend."]
+        ? ["MANAGEMENT CONTRACT", "Độ sẵn sàng quản trị", remoteAdminReady ? "Web contract và KT device-control đang phản hồi; production vẫn được đánh giá riêng theo deployment live." : "Web contract không tự suy ra device-control; mutation chỉ mở khi KT Control xác nhận đủ capability."]
         : ["KẾ TOÁN · CLIENT CONTROL", "Quản trị Báo giá Tùng Gia Bảo", "PriceReport là client Kế toán độc lập; dữ liệu báo giá ở client, Trung tâm chỉ quản trị contract và thiết bị khi có backend thật."];
 
   return <main className={styles.workspaceShell}>
@@ -201,7 +201,7 @@ export default function PriceReportAdmin({ application, user }: { application: A
           </div>
         </section>
 
-        <div className={styles.boundaryNotice}><span>!</span><div><strong>Local device record không phải authorization.</strong><p>Metadata KT- hiện dùng để phân loại UI và chuẩn bị contract. Quyền Duyệt/Khóa chỉ bật khi có registry server-side + session/audit thật.</p></div></div>
+        <div className={styles.boundaryNotice}><span>!</span><div><strong>Local device record không phải authorization.</strong><p>{remoteAdminReady ? "KT Control đang là nguồn quyền thật cho Duyệt/Khóa; mọi mutation phải qua registry server-side, session/audit và read-back." : "Metadata KT- chỉ dùng để phân loại UI; Duyệt/Khóa vẫn khóa cho tới khi registry server-side + session/audit thật được xác minh."}</p></div></div>
       </> : null}
 
       {view === "devices" ? <section className={styles.clientPanel}>
