@@ -8,7 +8,7 @@ test("client device actions distinguish Boi deletion from non-destructive blocki
   assert.match(dashboard, /const destructive = device\.appId === "boi-ech"/);
   assert.match(dashboard, /Xóa vĩnh viễn thiết bị/);
   assert.match(dashboard, /Khóa thiết bị/);
-  assert.match(dashboard, /device\.appId === "boi-ech" \? "Loại bỏ" : "Khóa"/);
+  assert.match(dashboard, /device\.appId === "boi-ech" \? "Xóa" : "Khóa"/);
 });
 
 test("client actions use verified API mutation then read-only refresh", () => {
