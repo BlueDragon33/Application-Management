@@ -24,7 +24,7 @@ test("Boi payment/access API is proof-gated, concurrency-safe and read-back veri
 
 test("Boi payment transitions keep real backend invariants", () => {
   assert.match(api, /operation === "require-payment" && \(currentAccessGroup !== "unassigned" \|\| currentPaymentStatus !== "unassigned"\)/);
-  assert.match(api, /operation === "renew-access" && currentAccessGroup === "unassigned"/);
+  assert.match(api, /operation === "renew-access" && \(text\(current\.status\) !== "approved" \|\| !\["free_approved", "paid_verified"\]\.includes\(currentPaymentStatus\)\)/);
   assert.match(api, /operation === "grant-free" && \["proof_submitted", "paid_verified"\]\.includes\(currentPaymentStatus\)/);
   assert.match(view, /device\.accessGroup === "unassigned" && device\.paymentStatus === "unassigned"/);
   assert.match(view, /device\.accessGroup !== "unassigned"/);
@@ -52,4 +52,18 @@ test("current dashboard exposes real Boi access controls without inventing payme
   assert.doesNotMatch(view, /ru-life[^\n]*(grant-free|require-payment|verify-payment)/i);
   assert.doesNotMatch(view, /growup-mychildren[^\n]*(grant-free|require-payment|verify-payment)/i);
   assert.doesNotMatch(view, /price-report-tunggiabao[^\n]*(grant-free|require-payment|verify-payment)/i);
+  assert.match(dashboard, /device\.appId === "boi-ech"[\s\S]*switchView\("access"\)/);
+  assert.match(dashboard, /device\.appId === "boi-ech" \? "Phân quyền" : "Duyệt"/);
+});
+
+test("generic device approval cannot bypass Boi payment/access classification", () => {
+  const operations = source("app/api/operations/route.ts");
+  assert.match(operations, /BOI_ACCESS_FLOW_REQUIRED/);
+  assert.match(operations, /không duyệt mặc định thành miễn phí/);
+  assert.doesNotMatch(operations, /operation === "approve"[\s\S]{0,700}action: "grant-free"/);
+});
+
+test("renewal is exposed only for finalized Boi access", () => {
+  assert.match(view, /device\.status === "approved"/);
+  assert.match(view, /device\.paymentStatus === "free_approved" \|\| device\.paymentStatus === "paid_verified"/);
 });
