@@ -349,7 +349,13 @@ async function main() {
     BAUMAN_CONTROL_SERVICE_SECRET: baumanSecret,
     BOI_ECH_LOCAL_BASE_URL: "http://127.0.0.1:3004",
     CONTROL_SERVICE_SECRET: boiSecret,
-    LOCAL_ACTIVE_APPLICATIONS: "boi-ech,health-care,ru-life,bauman-master-ai",
+    ...(process.env.GROWUP_BASE_URL ? { GROWUP_BASE_URL: process.env.GROWUP_BASE_URL } : {}),
+    ...(process.env.GROWUP_CONTROL_LOCAL_BASE_URL ? { GROWUP_CONTROL_LOCAL_BASE_URL: process.env.GROWUP_CONTROL_LOCAL_BASE_URL } : {}),
+    ...(process.env.GROWUP_CONTROL_BASE_URL ? { GROWUP_CONTROL_BASE_URL: process.env.GROWUP_CONTROL_BASE_URL } : {}),
+    ...(process.env.GROWUP_CONTROL_SERVICE_SECRET ? { GROWUP_CONTROL_SERVICE_SECRET: process.env.GROWUP_CONTROL_SERVICE_SECRET } : {}),
+    LOCAL_ACTIVE_APPLICATIONS: process.env.GROWUP_CONTROL_SERVICE_SECRET
+      ? "boi-ech,health-care,ru-life,bauman-master-ai,growup-mychildren"
+      : "boi-ech,health-care,ru-life,bauman-master-ai",
   };
 
   children.push(spawnService({
@@ -363,7 +369,7 @@ async function main() {
   await waitForEndpoint("Application Management", centralOrigin);
 
   console.log("\n===============================================================");
-  console.log(" Local Control Plane đang hoạt động · 4 CLIENT KẾT NỐI THẬT");
+  console.log(" Local Control Plane đang hoạt động");
   console.log("===============================================================");
   console.log(` Chế độ          : ${options.mode}`);
   console.log(` Trung tâm       : ${centralOrigin}`);
@@ -374,7 +380,11 @@ async function main() {
   console.log(` Bauman Hub      : ${baumanRuntimeOrigin}`);
   console.log(" Môn Bauman      : chạy bên trong Bauman Hub, không cần port riêng");
   console.log("---------------------------------------------------------------");
-  console.log(" GrowUP chỉ được theo dõi contract/site; chưa bật quản trị từ xa khi backend thật chưa tồn tại.");
+  if (process.env.GROWUP_CONTROL_SERVICE_SECRET) {
+    console.log(" GrowUP          : nối qua run:all · Runtime/Control loopback riêng");
+  } else {
+    console.log(" GrowUP          : chỉ theo dõi contract/site; dùng npm run run:all để bật local Control Service.");
+  }
   console.log(" D1 local nằm trong .wrangler của từng repo và KHÔNG phải D1 production.");
   console.log(" Secret liên-app chỉ tồn tại trong process hiện tại, không ghi vào GitHub.");
   console.log(" Nhấn Ctrl+C để dừng toàn bộ hệ thống.");
