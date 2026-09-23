@@ -25,18 +25,21 @@ test("dashboard v2 renders the registry instead of a second hard-coded app allow
   }
 });
 
-test("server bootstrap connects every registered level-1 client without faking GrowUP admin", () => {
+test("server bootstrap connects every registered level-1 client and only promotes GrowUP through its real local control contract", () => {
   const operations = read("app/api/operations/route.ts");
-  for (const loader of ["loadBoi(actor)", "loadHealth(actor)", "loadRu(actor)", "loadBauman(actor)", "loadPriceReport(actor)", "loadGrowUp()"]) {
+  for (const loader of ["loadBoi(actor)", "loadHealth(actor)", "loadRu(actor)", "loadBauman(actor)", "loadPriceReport(actor)", "loadGrowUp(actor)"]) {
     assert.ok(operations.includes(loader), `missing operations loader: ${loader}`);
   }
   assert.match(operations, /probeGrowUpManagementContract/);
+  assert.match(operations, /issueGrowUpBrowserBridge/);
+  assert.match(operations, /if \(appId === "growup-mychildren"\)/);
   assert.match(operations, /remoteAdminReady/);
 });
 
-test("full local topology starts the four clients that expose real control backends", () => {
+test("base local topology stays compatible while run:all adds GrowUP control", () => {
   const launcher = read("scripts/run-local-system.mjs");
   const bootstrap = read("scripts/run-local-offline-v2.mjs");
+  const runAll = read("scripts/run-all.mjs");
   for (const token of [
     'Health_Care',
     'RU_LIFE',
@@ -50,6 +53,8 @@ test("full local topology starts the four clients that expose real control backe
   }
   assert.ok(bootstrap.includes('existsSync(join(root, "Health_Care"))'));
   assert.ok(bootstrap.includes('existsSync(join(root, "RU_LIFE"))'));
+  assert.match(runAll, /GrowUP_MyChildren/);
+  assert.match(runAll, /GROWUP_CONTROL_SERVICE_SECRET/);
 });
 
 test("Boi and Bauman keep focused mutation routing while Health, RU and PriceReport use verified generic adapters", () => {
