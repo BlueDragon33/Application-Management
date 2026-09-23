@@ -49,6 +49,6 @@ test("central access UI uses real Boi states and does not blindly verify payment
   assert.match(view, /reviewProof\("verify-payment"\)/);
   assert.doesNotMatch(view, /manageBoiAccess\(device, "verify-payment"\)/);
   assert.match(view, /Không có mô hình thanh toán chung được Trung tâm tự suy diễn/);
-  assert.match(dashboard, /<AccessManagement query=\{normalizedSearch\}\/>/);
+  assert.match(dashboard, /<AccessManagement query=\{searchValue\}\/>/);
   assert.doesNotMatch(dashboard, /Thanh toán & Quyền theo ứng dụng/);
 });
