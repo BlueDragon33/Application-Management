@@ -52,7 +52,7 @@ const CLIENTS: Record<ManagedClientId, ClientOriginSpec> = {
   "price-report-control": {
     productionEnv: "PRICE_REPORT_CONTROL_BASE_URL",
     localEnv: "PRICE_REPORT_CONTROL_LOCAL_BASE_URL",
-    localDefault: "http://127.0.0.1:3006",
+    localDefault: "http://127.0.0.1:3009",
     probePath: "/api/control/status",
   },
 };
