@@ -547,6 +547,12 @@ export async function POST(request: Request) {
       if (appIds.some((id) => !known.has(id))) return json({ error: "Danh sách ứng dụng không hợp lệ.", code: "INVALID_APPLICATIONS" }, 400);
       const unsupported = appIds.filter((id) => !AUTO_APPROVE_SUPPORTED_APP_IDS.includes(id as typeof AUTO_APPROVE_SUPPORTED_APP_IDS[number]));
       if (unsupported.length) return json({ error: "Một số ứng dụng chưa công bố contract duyệt tự động.", code: "AUTO_APPROVAL_CONTRACT_MISSING" }, 409);
+      if (appIds.includes("boi-ech")) {
+        return json({
+          error: "Bơi ếch đang dùng phân loại quyền Miễn phí/Trả phí nên không được bật duyệt tự động từ Trung tâm.",
+          code: "BOI_AUTO_APPROVAL_DISABLED_FOR_ACCESS_CLASSIFICATION",
+        }, 409);
+      }
 
       const current = await readAutoApprovalSettings(AUTO_APPROVE_SUPPORTED_APP_IDS);
       const enabledBefore = new Set(current.autoApproveAppIds);
