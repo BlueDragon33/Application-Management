@@ -20,3 +20,9 @@ test("run:all rejects malformed static runtime URLs instead of crashing", () => 
   assert.match(source, /try \{\s*raw = decodeURIComponent/);
   assert.match(source, /catch \{\s*return null;\s*\}/);
 });
+
+
+test("run:all only declares controlled readiness on successful HTTP responses", () => {
+  assert.match(source, /if \(response\.ok\) return response;/);
+  assert.doesNotMatch(source, /if \(response\.status < 500\) return response;/);
+});
