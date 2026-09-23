@@ -12,6 +12,56 @@ export class UpstreamError extends Error {
   }
 }
 
+const BOI_RUNTIME_IDENTITY = {
+  applicationId: "boi-ech",
+  repository: "BlueDragon33/BOIECH_AI",
+  runtime: "boi-ech",
+  controlContract: "application-management",
+  controlGeneration: 2,
+  sourceTrack: "main",
+} as const;
+
+const BOI_RUNTIME_PROBE_TIMEOUT_MS = 2_000;
+
+async function verifyBoiRuntimeIdentity(baseUrl: string) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), BOI_RUNTIME_PROBE_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${baseUrl}/api/control/runtime`, {
+      method: "GET",
+      cache: "no-store",
+      redirect: "manual",
+      signal: controller.signal,
+    });
+    const identity = await response.json().catch(() => null) as Record<string, unknown> | null;
+    const valid = response.ok
+      && identity?.applicationId === BOI_RUNTIME_IDENTITY.applicationId
+      && identity?.repository === BOI_RUNTIME_IDENTITY.repository
+      && identity?.runtime === BOI_RUNTIME_IDENTITY.runtime
+      && identity?.controlContract === BOI_RUNTIME_IDENTITY.controlContract
+      && identity?.controlGeneration === BOI_RUNTIME_IDENTITY.controlGeneration
+      && identity?.sourceTrack === BOI_RUNTIME_IDENTITY.sourceTrack;
+    if (!valid) {
+      throw new UpstreamError(
+        "Site Bơi ếch đang publish bản cũ hoặc sai nguồn. Application Management đã ngừng quản trị bản này.",
+        409,
+        { code: "BOI_ECH_STALE_PUBLISH", expected: BOI_RUNTIME_IDENTITY },
+      );
+    }
+  } catch (error) {
+    if (error instanceof UpstreamError) throw error;
+    throw new UpstreamError(
+      controller.signal.aborted
+        ? "Không xác minh được phiên bản publish Bơi ếch trong thời gian cho phép."
+        : "Site Bơi ếch chưa công bố runtime identity hiện hành.",
+      503,
+      { code: "BOI_ECH_RUNTIME_IDENTITY_UNAVAILABLE" },
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function configuration() {
   const workers = await import("cloudflare:workers");
   const values = workers.env as unknown as Record<string, unknown>;
@@ -29,6 +79,7 @@ async function configuration() {
   if (secret.length < 32) {
     throw new UpstreamError("Khóa kết nối Bơi ếch chưa được cấu hình.", 503, { code: "BOI_ECH_SECRET_NOT_CONFIGURED" });
   }
+  await verifyBoiRuntimeIdentity(origin.baseUrl);
   return { ...origin, secret };
 }
 

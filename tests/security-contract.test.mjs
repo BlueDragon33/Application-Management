@@ -124,7 +124,8 @@ test("loads Boi Ech directly in the browser and keeps signed device polling boun
   const client = await source(boiClientPath);
 
   assert.doesNotMatch(dashboard, /callBoiEch/);
-  assert.doesNotMatch(bridge, /fetch\(`\$\{baseUrl\}/);
+  assert.match(bridge, /fetch\(`\$\{baseUrl\}\/api\/control\/runtime`/);
+  assert.doesNotMatch(bridge, /\/api\/control\/(?:overview|content|ai|payment-proof)/);
   assert.match(client, /mode: "cors"/);
   assert.match(client, /credentials: "omit"/);
   assert.match(client, /60_000/);

@@ -332,7 +332,7 @@ async function main() {
     waitForEndpoint("Sức khỏe Y tế", "http://127.0.0.1:3001/api/control/contract"),
     waitForEndpoint("Hòa nhập Nga", "http://127.0.0.1:3002/api/control/status"),
     waitForEndpoint("Bauman Control", "http://127.0.0.1:3003/health"),
-    waitForEndpoint("Bơi ếch", "http://127.0.0.1:3004/api/control/overview?activityDays=0"),
+    waitForEndpoint("Bơi ếch", "http://127.0.0.1:3004/api/control/runtime"),
     waitForEndpoint("Bauman Hub + môn học", `${baumanRuntimeOrigin}/_local/health`),
   ]);
 
