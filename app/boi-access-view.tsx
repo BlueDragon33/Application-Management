@@ -209,7 +209,10 @@ export default function BoiAccessView({ query = "" }: { query?: string }) {
           const rowBusy = actionBusy === device.deviceId;
           const proofLoading = proofBusy === device.deviceId;
           const canStartFlow = canManage && device.registrationComplete && device.accessGroup === "unassigned" && device.paymentStatus === "unassigned";
-          const canRenew = canManage && device.registrationComplete && device.accessGroup !== "unassigned";
+          const canRenew = canManage
+            && device.registrationComplete
+            && device.status === "approved"
+            && (device.paymentStatus === "free_approved" || device.paymentStatus === "paid_verified");
           return <article className={styles.row} key={device.deviceId}>
             <div><strong>{device.learnerName}</strong><small>{device.personCode || (device.registrationComplete ? "Đã hoàn tất hồ sơ" : "Hồ sơ chưa hoàn tất")}</small></div>
             <div><code>{device.deviceCode}</code><small>{device.active ? "● Online" : "Offline"}</small></div>
