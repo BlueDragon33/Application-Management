@@ -22,6 +22,15 @@ import {
 
 type View = "overview" | "approvals" | "applications" | "devices" | "access" | "alerts" | "audit" | "settings";
 type ControlDeviceOperation = "approve" | "block" | "deactivate-member" | "delete-member";
+type FontScale = "compact" | "standard" | "large" | "xlarge";
+
+const fontScaleStorageKey = "application-management:font-scale:v1";
+const fontScaleOptions: Array<{ id: FontScale; label: string; hint: string }> = [
+  { id: "compact", label: "Gọn", hint: "Mức hiện tại · nhiều nội dung" },
+  { id: "standard", label: "Chuẩn", hint: "Dễ đọc hơn" },
+  { id: "large", label: "Lớn", hint: "Tăng thêm một cấp" },
+  { id: "xlarge", label: "Rất lớn", hint: "Ưu tiên khả năng đọc" },
+];
 
 // The registry is the single source of truth for what belongs to the central
 // management surface. Do not maintain a second hard-coded allow-list here:
@@ -52,7 +61,7 @@ const viewTitles: Record<View, { title: string; subtitle: string }> = {
   access: { title: "Thanh toán & Quyền", subtitle: "Xử lý quyền truy cập và thanh toán chỉ trên các ứng dụng đã công bố contract nghiệp vụ thật." },
   alerts: { title: "Cảnh báo", subtitle: "Theo dõi mất kết nối, thay đổi môi trường và contract chưa hoàn tất." },
   audit: { title: "Nhật ký", subtitle: "Theo dõi lịch sử thao tác quản trị và các sự kiện bảo mật gần nhất." },
-  settings: { title: "Cấu hình", subtitle: "Quản lý thiết bị quản trị Trung tâm và các nguyên tắc vận hành." },
+  settings: { title: "Cấu hình", subtitle: "Điều chỉnh giao diện trên thiết bị này và quản lý thiết bị quản trị Trung tâm." },
 };
 
 function initials(value: string) {
@@ -129,6 +138,7 @@ export default function ManagementDashboardV2({ user }: { user: { displayName: s
   const [syncError, setSyncError] = useState("");
   const [clock, setClock] = useState<Date | null>(null);
   const [webMenu, setWebMenu] = useState(false);
+  const [fontScale, setFontScale] = useState<FontScale>("compact");
 
   async function refreshOperations(silent = false) {
     if (!silent) setSyncing(true);
@@ -181,6 +191,20 @@ export default function ManagementDashboardV2({ user }: { user: { displayName: s
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(fontScaleStorageKey);
+      if (saved && fontScaleOptions.some((option) => option.id === saved)) setFontScale(saved as FontScale);
+    } catch {
+      // Appearance preference is device-local and optional.
+    }
+  }, []);
+
+  function changeFontScale(next: FontScale) {
+    setFontScale(next);
+    try { window.localStorage.setItem(fontScaleStorageKey, next); } catch { /* Device-local persistence is optional. */ }
+  }
 
   const summaries = useMemo(() => (operations?.summaries ?? []).filter((item) => activeAppSet.has(item.appId)), [operations]);
   const summaryMap = useMemo(() => new Map(summaries.map((item) => [item.appId, item])), [summaries]);
@@ -355,7 +379,7 @@ export default function ManagementDashboardV2({ user }: { user: { displayName: s
   const title = viewTitles[view];
   const lastUpdated = operations?.generatedAt ? relativeTime(operations.generatedAt) : "Chưa có dữ liệu";
 
-  return <main className="amv2-shell">
+  return <main className="amv2-shell" data-font-scale={fontScale}>
     <aside className="amv2-sidebar">
       <div className="amv2-brand"><div>QT</div><span><small>TRUNG TÂM ĐIỀU PHỐI</small><strong>QUẢN TRỊ ỨNG DỤNG</strong><em>Kết nối · Kiểm soát · Phát triển</em></span></div>
       <nav aria-label="Điều hướng quản trị">{navItems.map((item) => <button key={item.view} data-active={view === item.view} onClick={() => switchView(item.view)}><i>{item.icon}</i><span>{item.label}</span>{item.view === "devices" && pendingDevices.length ? <b>{pendingDevices.length}</b> : null}{item.view === "approvals" && approvalCount ? <b>{approvalCount}</b> : null}</button>)}</nav>
@@ -408,7 +432,7 @@ export default function ManagementDashboardV2({ user }: { user: { displayName: s
           {view === "access" ? <BoiAccessView query={search}/> : null}
           {view === "alerts" ? <AlertsView apps={filteredApps} summaryMap={summaryMap} workItems={filteredWork} lastUpdated={lastUpdated}/> : null}
           {view === "audit" ? <AuditView center={center}/> : null}
-          {view === "settings" ? <SettingsView center={center} access={access} actionBusy={actionBusy} manageControlDevice={manageControlDevice}/> : null}
+          {view === "settings" ? <SettingsView center={center} access={access} actionBusy={actionBusy} fontScale={fontScale} changeFontScale={changeFontScale} manageControlDevice={manageControlDevice}/> : null}
         </div>
       </div>
     </section>
@@ -493,7 +517,34 @@ function AuditView({ center }: { center: CenterBootstrap }) {
   return <section className="amv2-page-panel"><div className="amv2-audit-list">{center.auditLog.map((entry) => <article key={entry.id}><time>{new Intl.DateTimeFormat("vi-VN", { dateStyle: "short", timeStyle: "short" }).format(new Date(entry.createdAt))}</time><div><strong>{entry.action.replaceAll("_", " ")}</strong><small>{entry.actor}</small></div><code>{entry.target}</code></article>)}{!center.auditLog.length ? <div className="amv2-empty"><strong>Chưa có sự kiện audit.</strong></div> : null}</div></section>;
 }
 
-function SettingsView({ center, access, actionBusy, manageControlDevice }: { center: CenterBootstrap; access: AdminAccess; actionBusy: string; manageControlDevice: (device: ControlAdminDevice, operation: ControlDeviceOperation, selectedRole?: "reviewer" | "publisher") => Promise<void> }) {
+function SettingsView({ center, access, actionBusy, fontScale, changeFontScale, manageControlDevice }: {
+  center: CenterBootstrap;
+  access: AdminAccess;
+  actionBusy: string;
+  fontScale: FontScale;
+  changeFontScale: (next: FontScale) => void;
+  manageControlDevice: (device: ControlAdminDevice, operation: ControlDeviceOperation, selectedRole?: "reviewer" | "publisher") => Promise<void>;
+}) {
   const [roles, setRoles] = useState<Record<string, "reviewer" | "publisher">>({});
-  return <section className="amv2-settings-grid"><div className="amv2-page-panel"><h2>Thiết bị quản trị Trung tâm</h2><div className="amv2-control-list">{center.controlDevices.map((device) => { const protectedDevice = device.owner || device.deviceId === access.deviceId; const rowBusy = actionBusy === `control:${device.deviceId}`; const role = roles[device.deviceId] ?? (device.role === "publisher" ? "publisher" : "reviewer"); return <article key={device.deviceId}><i data-online={device.active}/><div><strong>{device.displayName || device.email}</strong><small>{device.email}</small><code>{device.deviceCode}</code></div><span>{roleLabels[device.role]}</span><b>{device.status === "approved" ? "Đã cấp quyền" : device.status === "pending" ? "Chờ duyệt" : "Đã khóa"}</b><div>{protectedDevice ? <em>Được bảo vệ</em> : access.role !== "owner" ? <em>Chỉ Owner được sửa</em> : device.status === "pending" ? <><select value={role} onChange={(event) => setRoles((current) => ({ ...current, [device.deviceId]: event.target.value as "reviewer" | "publisher" }))}><option value="reviewer">Kiểm duyệt viên</option><option value="publisher">Người xuất bản</option></select><button disabled={rowBusy} onClick={() => void manageControlDevice(device, "approve", role)}>Cấp quyền</button><button data-danger="true" disabled={rowBusy} onClick={() => void manageControlDevice(device, "block")}>Từ chối</button></> : device.memberStatus === "inactive" ? <button data-danger="true" disabled={rowBusy} onClick={() => void manageControlDevice(device, "delete-member")}>Xóa tài khoản</button> : <><button disabled={rowBusy} onClick={() => void manageControlDevice(device, "block")}>Khóa máy</button><button data-danger="true" disabled={rowBusy} onClick={() => void manageControlDevice(device, "deactivate-member")}>Thu hồi</button></>}</div></article>; })}</div></div><div className="amv2-page-panel"><h2>Nguyên tắc vận hành</h2><div className="amv2-rules"><article><b>01</b><div><strong>Client sở hữu dữ liệu</strong><p>Registry thiết bị, phiên truy cập và dữ liệu nghiệp vụ vẫn nằm tại ứng dụng tương ứng.</p></div></article><article><b>02</b><div><strong>Trung tâm điều phối</strong><p>Application Management đọc contract và gửi lệnh quản trị có xác minh.</p></div></article><article><b>03</b><div><strong>Không hiển thị dữ liệu giả</strong><p>Chỉ số và trạng thái chỉ xuất hiện từ dữ liệu thật hoặc thể hiện rõ chưa có dữ liệu.</p></div></article></div></div></section>;
+  return <section className="amv2-settings-grid">
+    <div className="amv2-page-panel">
+      <h2>Thiết bị quản trị Trung tâm</h2>
+      <div className="amv2-control-list">{center.controlDevices.map((device) => {
+        const protectedDevice = device.owner || device.deviceId === access.deviceId;
+        const rowBusy = actionBusy === `control:${device.deviceId}`;
+        const role = roles[device.deviceId] ?? (device.role === "publisher" ? "publisher" : "reviewer");
+        return <article key={device.deviceId}><i data-online={device.active}/><div><strong>{device.displayName || device.email}</strong><small>{device.email}</small><code>{device.deviceCode}</code></div><span>{roleLabels[device.role]}</span><b>{device.status === "approved" ? "Đã cấp quyền" : device.status === "pending" ? "Chờ duyệt" : "Đã khóa"}</b><div>{protectedDevice ? <em>Được bảo vệ</em> : access.role !== "owner" ? <em>Chỉ Owner được sửa</em> : device.status === "pending" ? <><select value={role} onChange={(event) => setRoles((current) => ({ ...current, [device.deviceId]: event.target.value as "reviewer" | "publisher" }))}><option value="reviewer">Kiểm duyệt viên</option><option value="publisher">Người xuất bản</option></select><button disabled={rowBusy} onClick={() => void manageControlDevice(device, "approve", role)}>Cấp quyền</button><button data-danger="true" disabled={rowBusy} onClick={() => void manageControlDevice(device, "block")}>Từ chối</button></> : device.memberStatus === "inactive" ? <button data-danger="true" disabled={rowBusy} onClick={() => void manageControlDevice(device, "delete-member")}>Xóa tài khoản</button> : <><button disabled={rowBusy} onClick={() => void manageControlDevice(device, "block")}>Khóa máy</button><button data-danger="true" disabled={rowBusy} onClick={() => void manageControlDevice(device, "deactivate-member")}>Thu hồi</button></>}</div></article>;
+      })}</div>
+    </div>
+    <div className="amv2-page-panel">
+      <h2>Giao diện trên thiết bị này</h2>
+      <div className="amv2-appearance-settings">
+        <p>Cỡ chữ chỉ được lưu trên trình duyệt hiện tại. Mức <strong>Gọn</strong> giữ bố cục hiện tại; các mức sau tăng dần khả năng đọc mà không thay đổi dữ liệu hay quyền.</p>
+        <div className="amv2-font-scale-options">{fontScaleOptions.map((option) => <button key={option.id} data-active={fontScale === option.id} onClick={() => changeFontScale(option.id)}><strong>{option.label}</strong><small>{option.hint}</small></button>)}</div>
+      </div>
+      <h2>Nguyên tắc vận hành</h2>
+      <div className="amv2-rules"><article><b>01</b><div><strong>Client sở hữu dữ liệu</strong><p>Registry thiết bị, phiên truy cập và dữ liệu nghiệp vụ vẫn nằm tại ứng dụng tương ứng.</p></div></article><article><b>02</b><div><strong>Trung tâm điều phối</strong><p>Application Management đọc contract và gửi lệnh quản trị có xác minh.</p></div></article><article><b>03</b><div><strong>Không hiển thị dữ liệu giả</strong><p>Chỉ số và trạng thái chỉ xuất hiện từ dữ liệu thật hoặc thể hiện rõ chưa có dữ liệu.</p></div></article></div>
+    </div>
+  </section>;
 }
+

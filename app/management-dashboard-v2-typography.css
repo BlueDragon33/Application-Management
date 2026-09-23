@@ -136,3 +136,87 @@
     font-size: clamp(24px, 4vw, 31px) !important;
   }
 }
+
+
+/* User-selected content scale. "compact" intentionally equals the current
+   approved dashboard density; larger modes only grow typography, not boxes. */
+.amv2-shell[data-font-scale="compact"] {
+  --amv2-page-title-user: 34px;
+  --amv2-panel-title-user: 18px;
+  --amv2-body-user: 11px;
+  --amv2-control-user: 11px;
+  --amv2-small-user: 10px;
+  --amv2-subtitle-user: 12px;
+}
+.amv2-shell[data-font-scale="standard"] {
+  --amv2-page-title-user: 36px;
+  --amv2-panel-title-user: 19px;
+  --amv2-body-user: 12px;
+  --amv2-control-user: 12px;
+  --amv2-small-user: 11px;
+  --amv2-subtitle-user: 13px;
+}
+.amv2-shell[data-font-scale="large"] {
+  --amv2-page-title-user: 38px;
+  --amv2-panel-title-user: 20px;
+  --amv2-body-user: 13px;
+  --amv2-control-user: 13px;
+  --amv2-small-user: 12px;
+  --amv2-subtitle-user: 14px;
+}
+.amv2-shell[data-font-scale="xlarge"] {
+  --amv2-page-title-user: 40px;
+  --amv2-panel-title-user: 21px;
+  --amv2-body-user: 14px;
+  --amv2-control-user: 14px;
+  --amv2-small-user: 13px;
+  --amv2-subtitle-user: 15px;
+}
+
+.amv2-shell[data-font-scale] .amv2-page-head h1 {
+  font-size: var(--amv2-page-title-user) !important;
+}
+.amv2-shell[data-font-scale] .amv2-page-head p {
+  font-size: var(--amv2-subtitle-user) !important;
+}
+.amv2-shell[data-font-scale] .amv2-panel-title h2,
+.amv2-shell[data-font-scale] .amv2-quick-panel > header h2,
+.amv2-shell[data-font-scale] .amv2-page-panel > h2 {
+  font-size: var(--amv2-panel-title-user) !important;
+}
+.amv2-shell[data-font-scale] .amv2-app-row,
+.amv2-shell[data-font-scale] .amv2-priority-row,
+.amv2-shell[data-font-scale] .amv2-device-row,
+.amv2-shell[data-font-scale] .amv2-view-table .row,
+.amv2-shell[data-font-scale] .amv2-alert-list article,
+.amv2-shell[data-font-scale] .amv2-audit-list article,
+.amv2-shell[data-font-scale] .amv2-control-list article,
+.amv2-shell[data-font-scale] .amv2-rules article {
+  font-size: var(--amv2-body-user) !important;
+}
+.amv2-shell[data-font-scale] .amv2-quick-grid button,
+.amv2-shell[data-font-scale] .amv2-alert-grid button,
+.amv2-shell[data-font-scale] .amv2-web-action,
+.amv2-shell[data-font-scale] .amv2-manage-action,
+.amv2-shell[data-font-scale] .amv2-sidebar nav button,
+.amv2-shell[data-font-scale] .amv2-search input,
+.amv2-shell[data-font-scale] .amv2-filter select,
+.amv2-shell[data-font-scale] .amv2-control-list button,
+.amv2-shell[data-font-scale] .amv2-control-list select {
+  font-size: var(--amv2-control-user) !important;
+}
+.amv2-shell[data-font-scale] .amv2-app-head,
+.amv2-shell[data-font-scale] .amv2-priority-head,
+.amv2-shell[data-font-scale] .amv2-device-head,
+.amv2-shell[data-font-scale] .amv2-view-table .head,
+.amv2-shell[data-font-scale] .amv2-app-cell small,
+.amv2-shell[data-font-scale] .amv2-control-list small,
+.amv2-shell[data-font-scale] .amv2-rules p {
+  font-size: var(--amv2-small-user) !important;
+}
+
+@media (max-width: 700px) {
+  .amv2-shell[data-font-scale] .amv2-page-head h1 {
+    font-size: min(var(--amv2-page-title-user), 32px) !important;
+  }
+}
