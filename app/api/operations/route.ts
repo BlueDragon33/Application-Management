@@ -902,12 +902,11 @@ export async function POST(request: Request) {
       if (appId !== "boi-ech") return json({ error: "Client chưa hỗ trợ thao tác này.", code: "CLIENT_ACTION_UNAVAILABLE" }, 409);
       const bridge = await issueBoiBrowserBridge(actor.email, actor.role);
       if (operation === "approve") {
-        if (actor.role !== "publisher" && actor.role !== "owner") return json({ error: "Vai trò hiện tại không được duyệt thiết bị.", code: "PUBLISHER_REQUIRED" }, 403);
-        await bridgeJson(bridge, "/api/control/overview", { method: "POST", body: { action: "grant-free", deviceId } });
-        const state = await bridgeJson(bridge, "/api/control/overview?activityDays=0");
-        const updated = rowByDeviceId(state, deviceId);
-        if (!updated || normalizedStatus(updated.status) === "pending") throw new Error("Bơi ếch chưa xác nhận quyền truy cập sau thao tác duyệt.");
-        return json({ ok: true, verified: true, approvedDeviceId: deviceId });
+        if (actor.role !== "publisher" && actor.role !== "owner") return json({ error: "Vai trò hiện tại không được phân quyền Bơi ếch.", code: "PUBLISHER_REQUIRED" }, 403);
+        return json({
+          error: "Thiết bị Bơi ếch phải được xử lý tại Thanh toán & Quyền để chọn rõ Miễn phí hoặc Trả phí; không duyệt mặc định thành miễn phí.",
+          code: "BOI_ACCESS_FLOW_REQUIRED",
+        }, 409);
       }
       if (actor.role !== "owner") return json({ error: "Chỉ Chủ hệ thống được xóa thiết bị Bơi ếch.", code: "OWNER_REQUIRED" }, 403);
       if (!/^BE-[A-Z0-9-]{8,60}$/.test(deviceCode)) return json({ error: "Mã xác nhận thiết bị Bơi ếch không hợp lệ.", code: "INVALID_DEVICE_CODE" }, 400);
