@@ -17,6 +17,9 @@ CONTROL_OWNER_EMAILS=local.owner@example.test
 # BAUMAN_CONTROL_SERVICE_SECRET=local-only-bauman-control-secret-change-me-0001
 # BOI_ECH_LOCAL_BASE_URL=http://127.0.0.1:3004
 # CONTROL_SERVICE_SECRET=local-only-boi-control-secret-change-me-0001
+# GROWUP_BASE_URL=http://127.0.0.1:3006
+# GROWUP_CONTROL_LOCAL_BASE_URL=http://127.0.0.1:3007
+# GROWUP_CONTROL_SERVICE_SECRET=local-only-growup-control-secret-change-me-0001
 
 
 # PriceReport Tùng Gia Bảo is a static GitHub Pages client in phase 1.
