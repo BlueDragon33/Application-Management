@@ -4,6 +4,7 @@ import { controlErrorResponse, verifyControlProof } from "../../../../control-de
 export const dynamic = "force-dynamic";
 
 const TIMEOUT_MS = 4_500;
+const MAX_PAYMENT_PROOF_BYTES = 8 * 1024 * 1024;
 const PAYMENT_PROOF_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 type UnknownRecord = Record<string, unknown>;
 type AccessOperation = "grant-free" | "require-payment" | "renew-access" | "verify-payment" | "reject-payment";
@@ -73,7 +74,19 @@ async function bridgeProof(bridge: Bridge, deviceId: string) {
       response.body?.cancel().catch(() => undefined);
       return { ok: false as const, status: 502, payload: { error: "Bơi ếch trả về chứng từ không đúng định dạng ảnh cho phép.", code: "PAYMENT_PROOF_INVALID_UPSTREAM_TYPE" } };
     }
-    return { ok: true as const, status: 200, contentType, body: response.body };
+    const declaredBytes = Number(response.headers.get("content-length"));
+    if (Number.isFinite(declaredBytes) && declaredBytes > MAX_PAYMENT_PROOF_BYTES) {
+      response.body.cancel().catch(() => undefined);
+      return { ok: false as const, status: 413, payload: { error: "Chứng từ thanh toán vượt quá giới hạn 8 MB.", code: "PAYMENT_PROOF_TOO_LARGE" } };
+    }
+    const body = await response.arrayBuffer();
+    if (!body.byteLength) {
+      return { ok: false as const, status: 502, payload: { error: "Chứng từ thanh toán rỗng.", code: "PAYMENT_PROOF_EMPTY" } };
+    }
+    if (body.byteLength > MAX_PAYMENT_PROOF_BYTES) {
+      return { ok: false as const, status: 413, payload: { error: "Chứng từ thanh toán vượt quá giới hạn 8 MB.", code: "PAYMENT_PROOF_TOO_LARGE" } };
+    }
+    return { ok: true as const, status: 200, contentType, body };
   } catch (error) {
     if (controller.signal.aborted) return { ok: false as const, status: 504, payload: { error: `Bơi ếch không phản hồi trong ${TIMEOUT_MS / 1_000} giây.` } };
     return { ok: false as const, status: 502, payload: { error: error instanceof Error ? error.message : "Không tải được chứng từ Bơi ếch." } };
