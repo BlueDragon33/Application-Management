@@ -104,3 +104,11 @@ test("PriceReport mutations stay on generic operations and require live KT capab
   assert.match(route, /commandId/);
   assert.match(route, /await verifyDeviceStatus\(bridge, devicesPath, deviceId, expected\)/);
 });
+
+
+test("focused Boi approval cannot bypass payment/access classification", () => {
+  const route = source("app/api/focused-device-operation/route.ts");
+  assert.match(route, /BOI_ACCESS_FLOW_REQUIRED/);
+  assert.match(route, /Thanh toán & Quyền/);
+  assert.doesNotMatch(route, /action: "grant-free"/);
+});
