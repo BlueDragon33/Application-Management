@@ -95,7 +95,7 @@ export const applicationRegistry: readonly ApplicationConfig[] = [
   {
     id: "bauman-master-ai", name: "Bauman Master AI", shortName: "Bauman Hub", href: "/apps/bauman-master-ai", initials: "BM", category: "Học thuật", tier: "client", status: "warning", contractState: "migrating", repository: "BlueDragon33/Bauman-master-ai-system",
     scope: "Client lớn cấp 1 đóng vai trò Bauman Hub; Bauman sở hữu runtime học, Device Gate, registry BM-, session, audit và Control Service riêng; các site/môn cấp 2 vẫn nằm dưới Hub.",
-    contractNote: "Bauman Control v4, registry BM-, P-256 Device Gate, session/revoke, audit và idempotent device commands đã được triển khai và đã qua local E2E. Khu quản trị thiết bị thật đã nối vào Application Management; giữ trạng thái migrating cho tới khi origin runtime + Control Service production được deploy và handshake live được xác minh.",
+    contractNote: "Bauman Control, registry BM-, P-256 Device Gate, session/revoke, audit và idempotent device commands đã được triển khai và đã qua local E2E. Khu quản trị thiết bị thật đã nối vào Application Management; giữ trạng thái migrating cho tới khi origin runtime + Control Service production được deploy và handshake live được xác minh.",
     devicePolicy: "Registry BM- thuộc Bauman · Device Gate P-256 bắt buộc trên runtime · quyền truy cập, session và audit không được lưu trong DB Trung tâm.",
     deviceExperiences: standardDeviceExperiences, childClients: baumanChildren,
     capabilities: ["Lộ trình & môn học", "Sub-client môn học", "Thiết bị BM-", "Duyệt/khóa truy cập", "P-256 Device Gate", "Session & thu hồi", "Audit Bauman", "Theo dõi trạng thái"],
@@ -107,7 +107,7 @@ export const applicationRegistry: readonly ApplicationConfig[] = [
     initials: "KT", category: "Kế toán", tier: "client", status: "warning", contractState: "migrating",
     repository: "BlueDragon33/PriceReport_Tunggiabao",
     scope: "Client kế toán/báo giá local-first. Dữ liệu báo giá, khách hàng, danh mục và backup nằm tại client; Application Management chỉ đọc contract quản trị và metadata thiết bị được công bố an toàn.",
-    contractNote: "Management contract V1, phân loại thiết bị desktop/tablet/phone và UI profile đã được công bố. Remote registry/device gateway chưa có backend nên chưa bật Duyệt/Khóa từ Trung tâm.",
+    contractNote: "Management contract, phân loại thiết bị desktop/tablet/phone và UI profile đã được công bố. Remote registry/device gateway chưa có backend nên chưa bật Duyệt/Khóa từ Trung tâm.",
     devicePolicy: "Namespace KT- · client tự phân loại máy tính/tablet-iPad/điện thoại · UI đối ứng theo device class · không dùng LocalStorage client để giả lập quyền quản trị từ xa.",
     deviceExperiences: standardDeviceExperiences,
     capabilities: ["Báo giá & bảng giá", "Excel / PDF / OCR", "Phân loại thiết bị KT-", "UI theo loại thiết bị", "Backup local/PC", "Management contract"],
@@ -116,7 +116,7 @@ export const applicationRegistry: readonly ApplicationConfig[] = [
   {
     id: "growup-mychildren", name: "GrowUP MyChildren", shortName: "GrowUP", href: "/apps/growup-mychildren", initials: "GU", category: "Gia đình", tier: "client", status: "warning", contractState: "pending", repository: "BlueDragon33/GrowUP_MyChildren",
     scope: "Client phát triển và học tập 3–18 tuổi đã có runtime/PWA độc lập; quản trị từ xa phải giữ nguyên mô hình local-first và privacy-first.",
-    contractNote: "GrowUP main đã có runtime, PWA, privacy-safe local audit và machine-readable management contract. Device registry GU-, admin API và remote audit/config review API vẫn chưa tồn tại nên chưa bật thao tác quản trị từ xa.",
+    contractNote: "GrowUP đã có runtime/PWA và local Control Service privacy-safe với registry GU-, duyệt/khóa thiết bị, audit metadata và optimistic concurrency. Production remote-admin vẫn giữ trạng thái chờ cho tới khi backend production công bố đầy đủ capability tương ứng.",
     devicePolicy: "Khi triển khai phải dùng registry GU- riêng · desktop/tablet/phone · access/edit tách biệt · không đưa child/health data vào control-plane.",
     deviceExperiences: standardDeviceExperiences,
     capabilities: ["Thiết bị truy cập", "Quyền sửa", "Trạng thái runtime", "Kiểm duyệt cấu hình", "Audit metadata an toàn"],
