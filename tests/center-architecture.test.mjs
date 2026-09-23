@@ -251,13 +251,13 @@ test("Health Care uses its own managed bridge and real client control surfaces",
 });
 
 
-test("unconnected applications do not expose fake operational state", () => {
+test("pending production apps do not expose fake production state while verified local control remains explicit", () => {
   const workspace = source("app/application-workspace.tsx");
   const dashboard = source("app/management-dashboard-v2.tsx");
   const registry = source("app/application-registry.ts");
   assert.match(workspace, /Chưa bật thao tác khi backend chưa đủ/);
   assert.match(workspace, /Không dựng nút cấp quyền, mở Web App, duyệt hay chỉnh sửa giả/);
   assert.match(dashboard, /Không hiển thị dữ liệu giả/);
-  assert.match(registry, /GrowUP main đã có runtime/);
-  assert.match(registry, /chưa bật thao tác quản trị từ xa/);
+  assert.match(registry, /GrowUP đã có runtime\/PWA và local Control Service privacy-safe/);
+  assert.match(registry, /Production remote-admin vẫn giữ trạng thái chờ/);
 });
