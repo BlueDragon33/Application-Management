@@ -126,13 +126,15 @@ async function bridgeCommandJson(bridge: Bridge, path: string, body: UnknownReco
   throw lastError;
 }
 
-function expectedFromPayload(payload: Record<string, unknown>, liveStatus: DeviceStatus) {
-  const supplied = normalizedStatus(payload.expectedStatus);
-  return supplied === "unknown" ? liveStatus : supplied;
+function expectedFromPayload(payload: Record<string, unknown>) {
+  return normalizedStatus(payload.expectedStatus);
 }
 
 function assertSnapshot(payload: Record<string, unknown>, liveStatus: DeviceStatus, appName: string) {
-  const expectedStatus = expectedFromPayload(payload, liveStatus);
+  const expectedStatus = expectedFromPayload(payload);
+  if (expectedStatus === "unknown") {
+    return json({ error: "expectedStatus hợp lệ là bắt buộc cho thao tác thiết bị.", code: "INVALID_EXPECTED_STATUS" }, 400);
+  }
   if (expectedStatus !== liveStatus) {
     return json({ error: `Snapshot ${appName} đã thay đổi: expected ${expectedStatus}, hiện tại ${liveStatus}.`, code: "DEVICE_STATE_CONFLICT" }, 409);
   }
