@@ -21,6 +21,8 @@ test("native auto approval endpoint verifies owner and writes through each clien
   assert.match(endpoint, /verifyControlProof/);
   assert.match(endpoint, /actor\.role !== "owner"/);
   assert.match(endpoint, /setBoi/);
+  assert.match(endpoint, /BOI_AUTO_APPROVAL_DISABLED_FOR_ACCESS_CLASSIFICATION/);
+  assert.match(endpoint, /await setBoi\(actor, false\)/);
   assert.match(endpoint, /setHealth/);
   assert.match(endpoint, /setBauman/);
   assert.match(endpoint, /deviceAutoApproval !== true/);
