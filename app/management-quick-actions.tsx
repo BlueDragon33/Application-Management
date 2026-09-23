@@ -117,6 +117,7 @@ export default function ManagementQuickActions() {
 
     <div className="qtQuickDockGrid">
       <button type="button" onClick={() => go("applications")}><span>◇</span><b>Quản trị ứng dụng</b></button>
+      <button type="button" onClick={() => window.location.assign("/projects")}><span>⌘</span><b>Dự án GitHub</b></button>
       <button type="button" data-active={webOpen} onClick={() => setWebOpen((value) => !value)}><span>◎</span><b>Truy cập web</b></button>
       <button type="button" onClick={() => go("approvals")}><span>▣</span><b>Duyệt thiết bị</b></button>
       <button type="button" onClick={() => go("access")}><span>⬡</span><b>Phê duyệt quyền</b></button>
