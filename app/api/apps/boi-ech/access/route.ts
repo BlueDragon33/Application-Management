@@ -205,7 +205,9 @@ export async function POST(request: Request) {
       if (expectedAccessGroup && currentAccessGroup !== expectedAccessGroup) return json({ error: "Nhóm quyền đã thay đổi. Hãy đồng bộ lại.", code: "ACCESS_STATE_CONFLICT" }, 409);
       if (!bool(current.registrationComplete)) return json({ error: "Hồ sơ người học chưa đầy đủ nên chưa thể thay đổi quyền.", code: "REGISTRATION_INCOMPLETE" }, 409);
       if (operation === "require-payment" && (currentAccessGroup !== "unassigned" || currentPaymentStatus !== "unassigned")) return json({ error: "Tài khoản đã bắt đầu hoặc hoàn tất luồng thanh toán/phân quyền; không gửi lại yêu cầu thanh toán.", code: "PAYMENT_STATE_CONFLICT" }, 409);
-      if (operation === "renew-access" && currentAccessGroup === "unassigned") return json({ error: "Tài khoản chưa được phân quyền nên chưa thể gia hạn.", code: "ACCESS_STATE_CONFLICT" }, 409);
+      if (operation === "renew-access" && (text(current.status) !== "approved" || !["free_approved", "paid_verified"].includes(currentPaymentStatus))) {
+        return json({ error: "Chỉ gia hạn khi quyền miễn phí hoặc thanh toán đã được xác nhận.", code: "ACCESS_STATE_CONFLICT" }, 409);
+      }
       if (operation === "grant-free" && ["proof_submitted", "paid_verified"].includes(currentPaymentStatus)) return json({ error: "Tài khoản đã có chứng từ hoặc đã xác minh thanh toán; không chuyển sang miễn phí tại Trung tâm.", code: "PAYMENT_STATE_CONFLICT" }, 409);
       if ((operation === "verify-payment" || operation === "reject-payment") && !paymentReviewReady(current)) return json({ error: "Cần có chứng từ trả phí đang chờ xác minh trước khi thực hiện thao tác này.", code: "PAYMENT_STATE_CONFLICT" }, 409);
       const note = operation === "reject-payment" ? text(payload.note).slice(0, 500) : "";
