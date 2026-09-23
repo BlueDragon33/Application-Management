@@ -61,11 +61,10 @@ jobs:
           path: BOIECH_AI
           persist-credentials: false
 
-      - name: Checkout GrowUP local-control integration
+      - name: Checkout GrowUP
         uses: actions/checkout@v4
         with:
           repository: BlueDragon33/GrowUP_MyChildren
-          ref: integration/application-management-local-control
           path: GrowUP_MyChildren
           persist-credentials: false
 
