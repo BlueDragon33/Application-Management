@@ -14,3 +14,9 @@ test("run:all fails closed when any addon runtime exits unexpectedly", () => {
   assert.match(source, /\[priceControl, "PriceReport Control"\]/);
   assert.match(source, /\[priceRuntime, "PriceReport Runtime"\]/);
 });
+
+
+test("run:all rejects malformed static runtime URLs instead of crashing", () => {
+  assert.match(source, /try \{\s*raw = decodeURIComponent/);
+  assert.match(source, /catch \{\s*return null;\s*\}/);
+});
