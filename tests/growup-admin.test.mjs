@@ -23,14 +23,15 @@ test("GrowUP control surface explicitly denies child health and private records"
   assert.match(admin, /không gửi dữ liệu trẻ lên Trung tâm/i);
 });
 
-test("GrowUP does not expose fake remote operations before its backend exists", () => {
+test("GrowUP exposes local control truth without fabricating production readiness", () => {
   const admin = source("app/apps/growup-mychildren/growup-admin.tsx");
   assert.match(admin, /Không bật các nút quản trị giả/);
-  assert.match(admin, /Device registry GU-/);
+  assert.match(admin, /Production device registry GU-/);
   assert.match(admin, /P-256 device gateway/);
-  assert.match(admin, /Admin API/);
-  assert.match(admin, /Remote audit API/);
+  assert.match(admin, /Production Admin API/);
+  assert.match(admin, /Production remote audit/);
   assert.match(admin, /Configuration review API/);
+  assert.match(admin, /Local Control Service đã có registry GU-/);
   assert.doesNotMatch(admin, /approve-device|publish-content|delete-child-record|health-record-api/);
 });
 
