@@ -32,7 +32,13 @@ Application Management
     │   └── LEVEL 2 — SUB-CLIENT/MODULE: russian
     │       └── ENDPOINTS do Bauman/sub-client sở hữu
     │
-    └── LEVEL 1 — CLIENT: GrowUP MyChildren
+    ├── LEVEL 1 — CLIENT: GrowUP MyChildren
+    │   └── ENDPOINTS: desktop / tablet-iPad / phone
+    │
+    ├── LEVEL 1 — CLIENT: PriceReport Tùng Gia Bảo
+    │   └── ENDPOINTS: desktop / tablet-iPad / phone
+    │
+    └── LEVEL 1 — CLIENT: CAD CAM 3D
         └── ENDPOINTS: desktop / tablet-iPad / phone
 ```
 
@@ -42,7 +48,7 @@ Application Management
 2. **Client cấp 1 tự sở hữu runtime, DB, device registry và audit nghiệp vụ.** Server chỉ gọi admin contract đã được client công bố.
 3. **Client lớn có thể có sub-client.** Ví dụ Bauman Hub quản trị site/module môn học. Application Management không được mặc định xuyên qua Bauman để điều khiển trực tiếp sub-client nếu contract client cha chưa cho phép.
 4. **Thiết bị người dùng nằm dưới client.** Danh sách thiết bị trong khu `Thiết bị quản trị` của Application Management chỉ là máy của quản trị viên control-plane.
-5. **Không dùng chung registry thiết bị.** Bơi ếch, Health_Care, RU_LIFE, Bauman và GrowUP phải giữ registry riêng; sub-client độc lập cũng phải có ownership rõ ràng.
+5. **Không dùng chung registry thiết bị.** Bơi ếch, Health_Care, RU_LIFE, Bauman, GrowUP, PriceReport và CAD CAM 3D phải giữ registry riêng; sub-client độc lập cũng phải có ownership rõ ràng.
 6. **Không có nút giả.** Nếu admin API, auth, policy hoặc audit chưa tồn tại, UI chỉ được hiển thị trạng thái tích hợp và yêu cầu contract.
 
 ## Chuẩn phân loại endpoint
@@ -59,11 +65,13 @@ Các mốc viewport là chuẩn UX mặc định, không phải device fingerpri
 
 ## Trạng thái hiện tại
 
-- **Bơi ếch**: admin bridge đã hoạt động.
-- **Health_Care**: repo độc lập đã có Device Gate và Control API; adapter chính thức của Application Management vẫn cần nối vào control-plane mới.
-- **RU_LIFE**: boundary và luồng P-256 theo thiết bị đã được xác lập; runtime/admin API còn cần hoàn thiện.
-- **Bauman Hub**: có cây `subjects/*`; `Math_Bauman` đã là repo độc lập. Admin contract cho Bauman/sub-client chưa hoàn chỉnh.
-- **GrowUP MyChildren**: repo độc lập đã tồn tại; management contract chưa đủ để bật thao tác thật.
+- **Bơi ếch**: signed admin bridge và luồng Thanh toán & Quyền đang hoạt động; destructive device removal giữ semantics riêng.
+- **Health_Care**: Device Gate và Control API đã có; Application Management dùng adapter thật nhưng production vẫn cần xác minh origin/secret/deployment.
+- **RU_LIFE**: D1, registry HN-, P-256, session ledger, audit và Control API thuộc RU_LIFE; production vẫn cần xác minh live.
+- **Bauman Hub**: registry BM-, P-256 Device Gate, session/revoke, audit và idempotent device commands đã có backend; content-review contract vẫn chưa có.
+- **GrowUP MyChildren**: local Control Service privacy-safe cho GU- đã có; production remote vẫn fail-closed.
+- **PriceReport Tùng Gia Bảo**: KT Control + registry KT- đã có trong local stack; dữ liệu báo giá/khách hàng không đi vào control-plane.
+- **CAD CAM 3D**: có management surface và policy boundary; registry CAD-, signed Device Gate và remote Control API chưa bật.
 
 ## Quy ước giao diện quản trị
 
