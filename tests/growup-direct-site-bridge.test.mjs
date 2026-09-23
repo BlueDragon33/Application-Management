@@ -32,16 +32,19 @@ test("GrowUP direct-site bridge verifies the live privacy contract", () => {
   assert.ok(env.includes('GROWUP_BASE_URL?: string'));
 });
 
-test("operations probes GrowUP but does not invent remote device operations", () => {
+test("operations uses verified GrowUP local control without promoting production readiness", () => {
   mustContain(operations, [
     'probeGrowUpManagementContract',
-    'async function loadGrowUp()',
-    '{ id: "growup-mychildren", run: () => loadGrowUp() }',
-    'webHref: `${contract.baseUrl}/`',
-    'hasOperationalData: contract.remoteAdminReady',
-    'Direct site contract đã xác minh; dữ liệu trẻ em vẫn ở phía GrowUP.',
+    'issueGrowUpBrowserBridge',
+    'async function loadGrowUp(actor: ControlDeviceState)',
+    '{ id: "growup-mychildren", run: () => loadGrowUp(actor) }',
+    'bridgeJson(bridge, "/api/control/devices")',
+    'if (appId === "growup-mychildren")',
+    'GROWUP_REGISTRY_INSTANCE_MISMATCH',
+    'verifyDeviceStatus(bridge, "/api/control/devices", deviceId, expected)',
+    'dữ liệu trẻ em/sức khỏe vẫn ở phía GrowUP',
   ]);
-  assert.equal(operations.includes('if (appId === "growup-mychildren")'), false, "GrowUP must not expose invented device operations before its backend exists");
+  assert.match(operations, /remoteAdminReady: contract\.remoteAdminReady/);
 });
 
 test("central table opens the verified client URL while admin remains internal", () => {
