@@ -248,10 +248,16 @@ async function main() {
   process.on("SIGINT", () => close("SIGINT"));
   process.on("SIGTERM", () => close("SIGTERM"));
 
+  const addonNames = new Map([
+    [growUpControl, "GrowUP Control"],
+    [priceControl, "PriceReport Control"],
+    [priceRuntime, "PriceReport Runtime"],
+  ]);
   for (const child of children) {
     child.on("exit", (code, signal) => {
-      if (!closing && code !== 0) {
-        console.error(`[RUN-ALL] Runtime bổ sung dừng ngoài dự kiến (code=${code}, signal=${signal || "none"}).`);
+      if (!closing) {
+        const name = addonNames.get(child) || "Runtime bổ sung";
+        console.error(`[RUN-ALL] ${name} dừng ngoài dự kiến (code=${code ?? "none"}, signal=${signal || "none"}).`);
         close();
         process.exitCode = 1;
       }
