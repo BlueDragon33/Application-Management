@@ -67,3 +67,13 @@ test("renewal is exposed only for finalized Boi access", () => {
   assert.match(view, /device\.status === "approved"/);
   assert.match(view, /device\.paymentStatus === "free_approved" \|\| device\.paymentStatus === "paid_verified"/);
 });
+
+
+test("generic auto approval excludes Boi so payment classification cannot be bypassed", () => {
+  const operations = source("app/api/operations/route.ts");
+  const nativeAutomation = source("app/api/operations-auto-approval/route.ts");
+  assert.match(dashboard, /autoApproveSupportedAppIds \?\? \[\]\)\.filter\(\(id\) => id !== "boi-ech"\)/);
+  assert.match(operations, /BOI_AUTO_APPROVAL_DISABLED_FOR_ACCESS_CLASSIFICATION/);
+  assert.match(nativeAutomation, /BOI_AUTO_APPROVAL_DISABLED_FOR_ACCESS_CLASSIFICATION/);
+  assert.match(nativeAutomation, /await setBoi\(actor, false\)/);
+});
