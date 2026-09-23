@@ -1,6 +1,6 @@
 import { applicationRegistry } from "../../application-registry";
 import { verifyControlProof, type ControlDeviceState } from "../../control-device.server";
-import { issueBoiBrowserBridge } from "../../boi-ech.server";
+import { UpstreamError, issueBoiBrowserBridge } from "../../boi-ech.server";
 import { issueHealthBrowserBridge, issueHealthWebLaunch } from "../../health-care.server";
 import { issueRuLifeBrowserBridge } from "../../ru-life.server";
 import { issueBaumanBrowserBridge } from "../../bauman.server";
@@ -56,6 +56,7 @@ type ClientSummary = {
   note: string;
   directWebAccess: boolean;
   remoteAdminReady?: boolean;
+  issueCode?: string;
 };
 
 type WorkItem = {
@@ -395,6 +396,7 @@ function summary(
   managedWebLaunch = false,
   hasOperationalDataOverride?: boolean,
   remoteAdminReady?: boolean,
+  issueCode?: string,
 ): ClientSummary {
   const connected = connection === "connected";
   const hasOperationalData = hasOperationalDataOverride ?? connected;
@@ -406,7 +408,7 @@ function summary(
     connection, onlineCount: hasOperationalData ? devices.filter((device) => device.active).length : null,
     pendingCount: hasOperationalData ? devices.filter((device) => device.status === "pending").length : null,
     attentionCount: hasOperationalData ? devices.filter((device) => device.attention !== "none").length : null,
-    note, directWebAccess: connected && Boolean(webHref), remoteAdminReady,
+    note, directWebAccess: connected && Boolean(webHref), remoteAdminReady, issueCode,
   };
 }
 
@@ -421,7 +423,17 @@ async function buildBootstrap(actor: ControlDeviceState) {
   ] as const;
   const settled = await Promise.all(loaders.map(async (loader) => {
     try { return { id: loader.id, ok: true as const, value: await loader.run() }; }
-    catch (error) { return { id: loader.id, ok: false as const, error: error instanceof Error ? error.message : "Không thể kết nối client." }; }
+    catch (error) {
+      const issueCode = error instanceof UpstreamError
+        ? text(record(error.payload).code)
+        : "";
+      return {
+        id: loader.id,
+        ok: false as const,
+        error: error instanceof Error ? error.message : "Không thể kết nối client.",
+        issueCode: issueCode || undefined,
+      };
+    }
   }));
   const devices: ClientDevice[] = [];
   const summaries: ClientSummary[] = [];
@@ -435,8 +447,13 @@ async function buildBootstrap(actor: ControlDeviceState) {
         summaries.push(summary(config, [], connection, `${config.contractNote} Trạng thái production: ${result.error}`));
         continue;
       }
-      summaries.push(summary(config, [], "unavailable", result.error));
-      workItems.push({ id: `${config.id}:connection`, appId: config.id, appName: config.shortName, href: config.href, kind: "connection", title: "Không đọc được trạng thái client", detail: result.error, deviceType: "—", occurredAt: null, priority: "high" });
+      summaries.push(summary(config, [], "unavailable", result.error, null, false, false, undefined, result.issueCode));
+      const title = result.issueCode === "BOI_ECH_STALE_PUBLISH"
+        ? "Bơi ếch đang publish bản cũ"
+        : result.issueCode === "BOI_ECH_RUNTIME_IDENTITY_UNAVAILABLE"
+          ? "Bơi ếch chưa cập nhật runtime identity"
+          : "Không đọc được trạng thái client";
+      workItems.push({ id: `${config.id}:connection`, appId: config.id, appName: config.shortName, href: config.href, kind: "connection", title, detail: result.error, deviceType: "—", occurredAt: null, priority: "high" });
       continue;
     }
     devices.push(...result.value.devices);
