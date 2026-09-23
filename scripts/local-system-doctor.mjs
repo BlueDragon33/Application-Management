@@ -85,6 +85,10 @@ async function main() {
     baumanRuntime: baumanRoot,
     baumanControl: join(baumanRoot, "control-service"),
     boi: join(options.appsRoot, "BOIECH_AI", "boi-ech"),
+    growUp: join(options.appsRoot, "GrowUP_MyChildren"),
+    growUpControl: join(options.appsRoot, "GrowUP_MyChildren", "control-service"),
+    price: join(options.appsRoot, "PriceReport_Tunggiabao"),
+    priceControl: join(options.appsRoot, "PriceReport_Tunggiabao", "control-service"),
   };
 
   if (nodeVersionOk()) reporter.pass("Node.js", process.versions.node);
@@ -96,7 +100,8 @@ async function main() {
     [join(paths.central, "package.json"), "Application Management package"],
     [join(paths.central, "wrangler.local.jsonc"), "Application Management local D1"],
     [join(paths.central, ".dev.vars.example"), "Application Management local auth sample"],
-    [join(paths.central, "scripts", "run-local-system.mjs"), "Full-system launcher"],
+    [join(paths.central, "scripts", "run-local-system.mjs"), "Core local-system launcher"],
+    [join(paths.central, "scripts", "run-all.mjs"), "Six-client run-all orchestrator"],
     [join(paths.health, "package.json"), "Health package"],
     [join(paths.health, "vite.config.ts"), "Health local bindings"],
     [join(paths.health, "wrangler.d1.jsonc"), "Health local D1 config"],
@@ -108,12 +113,20 @@ async function main() {
     [join(paths.baumanControl, "wrangler.local.jsonc"), "Bauman Control local D1 config"],
     [join(paths.baumanRuntime, "index.html"), "Bauman learning runtime"],
     [join(paths.baumanRuntime, "assets", "js", "platform", "runtime-config.js"), "Bauman runtime control config"],
-    [join(paths.baumanRuntime, "assets", "js", "platform", "device-access-gate.js"), "Bauman Device Gate v4"],
+    [join(paths.baumanRuntime, "assets", "js", "platform", "device-access-gate.js"), "Bauman Device Gate"],
     [join(paths.baumanRuntime, "assets", "css", "device-access-gate.css"), "Bauman Device Gate styles"],
     [join(paths.baumanRuntime, "scripts", "serve-local-runtime.mjs"), "Bauman local static runtime server"],
     [join(paths.boi, "package.json"), "Bơi ếch package"],
     [join(paths.boi, "vite.config.ts"), "Bơi ếch local bindings"],
     [join(paths.boi, "wrangler.d1.jsonc"), "Bơi ếch local D1 config"],
+    [join(paths.growUp, "index.html"), "GrowUP runtime"],
+    [join(paths.growUp, "control", "application-management.contract.json"), "GrowUP management contract"],
+    [join(paths.growUp, "control", "local-device-gateway.js"), "GrowUP local device gateway"],
+    [join(paths.growUpControl, "local-control.mjs"), "GrowUP local Control Service"],
+    [join(paths.price, "package.json"), "PriceReport runtime package"],
+    [join(paths.price, "public", "management-contract.json"), "PriceReport management contract"],
+    [join(paths.priceControl, "package.json"), "PriceReport Control package"],
+    [join(paths.priceControl, "wrangler.local.jsonc"), "PriceReport Control local config"],
   ];
   for (const [path, label] of requiredFiles) checkFile(reporter, path, label);
 
@@ -124,14 +137,31 @@ async function main() {
     'http://127.0.0.1:3002',
     'http://127.0.0.1:3003',
     'http://127.0.0.1:3004',
+    'http://127.0.0.1:3009',
     'url.protocol === "https:"',
-  ])) reporter.pass("Hybrid origin resolver", "Production HTTPS + control ports 3001–3004");
+  ])) reporter.pass("Hybrid origin resolver", "Production HTTPS + local control ports gồm PriceReport :3009");
   else reporter.fail("Hybrid origin resolver", "Resolver thiếu mode/port/HTTPS guard chuẩn.");
 
   const launcherPath = join(paths.central, "scripts", "run-local-system.mjs");
   const launcher = text(launcherPath);
   if (syntaxCheck(launcherPath)) reporter.pass("Launcher syntax", "node --check PASS");
   else reporter.fail("Launcher syntax", "Không parse được scripts/run-local-system.mjs");
+
+  const runAllPath = join(paths.central, "scripts", "run-all.mjs");
+  const runAll = text(runAllPath);
+  if (syntaxCheck(runAllPath)) reporter.pass("Run-all syntax", "node --check PASS");
+  else reporter.fail("Run-all syntax", "Không parse được scripts/run-all.mjs");
+
+  if (hasAll(runAll, [
+    "GROWUP_PORT = 3006",
+    "GROWUP_CONTROL_PORT = 3007",
+    "PRICE_PORT = 3008",
+    "PRICE_CONTROL_PORT = 3009",
+    "GROWUP_CONTROL_SERVICE_SECRET",
+    "PRICE_REPORT_CONTROL_SERVICE_SECRET",
+    "price-report-tunggiabao",
+  ])) reporter.pass("Six-client run-all wiring", "GrowUP :3006/:3007 + PriceReport :3008/:3009 + ephemeral secrets");
+  else reporter.fail("Six-client run-all wiring", "run:all chưa nối đủ GrowUP và PriceReport.");
 
   if (launcher && !launcher.includes('"--remote"') && !launcher.includes("workers.dev")) {
     reporter.pass("Local D1 isolation", "Launcher không dùng --remote/workers.dev");
@@ -168,7 +198,7 @@ async function main() {
     "P-256",
     "offline-grace",
   ])) reporter.pass("Bauman Device Gate contract", "P-256 + session + heartbeat + offline grace");
-  else reporter.fail("Bauman Device Gate contract", "Device Gate không khớp contract v4.");
+  else reporter.fail("Bauman Device Gate contract", "Device Gate không khớp contract điều khiển hiện tại.");
 
   const healthVite = text(join(paths.health, "vite.config.ts"));
   if (hasAll(healthVite, ["HEALTH_CONTROL_SERVICE_SECRET", "APPLICATION_MANAGEMENT_ORIGIN", "LOCAL_CONTROL_ALLOW_LAN"])) {
@@ -185,7 +215,29 @@ async function main() {
     reporter.pass("Bơi ếch local bridge", "Bindings local đã có");
   } else reporter.fail("Bơi ếch local bridge", "Bơi ếch chưa có đủ local control bindings.");
 
-  const portResults = await Promise.all([3000, 3001, 3002, 3003, 3004, 3005].map(async (port) => [port, await portFree(port)]));
+  const growUpEntry = text(join(paths.growUp, "src", "runtime-entry.js"));
+  const growUpControl = text(join(paths.growUpControl, "local-control.mjs"));
+  if (hasAll(growUpEntry, ["127.0.0.1", "3006", "local-device-gateway.js"])
+    && hasAll(growUpControl, ["GROWUP_CONTROL_SERVICE_SECRET", "registryInstanceId", "childRecordsExposed", "healthRecordsExposed"])) {
+    reporter.pass("GrowUP local control contract", "Runtime :3006 + Control :3007 + privacy boundary");
+  } else reporter.fail("GrowUP local control contract", "GrowUP integration branch thiếu runtime/control contract local.");
+
+  const priceControl = text(join(paths.priceControl, "src", "index.ts"));
+  const priceDeviceStore = text(join(paths.priceControl, "src", "device-store.ts"));
+  if (hasAll(priceControl, [
+    "PRICE_REPORT_CONTROL_SERVICE_SECRET",
+    "price-report-control-v1",
+    "/api/control/devices",
+    "/api/control/device-commands",
+  ]) && hasAll(priceDeviceStore, [
+    "P-256",
+    "ECDSA",
+    "commandId",
+    "expectedStatus",
+  ])) reporter.pass("PriceReport local control contract", "KT- registry + signed control API + P-256 + concurrency guard");
+  else reporter.fail("PriceReport local control contract", "PriceReport Control chưa đủ contract quản trị thiết bị.");
+
+  const portResults = await Promise.all([3000, 3001, 3002, 3003, 3004, 3005, 3006, 3007, 3008, 3009].map(async (port) => [port, await portFree(port)]));
   for (const [port, free] of portResults) {
     if (free) reporter.pass(`Port ${port}`, "Đang trống");
     else if (options.strictPorts) reporter.fail(`Port ${port}`, "Đang có tiến trình lắng nghe");

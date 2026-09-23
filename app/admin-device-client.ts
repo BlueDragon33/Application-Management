@@ -98,6 +98,7 @@ export type OperationsDevice = {
   attention: "new" | "environment" | "none";
   canApprove: boolean;
   canRemove: boolean;
+  registryInstanceId?: string | null;
 };
 
 export type OperationsSummary = {

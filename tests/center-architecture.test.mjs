@@ -123,7 +123,8 @@ test("requested operations controls are real, grouped, and contract-gated", () =
   assert.match(route, /dismiss-notifications/);
   assert.match(route, /set-auto-approval/);
   assert.match(route, /delete-spam-device/);
-  assert.match(route, /grant-free/);
+  assert.match(route, /BOI_ACCESS_FLOW_REQUIRED/);
+  assert.doesNotMatch(route, /operation === "approve"[\s\S]{0,700}action: "grant-free"/);
   assert.match(route, /AUTO_APPROVE_SUPPORTED_APP_IDS/);
   assert.match(settings, /hashWorkItem/);
   assert.doesNotMatch(settings, /deviceCode|userLabel|learner|health/i);
@@ -251,13 +252,14 @@ test("Health Care uses its own managed bridge and real client control surfaces",
 });
 
 
-test("unconnected applications do not expose fake operational state", () => {
+test("migrating applications distinguish verified local control from production readiness", () => {
   const workspace = source("app/application-workspace.tsx");
   const dashboard = source("app/management-dashboard-v2.tsx");
   const registry = source("app/application-registry.ts");
   assert.match(workspace, /Chưa bật thao tác khi backend chưa đủ/);
   assert.match(workspace, /Không dựng nút cấp quyền, mở Web App, duyệt hay chỉnh sửa giả/);
   assert.match(dashboard, /Không hiển thị dữ liệu giả/);
-  assert.match(registry, /GrowUP main đã có runtime/);
-  assert.match(registry, /chưa bật thao tác quản trị từ xa/);
+  assert.match(registry, /GrowUP đã có runtime\/PWA/);
+  assert.match(registry, /local Control Service privacy-safe/);
+  assert.match(registry, /Production remote vẫn chưa được coi là sẵn sàng/);
 });

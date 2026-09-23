@@ -51,7 +51,8 @@ test("Health mutations use optimistic concurrency and retry-safe command identit
   const route = source("app/api/operations/route.ts");
   const health = actionBlock(route, "health-care", "ru-life");
   assert.match(health, /const suppliedExpected = normalizedStatus\(payload\.expectedStatus\)/);
-  assert.match(health, /const expectedStatus = suppliedExpected === "unknown" \? liveStatus : suppliedExpected/);
+  assert.match(health, /if \(suppliedExpected === "unknown"\)[\s\S]{0,180}INVALID_EXPECTED_STATUS/);
+  assert.match(health, /const expectedStatus = suppliedExpected;/);
   assert.match(health, /DEVICE_STATE_CONFLICT/);
   assert.match(health, /const commandId = suppliedCommandId \|\| crypto\.randomUUID\(\)/);
   assert.match(health, /bridgeCommandJson\(bridge, bridge\.deviceCommandsTarget/);
@@ -83,7 +84,8 @@ test("Bauman mutations require the live v4 command contract and are replay-safe"
   assert.match(bauman, /capabilities\.deviceIdempotentCommands/);
   assert.match(bauman, /capabilities\.optimisticConcurrency/);
   assert.match(bauman, /const suppliedExpected = normalizedStatus\(payload\.expectedStatus\)/);
-  assert.match(bauman, /const expectedStatus = suppliedExpected === "unknown" \? liveStatus : suppliedExpected/);
+  assert.match(bauman, /if \(suppliedExpected === "unknown"\)[\s\S]{0,180}INVALID_EXPECTED_STATUS/);
+  assert.match(bauman, /const expectedStatus = suppliedExpected;/);
   assert.match(bauman, /DEVICE_STATE_CONFLICT/);
   assert.match(bauman, /const commandId = suppliedCommandId \|\| crypto\.randomUUID\(\)/);
   assert.match(bauman, /bridgeCommandJson\(bridge, commandPath/);

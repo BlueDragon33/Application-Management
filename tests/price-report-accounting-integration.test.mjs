@@ -81,3 +81,18 @@ test('PriceReport device mutations use optimistic concurrency, idempotent comman
   assert.match(operations, /DEVICE_COMMAND_READBACK_MISMATCH/);
   assert.match(operations, /await verifyDeviceStatus\(bridge, devicesPath, deviceId, expected\)/);
 });
+
+
+test('registry copy distinguishes local KT control from production readiness', () => {
+  assert.match(registry, /KT Control đã có registry\/device-control thật trong local stack/);
+  assert.match(registry, /Production vẫn giữ trạng thái migrating/);
+  assert.match(admin, /KT Control live đã xác minh/);
+  assert.match(admin, /mọi mutation bị khóa fail-closed/);
+});
+
+
+test('generic device mutations reject missing optimistic-concurrency snapshots', () => {
+  const occurrences = operations.match(/code: "INVALID_EXPECTED_STATUS"/g) ?? [];
+  assert.equal(occurrences.length, 5);
+  assert.doesNotMatch(operations, /suppliedExpected === "unknown" \? liveStatus : suppliedExpected/);
+});

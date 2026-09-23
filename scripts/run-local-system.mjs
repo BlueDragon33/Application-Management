@@ -349,7 +349,7 @@ async function main() {
     BAUMAN_CONTROL_SERVICE_SECRET: baumanSecret,
     BOI_ECH_LOCAL_BASE_URL: "http://127.0.0.1:3004",
     CONTROL_SERVICE_SECRET: boiSecret,
-    LOCAL_ACTIVE_APPLICATIONS: "boi-ech,health-care,ru-life,bauman-master-ai",
+    LOCAL_ACTIVE_APPLICATIONS: process.env.LOCAL_ACTIVE_APPLICATIONS || "boi-ech,health-care,ru-life,bauman-master-ai",
   };
 
   children.push(spawnService({

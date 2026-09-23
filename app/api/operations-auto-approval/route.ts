@@ -89,6 +89,12 @@ export async function POST(request: Request) {
     if (unsupportedRequested.length) {
       return json({ error: "Một số ứng dụng chưa công bố contract duyệt tự động.", code: "AUTO_APPROVAL_CONTRACT_MISSING", appIds: unsupportedRequested }, 409);
     }
+    if (requested.includes("boi-ech")) {
+      return json({
+        error: "Bơi ếch đang dùng phân loại quyền Miễn phí/Trả phí nên không được bật duyệt tự động từ Trung tâm.",
+        code: "BOI_AUTO_APPROVAL_DISABLED_FOR_ACCESS_CLASSIFICATION",
+      }, 409);
+    }
 
     const current = await readAutoApprovalSettings(["boi-ech", "health-care"]);
     const enabledBefore = new Set(current.autoApproveAppIds);
@@ -98,11 +104,17 @@ export async function POST(request: Request) {
       const desired = requested.includes(appId);
       const changed = enabledBefore.has(appId) !== desired;
       if (!changed) continue;
+      if (appId === "boi-ech") {
+        // Bơi ếch may still have legacy auto-approval enabled. New requests can only turn it off,
+        // because access must now be classified explicitly as free or paid.
+        await setBoi(actor, false);
+        await rememberAutoApproval(actor.email, appId, false);
+        continue;
+      }
       if (!liveSupported.has(appId)) {
         return json({ error: `Contract duyệt tự động của ${appId} chưa hoạt động.`, code: "AUTO_APPROVAL_CONTRACT_NOT_LIVE", appId }, 409);
       }
-      if (appId === "boi-ech") await setBoi(actor, desired);
-      else if (appId === "health-care") await setHealth(actor, desired);
+      if (appId === "health-care") await setHealth(actor, desired);
       else await setBauman(actor, desired);
       await rememberAutoApproval(actor.email, appId, desired);
     }

@@ -25,18 +25,20 @@ test("dashboard v2 renders the registry instead of a second hard-coded app allow
   }
 });
 
-test("server bootstrap connects every registered level-1 client without faking GrowUP admin", () => {
+test("server bootstrap connects every registered client and keeps GrowUP admin local-contract backed", () => {
   const operations = read("app/api/operations/route.ts");
-  for (const loader of ["loadBoi(actor)", "loadHealth(actor)", "loadRu(actor)", "loadBauman(actor)", "loadPriceReport(actor)", "loadGrowUp()"]) {
+  for (const loader of ["loadBoi(actor)", "loadHealth(actor)", "loadRu(actor)", "loadBauman(actor)", "loadPriceReport(actor)", "loadGrowUp(actor)"]) {
     assert.ok(operations.includes(loader), `missing operations loader: ${loader}`);
   }
   assert.match(operations, /probeGrowUpManagementContract/);
-  assert.match(operations, /remoteAdminReady/);
+  assert.match(operations, /issueGrowUpBrowserBridge/);
+  assert.match(operations, /remoteAdminReady: contract\.remoteAdminReady/);
+  assert.match(operations, /if \(appId === "growup-mychildren"\)/);
 });
 
-test("full local topology starts the four clients that expose real control backends", () => {
+test("full local topology composes all six managed clients", () => {
   const launcher = read("scripts/run-local-system.mjs");
-  const bootstrap = read("scripts/run-local-offline-v2.mjs");
+  const runAll = read("scripts/run-all.mjs");
   for (const token of [
     'Health_Care',
     'RU_LIFE',
@@ -44,12 +46,20 @@ test("full local topology starts the four clients that expose real control backe
     '127.0.0.1:3002',
     'HEALTH_CONTROL_SERVICE_SECRET',
     'RU_LIFE_CONTROL_SERVICE_SECRET',
-    'boi-ech,health-care,ru-life,bauman-master-ai',
   ]) {
-    assert.ok(launcher.includes(token), `launcher missing: ${token}`);
+    assert.ok(launcher.includes(token), `core launcher missing: ${token}`);
   }
-  assert.ok(bootstrap.includes('existsSync(join(root, "Health_Care"))'));
-  assert.ok(bootstrap.includes('existsSync(join(root, "RU_LIFE"))'));
+  for (const token of [
+    'GROWUP_PORT = 3006',
+    'GROWUP_CONTROL_PORT = 3007',
+    'PRICE_PORT = 3008',
+    'PRICE_CONTROL_PORT = 3009',
+    'GROWUP_CONTROL_SERVICE_SECRET',
+    'PRICE_REPORT_CONTROL_SERVICE_SECRET',
+    'price-report-tunggiabao',
+  ]) {
+    assert.ok(runAll.includes(token), `run-all missing: ${token}`);
+  }
 });
 
 test("Boi and Bauman keep focused mutation routing while Health, RU and PriceReport use verified generic adapters", () => {
