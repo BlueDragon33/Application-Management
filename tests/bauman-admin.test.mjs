@@ -81,7 +81,7 @@ test("Bauman keeps Math and subject modules under the level-1 hub", () => {
 
 test("Bauman readiness distinguishes implemented source from production-live capability", () => {
   const admin = source("app/apps/bauman-master-ai/bauman-admin.tsx");
-  for (const label of ["Device registry BM-", "P-256 device gateway", "Duyệt / Khóa thiết bị", "Audit API", "Content review API"]) {
+  for (const label of ["Device registry BM-", "P-256 device gateway", "Duyệt / Khóa / Mở khóa / Quyền sửa", "Audit API", "Content review API"]) {
     assert.match(admin, new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
   assert.match(admin, /type ReadinessState = "available" \| "implemented" \| "missing"/);
@@ -98,4 +98,19 @@ test("Bauman device admin styles cover status, action and responsive layouts", (
   assert.match(css, /data-status="approved"/);
   assert.match(css, /data-status="blocked"/);
   assert.match(css, /@media \(max-width: 760px\)/);
+});
+
+
+test("Bauman admin exposes contract-v6 unblock and edit-permission controls without coupling edit to access", () => {
+  const admin = source("app/apps/bauman-master-ai/bauman-admin.tsx");
+  const operations = source("app/api/operations/route.ts");
+  assert.match(admin, /"unblock" \| "set-edit-permission"/);
+  assert.match(admin, /canUnblock/);
+  assert.match(admin, /canEditPermission/);
+  assert.match(admin, /device\.editEnabled \? "Được phép" : "Tắt"/);
+  assert.match(admin, /Bật quyền sửa/);
+  assert.match(admin, /Tắt quyền sửa/);
+  assert.match(operations, /capabilities\.deviceUnblock/);
+  assert.match(operations, /capabilities\.deviceEditPermission/);
+  assert.match(operations, /editEnabled: bool\(row\.editEnabled\)/);
 });

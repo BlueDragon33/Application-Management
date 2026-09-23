@@ -98,6 +98,9 @@ export type OperationsDevice = {
   attention: "new" | "environment" | "none";
   canApprove: boolean;
   canRemove: boolean;
+  canUnblock?: boolean;
+  canEditPermission?: boolean;
+  editEnabled?: boolean;
   registryInstanceId?: string | null;
 };
 

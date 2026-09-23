@@ -40,6 +40,9 @@ type ClientDevice = {
   attention: "new" | "environment" | "none";
   canApprove: boolean;
   canRemove: boolean;
+  canUnblock: boolean;
+  canEditPermission: boolean;
+  editEnabled: boolean;
   registryInstanceId?: string | null;
 };
 
@@ -194,6 +197,8 @@ function deviceFrom(
     environmentKey?: string;
     approve?: boolean;
     remove?: boolean;
+    unblock?: boolean;
+    editPermission?: boolean;
     approvalRequiresRegistrationComplete?: boolean;
     requiredApprovalKeys?: string[];
     defaultType?: ClientDevice["deviceType"];
@@ -220,6 +225,9 @@ function deviceFrom(
     attention: environmentChanged ? "environment" : recent && status === "pending" ? "new" : "none",
     canApprove: options.approve === true && status === "pending" && approvalReady,
     canRemove: options.remove === true && status !== "blocked",
+    canUnblock: options.unblock === true && status === "blocked",
+    canEditPermission: options.editPermission === true && status === "approved",
+    editEnabled: bool(row.editEnabled),
     ...(options.registryInstanceId ? { registryInstanceId: options.registryInstanceId } : {}),
   };
 }
@@ -294,17 +302,21 @@ async function loadBauman(actor: ControlDeviceState) {
   if (devicesPath !== "/api/control/devices" || !bool(capabilities.deviceRegistry)) {
     throw new Error("Bauman device registry chưa sẵn sàng trên runtime hiện tại.");
   }
-  const canManage = actor.role === "owner"
-    && bool(capabilities.deviceApproval)
+  const commandContractReady = actor.role === "owner"
     && bool(capabilities.deviceIdempotentCommands)
     && bool(capabilities.optimisticConcurrency)
     && text(endpoints.deviceCommands) === "/api/control/device-commands";
+  const canApproveBlock = commandContractReady && bool(capabilities.deviceApproval);
+  const canUnblock = commandContractReady && bool(capabilities.deviceUnblock);
+  const canEditPermission = commandContractReady && bool(capabilities.deviceEditPermission);
   const data = await bridgeJson(bridge, devicesPath);
   const devices = rows(data).map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
     typeKey: "deviceType",
     userKeys: ["displayName", "label", "platform", "browser"],
-    approve: canManage,
-    remove: canManage,
+    approve: canApproveBlock,
+    remove: canApproveBlock,
+    unblock: canUnblock,
+    editPermission: canEditPermission,
     approvalRequiresRegistrationComplete: false,
     defaultType: "desktop",
   }));
