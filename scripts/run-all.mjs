@@ -307,7 +307,8 @@ async function main() {
       for (const child of [...children].reverse()) kill(child);
       growUpServer?.close(() => {
         if (signal) console.log(`[RUN-ALL] Control plane lõi dừng bởi ${signal}.`);
-        process.exit(code ?? 0);
+        const pendingExitCode = typeof process.exitCode === "number" ? process.exitCode : 0;
+        process.exit(pendingExitCode !== 0 ? pendingExitCode : (code ?? 0));
       });
     });
 
