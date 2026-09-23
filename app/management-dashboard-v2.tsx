@@ -232,6 +232,7 @@ export default function ManagementDashboardV2({ user }: { user: { displayName: s
         deviceId: device.deviceId,
         deviceCode: device.deviceCode,
         expectedStatus: device.status,
+        registryInstanceId: device.registryInstanceId ?? undefined,
       });
       await refreshOperations(true);
       setNotice(result.code === "STALE_DEVICE_REMOVED"
