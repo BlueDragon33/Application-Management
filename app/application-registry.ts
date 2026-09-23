@@ -1,5 +1,5 @@
 export type ApplicationStatus = "online" | "warning" | "planned";
-export type ApplicationCategory = "Học tập" | "Y tế" | "Nga" | "Học thuật" | "Gia đình" | "Kế toán";
+export type ApplicationCategory = "Học tập" | "Y tế" | "Nga" | "Học thuật" | "Gia đình" | "Kế toán" | "Kỹ thuật";
 export type AdminContractState = "connected" | "migrating" | "pending";
 export type DeviceClass = "desktop" | "tablet" | "phone";
 export type SubClientState = "independent" | "module" | "planned";
@@ -27,7 +27,7 @@ export type SubClientConfig = {
 };
 
 export type ApplicationConfig = {
-  id: "boi-ech" | "health-care" | "ru-life" | "bauman-master-ai" | "growup-mychildren" | "price-report-tunggiabao";
+  id: "boi-ech" | "health-care" | "ru-life" | "bauman-master-ai" | "growup-mychildren" | "price-report-tunggiabao" | "cad-cam-3d";
   name: string;
   shortName: string;
   href: string;
@@ -112,6 +112,17 @@ export const applicationRegistry: readonly ApplicationConfig[] = [
     deviceExperiences: standardDeviceExperiences,
     capabilities: ["Báo giá & bảng giá", "Excel / PDF / OCR", "Phân loại thiết bị KT-", "UI theo loại thiết bị", "Backup local/PC", "Management contract"],
     guardrails: ["Không đưa dữ liệu báo giá/khách hàng vào control-plane", "Duyệt/khóa chỉ bật khi KT Control live xác nhận đủ capability và read-back", "Không dùng chung registry BM/BE/HN", "Truy cập Web không đồng nghĩa production remote-admin sẵn sàng"],
+  },
+  {
+    id: "cad-cam-3d", name: "CAD CAM 3D", shortName: "CAD CAM 3D", href: "/apps/cad-cam-3d",
+    initials: "CAD", category: "Kỹ thuật", tier: "client", status: "warning", contractState: "pending",
+    repository: "BlueDragon33/CAD_CAM_3D",
+    scope: "Client CAD/3D-printing cấp 1 độc lập. Trung tâm quản lý thiết bị, policy giao diện, feature flags, print-policy và audit vận hành; CAD_CAM_3D tự sở hữu project, hình học, mesh và file xuất sản xuất.",
+    contractNote: "CAD_CAM_3D đã công bố application-management contract và policy seam trên nhánh nền tảng. Remote Control API, registry CAD-, session/revoke và signed bridge chưa tồn tại nên mọi thao tác quản trị từ xa vẫn khóa cho tới khi backend thật được triển khai.",
+    devicePolicy: "Registry CAD- riêng · desktop là workspace kỹ thuật đầy đủ · tablet/iPad touch-first · phone ưu tiên review/inspection · không dùng chung registry với Bauman hoặc client khác.",
+    deviceExperiences: standardDeviceExperiences,
+    capabilities: ["Workspace CAD", "Policy giao diện", "Feature flags", "Print policy", "Thiết bị CAD-", "Audit vận hành", "Theo dõi runtime"],
+    guardrails: ["Không sao chép CAD project vào Trung tâm", "Không lưu geometry/mesh/STL/STEP/3MF tại control-plane", "Không bật nút quản trị giả khi chưa có Control API", "Không dùng registry BM-/BE-/HN- cho thiết bị CAD"],
   },
   {
     id: "growup-mychildren", name: "GrowUP MyChildren", shortName: "GrowUP", href: "/apps/growup-mychildren", initials: "GU", category: "Gia đình", tier: "client", status: "warning", contractState: "pending", repository: "BlueDragon33/GrowUP_MyChildren",
