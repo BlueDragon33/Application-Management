@@ -4,8 +4,9 @@ import { fileURLToPath } from "node:url";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const root = resolve(scriptDir, "..");
-const launcherPath = join(root, "scripts", "run-local-system.mjs");
+const launcherPath = join(root, "scripts", "run-all.mjs");
 const forwarded = process.argv.slice(2).filter((arg) => arg !== "--local" && arg !== "--no-browser");
+const centralOrigin = "http://127.0.0.1:3000";
 
 if (forwarded.some((arg) => arg === "--hybrid" || arg === "--mode=hybrid")) {
   throw new Error("local:offline-smoke chỉ chạy chế độ local; không cho phép hybrid/remote fallback.");
@@ -15,9 +16,28 @@ const checks = [
   ["Sức khỏe Y tế", "http://127.0.0.1:3001/api/control/contract"],
   ["Hòa nhập Nga", "http://127.0.0.1:3002/api/control/status"],
   ["Bauman Control", "http://127.0.0.1:3003/health"],
-  ["Bơi ếch", "http://127.0.0.1:3004/api/control/runtime"],
+  ["Bơi ếch", "http://127.0.0.1:3004/api/control/overview?activityDays=0"],
   ["Bauman Runtime", "http://127.0.0.1:3005/_local/health"],
-  ["Application Management", "http://127.0.0.1:3000/"],
+  ["GrowUP Runtime", "http://127.0.0.1:3006/control/application-management.contract.json"],
+  ["GrowUP Control", "http://127.0.0.1:3007/health"],
+  ["Application Management", `${centralOrigin}/`],
+];
+
+const expectedManagedApps = [
+  "boi-ech",
+  "health-care",
+  "ru-life",
+  "bauman-master-ai",
+  "growup-mychildren",
+];
+
+const forbiddenRenderedLabels = [
+  "Quản trị Ứng dụng Ver2",
+  "Kiểm soát Ver2",
+  "v2.0",
+  "device control v4",
+  "Bauman Control v4",
+  "Device Gate v4",
 ];
 
 function wait(ms) {
@@ -45,8 +65,40 @@ async function requestReady(name, url, cancelSignal, timeoutMs = 240_000) {
   throw new Error(`${name} không sẵn sàng: ${last}`);
 }
 
+async function requestJson(path, body, cancelSignal, timeoutMs = 20_000) {
+  const response = await fetch(`${centralOrigin}${path}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+    cache: "no-store",
+    signal: AbortSignal.any([cancelSignal, AbortSignal.timeout(timeoutMs)]),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const detail = payload && typeof payload === "object" && typeof payload.error === "string" ? payload.error : `HTTP ${response.status}`;
+    throw new Error(`${path} thất bại: ${detail}`);
+  }
+  return payload;
+}
+
+async function signedControlBody(deviceId, keyPair, body, cancelSignal) {
+  const challengePayload = await requestJson("/api/device", { action: "challenge", deviceId }, cancelSignal);
+  const challenge = challengePayload?.challenge;
+  if (typeof challenge !== "string" || !/^[A-Za-z0-9_-]{40,100}$/.test(challenge)) {
+    throw new Error("Challenge quản trị local không hợp lệ.");
+  }
+  const message = new TextEncoder().encode(`learning-control:${deviceId}:${challenge}`);
+  const signed = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, keyPair.privateKey, message);
+  return {
+    ...body,
+    deviceId,
+    challenge,
+    signature: Buffer.from(signed).toString("base64url"),
+  };
+}
+
 async function assertCentralUi(cancelSignal) {
-  const response = await fetch("http://127.0.0.1:3000/", {
+  const response = await fetch(`${centralOrigin}/`, {
     redirect: "manual",
     signal: AbortSignal.any([cancelSignal, AbortSignal.timeout(2_000)]),
   });
@@ -55,6 +107,64 @@ async function assertCentralUi(cancelSignal) {
   if (!html.includes("Quản trị Ứng dụng")) {
     throw new Error("Trang local đã chạy nhưng không render tiêu đề Quản trị Ứng dụng.");
   }
+  for (const label of forbiddenRenderedLabels) {
+    if (html.includes(label)) {
+      throw new Error(`Trang local không được render nhãn phiên bản/phát hành ${JSON.stringify(label)}.`);
+    }
+  }
+}
+
+async function assertAuthenticatedOperations(cancelSignal) {
+  const keyPair = await crypto.subtle.generateKey(
+    { name: "ECDSA", namedCurve: "P-256" },
+    true,
+    ["sign", "verify"],
+  );
+  const publicKey = await crypto.subtle.exportKey("jwk", keyPair.publicKey);
+  const registered = await requestJson("/api/device", { action: "register", publicKey }, cancelSignal);
+  const device = registered?.device;
+  if (!device || typeof device.deviceId !== "string" || !/^[a-f0-9]{64}$/.test(device.deviceId)) {
+    throw new Error("Thiết bị smoke local không được đăng ký với deviceId hợp lệ.");
+  }
+  if (device.status !== "approved" || device.role !== "owner") {
+    throw new Error(`Thiết bị smoke local phải là Owner approved, nhận ${device.status ?? "unknown"}/${device.role ?? "unknown"}.`);
+  }
+
+  const bootstrap = await requestJson(
+    "/api/operations",
+    await signedControlBody(device.deviceId, keyPair, { action: "bootstrap" }, cancelSignal),
+    cancelSignal,
+    35_000,
+  );
+
+  if (!Array.isArray(bootstrap?.summaries)) throw new Error("Operations bootstrap không trả danh sách ứng dụng.");
+  const summaryById = new Map(bootstrap.summaries.map((item) => [item?.appId, item]));
+  const failed = [];
+  for (const appId of expectedManagedApps) {
+    const summary = summaryById.get(appId);
+    if (!summary || summary.connection !== "connected") {
+      failed.push(`${appId}: ${summary?.connection ?? "missing"}${summary?.note ? ` · ${summary.note}` : ""}`);
+    }
+  }
+  if (failed.length) {
+    throw new Error(`Operations bridge chưa kết nối đủ 5 ứng dụng: ${failed.join(" | ")}`);
+  }
+
+  console.log(`[offline-smoke] PASS Authenticated operations bridge · ${expectedManagedApps.length}/5 ứng dụng connected`);
+
+  const boiAccess = await requestJson(
+    "/api/apps/boi-ech/access",
+    await signedControlBody(device.deviceId, keyPair, { action: "bootstrap" }, cancelSignal),
+    cancelSignal,
+    35_000,
+  );
+  if (boiAccess?.application !== "boi-ech" || !Array.isArray(boiAccess?.devices)) {
+    throw new Error("Thanh toán & Quyền Bơi ếch không trả bootstrap registry hợp lệ.");
+  }
+  if (!boiAccess.counts || typeof boiAccess.counts !== "object" || boiAccess.counts.total !== boiAccess.devices.length) {
+    throw new Error("Thanh toán & Quyền Bơi ếch trả tổng hợp không khớp registry thiết bị.");
+  }
+  console.log(`[offline-smoke] PASS Thanh toán & Quyền Bơi ếch · signed bootstrap · ${boiAccess.devices.length} thiết bị`);
 }
 
 function stop(child) {
@@ -63,8 +173,8 @@ function stop(child) {
 }
 
 async function main() {
-  console.log("[offline-smoke] Khởi động trực tiếp full local control plane. Không deploy, không dùng production D1.");
-  console.log("[offline-smoke] Dependency bootstrap được giao cho run-local-system.mjs để kiểm thử đúng đường chạy người dùng.");
+  console.log("[offline-smoke] Khởi động full local stack gồm 5 client qua run:all. Không deploy, không dùng production D1.");
+  console.log("[offline-smoke] Dependency bootstrap được giao cho run-all/run-local-system để kiểm thử đúng đường chạy người dùng.");
   const child = spawn(process.execPath, [launcherPath, "--local", "--no-browser", ...forwarded], {
     cwd: root,
     env: process.env,
@@ -90,11 +200,12 @@ async function main() {
           console.log(`[offline-smoke] PASS ${name} · HTTP ${response.status}`);
         }
         await assertCentralUi(cancel.signal);
-        console.log("[offline-smoke] PASS Application Management render · Quản trị Ứng dụng");
+        console.log("[offline-smoke] PASS Application Management render · Quản trị Ứng dụng · không nhãn phiên bản phát hành");
+        await assertAuthenticatedOperations(cancel.signal);
       })(),
       earlyExit,
     ]);
-    console.log("\n[offline-smoke] PASS · Full local stack hoạt động trên 127.0.0.1:3000–3005, không publish.");
+    console.log("\n[offline-smoke] PASS · Full local stack, authenticated operations bridge và quản trị quyền hoạt động trên 127.0.0.1:3000–3007, không publish.");
   } finally {
     cancel.abort();
     stop(child);
