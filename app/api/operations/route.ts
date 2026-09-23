@@ -4,7 +4,7 @@ import { UpstreamError, issueBoiBrowserBridge } from "../../boi-ech.server";
 import { issueHealthBrowserBridge, issueHealthWebLaunch } from "../../health-care.server";
 import { issueRuLifeBrowserBridge } from "../../ru-life.server";
 import { issueBaumanBrowserBridge } from "../../bauman.server";
-import { probeGrowUpManagementContract } from "../../growup.server";
+import { issueGrowUpBrowserBridge, probeGrowUpManagementContract } from "../../growup.server";
 import { issuePriceReportBrowserBridge, probePriceReportManagementContract } from "../../price-report.server";
 import {
   dismissedNotificationHashes,
@@ -40,6 +40,7 @@ type ClientDevice = {
   attention: "new" | "environment" | "none";
   canApprove: boolean;
   canRemove: boolean;
+  registryInstanceId: string | null;
 };
 
 type ClientSummary = {
@@ -196,6 +197,7 @@ function deviceFrom(
     approvalRequiresRegistrationComplete?: boolean;
     requiredApprovalKeys?: string[];
     defaultType?: ClientDevice["deviceType"];
+    registryInstanceId?: string | null;
   },
 ): ClientDevice {
   const row = record(raw);
@@ -218,6 +220,7 @@ function deviceFrom(
     attention: environmentChanged ? "environment" : recent && status === "pending" ? "new" : "none",
     canApprove: options.approve === true && status === "pending" && approvalReady,
     canRemove: options.remove === true && status !== "blocked",
+    registryInstanceId: options.registryInstanceId ?? null,
   };
 }
 
@@ -288,6 +291,7 @@ async function loadBauman(actor: ControlDeviceState) {
   const endpoints = record(status.endpoints);
   const capabilities = record(status.capabilities);
   const devicesPath = text(endpoints.devices);
+  const registryInstanceId = text(status.registryInstanceId) || null;
   if (devicesPath !== "/api/control/devices" || !bool(capabilities.deviceRegistry)) {
     throw new Error("Bauman device registry chưa sẵn sàng trên runtime hiện tại.");
   }
@@ -304,19 +308,31 @@ async function loadBauman(actor: ControlDeviceState) {
     remove: canManage,
     approvalRequiresRegistrationComplete: false,
     defaultType: "desktop",
+    registryInstanceId,
   }));
   return { config, devices, webHref: bridge.runtimeBaseUrl, managedWebLaunch: false, hasOperationalData: true };
 }
 
-async function loadGrowUp() {
+async function loadGrowUp(actor: ControlDeviceState) {
   const config = app("growup-mychildren");
   const contract = await probeGrowUpManagementContract();
+  const bridge = await issueGrowUpBrowserBridge();
+  const data = await bridgeJson(bridge, "/api/control/devices");
+  const canManage = actor.role === "publisher" || actor.role === "owner";
+  const devices = rows(data).map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
+    typeKey: "deviceClass",
+    userKeys: ["label", "appVersion"],
+    approve: canManage,
+    remove: canManage,
+    approvalRequiresRegistrationComplete: false,
+    registryInstanceId: bridge.registryInstanceId,
+  }));
   return {
     config,
-    devices: [] as ClientDevice[],
+    devices,
     webHref: `${contract.baseUrl}/`,
     managedWebLaunch: false,
-    hasOperationalData: contract.remoteAdminReady,
+    hasOperationalData: true,
     remoteAdminReady: contract.remoteAdminReady,
   };
 }
@@ -419,7 +435,7 @@ async function buildBootstrap(actor: ControlDeviceState) {
     { id: "ru-life", run: () => loadRu(actor) },
     { id: "bauman-master-ai", run: () => loadBauman(actor) },
     { id: "price-report-tunggiabao", run: () => loadPriceReport(actor) },
-    { id: "growup-mychildren", run: () => loadGrowUp() },
+    { id: "growup-mychildren", run: () => loadGrowUp(actor) },
   ] as const;
   const settled = await Promise.all(loaders.map(async (loader) => {
     try { return { id: loader.id, ok: true as const, value: await loader.run() }; }
@@ -458,7 +474,7 @@ async function buildBootstrap(actor: ControlDeviceState) {
     }
     devices.push(...result.value.devices);
     const note = result.id === "growup-mychildren"
-      ? `${config.contractNote} Direct site contract đã xác minh; dữ liệu trẻ em vẫn ở phía GrowUP.`
+      ? `${config.contractNote} Direct site contract và registry GU- đã xác minh; Trung tâm chỉ đồng bộ metadata thiết bị, dữ liệu trẻ em/sức khỏe vẫn ở phía GrowUP.`
       : result.id === "price-report-tunggiabao"
         ? `${config.contractNote} ${"controlNote" in result.value ? String(result.value.controlNote || "") : ""}`.trim()
         : config.contractNote;
@@ -698,6 +714,40 @@ export async function POST(request: Request) {
         });
       }
 
+      if (appId === "growup-mychildren") {
+        if (actor.role !== "publisher" && actor.role !== "owner") return json({ error: "Vai trò hiện tại không được thay đổi thiết bị GrowUP.", code: "PUBLISHER_REQUIRED" }, 403);
+        const bridge = await issueGrowUpBrowserBridge();
+        const liveRegistryInstanceId = bridge.registryInstanceId ?? "";
+        const suppliedRegistryInstanceId = text(payload.registryInstanceId);
+        if (suppliedRegistryInstanceId && liveRegistryInstanceId && suppliedRegistryInstanceId !== liveRegistryInstanceId) {
+          return json({ error: "Registry GrowUP đã thay đổi. Hãy đồng bộ lại trước khi thao tác.", code: "GROWUP_REGISTRY_INSTANCE_MISMATCH", registryInstanceId: liveRegistryInstanceId }, 409);
+        }
+        const before = await bridgeJson(bridge, "/api/control/devices");
+        const current = rowByDeviceId(before, deviceId);
+        if (!current) return json({ error: "Thiết bị GrowUP không còn trong registry.", code: "DEVICE_NOT_FOUND" }, 404);
+        const liveStatus = normalizedStatus(current.status);
+        const suppliedExpected = normalizedStatus(payload.expectedStatus);
+        const expectedStatus = suppliedExpected === "unknown" ? liveStatus : suppliedExpected;
+        if (expectedStatus !== liveStatus) return json({ error: `Snapshot GrowUP đã thay đổi: expected ${expectedStatus}, hiện tại ${liveStatus}.`, code: "DEVICE_STATE_CONFLICT" }, 409);
+        if (operation === "approve" && expectedStatus !== "pending") return json({ error: "Thiết bị GrowUP không còn ở trạng thái chờ duyệt.", code: "DEVICE_STATE_CONFLICT" }, 409);
+        if (operation === "remove" && expectedStatus !== "pending" && expectedStatus !== "approved") return json({ error: "Thiết bị GrowUP đã bị khóa hoặc trạng thái không xác định.", code: "DEVICE_STATE_CONFLICT" }, 409);
+        const suppliedCommandId = text(payload.commandId).toLowerCase();
+        if (suppliedCommandId && !validCommandId(suppliedCommandId)) return json({ error: "commandId không hợp lệ.", code: "INVALID_COMMAND_ID" }, 400);
+        const commandId = suppliedCommandId || crypto.randomUUID();
+        const expected = operation === "approve" ? "approved" as const : "blocked" as const;
+        const command = await bridgeCommandJson(bridge, bridge.deviceCommandsTarget, {
+          commandId, deviceId, operation: operation === "approve" ? "approve" : "block", expectedStatus,
+        });
+        if (text(command.commandId).toLowerCase() !== commandId || normalizedStatus(command.status) !== expected) {
+          return json({ error: "GrowUP chưa xác nhận commandId hoặc trạng thái kết quả.", code: "DEVICE_COMMAND_READBACK_MISMATCH" }, 502);
+        }
+        await verifyDeviceStatus(bridge, "/api/control/devices", deviceId, expected);
+        return json({
+          ok: true, verified: true, verifiedStatus: expected, commandId, commandReplayed: bool(command.replayed),
+          ...(operation === "approve" ? { approvedDeviceId: deviceId } : { removedDeviceId: deviceId }),
+        });
+      }
+
       if (appId === "price-report-tunggiabao") {
         if (actor.role !== "owner") return json({ error: "PriceReport yêu cầu quyền Chủ hệ thống để thay đổi thiết bị.", code: "OWNER_REQUIRED" }, 403);
         const bridge = await issuePriceReportBrowserBridge(actor.email, actor.role, actor.deviceId);
@@ -706,6 +756,11 @@ export async function POST(request: Request) {
         const capabilities = record(status.capabilities);
         const devicesPath = text(endpoints.devices);
         const commandPath = text(endpoints.deviceCommands);
+        const liveRegistryInstanceId = text(status.registryInstanceId);
+        const suppliedRegistryInstanceId = text(payload.registryInstanceId);
+        if (suppliedRegistryInstanceId && liveRegistryInstanceId && suppliedRegistryInstanceId !== liveRegistryInstanceId) {
+          return json({ error: "Thiết bị Bauman thuộc registry/phiên Control Service khác. Hãy đồng bộ lại.", code: "BAUMAN_REGISTRY_INSTANCE_MISMATCH", registryInstanceId: liveRegistryInstanceId }, 409);
+        }
         if (
           devicesPath !== "/api/control/devices"
           || commandPath !== "/api/control/device-commands"
@@ -778,12 +833,12 @@ export async function POST(request: Request) {
           || !bool(capabilities.deviceIdempotentCommands)
           || !bool(capabilities.optimisticConcurrency)
         ) {
-          return json({ error: "Contract Bauman chưa xác nhận device control v4 sẵn sàng.", code: "BAUMAN_DEVICE_COMMAND_CONTRACT_NOT_LIVE" }, 409);
+          return json({ error: "Contract điều khiển thiết bị Bauman chưa sẵn sàng.", code: "BAUMAN_DEVICE_COMMAND_CONTRACT_NOT_LIVE" }, 409);
         }
 
         const before = await bridgeJson(bridge, devicesPath);
         const current = rowByDeviceId(before, deviceId);
-        if (!current) return json({ error: "Thiết bị Bauman không còn trong registry.", code: "DEVICE_NOT_FOUND" }, 404);
+        if (!current) return json({ error: "Thiết bị Bauman không còn trong registry hiện tại. Hãy đồng bộ lại.", code: "BAUMAN_REGISTRY_DEVICE_STALE", registryInstanceId: liveRegistryInstanceId }, 409);
 
         const liveStatus = normalizedStatus(current.status);
         const suppliedExpected = normalizedStatus(payload.expectedStatus);
