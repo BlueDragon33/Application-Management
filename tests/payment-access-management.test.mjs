@@ -77,3 +77,12 @@ test("generic auto approval excludes Boi so payment classification cannot be byp
   assert.match(nativeAutomation, /BOI_AUTO_APPROVAL_DISABLED_FOR_ACCESS_CLASSIFICATION/);
   assert.match(nativeAutomation, /await setBoi\(actor, false\)/);
 });
+
+
+test("payment proof proxy bounds body size and keeps timeout active through body read", () => {
+  assert.match(api, /MAX_PAYMENT_PROOF_BYTES = 8 \* 1024 \* 1024/);
+  assert.match(api, /Number\(response\.headers\.get\("content-length"\)\)/);
+  assert.match(api, /await response\.arrayBuffer\(\)/);
+  assert.match(api, /PAYMENT_PROOF_TOO_LARGE/);
+  assert.match(api, /PAYMENT_PROOF_EMPTY/);
+});
