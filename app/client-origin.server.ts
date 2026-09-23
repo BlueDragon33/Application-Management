@@ -47,7 +47,7 @@ const CLIENTS: Record<ManagedClientId, ClientOriginSpec> = {
     productionEnv: "BOI_ECH_BASE_URL",
     localEnv: "BOI_ECH_LOCAL_BASE_URL",
     localDefault: "http://127.0.0.1:3004",
-    probePath: "/api/control/overview?activityDays=0",
+    probePath: "/api/control/runtime",
   },
   "price-report-control": {
     productionEnv: "PRICE_REPORT_CONTROL_BASE_URL",
