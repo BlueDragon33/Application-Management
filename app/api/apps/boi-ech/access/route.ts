@@ -79,12 +79,28 @@ async function bridgeProof(bridge: Bridge, deviceId: string) {
       response.body.cancel().catch(() => undefined);
       return { ok: false as const, status: 413, payload: { error: "Chứng từ thanh toán vượt quá giới hạn 8 MB.", code: "PAYMENT_PROOF_TOO_LARGE" } };
     }
-    const body = await response.arrayBuffer();
-    if (!body.byteLength) {
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let totalBytes = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value?.byteLength) continue;
+      totalBytes += value.byteLength;
+      if (totalBytes > MAX_PAYMENT_PROOF_BYTES) {
+        await reader.cancel().catch(() => undefined);
+        return { ok: false as const, status: 413, payload: { error: "Chứng từ thanh toán vượt quá giới hạn 8 MB.", code: "PAYMENT_PROOF_TOO_LARGE" } };
+      }
+      chunks.push(value);
+    }
+    if (!totalBytes) {
       return { ok: false as const, status: 502, payload: { error: "Chứng từ thanh toán rỗng.", code: "PAYMENT_PROOF_EMPTY" } };
     }
-    if (body.byteLength > MAX_PAYMENT_PROOF_BYTES) {
-      return { ok: false as const, status: 413, payload: { error: "Chứng từ thanh toán vượt quá giới hạn 8 MB.", code: "PAYMENT_PROOF_TOO_LARGE" } };
+    const body = new Uint8Array(totalBytes);
+    let offset = 0;
+    for (const chunk of chunks) {
+      body.set(chunk, offset);
+      offset += chunk.byteLength;
     }
     return { ok: true as const, status: 200, contentType, body };
   } catch (error) {
