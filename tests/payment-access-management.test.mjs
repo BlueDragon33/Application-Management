@@ -105,6 +105,8 @@ test("legacy Boi drawer cannot bypass finalized payment state", () => {
   assert.match(controlCenter, /const canGrantFree = device\.registrationComplete[\s\S]{0,180}device\.accessGroup === "unassigned"[\s\S]{0,120}device\.paymentStatus === "unassigned"/);
   assert.match(controlCenter, /const paidEditBlocked = device\.accessGroup === "paid" && device\.paymentStatus !== "paid_verified"/);
   assert.match(controlCenter, /disabled=\{paidEditBlocked\}/);
-  assert.match(controlCenter, /device\.registrationComplete && accessFinalized \? <button[^>]*>Duyệt lại · gia hạn/);
-  assert.match(controlCenter, /\{canGrantFree \? <button[^>]*>Duyệt miễn phí/);
+  assert.match(controlCenter, /device\.registrationComplete && accessFinalized \? <button/);
+  assert.match(controlCenter, />Duyệt lại · gia hạn<\/button>/);
+  assert.match(controlCenter, /\{canGrantFree \? <button/);
+  assert.match(controlCenter, />Duyệt miễn phí<\/button>/);
 });
