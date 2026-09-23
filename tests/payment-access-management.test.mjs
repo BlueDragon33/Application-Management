@@ -92,3 +92,15 @@ test("paid metric counts only verified payments", () => {
   assert.match(api, /paid: devices\.filter\(\(device\) => device\.paymentStatus === "paid_verified"\)\.length/);
   assert.doesNotMatch(api, /paid: devices\.filter\(\(device\) => device\.accessGroup === "paid"\)\.length/);
 });
+
+
+test("legacy Boi drawer cannot bypass finalized payment state", () => {
+  const controlCenter = source("app/apps/boi-ech/boi-ech-control-center.tsx");
+  assert.match(controlCenter, /const accessFinalized = device\.status === "approved"/);
+  assert.match(controlCenter, /device\.paymentStatus === "free_approved" \|\| device\.paymentStatus === "paid_verified"/);
+  assert.match(controlCenter, /const canGrantFree = device\.registrationComplete[\s\S]{0,180}device\.accessGroup === "unassigned"[\s\S]{0,120}device\.paymentStatus === "unassigned"/);
+  assert.match(controlCenter, /const paidEditBlocked = device\.accessGroup === "paid" && device\.paymentStatus !== "paid_verified"/);
+  assert.match(controlCenter, /disabled=\{paidEditBlocked\}/);
+  assert.match(controlCenter, /device\.registrationComplete && accessFinalized \? <button[^>]*>Duyệt lại · gia hạn/);
+  assert.match(controlCenter, /\{canGrantFree \? <button[^>]*>Duyệt miễn phí/);
+});
