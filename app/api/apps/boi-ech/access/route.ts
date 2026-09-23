@@ -164,7 +164,7 @@ export async function POST(request: Request) {
         devices,
         counts: {
           total: devices.length,
-          paid: devices.filter((device) => device.accessGroup === "paid").length,
+          paid: devices.filter((device) => device.paymentStatus === "paid_verified").length,
           free: devices.filter((device) => device.accessGroup === "free").length,
           awaitingPayment: devices.filter((device) => device.paymentStatus === "awaiting_payment").length,
           proofSubmitted: devices.filter((device) => device.paymentStatus === "proof_submitted").length,
