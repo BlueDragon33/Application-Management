@@ -92,7 +92,12 @@ function ensureDependencies(label, cwd) {
 
 function safeFile(root, requestPath) {
   const rootPath = resolve(root);
-  const raw = decodeURIComponent((requestPath || "/").split("?")[0]);
+  let raw;
+  try {
+    raw = decodeURIComponent((requestPath || "/").split("?")[0]);
+  } catch {
+    return null;
+  }
   const relative = normalize(raw.replace(/^\/+/, ""));
   if (relative.startsWith("..") || relative.includes(`..${sep}`)) return null;
   let candidate = resolve(rootPath, relative || "index.html");
