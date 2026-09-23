@@ -1,0 +1,120 @@
+/*
+ * Device aspect contracts.
+ *
+ * Laptop keeps the separate 16:9 contract. This file completes the responsive
+ * model for tablets (3:2 working frame) and portrait phones (9:19.5).
+ * Long operational tables scroll inside their own region so the whole control
+ * center does not become an endless page.
+ */
+
+@media (min-width: 761px) and (max-width: 1120px) {
+  :root {
+    --qt-tablet-inline-size: min(
+      calc(100vw - 98px),
+      calc((100svh - 84px) * 1.5)
+    );
+  }
+
+  main:has(> aside nav[aria-label="Điều hướng quản trị"])
+    > section
+    > div:has(> header h1) {
+    width: max(680px, var(--qt-tablet-inline-size));
+    max-width: calc(100% - 20px);
+    margin-inline: auto;
+    padding-block: 14px 18px;
+    overflow-x: hidden;
+  }
+
+  main:has(> aside nav[aria-label="Điều hướng quản trị"])
+    div:has(> article[data-app]) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  main:has(> aside nav[aria-label="Điều hướng quản trị"])
+    [class*="queueTable"],
+  main:has(> aside nav[aria-label="Điều hướng quản trị"])
+    [class*="deviceTable"],
+  main:has(> aside nav[aria-label="Điều hướng quản trị"])
+    [class*="userTable"] {
+    max-height: min(34svh, 260px);
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
+  main:has(> aside nav[aria-label="Điều hướng quản trị"])
+    [class*="tableHead"],
+  main:has(> aside nav[aria-label="Điều hướng quản trị"])
+    [class*="queueHead"] {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+}
+
+@media (max-width: 760px) and (orientation: portrait) {
+  :root {
+    --qt-phone-inline-size: min(
+      calc(100vw - 12px),
+      calc((100svh - 74px) * 0.4615385)
+    );
+  }
+
+  main:has(> aside nav[aria-label="Điều hướng quản trị"])
+    > section
+    > div:has(> header h1) {
+    width: var(--qt-phone-inline-size);
+    min-width: min(100% - 12px, 320px);
+    margin-inline: auto;
+    padding-block: 12px 16px;
+    overflow-x: hidden;
+  }
+
+  main:has(> aside nav[aria-label="Điều hướng quản trị"])
+    section:has(> button[data-tone]) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  main:has(> aside nav[aria-label="Điều hướng quản trị"])
+    div:has(> article[data-app]) {
+    grid-template-columns: 1fr;
+  }
+
+  main:has(> aside nav[aria-label="Điều hướng quản trị"])
+    [class*="queueTable"],
+  main:has(> aside nav[aria-label="Điều hướng quản trị"])
+    [class*="deviceTable"],
+  main:has(> aside nav[aria-label="Điều hướng quản trị"])
+    [class*="userTable"] {
+    max-height: 42svh;
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
+  main:has(> aside nav[aria-label="Điều hướng quản trị"])
+    [class*="tableHead"],
+  main:has(> aside nav[aria-label="Điều hướng quản trị"])
+    [class*="queueHead"] {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+}
+
+@media (max-width: 760px) and (orientation: landscape) {
+  main:has(> aside nav[aria-label="Điều hướng quản trị"])
+    > section
+    > div:has(> header h1) {
+    width: min(100% - 16px, 920px);
+    margin-inline: auto;
+    padding-block: 9px 12px;
+  }
+
+  main:has(> aside nav[aria-label="Điều hướng quản trị"])
+    [class*="queueTable"] {
+    max-height: 36svh;
+    overflow: auto;
+    scrollbar-gutter: stable;
+  }
+}
