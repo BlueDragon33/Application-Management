@@ -623,7 +623,10 @@ export async function POST(request: Request) {
 
         const liveStatus = normalizedStatus(current.status);
         const suppliedExpected = normalizedStatus(payload.expectedStatus);
-        const expectedStatus = suppliedExpected === "unknown" ? liveStatus : suppliedExpected;
+        if (suppliedExpected === "unknown") {
+          return json({ error: "expectedStatus hợp lệ là bắt buộc cho thao tác thiết bị.", code: "INVALID_EXPECTED_STATUS" }, 400);
+        }
+        const expectedStatus = suppliedExpected;
         if (expectedStatus !== liveStatus) {
           return json({ error: `Snapshot Health_Care đã thay đổi: expected ${expectedStatus}, hiện tại ${liveStatus}.`, code: "DEVICE_STATE_CONFLICT" }, 409);
         }
@@ -677,7 +680,10 @@ export async function POST(request: Request) {
 
         const liveStatus = normalizedStatus(current.status);
         const suppliedExpected = normalizedStatus(payload.expectedStatus);
-        const expectedStatus = suppliedExpected === "unknown" ? liveStatus : suppliedExpected;
+        if (suppliedExpected === "unknown") {
+          return json({ error: "expectedStatus hợp lệ là bắt buộc cho thao tác thiết bị.", code: "INVALID_EXPECTED_STATUS" }, 400);
+        }
+        const expectedStatus = suppliedExpected;
         if (expectedStatus !== liveStatus) {
           return json({ error: `Snapshot Hòa nhập Nga đã thay đổi: expected ${expectedStatus}, hiện tại ${liveStatus}.`, code: "DEVICE_STATE_CONFLICT" }, 409);
         }
@@ -742,7 +748,10 @@ export async function POST(request: Request) {
 
         const liveStatus = normalizedStatus(current.status);
         const suppliedExpected = normalizedStatus(payload.expectedStatus);
-        const expectedStatus = suppliedExpected === "unknown" ? liveStatus : suppliedExpected;
+        if (suppliedExpected === "unknown") {
+          return json({ error: "expectedStatus hợp lệ là bắt buộc cho thao tác thiết bị.", code: "INVALID_EXPECTED_STATUS" }, 400);
+        }
+        const expectedStatus = suppliedExpected;
         if (expectedStatus !== liveStatus) {
           return json({ error: `Snapshot GrowUP đã thay đổi: expected ${expectedStatus}, hiện tại ${liveStatus}.`, code: "DEVICE_STATE_CONFLICT" }, 409);
         }
@@ -806,7 +815,10 @@ export async function POST(request: Request) {
 
         const liveStatus = normalizedStatus(current.status);
         const suppliedExpected = normalizedStatus(payload.expectedStatus);
-        const expectedStatus = suppliedExpected === "unknown" ? liveStatus : suppliedExpected;
+        if (suppliedExpected === "unknown") {
+          return json({ error: "expectedStatus hợp lệ là bắt buộc cho thao tác thiết bị.", code: "INVALID_EXPECTED_STATUS" }, 400);
+        }
+        const expectedStatus = suppliedExpected;
         if (expectedStatus !== liveStatus) {
           return json({ error: `Snapshot PriceReport đã thay đổi: expected ${expectedStatus}, hiện tại ${liveStatus}.`, code: "DEVICE_STATE_CONFLICT" }, 409);
         }
@@ -868,7 +880,10 @@ export async function POST(request: Request) {
 
         const liveStatus = normalizedStatus(current.status);
         const suppliedExpected = normalizedStatus(payload.expectedStatus);
-        const expectedStatus = suppliedExpected === "unknown" ? liveStatus : suppliedExpected;
+        if (suppliedExpected === "unknown") {
+          return json({ error: "expectedStatus hợp lệ là bắt buộc cho thao tác thiết bị.", code: "INVALID_EXPECTED_STATUS" }, 400);
+        }
+        const expectedStatus = suppliedExpected;
         if (expectedStatus !== liveStatus) {
           return json({ error: `Snapshot Bauman đã thay đổi: expected ${expectedStatus}, hiện tại ${liveStatus}.`, code: "DEVICE_STATE_CONFLICT" }, 409);
         }
