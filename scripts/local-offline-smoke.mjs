@@ -155,6 +155,20 @@ async function assertAuthenticatedOperations(cancelSignal) {
 
   console.log(`[offline-smoke] PASS Authenticated operations bridge · ${expectedManagedApps.length}/6 ứng dụng connected`);
 
+  const boiAccess = await requestJson(
+    "/api/apps/boi-ech/access",
+    await signedControlBody(device.deviceId, keyPair, { action: "bootstrap" }, cancelSignal),
+    cancelSignal,
+    35_000,
+  );
+  if (boiAccess?.application !== "boi-ech" || !Array.isArray(boiAccess?.devices)) {
+    throw new Error("Thanh toán & Quyền Bơi ếch không trả registry hợp lệ.");
+  }
+  if (!boiAccess.counts || typeof boiAccess.counts !== "object" || boiAccess.counts.total !== boiAccess.devices.length) {
+    throw new Error("Thanh toán & Quyền Bơi ếch trả tổng hợp không khớp registry.");
+  }
+  console.log(`[offline-smoke] PASS Thanh toán & Quyền Bơi ếch · signed bootstrap · ${boiAccess.devices.length} thiết bị`);
+
 }
 
 function stop(child) {
