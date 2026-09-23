@@ -223,13 +223,18 @@ async function main() {
   } else reporter.fail("GrowUP local control contract", "GrowUP integration branch thiếu runtime/control contract local.");
 
   const priceControl = text(join(paths.priceControl, "src", "index.ts"));
+  const priceDeviceStore = text(join(paths.priceControl, "src", "device-store.ts"));
   if (hasAll(priceControl, [
     "PRICE_REPORT_CONTROL_SERVICE_SECRET",
     "price-report-control-v1",
     "/api/control/devices",
     "/api/control/device-commands",
+  ]) && hasAll(priceDeviceStore, [
     "P-256",
-  ])) reporter.pass("PriceReport local control contract", "KT- registry + signed control API + P-256");
+    "ECDSA",
+    "commandId",
+    "expectedStatus",
+  ])) reporter.pass("PriceReport local control contract", "KT- registry + signed control API + P-256 + concurrency guard");
   else reporter.fail("PriceReport local control contract", "PriceReport Control chưa đủ contract quản trị thiết bị.");
 
   const portResults = await Promise.all([3000, 3001, 3002, 3003, 3004, 3005, 3006, 3007, 3008, 3009].map(async (port) => [port, await portFree(port)]));
