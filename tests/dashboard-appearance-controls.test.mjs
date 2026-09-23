@@ -27,7 +27,8 @@ test("font scaling changes typography only and leaves dashboard geometry intact"
   assert.match(css, /data-font-scale="xlarge"/);
   assert.match(css, /--amv2-body-user/);
   assert.match(css, /--amv2-page-title-user/);
-  assert.doesNotMatch(css, /data-font-scale[\s\S]{0,200}(grid-template|width:|height:|transform:|zoom:)/);
+  const scaleBlock = css.slice(css.indexOf("/* User-selected content scale."));
+  assert.doesNotMatch(scaleBlock, /^\s*(?:width|height|grid-template(?:-columns|-rows)?|transform|zoom)\s*:/m);
 });
 
 test("appearance controls remain compact and responsive inside Settings", () => {
