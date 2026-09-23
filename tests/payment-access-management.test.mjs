@@ -86,3 +86,9 @@ test("payment proof proxy bounds body size and keeps timeout active through body
   assert.match(api, /PAYMENT_PROOF_TOO_LARGE/);
   assert.match(api, /PAYMENT_PROOF_EMPTY/);
 });
+
+
+test("paid metric counts only verified payments", () => {
+  assert.match(api, /paid: devices\.filter\(\(device\) => device\.paymentStatus === "paid_verified"\)\.length/);
+  assert.doesNotMatch(api, /paid: devices\.filter\(\(device\) => device\.accessGroup === "paid"\)\.length/);
+});
