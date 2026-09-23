@@ -16,7 +16,7 @@ const checks = [
   ["Sức khỏe Y tế", "http://127.0.0.1:3001/api/control/contract"],
   ["Hòa nhập Nga", "http://127.0.0.1:3002/api/control/status"],
   ["Bauman Control", "http://127.0.0.1:3003/health"],
-  ["Bơi ếch", "http://127.0.0.1:3004/api/control/overview?activityDays=0"],
+  ["Bơi ếch", "http://127.0.0.1:3004/api/control/runtime"],
   ["Bauman Runtime", "http://127.0.0.1:3005/_local/health"],
   ["GrowUP Runtime", "http://127.0.0.1:3006/control/application-management.contract.json"],
   ["GrowUP Control", "http://127.0.0.1:3007/health"],
