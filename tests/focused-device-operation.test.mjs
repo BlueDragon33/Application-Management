@@ -112,3 +112,11 @@ test("focused Boi approval cannot bypass payment/access classification", () => {
   assert.match(route, /Thanh toán & Quyền/);
   assert.doesNotMatch(route, /action: "grant-free"/);
 });
+
+
+test("focused device mutations require an explicit expectedStatus snapshot", () => {
+  const route = source("app/api/focused-device-operation/route.ts");
+  assert.match(route, /expectedStatus === "unknown"/);
+  assert.match(route, /code: "INVALID_EXPECTED_STATUS"/);
+  assert.doesNotMatch(route, /supplied === "unknown" \? liveStatus : supplied/);
+});
