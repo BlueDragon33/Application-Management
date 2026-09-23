@@ -187,11 +187,13 @@ export default function ManagementDashboardV2({ user }: { user: { displayName: s
   const devices = useMemo(() => (operations?.devices ?? []).filter((item) => activeAppSet.has(item.appId)), [operations]);
   const workItems = useMemo(() => (operations?.workItems ?? []).filter((item) => activeAppSet.has(item.appId)), [operations]);
   const pendingDevices = devices.filter((device) => device.status === "pending");
+  const approvalDevices = devices.filter((device) => device.status === "pending" || device.attention !== "none");
   const environmentCount = devices.filter((device) => device.attention === "environment").length;
   const unavailableCount = activeApps.filter((app) => connectionFor(app, summaryMap.get(app.id)) === "unavailable").length;
   const contractPending = activeApps.filter((app) => app.contractState !== "connected").length;
-  const highAlerts = workItems.filter((item) => item.priority === "high").length + unavailableCount;
-  const notificationCount = pendingDevices.length + workItems.length;
+  const highAlerts = workItems.filter((item) => item.priority === "high").length;
+  const notificationCount = workItems.length;
+  const approvalCount = approvalDevices.length;
   const onlineApps = activeApps.filter((app) => connectionFor(app, summaryMap.get(app.id)) === "connected").length;
   const onlineDevices = summaries.reduce((sum, item) => sum + (item.onlineCount ?? 0), 0);
   const searchValue = search.trim().toLowerCase();
@@ -208,6 +210,7 @@ export default function ManagementDashboardV2({ user }: { user: { displayName: s
     if (appFilter !== "all" && item.appId !== appFilter) return false;
     return !searchValue || `${item.appName} ${item.title} ${item.detail}`.toLowerCase().includes(searchValue);
   });
+  const filteredApprovalDevices = filteredDevices.filter((device) => device.status === "pending" || device.attention !== "none");
 
   function switchView(next: View) {
     if (next === view) return;
@@ -355,7 +358,7 @@ export default function ManagementDashboardV2({ user }: { user: { displayName: s
   return <main className="amv2-shell">
     <aside className="amv2-sidebar">
       <div className="amv2-brand"><div>QT</div><span><small>TRUNG TÂM ĐIỀU PHỐI</small><strong>QUẢN TRỊ ỨNG DỤNG</strong><em>Kết nối · Kiểm soát · Phát triển</em></span></div>
-      <nav aria-label="Điều hướng quản trị">{navItems.map((item) => <button key={item.view} data-active={view === item.view} onClick={() => switchView(item.view)}><i>{item.icon}</i><span>{item.label}</span>{item.view === "devices" && pendingDevices.length ? <b>{pendingDevices.length}</b> : null}{item.view === "approvals" && notificationCount ? <b>{notificationCount}</b> : null}</button>)}</nav>
+      <nav aria-label="Điều hướng quản trị">{navItems.map((item) => <button key={item.view} data-active={view === item.view} onClick={() => switchView(item.view)}><i>{item.icon}</i><span>{item.label}</span>{item.view === "devices" && pendingDevices.length ? <b>{pendingDevices.length}</b> : null}{item.view === "approvals" && approvalCount ? <b>{approvalCount}</b> : null}</button>)}</nav>
       <section className="amv2-system-card"><header><span>▣</span><div><small>Trạng thái hệ thống</small><strong>{unavailableCount ? "Cần kiểm tra" : "Đã cập nhật dữ liệu"}</strong></div></header><p><span>Ứng dụng quản lý</span><b>{activeApps.length}</b></p><p><span>Kết nối tốt</span><b>{onlineApps}</b></p><p><span>Thiết bị chờ duyệt</span><b>{pendingDevices.length}</b></p><p><span>Lần cập nhật</span><b>{clock ? new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(clock) : "—"}</b></p></section>
       <blockquote>Quản trị tập trung<br/>Vận hành an toàn<br/>Phát triển bền vững</blockquote>
       <footer><i/>Hệ thống hoạt động</footer>
@@ -381,6 +384,7 @@ export default function ManagementDashboardV2({ user }: { user: { displayName: s
             summaryMap={summaryMap}
             devices={filteredDevices}
             pendingDevices={pendingDevices.filter((device) => appFilter === "all" || device.appId === appFilter)}
+            approvalDevices={filteredApprovalDevices}
             workItems={filteredWork}
             highAlerts={highAlerts}
             unavailableCount={unavailableCount}
@@ -398,7 +402,7 @@ export default function ManagementDashboardV2({ user }: { user: { displayName: s
             enableAutoApproval={enableAutoApproval}
             refreshOperations={refreshOperations}
           /> : null}
-          {view === "approvals" ? <ApprovalView devices={filteredDevices.filter((device) => device.status === "pending" || device.attention !== "none")} workItems={filteredWork} actionBusy={actionBusy} manageDevice={manageDevice}/> : null}
+          {view === "approvals" ? <ApprovalView devices={filteredApprovalDevices} actionBusy={actionBusy} manageDevice={manageDevice}/> : null}
           {view === "applications" ? <ApplicationsView apps={filteredApps} summaryMap={summaryMap} devices={devices} webBusy={webBusy} launchWeb={launchWeb}/> : null}
           {view === "devices" ? <DevicesView devices={filteredDevices} actionBusy={actionBusy} manageDevice={manageDevice}/> : null}
           {view === "access" ? <BoiAccessView query={search}/> : null}
@@ -419,11 +423,12 @@ function AppCell({ appId, name }: { appId: string; name: string }) {
   return <div className="amv2-app-cell"><i data-app={appId}>{appGlyph(appId)}</i><strong>{name}</strong></div>;
 }
 
-function Overview({ apps, summaryMap, devices, pendingDevices, workItems, highAlerts, unavailableCount, environmentCount, contractPending, actionBusy, webBusy, syncing, webMenu, setWebMenu, switchView, launchWeb, manageDevice, clearNotifications, enableAutoApproval, refreshOperations }: {
+function Overview({ apps, summaryMap, devices, pendingDevices, approvalDevices, workItems, highAlerts, unavailableCount, environmentCount, contractPending, actionBusy, webBusy, syncing, webMenu, setWebMenu, switchView, launchWeb, manageDevice, clearNotifications, enableAutoApproval, refreshOperations }: {
   apps: ApplicationConfig[];
   summaryMap: Map<string, OperationsSummary>;
   devices: OperationsDevice[];
   pendingDevices: OperationsDevice[];
+  approvalDevices: OperationsDevice[];
   workItems: OperationsWorkItem[];
   highAlerts: number;
   unavailableCount: number;
@@ -442,8 +447,8 @@ function Overview({ apps, summaryMap, devices, pendingDevices, workItems, highAl
   refreshOperations: (silent?: boolean) => Promise<OperationsBootstrap | null>;
 }) {
   const priorityRows = [
-    ...pendingDevices.map((device) => ({ key: `device:${device.appId}:${device.deviceId}`, appId: device.appId, appName: device.appName, type: "Thiết bị", content: `${device.userLabel} · ${device.deviceCode}`, at: device.createdAt, priority: "Cao", status: "Chờ duyệt" })),
-    ...workItems.map((item) => ({ key: `work:${item.id}`, appId: item.appId, appName: item.appName, type: item.kind === "connection" ? "Kết nối" : item.kind === "environment" ? "Môi trường" : "Thiết bị", content: item.title, at: item.occurredAt, priority: item.priority === "high" ? "Cao" : item.priority === "normal" ? "Vừa" : "Thông tin", status: item.priority === "high" ? "Cần xử lý" : "Theo dõi" })),
+    ...approvalDevices.map((device) => ({ key: `device:${device.appId}:${device.deviceId}`, appId: device.appId, appName: device.appName, type: device.attention === "environment" ? "Môi trường" : "Thiết bị", content: `${device.userLabel} · ${device.deviceCode}`, at: device.lastSeenAt ?? device.createdAt, priority: device.attention === "environment" ? "Cao" : "Vừa", status: device.status === "pending" ? "Chờ duyệt" : "Cần xác minh" })),
+    ...workItems.filter((item) => item.kind === "connection").map((item) => ({ key: `work:${item.id}`, appId: item.appId, appName: item.appName, type: "Kết nối", content: item.title, at: item.occurredAt, priority: item.priority === "high" ? "Cao" : item.priority === "normal" ? "Vừa" : "Thông tin", status: item.priority === "high" ? "Cần xử lý" : "Theo dõi" })),
   ].slice(0, 4);
 
   return <>
@@ -451,7 +456,7 @@ function Overview({ apps, summaryMap, devices, pendingDevices, workItems, highAl
       <button data-tone="teal" onClick={() => switchView("applications")}><i>◇</i><div><small>Tổng ứng dụng</small><strong>{activeApps.length}</strong><em>Ứng dụng đang quản lý</em></div><b>›</b></button>
       <button data-tone="gold" onClick={() => switchView("devices")}><i>▣</i><div><small>Thiết bị mới chờ duyệt</small><strong>{pendingDevices.length}</strong><em>Thiết bị cần cấp quyền</em></div><b>›</b></button>
       <button data-tone="red" onClick={() => switchView("alerts")}><i>△</i><div><small>Cảnh báo hôm nay</small><strong>{highAlerts}</strong><em>{highAlerts ? "Có cảnh báo cần kiểm tra" : "Không có cảnh báo cao"}</em></div><b>›</b></button>
-      <button data-tone="blue" onClick={() => switchView("approvals")}><i>▤</i><div><small>Ca kiểm duyệt cần xử lý</small><strong>{pendingDevices.length + workItems.length}</strong><em>Yêu cầu đang chờ xử lý</em></div><b>›</b></button>
+      <button data-tone="blue" onClick={() => switchView("approvals")}><i>▤</i><div><small>Ca kiểm duyệt cần xử lý</small><strong>{approvalDevices.length}</strong><em>Yêu cầu đang chờ xử lý</em></div><b>›</b></button>
     </section>
 
     <section className="amv2-overview-grid">
@@ -468,8 +473,8 @@ function Overview({ apps, summaryMap, devices, pendingDevices, workItems, highAl
   </>;
 }
 
-function ApprovalView({ devices, workItems, actionBusy, manageDevice }: { devices: OperationsDevice[]; workItems: OperationsWorkItem[]; actionBusy: string; manageDevice: (device: OperationsDevice, operation: "approve" | "remove") => Promise<void> }) {
-  return <section className="amv2-page-panel"><div className="amv2-view-table approval"><div className="head"><span>Ứng dụng</span><span>Loại yêu cầu</span><span>Thiết bị / người dùng</span><span>Trạng thái</span><span>Thao tác</span></div>{devices.map((device) => { const rowBusy = actionBusy === `${device.appId}:${device.deviceId}`; return <div className="row" key={`${device.appId}:${device.deviceId}`}><AppCell appId={device.appId} name={device.appName}/><span>{device.status === "pending" ? "Duyệt thiết bị" : "Xác minh"}</span><div><strong>{device.userLabel}</strong><small>{device.deviceCode}</small></div><b>{device.status === "pending" ? "Chờ duyệt" : "Cần xử lý"}</b><div>{device.canApprove ? <button disabled={rowBusy} onClick={() => void manageDevice(device, "approve")}>{device.appId === "boi-ech" ? "Phân quyền" : "Duyệt"}</button> : null}{device.canRemove ? <button data-danger="true" disabled={rowBusy} onClick={() => void manageDevice(device, "remove")}>{device.appId === "boi-ech" ? "Từ chối" : "Khóa"}</button> : null}</div></div>; })}{workItems.map((item) => <div className="row" key={item.id}><AppCell appId={item.appId} name={item.appName}/><span>{item.kind === "connection" ? "Kết nối" : item.kind === "environment" ? "Môi trường" : "Thiết bị"}</span><div><strong>{item.title}</strong><small>{item.detail}</small></div><b>{item.priority === "high" ? "Cần xử lý" : "Cần xem"}</b><Link href={item.href}>Xử lý</Link></div>)}{!devices.length && !workItems.length ? <div className="amv2-empty"><strong>Không có yêu cầu cần xử lý.</strong></div> : null}</div></section>;
+function ApprovalView({ devices, actionBusy, manageDevice }: { devices: OperationsDevice[]; actionBusy: string; manageDevice: (device: OperationsDevice, operation: "approve" | "remove") => Promise<void> }) {
+  return <section className="amv2-page-panel"><div className="amv2-view-table approval"><div className="head"><span>Ứng dụng</span><span>Loại yêu cầu</span><span>Thiết bị / người dùng</span><span>Trạng thái</span><span>Thao tác</span></div>{devices.map((device) => { const rowBusy = actionBusy === `${device.appId}:${device.deviceId}`; return <div className="row" key={`${device.appId}:${device.deviceId}`}><AppCell appId={device.appId} name={device.appName}/><span>{device.status === "pending" ? "Duyệt thiết bị" : "Xác minh môi trường"}</span><div><strong>{device.userLabel}</strong><small>{device.deviceCode}</small></div><b>{device.status === "pending" ? "Chờ duyệt" : "Cần xử lý"}</b><div>{device.canApprove ? <button disabled={rowBusy} onClick={() => void manageDevice(device, "approve")}>{device.appId === "boi-ech" ? "Phân quyền" : "Duyệt"}</button> : null}{device.canRemove ? <button data-danger="true" disabled={rowBusy} onClick={() => void manageDevice(device, "remove")}>{device.appId === "boi-ech" ? "Xóa" : "Khóa"}</button> : null}</div></div>; })}{!devices.length ? <div className="amv2-empty"><strong>Không có yêu cầu cần xử lý.</strong></div> : null}</div></section>;
 }
 
 function ApplicationsView({ apps, summaryMap, devices, webBusy, launchWeb }: { apps: ApplicationConfig[]; summaryMap: Map<string, OperationsSummary>; devices: OperationsDevice[]; webBusy: string; launchWeb: (appId: string) => Promise<void> }) {
@@ -477,7 +482,7 @@ function ApplicationsView({ apps, summaryMap, devices, webBusy, launchWeb }: { a
 }
 
 function DevicesView({ devices, actionBusy, manageDevice }: { devices: OperationsDevice[]; actionBusy: string; manageDevice: (device: OperationsDevice, operation: "approve" | "remove") => Promise<void> }) {
-  return <section className="amv2-page-panel"><div className="amv2-view-table devices"><div className="head"><span>Ứng dụng</span><span>Thiết bị</span><span>Người dùng</span><span>Trạng thái</span><span>Hoạt động</span><span>Thao tác</span></div>{devices.map((device) => { const rowBusy = actionBusy === `${device.appId}:${device.deviceId}`; return <div className="row" key={`${device.appId}:${device.deviceId}`}><AppCell appId={device.appId} name={device.appName}/><div><strong>{deviceKind(device)}</strong><small>{device.deviceCode}</small></div><span>{device.userLabel}</span><b>{device.status === "approved" ? "Đã duyệt" : device.status === "pending" ? "Chờ duyệt" : device.status === "blocked" ? "Đã khóa" : "Chưa rõ"}</b><span>{device.active ? "● Online" : relativeTime(device.lastSeenAt)}</span><div>{device.canApprove && device.status === "pending" ? <button disabled={rowBusy} onClick={() => void manageDevice(device, "approve")}>Duyệt</button> : null}{device.canRemove ? <button data-danger="true" disabled={rowBusy} onClick={() => void manageDevice(device, "remove")}>{device.appId === "boi-ech" ? "Loại bỏ" : "Khóa"}</button> : null}<Link href={device.href}>Quản trị</Link></div></div>; })}{!devices.length ? <div className="amv2-empty"><strong>Không tìm thấy thiết bị phù hợp.</strong></div> : null}</div></section>;
+  return <section className="amv2-page-panel"><div className="amv2-view-table devices"><div className="head"><span>Ứng dụng</span><span>Thiết bị</span><span>Người dùng</span><span>Trạng thái</span><span>Hoạt động</span><span>Thao tác</span></div>{devices.map((device) => { const rowBusy = actionBusy === `${device.appId}:${device.deviceId}`; return <div className="row" key={`${device.appId}:${device.deviceId}`}><AppCell appId={device.appId} name={device.appName}/><div><strong>{deviceKind(device)}</strong><small>{device.deviceCode}</small></div><span>{device.userLabel}</span><b>{device.status === "approved" ? "Đã duyệt" : device.status === "pending" ? "Chờ duyệt" : device.status === "blocked" ? "Đã khóa" : "Chưa rõ"}</b><span>{device.active ? "● Online" : relativeTime(device.lastSeenAt)}</span><div>{device.canApprove && device.status === "pending" ? <button disabled={rowBusy} onClick={() => void manageDevice(device, "approve")}>{device.appId === "boi-ech" ? "Phân quyền" : "Duyệt"}</button> : null}{device.canRemove ? <button data-danger="true" disabled={rowBusy} onClick={() => void manageDevice(device, "remove")}>{device.appId === "boi-ech" ? "Xóa" : "Khóa"}</button> : null}<Link href={device.href}>Quản trị</Link></div></div>; })}{!devices.length ? <div className="amv2-empty"><strong>Không tìm thấy thiết bị phù hợp.</strong></div> : null}</div></section>;
 }
 
 function AlertsView({ apps, summaryMap, workItems, lastUpdated }: { apps: ApplicationConfig[]; summaryMap: Map<string, OperationsSummary>; workItems: OperationsWorkItem[]; lastUpdated: string }) {
