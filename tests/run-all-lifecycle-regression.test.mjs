@@ -26,3 +26,10 @@ test("run:all only declares controlled readiness on successful HTTP responses", 
   assert.match(source, /if \(response\.ok\) return response;/);
   assert.doesNotMatch(source, /if \(response\.status < 500\) return response;/);
 });
+
+
+test("run:all preserves a prior failure exit code when core shutdown follows", () => {
+  assert.match(source, /const pendingExitCode = typeof process\.exitCode === "number" \? process\.exitCode : 0;/);
+  assert.match(source, /process\.exit\(pendingExitCode !== 0 \? pendingExitCode : \(code \?\? 0\)\);/);
+  assert.doesNotMatch(source, /process\.exit\(code \?\? 0\);/);
+});
