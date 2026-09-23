@@ -140,10 +140,16 @@ function assertSnapshot(payload: Record<string, unknown>, liveStatus: DeviceStat
 }
 
 async function handleBoi(actor: ControlDeviceState, payload: Record<string, unknown>, operation: "approve" | "remove", deviceId: string) {
-  if (operation === "approve" && actor.role !== "publisher" && actor.role !== "owner") {
-    return json({ error: "Vai trò hiện tại không được duyệt thiết bị Bơi ếch.", code: "PUBLISHER_REQUIRED" }, 403);
+  if (operation === "approve") {
+    if (actor.role !== "publisher" && actor.role !== "owner") {
+      return json({ error: "Vai trò hiện tại không được phân quyền Bơi ếch.", code: "PUBLISHER_REQUIRED" }, 403);
+    }
+    return json({
+      error: "Thiết bị Bơi ếch phải được xử lý tại Thanh toán & Quyền để chọn rõ Miễn phí hoặc Trả phí; không duyệt mặc định thành miễn phí.",
+      code: "BOI_ACCESS_FLOW_REQUIRED",
+    }, 409);
   }
-  if (operation === "remove" && actor.role !== "owner") {
+  if (actor.role !== "owner") {
     return json({ error: "Chỉ Chủ hệ thống được xóa thiết bị Bơi ếch.", code: "OWNER_REQUIRED" }, 403);
   }
 
@@ -161,15 +167,6 @@ async function handleBoi(actor: ControlDeviceState, payload: Record<string, unkn
   const liveStatus = normalizedStatus(current.status);
   const conflict = assertSnapshot(payload, liveStatus, "Bơi ếch");
   if (conflict) return conflict;
-
-  if (operation === "approve") {
-    if (liveStatus !== "pending") return json({ error: "Thiết bị Bơi ếch không còn ở trạng thái chờ duyệt.", code: "DEVICE_STATE_CONFLICT" }, 409);
-    await bridgeJson(bridge, "/api/control/overview", { method: "POST", body: { action: "grant-free", deviceId: liveDeviceId } });
-    const after = await bridgeJson(bridge, "/api/control/overview?activityDays=0");
-    const updated = rowByDeviceId(after, liveDeviceId);
-    if (!updated || normalizedStatus(updated.status) === "pending") return json({ error: "Bơi ếch chưa xác nhận quyền truy cập sau thao tác duyệt.", code: "DEVICE_COMMAND_READBACK_MISMATCH" }, 502);
-    return json({ ok: true, verified: true, verifiedStatus: normalizedStatus(updated.status), approvedDeviceId: liveDeviceId, reboundFromDeviceId: resolved.rebound ? deviceId : undefined });
-  }
 
   if (liveStatus === "blocked" || liveStatus === "unknown") return json({ error: "Thiết bị Bơi ếch đã bị khóa hoặc trạng thái không xác định.", code: "DEVICE_STATE_CONFLICT" }, 409);
 
