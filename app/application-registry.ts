@@ -95,7 +95,7 @@ export const applicationRegistry: readonly ApplicationConfig[] = [
   {
     id: "bauman-master-ai", name: "Bauman Master AI", shortName: "Bauman Hub", href: "/apps/bauman-master-ai", initials: "BM", category: "Học thuật", tier: "client", status: "warning", contractState: "migrating", repository: "BlueDragon33/Bauman-master-ai-system",
     scope: "Client lớn cấp 1 đóng vai trò Bauman Hub; Bauman sở hữu runtime học, Device Gate, registry BM-, session, audit và Control Service riêng; các site/môn cấp 2 vẫn nằm dưới Hub.",
-    contractNote: "Bauman Control v4, registry BM-, P-256 Device Gate, session/revoke, audit và idempotent device commands đã được triển khai và đã qua local E2E. Khu quản trị thiết bị thật đã nối vào Application Management; giữ trạng thái migrating cho tới khi origin runtime + Control Service production được deploy và handshake live được xác minh.",
+    contractNote: "Bauman Control, registry BM-, P-256 Device Gate, session/revoke, audit và idempotent device commands đã được triển khai và đã qua local E2E. Khu quản trị thiết bị thật đã nối vào Application Management; giữ trạng thái migrating cho tới khi origin runtime + Control Service production được deploy và handshake live được xác minh.",
     devicePolicy: "Registry BM- thuộc Bauman · Device Gate P-256 bắt buộc trên runtime · quyền truy cập, session và audit không được lưu trong DB Trung tâm.",
     deviceExperiences: standardDeviceExperiences, childClients: baumanChildren,
     capabilities: ["Lộ trình & môn học", "Sub-client môn học", "Thiết bị BM-", "Duyệt/khóa truy cập", "P-256 Device Gate", "Session & thu hồi", "Audit Bauman", "Theo dõi trạng thái"],
