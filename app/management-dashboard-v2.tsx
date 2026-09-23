@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import AccessManagement from "./access-management";
 import { useEffect, useMemo, useState } from "react";
 import { applicationRegistry, type ApplicationConfig } from "./application-registry";
 import {
@@ -19,7 +20,7 @@ import {
   type OperationsWorkItem,
 } from "./admin-device-client";
 
-type View = "overview" | "approvals" | "applications" | "devices" | "alerts" | "audit" | "settings";
+type View = "overview" | "approvals" | "applications" | "devices" | "access" | "alerts" | "audit" | "settings";
 type ControlDeviceOperation = "approve" | "block" | "deactivate-member" | "delete-member";
 
 // The registry is the single source of truth for what belongs to the central
@@ -27,13 +28,14 @@ type ControlDeviceOperation = "approve" | "block" | "deactivate-member" | "delet
 // doing so can leave a real client connected on the server but invisible in UI.
 const activeApps = applicationRegistry;
 const activeAppSet = new Set<string>(activeApps.map((app) => app.id));
-const validViews: readonly View[] = ["overview", "approvals", "applications", "devices", "alerts", "audit", "settings"];
+const validViews: readonly View[] = ["overview", "approvals", "applications", "devices", "access", "alerts", "audit", "settings"];
 
 const navItems: Array<{ view: View; label: string; icon: string }> = [
   { view: "overview", label: "Tổng quan", icon: "⌂" },
   { view: "approvals", label: "Hộp việc", icon: "▱" },
   { view: "applications", label: "Ứng dụng", icon: "▦" },
   { view: "devices", label: "Thiết bị mới", icon: "▣" },
+  { view: "access", label: "Thanh toán & Quyền", icon: "▤" },
   { view: "alerts", label: "Cảnh báo", icon: "△" },
   { view: "audit", label: "Nhật ký", icon: "≣" },
   { view: "settings", label: "Cấu hình", icon: "⚙" },
@@ -47,6 +49,7 @@ const viewTitles: Record<View, { title: string; subtitle: string }> = {
   approvals: { title: "Hộp việc", subtitle: "Các yêu cầu và sự kiện cần xử lý được gom về một hàng đợi thống nhất." },
   applications: { title: "Ứng dụng", subtitle: "Quản trị client và mở đúng website sử dụng của từng ứng dụng." },
   devices: { title: "Thiết bị mới", subtitle: "Duyệt, khóa hoặc loại bỏ thiết bị bằng dữ liệu registry thật của từng client." },
+  access: { title: "Thanh toán & Quyền", subtitle: "Quản trị trạng thái thanh toán và quyền bằng backend thật; không tạo quyền giả cho client chưa công bố contract." },
   alerts: { title: "Cảnh báo", subtitle: "Theo dõi mất kết nối, thay đổi môi trường và contract chưa hoàn tất." },
   audit: { title: "Nhật ký", subtitle: "Theo dõi lịch sử thao tác quản trị và các sự kiện bảo mật gần nhất." },
   settings: { title: "Cấu hình", subtitle: "Quản lý thiết bị quản trị Trung tâm và các nguyên tắc vận hành." },
@@ -232,6 +235,7 @@ export default function ManagementDashboardV2({ user }: { user: { displayName: s
         deviceId: device.deviceId,
         deviceCode: device.deviceCode,
         expectedStatus: device.status,
+        registryInstanceId: device.registryInstanceId ?? undefined,
       });
       await refreshOperations(true);
       setNotice(result.code === "STALE_DEVICE_REMOVED"
@@ -391,6 +395,7 @@ export default function ManagementDashboardV2({ user }: { user: { displayName: s
           {view === "approvals" ? <ApprovalView devices={filteredDevices.filter((device) => device.status === "pending" || device.attention !== "none")} workItems={filteredWork} actionBusy={actionBusy} manageDevice={manageDevice}/> : null}
           {view === "applications" ? <ApplicationsView apps={filteredApps} summaryMap={summaryMap} devices={devices} webBusy={webBusy} launchWeb={launchWeb}/> : null}
           {view === "devices" ? <DevicesView devices={filteredDevices} actionBusy={actionBusy} manageDevice={manageDevice}/> : null}
+          {view === "access" ? <AccessManagement query={searchValue}/> : null}
           {view === "alerts" ? <AlertsView apps={filteredApps} summaryMap={summaryMap} workItems={filteredWork} lastUpdated={lastUpdated}/> : null}
           {view === "audit" ? <AuditView center={center}/> : null}
           {view === "settings" ? <SettingsView center={center} access={access} actionBusy={actionBusy} manageControlDevice={manageControlDevice}/> : null}
