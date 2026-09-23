@@ -309,7 +309,7 @@ export default function ManagementDashboardV2({ user }: { user: { displayName: s
   }
 
   async function enableAutoApproval() {
-    const supported = operations?.settings.autoApproveSupportedAppIds ?? [];
+    const supported = (operations?.settings.autoApproveSupportedAppIds ?? []).filter((id) => id !== "boi-ech");
     if (!supported.length) {
       setNotice("Chưa có ứng dụng nào hỗ trợ duyệt tự động an toàn.");
       return;
