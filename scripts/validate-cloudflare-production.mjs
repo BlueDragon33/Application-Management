@@ -62,10 +62,16 @@ const preview = String(process.env.APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID
 if (production && preview && production === preview) fail("Production D1 must not match preview D1.");
 
 const auth = fs.readFileSync("worker/production-auth.ts", "utf8");
+const iterationMatch = auth.match(/const PASSWORD_ITERATIONS = ([0-9_]+);/);
+if (!iterationMatch) fail("Production auth must pin PASSWORD_ITERATIONS explicitly.");
+const iterationCount = Number(iterationMatch[1].replaceAll("_", ""));
+if (!Number.isInteger(iterationCount) || iterationCount < 1 || iterationCount > 100000) {
+  fail(`Production PBKDF2 iterations must stay within the Cloudflare Workers ceiling of 100000; got ${iterationCount}.`);
+}
 for (const token of [
   "__Host-am_prod_session",
   "PBKDF2",
-  "310_000",
+  "100_000",
   "SameSite=Strict",
   "HttpOnly",
   "MAX_FAILED_ATTEMPTS = 5",
