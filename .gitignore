@@ -31,8 +31,9 @@ yarn-error.log*
 .env*
 .dev.vars
 
-# account-specific Cloudflare deployment file
+# account-specific Cloudflare deployment files
 wrangler.cloudflare.jsonc
+wrangler.production.jsonc
 
 # vercel
 .vercel
