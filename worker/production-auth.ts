@@ -224,9 +224,10 @@ function redirect(path: string, cookie?: string) {
 }
 
 async function createSession(env: ProductionAuthEnv, email: string) {
+  const now = Math.floor(Date.now() / 1000);
+  await env.DB.prepare("DELETE FROM control_sessions WHERE expires_at<=?1").bind(now).run();
   const token = base64Url(crypto.getRandomValues(new Uint8Array(32)));
   const sessionHash = await sha256(token);
-  const now = Math.floor(Date.now() / 1000);
   const expiresAt = now + SESSION_TTL_SECONDS;
   await env.DB.prepare(
     "INSERT INTO control_sessions (session_id_hash,email,expires_at,created_at,last_seen_at) VALUES (?1,?2,?3,?4,?4)",
@@ -283,10 +284,11 @@ export async function productionIdentity(request: Request, env: ProductionAuthEn
   const sessionHash = await sha256(token);
   const now = Math.floor(Date.now() / 1000);
   const row = await env.DB.prepare(
-    "SELECT s.email,s.expires_at,a.display_name,a.must_change_password,a.status FROM control_sessions s JOIN control_accounts a ON a.email=s.email WHERE s.session_id_hash=?1 LIMIT 1",
+    "SELECT s.email,s.expires_at,s.last_seen_at,a.display_name,a.must_change_password,a.status FROM control_sessions s JOIN control_accounts a ON a.email=s.email WHERE s.session_id_hash=?1 LIMIT 1",
   ).bind(sessionHash).first<{
     email: string;
     expires_at: number;
+    last_seen_at: number;
     display_name: string | null;
     must_change_password: number;
     status: string;
@@ -295,7 +297,9 @@ export async function productionIdentity(request: Request, env: ProductionAuthEn
     if (row) await env.DB.prepare("DELETE FROM control_sessions WHERE session_id_hash=?1").bind(sessionHash).run();
     return null;
   }
-  await env.DB.prepare("UPDATE control_sessions SET last_seen_at=?2 WHERE session_id_hash=?1").bind(sessionHash, now).run();
+  if (now - row.last_seen_at >= 300) {
+    await env.DB.prepare("UPDATE control_sessions SET last_seen_at=?2 WHERE session_id_hash=?1").bind(sessionHash, now).run();
+  }
   return {
     email: row.email,
     displayName: row.display_name?.trim() || row.email.split("@")[0] || "Administrator",
