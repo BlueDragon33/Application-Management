@@ -66,13 +66,24 @@ const auditLabels: Record<string, string> = {
 const viewTitles: Record<CenterView, { title: string; description: string }> = {
   overview: { title: "Bảng điều phối quản trị ứng dụng", description: "Kiểm soát tập trung các client độc lập, cảnh báo thiết bị mới và điều phối kiểm duyệt theo từng ứng dụng." },
   inbox: { title: "Yêu cầu chờ duyệt", description: "Tập trung các yêu cầu cần xử lý từ từng ứng dụng, hỗ trợ tự động duyệt hoặc tự động từ chối theo policy của từng client." },
-  applications: { title: "Ứng dụng đang quản lý", description: "Theo dõi trạng thái kết nối, hàng đợi và thiết bị online của từng client cấp 1." },
+  applications: { title: "Ứng dụng đang quản lý", description: "Theo dõi client cấp 1 và các Tool nội bộ từ cùng một khu vực; Tool không tham gia registry thiết bị hoặc contract backend." },
   "client-devices": { title: "Thiết bị mới theo ứng dụng", description: "Thiết bị được đọc từ registry của client sở hữu; Trung tâm không sao chép dữ liệu thiết bị." },
   alerts: { title: "Cảnh báo vận hành", description: "Ưu tiên mất kết nối, thay đổi môi trường thiết bị và sự kiện cần can thiệp nhanh." },
   devices: { title: "Thiết bị quản trị Trung tâm", description: "Chỉ quản lý thiết bị QT của Application Management, tách khỏi thiết bị người dùng trong các client." },
   audit: { title: "Nhật ký hệ thống", description: "Theo dõi thay đổi quyền và bảo mật của control-plane; audit nghiệp vụ vẫn thuộc từng client." },
   settings: { title: "Cấu hình & ranh giới", description: "Kiểm tra topology, contract và nguyên tắc sở hữu dữ liệu trước khi bật thêm năng lực quản trị." },
 };
+
+const systemTools = [
+  {
+    id: "tool-secret-generator",
+    name: "Tạo Key / Secret",
+    href: "/tools/secret-generator",
+    initials: "KEY",
+    category: "Tool",
+    description: "Sinh chuỗi ngẫu nhiên, mật khẩu và secret bằng Web Crypto; chạy trong trình duyệt và không lưu dữ liệu.",
+  },
+] as const;
 
 function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
   const common = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
@@ -354,6 +365,10 @@ function ApplicationTable({ summaries, loading, search, appFilter, launchWeb, bu
     const haystack = `${application.name} ${application.shortName} ${application.repository} ${domain.group} ${domain.boundary} ${summary?.note ?? ""}`.toLowerCase();
     return matchesApp(application.id, appFilter) && (!normalized || haystack.includes(normalized));
   });
+  const tools = systemTools.filter((tool) => {
+    const haystack = `${tool.name} ${tool.category} ${tool.description}`.toLowerCase();
+    return matchesApp(tool.id, appFilter) && (!normalized || haystack.includes(normalized));
+  });
   return <div className={styles.applicationTable}>
     <div className={styles.applicationHead}><span>Ứng dụng</span><span>Nhóm nghiệp vụ</span><span>Việc chờ xử lý</span><span>Thiết bị online</span><span>Trạng thái</span><span>Truy cập web</span><span>Thao tác</span></div>
     {apps.map((application) => {
@@ -370,7 +385,14 @@ function ApplicationTable({ summaries, loading, search, appFilter, launchWeb, bu
         <StatusDot state={connection}/>{canOpenWeb ? summary?.managedWebLaunch ? <a href={summary.webHref ?? "#"} target="_blank" rel="noopener noreferrer" aria-disabled={launchBusy} className={styles.directAccess} onClick={(event) => { event.preventDefault(); if (!launchBusy) launchWeb(application.id); }}>{launchBusy ? "Đang cấp quyền…" : "Truy cập web ↗"}</a> : <a href={summary?.webHref ?? "#"} target="_blank" rel="noopener noreferrer" className={styles.directAccess}>Truy cập web ↗</a> : <span className={styles.contractPending}>Chờ contract</span>}<Link href={application.href} className={styles.manageButton}>Vào quản trị →</Link>
       </article>;
     })}
-    {!apps.length ? <div className={styles.emptyState}>Không tìm thấy ứng dụng phù hợp.</div> : null}
+    {tools.map((tool) => <article key={tool.id} className={styles.applicationRow} data-kind="tool">
+      <div className={styles.appCell}><AppBadge appId={tool.id} initials={tool.initials}/><div><strong>{tool.name}</strong><small>{tool.description}</small></div></div>
+      <span>{tool.category}</span><strong>—</strong><strong>—</strong>
+      <span className={styles.connectionState} data-state="connected"><i/>Sẵn sàng</span>
+      <Link href={tool.href} className={styles.directAccess}>Mở Tool ↗</Link>
+      <Link href={tool.href} className={styles.manageButton}>Mở →</Link>
+    </article>)}
+    {!apps.length && !tools.length ? <div className={styles.emptyState}>Không tìm thấy ứng dụng hoặc Tool phù hợp.</div> : null}
   </div>;
 }
 
@@ -655,10 +677,10 @@ export default function ApplicationHub({ user }: { user: { displayName: string; 
     <section className={styles.main}>
       <header className={styles.topbar}>
         <label className={styles.searchBox}><Icon name="search" size={22}/><span className={styles.srOnly}>Tìm kiếm toàn hệ thống</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm theo ứng dụng, thiết bị, người dùng…"/></label>
-        <label className={styles.quickFilter}><Icon name="filter" size={19}/><span className={styles.srOnly}>Lọc nhanh theo ứng dụng</span><select value={appFilter} onChange={(event) => setAppFilter(event.target.value)}><option value="all">Bộ lọc nhanh</option>{applicationRegistry.map((application) => <option key={application.id} value={application.id}>{application.shortName}</option>)}</select></label>
+        <label className={styles.quickFilter}><Icon name="filter" size={19}/><span className={styles.srOnly}>Lọc nhanh theo ứng dụng</span><select value={appFilter} onChange={(event) => setAppFilter(event.target.value)}><option value="all">Bộ lọc nhanh</option>{applicationRegistry.map((application) => <option key={application.id} value={application.id}>{application.shortName}</option>)}{systemTools.map((tool) => <option key={tool.id} value={tool.id}>{tool.category} · {tool.name}</option>)}</select></label>
         <button className={styles.appearanceButton} onClick={() => setAppearanceOpen(true)}><span>Aa</span> Giao diện</button>
         <button className={styles.bell} onClick={() => switchView("alerts")} aria-label={`Mở cảnh báo${notificationCount ? `, ${notificationCount} thông báo` : ""}`}><Icon name="bell" size={23}/>{notificationCount > 0 ? <b>{notificationCount}</b> : null}</button>
-        <details className={styles.userMenu}><summary><span>{user.displayName.slice(0, 1).toUpperCase()}</span><div><strong>{user.displayName}</strong><small>{roleLabels[role]}</small></div><Icon name="chevron" size={15}/></summary><div className={styles.userPopover}><strong>{user.displayName}</strong><small>{user.email}</small><hr/><button onClick={() => switchView("devices")} disabled={!canSeeAdminDevices}>Thiết bị quản trị</button><Link href="/tools/secret-generator">Tạo Key / Secret</Link><a href="/signout-with-chatgpt?return_to=%2F">Đăng xuất ChatGPT</a></div></details>
+        <details className={styles.userMenu}><summary><span>{user.displayName.slice(0, 1).toUpperCase()}</span><div><strong>{user.displayName}</strong><small>{roleLabels[role]}</small></div><Icon name="chevron" size={15}/></summary><div className={styles.userPopover}><strong>{user.displayName}</strong><small>{user.email}</small><hr/><button onClick={() => switchView("devices")} disabled={!canSeeAdminDevices}>Thiết bị quản trị</button><a href="/signout-with-chatgpt?return_to=%2F">Đăng xuất ChatGPT</a></div></details>
       </header>
 
       {appearanceOpen ? <AppearanceDialog open value={appearance} close={() => setAppearanceOpen(false)} change={setAppearance}/> : null}
@@ -671,7 +693,7 @@ export default function ApplicationHub({ user }: { user: { displayName: string; 
 
         {view === "overview" ? <>
           <section className={styles.metricGrid} aria-label="Chỉ số vận hành">
-            <button onClick={() => switchView("applications")} data-tone="teal"><i><Icon name="cube" size={29}/></i><div><span>Tổng ứng dụng</span><strong>{applicationRegistry.length}</strong><small>Client đang quản lý</small></div><Icon name="chevron" size={20}/></button>
+            <button onClick={() => switchView("applications")} data-tone="teal"><i><Icon name="cube" size={29}/></i><div><span>Tổng ứng dụng</span><strong>{applicationRegistry.length + systemTools.length}</strong><small>Ứng dụng & Tool</small></div><Icon name="chevron" size={20}/></button>
             <button onClick={() => switchView("client-devices")} data-tone="amber"><i><Icon name="device" size={28}/></i><div><span>Thiết bị mới chờ duyệt</span><strong>{operationsBusy && !operations ? "…" : operational?.pendingDevices ?? "—"}</strong><small>Registry của từng client</small></div><Icon name="chevron" size={20}/></button>
             <button onClick={() => switchView("alerts")} data-tone="red"><i><Icon name="alert" size={29}/></i><div><span>Cảnh báo hôm nay</span><strong>{operationsBusy && !operations ? "…" : operational?.alerts ?? "—"}</strong><small>{highAlerts.length ? `${highAlerts.length} ưu tiên cao` : "Không có cảnh báo cao"}</small></div><Icon name="chevron" size={20}/></button>
             <button onClick={() => switchView("inbox")} data-tone="gold"><i><Icon name="file" size={28}/></i><div><span>Yêu cầu chờ duyệt</span><strong>{operationsBusy && !operations ? "…" : operational?.workItems ?? "—"}</strong><small>Gom theo từng ứng dụng</small></div><Icon name="chevron" size={20}/></button>
@@ -680,7 +702,7 @@ export default function ApplicationHub({ user }: { user: { displayName: string; 
           <section className={styles.dashboardGrid}>
             <div className={styles.panel}><SectionHeader icon="inbox" title="Yêu cầu chờ duyệt" meta={operational ? `${operational.workItems}` : "…"} action={<button onClick={() => switchView("inbox")}>Xem tất cả <span>→</span></button>}/><WorkTable items={workItems} loading={operationsBusy && !operations} search={search} appFilter={appFilter} limit={4}/></div>
             <div className={styles.panel}><SectionHeader icon="device" title="Thiết bị mới theo ứng dụng" meta={operational ? `${operational.pendingDevices}` : "…"} action={<button onClick={() => switchView("client-devices")}>Xem tất cả <span>→</span></button>}/><DeviceFilters appFilter={appFilter} setAppFilter={setAppFilter} deviceFilter={deviceFilter} setDeviceFilter={setDeviceFilter} timeFilter={timeFilter} setTimeFilter={setTimeFilter}/><ClientDeviceTable devices={devices} loading={operationsBusy && !operations} appFilter={appFilter} deviceFilter={deviceFilter} timeFilter={timeFilter} search={search} limit={4}/></div>
-            <div className={`${styles.panel} ${styles.applicationPanel}`}><SectionHeader icon="cube" title="Ứng dụng đang quản lý" meta={`${applicationRegistry.length} client cấp 1`} action={<button onClick={() => switchView("applications")}>Quản lý ứng dụng <span>→</span></button>}/><ApplicationTable summaries={operations?.summaries ?? []} loading={operationsBusy && !operations} search={search} appFilter="all" launchWeb={(appId) => void launchClientWeb(appId)} busyLaunch={webLaunchBusy}/></div>
+            <div className={`${styles.panel} ${styles.applicationPanel}`}><SectionHeader icon="cube" title="Ứng dụng đang quản lý" meta={`${applicationRegistry.length} client + ${systemTools.length} Tool`} action={<button onClick={() => switchView("applications")}>Quản lý ứng dụng <span>→</span></button>}/><ApplicationTable summaries={operations?.summaries ?? []} loading={operationsBusy && !operations} search={search} appFilter="all" launchWeb={(appId) => void launchClientWeb(appId)} busyLaunch={webLaunchBusy}/></div>
             <div className={styles.panel}><SectionHeader icon="bell" title="Cảnh báo nhanh" meta={highAlerts.length ? `${highAlerts.length}` : undefined} action={<button onClick={() => switchView("alerts")}>Xem tất cả <span>→</span></button>}/><div className={styles.alertTiles}>
               <button onClick={() => switchView("client-devices")} data-tone="amber"><span><Icon name="device" size={24}/></span><div><small>Thiết bị mới</small><strong>{operational?.pendingDevices ?? "—"}</strong><em>Chờ duyệt</em></div></button>
               <button onClick={() => switchView("alerts")} data-tone="red"><span><Icon name="wifi" size={24}/></span><div><small>App mất kết nối</small><strong>{operations ? unavailableCount : "—"}</strong><em>Cần kiểm tra ngay</em></div></button>
@@ -709,7 +731,7 @@ export default function ApplicationHub({ user }: { user: { displayName: string; 
         {view === "audit" && !canSeeAudit ? <section className={styles.panel}><SectionHeader icon="audit" title="Nhật ký bảo mật control-plane"/><div className={styles.emptyState}>Vai trò hiện tại không có quyền xem nhật ký hệ thống.</div></section> : null}
 
         {view === "settings" ? <section className={styles.settingsGrid}>
-          <div className={styles.panel}><SectionHeader icon="settings" title="Topology bắt buộc"/><div className={styles.topologyFlow}><div><span>LEVEL 0</span><strong>Application Management</strong><small>QT · role · central audit</small></div><b>→</b><div><span>LEVEL 1</span><strong>Client độc lập</strong><small>BE · SK · HN · BM · GU</small></div><b>→</b><div><span>ENDPOINT</span><strong>Thiết bị client</strong><small>Registry thuộc client</small></div></div>{canSeeAdminDevices ? <button className={styles.settingsAction} onClick={() => switchView("devices")}><Icon name="shield" size={18}/> Quản lý thiết bị QT <span>→</span></button> : null}<Link className={styles.settingsAction} href="/tools/secret-generator"><Icon name="file" size={18}/> Tạo Key / Secret <span>→</span></Link></div>
+          <div className={styles.panel}><SectionHeader icon="settings" title="Topology bắt buộc"/><div className={styles.topologyFlow}><div><span>LEVEL 0</span><strong>Application Management</strong><small>QT · role · central audit</small></div><b>→</b><div><span>LEVEL 1</span><strong>Client độc lập</strong><small>BE · SK · HN · BM · GU</small></div><b>→</b><div><span>ENDPOINT</span><strong>Thiết bị client</strong><small>Registry thuộc client</small></div></div>{canSeeAdminDevices ? <button className={styles.settingsAction} onClick={() => switchView("devices")}><Icon name="shield" size={18}/> Quản lý thiết bị QT <span>→</span></button> : null}</div>
           <div className={styles.panel}><SectionHeader icon="wifi" title="Contract từng ứng dụng"/><div className={styles.contractList}>{applicationRegistry.map((application) => <article key={application.id}><AppBadge appId={application.id} initials={application.initials}/><div><strong>{application.shortName}</strong><small>{application.repository}</small></div><span data-contract={application.contractState}>{contractLabels[application.contractState]}</span><Link href={application.href}>Quản trị →</Link></article>)}</div></div>
           <div className={`${styles.panel} ${styles.boundaryPanel}`}><SectionHeader icon="shield" title="Ranh giới nghiệp vụ"/><div className={styles.boundaryCards}><article data-client="health"><strong>Sức khỏe Y tế</strong><p>Chỉ kiểm duyệt y tế, quy tắc y khoa, hồ sơ/phiên Health và audit y tế. Không quản trị OCR hoặc ca Hòa nhập Nga.</p></article><article data-client="ru"><strong>Hòa nhập Nga</strong><p>Chỉ quản trị thiết bị HN, OCR thuốc, đối chiếu quy định và audit Nga. Không xử lý hồ sơ y tế tổng quát.</p></article><article data-client="children"><strong>Dữ liệu trẻ em</strong><p>GrowUP giữ dữ liệu trẻ em tại backend riêng theo privacy-first. Application Management chỉ đọc trạng thái contract an toàn.</p></article></div></div>
         </section> : null}

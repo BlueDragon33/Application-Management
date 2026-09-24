@@ -11,7 +11,6 @@ const LOCAL_WEB_TARGETS = [
 ] as const;
 
 const TOOL_LINKS = [
-  { id: "secret-generator", label: "Tạo Key / Secret", href: "/tools/secret-generator" },
   { id: "contract-diagnostics", label: "Chẩn đoán contract", href: "/tools/contract-diagnostics" },
 ] as const;
 

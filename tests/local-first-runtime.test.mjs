@@ -68,11 +68,16 @@ test("Windows launchers invoke npm and npx through cmd.exe for Node 24 compatibi
   assert.ok(systemLauncher.includes('spawnSync(spec.file, spec.args'));
 });
 
-test("secret generator stays reachable from management UI", () => {
-  const route = "/tools/secret-generator";
-  assert.ok(applicationHub.split(route).length - 1 >= 2, "Secret Generator phải có đường vào ở Cấu hình và menu tài khoản");
-  assert.match(applicationHub, />Tạo Key \/ Secret<\/Link>/);
-  assert.match(applicationHub, /className=\{styles\.settingsAction\} href="\/tools\/secret-generator"/);
+test("secret generator is classified as Tool in Applications, not Settings", () => {
+  assert.match(applicationHub, /id: "tool-secret-generator"/);
+  assert.match(applicationHub, /category: "Tool"/);
+  assert.match(applicationHub, /href: "\/tools\/secret-generator"/);
+  assert.match(applicationHub, />Mở Tool ↗<\/Link>/);
+  assert.match(applicationHub, />\{tool\.category\}<\/span>/);
+  assert.match(applicationHub, /systemTools\.map\(\(tool\) => <option/);
+  assert.equal(applicationHub.includes('className={styles.settingsAction} href="/tools/secret-generator"'), false);
+  assert.equal(applicationHub.includes('<Link href="/tools/secret-generator">Tạo Key / Secret</Link>'), false);
+  assert.equal(localQuickAccess.includes('href: "/tools/secret-generator"'), false);
 });
 
 test("management home uses verified local web launcher and compact device labels", () => {
@@ -86,7 +91,6 @@ test("management home uses verified local web launcher and compact device labels
   assert.match(localQuickAccess, /\/api\/local-web-launch\?app=/);
   assert.equal(localQuickAccess.includes("http://127.0.0.1:3001"), false);
   assert.match(localQuickAccess, /Chưa có Web/);
-  assert.match(localQuickAccess, /\/tools\/secret-generator/);
   assert.match(localQuickAccess, /\/tools\/contract-diagnostics/);
 
   assert.match(localWebLaunch, /getChatGPTUser/);
