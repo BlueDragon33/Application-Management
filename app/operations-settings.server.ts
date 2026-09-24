@@ -59,6 +59,8 @@ export async function readAutoApprovalSettings(supportedAppIds: readonly string[
   const autoBlockSupported = new Set<string>();
   const autoBlockEnabled = new Set<string>();
   const pendingBlockAfterHoursByApp: Record<string, number> = {};
+  const freeAccessDaysByApp: Record<string, number> = {};
+  const freeDeviceLimitByApp: Record<string, number> = {};
   const probes = await readClientAutoApprovalStates(effectiveAppIds);
 
   probes.forEach((probe, index) => {
@@ -66,6 +68,12 @@ export async function readAutoApprovalSettings(supportedAppIds: readonly string[
     if (probe.status === "fulfilled") {
       autoApproveSupported.add(appId);
       if (probe.value.enabled) autoApproveEnabled.add(appId);
+      if (appId === "boi-ech") {
+        const days = probe.value.defaultAccessDays;
+        const limit = probe.value.defaultDeviceLimit;
+        if (Number.isInteger(days) && days >= 1 && days <= 365) freeAccessDaysByApp[appId] = days;
+        if (Number.isInteger(limit) && limit >= 1 && limit <= 1_000) freeDeviceLimitByApp[appId] = limit;
+      }
       if (probe.value.autoBlockSupported) {
         autoBlockSupported.add(appId);
         if (probe.value.autoBlockEnabled) autoBlockEnabled.add(appId);
@@ -82,6 +90,8 @@ export async function readAutoApprovalSettings(supportedAppIds: readonly string[
     autoBlockPendingAppIds: effectiveAppIds.filter((id) => autoBlockEnabled.has(id)),
     autoBlockPendingSupportedAppIds: effectiveAppIds.filter((id) => autoBlockSupported.has(id)),
     pendingBlockAfterHoursByApp,
+    freeAccessDaysByApp,
+    freeDeviceLimitByApp,
   };
 }
 

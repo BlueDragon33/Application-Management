@@ -41,9 +41,10 @@ test("returning to the center triggers a read-only operations resync", () => {
 });
 
 test("automatic approval uses only server-advertised supported client ids", () => {
-  assert.match(dashboard, /operations\?\.settings\.autoApproveSupportedAppIds \?\? \[\]/);
-  assert.match(dashboard, /action: "set-auto-approval", appIds: supported/);
-  assert.match(dashboard, /Chưa có ứng dụng nào hỗ trợ duyệt tự động an toàn/);
+  assert.match(dashboard, /new Set\(current\.autoApproveSupportedAppIds\)/);
+  assert.match(dashboard, /selection\.appIds\.some\(\(id\) => !supported\.has\(id\)\)/);
+  assert.match(dashboard, /action: "set-auto-approval", appIds: selection\.appIds/);
+  assert.match(dashboard, /<AutomaticDevicePolicies/);
 });
 
 test("clear-all notifications only dismisses central work items and preserves client source data", () => {

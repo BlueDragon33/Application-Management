@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { applicationRegistry, type ApplicationConfig } from "./application-registry";
 import BoiAccessView from "./boi-access-view";
+import AutomaticDevicePolicies, { type AutomationSelection } from "./automatic-device-policies";
 import {
   centerAdminAction,
   connectAdminCenter,
@@ -138,6 +139,7 @@ export default function ManagementDashboardV2({ user }: { user: { displayName: s
   const [syncError, setSyncError] = useState("");
   const [clock, setClock] = useState<Date | null>(null);
   const [webMenu, setWebMenu] = useState(false);
+  const [autoPolicyOpen, setAutoPolicyOpen] = useState(false);
   const [fontScale, setFontScale] = useState<FontScale>("compact");
 
   async function refreshOperations(silent = false) {
@@ -379,20 +381,46 @@ export default function ManagementDashboardV2({ user }: { user: { displayName: s
     }
   }
 
-  async function enableAutoApproval() {
-    const supported = (operations?.settings.autoApproveSupportedAppIds ?? []).filter((id) => id !== "boi-ech");
-    if (!supported.length) {
-      setNotice("Chưa có ứng dụng nào hỗ trợ duyệt tự động an toàn.");
+  async function saveAutomation(selection: AutomationSelection) {
+    const current = operations?.settings;
+    if (!current) return;
+    const supported = new Set(current.autoApproveSupportedAppIds);
+    const blockSupported = new Set(current.autoBlockPendingSupportedAppIds ?? []);
+    if (selection.appIds.some((id) => !supported.has(id)) || selection.autoBlockAppIds.some((id) => !blockSupported.has(id))) {
+      setNotice("Có ứng dụng chưa công bố contract tự động xử lý.");
       return;
     }
-    if (!window.confirm(`Bật duyệt tự động cho ${supported.map((id) => appFor(id)?.shortName ?? id).join(", ")}?`)) return;
-    setActionBusy("auto");
+    if (selection.appIds.includes("boi-ech") && !current.autoApproveAppIds.includes("boi-ech") &&
+      !window.confirm("Bật tự động MIỄN PHÍ cho đăng ký Bơi ếch mới chưa vào luồng trả phí? Thiết bị phù hợp sẽ được mở theo thời hạn và hạn mức đã chọn.")) return;
+    setActionBusy("auto-policy");
+    setNotice("");
     try {
-      await operationsAction({ action: "set-auto-approval", appIds: supported });
-      await refreshOperations(true);
-      setNotice("Đã cập nhật duyệt tự động.");
+      if (current.autoApproveSupportedAppIds.length) {
+        await operationsAction({ action: "set-auto-approval", appIds: selection.appIds,
+          targetAppIds: current.autoApproveSupportedAppIds,
+          defaultAccessDays: selection.defaultAccessDays, defaultDeviceLimit: selection.defaultDeviceLimit });
+      }
+      for (const appId of current.autoBlockPendingSupportedAppIds ?? []) {
+        const enabled = selection.autoBlockAppIds.includes(appId);
+        const hours = selection.pendingBlockAfterHoursByApp[appId] ?? current.pendingBlockAfterHoursByApp?.[appId] ?? 168;
+        if (current.autoBlockPendingAppIds?.includes(appId) === enabled && current.pendingBlockAfterHoursByApp?.[appId] === hours) continue;
+        await operationsAction({ action: "set-auto-block-pending", appId, enabled, pendingBlockAfterHours: hours });
+      }
+      const synced = await refreshOperations(true);
+      if (!synced || selection.appIds.some((id) => !synced.settings.autoApproveAppIds.includes(id)) ||
+        current.autoApproveSupportedAppIds.some((id) => !selection.appIds.includes(id) && synced.settings.autoApproveAppIds.includes(id)) ||
+        selection.autoBlockAppIds.some((id) => !synced.settings.autoBlockPendingAppIds?.includes(id)) ||
+        (current.autoBlockPendingSupportedAppIds ?? []).some((id) => !selection.autoBlockAppIds.includes(id) && synced.settings.autoBlockPendingAppIds?.includes(id)) ||
+        selection.autoBlockAppIds.some((id) => synced.settings.pendingBlockAfterHoursByApp?.[id] !== selection.pendingBlockAfterHoursByApp[id]) ||
+        (selection.appIds.includes("boi-ech") && (synced.settings.freeAccessDaysByApp?.["boi-ech"] !== selection.defaultAccessDays ||
+          synced.settings.freeDeviceLimitByApp?.["boi-ech"] !== selection.defaultDeviceLimit))) {
+        throw new Error("Chưa đọc lại được quy tắc từ client; hãy đồng bộ trước khi kết luận đã lưu.");
+      }
+      setAutoPolicyOpen(false);
+      setNotice("Đã lưu và đọc lại quy tắc tự động theo từng ứng dụng.");
     } catch (caught) {
-      setNotice(caught instanceof Error ? caught.message : "Không thể cập nhật duyệt tự động.");
+      void refreshOperations(true);
+      setNotice(caught instanceof Error ? caught.message : "Không thể cập nhật quy tắc tự động.");
     } finally {
       setActionBusy("");
     }
@@ -424,6 +452,7 @@ export default function ManagementDashboardV2({ user }: { user: { displayName: s
   const lastUpdated = operations?.generatedAt ? relativeTime(operations.generatedAt) : "Chưa có dữ liệu";
 
   return <main className="amv2-shell" data-font-scale={fontScale}>
+    {autoPolicyOpen ? <AutomaticDevicePolicies key={operations?.generatedAt ?? "loading"} settings={operations?.settings} busy={actionBusy === "auto-policy"} close={() => setAutoPolicyOpen(false)} save={(selection) => void saveAutomation(selection)}/> : null}
     <aside className="amv2-sidebar">
       <div className="amv2-brand"><div>QT</div><span><small>TRUNG TÂM ĐIỀU PHỐI</small><strong>QUẢN TRỊ ỨNG DỤNG</strong><em>Kết nối · Kiểm soát · Phát triển</em></span></div>
       <nav aria-label="Điều hướng quản trị">{navItems.map((item) => <button key={item.view} data-active={view === item.view} onClick={() => switchView(item.view)}><i>{item.icon}</i><span>{item.label}</span>{item.view === "devices" && pendingDevices.length ? <b>{pendingDevices.length}</b> : null}{item.view === "approvals" && approvalCount ? <b>{approvalCount}</b> : null}</button>)}</nav>
@@ -467,12 +496,12 @@ export default function ManagementDashboardV2({ user }: { user: { displayName: s
             launchWeb={launchWeb}
             manageDevice={manageDevice}
             clearNotifications={clearNotifications}
-            enableAutoApproval={enableAutoApproval}
+            enableAutoApproval={() => setAutoPolicyOpen(true)}
             refreshOperations={refreshOperations}
           /> : null}
           {view === "approvals" ? <ApprovalView devices={filteredApprovalDevices} actionBusy={actionBusy} manageDevice={manageDevice}/> : null}
           {view === "applications" ? <ApplicationsView apps={filteredApps} summaryMap={summaryMap} devices={devices} webBusy={webBusy} launchWeb={launchWeb}/> : null}
-          {view === "devices" ? <DevicesView devices={filteredDevices} actionBusy={actionBusy} manageDevice={manageDevice} bulkRemovePendingDevices={bulkRemovePendingDevices}/> : null}
+          {view === "devices" ? <DevicesView devices={filteredDevices} actionBusy={actionBusy} manageDevice={manageDevice} bulkRemovePendingDevices={bulkRemovePendingDevices} openAutomation={() => setAutoPolicyOpen(true)}/> : null}
           {view === "access" ? <BoiAccessView query={search}/> : null}
           {view === "alerts" ? <AlertsView apps={filteredApps} summaryMap={summaryMap} workItems={filteredWork} lastUpdated={lastUpdated}/> : null}
           {view === "audit" ? <AuditView center={center}/> : null}
@@ -549,17 +578,18 @@ function ApplicationsView({ apps, summaryMap, devices, webBusy, launchWeb }: { a
   return <section className="amv2-page-panel"><div className="amv2-app-table full"><div className="amv2-app-head"><span>Ứng dụng</span><span>Nhóm nghiệp vụ</span><span>Việc chờ xử lý</span><span>Thiết bị online</span><span>Trạng thái</span><span>Website</span><span>Quản Trị</span></div>{apps.map((app) => { const summary = summaryMap.get(app.id); const state = connectionFor(app, summary); const pending = summary?.pendingCount ?? devices.filter((device) => device.appId === app.id && device.status === "pending").length; const hasWeb = Boolean(summary?.webHref || app.publicUrl); return <div className="amv2-app-row" key={app.id}><AppCell appId={app.id} name={app.shortName}/><span>{appGroup(app)}</span><strong>{pending}</strong><strong>{summary?.onlineCount ?? 0}</strong><b data-state={state}><i/>{connectionLabel(state, summary?.issueCode)}</b><button className="amv2-web-action" disabled={!hasWeb || webBusy === app.id} onClick={() => void launchWeb(app.id)}>{webBusy === app.id ? "…" : hasWeb ? "Đến" : "Chờ"}</button><Link className="amv2-manage-action" href={app.href}>Vào</Link></div>; })}</div></section>;
 }
 
-function DevicesView({ devices, actionBusy, manageDevice, bulkRemovePendingDevices }: {
+function DevicesView({ devices, actionBusy, manageDevice, bulkRemovePendingDevices, openAutomation }: {
   devices: OperationsDevice[];
   actionBusy: string;
   manageDevice: (device: OperationsDevice, operation: "approve" | "remove") => Promise<void>;
   bulkRemovePendingDevices: (devices: OperationsDevice[]) => Promise<void>;
+  openAutomation: () => void;
 }) {
   const bulkTargets = devices.filter((device) => device.status === "pending" && device.canRemove).slice(0, 24);
   return <section className="amv2-page-panel">
     <div className="amv2-device-bulk-toolbar">
       <div><strong>Thiết bị đang hiển thị</strong><small>Bulk-action chỉ áp dụng thiết bị chờ duyệt có contract xử lý thật. Bơi ếch xóa vĩnh viễn và luôn cần xác nhận hai lần.</small></div>
-      <button data-danger="true" disabled={!bulkTargets.length || Boolean(actionBusy)} onClick={() => void bulkRemovePendingDevices(devices)}>{actionBusy === "bulk-pending" ? "Đang xử lý…" : `Xử lý tất cả chờ duyệt (${bulkTargets.length})`}</button>
+      <div className="amv2-device-bulk-actions"><button disabled={Boolean(actionBusy)} onClick={openAutomation}>⚙ Tự động</button><button data-danger="true" disabled={!bulkTargets.length || Boolean(actionBusy)} onClick={() => void bulkRemovePendingDevices(devices)}>{actionBusy === "bulk-pending" ? "Đang xử lý…" : `Xử lý tất cả chờ duyệt (${bulkTargets.length})`}</button></div>
     </div>
     <div className="amv2-view-table devices"><div className="head"><span>Ứng dụng</span><span>Thiết bị</span><span>Người dùng</span><span>Trạng thái</span><span>Hoạt động</span><span>Thao tác</span></div>{devices.map((device) => { const rowBusy = actionBusy === `${device.appId}:${device.deviceId}` || actionBusy === "bulk-pending"; return <div className="row" key={`${device.appId}:${device.deviceId}`}><AppCell appId={device.appId} name={device.appName}/><div><strong>{deviceKind(device)}</strong><small>{device.deviceCode}</small></div><span>{device.userLabel}</span><b>{device.status === "approved" ? "Đã duyệt" : device.status === "pending" ? "Chờ duyệt" : device.status === "blocked" ? "Đã khóa" : "Chưa rõ"}</b><span>{device.active ? "● Online" : relativeTime(device.lastSeenAt)}</span><div>{device.canApprove && device.status === "pending" ? <button disabled={rowBusy} onClick={() => void manageDevice(device, "approve")}>{device.appId === "boi-ech" ? "Phân quyền" : "Duyệt"}</button> : null}{device.canRemove ? <button data-danger="true" disabled={rowBusy} onClick={() => void manageDevice(device, "remove")}>{device.appId === "boi-ech" ? "Xóa" : "Khóa"}</button> : null}<Link href={device.href}>Quản trị</Link></div></div>; })}{!devices.length ? <div className="amv2-empty"><strong>Không tìm thấy thiết bị phù hợp.</strong></div> : null}</div>
   </section>;
@@ -603,4 +633,3 @@ function SettingsView({ center, access, actionBusy, fontScale, changeFontScale, 
     </div>
   </section>;
 }
-
