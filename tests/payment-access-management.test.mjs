@@ -113,3 +113,13 @@ test("legacy Boi drawer cannot bypass finalized payment state", () => {
   assert.match(controlCenter, /\{canGrantFree \? <button/);
   assert.match(controlCenter, />Duyệt miễn phí<\/button>/);
 });
+
+
+test("Boi access keeps the control proof identity separate from the target device", () => {
+  assert.match(client, /controlDeviceId: access\.deviceId/);
+  assert.doesNotMatch(client, /return \{ deviceId: access\.deviceId, challenge:/);
+  assert.match(api, /const controlDeviceId = text\(payload\.controlDeviceId\)/);
+  assert.match(api, /controlProofPayload = controlDeviceId \? \{ \.\.\.payload, deviceId: controlDeviceId \} : payload/);
+  assert.match(api, /verifyControlProof\(controlProofPayload/);
+  assert.match(api, /const deviceId = text\(payload\.deviceId\)\.toLowerCase\(\)/);
+});
