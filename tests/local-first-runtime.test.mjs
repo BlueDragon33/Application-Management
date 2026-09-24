@@ -18,6 +18,7 @@ const systemLauncher = fs.readFileSync("scripts/run-local-system.mjs", "utf8");
 const bat = fs.readFileSync("RUN_LOCAL.bat", "utf8");
 const centerOnlyBat = fs.readFileSync("RUN_LOCAL_CENTER_ONLY.bat", "utf8");
 const home = fs.readFileSync("app/page.tsx", "utf8");
+const applicationHub = fs.readFileSync("app/application-hub.tsx", "utf8");
 const localQuickAccess = fs.readFileSync("app/local-quick-access.tsx", "utf8");
 const localWebLaunch = fs.readFileSync("app/api/local-web-launch/route.ts", "utf8");
 const contractDiagnostics = fs.readFileSync("app/tools/contract-diagnostics/page.tsx", "utf8");
@@ -65,6 +66,13 @@ test("Windows launchers invoke npm and npx through cmd.exe for Node 24 compatibi
   assert.ok(systemLauncher.includes('["/d", "/s", "/c", command, ...args]'));
   assert.ok(systemLauncher.includes('spawn(spec.file, spec.args'));
   assert.ok(systemLauncher.includes('spawnSync(spec.file, spec.args'));
+});
+
+test("secret generator stays reachable from management UI", () => {
+  const route = "/tools/secret-generator";
+  assert.ok(applicationHub.split(route).length - 1 >= 2, "Secret Generator phải có đường vào ở Cấu hình và menu tài khoản");
+  assert.match(applicationHub, />Tạo Key \/ Secret<\/Link>/);
+  assert.match(applicationHub, /className=\{styles\.settingsAction\} href="\/tools\/secret-generator"/);
 });
 
 test("management home uses verified local web launcher and compact device labels", () => {

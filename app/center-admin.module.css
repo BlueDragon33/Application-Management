@@ -272,7 +272,7 @@
 .topologyFlow > div strong { margin: 6px 0; color: #f0ede5; font: 700 15px var(--qt-user-font, Georgia), serif; }
 .topologyFlow > div small { color: #899c91; font-size: 8px; }
 .topologyFlow > b { color: #83968c; text-align: center; font-weight: 400; }
-.settingsAction { min-height: 38px; display: flex; align-items: center; gap: 8px; margin: 0 17px 17px auto; padding: 0 12px; border: 1px solid rgba(75,190,154,.2); border-radius: 7px; background: #145443; color: #d8fff2; cursor: pointer; font-size: 10px; }
+.settingsAction { min-height: 38px; display: flex; align-items: center; gap: 8px; margin: 0 17px 17px auto; padding: 0 12px; border: 1px solid rgba(75,190,154,.2); border-radius: 7px; background: #145443; color: #d8fff2; cursor: pointer; font-size: 10px; text-decoration: none; }
 .settingsAction span { margin-left: 4px; }
 .boundaryCards { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 11px; padding: 14px; }
 .boundaryCards article { padding: 15px; border: 1px solid rgba(255,255,255,.08); border-radius: 9px; }
