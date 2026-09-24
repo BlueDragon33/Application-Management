@@ -114,6 +114,17 @@ export const applicationRegistry: readonly ApplicationConfig[] = [
     guardrails: ["Không đưa dữ liệu báo giá/khách hàng vào control-plane", "Duyệt/khóa chỉ bật khi KT Control live xác nhận đủ capability và read-back", "Không dùng chung registry BM/BE/HN", "Truy cập Web không đồng nghĩa production remote-admin sẵn sàng"],
   },
   {
+    id: "nc03-modem", name: "NC03 Control Center", shortName: "NC03 Modem", href: "/apps/nc03-modem",
+    initials: "N3", category: "Kỹ thuật", tier: "client", status: "warning", contractState: "pending",
+    repository: "BlueDragon33/NC03_Modem",
+    scope: "Website-app/PWA local-first quản trị modem HYBRID Wi-Fi 5G NC03. Application Management chỉ quản lý lifecycle, capability, release và metadata an toàn của ứng dụng; credential/session modem luôn ở thiết bị người dùng.",
+    contractNote: "Phase 1 v0.2.0 đã merge và publish artifact: NC03Adapter, HAR Discovery, Login Screen, Basic/Advanced Mode, Advanced Developer Mode, security boundary và đầy đủ release gates đều PASS. Live Pages chưa bật ở repository; API modem thật vẫn chờ HAR và transport local được xác minh nên contract tiếp tục pending.",
+    devicePolicy: "Desktop/tablet/phone responsive · local-first · không đồng bộ mật khẩu/token/session modem lên control-plane · write action chỉ bật khi endpoint WRITE VERIFIED.",
+    deviceExperiences: standardDeviceExperiences,
+    capabilities: ["Trạng thái build/release", "API discovery progress", "Firmware capability matrix", "Thiết bị chạy ứng dụng", "Security gate", "Theo dõi transport local"],
+    guardrails: ["Không lưu hoặc proxy mật khẩu admin NC03", "Không gửi token/session modem lên cloud", "Không bật remote modem controls trong Manager", "Không đánh dấu connected khi chưa có backend thật và read-back"],
+  },
+  {
     id: "cad-cam-3d", name: "CAD CAM 3D", shortName: "CAD CAM 3D", href: "/apps/cad-cam-3d",
     initials: "CAD", category: "Kỹ thuật", tier: "client", status: "warning", contractState: "pending",
     repository: "BlueDragon33/CAD_CAM_3D",
