@@ -1,4 +1,4 @@
-import { requireChatGPTUser } from "./chatgpt-auth";
+import { applicationAuthMode, requireChatGPTUser } from "./chatgpt-auth";
 import ManagementEntry from "./management-entry";
 import "./management-dashboard-v2.css";
 import "./management-dashboard-v2-reference.css";
@@ -11,9 +11,9 @@ import LocalQuickAccess from "./local-quick-access";
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const user = await requireChatGPTUser("/");
+  const [user, authMode] = await Promise.all([requireChatGPTUser("/"), applicationAuthMode()]);
   return <>
-    <ManagementEntry user={{ displayName: user.displayName, email: user.email }} />
+    <ManagementEntry user={{ displayName: user.displayName, email: user.email }} authMode={authMode} />
     <LocalQuickAccess />
   </>;
 }
