@@ -1,0 +1,152 @@
+name: Diagnose Application Management Production Browser Path
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: application-management-production-diagnostic
+  cancel-in-progress: true
+
+jobs:
+  diagnose-production:
+    if: github.actor == 'BlueDragon33' && github.event.comment.body == '/diagnose-production-root-assets-device'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: application-management-production
+    env:
+      APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN: ${{ vars.APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN }}
+      APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD: ${{ secrets.APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD }}
+      CONTROL_OWNER_EMAILS: ${{ vars.CONTROL_OWNER_EMAILS }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+
+      - name: Login as real Production owner
+        shell: bash
+        run: |
+          set -euo pipefail
+          OWNER_EMAIL="${CONTROL_OWNER_EMAILS%%,*}"
+          OWNER_EMAIL="$(printf '%s' "$OWNER_EMAIL" | xargs)"
+          rm -f /tmp/am.cookies /tmp/am.login.headers /tmp/am.login.body
+          CODE="$(curl --silent --show-error             --output /tmp/am.login.body             --dump-header /tmp/am.login.headers             --cookie-jar /tmp/am.cookies             --write-out '%{http_code}'             --max-time 30             -X POST             -H "Origin: $APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN"             -H "Referer: $APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/__login"             -H "Sec-Fetch-Site: same-origin"             -H "Content-Type: application/x-www-form-urlencoded"             --data-urlencode "email=$OWNER_EMAIL"             --data-urlencode "password=$APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD"             "$APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/__login")"
+          echo "LOGIN_HTTP=$CODE"
+          if [[ "$CODE" != "303" ]]; then
+            STAGE="$(awk -F': *' 'tolower($1)=="x-application-management-auth-stage"{gsub("\r","",$2); print $2}' /tmp/am.login.headers | tail -n1)"
+            echo "::error::Owner login failed with HTTP $CODE at stage ${STAGE:-unknown}."
+            exit 1
+          fi
+
+      - name: Fetch root HTML and enumerate assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          CODE="$(curl --silent --show-error             --output /tmp/am.root.html             --dump-header /tmp/am.root.headers             --cookie /tmp/am.cookies             --write-out '%{http_code}'             --max-time 30             "$APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/")"
+          echo "ROOT_HTTP=$CODE"
+          if [[ "$CODE" != "200" ]]; then
+            echo "::error::Authenticated root returned HTTP $CODE."
+            exit 1
+          fi
+          node --input-type=module - <<'NODE'
+          import fs from "node:fs";
+          const html = fs.readFileSync("/tmp/am.root.html", "utf8");
+          const refs = new Set();
+          for (const match of html.matchAll(/<(?:script|link)\b[^>]*(?:src|href)=["']([^"']+)["']/gi)) {
+            const value = match[1];
+            if (value.startsWith("/") && (value.includes(".js") || value.includes(".css") || value.includes("_next") || value.includes("_vinext"))) refs.add(value);
+          }
+          fs.writeFileSync("/tmp/am.assets.txt", [...refs].join("\n"));
+          console.log(`ASSET_COUNT=${refs.size}`);
+          for (const ref of [...refs].slice(0,20)) console.log(`ASSET_REF=${ref}`);
+          if (!refs.size) throw new Error("Authenticated root HTML did not expose any JS/CSS asset references.");
+          NODE
+
+      - name: Verify authenticated CSS and JS assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          JS_OK=0
+          CSS_OK=0
+          COUNT=0
+          while IFS= read -r path; do
+            [[ -z "$path" ]] && continue
+            COUNT=$((COUNT+1))
+            HEADERS="/tmp/am.asset.${COUNT}.headers"
+            BODY="/tmp/am.asset.${COUNT}.body"
+            CODE="$(curl --silent --show-error               --output "$BODY"               --dump-header "$HEADERS"               --cookie /tmp/am.cookies               --write-out '%{http_code}'               --max-time 20               "$APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN$path")"
+            TYPE="$(awk -F': *' 'tolower($1)=="content-type"{gsub("\r","",$2); print tolower($2)}' "$HEADERS" | tail -n1)"
+            echo "ASSET_HTTP=$CODE TYPE=$TYPE PATH=$path"
+            if [[ "$CODE" != "200" ]]; then
+              echo "::error::Authenticated asset failed: HTTP $CODE $path"
+              exit 1
+            fi
+            [[ "$TYPE" == *"javascript"* || "$path" == *.js* ]] && JS_OK=1
+            [[ "$TYPE" == *"text/css"* || "$path" == *.css* ]] && CSS_OK=1
+            [[ "$COUNT" -ge 30 ]] && break
+          done < /tmp/am.assets.txt
+          if [[ "$JS_OK" != "1" ]]; then
+            echo "::error::No authenticated JavaScript asset was verified."
+            exit 1
+          fi
+          if [[ "$CSS_OK" != "1" ]]; then
+            echo "::error::No authenticated CSS asset was verified."
+            exit 1
+          fi
+          echo "ROOT_ASSETS_E2E=PASS"
+
+      - name: Generate browser-equivalent ECDSA public key
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module - <<'NODE'
+          import fs from "node:fs";
+          import { webcrypto } from "node:crypto";
+          const pair = await webcrypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+          const publicKey = await webcrypto.subtle.exportKey("jwk", pair.publicKey);
+          fs.writeFileSync("/tmp/am.device-register.json", JSON.stringify({ action: "register", publicKey }));
+          console.log("ECDSA_P256_KEY=READY");
+          NODE
+
+      - name: Verify Production device registration and challenge
+        shell: bash
+        run: |
+          set -euo pipefail
+          CODE="$(curl --silent --show-error             --output /tmp/am.device.json             --dump-header /tmp/am.device.headers             --cookie /tmp/am.cookies             --write-out '%{http_code}'             --max-time 30             -X POST             -H "Content-Type: application/json"             --data-binary @/tmp/am.device-register.json             "$APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/api/device")"
+          echo "DEVICE_REGISTER_HTTP=$CODE"
+          if [[ "$CODE" != "200" ]]; then
+            echo "::error::Production device registration failed with HTTP $CODE."
+            cat /tmp/am.device.json || true
+            exit 1
+          fi
+          DEVICE_ID="$(node --input-type=module - <<'NODE'
+          import fs from "node:fs";
+          const value = JSON.parse(fs.readFileSync("/tmp/am.device.json", "utf8"));
+          if (!value.device?.deviceId) throw new Error("Device registration returned no deviceId.");
+          if (value.device.status !== "approved") throw new Error(`Owner device was not auto-approved: ${value.device.status}`);
+          if (value.device.owner !== true) throw new Error("Registered Production owner device is not marked owner.");
+          process.stdout.write(value.device.deviceId);
+          NODE
+          )"
+          printf '{"action":"challenge","deviceId":"%s"}' "$DEVICE_ID" > /tmp/am.challenge-request.json
+          CHALLENGE_CODE="$(curl --silent --show-error             --output /tmp/am.challenge.json             --cookie /tmp/am.cookies             --write-out '%{http_code}'             --max-time 30             -X POST             -H "Content-Type: application/json"             --data-binary @/tmp/am.challenge-request.json             "$APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/api/device")"
+          echo "DEVICE_CHALLENGE_HTTP=$CHALLENGE_CODE"
+          if [[ "$CHALLENGE_CODE" != "200" ]]; then
+            echo "::error::Production device challenge failed with HTTP $CHALLENGE_CODE."
+            cat /tmp/am.challenge.json || true
+            exit 1
+          fi
+          node --input-type=module - <<'NODE'
+          import fs from "node:fs";
+          const value = JSON.parse(fs.readFileSync("/tmp/am.challenge.json", "utf8"));
+          if (typeof value.challenge !== "string" || value.challenge.length < 40) throw new Error("Challenge payload is invalid.");
+          console.log("DEVICE_CONTROL_E2E=PASS");
+          NODE
