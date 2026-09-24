@@ -179,3 +179,8 @@ https://application-management-preview.<workers-subdomain>.workers.dev
 vẫn dùng Preview access secret và chỉ dành cho kiểm thử.
 
 Production không được chuyển thành Preview bằng cách đổi channel hoặc tái sử dụng Preview D1/secret.
+
+
+## Giới hạn PBKDF2 trên Cloudflare Workers
+
+Production pin PBKDF2-SHA-256 ở 100.000 iterations vì Cloudflare Workers production từ chối giá trị lớn hơn 100.000. CI kiểm trực tiếp constant này để tránh local/dry-run xanh nhưng live login thất bại.
