@@ -60,6 +60,19 @@ async function databaseReady(env: Env) {
   }
 }
 
+const ASSET_HEALTH_PATH = "/application-management-asset-health.txt";
+const ASSET_HEALTH_BODY = "application-management-assets-ok-v1";
+
+async function staticAssetsReady(env: Env) {
+  try {
+    const response = await env.ASSETS.fetch(new Request(`https://asset-health.internal${ASSET_HEALTH_PATH}`));
+    if (!response.ok) return false;
+    return (await response.text()).trim() === ASSET_HEALTH_BODY;
+  } catch {
+    return false;
+  }
+}
+
 function configured(value: string | undefined) {
   return Boolean(value?.trim());
 }
@@ -75,6 +88,7 @@ async function deploymentStatus(env: Env) {
     channel,
     revision: env.APPLICATION_MANAGEMENT_BUILD_REVISION ?? "unknown",
     databaseReady: await databaseReady(env),
+    assetsReady: await staticAssetsReady(env),
     previewAccessConfigured: isPreview && previewAccessConfigured(env.APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET),
     productionAuthConfigured: isProduction
       && configured(env.CONTROL_OWNER_EMAILS)
