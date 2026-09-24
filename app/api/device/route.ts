@@ -4,6 +4,7 @@ import {
   controlErrorResponse,
   createControlChallenge,
   registerControlDevice,
+  productionSessionControlAccess,
 } from "../../control-device.server";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +15,11 @@ export async function POST(request: Request) {
     if (!user) throw new ControlAccessError("Cần đăng nhập để đăng ký thiết bị.", 401, "SIGN_IN_REQUIRED");
     const payload = (await request.json()) as Record<string, unknown>;
     const action = typeof payload.action === "string" ? payload.action : "";
+    if (action === "session") {
+      const device = await productionSessionControlAccess(user);
+      if (!device) throw new ControlAccessError("Phiên Production không khả dụng.", 409, "PRODUCTION_SESSION_UNAVAILABLE");
+      return Response.json({ device }, { headers: { "cache-control": "no-store, private" } });
+    }
     if (action === "register") return Response.json({ device: await registerControlDevice(payload.publicKey, user) }, { headers: { "cache-control": "no-store, private" } });
     if (action === "challenge") return Response.json(await createControlChallenge(payload.deviceId, user), { headers: { "cache-control": "no-store, private" } });
     throw new ControlAccessError("Thao tác thiết bị không hợp lệ.", 400, "INVALID_DEVICE_ACTION");
