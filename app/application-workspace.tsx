@@ -48,6 +48,7 @@ export default function ApplicationWorkspace({ application, user }: { applicatio
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState("");
   const [view, setView] = useState<WorkspaceView>("overview");
+  const [localRuntime, setLocalRuntime] = useState(false);
 
   async function verifyAccess() {
     setBusy(true); setError("");
@@ -61,12 +62,14 @@ export default function ApplicationWorkspace({ application, user }: { applicatio
   }
 
   useEffect(() => {
+    setLocalRuntime(["127.0.0.1", "localhost"].includes(window.location.hostname));
     const timer = window.setTimeout(() => { void verifyAccess(); }, 0);
     return () => window.clearTimeout(timer);
   }, []);
 
   const hasChildren = Boolean(application.childClients?.length);
   const childCount = application.childClients?.length ?? 0;
+  const websiteHref = application.publicUrl ?? (localRuntime ? application.localUrl : undefined);
   const connectedCapabilities = application.contractState === "connected" ? application.capabilities.length : 0;
   const currentTitle = useMemo(() => {
     if (view === "devices") return { eyebrow: "DEVICE & ACCESS", title: "Thiết bị & quyền truy cập", description: "Client tự nhận diện endpoint, giữ registry và áp dụng giao diện phù hợp theo loại thiết bị." };
@@ -100,7 +103,7 @@ export default function ApplicationWorkspace({ application, user }: { applicatio
     <section className={styles.workspaceMain}>
       <header className={styles.workspaceTopbar}>
         <div><span>{currentTitle.eyebrow}</span><h1>{currentTitle.title}</h1><p>{currentTitle.description}</p></div>
-        <div className={styles.topbarActions}><Link href="/">Hệ thống</Link><button onClick={() => void verifyAccess()} disabled={busy}>{busy ? "Đang cập nhật…" : "Cập nhật"}</button></div>
+        <div className={styles.topbarActions}>{websiteHref ? <a href={websiteHref} target="_blank" rel="noreferrer">Mở Website ↗</a> : null}<Link href="/">Hệ thống</Link><button onClick={() => void verifyAccess()} disabled={busy}>{busy ? "Đang cập nhật…" : "Cập nhật"}</button></div>
       </header>
       {error ? <div className={styles.workspaceError}>{error}</div> : null}
 
