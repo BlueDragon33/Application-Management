@@ -7,8 +7,6 @@ on:
         description: "Gõ DEPLOY_PRODUCTION để triển khai Application Management Production lên Cloudflare"
         required: true
         type: string
-  issue_comment:
-    types: [created]
 
 permissions:
   contents: read
@@ -47,24 +45,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            if [[ "${{ inputs.confirm }}" != "DEPLOY_PRODUCTION" ]]; then
-              echo '::error::Deployment cancelled. Enter DEPLOY_PRODUCTION exactly.'
-              exit 1
-            fi
-          else
-            if [[ "${{ github.actor }}" != "BlueDragon33" ]]; then
-              echo '::error::One-shot Production QA deploy must be requested by repository owner BlueDragon33.'
-              exit 1
-            fi
-            if [[ "${{ github.event.issue.number }}" != "121" ]]; then
-              echo '::error::One-shot Production QA deploy is restricted to PR #121.'
-              exit 1
-            fi
-            if [[ "${{ github.event.comment.body }}" != "/deploy-production-qa-final" ]]; then
-              echo '::error::One-shot Production QA deploy command mismatch.'
-              exit 1
-            fi
+          if [[ "${{ inputs.confirm }}" != "DEPLOY_PRODUCTION" ]]; then
+            echo '::error::Deployment cancelled. Enter DEPLOY_PRODUCTION exactly.'
+            exit 1
           fi
 
       - name: Checkout repository
