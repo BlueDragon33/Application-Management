@@ -29,6 +29,9 @@ test("production account auth uses strong browser/session boundaries", () => {
   ]) assert.ok(auth.includes(marker), `missing production auth guard: ${marker}`);
   assert.match(auth, /password\.length < 12/);
   assert.match(auth, /DELETE FROM control_sessions WHERE email=\?1 AND session_id_hash<>\?2/);
+  assert.ok(auth.includes('origin && origin !== "null"'));
+  assert.ok(auth.includes('fetchSite === "same-origin" || fetchSite === "none"'));
+  assert.ok(auth.includes('fetchSite === "cross-site"'));
 });
 
 test("production auth supports profile password and email management without losing owner role", () => {
@@ -78,6 +81,8 @@ test("production deploy is manual-only and verifies login anonymous gate and aut
   assert.ok(deploy.includes("APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD"));
   assert.ok(deploy.includes("APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET"));
   assert.ok(deploy.includes("Expected Production /__login to return 200"));
+  assert.ok(deploy.includes("Browser-like same-origin Production login POST was incorrectly rejected as Forbidden."));
+  assert.ok(deploy.includes("Privacy-browser Production login POST was incorrectly rejected as Forbidden."));
   assert.ok(deploy.includes("Expected anonymous Production /__deployment to return 401"));
   assert.ok(deploy.includes("Application Management Cloudflare production read-back PASS"));
   assert.ok(deploy.includes("for attempt in {1..12}"));
