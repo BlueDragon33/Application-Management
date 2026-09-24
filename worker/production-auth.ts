@@ -133,7 +133,7 @@ function escapeHtml(value: unknown) {
     .replaceAll("'", "&#39;");
 }
 
-function sameOriginPost(request: Request) {
+function sameOriginPost(request: Request, allowOpaqueLoginOrigin = false) {
   if (request.method !== "POST") return true;
 
   const targetOrigin = new URL(request.url).origin;
@@ -153,8 +153,13 @@ function sameOriginPost(request: Request) {
   if (fetchSite === "same-origin" || fetchSite === "none") return true;
   if (fetchSite === "cross-site") return false;
 
+  // Some privacy modes and Cloudflare edges can surface a browser form POST
+  // as Origin:null while stripping Referer/Sec-Fetch-Site. Permit that only
+  // for the unauthenticated login endpoint. Authenticated mutations keep the
+  // stricter same-origin requirement.
+  if (allowOpaqueLoginOrigin && origin === "null" && !referer && !fetchSite) return true;
+
   // Non-browser clients may omit Origin/Referer/Sec-Fetch-Site entirely.
-  // Preserve that behavior for deployment checks and trusted API clients.
   return !origin && !referer && !fetchSite;
 }
 
@@ -332,7 +337,7 @@ export async function handleProductionLogin(request: Request, env: ProductionAut
     return responseHtml(loginPage(changed === "email" ? "Email đăng nhập đã đổi. Hãy đăng nhập lại bằng email mới." : ""));
   }
   if (request.method !== "POST") return new Response("Method Not Allowed", { status: 405, headers: secureHeaders("text/plain; charset=utf-8") });
-  if (!sameOriginPost(request)) return new Response("Forbidden", { status: 403, headers: secureHeaders("text/plain; charset=utf-8") });
+  if (!sameOriginPost(request, true)) return new Response("Forbidden", { status: 403, headers: secureHeaders("text/plain; charset=utf-8") });
 
   const form = await request.formData();
   const email = normalizeEmail(form.get("email"));
