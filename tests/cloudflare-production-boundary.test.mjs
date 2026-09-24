@@ -78,6 +78,8 @@ test("production template is isolated, Worker-first, and secret-free", () => {
   assert.ok(prepare.includes("Production must never reuse the Application Management preview D1 database."));
   assert.ok(validator.includes("Production assets must run Worker authentication first."));
   assert.ok(artifact.includes("Generated production artifact must set assets.run_worker_first=true."));
+  assert.ok(artifact.includes("must include an assets.directory"));
+  assert.ok(artifact.includes("must contain both CSS and JavaScript bundles"));
 });
 
 test("production deploy is manual-only and keeps strict deployment verification", () => {
@@ -88,6 +90,19 @@ test("production deploy is manual-only and keeps strict deployment verification"
   assert.ok(deploy.includes("DEPLOY_PRODUCTION"));
   assert.ok(deploy.includes("APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD"));
   assert.ok(deploy.includes("APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET"));
+  const finalArtifactRestore = deploy.indexOf("Restore generated Production artifact after secret versions");
+  const lastSecretUpdate = Math.max(
+    deploy.lastIndexOf("secret put APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD"),
+    deploy.lastIndexOf("secret put APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET"),
+    deploy.lastIndexOf("secret put CONTROL_SERVICE_SECRET"),
+    deploy.lastIndexOf("secret put HEALTH_CONTROL_SERVICE_SECRET"),
+    deploy.lastIndexOf("secret put RU_LIFE_CONTROL_SERVICE_SECRET"),
+    deploy.lastIndexOf("secret put BAUMAN_CONTROL_SERVICE_SECRET"),
+  );
+  const loginVerification = deploy.indexOf("Verify production login route and anonymous protection");
+  assert.ok(lastSecretUpdate >= 0, "Production deploy must install at least one Worker secret.");
+  assert.ok(finalArtifactRestore > lastSecretUpdate, "Generated Production artifact must be restored after all secret-created versions.");
+  assert.ok(loginVerification > finalArtifactRestore, "Login verification must run against the restored asset-bearing Worker version.");
   assert.ok(deploy.includes("Expected Production /__login to return 200"));
   assert.ok(deploy.includes("Browser-like same-origin Production login POST was incorrectly rejected as Forbidden."));
   assert.ok(deploy.includes("Privacy-browser Production login POST was incorrectly rejected as Forbidden."));

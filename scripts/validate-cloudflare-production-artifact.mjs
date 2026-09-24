@@ -48,6 +48,20 @@ const assets = generated.assets && typeof generated.assets === "object" && !Arra
 if (assets.run_worker_first !== true) fail("Generated production artifact must set assets.run_worker_first=true.");
 if (String(assets.binding ?? "") !== "ASSETS") fail("Generated production artifact must expose ASSETS binding.");
 
+if (typeof assets.directory !== "string" || !assets.directory.trim()) {
+  fail("Generated production artifact must include an assets.directory for the built client bundle.");
+}
+const generatedAssetsDirectory = path.resolve(path.dirname(generatedPath), assets.directory);
+insideRoot(generatedAssetsDirectory, "Generated assets directory");
+if (!fs.existsSync(generatedAssetsDirectory) || !fs.statSync(generatedAssetsDirectory).isDirectory()) {
+  fail(`Generated assets directory does not exist: ${path.relative(ROOT, generatedAssetsDirectory)}.`);
+}
+const generatedAssetFiles = fs.readdirSync(generatedAssetsDirectory, { recursive: true })
+  .filter((entry) => typeof entry === "string" && /\.(?:css|js)$/.test(entry));
+if (!generatedAssetFiles.some((entry) => entry.endsWith(".css")) || !generatedAssetFiles.some((entry) => entry.endsWith(".js"))) {
+  fail("Generated assets directory must contain both CSS and JavaScript bundles.");
+}
+
 const vars = generated.vars && typeof generated.vars === "object" && !Array.isArray(generated.vars) ? generated.vars : {};
 if (vars.APPLICATION_MANAGEMENT_DEPLOYMENT_CHANNEL !== EXPECTED_CHANNEL) fail(`Generated production channel must be ${EXPECTED_CHANNEL}.`);
 const revision = String(vars.APPLICATION_MANAGEMENT_BUILD_REVISION ?? "").trim();
