@@ -23,6 +23,7 @@ export type ClientNetworkSpec = {
   localDefault: string;
   probePath: string;
   bridgeSecretEnv?: string;
+  localBridgeSecretEnv?: string;
   pairedWith?: ManagedClientId;
 };
 
@@ -44,6 +45,7 @@ export const clientNetworkRegistry = {
     localDefault: "http://127.0.0.1:3001",
     probePath: "/api/control/contract",
     bridgeSecretEnv: "HEALTH_CONTROL_SERVICE_SECRET",
+    localBridgeSecretEnv: "HEALTH_CONTROL_SERVICE_LOCAL_SECRET",
   },
   "ru-life": {
     id: "ru-life",
@@ -55,6 +57,7 @@ export const clientNetworkRegistry = {
     localDefault: "http://127.0.0.1:3002",
     probePath: "/api/control/status",
     bridgeSecretEnv: "RU_LIFE_CONTROL_SERVICE_SECRET",
+    localBridgeSecretEnv: "RU_LIFE_CONTROL_SERVICE_LOCAL_SECRET",
   },
   "bauman-master-ai": {
     id: "bauman-master-ai",
@@ -66,6 +69,7 @@ export const clientNetworkRegistry = {
     localDefault: "http://127.0.0.1:3003",
     probePath: "/api/control/status",
     bridgeSecretEnv: "BAUMAN_CONTROL_SERVICE_SECRET",
+    localBridgeSecretEnv: "BAUMAN_CONTROL_SERVICE_LOCAL_SECRET",
     pairedWith: "bauman-runtime",
   },
   "bauman-runtime": {
@@ -89,6 +93,7 @@ export const clientNetworkRegistry = {
     localDefault: "http://127.0.0.1:3004",
     probePath: "/api/control/runtime",
     bridgeSecretEnv: "CONTROL_SERVICE_SECRET",
+    localBridgeSecretEnv: "CONTROL_SERVICE_LOCAL_SECRET",
   },
   "price-report-control": {
     id: "price-report-control",
@@ -100,6 +105,7 @@ export const clientNetworkRegistry = {
     localDefault: "http://127.0.0.1:3009",
     probePath: "/api/control/status",
     bridgeSecretEnv: "PRICE_REPORT_CONTROL_SERVICE_SECRET",
+    localBridgeSecretEnv: "PRICE_REPORT_CONTROL_SERVICE_LOCAL_SECRET",
   },
 } as const satisfies Record<ManagedClientId, ClientNetworkSpec>;
 
