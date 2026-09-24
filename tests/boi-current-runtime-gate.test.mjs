@@ -20,10 +20,10 @@ test("Boi bridge rejects stale published runtimes before issuing an admin token"
 });
 
 test("Boi local/hybrid discovery probes runtime identity rather than an old operational endpoint", () => {
-  const origin = read("app/client-origin.server.ts");
-  const boiStart = origin.indexOf('"boi-ech": {');
-  const priceStart = origin.indexOf('"price-report-control": {', boiStart);
-  const boiBlock = origin.slice(boiStart, priceStart);
+  const registry = read("app/client-network-registry.ts");
+  const boiStart = registry.indexOf('"boi-ech": {');
+  const priceStart = registry.indexOf('"price-report-control": {', boiStart);
+  const boiBlock = registry.slice(boiStart, priceStart);
   assert.match(boiBlock, /probePath: "\/api\/control\/runtime"/);
   assert.doesNotMatch(boiBlock, /overview\?activityDays=0/);
 });

@@ -101,6 +101,7 @@ async function main() {
     [join(paths.central, "package.json"), "Application Management package"],
     [join(paths.central, "wrangler.local.jsonc"), "Application Management local D1"],
     [join(paths.central, ".dev.vars.example"), "Application Management local auth sample"],
+    [join(paths.central, "app", "client-network-registry.ts"), "Application Management client network registry"],
     [join(paths.central, "scripts", "run-local-system.mjs"), "Core local-system launcher"],
     [join(paths.central, "scripts", "run-all.mjs"), "Run-all orchestrator"],
     [join(paths.health, "package.json"), "Health package"],
@@ -134,16 +135,27 @@ async function main() {
   for (const [path, label] of requiredFiles) checkFile(reporter, path, label);
 
   const resolver = text(join(paths.central, "app", "client-origin.server.ts"));
-  if (hasAll(resolver, [
+  const networkRegistry = text(join(paths.central, "app", "client-network-registry.ts"));
+  const resolverReady = hasAll(resolver, [
     '"production" | "local" | "hybrid"',
+    'getClientNetworkSpec(applicationId)',
+    'url.protocol === "https:"',
+    'allowPrivateHttp && url.protocol === "http:" && isPrivateHostname',
+  ]);
+  const registryReady = hasAll(networkRegistry, [
+    'clientNetworkRegistry',
+    'productionEnv',
+    'localEnv',
+    'probePath',
     'http://127.0.0.1:3001',
     'http://127.0.0.1:3002',
     'http://127.0.0.1:3003',
     'http://127.0.0.1:3004',
+    'http://127.0.0.1:3005',
     'http://127.0.0.1:3009',
-    'url.protocol === "https:"',
-  ])) reporter.pass("Hybrid origin resolver", "Production HTTPS + local control ports gồm PriceReport :3009");
-  else reporter.fail("Hybrid origin resolver", "Resolver thiếu mode/port/HTTPS guard chuẩn.");
+  ]);
+  if (resolverReady && registryReady) reporter.pass("Hybrid origin resolver", "Resolver generic + registry Local/Cloudflare gồm PriceReport :3009");
+  else reporter.fail("Hybrid origin resolver", "Resolver hoặc client network registry thiếu mode/port/HTTPS guard chuẩn.");
 
   const launcherPath = join(paths.central, "scripts", "run-local-system.mjs");
   const launcher = text(launcherPath);
