@@ -1,0 +1,37 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "application-management",
+  "main": "./worker/index.ts",
+  "compatibility_date": "2026-09-10",
+  "compatibility_flags": ["nodejs_compat"],
+
+  "assets": {
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+
+  // Production template. scripts/prepare-cloudflare-production.mjs materializes
+  // wrangler.production.jsonc. Authentication secrets remain Worker secrets and
+  // must never be committed or placed in vars.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "application-management-production-db",
+      "database_id": "__APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID__",
+      "migrations_dir": "drizzle"
+    }
+  ],
+
+  "vars": {
+    "CONTROL_OWNER_EMAILS": "__CONTROL_OWNER_EMAILS__",
+    "CONTROL_PLANE_NETWORK_MODE": "production",
+    "BOI_ECH_BASE_URL": "__BOI_ECH_BASE_URL__",
+    "HEALTH_CARE_BASE_URL": "__HEALTH_CARE_BASE_URL__",
+    "RU_LIFE_BASE_URL": "__RU_LIFE_BASE_URL__",
+    "BAUMAN_CONTROL_BASE_URL": "__BAUMAN_CONTROL_BASE_URL__",
+    "BAUMAN_APP_ORIGIN": "__BAUMAN_APP_ORIGIN__",
+    "GROWUP_BASE_URL": "__GROWUP_BASE_URL__",
+    "APPLICATION_MANAGEMENT_DEPLOYMENT_CHANNEL": "cloudflare-production",
+    "APPLICATION_MANAGEMENT_BUILD_REVISION": "__APPLICATION_MANAGEMENT_BUILD_REVISION__"
+  }
+}
