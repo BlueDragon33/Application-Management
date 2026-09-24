@@ -32,12 +32,26 @@ test("central API verifies signed control-device proof and owns only central per
 test("application registry has exactly one top-level entry per client", () => {
   const sourceText = source("app/application-registry.ts");
   const registry = sourceText.slice(sourceText.indexOf("export const applicationRegistry"));
-  for (const id of ["boi-ech", "health-care", "ru-life", "bauman-master-ai", "growup-mychildren"]) {
+  for (const id of ["boi-ech", "health-care", "ru-life", "bauman-master-ai", "growup-mychildren", "nc03-modem"]) {
     const matches = registry.match(new RegExp(`id: "${id}"`, "g")) ?? [];
     assert.equal(matches.length, 1, `${id} must exist exactly once in the top-level registry`);
   }
   assert.match(sourceText, /desktop\/phone\/tablet-iPad|máy tính, điện thoại, tablet\/iPad/i);
   assert.match(sourceText, /Không dùng API\/DB Bơi ếch|Không chia sẻ registry Bơi ếch|Không dùng DB ứng dụng khác/);
+});
+
+test("NC03 route has a matching pending registry entry and no fake remote control", () => {
+  const sourceText = source("app/application-registry.ts");
+  const route = source("app/apps/nc03-modem/page.tsx");
+  const start = sourceText.indexOf('id: "nc03-modem", name: "NC03 Control Center"');
+  const end = sourceText.indexOf("\n  },", start);
+  const block = sourceText.slice(start, end);
+  assert.ok(start >= 0, "NC03 registry entry must exist");
+  assert.match(block, /contractState: "pending"/);
+  assert.match(block, /BlueDragon33\/NC03_Modem/);
+  assert.match(block, /Không lưu hoặc proxy mật khẩu admin NC03/);
+  assert.match(route, /getApplicationConfig\("nc03-modem"\)/);
+  assert.doesNotMatch(block, /contractState: "connected"/);
 });
 
 test("Health Care and RU LIFE stay separate top-level clients", () => {
