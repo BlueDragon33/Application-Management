@@ -618,7 +618,7 @@ function Overview({ apps, tools, summaryMap, devices, pendingDevices, approvalDe
   launchWeb: (appId: string) => Promise<void>;
   manageDevice: (device: OperationsDevice, operation: "approve" | "remove") => Promise<void>;
   clearNotifications: () => Promise<void>;
-  enableAutoApproval: () => Promise<void>;
+  enableAutoApproval: () => void;
   refreshOperations: (silent?: boolean) => Promise<OperationsBootstrap | null>;
   localRuntime: boolean;
 }) {
