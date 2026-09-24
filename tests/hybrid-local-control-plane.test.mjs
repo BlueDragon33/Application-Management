@@ -6,6 +6,7 @@ function source(path) {
   return fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }
 
+const registry = source("app/client-network-registry.ts");
 const resolver = source("app/client-origin.server.ts");
 const launcher = source("scripts/run-local-system.mjs");
 const auth = source("app/chatgpt-auth.ts");
@@ -15,20 +16,53 @@ test("hybrid resolver supports production, local and hybrid without allowing pub
   assert.match(resolver, /"production" \| "local" \| "hybrid"/);
   assert.match(resolver, /url\.protocol === "https:"/);
   assert.match(resolver, /allowPrivateHttp && url\.protocol === "http:" && isPrivateHostname/);
+  assert.match(resolver, /getClientNetworkSpec\(applicationId\)/);
   assert.match(resolver, /await reachable\(local, spec\.probePath\)/);
   assert.match(resolver, /source: "local"/);
   assert.match(resolver, /source: "production"/);
   assert.match(resolver, /values\.LOCAL_DEV_AUTH === "1" \? "hybrid" : "production"/);
+  assert.doesNotMatch(resolver, /const CLIENTS/);
+});
+
+test("network registry is the single transport catalog for managed client bridges", () => {
+  for (const token of [
+    '"health-care"',
+    '"ru-life"',
+    '"boi-ech"',
+    '"bauman-master-ai"',
+    '"bauman-runtime"',
+    '"price-report-control"',
+  ]) {
+    assert.ok(registry.includes(token), `missing network registry client: ${token}`);
+  }
+  for (const key of ["productionEnv", "localEnv", "localDefault", "probePath", "bridgeSecretEnv"]) {
+    assert.ok(registry.includes(key), `missing network registry field: ${key}`);
+  }
+  assert.match(registry, /satisfies Record<ManagedClientId, ClientNetworkSpec>/);
+  assert.match(registry, /getClientNetworkSpec/);
+  assert.match(registry, /listClientNetworkSpecs/);
 });
 
 test("local port convention keeps Bauman control and learning runtime physically separate", () => {
-  assert.match(resolver, /health-care[\s\S]*127\.0\.0\.1:3001/);
-  assert.match(resolver, /ru-life[\s\S]*127\.0\.0\.1:3002/);
-  assert.match(resolver, /bauman-master-ai[\s\S]*127\.0\.0\.1:3003/);
-  assert.match(resolver, /bauman-runtime[\s\S]*BAUMAN_APP_ORIGIN[\s\S]*BAUMAN_APP_LOCAL_ORIGIN[\s\S]*127\.0\.0\.1:3005/);
-  assert.match(resolver, /boi-ech[\s\S]*127\.0\.0\.1:3004/);
+  assert.match(registry, /health-care[\s\S]*127\.0\.0\.1:3001/);
+  assert.match(registry, /ru-life[\s\S]*127\.0\.0\.1:3002/);
+  assert.match(registry, /bauman-master-ai[\s\S]*127\.0\.0\.1:3003/);
+  assert.match(registry, /bauman-runtime[\s\S]*BAUMAN_APP_ORIGIN[\s\S]*BAUMAN_APP_LOCAL_ORIGIN[\s\S]*127\.0\.0\.1:3005/);
+  assert.match(registry, /boi-ech[\s\S]*127\.0\.0\.1:3004/);
+  assert.match(registry, /price-report-control[\s\S]*127\.0\.0\.1:3009/);
+  assert.match(registry, /bauman-master-ai[\s\S]*pairedWith: "bauman-runtime"/);
+  assert.match(registry, /bauman-runtime[\s\S]*pairedWith: "bauman-master-ai"/);
   assert.match(launcher, /baumanRuntimeOrigin = "http:\/\/127\.0\.0\.1:3005"/);
   assert.match(launcher, /BAUMAN_APP_LOCAL_ORIGIN: baumanRuntimeOrigin/);
+});
+
+test("bridge secrets are declared as metadata without entering origin resolution", () => {
+  assert.match(registry, /HEALTH_CONTROL_SERVICE_SECRET/);
+  assert.match(registry, /RU_LIFE_CONTROL_SERVICE_SECRET/);
+  assert.match(registry, /BAUMAN_CONTROL_SERVICE_SECRET/);
+  assert.match(registry, /CONTROL_SERVICE_SECRET/);
+  assert.match(registry, /PRICE_REPORT_CONTROL_SERVICE_SECRET/);
+  assert.doesNotMatch(resolver, /SERVICE_SECRET/);
 });
 
 test("all managed client bridges use the shared resolver and no chatgpt.site fallback", () => {
