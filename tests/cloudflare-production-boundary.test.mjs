@@ -35,7 +35,7 @@ test("production account auth uses strong browser/session boundaries", () => {
   assert.ok(auth.includes("allowOpaqueLoginOrigin"));
   assert.ok(auth.includes('allowOpaqueLoginOrigin && origin === "null" && !referer && !fetchSite'));
   assert.ok(auth.includes("sameOriginPost(request, true)"));
-  assert.ok((auth.match(/sameOriginPost\\(request\\)/g) ?? []).length >= 2);
+  assert.ok(auth.split("sameOriginPost(request)").length - 1 >= 2);
 });
 
 test("production auth supports profile password and email management without losing owner role", () => {
