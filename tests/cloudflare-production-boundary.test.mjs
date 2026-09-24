@@ -99,9 +99,20 @@ test("production deploy remains push-disabled and the temporary diagnostic trigg
   assert.ok(deploy.includes("Real Production owner bootstrap/login/session/account E2E PASS."));
   assert.ok(deploy.includes("x-application-management-auth-stage"));
   assert.ok(auth.includes("productionAuthFailure"));
-  for (const stage of ["account-lookup", "owner-bootstrap", "password-verify", "login-reset", "session-create"]) {
+  for (const stage of [
+    "account-lookup",
+    "owner-bootstrap",
+    "bootstrap-secret-verify",
+    "bootstrap-password-hash",
+    "bootstrap-account-insert",
+    "bootstrap-account-readback",
+    "password-verify",
+    "login-reset",
+    "session-create",
+  ]) {
     assert.ok(auth.includes(`"${stage}"`), `missing auth diagnostic stage ${stage}`);
   }
+  assert.ok(auth.includes("ProductionAuthStageError"));
 });
 
 test("dashboard uses production account controls only in production mode", () => {
