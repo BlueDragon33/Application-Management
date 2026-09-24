@@ -153,6 +153,9 @@ jobs:
         shell: bash
         run: printf '%s' "$BAUMAN_CONTROL_SERVICE_SECRET" | npx wrangler secret put BAUMAN_CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
 
+      - name: Restore generated Production artifact after secret versions
+        run: npx wrangler deploy
+
       - name: Verify production login route and anonymous protection
         shell: bash
         run: |
