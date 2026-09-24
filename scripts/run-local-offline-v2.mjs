@@ -47,7 +47,8 @@ function hasCoreApps(root) {
   return existsSync(join(root, "Health_Care"))
     && existsSync(join(root, "RU_LIFE"))
     && existsSync(join(root, "Bauman-master-ai-system"))
-    && existsSync(join(root, "BOIECH_AI", "boi-ech"));
+    && existsSync(join(root, "BOIECH_AI", "boi-ech"))
+    && existsSync(join(root, "NC03_Modem"));
 }
 
 function ensureCanonicalCentralWorkspace() {
@@ -150,8 +151,8 @@ async function main() {
 
   if (!hasCoreApps(options.appsRoot)) {
     throw new Error(
-      `Không tìm thấy đủ Health_Care + Hòa nhập Nga + Bauman Hub + Bơi ếch trong workspace chuẩn ${defaultAppsRoot}. `
-      + `Cấu trúc cần có BaumanWeb\\Application-Management, Health_Care, RU_LIFE, Bauman-master-ai-system và BOIECH_AI\\boi-ech.`,
+      `Không tìm thấy đủ Health_Care + Hòa nhập Nga + Bauman Hub + Bơi ếch + NC03_Modem trong workspace chuẩn ${defaultAppsRoot}. `
+      + `Cấu trúc cần có BaumanWeb\\Application-Management, Health_Care, RU_LIFE, Bauman-master-ai-system, BOIECH_AI\\boi-ech và NC03_Modem.`,
     );
   }
 
@@ -187,7 +188,7 @@ async function main() {
   checked("Migration D1 local · Bơi ếch", npx,
     ["wrangler", "d1", "migrations", "apply", "boi-ech-local", "--local", "--config", "wrangler.local.jsonc"], paths.boi);
 
-  console.log("\n[offline-core] Bootstrap hoàn tất. Khởi động Application Management + Health_Care + Hòa nhập Nga + Bauman Hub + Bơi ếch...");
+  console.log("\n[offline-core] Bootstrap hoàn tất. Khởi động Application Management + Health_Care + Hòa nhập Nga + Bauman Hub + Bơi ếch + NC03...");
   console.log(`[offline-core] Workspace chuẩn: ${options.appsRoot}`);
   console.log("[offline-core] Registry Bauman được giữ nguyên giữa các lần chạy; không còn cơ chế tự xóa .wrangler/state.");
   const launcher = join(paths.central, "scripts", "run-local-system.mjs");
