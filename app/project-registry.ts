@@ -112,7 +112,7 @@ export const projectRepositories: readonly ProjectRepositoryConfig[] = [
     defaultBranch: "main",
     group: "control",
     state: "developing",
-    summary: "Website-app/PWA local-first quản trị modem HYBRID Wi-Fi 5G NC03; Phase 1 v0.2.0 đã qua release gates và chờ HAR thật để reverse-engineer API.",
+    summary: "Website-app/PWA local-first quản trị modem HYBRID Wi-Fi 5G NC03; Phase 1 v0.3.0 đã qua đầy đủ release gates, có verified PWA artifact và chờ HAR thật để reverse-engineer API.",
     managementHref: "/apps/nc03-modem",
   },
   {
