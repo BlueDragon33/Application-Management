@@ -10,6 +10,7 @@ const required = [
   "worker/preview-access.ts",
   "app/chatgpt-auth.ts",
   "app/client-origin.server.ts",
+  "app/client-network-registry.ts",
   "scripts/prepare-cloudflare-preview.mjs",
   "docs/CLOUDFLARE_DEPLOYMENT_TRACK.md",
   ".github/workflows/application-management-ci.yml",
@@ -27,6 +28,7 @@ const worker = fs.readFileSync("worker/index.ts", "utf8");
 const gate = fs.readFileSync("worker/preview-access.ts", "utf8");
 const chatAuth = fs.readFileSync("app/chatgpt-auth.ts", "utf8");
 const resolver = fs.readFileSync("app/client-origin.server.ts", "utf8");
+const networkRegistry = fs.readFileSync("app/client-network-registry.ts", "utf8");
 const prepare = fs.readFileSync("scripts/prepare-cloudflare-preview.mjs", "utf8");
 const previewCi = fs.readFileSync(".github/workflows/cloudflare-preview-ci.yml", "utf8");
 const deploy = fs.readFileSync(".github/workflows/deploy-application-management-preview.yml", "utf8");
@@ -62,8 +64,9 @@ for (const marker of ["Authorization: Bearer <preview-secret>", "HMAC-SHA-256", 
 }
 if (gate.includes("CF_ACCESS_") || chatAuth.includes("getCloudflareAccessUser")) throw new Error("Preview authentication vẫn còn phụ thuộc Cloudflare Access.");
 if (!resolver.includes('ControlPlaneNetworkMode = "production" | "local" | "hybrid"')) throw new Error("Client resolver thiếu network-mode boundary.");
+if (!resolver.includes("getClientNetworkSpec(applicationId)")) throw new Error("Client resolver chưa đọc shared network registry.");
 for (const marker of ["BAUMAN_CONTROL_BASE_URL", "BAUMAN_APP_ORIGIN", "BOI_ECH_BASE_URL", "HEALTH_CARE_BASE_URL", "RU_LIFE_BASE_URL"]) {
-  if (!resolver.includes(marker)) throw new Error(`Client resolver thiếu: ${marker}`);
+  if (!networkRegistry.includes(marker)) throw new Error(`Client network registry thiếu: ${marker}`);
 }
 
 for (const marker of [LEGACY_SITES_D1_ID, LOCAL_D1_ID, "APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID", ".chatgpt.site", "CONTROL_OWNER_EMAILS"]) {
