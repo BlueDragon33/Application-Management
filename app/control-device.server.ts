@@ -1,4 +1,4 @@
-import { getChatGPTUser, type ChatGPTUser } from "./chatgpt-auth";
+import { applicationAuthMode, getChatGPTUser, type ChatGPTUser } from "./chatgpt-auth";
 
 export type ControlRole = "viewer" | "reviewer" | "publisher" | "owner";
 export type ControlDeviceStatus = "pending" | "approved" | "blocked";
@@ -120,6 +120,29 @@ function state(row: DeviceRow, owner: boolean): ControlDeviceState {
   };
 }
 
+async function productionSessionState(user: ChatGPTUser): Promise<ControlDeviceState | null> {
+  if (await applicationAuthMode() !== "cloudflare-production") return null;
+  const email = user.email.trim().toLowerCase();
+  if (!(await isOwnerEmail(email))) return null;
+  const fingerprint = (await sha256(`production-owner:${email}`)).slice(0, 16).toUpperCase();
+  return {
+    deviceId: `production-session:${fingerprint.toLowerCase()}`,
+    deviceCode: `QT-PROD-${fingerprint.slice(0, 8)}`,
+    email,
+    displayName: user.displayName || email,
+    status: "approved",
+    role: "owner",
+    label: "Phiên Production",
+    owner: true,
+  };
+}
+
+export async function productionSessionControlAccess(user?: ChatGPTUser | null) {
+  const identity = user ?? await getChatGPTUser();
+  if (!identity) return null;
+  return productionSessionState(identity);
+}
+
 async function rowFor(deviceId: string) {
   const database = await getControlDatabase();
   return database.prepare(
@@ -190,6 +213,10 @@ export async function createControlChallenge(deviceId: unknown, user: ChatGPTUse
 export async function verifyControlProof(payload: Record<string, unknown>, user?: ChatGPTUser | null, skipSignature = false) {
   const identity = user ?? await getChatGPTUser();
   if (!identity) throw new ControlAccessError("Cần đăng nhập để tiếp tục.", 401, "SIGN_IN_REQUIRED");
+
+  const productionSession = await productionSessionState(identity);
+  if (productionSession) return productionSession;
+
   const deviceId = typeof payload.deviceId === "string" ? payload.deviceId : "";
   const challenge = typeof payload.challenge === "string" ? payload.challenge : "";
   const signature = typeof payload.signature === "string" ? payload.signature : "";
