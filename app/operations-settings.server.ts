@@ -52,7 +52,7 @@ export async function dismissedNotificationHashes(actor: string) {
  * by a live Bauman capability probe. Historic central audit never fabricates support.
  */
 export async function readAutoApprovalSettings(supportedAppIds: readonly string[]) {
-  const effectiveAppIds = [...new Set([...supportedAppIds, "bauman-master-ai"])] as string[];
+  const effectiveAppIds = [...new Set([...supportedAppIds, "bauman-master-ai", "ru-life"])] as string[];
   const fallback = await auditAutoApprovalFallback(effectiveAppIds);
   const autoApproveSupported = new Set<string>();
   const autoApproveEnabled = new Set<string>();

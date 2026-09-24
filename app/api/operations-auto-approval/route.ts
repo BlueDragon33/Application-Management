@@ -4,10 +4,11 @@ import { issueBoiBrowserBridge } from "../../boi-ech.server";
 import { verifyControlProof } from "../../control-device.server";
 import { issueHealthBrowserBridge } from "../../health-care.server";
 import { readAutoApprovalSettings, rememberAutoApproval } from "../../operations-settings.server";
+import { issueRuLifeBrowserBridge } from "../../ru-life.server";
 
 export const dynamic = "force-dynamic";
 
-const CANDIDATE_APP_IDS = ["boi-ech", "health-care", "bauman-master-ai"] as const;
+const CANDIDATE_APP_IDS = ["boi-ech", "health-care", "ru-life", "bauman-master-ai"] as const;
 const TIMEOUT_MS = 4_500;
 type CandidateAppId = typeof CANDIDATE_APP_IDS[number];
 type UnknownRecord = Record<string, unknown>;
@@ -75,6 +76,18 @@ async function setBauman(actor: { email: string; role: "viewer" | "reviewer" | "
   if (record(updated.automation).autoApproveDevices !== enabled) throw new Error("Bauman chưa xác nhận quy tắc duyệt tự động sau cập nhật.");
 }
 
+async function setRuLife(actor: { email: string; role: "viewer" | "reviewer" | "publisher" | "owner"; deviceId: string }, enabled: boolean) {
+  const bridge = await issueRuLifeBrowserBridge(actor.email, actor.role, actor.deviceId);
+  const status = await bridgeJson(bridge, "/api/control/status");
+  if (status.application !== "ru-life" || record(status.capabilities).deviceAutoApproval !== true
+      || record(status.endpoints).automation !== "/api/control/automation") {
+    throw new Error("Contract duyệt tự động Hòa nhập Nga chưa sẵn sàng.");
+  }
+  await bridgeJson(bridge, "/api/control/automation", { method: "POST", body: { autoApproveDevices: enabled } });
+  const readback = await bridgeJson(bridge, "/api/control/automation");
+  if (record(readback.automation).autoApproveDevices !== enabled) throw new Error("Hòa nhập Nga chưa xác nhận quy tắc duyệt tự động sau cập nhật.");
+}
+
 export async function POST(request: Request) {
   try {
     const payload = await request.json() as UnknownRecord;
@@ -132,6 +145,7 @@ export async function POST(request: Request) {
         return json({ error: `Contract duyệt tự động của ${appId} chưa hoạt động.`, code: "AUTO_APPROVAL_CONTRACT_NOT_LIVE", appId }, 409);
       }
       if (appId === "health-care") await setHealth(actor, desired);
+      else if (appId === "ru-life") await setRuLife(actor, desired);
       else await setBauman(actor, desired);
       await rememberAutoApproval(actor.email, appId, desired);
     }

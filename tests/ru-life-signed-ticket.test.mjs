@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { transform } from "esbuild";
 
-import { signRuLifeBrowserTicket } from "../app/ru-life-ticket.ts";
+const compiled = await transform(await readFile(new URL("../app/ru-life-ticket.ts", import.meta.url), "utf8"), { loader: "ts", format: "esm" });
+const { signRuLifeBrowserTicket } = await import(`data:text/javascript;base64,${Buffer.from(compiled.code).toString("base64")}`);
 
 test("RU bridge signs a five-minute audience-scoped ticket for its own Control API", async () => {
   const secret = "s".repeat(48);
