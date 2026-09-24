@@ -1,4 +1,4 @@
-import { resolveClientOrigin } from "./client-origin.server";
+import { resolveClientBridge } from "./client-origin.server";
 import type { ControlRole } from "./control-device.server";
 
 export class UpstreamError extends Error {
@@ -63,12 +63,9 @@ async function verifyBoiRuntimeIdentity(baseUrl: string) {
 }
 
 async function configuration() {
-  const workers = await import("cloudflare:workers");
-  const values = workers.env as unknown as Record<string, unknown>;
-  const secret = typeof values.CONTROL_SERVICE_SECRET === "string" ? values.CONTROL_SERVICE_SECRET : "";
   let origin;
   try {
-    origin = await resolveClientOrigin("boi-ech");
+    origin = await resolveClientBridge("boi-ech");
   } catch (error) {
     throw new UpstreamError(
       error instanceof Error ? error.message : "Kết nối Bơi ếch chưa được cấu hình.",
@@ -76,11 +73,15 @@ async function configuration() {
       { code: "BOI_ECH_NOT_CONFIGURED" },
     );
   }
-  if (secret.length < 32) {
-    throw new UpstreamError("Khóa kết nối Bơi ếch chưa được cấu hình.", 503, { code: "BOI_ECH_SECRET_NOT_CONFIGURED" });
+  if (origin.secret.length < 32) {
+    throw new UpstreamError(
+      "Khóa kết nối Bơi ếch chưa được cấu hình phù hợp với đường truyền hiện tại.",
+      503,
+      { code: "BOI_ECH_SECRET_NOT_CONFIGURED", originSource: origin.source, secretEnv: origin.secretEnv },
+    );
   }
   await verifyBoiRuntimeIdentity(origin.baseUrl);
-  return { ...origin, secret };
+  return origin;
 }
 
 function base64Url(bytes: Uint8Array) {
