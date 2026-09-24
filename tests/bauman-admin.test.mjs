@@ -55,7 +55,7 @@ test("Bauman website access resolves the learning runtime instead of the control
   const bridge = source("app/bauman.server.ts");
   const registry = source("app/application-registry.ts");
 
-  assert.match(bridge, /resolveClientOrigin\("bauman-master-ai"\)/);
+  assert.match(bridge, /resolveClientBridge\("bauman-master-ai"\)/);
   assert.match(bridge, /resolveClientOrigin\("bauman-runtime"\)/);
   assert.match(bridge, /runtimeBaseUrl/);
   assert.match(operations, /webHref: bridge\.runtimeBaseUrl/);
