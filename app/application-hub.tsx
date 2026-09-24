@@ -143,6 +143,7 @@ function appDomain(application: ApplicationConfig) {
   if (application.id === "boi-ech") return { group: application.category, boundary: "Thiết bị học · tiến độ · AI · thanh toán · duyệt sửa" };
   if (application.id === "bauman-master-ai") return { group: application.category, boundary: "Bauman Hub · sub-client môn học · contract BM" };
   if (application.id === "price-report-tunggiabao") return { group: application.category, boundary: "Báo giá · Excel/PDF/OCR · thiết bị KT- · UI thích ứng" };
+  if (application.id === "nc03-modem") return { group: application.category, boundary: "NC03 · modem 5G · pin/Wi-Fi/thiết bị · local-first" };
   return { group: application.category, boundary: "Phát triển 3–18 · privacy-first · contract GU" };
 }
 
