@@ -197,7 +197,7 @@
 .amv2-account summary div { min-width: 0; display: grid; gap: 3px; }
 .amv2-account summary strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
 .amv2-account summary small { color: #92aca2; font-size: 9px; }
-.amv2-account > div { position: absolute; z-index: 50; top: 52px; right: 0; width: 235px; display: grid; gap: 7px; padding: 11px; border: 1px solid var(--amv2-line); border-radius: 10px; background: #092d24; box-shadow: 0 14px 32px rgba(0,0,0,.25); }
+.amv2-account > div { position: absolute; z-index: 50; top: 52px; right: 0; width: 268px; display: grid; gap: 7px; padding: 11px; border: 1px solid var(--amv2-line); border-radius: 10px; background: #092d24; box-shadow: 0 14px 32px rgba(0,0,0,.25); }
 .amv2-account > div small { color: #8fa99f; overflow: hidden; text-overflow: ellipsis; }
 .amv2-account > div button,
 .amv2-account > div a { padding: 8px; border: 1px solid rgba(255,255,255,.07); border-radius: 7px; background: rgba(255,255,255,.03); color: #e9f4f0; text-decoration: none; cursor: pointer; text-align: left; }
@@ -339,6 +339,9 @@
 .amv2-app-cell { min-width: 0; display: flex; align-items: center; gap: 8px; }
 .amv2-app-cell i { width: 34px; height: 34px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 9px; background: linear-gradient(145deg,#227fc5,#145fa1); color: #fff; font-style: normal; font-size: 14px; }
 .amv2-app-cell i[data-app="bauman-master-ai"] { background: linear-gradient(145deg,#664ed6,#382ca0); }
+.amv2-app-cell i[data-app="tool-secret-generator"] { background: linear-gradient(145deg,#b88622,#715316); color: #fff5d5; }
+.amv2-tool-row { background: linear-gradient(90deg,rgba(172,126,31,.12),rgba(15,83,63,.06)); }
+.amv2-tool-row > span:first-of-type { color: #f0d178; font-weight: 800; }
 .amv2-app-cell strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #f2f8f5; font-size: 10.5px; }
 
 .amv2-device-head,
@@ -557,4 +560,99 @@
   .amv2-device-bulk-toolbar { align-items: stretch; flex-direction: column; }
   .amv2-device-bulk-actions { align-items: stretch; }
   .amv2-device-bulk-actions button { flex: 1 1 150px; }
+}
+
+
+/* Account/security stays under the account menu instead of occupying left navigation. */
+.amv2-account-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(0, 12, 9, .78);
+  backdrop-filter: blur(8px);
+}
+.amv2-account-dialog {
+  width: min(760px, 100%);
+  max-height: min(90dvh, 860px);
+  overflow: auto;
+  border: 1px solid rgba(58, 220, 170, .35);
+  border-radius: 16px;
+  background: linear-gradient(145deg,#0a3c2f,#072a22);
+  color: #eff8f4;
+  box-shadow: 0 26px 82px rgba(0,0,0,.48);
+}
+.amv2-account-dialog > header,
+.amv2-account-dialog > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 18px;
+}
+.amv2-account-dialog > header { border-bottom: 1px solid rgba(255,255,255,.08); }
+.amv2-account-dialog > footer { justify-content: flex-end; border-top: 1px solid rgba(255,255,255,.08); }
+.amv2-account-dialog > header small { color: #67d9b5; font-size: 9px; letter-spacing: .12em; font-weight: 800; }
+.amv2-account-dialog h2 { margin: 4px 0 0; font-size: 22px; }
+.amv2-account-dialog button,
+.amv2-account-dialog a {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border: 1px solid rgba(92,190,157,.24);
+  border-radius: 8px;
+  background: rgba(16,100,77,.62);
+  color: #ecfbf6;
+  text-decoration: none;
+  cursor: pointer;
+}
+.amv2-account-dialog > header > button { width: 40px; padding: 0; font-size: 20px; background: rgba(255,255,255,.035); }
+.amv2-account-identity {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 10px;
+  padding: 16px 18px 5px;
+}
+.amv2-account-identity article {
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 10px;
+  background: rgba(255,255,255,.025);
+}
+.amv2-account-identity span,
+.amv2-account-identity strong,
+.amv2-account-identity small { display: block; }
+.amv2-account-identity span { color: #88b4a5; font-size: 9px; text-transform: uppercase; letter-spacing: .08em; }
+.amv2-account-identity strong { margin-top: 5px; overflow-wrap: anywhere; font-size: 14px; }
+.amv2-account-identity small { margin-top: 5px; color: #91aa9f; font-size: 9.5px; line-height: 1.45; }
+.amv2-login-security { display: grid; gap: 8px; padding: 12px 18px 18px; }
+.amv2-login-security h3 { margin: 0; font-size: 16px; }
+.amv2-login-security > p { margin: 0 0 4px; color: #a8c0b7; font-size: 10.5px; line-height: 1.55; }
+.amv2-login-security > article {
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255,255,255,.075);
+  border-radius: 9px;
+  background: rgba(4,35,27,.35);
+}
+.amv2-login-security article span,
+.amv2-login-security article strong { display: block; }
+.amv2-login-security article span { color: #8eaa9f; font-size: 9px; }
+.amv2-login-security article strong { margin-top: 4px; overflow-wrap: anywhere; color: #f1f7f4; font-size: 11px; }
+.amv2-login-security article em { color: #6ed6b6; font-size: 9px; font-style: normal; white-space: nowrap; }
+.amv2-account-help { color: #89a69b; font-size: 9px; line-height: 1.45; }
+@media (max-width: 700px) {
+  .amv2-account-scrim { padding: 8px; }
+  .amv2-account-dialog { max-height: 96dvh; }
+  .amv2-account-identity { grid-template-columns: 1fr; }
+  .amv2-login-security > article { grid-template-columns: 1fr; }
 }
