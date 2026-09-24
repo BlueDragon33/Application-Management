@@ -31,7 +31,7 @@ test("approved layout contains no decorative pager/footer strips", () => {
 test("tab views stay in the persistent dashboard v2 shell", () => {
   const entry = source("app/management-entry.tsx");
   const ui = source("app/management-dashboard-v2.tsx");
-  assert.match(entry, /<ManagementDashboardV2 user=\\{user\\} authMode=\\{authMode\\} \\/>/);
+  assert.ok(entry.includes("<ManagementDashboardV2 user={user} authMode={authMode} />"));
   assert.match(ui, /window\.history\.pushState/);
   assert.doesNotMatch(ui, /window\.location\.assign\(nextUrl\)/);
 });
