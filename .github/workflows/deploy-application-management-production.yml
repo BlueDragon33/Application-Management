@@ -166,6 +166,32 @@ jobs:
             echo '::error::Production login page must not expose Preview login wording.'
             exit 1
           fi
+          FORM_CODE="$(curl --silent --show-error --output /tmp/production-login-post.html --write-out '%{http_code}' --max-time 15 \
+            -X POST \
+            -H "Origin: $APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN" \
+            -H "Referer: $APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/__login" \
+            -H "Sec-Fetch-Site: same-origin" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            --data 'email=invalid&password=0123456789abcdef' \
+            "$APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/__login")"
+          if [[ "$FORM_CODE" == "403" ]]; then
+            echo '::error::Browser-like same-origin Production login POST was incorrectly rejected as Forbidden.'
+            cat /tmp/production-login-post.html || true
+            exit 1
+          fi
+          NULL_ORIGIN_CODE="$(curl --silent --show-error --output /tmp/production-login-null-origin.html --write-out '%{http_code}' --max-time 15 \
+            -X POST \
+            -H "Origin: null" \
+            -H "Referer: $APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/__login" \
+            -H "Sec-Fetch-Site: same-origin" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            --data 'email=invalid&password=0123456789abcdef' \
+            "$APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/__login")"
+          if [[ "$NULL_ORIGIN_CODE" == "403" ]]; then
+            echo '::error::Privacy-browser Production login POST was incorrectly rejected as Forbidden.'
+            cat /tmp/production-login-null-origin.html || true
+            exit 1
+          fi
           CODE="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 15 "$APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/__deployment")"
           if [[ "$CODE" != "401" ]]; then
             echo "::error::Expected anonymous Production /__deployment to return 401, got HTTP $CODE."
