@@ -19,7 +19,7 @@ test("production account auth uses strong browser/session boundaries", () => {
     "__Host-am_prod_session",
     "PBKDF2",
     "SHA-256",
-    "310_000",
+    "100_000",
     "SameSite=Strict",
     "HttpOnly",
     "Secure",
@@ -36,6 +36,9 @@ test("production account auth uses strong browser/session boundaries", () => {
   assert.ok(auth.includes('allowOpaqueLoginOrigin && origin === "null" && !referer && !fetchSite'));
   assert.ok(auth.includes("sameOriginPost(request, true)"));
   assert.ok(auth.split("sameOriginPost(request)").length - 1 >= 2);
+  assert.ok(auth.includes("const PASSWORD_ITERATIONS = 100_000;"));
+  assert.equal(auth.includes("const PASSWORD_ITERATIONS = 310_000;"), false);
+  assert.ok(validator.includes("Cloudflare Workers ceiling of 100000"));
 });
 
 test("production auth supports profile password and email management without losing owner role", () => {
