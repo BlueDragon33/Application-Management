@@ -12,6 +12,7 @@ const projectsPage = source("app/projects/projects-catalog.tsx");
 const liveRoute = source("app/api/projects/repositories/route.ts");
 const repositoryWatch = source("scripts/check-project-repositories.mjs");
 const repositoryWatchWorkflow = source(".github/workflows/project-repository-watch.yml");
+const projectDocs = source("docs/PROJECT_REPOSITORY_CATALOG.md");
 const pkg = JSON.parse(source("package.json"));
 
 const repositories = [
@@ -23,6 +24,7 @@ const repositories = [
   "BlueDragon33/RU_LIFE",
   "BlueDragon33/GrowUP_MyChildren",
   "BlueDragon33/PriceReport_Tunggiabao",
+  "BlueDragon33/NC03_Modem",
   "BlueDragon33/ROS-1-2",
   "BlueDragon33/Hardware_Simulation",
   "BlueDragon33/MPC_PID_System",
@@ -33,6 +35,8 @@ test("project registry tracks the current owned project set", () => {
   for (const repository of repositories) assert.ok(registry.includes(repository), `missing repository: ${repository}`);
   assert.match(registry, /projectRepositoryCount = projectRepositories\.length/);
   assert.match(registry, /group: "accounting"/);
+  assert.match(projectDocs, /BlueDragon33\/NC03_Modem/);
+  assert.match(projectDocs, /Tổng: \*\*13 repo hiện hữu\*\*/);
 });
 
 test("current dashboard exposes the GitHub project catalog", () => {
@@ -62,4 +66,8 @@ test("technical repositories do not invent remote controls", () => {
   const cadEnd = registry.indexOf("\n  },", cadStart);
   const cadBlock = registry.slice(cadStart, cadEnd);
   assert.match(cadBlock, /managementHref: "\/apps\/cad-cam-3d"/);
+  const nc03Start = registry.indexOf('id: "nc03-modem"');
+  const nc03End = registry.indexOf("\n  },", nc03Start);
+  const nc03Block = registry.slice(nc03Start, nc03End);
+  assert.match(nc03Block, /managementHref: "\/apps\/nc03-modem"/);
 });

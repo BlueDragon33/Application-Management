@@ -106,6 +106,16 @@ export const projectRepositories: readonly ProjectRepositoryConfig[] = [
     managementHref: "/apps/price-report-tunggiabao",
   },
   {
+    id: "nc03-modem",
+    name: "NC03 Control Center",
+    repository: "BlueDragon33/NC03_Modem",
+    defaultBranch: "main",
+    group: "control",
+    state: "developing",
+    summary: "Website-app/PWA local-first quản trị modem HYBRID Wi-Fi 5G NC03; Phase 1 v0.2.0 đã qua release gates và chờ HAR thật để reverse-engineer API.",
+    managementHref: "/apps/nc03-modem",
+  },
+  {
     id: "ros-1-2",
     name: "ROS 1/2",
     repository: "BlueDragon33/ROS-1-2",
