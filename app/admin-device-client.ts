@@ -199,6 +199,15 @@ export class AdminApiError extends Error {
   }
 }
 
+const ADMIN_API_TIMEOUT_MS = 15_000;
+
+function requestTimeoutError(path: string) {
+  return new AdminApiError(
+    `Dịch vụ quản trị phản hồi quá ${ADMIN_API_TIMEOUT_MS / 1000} giây. Hãy kiểm tra kết nối rồi thử lại.`,
+    { code: "CONTROL_REQUEST_TIMEOUT", path },
+  );
+}
+
 function base64Url(bytes: Uint8Array) {
   let binary = "";
   bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
@@ -247,16 +256,26 @@ async function credentialForDevice() {
 }
 
 async function jsonApi(path: string, body: Record<string, unknown>) {
-  const response = await fetch(path, {
-    method: "POST",
-    credentials: "same-origin",
-    cache: "no-store",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await response.json().catch(() => ({ error: "Phản hồi quản trị không hợp lệ." })) as ApiPayload;
-  if (!response.ok) throw new AdminApiError(data.error ?? "Không thể kết nối dịch vụ quản trị.", data);
-  return data;
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), ADMIN_API_TIMEOUT_MS);
+  try {
+    const response = await fetch(path, {
+      method: "POST",
+      credentials: "same-origin",
+      cache: "no-store",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    const data = await response.json().catch(() => ({ error: "Phản hồi quản trị không hợp lệ." })) as ApiPayload;
+    if (!response.ok) throw new AdminApiError(data.error ?? "Không thể kết nối dịch vụ quản trị.", data);
+    return data;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") throw requestTimeoutError(path);
+    throw error;
+  } finally {
+    window.clearTimeout(timer);
+  }
 }
 
 async function register(credential: Credential) {
@@ -415,17 +434,29 @@ export async function connectRuLifeAdmin() {
 export async function upstreamJson<T>(bridge: ApplicationBridge, path: string, init?: { method?: "GET" | "POST"; body?: Record<string, unknown>; query?: string }) {
   if (!/^https:\/\/[a-z0-9.-]+$/i.test(bridge.baseUrl) || !bridge.token.startsWith("v1.")) throw new Error("Vé kết nối ứng dụng không hợp lệ.");
   if (!/^\/api\/control\/[a-z0-9-]+$/i.test(path)) throw new Error("Đường dẫn quản trị ứng dụng không hợp lệ.");
-  const response = await fetch(`${bridge.baseUrl}${path}${init?.query ?? ""}`, {
-    method: init?.method ?? "GET",
-    mode: "cors",
-    credentials: "omit",
-    cache: "no-store",
-    headers: { authorization: `Bearer ${bridge.token}`, "content-type": "application/json" },
-    body: init?.body ? JSON.stringify(init.body) : undefined,
-  });
-  const data = await response.json().catch(() => ({ error: "Phản hồi ứng dụng không hợp lệ." })) as T & { error?: string };
-  if (!response.ok) throw new Error(data.error ?? "Không thể kết nối ứng dụng.");
-  return data as T;
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), ADMIN_API_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${bridge.baseUrl}${path}${init?.query ?? ""}`, {
+      method: init?.method ?? "GET",
+      mode: "cors",
+      credentials: "omit",
+      cache: "no-store",
+      headers: { authorization: `Bearer ${bridge.token}`, "content-type": "application/json" },
+      body: init?.body ? JSON.stringify(init.body) : undefined,
+      signal: controller.signal,
+    });
+    const data = await response.json().catch(() => ({ error: "Phản hồi ứng dụng không hợp lệ." })) as T & { error?: string };
+    if (!response.ok) throw new Error(data.error ?? "Không thể kết nối ứng dụng.");
+    return data as T;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error(`Ứng dụng phản hồi quá ${ADMIN_API_TIMEOUT_MS / 1000} giây.`);
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timer);
+  }
 }
 
 export const roleLabels: Record<ControlRole, string> = {

@@ -62,6 +62,12 @@ if (!generatedAssetFiles.some((entry) => entry.endsWith(".css")) || !generatedAs
   fail("Generated assets directory must contain both CSS and JavaScript bundles.");
 }
 
+const assetHealthPath = path.join(generatedAssetsDirectory, "application-management-asset-health.txt");
+if (!fs.existsSync(assetHealthPath)) fail("Generated production assets are missing application-management-asset-health.txt.");
+if (fs.readFileSync(assetHealthPath, "utf8").trim() !== "application-management-assets-ok-v1") {
+  fail("Generated production asset health sentinel content mismatch.");
+}
+
 const vars = generated.vars && typeof generated.vars === "object" && !Array.isArray(generated.vars) ? generated.vars : {};
 if (vars.APPLICATION_MANAGEMENT_DEPLOYMENT_CHANNEL !== EXPECTED_CHANNEL) fail(`Generated production channel must be ${EXPECTED_CHANNEL}.`);
 const revision = String(vars.APPLICATION_MANAGEMENT_BUILD_REVISION ?? "").trim();

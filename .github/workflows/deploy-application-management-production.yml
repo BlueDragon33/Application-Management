@@ -234,6 +234,7 @@ jobs:
           if (value.channel !== 'cloudflare-production') throw new Error('Production deployment channel mismatch.');
           if (!value.revision || value.revision === 'unknown') throw new Error('Production build revision missing.');
           if (!value.databaseReady) throw new Error('Production D1 schema is not ready.');
+          if (!value.assetsReady) throw new Error('Production static assets are not ready on the live Worker version.');
           if (!value.productionAuthConfigured) throw new Error('Production account authentication is not configured.');
           if (value.accessMode !== 'account-session') throw new Error('Unexpected Production access mode.');
           if (!value.ownerPolicyConfigured) throw new Error('Production owner policy is missing.');

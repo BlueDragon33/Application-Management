@@ -88,6 +88,25 @@ if (String(assets.binding ?? "") !== "ASSETS") {
   fail("Generated Cloudflare preview artifact must expose the ASSETS binding.");
 }
 
+if (typeof assets.directory !== "string" || !assets.directory.trim()) {
+  fail("Generated preview artifact must include an assets.directory for the built client bundle.");
+}
+const previewAssetsDirectory = path.resolve(path.dirname(generatedPath), assets.directory);
+assertInsideRoot(previewAssetsDirectory, "Generated preview assets directory");
+if (!fs.existsSync(previewAssetsDirectory) || !fs.statSync(previewAssetsDirectory).isDirectory()) {
+  fail(`Generated preview assets directory does not exist: ${path.relative(ROOT, previewAssetsDirectory)}.`);
+}
+const previewAssetFiles = fs.readdirSync(previewAssetsDirectory, { recursive: true })
+  .filter((entry) => typeof entry === "string" && /\.(?:css|js)$/.test(entry));
+if (!previewAssetFiles.some((entry) => entry.endsWith(".css")) || !previewAssetFiles.some((entry) => entry.endsWith(".js"))) {
+  fail("Generated preview assets directory must contain both CSS and JavaScript bundles.");
+}
+const previewAssetHealthPath = path.join(previewAssetsDirectory, "application-management-asset-health.txt");
+if (!fs.existsSync(previewAssetHealthPath)) fail("Generated preview assets are missing application-management-asset-health.txt.");
+if (fs.readFileSync(previewAssetHealthPath, "utf8").trim() !== "application-management-assets-ok-v1") {
+  fail("Generated preview asset health sentinel content mismatch.");
+}
+
 const vars = generated.vars && typeof generated.vars === "object" && !Array.isArray(generated.vars) ? generated.vars : {};
 if (vars.APPLICATION_MANAGEMENT_DEPLOYMENT_CHANNEL !== EXPECTED_CHANNEL) {
   fail(`Generated deployment channel must be ${EXPECTED_CHANNEL}.`);
