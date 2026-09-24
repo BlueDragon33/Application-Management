@@ -99,7 +99,7 @@ export async function POST(request: Request) {
     const requested = Array.isArray(payload.appIds)
       ? [...new Set(payload.appIds.filter((item): item is string => typeof item === "string"))]
       : [];
-    const known = new Set(applicationRegistry.map((item) => item.id));
+    const known = new Set<string>(applicationRegistry.map((item) => item.id));
     if (requested.some((id) => !known.has(id))) return json({ error: "Danh sách ứng dụng không hợp lệ.", code: "INVALID_APPLICATIONS" }, 400);
     const unsupportedRequested = requested.filter((id) => !CANDIDATE_APP_IDS.includes(id as CandidateAppId));
     if (unsupportedRequested.length) {
