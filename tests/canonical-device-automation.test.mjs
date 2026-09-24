@@ -40,3 +40,10 @@ test("a disconnected client keeps its policy while connected clients can save in
   assert.match(editor, /Quy tắc của ứng dụng chưa trả lời được giữ nguyên/);
   assert.doesNotMatch(editor, /!unavailableEnabled/);
 });
+
+test("quick web menu exposes only actual client runtime URLs", () => {
+  const dashboard = source("app/management-dashboard-v2.tsx");
+  assert.match(dashboard, /const hasWeb = Boolean\(summary\?\.webHref \|\| app\.publicUrl\)/);
+  assert.match(dashboard, /disabled=\{!hasWeb \|\| webBusy === app\.id\}/);
+  assert.match(dashboard, /hasWeb \? "Mở ↗" : "Chờ"/);
+});
