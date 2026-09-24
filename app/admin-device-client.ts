@@ -273,7 +273,13 @@ async function proof(credential: Credential, access: AdminAccess) {
   return { deviceId: access.deviceId, challenge: challenge.challenge, signature: base64Url(new Uint8Array(signature)) };
 }
 
+function isProductionSessionAccess(access: AdminAccess) {
+  return access.deviceId.startsWith("production-session:");
+}
+
 async function secureApi(path: string, credential: Credential, access: AdminAccess, body: Record<string, unknown>) {
+  if (isProductionSessionAccess(access)) return await jsonApi(path, body);
+
   let lastError: unknown;
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
@@ -286,9 +292,28 @@ async function secureApi(path: string, credential: Credential, access: AdminAcce
   throw lastError;
 }
 
+async function productionSessionAccess() {
+  try {
+    const data = await jsonApi("/api/device", { action: "session" });
+    if (!data.device || !data.device.deviceId?.startsWith("production-session:")) return null;
+    return data.device;
+  } catch (error) {
+    if (error instanceof AdminApiError && error.data.code === "PRODUCTION_SESSION_UNAVAILABLE") return null;
+    throw error;
+  }
+}
+
 async function approvedSession() {
   if (!approvedSessionPromise) {
     approvedSessionPromise = (async () => {
+      const productionAccess = await productionSessionAccess();
+      if (productionAccess) {
+        return {
+          credential: { version: 1, privateKey: null, publicKey: {} } satisfies Credential,
+          access: productionAccess,
+        };
+      }
+
       const credential = await credentialForDevice();
       const access = await register(credential);
       return { credential, access };
