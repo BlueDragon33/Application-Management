@@ -280,17 +280,52 @@ async function accountByEmail(env: ProductionAuthEnv, email: string) {
   }>();
 }
 
+class ProductionAuthStageError extends Error {
+  stage: string;
+  cause: unknown;
+
+  constructor(stage: string, cause: unknown) {
+    super(cause instanceof Error ? cause.message : String(cause ?? "unknown runtime error"));
+    this.name = "ProductionAuthStageError";
+    this.stage = stage;
+    this.cause = cause;
+  }
+}
+
 async function bootstrapOwner(env: ProductionAuthEnv, email: string, password: string) {
   const owners = ownerEmails(env.CONTROL_OWNER_EMAILS);
   const bootstrapPassword = text(env.APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD);
   if (!owners.length || email !== owners[0] || bootstrapPassword.length < 14) return null;
-  if (!(await secureEqual(password, bootstrapPassword))) return null;
-  const record = await newPasswordRecord(password);
+
+  let secretMatches = false;
+  try {
+    secretMatches = await secureEqual(password, bootstrapPassword);
+  } catch (error) {
+    throw new ProductionAuthStageError("bootstrap-secret-verify", error);
+  }
+  if (!secretMatches) return null;
+
+  let record: Awaited<ReturnType<typeof newPasswordRecord>>;
+  try {
+    record = await newPasswordRecord(password);
+  } catch (error) {
+    throw new ProductionAuthStageError("bootstrap-password-hash", error);
+  }
+
   const displayName = email.split("@")[0] || "Administrator";
-  await env.DB.prepare(
-    "INSERT OR IGNORE INTO control_accounts (email,display_name,phone,role,password_salt,password_hash,password_iterations,must_change_password,failed_attempts,locked_until,status,created_at,updated_at) VALUES (?1,?2,NULL,'owner',?3,?4,?5,1,0,NULL,'active',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)",
-  ).bind(email, displayName, record.salt, record.hash, record.iterations).run();
-  return accountByEmail(env, email);
+  try {
+    await env.DB.prepare(
+      "INSERT OR IGNORE INTO control_accounts (email,display_name,phone,role,password_salt,password_hash,password_iterations,must_change_password,failed_attempts,locked_until,status,created_at,updated_at) VALUES (?1,?2,NULL,'owner',?3,?4,?5,1,0,NULL,'active',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)",
+    ).bind(email, displayName, record.salt, record.hash, record.iterations).run();
+  } catch (error) {
+    throw new ProductionAuthStageError("bootstrap-account-insert", error);
+  }
+
+  try {
+    return await accountByEmail(env, email);
+  } catch (error) {
+    throw new ProductionAuthStageError("bootstrap-account-readback", error);
+  }
 }
 
 async function markFailedLogin(env: ProductionAuthEnv, email: string, failedAttempts: number) {
@@ -381,6 +416,9 @@ export async function handleProductionLogin(request: Request, env: ProductionAut
     try {
       account = await bootstrapOwner(env, email, password);
     } catch (error) {
+      if (error instanceof ProductionAuthStageError) {
+        return productionAuthFailure(error.stage, error.cause);
+      }
       return productionAuthFailure("owner-bootstrap", error);
     }
   }
