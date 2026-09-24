@@ -177,7 +177,27 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --max-time 20             -H "Authorization: Bearer $APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET"             "$APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/__deployment" > /tmp/application-management-production.json
+          rm -f /tmp/application-management-production.json
+          READY=0
+          for attempt in {1..12}; do
+            CODE="$(curl --silent --show-error --output /tmp/application-management-production.json --write-out '%{http_code}' --max-time 20 -H "Authorization: Bearer $APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET" "$APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/__deployment" || true)"
+            if [[ "$CODE" == "200" ]]; then
+              READY=1
+              break
+            fi
+            if [[ "$CODE" != "401" && "$CODE" != "403" && "$CODE" != "404" && "$CODE" != "000" ]]; then
+              echo "::error::Unexpected Production read-back HTTP $CODE."
+              cat /tmp/application-management-production.json || true
+              exit 1
+            fi
+            echo "Production read-back not ready yet (HTTP $CODE, attempt $attempt/12); waiting for Cloudflare secret/version propagation..."
+            sleep 5
+          done
+          if [[ "$READY" != "1" ]]; then
+            echo '::error::Production read-back did not become ready within 60 seconds after secret installation.'
+            cat /tmp/application-management-production.json || true
+            exit 1
+          fi
           node --input-type=module - <<'NODE'
           import fs from 'node:fs';
           const value = JSON.parse(fs.readFileSync('/tmp/application-management-production.json', 'utf8'));
