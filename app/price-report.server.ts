@@ -221,7 +221,7 @@ export async function issuePriceReportBrowserBridge(actor: string, role: Control
     baseUrl,
     token: `${signedInput}.${await bridgeSignature(secret, signedInput)}`,
     expiresAt,
-    application: CONTROL_TOKEN_APP as const,
+    application: CONTROL_TOKEN_APP,
     mode: "capability-gated" as const,
     originSource: source,
   };
