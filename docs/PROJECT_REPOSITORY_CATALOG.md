@@ -14,7 +14,7 @@ Nguồn chuẩn để đối chiếu các repo thuộc tài khoản `BlueDragon3
 | `BlueDragon33/RU_LIFE` | Hòa nhập Nga | Có khu quản trị |
 | `BlueDragon33/GrowUP_MyChildren` | GrowUP MyChildren | Có khu quản trị |
 | `BlueDragon33/PriceReport_Tunggiabao` | Báo giá / kế toán | Có khu quản trị |
-| `BlueDragon33/NC03_Modem` | NC03 Control Center / modem 5G | Có khu quản trị fail-closed · chờ HAR thật |
+| `BlueDragon33/NC03_Modem` | NC03 Control Center / modem 5G | Phase 1 v0.3.0 verified artifact · fail-closed · chờ HAR thật |
 | `BlueDragon33/ROS-1-2` | Robot / ROS / LiDAR | Theo dõi dự án kỹ thuật |
 | `BlueDragon33/Hardware_Simulation` | Virtual Hardware Lab | Theo dõi dự án kỹ thuật |
 | `BlueDragon33/MPC_PID_System` | Control Research Workbench | Theo dõi dự án kỹ thuật |
