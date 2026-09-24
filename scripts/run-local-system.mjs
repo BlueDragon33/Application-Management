@@ -255,6 +255,7 @@ async function main() {
     baumanRuntime: baumanRoot,
     baumanControl: join(baumanRoot, "control-service"),
     boi: join(options.appsRoot, "BOIECH_AI", "boi-ech"),
+    nc03: join(options.appsRoot, "NC03_Modem"),
   };
 
   for (const [key, path] of Object.entries(paths)) requirePath(path, key);
@@ -263,7 +264,9 @@ async function main() {
   requirePath(join(paths.baumanControl, "wrangler.local.jsonc"), "Bauman control-service/wrangler.local.jsonc");
   requirePath(join(paths.boi, "wrangler.local.jsonc"), "BOIECH_AI/boi-ech/wrangler.local.jsonc");
   requirePath(join(paths.baumanRuntime, "scripts", "serve-local-runtime.mjs"), "Bauman scripts/serve-local-runtime.mjs");
-  requirePorts([3000, 3001, 3002, 3003, 3004, 3005]);
+  requirePath(join(paths.nc03, "scripts", "serve-local.mjs"), "NC03_Modem/scripts/serve-local.mjs");
+  const externalNc03Origin = process.env.NC03_LOCAL_BASE_URL?.trim();
+  requirePorts(externalNc03Origin ? [3000, 3001, 3002, 3003, 3004, 3005] : [3000, 3001, 3002, 3003, 3004, 3005, 3010]);
 
   ensureDependencies("Application Management", paths.central, true, options.skipInstall);
   ensureDependencies("Sức khỏe Y tế", paths.health, true, options.skipInstall);
@@ -276,6 +279,7 @@ async function main() {
 
   const centralOrigin = "http://127.0.0.1:3000";
   const baumanRuntimeOrigin = "http://127.0.0.1:3005";
+  const nc03Origin = externalNc03Origin || "http://127.0.0.1:3010";
   const healthSecret = ephemeralSecret();
   const ruSecret = ephemeralSecret();
   const baumanSecret = ephemeralSecret();
@@ -320,6 +324,15 @@ async function main() {
     cwd: paths.boi,
     env: { ...commonClientEnv, CONTROL_SERVICE_SECRET: boiSecret },
   }));
+  if (!externalNc03Origin) {
+    children.push(spawnService({
+      name: "NC03",
+      command: process.execPath,
+      args: ["scripts/serve-local.mjs"],
+      cwd: paths.nc03,
+      env: { NC03_HOST: "127.0.0.1", NC03_PORT: "3010" },
+    }));
+  }
   children.push(spawnService({
     name: "BAUMAN-RUNTIME",
     command: process.execPath,
@@ -334,6 +347,7 @@ async function main() {
     waitForEndpoint("Bauman Control", "http://127.0.0.1:3003/health"),
     waitForEndpoint("Bơi ếch", "http://127.0.0.1:3004/api/control/runtime"),
     waitForEndpoint("Bauman Hub + môn học", `${baumanRuntimeOrigin}/_local/health`),
+    waitForEndpoint("NC03 Control Center", `${nc03Origin}/_local/health`),
   ]);
 
   const centralEnv = {
@@ -349,7 +363,8 @@ async function main() {
     BAUMAN_CONTROL_SERVICE_SECRET: baumanSecret,
     BOI_ECH_LOCAL_BASE_URL: "http://127.0.0.1:3004",
     CONTROL_SERVICE_SECRET: boiSecret,
-    LOCAL_ACTIVE_APPLICATIONS: process.env.LOCAL_ACTIVE_APPLICATIONS || "boi-ech,health-care,ru-life,bauman-master-ai",
+    NC03_LOCAL_BASE_URL: nc03Origin,
+    LOCAL_ACTIVE_APPLICATIONS: process.env.LOCAL_ACTIVE_APPLICATIONS || "boi-ech,health-care,ru-life,bauman-master-ai,nc03-modem",
   };
 
   children.push(spawnService({
@@ -363,7 +378,7 @@ async function main() {
   await waitForEndpoint("Application Management", centralOrigin);
 
   console.log("\n===============================================================");
-  console.log(" Local Control Plane đang hoạt động · 4 CLIENT KẾT NỐI THẬT");
+  console.log(" Local Control Plane đang hoạt động · 4 CLIENT CONTROL + NC03 RUNTIME");
   console.log("===============================================================");
   console.log(` Chế độ          : ${options.mode}`);
   console.log(` Trung tâm       : ${centralOrigin}`);
@@ -372,6 +387,7 @@ async function main() {
   console.log(" Bauman Control  : http://127.0.0.1:3003 · D1 bauman-control-local");
   console.log(" Bơi ếch         : http://127.0.0.1:3004");
   console.log(` Bauman Hub      : ${baumanRuntimeOrigin}`);
+  console.log(` NC03 Control    : ${nc03Origin}`);
   console.log(" Môn Bauman      : chạy bên trong Bauman Hub, không cần port riêng");
   console.log("---------------------------------------------------------------");
   console.log(" GrowUP chỉ được theo dõi contract/site; chưa bật quản trị từ xa khi backend thật chưa tồn tại.");
