@@ -35,7 +35,8 @@ test("Application Management issues signed RU tickets in production and retains 
   assert.match(server, /BRIDGE_PREFIX = "v1\.rulb_"/);
   assert.match(server, /BRIDGE_TTL_MS = 5 \* 60 \* 1000/);
   assert.match(server, /ru_life_bridge_tickets/);
-  assert.match(networkRegistry, /bridgeSecretEnv: "RU_LIFE_CONTROL_SERVICE_SECRET"/);\n  assert.match(networkRegistry, /localBridgeSecretEnv: "RU_LIFE_CONTROL_SERVICE_LOCAL_SECRET"/);
+  assert.match(networkRegistry, /bridgeSecretEnv: "RU_LIFE_CONTROL_SERVICE_SECRET"/);
+  assert.match(networkRegistry, /localBridgeSecretEnv: "RU_LIFE_CONTROL_SERVICE_LOCAL_SECRET"/);
   assert.match(server, /signRuLifeBrowserTicket/);
   assert.match(server, /origin.source === "production"/);
   assert.doesNotMatch(server, /DEFAULT_RU_LIFE_BASE_URL|dinhnam3391\.chatgpt\.site/);
