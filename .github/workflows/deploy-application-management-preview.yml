@@ -168,6 +168,7 @@ jobs:
           if (value.channel !== 'cloudflare-preview') throw new Error('Application Management deployment channel mismatch.');
           if (!value.revision || value.revision === 'unknown') throw new Error('Application Management build revision missing.');
           if (!value.databaseReady) throw new Error('Application Management preview D1 schema is not ready.');
+          if (!value.assetsReady) throw new Error('Application Management preview static assets are not ready.');
           if (!value.previewAccessConfigured) throw new Error('Application preview access secret is not configured.');
           if (value.accessMode !== 'application-preview-secret') throw new Error('Unexpected Application Management preview access mode.');
           if (!value.ownerPolicyConfigured) throw new Error('Application Management owner policy is missing.');
