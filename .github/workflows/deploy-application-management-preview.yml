@@ -7,8 +7,6 @@ on:
         description: "Gõ DEPLOY_PREVIEW để triển khai Application Management vào Cloudflare preview riêng"
         required: true
         type: string
-  issue_comment:
-    types: [created]
 
 permissions:
   contents: read
@@ -46,24 +44,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            if [[ "${{ inputs.confirm }}" != "DEPLOY_PREVIEW" ]]; then
-              echo '::error::Deployment cancelled. Enter DEPLOY_PREVIEW exactly.'
-              exit 1
-            fi
-          else
-            if [[ "${{ github.actor }}" != "BlueDragon33" ]]; then
-              echo '::error::One-shot deploy comment must be created by repository owner BlueDragon33.'
-              exit 1
-            fi
-            if [[ "${{ github.event.issue.number }}" != "91" ]]; then
-              echo '::error::One-shot deploy comment is limited to PR #91.'
-              exit 1
-            fi
-            if [[ "${{ github.event.comment.body }}" != "/deploy-cloudflare-preview" ]]; then
-              echo '::error::One-shot deploy command mismatch.'
-              exit 1
-            fi
+          if [[ "${{ inputs.confirm }}" != "DEPLOY_PREVIEW" ]]; then
+            echo '::error::Deployment cancelled. Enter DEPLOY_PREVIEW exactly.'
+            exit 1
           fi
 
       - name: Checkout repository
@@ -74,38 +57,6 @@ jobs:
         with:
           node-version: "22.13.0"
           cache: npm
-
-      - name: Resolve one-shot preview bootstrap defaults
-        if: ${{ github.event_name == 'issue_comment' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ -z "${CONTROL_OWNER_EMAILS:-}" ]]; then
-            echo 'CONTROL_OWNER_EMAILS=bluedragon33@users.noreply.github.com' >> "$GITHUB_ENV"
-            echo 'Using privacy-preserving GitHub noreply owner identity for first preview bootstrap.'
-          fi
-          if [[ -z "${APPLICATION_MANAGEMENT_PREVIEW_ORIGIN:-}" ]]; then
-            RESPONSE="$(curl --fail --silent --show-error --max-time 20 \
-              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-              -H "Content-Type: application/json" \
-              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain")"
-            SUBDOMAIN="$(printf '%s' "$RESPONSE" | node --input-type=module -e '
-              let input = "";
-              process.stdin.setEncoding("utf8");
-              process.stdin.on("data", chunk => input += chunk);
-              process.stdin.on("end", () => {
-                const value = JSON.parse(input);
-                if (value?.success !== true || typeof value?.result?.subdomain !== "string" || !value.result.subdomain.trim()) process.exit(2);
-                process.stdout.write(value.result.subdomain.trim());
-              });
-            ')"
-            if [[ -z "$SUBDOMAIN" ]]; then
-              echo '::error::Could not resolve Cloudflare Workers subdomain.'
-              exit 1
-            fi
-            echo "APPLICATION_MANAGEMENT_PREVIEW_ORIGIN=https://application-management-preview.$SUBDOMAIN.workers.dev" >> "$GITHUB_ENV"
-            echo 'Resolved Application Management preview origin from Cloudflare Workers account subdomain.'
-          fi
 
       - name: Validate required preview configuration
         shell: bash
@@ -231,4 +182,4 @@ jobs:
           echo 'Worker: application-management-preview'
           echo 'D1: application-management-preview-db'
           echo 'Access: application-level preview secret; anonymous read-back verified blocked.'
-          echo 'Production auto-deploy remains disabled; this one-shot comment trigger will be removed after verification.'
+          echo 'Production auto-deploy remains disabled.'
