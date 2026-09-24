@@ -10,7 +10,28 @@ Ba chế độ được chuẩn hóa:
 - `local`: chỉ kết nối các runtime loopback/private local được cấu hình.
 - `hybrid`: thử local trước; nếu local không chạy thì fallback về production HTTPS đã cấu hình.
 
-`LOCAL_DEV_AUTH=1` chỉ dành cho development loopback. Production dùng Cloudflare Access/identity chain hiện có.
+`LOCAL_DEV_AUTH=1` chỉ dành cho development loopback. Cloudflare Production dùng account-session của Application Management; không bật local auth hoặc dùng lại Preview secret ở Production.
+
+## Network Registry là source of truth
+
+Transport của các client được khai báo tập trung tại:
+
+```text
+app/client-network-registry.ts
+```
+
+Registry này chỉ mô tả kết nối: application id, endpoint control/runtime, biến origin local/production, origin local mặc định, health probe, secret binding và quan hệ pair khi một app có nhiều endpoint. Metadata UI/nghiệp vụ vẫn thuộc `app/application-registry.ts`; hai registry không được trộn để tránh việc thay đổi network vô tình thay đổi capability sản phẩm.
+
+Quy tắc mở rộng app mới:
+
+1. Client phải có contract/backend thật trước khi thêm remote control.
+2. Khai báo endpoint local + production trong `client-network-registry.ts`.
+3. Local/hybrid chỉ chấp nhận loopback/private HTTP hoặc HTTPS.
+4. Production chỉ chấp nhận exact HTTPS origin; URL production nên đi qua Cloudflare Worker/custom domain.
+5. Bridge secret chỉ được khai báo bằng tên binding trong registry, giá trị secret vẫn nằm trong environment/Worker secret.
+6. App có nhiều endpoint, như Bauman Control + Learning Runtime, phải khai báo riêng và pair rõ ràng.
+
+Resolver `app/client-origin.server.ts` không còn chứa danh sách client hard-code; nó chỉ đọc registry rồi áp dụng chính sách `local` / `hybrid` / `production`.
 
 ## Bố cục thư mục trên máy
 
@@ -123,7 +144,7 @@ Application Management không đọc/ghi trực tiếp database chuyên môn c�
 
 ## Bảo mật
 
-Local dev identity chỉ được chấp nhận khi môi trường development, `LOCAL_DEV_AUTH=1` và request tới loopback. Không bật `LOCAL_DEV_AUTH` ở Cloudflare production. Production auth đi qua Cloudflare Access.
+Local dev identity chỉ được chấp nhận khi môi trường development, `LOCAL_DEV_AUTH=1` và request tới loopback. Không bật `LOCAL_DEV_AUTH` ở Cloudflare production. Production dùng account email/password + session cookie do Application Management Worker quản lý; Preview secret không được tái sử dụng.
 
 LAN mode chưa được bật trong launcher. Khi triển khai LAN phải có auth riêng (Access tunnel/VPN hoặc signed local session), không chỉ đổi host sang `0.0.0.0`.
 
