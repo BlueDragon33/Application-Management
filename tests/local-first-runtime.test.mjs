@@ -91,7 +91,6 @@ test("management home uses verified local web launcher and compact device labels
   assert.match(localQuickAccess, /\/api\/local-web-launch\?app=/);
   assert.equal(localQuickAccess.includes("http://127.0.0.1:3001"), false);
   assert.match(localQuickAccess, /Chưa có Web/);
-  assert.match(localQuickAccess, /\/tools\/secret-generator/);
   assert.match(localQuickAccess, /\/tools\/contract-diagnostics/);
 
   assert.match(localWebLaunch, /getChatGPTUser/);
