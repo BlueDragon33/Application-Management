@@ -28,7 +28,8 @@ export default function AutomaticDevicePolicies({ settings, busy, close, save }:
   const blockSupported = new Set(settings?.autoBlockPendingSupportedAppIds ?? []);
   const unavailableEnabled = (settings?.autoApproveAppIds ?? []).some((id) => !supported.has(id))
     || (settings?.autoBlockPendingAppIds ?? []).some((id) => !blockSupported.has(id));
-  const canSave = Boolean(settings) && !busy && !unavailableEnabled && Number.isInteger(limit) && limit >= 1 && limit <= 1_000;
+  const canSave = Boolean(settings) && !busy && (supported.size > 0 || blockSupported.size > 0)
+    && Number.isInteger(limit) && limit >= 1 && limit <= 1_000;
 
   function select(appId: string, enabled: boolean) {
     setSelected((current) => enabled ? [...new Set([...current, appId])] : current.filter((id) => id !== appId));
@@ -38,7 +39,7 @@ export default function AutomaticDevicePolicies({ settings, busy, close, save }:
     <section className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="device-auto-title">
       <header><div><small>THIẾT BỊ MỚI</small><h2 id="device-auto-title">Tự động xử lý theo ứng dụng</h2></div><button onClick={close} disabled={busy} aria-label="Đóng">×</button></header>
       <p>Quy tắc chỉ lưu sau khi ứng dụng xác nhận và Trung tâm đọc lại trạng thái. Thiết bị trả phí không được mở chỉ vì đã nộp ảnh.</p>
-      {unavailableEnabled ? <p className={styles.warning}>Có quy tắc đang bật nhưng client chưa trả lời. Đồng bộ lại trước khi sửa để tránh ghi đè trạng thái chưa xác minh.</p> : null}
+      {unavailableEnabled ? <p className={styles.warning}>Quy tắc của ứng dụng chưa trả lời được giữ nguyên. Bạn vẫn có thể sửa riêng các ứng dụng đang kết nối.</p> : null}
       <div className={styles.list}>
         {applicationRegistry.map((app) => {
           const ready = supported.has(app.id);

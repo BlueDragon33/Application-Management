@@ -30,3 +30,20 @@ test("automation changes use client readback and never grant paid access from pa
   assert.match(editor, /Chỉ mở trả phí sau khi xác minh thanh toán/);
   assert.doesNotMatch(editor, /proof_submitted.*paid_verified/);
 });
+
+test("a disconnected client keeps its policy while connected clients can save independently", () => {
+  const dashboard = source("app/management-dashboard-v2.tsx");
+  const endpoint = source("app/api/operations-auto-approval/route.ts");
+  const editor = source("app/automatic-device-policies.tsx");
+  assert.match(dashboard, /targetAppIds: current\.autoApproveSupportedAppIds/);
+  assert.match(endpoint, /CANDIDATE_APP_IDS\.filter\(\(id\) => targets\.includes\(id\)\)/);
+  assert.match(editor, /Quy tắc của ứng dụng chưa trả lời được giữ nguyên/);
+  assert.doesNotMatch(editor, /!unavailableEnabled/);
+});
+
+test("quick web menu exposes only actual client runtime URLs", () => {
+  const dashboard = source("app/management-dashboard-v2.tsx");
+  assert.match(dashboard, /const hasWeb = Boolean\(summary\?\.webHref \|\| app\.publicUrl\)/);
+  assert.match(dashboard, /disabled=\{!hasWeb \|\| webBusy === app\.id\}/);
+  assert.match(dashboard, /hasWeb \? "Mở ↗" : "Chờ"/);
+});
