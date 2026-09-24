@@ -135,9 +135,27 @@ function escapeHtml(value: unknown) {
 
 function sameOriginPost(request: Request) {
   if (request.method !== "POST") return true;
-  const origin = request.headers.get("origin");
-  if (!origin) return true;
-  return origin === new URL(request.url).origin;
+
+  const targetOrigin = new URL(request.url).origin;
+  const origin = request.headers.get("origin")?.trim() ?? "";
+  if (origin && origin !== "null") return origin === targetOrigin;
+
+  const referer = request.headers.get("referer")?.trim() ?? "";
+  if (referer) {
+    try {
+      if (new URL(referer).origin === targetOrigin) return true;
+    } catch {
+      return false;
+    }
+  }
+
+  const fetchSite = request.headers.get("sec-fetch-site")?.trim().toLowerCase() ?? "";
+  if (fetchSite === "same-origin" || fetchSite === "none") return true;
+  if (fetchSite === "cross-site") return false;
+
+  // Non-browser clients may omit Origin/Referer/Sec-Fetch-Site entirely.
+  // Preserve that behavior for deployment checks and trusted API clients.
+  return !origin && !referer && !fetchSite;
 }
 
 function shell(title: string, body: string) {
