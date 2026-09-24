@@ -441,7 +441,7 @@ function summary(
   };
 }
 
-async function buildBootstrap(actor: ControlDeviceState) {
+async function buildBootstrap(actor: ControlDeviceState, localMode = false) {
   const loaders = [
     { id: "boi-ech", run: () => loadBoi(actor) },
     { id: "health-care", run: () => loadHealth(actor) },
@@ -507,6 +507,25 @@ async function buildBootstrap(actor: ControlDeviceState) {
     }
   }
 
+  const nc03 = app("nc03-modem");
+  summaries.push({
+    appId: nc03.id,
+    appName: nc03.shortName,
+    href: nc03.href,
+    webHref: localMode ? "/api/local-web-launch?app=nc03-modem" : null,
+    managedWebLaunch: false,
+    group: nc03.category,
+    connection: localMode ? "warning" : "pending",
+    onlineCount: null,
+    pendingCount: null,
+    attentionCount: null,
+    note: localMode
+      ? "NC03 Control Center local đang chạy tại 127.0.0.1:3006. Modem credential/session vẫn ở máy người dùng; remote modem control chưa được nối vào control-plane."
+      : nc03.contractNote,
+    directWebAccess: localMode,
+    remoteAdminReady: false,
+  });
+
   workItems.sort((a, b) => {
     const priority = { high: 0, normal: 1, info: 2 } as const;
     if (priority[a.priority] !== priority[b.priority]) return priority[a.priority] - priority[b.priority];
@@ -535,7 +554,7 @@ export async function POST(request: Request) {
     const previewRequest = ["terminal.local", "localhost"].includes(new URL(request.url).hostname);
     const actor = await verifyControlProof(payload, undefined, previewRequest);
     const action = typeof payload.action === "string" ? payload.action : "bootstrap";
-    if (action === "bootstrap") return json(await buildBootstrap(actor));
+    if (action === "bootstrap") return json(await buildBootstrap(actor, previewRequest));
 
     if (action === "launch-client-web") {
       const appId = text(payload.appId);
