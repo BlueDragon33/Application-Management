@@ -118,10 +118,10 @@ export const applicationRegistry: readonly ApplicationConfig[] = [
     initials: "N3", category: "Kỹ thuật", tier: "client", status: "warning", contractState: "pending",
     repository: "BlueDragon33/NC03_Modem",
     scope: "Website-app/PWA local-first quản trị modem HYBRID Wi-Fi 5G NC03. Application Management chỉ quản lý lifecycle, capability, release và metadata an toàn của ứng dụng; credential/session modem luôn ở thiết bị người dùng.",
-    contractNote: "Phase 1 v0.2.0 đã merge và publish artifact: NC03Adapter, HAR Discovery, Login Screen, Basic/Advanced Mode, Advanced Developer Mode, security boundary và đầy đủ release gates đều PASS. Live Pages chưa bật ở repository; API modem thật vẫn chờ HAR và transport local được xác minh nên contract tiếp tục pending.",
+    contractNote: "Phase 1 v0.3.0 đã merge và publish verified artifact: NC03Adapter, NC03Api/Auth/Session/Parser/Capabilities, HAR Discovery, Login Screen, Basic/Advanced Mode, Advanced Developer Mode, PWA/offline shell và các gate CHECK/BUILD/TYPECHECK/LINT/UNIT/INTEGRATION/UX/OFFLINE/SECURITY đều PASS. Write operation được tách khỏi HTTP method và chỉ nhận WRITE VERIFIED. Live Pages chưa bật ở repository; API modem thật vẫn chờ HAR và transport local được xác minh nên contract tiếp tục pending.",
     devicePolicy: "Desktop/tablet/phone responsive · local-first · không đồng bộ mật khẩu/token/session modem lên control-plane · write action chỉ bật khi endpoint WRITE VERIFIED.",
     deviceExperiences: standardDeviceExperiences,
-    capabilities: ["Trạng thái build/release", "API discovery progress", "Firmware capability matrix", "Thiết bị chạy ứng dụng", "Security gate", "Theo dõi transport local"],
+    capabilities: ["Trạng thái build/release", "API discovery progress", "Firmware capability matrix", "Thiết bị chạy ứng dụng", "Security gate", "Offline/PWA gate", "Theo dõi transport local"],
     guardrails: ["Không lưu hoặc proxy mật khẩu admin NC03", "Không gửi token/session modem lên cloud", "Không bật remote modem controls trong Manager", "Không đánh dấu connected khi chưa có backend thật và read-back"],
   },
   {
