@@ -201,6 +201,8 @@
 .amv2-account > div small { color: #8fa99f; overflow: hidden; text-overflow: ellipsis; }
 .amv2-account > div button,
 .amv2-account > div a { padding: 8px; border: 1px solid rgba(255,255,255,.07); border-radius: 7px; background: rgba(255,255,255,.03); color: #e9f4f0; text-decoration: none; cursor: pointer; text-align: left; }
+.amv2-account > div form { margin: 0; }
+.amv2-account > div form button { width: 100%; }
 
 .amv2-content {
   position: relative;

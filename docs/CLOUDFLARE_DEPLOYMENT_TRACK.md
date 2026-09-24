@@ -151,7 +151,23 @@ Worker xóa/ghi đè mọi header identity do client tự gửi và chỉ tạo 
 
 ## Production
 
-Preview không tự promote production. Không tạo production promotion cho tới khi CI, preview migration, read-back và E2E control-plane đều pass. Cơ chế access production sẽ được quyết định riêng; không mặc định sao chép preview secret gate thành production auth.
+Preview không tự promote Production. Production là track riêng:
+
+- Worker `application-management`;
+- D1 `application-management-production-db`, không trùng Preview/local/legacy Sites;
+- channel `cloudflare-production`;
+- `assets.run_worker_first=true` để account authentication chạy trước mọi static asset;
+- đăng nhập email + mật khẩu của Application Management, không dùng Preview access secret;
+- mật khẩu băm PBKDF2-SHA-256 với salt ngẫu nhiên;
+- session cookie `__Host-am_prod_session`, `HttpOnly + Secure + SameSite=Strict`;
+- khóa 15 phút sau 5 lần đăng nhập sai liên tiếp;
+- role Owner được lưu trong D1 để đổi email không làm mất quyền;
+- `APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET` chỉ dùng cho deployment health/read-back;
+- workflow Production manual-only, yêu cầu `DEPLOY_PRODUCTION`.
+
+Runbook chi tiết: `docs/CLOUDFLARE_PRODUCTION_RUNBOOK.md`.
+
+Production chỉ được deploy sau khi CI, Production dry-run, D1 migration boundary, generated artifact guard và Preview regressions đều pass.
 
 ## No-publish QA checkpoint
 

@@ -9,6 +9,18 @@ import {
   previewRequestAuthorized,
   withPreviewOwnerIdentity,
 } from "./preview-access";
+import {
+  handleProductionAccount,
+  handleProductionLogin,
+  handleProductionLogout,
+  productionAccountPath,
+  productionIdentity,
+  productionLoginPath,
+  productionLogoutPath,
+  productionReadbackAuthorized,
+  productionUnauthorized,
+  withProductionIdentity,
+} from "./production-auth";
 
 interface Env {
   ASSETS: Fetcher;
@@ -26,6 +38,8 @@ interface Env {
   BAUMAN_CONTROL_SERVICE_SECRET?: string;
   GROWUP_BASE_URL?: string;
   APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET?: string;
+  APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD?: string;
+  APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET?: string;
   APPLICATION_MANAGEMENT_DEPLOYMENT_CHANNEL?: string;
   APPLICATION_MANAGEMENT_BUILD_REVISION?: string;
 }
@@ -51,15 +65,21 @@ function configured(value: string | undefined) {
 }
 
 async function deploymentStatus(env: Env) {
+  const channel = env.APPLICATION_MANAGEMENT_DEPLOYMENT_CHANNEL ?? "unknown";
+  const isPreview = channel === "cloudflare-preview";
+  const isProduction = channel === "cloudflare-production";
   return {
     ok: true,
     application: "application-management",
     runtime: "control-plane",
-    channel: env.APPLICATION_MANAGEMENT_DEPLOYMENT_CHANNEL ?? "unknown",
+    channel,
     revision: env.APPLICATION_MANAGEMENT_BUILD_REVISION ?? "unknown",
     databaseReady: await databaseReady(env),
-    previewAccessConfigured: previewAccessConfigured(env.APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET),
-    accessMode: "application-preview-secret",
+    previewAccessConfigured: isPreview && previewAccessConfigured(env.APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET),
+    productionAuthConfigured: isProduction
+      && configured(env.CONTROL_OWNER_EMAILS)
+      && (env.APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET?.trim().length ?? 0) >= 32,
+    accessMode: isProduction ? "account-session" : isPreview ? "application-preview-secret" : "upstream-identity",
     ownerPolicyConfigured: configured(env.CONTROL_OWNER_EMAILS),
     networkMode: env.CONTROL_PLANE_NETWORK_MODE ?? "unknown",
     clients: {
@@ -119,13 +139,33 @@ async function routeNativeAutoApproval(request: Request) {
 const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
-    const isPreview = env.APPLICATION_MANAGEMENT_DEPLOYMENT_CHANNEL === "cloudflare-preview";
+    const channel = env.APPLICATION_MANAGEMENT_DEPLOYMENT_CHANNEL;
+    const isPreview = channel === "cloudflare-preview";
+    const isProduction = channel === "cloudflare-production";
 
     if (isPreview) {
       if (!previewAccessConfigured(env.APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET)) return previewUnavailable();
       if (url.pathname === previewLoginPath()) return handlePreviewLogin(request, env.APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET);
       if (url.pathname === previewLogoutPath()) return handlePreviewLogout();
       if (!(await previewRequestAuthorized(request, env.APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET))) return previewUnauthorized(request);
+    }
+
+    if (isProduction) {
+      if (url.pathname === productionLoginPath()) return handleProductionLogin(request, env);
+      if (url.pathname === productionLogoutPath()) return handleProductionLogout(request, env);
+
+      const readback = request.method === "GET"
+        && url.pathname === "/__deployment"
+        && await productionReadbackAuthorized(request, env.APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET);
+
+      if (!readback) {
+        const identity = await productionIdentity(request, env);
+        if (!identity) return productionUnauthorized(request);
+        if (url.pathname === productionAccountPath() || url.pathname.startsWith(`${productionAccountPath()}/`)) {
+          return handleProductionAccount(request, env, identity);
+        }
+        request = withProductionIdentity(request, identity);
+      }
     }
 
     if (request.method === "GET" && url.pathname === "/__deployment") {

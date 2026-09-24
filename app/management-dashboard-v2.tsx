@@ -139,7 +139,10 @@ function Gate({ busy, error, access, retry }: { busy: boolean; error: string; ac
   return <main className="amv2-gate"><section><div>QT</div><h1>Quản trị Ứng dụng</h1><p>{busy ? "Đang xác minh thiết bị quản trị…" : error || (access?.status === "pending" ? "Thiết bị này đang chờ Chủ hệ thống cấp quyền." : access?.status === "blocked" ? "Thiết bị quản trị đã bị khóa." : "Không thể mở Trung tâm quản trị.")}</p>{busy ? <span/> : <button onClick={retry}>Kiểm tra lại</button>}</section></main>;
 }
 
-export default function ManagementDashboardV2({ user }: { user: { displayName: string; email: string } }) {
+export default function ManagementDashboardV2({ user, authMode }: {
+  user: { displayName: string; email: string };
+  authMode: "chatgpt-sites" | "cloudflare-preview" | "cloudflare-production" | "local";
+}) {
   const [access, setAccess] = useState<AdminAccess | null>(null);
   const [center, setCenter] = useState<CenterBootstrap | null>(null);
   const [operations, setOperations] = useState<OperationsBootstrap | null>(null);
@@ -474,7 +477,7 @@ export default function ManagementDashboardV2({ user }: { user: { displayName: s
   const lastUpdated = operations?.generatedAt ? relativeTime(operations.generatedAt) : "Chưa có dữ liệu";
 
   return <main className="amv2-shell" data-font-scale={fontScale}>
-    {accountSecurityOpen ? <AccountSecurityDialog user={user} role={roleLabels[access.role]} close={() => setAccountSecurityOpen(false)}/> : null}
+    {accountSecurityOpen ? <AccountSecurityDialog user={user} role={roleLabels[access.role]} authMode={authMode} close={() => setAccountSecurityOpen(false)}/> : null}
     {autoPolicyOpen ? <AutomaticDevicePolicies key={operations?.generatedAt ?? "loading"} settings={operations?.settings} busy={actionBusy === "auto-policy"} close={() => setAutoPolicyOpen(false)} save={(selection) => void saveAutomation(selection)}/> : null}
     <aside className="amv2-sidebar">
       <div className="amv2-brand"><div>QT</div><span><small>TRUNG TÂM ĐIỀU PHỐI</small><strong>QUẢN TRỊ ỨNG DỤNG</strong><em>Kết nối · Kiểm soát · Phát triển</em></span></div>
@@ -490,7 +493,7 @@ export default function ManagementDashboardV2({ user }: { user: { displayName: s
         <label className="amv2-filter"><span>▽</span><select value={appFilter} onChange={(event) => setAppFilter(event.target.value)}><option value="all">Bộ lọc nhanh</option>{activeApps.map((app) => <option key={app.id} value={app.id}>{app.shortName}</option>)}{systemTools.map((tool) => <option key={tool.id} value={tool.id}>Tool · {tool.name}</option>)}</select></label>
         <button className="amv2-bell" onClick={() => switchView("approvals")}>♧{notificationCount ? <b>{notificationCount}</b> : null}</button>
         <span className="amv2-online"><i/><strong>Hệ thống kết nối</strong><small>{syncing ? "Đang đồng bộ…" : "Dữ liệu đã cập nhật"}</small></span>
-        <details className="amv2-account"><summary><span>{initials(user.displayName)}</span><div><strong>{user.displayName}</strong><small>{roleLabels[access.role]}</small></div><b>⌄</b></summary><div><small>{user.email}</small><button onClick={() => setAccountSecurityOpen(true)}>Tài khoản & bảo mật</button><button onClick={() => switchView("settings")}>Cấu hình</button><a href="/signout-with-chatgpt?return_to=%2F">Đăng xuất</a></div></details>
+        <details className="amv2-account"><summary><span>{initials(user.displayName)}</span><div><strong>{user.displayName}</strong><small>{roleLabels[access.role]}</small></div><b>⌄</b></summary><div><small>{user.email}</small>{authMode === "cloudflare-production" ? <a href="/__account">Tài khoản & bảo mật</a> : <button onClick={() => setAccountSecurityOpen(true)}>Tài khoản & bảo mật</button>}<button onClick={() => switchView("settings")}>Cấu hình</button>{authMode === "cloudflare-production" ? <form method="post" action="/__logout"><button type="submit">Đăng xuất</button></form> : <a href="/signout-with-chatgpt?return_to=%2F">Đăng xuất</a>}</div></details>
       </header>
 
       <div className="amv2-content">
@@ -536,26 +539,35 @@ export default function ManagementDashboardV2({ user }: { user: { displayName: s
   </main>;
 }
 
-function AccountSecurityDialog({ user, role, close }: {
+function AccountSecurityDialog({ user, role, authMode, close }: {
   user: { displayName: string; email: string };
   role: string;
+  authMode: "chatgpt-sites" | "cloudflare-preview" | "cloudflare-production" | "local";
   close: () => void;
 }) {
   return <div className="amv2-account-scrim" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) close(); }}>
     <section className="amv2-account-dialog" role="dialog" aria-modal="true" aria-labelledby="account-security-title">
       <header><div><small>TÀI KHOẢN</small><h2 id="account-security-title">Tài khoản & bảo mật</h2></div><button onClick={close} aria-label="Đóng">×</button></header>
       <div className="amv2-account-identity">
-        <article><span>Tên hiển thị</span><strong>{user.displayName}</strong><small>Danh tính do phiên đăng nhập ChatGPT Sites cung cấp.</small></article>
+        <article><span>Tên hiển thị</span><strong>{user.displayName}</strong><small>{authMode === "cloudflare-preview" ? "Danh tính tạm của môi trường Cloudflare Preview." : authMode === "local" ? "Danh tính phát triển cục bộ." : "Danh tính do phiên đăng nhập ChatGPT Sites cung cấp."}</small></article>
         <article><span>Vai trò quản trị</span><strong>{role}</strong><small>Quyền nghiệp vụ của Application Management.</small></article>
       </div>
       <div className="amv2-login-security">
         <h3>Thông tin đăng nhập</h3>
-        <p>Application Management không lưu mật khẩu, email đăng nhập hoặc số điện thoại của tài khoản ChatGPT. Thay đổi các thông tin này tại cài đặt tài khoản ChatGPT để tránh tạo một bộ thông tin đăng nhập thứ hai kém an toàn.</p>
-        <article><div><span>Email đăng nhập</span><strong>{user.email}</strong></div><em>Quản lý tại ChatGPT</em></article>
-        <article><div><span>Mật khẩu / phương thức đăng nhập</span><strong>Không lưu trong ứng dụng</strong></div><em>Quản lý tại ChatGPT</em></article>
-        <article><div><span>Số điện thoại</span><strong>Site không được cung cấp số điện thoại</strong></div><em>Quản lý tại ChatGPT</em></article>
-        <a href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">Mở ChatGPT để quản lý tài khoản ↗</a>
-        <small className="amv2-account-help">Trong ChatGPT, mở Settings rồi vào khu vực Account/Security để thay đổi thông tin đăng nhập khả dụng cho tài khoản.</small>
+        {authMode === "cloudflare-preview" ? <>
+          <p>Preview chỉ dùng để kiểm thử. Tài khoản Production được quản lý trên môi trường Cloudflare Production riêng.</p>
+          <article><div><span>Email phiên Preview</span><strong>{user.email}</strong></div><em>Không phải tài khoản Production</em></article>
+          <small className="amv2-account-help">Không đổi mật khẩu hoặc số điện thoại trong Preview.</small>
+        </> : authMode === "local" ? <>
+          <p>Môi trường local dùng danh tính phát triển từ cấu hình máy. Không lưu thông tin đăng nhập thật.</p>
+          <article><div><span>Email local</span><strong>{user.email}</strong></div><em>Chỉ dùng phát triển</em></article>
+        </> : <>
+          <p>Application Management không lưu mật khẩu, email đăng nhập hoặc số điện thoại của tài khoản ChatGPT. Thay đổi các thông tin này tại cài đặt tài khoản ChatGPT.</p>
+          <article><div><span>Email đăng nhập</span><strong>{user.email}</strong></div><em>Quản lý tại ChatGPT</em></article>
+          <article><div><span>Mật khẩu / phương thức đăng nhập</span><strong>Không lưu trong ứng dụng</strong></div><em>Quản lý tại ChatGPT</em></article>
+          <article><div><span>Số điện thoại</span><strong>Site không được cung cấp số điện thoại</strong></div><em>Quản lý tại ChatGPT</em></article>
+          <a href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">Mở ChatGPT để quản lý tài khoản ↗</a>
+        </>}
       </div>
       <footer><button onClick={close}>Đóng</button></footer>
     </section>

@@ -29,7 +29,11 @@
     "preview:verify": "node scripts/verify-preview-stack.mjs",
     "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "bash scripts/sites-env.sh -- drizzle-kit generate",
-    "projects:check": "node scripts/check-project-repositories.mjs"
+    "projects:check": "node scripts/check-project-repositories.mjs",
+    "validate:cloudflare-production": "node scripts/validate-cloudflare-production.mjs",
+    "cloudflare:production:prepare": "node scripts/prepare-cloudflare-production.mjs",
+    "cloudflare:production:check": "node scripts/validate-cloudflare-production.mjs",
+    "cloudflare:production:artifact:check": "node scripts/validate-cloudflare-production-artifact.mjs"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",

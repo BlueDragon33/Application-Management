@@ -56,7 +56,18 @@ async function ownerEmails() {
 }
 
 export async function isOwnerEmail(email: string) {
-  return (await ownerEmails()).includes(email.trim().toLowerCase());
+  const normalized = email.trim().toLowerCase();
+  try {
+    const database = await getControlDatabase();
+    const account = await database.prepare(
+      "SELECT role,status FROM control_accounts WHERE email=?1 LIMIT 1",
+    ).bind(normalized).first<{ role: string; status: string }>();
+    if (account?.status === "active" && account.role === "owner") return true;
+  } catch {
+    // Older ChatGPT Sites/local databases may not have the Production auth
+    // migration yet. CONTROL_OWNER_EMAILS remains the compatibility fallback.
+  }
+  return (await ownerEmails()).includes(normalized);
 }
 
 function base64Url(bytes: Uint8Array) {

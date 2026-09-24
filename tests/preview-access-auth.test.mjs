@@ -79,7 +79,7 @@ test("preview owner identity overwrites spoofed auth headers after the gate", as
 
 test("preview deployment installs the Worker secret and requires anonymous 401 read-back", () => {
   assert.ok(worker.includes("APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET?: string"));
-  assert.ok(worker.includes('accessMode: "application-preview-secret"'));
+  assert.ok(worker.includes('isPreview ? "application-preview-secret"'));
   assert.ok(worker.includes("previewRequestAuthorized"));
   assert.ok(deploy.includes("APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET"));
   assert.ok(deploy.includes("wrangler secret put APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET"));

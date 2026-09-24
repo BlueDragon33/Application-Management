@@ -53,7 +53,7 @@ if (!local.includes(LOCAL_D1_ID) || local.includes(LEGACY_SITES_D1_ID)) {
 for (const marker of ["CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH", "configPath: cloudflareConfigPath", "application-management-local", LOCAL_D1_ID]) {
   if (!vite.includes(marker)) throw new Error(`Vite migration boundary thiếu: ${marker}`);
 }
-for (const marker of ['url.pathname === "/__deployment"', "databaseReady", "previewAccessConfigured", 'accessMode: "application-preview-secret"']) {
+for (const marker of ['url.pathname === "/__deployment"', "databaseReady", "previewAccessConfigured", 'isPreview ? "application-preview-secret"']) {
   if (!worker.includes(marker)) throw new Error(`Worker thiếu preview deployment boundary: ${marker}`);
 }
 

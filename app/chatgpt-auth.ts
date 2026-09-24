@@ -8,6 +8,8 @@ export type ChatGPTUser = {
   fullName: string | null;
 };
 
+export type ApplicationAuthMode = "chatgpt-sites" | "cloudflare-preview" | "cloudflare-production" | "local";
+
 const USER_ID_HEADER = "oai-authenticated-user-id";
 const USER_EMAIL_HEADER = "oai-authenticated-user-email";
 const USER_FULL_NAME_HEADER = "oai-authenticated-user-full-name";
@@ -94,6 +96,17 @@ export async function requireChatGPTUser(returnTo = "/"): Promise<ChatGPTUser> {
   const user = await getChatGPTUser();
   if (user) return user;
   redirect(chatGPTSignInPath(returnTo));
+}
+
+export async function applicationAuthMode(): Promise<ApplicationAuthMode> {
+  const runtime = await runtimeVariables();
+  const channel = typeof runtime.APPLICATION_MANAGEMENT_DEPLOYMENT_CHANNEL === "string"
+    ? runtime.APPLICATION_MANAGEMENT_DEPLOYMENT_CHANNEL.trim()
+    : "";
+  if (channel === "cloudflare-production") return "cloudflare-production";
+  if (channel === "cloudflare-preview") return "cloudflare-preview";
+  if (runtime.LOCAL_DEV_AUTH === "1") return "local";
+  return "chatgpt-sites";
 }
 
 export function chatGPTSignInPath(returnTo = "/") {
