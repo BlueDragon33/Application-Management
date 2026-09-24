@@ -1,5 +1,6 @@
 import { resolveClientOrigin } from "./client-origin.server";
 import { getControlDatabase, type ControlRole } from "./control-device.server";
+import { signRuLifeBrowserTicket } from "./ru-life-ticket";
 
 const BRIDGE_TTL_MS = 5 * 60 * 1000;
 const BRIDGE_PREFIX = "v1.rulb_";
@@ -70,8 +71,25 @@ function validRole(value: unknown): value is ControlRole {
 }
 
 export async function issueRuLifeBrowserBridge(actor: string, role: ControlRole, controlDeviceId: string) {
-  const [database, origin] = await Promise.all([ensureBridgeTable(), controlOrigin()]);
+  const origin = await controlOrigin();
   const expiresAt = Date.now() + BRIDGE_TTL_MS;
+  const workers = await import("cloudflare:workers");
+  const configuredSecret = workers.env.RU_LIFE_CONTROL_SERVICE_SECRET;
+  if (typeof configuredSecret === "string" && configuredSecret.length >= 32) {
+    return {
+      baseUrl: origin.baseUrl,
+      token: await signRuLifeBrowserTicket(configuredSecret, actor, role, controlDeviceId),
+      expiresAt,
+      application: "ru-life" as const,
+      protocol: "ru-life-control-signed-v1" as const,
+      originSource: origin.source,
+    };
+  }
+  if (origin.source === "production") {
+    throw new RuLifeBridgeError("Chưa cấu hình khóa kết nối Hòa nhập Nga.", 503, { code: "RU_LIFE_SECRET_NOT_CONFIGURED" });
+  }
+  // Local development can still introspect an opaque ticket when no shared key exists.
+  const database = await ensureBridgeTable();
   const token = `${BRIDGE_PREFIX}${base64Url(crypto.getRandomValues(new Uint8Array(32)))}`;
   const tokenHash = await sha256(token);
   await database.batch([
