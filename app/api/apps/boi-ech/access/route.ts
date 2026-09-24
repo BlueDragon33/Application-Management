@@ -167,7 +167,9 @@ export async function POST(request: Request) {
   try {
     const payload = await request.json() as Record<string, unknown>;
     const previewRequest = ["terminal.local", "localhost"].includes(new URL(request.url).hostname);
-    const actor = await verifyControlProof(payload, undefined, previewRequest);
+    const controlDeviceId = text(payload.controlDeviceId);
+    const controlProofPayload = controlDeviceId ? { ...payload, deviceId: controlDeviceId } : payload;
+    const actor = await verifyControlProof(controlProofPayload, undefined, previewRequest);
     const bridge = await issueBoiBrowserBridge(actor.email, actor.role);
     const action = text(payload.action) || "bootstrap";
 
