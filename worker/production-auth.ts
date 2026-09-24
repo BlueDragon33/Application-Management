@@ -189,6 +189,15 @@ function accountPage(identity: ProductionIdentity, profile: { phone?: string | n
       <input id="phone" name="phone" maxlength="32" inputmode="tel" value="${escapeHtml(profile.phone ?? "")}">
       <button type="submit">Lưu thông tin</button>
     </form>
+    <form method="post" action="${ACCOUNT_PATH}/email">
+      <h2>Đổi email đăng nhập</h2>
+      <label for="newEmail">Email mới</label>
+      <input id="newEmail" name="newEmail" type="email" autocomplete="email" required>
+      <label for="emailPassword">Mật khẩu hiện tại</label>
+      <input id="emailPassword" name="currentPassword" type="password" autocomplete="current-password" required>
+      <button type="submit">Đổi email và đăng nhập lại</button>
+      <p class="note">Quyền Owner được giữ trong D1 và sẽ được chuyển cùng tài khoản; các phiên hiện tại sẽ bị thu hồi.</p>
+    </form>
     <form method="post" action="${ACCOUNT_PATH}/password">
       <h2>Đổi mật khẩu</h2>
       <label for="currentPassword">Mật khẩu hiện tại</label>
@@ -231,11 +240,12 @@ async function createSession(env: ProductionAuthEnv, email: string) {
 
 async function accountByEmail(env: ProductionAuthEnv, email: string) {
   return env.DB.prepare(
-    "SELECT email,display_name,phone,password_salt,password_hash,password_iterations,must_change_password,failed_attempts,locked_until,status FROM control_accounts WHERE email=?1 LIMIT 1",
+    "SELECT email,display_name,phone,role,password_salt,password_hash,password_iterations,must_change_password,failed_attempts,locked_until,status FROM control_accounts WHERE email=?1 LIMIT 1",
   ).bind(email).first<{
     email: string;
     display_name: string | null;
     phone: string | null;
+    role: string;
     password_salt: string;
     password_hash: string;
     password_iterations: number;
@@ -254,7 +264,7 @@ async function bootstrapOwner(env: ProductionAuthEnv, email: string, password: s
   const record = await newPasswordRecord(password);
   const displayName = email.split("@")[0] || "Administrator";
   await env.DB.prepare(
-    "INSERT OR IGNORE INTO control_accounts (email,display_name,phone,password_salt,password_hash,password_iterations,must_change_password,failed_attempts,locked_until,status,created_at,updated_at) VALUES (?1,?2,NULL,?3,?4,?5,1,0,NULL,'active',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)",
+    "INSERT OR IGNORE INTO control_accounts (email,display_name,phone,role,password_salt,password_hash,password_iterations,must_change_password,failed_attempts,locked_until,status,created_at,updated_at) VALUES (?1,?2,NULL,'owner',?3,?4,?5,1,0,NULL,'active',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)",
   ).bind(email, displayName, record.salt, record.hash, record.iterations).run();
   return accountByEmail(env, email);
 }
@@ -295,7 +305,10 @@ export async function productionIdentity(request: Request, env: ProductionAuthEn
 }
 
 export async function handleProductionLogin(request: Request, env: ProductionAuthEnv) {
-  if (request.method === "GET") return responseHtml(loginPage());
+  if (request.method === "GET") {
+    const changed = new URL(request.url).searchParams.get("changed");
+    return responseHtml(loginPage(changed === "email" ? "Email đăng nhập đã đổi. Hãy đăng nhập lại bằng email mới." : ""));
+  }
   if (request.method !== "POST") return new Response("Method Not Allowed", { status: 405, headers: secureHeaders("text/plain; charset=utf-8") });
   if (!sameOriginPost(request)) return new Response("Forbidden", { status: 403, headers: secureHeaders("text/plain; charset=utf-8") });
 
@@ -354,6 +367,30 @@ export async function handleProductionAccount(request: Request, env: ProductionA
       "UPDATE control_accounts SET display_name=?2,phone=?3,updated_at=CURRENT_TIMESTAMP WHERE email=?1",
     ).bind(identity.email, displayName, phone || null).run();
     return responseHtml(accountPage({ ...identity, displayName }, { phone }, "Đã lưu thông tin tài khoản."));
+  }
+
+  if (url.pathname === `${ACCOUNT_PATH}/email`) {
+    const newEmail = normalizeEmail(form.get("newEmail"));
+    const currentPassword = text(form.get("currentPassword"));
+    const profile = await env.DB.prepare("SELECT phone FROM control_accounts WHERE email=?1").bind(identity.email).first<{ phone: string | null }>();
+    if (!newEmail) return responseHtml(accountPage(identity, profile ?? {}, "Lỗi: Email mới không hợp lệ."), 400);
+    if (newEmail === identity.email) return responseHtml(accountPage(identity, profile ?? {}, "Lỗi: Email mới đang trùng email hiện tại."), 400);
+    const account = await accountByEmail(env, identity.email);
+    if (!account || !(await passwordMatches(currentPassword, account.password_salt, account.password_hash, account.password_iterations))) {
+      return responseHtml(accountPage(identity, profile ?? {}, "Lỗi: Mật khẩu hiện tại không đúng."), 401);
+    }
+    const existing = await accountByEmail(env, newEmail);
+    if (existing) return responseHtml(accountPage(identity, profile ?? {}, "Lỗi: Email mới đã được sử dụng."), 409);
+    const memberConflict = await env.DB.prepare("SELECT email FROM control_members WHERE email=?1 LIMIT 1").bind(newEmail).first<{ email: string }>();
+    if (memberConflict) return responseHtml(accountPage(identity, profile ?? {}, "Lỗi: Email mới đã tồn tại trong danh sách quản trị."), 409);
+
+    await env.DB.batch([
+      env.DB.prepare("UPDATE control_devices SET email=?2 WHERE email=?1").bind(identity.email, newEmail),
+      env.DB.prepare("UPDATE control_members SET email=?2,updated_at=CURRENT_TIMESTAMP WHERE email=?1").bind(identity.email, newEmail),
+      env.DB.prepare("UPDATE control_accounts SET email=?2,updated_at=CURRENT_TIMESTAMP WHERE email=?1").bind(identity.email, newEmail),
+      env.DB.prepare("DELETE FROM control_sessions WHERE email=?1").bind(newEmail),
+    ]);
+    return redirect(`${LOGIN_PATH}?changed=email`, `${SESSION_COOKIE}=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Strict`);
   }
 
   if (url.pathname === `${ACCOUNT_PATH}/password`) {
