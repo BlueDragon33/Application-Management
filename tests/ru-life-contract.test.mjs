@@ -24,14 +24,14 @@ test("RU LIFE keeps a real admin workspace while reading state from RU control A
 
 test("Application Management issues signed RU tickets in production and retains local opaque introspection", () => {
   const server = source("app/ru-life.server.ts");
-  const resolver = source("app/client-origin.server.ts");
+  const networkRegistry = source("app/client-network-registry.ts");
   const route = source("app/api/apps/hoa-nhap-nga/bridge/route.ts");
   const introspect = source("app/api/apps/hoa-nhap-nga/bridge/introspect/route.ts");
   const client = source("app/admin-device-client.ts");
   assert.match(server, /resolveClientOrigin\("ru-life"\)/);
-  assert.match(resolver, /productionEnv: "RU_LIFE_BASE_URL"/);
-  assert.match(resolver, /localEnv: "RU_LIFE_LOCAL_BASE_URL"/);
-  assert.match(resolver, /localDefault: "http:\/\/127\.0\.0\.1:3002"/);
+  assert.match(networkRegistry, /productionEnv: "RU_LIFE_BASE_URL"/);
+  assert.match(networkRegistry, /localEnv: "RU_LIFE_LOCAL_BASE_URL"/);
+  assert.match(networkRegistry, /localDefault: "http:\/\/127\.0\.0\.1:3002"/);
   assert.match(server, /BRIDGE_PREFIX = "v1\.rulb_"/);
   assert.match(server, /BRIDGE_TTL_MS = 5 \* 60 \* 1000/);
   assert.match(server, /ru_life_bridge_tickets/);
