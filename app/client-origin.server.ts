@@ -1,5 +1,8 @@
+import { getClientNetworkSpec, type ManagedClientId } from "./client-network-registry";
+
+export type { ManagedClientId } from "./client-network-registry";
+
 export type ControlPlaneNetworkMode = "production" | "local" | "hybrid";
-export type ManagedClientId = "health-care" | "ru-life" | "boi-ech" | "bauman-master-ai" | "bauman-runtime" | "price-report-control";
 export type ClientOriginSource = "production" | "local";
 
 export type ClientOriginResolution = {
@@ -9,53 +12,7 @@ export type ClientOriginResolution = {
   mode: ControlPlaneNetworkMode;
 };
 
-type ClientOriginSpec = {
-  productionEnv: string;
-  localEnv: string;
-  localDefault: string;
-  probePath: string;
-};
-
 const PROBE_TIMEOUT_MS = 850;
-
-const CLIENTS: Record<ManagedClientId, ClientOriginSpec> = {
-  "health-care": {
-    productionEnv: "HEALTH_CARE_BASE_URL",
-    localEnv: "HEALTH_CARE_LOCAL_BASE_URL",
-    localDefault: "http://127.0.0.1:3001",
-    probePath: "/api/control/contract",
-  },
-  "ru-life": {
-    productionEnv: "RU_LIFE_BASE_URL",
-    localEnv: "RU_LIFE_LOCAL_BASE_URL",
-    localDefault: "http://127.0.0.1:3002",
-    probePath: "/api/control/status",
-  },
-  "bauman-master-ai": {
-    productionEnv: "BAUMAN_CONTROL_BASE_URL",
-    localEnv: "BAUMAN_CONTROL_LOCAL_BASE_URL",
-    localDefault: "http://127.0.0.1:3003",
-    probePath: "/api/control/status",
-  },
-  "bauman-runtime": {
-    productionEnv: "BAUMAN_APP_ORIGIN",
-    localEnv: "BAUMAN_APP_LOCAL_ORIGIN",
-    localDefault: "http://127.0.0.1:3005",
-    probePath: "/_local/health",
-  },
-  "boi-ech": {
-    productionEnv: "BOI_ECH_BASE_URL",
-    localEnv: "BOI_ECH_LOCAL_BASE_URL",
-    localDefault: "http://127.0.0.1:3004",
-    probePath: "/api/control/runtime",
-  },
-  "price-report-control": {
-    productionEnv: "PRICE_REPORT_CONTROL_BASE_URL",
-    localEnv: "PRICE_REPORT_CONTROL_LOCAL_BASE_URL",
-    localDefault: "http://127.0.0.1:3009",
-    probePath: "/api/control/status",
-  },
-};
 
 function text(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -128,7 +85,7 @@ export async function currentControlPlaneNetworkMode() {
 export async function resolveClientOrigin(applicationId: ManagedClientId): Promise<ClientOriginResolution> {
   const values = await environment();
   const mode = networkMode(values);
-  const spec = CLIENTS[applicationId];
+  const spec = getClientNetworkSpec(applicationId);
   const production = normalizeClientOrigin(values[spec.productionEnv], false);
   const explicitLocal = normalizeClientOrigin(values[spec.localEnv], true);
   const legacyLocal = normalizeClientOrigin(values[spec.productionEnv], true);
