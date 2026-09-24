@@ -1,4 +1,4 @@
-import { resolveClientOrigin } from "./client-origin.server";
+import { resolveClientBridge, resolveClientOrigin } from "./client-origin.server";
 import type { ControlRole } from "./control-device.server";
 
 const TOKEN_ISSUER = "application-management";
@@ -18,12 +18,9 @@ export class BaumanBridgeError extends Error {
 }
 
 async function configuration() {
-  const workers = await import("cloudflare:workers");
-  const values = workers.env as unknown as Record<string, unknown>;
-  const secret = typeof values.BAUMAN_CONTROL_SERVICE_SECRET === "string" ? values.BAUMAN_CONTROL_SERVICE_SECRET : "";
   let origin;
   try {
-    origin = await resolveClientOrigin("bauman-master-ai");
+    origin = await resolveClientBridge("bauman-master-ai");
   } catch (error) {
     throw new BaumanBridgeError(
       error instanceof Error ? error.message : "Bauman Control Service chưa được cấu hình origin.",
@@ -37,14 +34,14 @@ async function configuration() {
   } catch {
     runtimeOrigin = null;
   }
-  if (secret.length < 32) {
+  if (origin.secret.length < 32) {
     throw new BaumanBridgeError(
-      "Bauman Control Service chưa được cấu hình secret.",
+      "Bauman Control Service chưa được cấu hình secret phù hợp với đường truyền hiện tại.",
       503,
-      { code: "BAUMAN_CONTROL_SECRET_NOT_CONFIGURED", baseUrl: origin.baseUrl },
+      { code: "BAUMAN_CONTROL_SECRET_NOT_CONFIGURED", baseUrl: origin.baseUrl, originSource: origin.source, secretEnv: origin.secretEnv },
     );
   }
-  return { ...origin, secret, runtimeOrigin };
+  return { ...origin, runtimeOrigin };
 }
 
 function base64Url(bytes: Uint8Array) {
