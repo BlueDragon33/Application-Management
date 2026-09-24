@@ -33,3 +33,11 @@ test("run:all preserves a prior failure exit code when core shutdown follows", (
   assert.match(source, /process\.exit\(pendingExitCode !== 0 \? pendingExitCode : \(code \?\? 0\)\);/);
   assert.doesNotMatch(source, /process\.exit\(code \?\? 0\);/);
 });
+
+
+test("run:all starts and closes the NC03 static runtime with the rest of the stack", () => {
+  assert.match(source, /const NC03_PORT = 3010;/);
+  assert.match(source, /nc03Server = await startStaticServer\(join\(nc03Root, "dist"\), NC03_PORT\);/);
+  assert.match(source, /nc03Server\?\.close/);
+  assert.match(source, /NC03 Control Center : http:\/\/127\.0\.0\.1:3010/);
+});

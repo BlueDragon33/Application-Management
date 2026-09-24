@@ -75,6 +75,13 @@ jobs:
           path: PriceReport_Tunggiabao
           persist-credentials: false
 
+      - name: Checkout NC03 Control Center
+        uses: actions/checkout@v4
+        with:
+          repository: BlueDragon33/NC03_Modem
+          path: NC03_Modem
+          persist-credentials: false
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:

@@ -20,7 +20,7 @@ test("dashboard v2 renders the registry instead of a second hard-coded app allow
   assert.match(dashboard, /const activeApps = applicationRegistry;/);
   assert.match(dashboard, /activeApps\.map\(\(app\) => app\.id\)/);
   assert.doesNotMatch(dashboard, /ACTIVE_APP_IDS/);
-  for (const id of ["boi-ech", "health-care", "ru-life", "bauman-master-ai", "price-report-tunggiabao", "growup-mychildren"]) {
+  for (const id of ["boi-ech", "health-care", "ru-life", "bauman-master-ai", "price-report-tunggiabao", "growup-mychildren", "nc03-modem"]) {
     assert.match(read("app/application-registry.ts"), new RegExp(`id: "${id}"`));
   }
 });
@@ -36,7 +36,7 @@ test("server bootstrap connects every registered client and keeps GrowUP admin l
   assert.match(operations, /if \(appId === "growup-mychildren"\)/);
 });
 
-test("full local topology composes all six managed clients", () => {
+test("full local topology composes six managed control clients plus NC03 local runtime", () => {
   const launcher = read("scripts/run-local-system.mjs");
   const runAll = read("scripts/run-all.mjs");
   for (const token of [
@@ -57,6 +57,9 @@ test("full local topology composes all six managed clients", () => {
     'GROWUP_CONTROL_SERVICE_SECRET',
     'PRICE_REPORT_CONTROL_SERVICE_SECRET',
     'price-report-tunggiabao',
+    'NC03_Modem',
+    'NC03_PORT = 3010',
+    'nc03-modem',
   ]) {
     assert.ok(runAll.includes(token), `run-all missing: ${token}`);
   }
@@ -72,4 +75,16 @@ test("Boi and Bauman keep focused mutation routing while Health, RU and PriceRep
   assert.match(operations, /appId === "health-care"/);
   assert.match(operations, /appId === "ru-life"/);
   assert.match(operations, /appId === "price-report-tunggiabao"/);
+});
+
+
+test("NC03 is reachable from Application Management through the authenticated local launcher", () => {
+  const registry = read("app/application-registry.ts");
+  const launcher = read("app/api/local-web-launch/route.ts");
+  const dashboard = read("app/management-dashboard-v2.tsx");
+  const workspace = read("app/application-workspace.tsx");
+  assert.match(registry, /localUrl: "\/api\/local-web-launch\?app=nc03-modem"/);
+  assert.match(launcher, /"nc03-modem": \{ label: "NC03 Control Center", url: "http:\/\/127\.0\.0\.1:3010\/" \}/);
+  assert.match(dashboard, /localRuntime && app\.localUrl/);
+  assert.match(workspace, /Mở Website ↗/);
 });

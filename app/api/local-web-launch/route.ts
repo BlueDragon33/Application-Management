@@ -7,6 +7,7 @@ const LOCAL_TARGETS = {
   "health-care": { label: "Sức khỏe Y tế", url: "http://127.0.0.1:3001/suc-khoe-tre" },
   "ru-life": { label: "Hòa nhập Nga", url: "http://127.0.0.1:3002/" },
   "bauman-master-ai": { label: "Bauman Runtime", url: "http://127.0.0.1:3005/" },
+  "nc03-modem": { label: "NC03 Control Center", url: "http://127.0.0.1:3010/" },
 } as const;
 
 type LocalAppId = keyof typeof LOCAL_TARGETS;

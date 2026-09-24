@@ -89,6 +89,7 @@ async function main() {
     growUpControl: join(options.appsRoot, "GrowUP_MyChildren", "control-service"),
     price: join(options.appsRoot, "PriceReport_Tunggiabao"),
     priceControl: join(options.appsRoot, "PriceReport_Tunggiabao", "control-service"),
+    nc03: join(options.appsRoot, "NC03_Modem"),
   };
 
   if (nodeVersionOk()) reporter.pass("Node.js", process.versions.node);
@@ -101,7 +102,7 @@ async function main() {
     [join(paths.central, "wrangler.local.jsonc"), "Application Management local D1"],
     [join(paths.central, ".dev.vars.example"), "Application Management local auth sample"],
     [join(paths.central, "scripts", "run-local-system.mjs"), "Core local-system launcher"],
-    [join(paths.central, "scripts", "run-all.mjs"), "Six-client run-all orchestrator"],
+    [join(paths.central, "scripts", "run-all.mjs"), "Run-all orchestrator"],
     [join(paths.health, "package.json"), "Health package"],
     [join(paths.health, "vite.config.ts"), "Health local bindings"],
     [join(paths.health, "wrangler.d1.jsonc"), "Health local D1 config"],
@@ -127,6 +128,8 @@ async function main() {
     [join(paths.price, "public", "management-contract.json"), "PriceReport management contract"],
     [join(paths.priceControl, "package.json"), "PriceReport Control package"],
     [join(paths.priceControl, "wrangler.local.jsonc"), "PriceReport Control local config"],
+    [join(paths.nc03, "package.json"), "NC03 runtime package"],
+    [join(paths.nc03, "index.html"), "NC03 runtime entry"],
   ];
   for (const [path, label] of requiredFiles) checkFile(reporter, path, label);
 
@@ -157,11 +160,14 @@ async function main() {
     "GROWUP_CONTROL_PORT = 3007",
     "PRICE_PORT = 3008",
     "PRICE_CONTROL_PORT = 3009",
+    "NC03_PORT = 3010",
+    "NC03_Modem",
+    "nc03-modem",
     "GROWUP_CONTROL_SERVICE_SECRET",
     "PRICE_REPORT_CONTROL_SERVICE_SECRET",
     "price-report-tunggiabao",
-  ])) reporter.pass("Six-client run-all wiring", "GrowUP :3006/:3007 + PriceReport :3008/:3009 + ephemeral secrets");
-  else reporter.fail("Six-client run-all wiring", "run:all chưa nối đủ GrowUP và PriceReport.");
+  ])) reporter.pass("Run-all wiring", "6 client quản trị + NC03 runtime :3010 + ephemeral secrets");
+  else reporter.fail("Run-all wiring", "run:all chưa nối đủ các client và NC03 runtime.");
 
   if (launcher && !launcher.includes('"--remote"') && !launcher.includes("workers.dev")) {
     reporter.pass("Local D1 isolation", "Launcher không dùng --remote/workers.dev");
@@ -237,7 +243,7 @@ async function main() {
   ])) reporter.pass("PriceReport local control contract", "KT- registry + signed control API + P-256 + concurrency guard");
   else reporter.fail("PriceReport local control contract", "PriceReport Control chưa đủ contract quản trị thiết bị.");
 
-  const portResults = await Promise.all([3000, 3001, 3002, 3003, 3004, 3005, 3006, 3007, 3008, 3009].map(async (port) => [port, await portFree(port)]));
+  const portResults = await Promise.all([3000, 3001, 3002, 3003, 3004, 3005, 3006, 3007, 3008, 3009, 3010].map(async (port) => [port, await portFree(port)]));
   for (const [port, free] of portResults) {
     if (free) reporter.pass(`Port ${port}`, "Đang trống");
     else if (options.strictPorts) reporter.fail(`Port ${port}`, "Đang có tiến trình lắng nghe");

@@ -16,10 +16,12 @@ const GROWUP_PORT = 3006;
 const GROWUP_CONTROL_PORT = 3007;
 const PRICE_PORT = 3008;
 const PRICE_CONTROL_PORT = 3009;
+const NC03_PORT = 3010;
 const GROWUP_ORIGIN = `http://127.0.0.1:${GROWUP_PORT}`;
 const GROWUP_CONTROL_ORIGIN = `http://127.0.0.1:${GROWUP_CONTROL_PORT}`;
 const PRICE_ORIGIN = `http://127.0.0.1:${PRICE_PORT}`;
 const PRICE_CONTROL_ORIGIN = `http://127.0.0.1:${PRICE_CONTROL_PORT}`;
+const NC03_ORIGIN = `http://127.0.0.1:${NC03_PORT}`;
 const CENTRAL_ORIGIN = "http://127.0.0.1:3000";
 
 const mime = new Map([
@@ -191,6 +193,7 @@ async function main() {
   const growUpControlScript = join(growUpRoot, "control-service", "local-control.mjs");
   const priceRoot = join(appsRoot, "PriceReport_Tunggiabao");
   const priceControlRoot = join(priceRoot, "control-service");
+  const nc03Root = join(appsRoot, "NC03_Modem");
 
   requireFile(join(growUpRoot, "index.html"), "GrowUP index.html");
   requireFile(join(growUpRoot, "control", "application-management.contract.json"), "GrowUP management contract");
@@ -200,9 +203,13 @@ async function main() {
   requireFile(join(priceRoot, "public", "management-contract.json"), "PriceReport management contract");
   requireFile(join(priceControlRoot, "package.json"), "PriceReport Control package.json");
   requireFile(join(priceControlRoot, "wrangler.local.jsonc"), "PriceReport Control local config");
+  requireFile(join(nc03Root, "package.json"), "NC03 package.json");
+  requireFile(join(nc03Root, "index.html"), "NC03 index.html");
 
   ensureDependencies("PriceReport Runtime", priceRoot);
   ensureDependencies("PriceReport Control", priceControlRoot);
+  runChecked("Xác minh/build · NC03 Control Center", npm, ["run", "verify"], nc03Root);
+
   runChecked(
     "Migration D1 local · PriceReport Control",
     npx,
@@ -240,6 +247,7 @@ async function main() {
 
   let core = null;
   let growUpServer = null;
+  let nc03Server = null;
   let closing = false;
   const children = [growUpControl, priceControl, priceRuntime];
 
@@ -249,6 +257,7 @@ async function main() {
     kill(core, signal);
     for (const child of [...children].reverse()) kill(child, signal);
     growUpServer?.close(() => {});
+    nc03Server?.close(() => {});
   };
   process.on("SIGINT", () => close("SIGINT"));
   process.on("SIGTERM", () => close("SIGTERM"));
@@ -281,6 +290,10 @@ async function main() {
     await verifyPriceContract();
     console.log(`[RUN-ALL] PriceReport Runtime sẵn sàng · ${PRICE_ORIGIN}`);
 
+    nc03Server = await startStaticServer(join(nc03Root, "dist"), NC03_PORT);
+    await waitFor(NC03_ORIGIN);
+    console.log(`[RUN-ALL] NC03 Control Center sẵn sàng · ${NC03_ORIGIN}`);
+
     core = spawn(process.execPath, [join(scriptDir, "run-local-system.mjs"), ...forwarded], {
       cwd: centralRoot,
       env: {
@@ -291,7 +304,8 @@ async function main() {
         PRICE_REPORT_BASE_URL: PRICE_ORIGIN,
         PRICE_REPORT_CONTROL_LOCAL_BASE_URL: PRICE_CONTROL_ORIGIN,
         PRICE_REPORT_CONTROL_SERVICE_SECRET: priceSecret,
-        LOCAL_ACTIVE_APPLICATIONS: "boi-ech,health-care,ru-life,bauman-master-ai,growup-mychildren,price-report-tunggiabao",
+        NC03_LOCAL_BASE_URL: NC03_ORIGIN,
+        LOCAL_ACTIVE_APPLICATIONS: "boi-ech,health-care,ru-life,bauman-master-ai,growup-mychildren,price-report-tunggiabao,nc03-modem",
       },
       stdio: "inherit",
       shell: false,
@@ -305,7 +319,8 @@ async function main() {
     core.on("exit", (code, signal) => {
       closing = true;
       for (const child of [...children].reverse()) kill(child);
-      growUpServer?.close(() => {
+      growUpServer?.close(() => {});
+      nc03Server?.close(() => {
         if (signal) console.log(`[RUN-ALL] Control plane lõi dừng bởi ${signal}.`);
         const pendingExitCode = typeof process.exitCode === "number" ? process.exitCode : 0;
         process.exit(pendingExitCode !== 0 ? pendingExitCode : (code ?? 0));
@@ -314,7 +329,7 @@ async function main() {
 
     await waitFor(CENTRAL_ORIGIN, 120_000);
     console.log("\n===============================================================");
-    console.log(" RUN ALL · 6 CLIENT RUNTIME/CONTROL ĐÃ KHỞI ĐỘNG");
+    console.log(" RUN ALL · 7 CLIENT RUNTIME/CONTROL ĐÃ KHỞI ĐỘNG");
     console.log("===============================================================");
     console.log(" Trung tâm          : http://127.0.0.1:3000");
     console.log(" Sức khỏe Y tế      : http://127.0.0.1:3001");
@@ -326,9 +341,10 @@ async function main() {
     console.log(" GrowUP Control     : http://127.0.0.1:3007");
     console.log(" PriceReport Runtime: http://127.0.0.1:3008");
     console.log(" PriceReport Control: http://127.0.0.1:3009");
+    console.log(" NC03 Control Center : http://127.0.0.1:3010");
     console.log("---------------------------------------------------------------");
     console.log(" Secret liên-app chỉ tồn tại trong process hiện tại; không ghi vào GitHub.");
-    console.log(" Kết nối quản trị 6/6 được xác minh ở authenticated offline smoke.");
+    console.log(" 6 client quản trị + NC03 local runtime đã được khởi động trong cùng hệ thống.");
     console.log("===============================================================\n");
   } catch (error) {
     close();
