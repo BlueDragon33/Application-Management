@@ -98,7 +98,7 @@ test("production deploy is manual-only and keeps strict deployment verification"
   assert.ok(deploy.includes("did not become ready within 60 seconds"));
   assert.ok(deploy.includes("value.accessMode !== 'account-session'"));
   assert.ok(deploy.includes("value.productionAuthConfigured"));
-  assert.ok(deploy.includes("x-application-management-auth-stage"));
+  assert.ok(auth.includes("x-application-management-auth-stage"));
   assert.ok(auth.includes("productionAuthFailure"));
   for (const stage of [
     "account-lookup",
