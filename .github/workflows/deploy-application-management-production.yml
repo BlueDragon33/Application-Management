@@ -7,6 +7,8 @@ on:
         description: "Gõ DEPLOY_PRODUCTION để triển khai Application Management Production lên Cloudflare"
         required: true
         type: string
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: read
@@ -45,9 +47,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${{ inputs.confirm }}" != "DEPLOY_PRODUCTION" ]]; then
-            echo '::error::Deployment cancelled. Enter DEPLOY_PRODUCTION exactly.'
-            exit 1
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            if [[ "${{ inputs.confirm }}" != "DEPLOY_PRODUCTION" ]]; then
+              echo '::error::Deployment cancelled. Enter DEPLOY_PRODUCTION exactly.'
+              exit 1
+            fi
+          else
+            if [[ "${{ github.actor }}" != "BlueDragon33" || "${{ github.event.comment.body }}" != "/deploy-production-bootstrap-e2e" ]]; then
+              echo '::error::One-shot Production diagnostic deploy requires the repository owner and exact command.'
+              exit 1
+            fi
           fi
 
       - name: Checkout repository
@@ -198,6 +207,51 @@ jobs:
             exit 1
           fi
           echo 'Production anonymous access is blocked and login route is available.'
+
+      - name: Bootstrap and verify real Production owner login when still using the bootstrap password
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute application-management-production-db --remote --config wrangler.production.jsonc --json             --command "SELECT COUNT(*) AS account_count, COALESCE(MAX(must_change_password),0) AS any_must_change FROM control_accounts;"             > /tmp/production-account-state.json
+
+          read -r ACCOUNT_COUNT ANY_MUST_CHANGE < <(node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          const raw = JSON.parse(fs.readFileSync('/tmp/production-account-state.json', 'utf8'));
+          const root = Array.isArray(raw) ? raw[0] : raw;
+          const rows = root?.results ?? root?.result?.[0]?.results ?? root?.result?.results ?? [];
+          const row = Array.isArray(rows) ? rows[0] : null;
+          if (!row) throw new Error('Could not read Production account state from D1.');
+          process.stdout.write(`${Number(row.account_count ?? 0)} ${Number(row.any_must_change ?? 0)}`);
+          NODE
+          )
+
+          if [[ "$ACCOUNT_COUNT" -gt 1 || ( "$ACCOUNT_COUNT" -eq 1 && "$ANY_MUST_CHANGE" -ne 1 ) ]]; then
+            echo "Production owner account is already initialized beyond bootstrap; skipping credential E2E."
+            exit 0
+          fi
+
+          OWNER_EMAIL="${CONTROL_OWNER_EMAILS%%,*}"
+          OWNER_EMAIL="$(printf '%s' "$OWNER_EMAIL" | xargs)"
+          rm -f /tmp/production-owner.cookies /tmp/production-owner.headers /tmp/production-owner.body
+
+          LOGIN_CODE="$(curl --silent --show-error             --output /tmp/production-owner.body             --dump-header /tmp/production-owner.headers             --cookie-jar /tmp/production-owner.cookies             --write-out '%{http_code}'             --max-time 30             -X POST             -H "Origin: $APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN"             -H "Referer: $APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/__login"             -H "Sec-Fetch-Site: same-origin"             -H "Content-Type: application/x-www-form-urlencoded"             --data-urlencode "email=$OWNER_EMAIL"             --data-urlencode "password=$APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD"             "$APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/__login")"
+
+          if [[ "$LOGIN_CODE" != "303" ]]; then
+            STAGE="$(awk -F': *' 'tolower($1)=="x-application-management-auth-stage"{gsub("\r","",$2); print $2}' /tmp/production-owner.headers | tail -n1)"
+            echo "::error::Real Production owner login failed with HTTP $LOGIN_CODE at stage ${STAGE:-unknown}."
+            cat /tmp/production-owner.body || true
+            exit 1
+          fi
+
+          ACCOUNT_CODE="$(curl --silent --show-error             --output /tmp/production-owner-account.html             --write-out '%{http_code}'             --max-time 20             --cookie /tmp/production-owner.cookies             "$APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/__account")"
+          if [[ "$ACCOUNT_CODE" != "200" ]] || ! grep -q 'Tài khoản & bảo mật' /tmp/production-owner-account.html; then
+            echo "::error::Production owner session did not open /__account successfully (HTTP $ACCOUNT_CODE)."
+            exit 1
+          fi
+
+          curl --silent --show-error --output /dev/null --max-time 15             -X POST             -H "Origin: $APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN"             -H "Referer: $APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/__account"             -H "Sec-Fetch-Site: same-origin"             --cookie /tmp/production-owner.cookies             "$APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/__logout" || true
+
+          echo 'Real Production owner bootstrap/login/session/account E2E PASS.'
 
       - name: Read back production deployment through health secret
         shell: bash

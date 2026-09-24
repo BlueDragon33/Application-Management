@@ -301,6 +301,26 @@ async function markFailedLogin(env: ProductionAuthEnv, email: string, failedAtte
   ).bind(email, next, lockedUntil).run();
 }
 
+function productionAuthFailure(stage: string, error: unknown) {
+  const detail = error instanceof Error
+    ? `${error.name}: ${error.message}`
+    : typeof error === "string"
+      ? error
+      : "unknown runtime error";
+  console.error(`[production-auth:${stage}] ${detail}`);
+  const headers = new Headers(secureHeaders());
+  headers.set("x-application-management-auth-stage", stage);
+  return new Response(
+    shell("Đăng nhập tạm gián đoạn", `
+      <h1>Đăng nhập tạm gián đoạn</h1>
+      <p>Application Management gặp lỗi nội bộ khi xử lý đăng nhập. Không có mật khẩu hoặc secret nào được hiển thị.</p>
+      <p class="note">Mã chẩn đoán: ${escapeHtml(stage)}</p>
+      <a class="button secondary" href="${LOGIN_PATH}">Thử lại đăng nhập</a>
+    `),
+    { status: 500, headers },
+  );
+}
+
 export async function productionIdentity(request: Request, env: ProductionAuthEnv): Promise<ProductionIdentity | null> {
   const token = cookieValue(request.headers, SESSION_COOKIE);
   if (!token) return null;
@@ -339,13 +359,31 @@ export async function handleProductionLogin(request: Request, env: ProductionAut
   if (request.method !== "POST") return new Response("Method Not Allowed", { status: 405, headers: secureHeaders("text/plain; charset=utf-8") });
   if (!sameOriginPost(request, true)) return new Response("Forbidden", { status: 403, headers: secureHeaders("text/plain; charset=utf-8") });
 
-  const form = await request.formData();
+  let form: FormData;
+  try {
+    form = await request.formData();
+  } catch (error) {
+    return productionAuthFailure("form-parse", error);
+  }
+
   const email = normalizeEmail(form.get("email"));
   const password = text(form.get("password"));
   if (!email || password.length < 12 || password.length > 256) return responseHtml(loginPage("Email hoặc mật khẩu không hợp lệ.", email), 400);
 
-  let account = await accountByEmail(env, email);
-  if (!account) account = await bootstrapOwner(env, email, password);
+  let account: Awaited<ReturnType<typeof accountByEmail>> = null;
+  try {
+    account = await accountByEmail(env, email);
+  } catch (error) {
+    return productionAuthFailure("account-lookup", error);
+  }
+
+  if (!account) {
+    try {
+      account = await bootstrapOwner(env, email, password);
+    } catch (error) {
+      return productionAuthFailure("owner-bootstrap", error);
+    }
+  }
   if (!account || account.status !== "active") return responseHtml(loginPage("Email hoặc mật khẩu không đúng.", email), 401);
 
   const now = Math.floor(Date.now() / 1000);
@@ -353,16 +391,35 @@ export async function handleProductionLogin(request: Request, env: ProductionAut
     return responseHtml(loginPage("Tài khoản đang tạm khóa do đăng nhập sai nhiều lần. Hãy thử lại sau.", email), 429);
   }
 
-  const ok = await passwordMatches(password, account.password_salt, account.password_hash, account.password_iterations);
+  let ok = false;
+  try {
+    ok = await passwordMatches(password, account.password_salt, account.password_hash, account.password_iterations);
+  } catch (error) {
+    return productionAuthFailure("password-verify", error);
+  }
   if (!ok) {
-    await markFailedLogin(env, email, account.failed_attempts);
+    try {
+      await markFailedLogin(env, email, account.failed_attempts);
+    } catch (error) {
+      return productionAuthFailure("failed-login-record", error);
+    }
     return responseHtml(loginPage("Email hoặc mật khẩu không đúng.", email), 401);
   }
 
-  await env.DB.prepare(
-    "UPDATE control_accounts SET failed_attempts=0,locked_until=NULL,updated_at=CURRENT_TIMESTAMP WHERE email=?1",
-  ).bind(email).run();
-  const session = await createSession(env, email);
+  try {
+    await env.DB.prepare(
+      "UPDATE control_accounts SET failed_attempts=0,locked_until=NULL,updated_at=CURRENT_TIMESTAMP WHERE email=?1",
+    ).bind(email).run();
+  } catch (error) {
+    return productionAuthFailure("login-reset", error);
+  }
+
+  let session: Awaited<ReturnType<typeof createSession>>;
+  try {
+    session = await createSession(env, email);
+  } catch (error) {
+    return productionAuthFailure("session-create", error);
+  }
   return redirect(account.must_change_password === 1 ? ACCOUNT_PATH : "/", session.cookie);
 }
 
