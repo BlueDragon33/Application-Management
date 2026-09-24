@@ -5,6 +5,13 @@
   "compatibility_date": "2026-09-10",
   "compatibility_flags": ["nodejs_compat"],
 
+  // Preview authentication must execute before every asset request. The
+  // Cloudflare Vite plugin supplies the generated asset directory.
+  "assets": {
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+
   // Template only. scripts/prepare-cloudflare-preview.mjs materializes
   // wrangler.cloudflare.jsonc with a SEPARATE preview D1 database.
   // Never put service secrets, preview access secrets or LOCAL_DEV_AUTH in this file.

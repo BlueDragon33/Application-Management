@@ -55,6 +55,9 @@ test("generated Cloudflare artifact validation follows Wrangler's config redirec
   }
   assert.ok(previewCi.includes("npm run cloudflare:artifact:check"));
   assert.ok(deploy.includes("npm run cloudflare:artifact:check"));
+  assert.match(template, /"run_worker_first"\s*:\s*true/);
+  assert.match(template, /"binding"\s*:\s*"ASSETS"/);
+  assert.ok(artifact.includes("assets.run_worker_first !== true"));
 });
 
 test("Cloudflare preview deployment is explicit, app-secret protected and read-back verified", () => {

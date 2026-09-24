@@ -80,6 +80,14 @@ if (String(database.database_id ?? "").toLowerCase() !== expectedD1Id) {
   fail("Generated D1 database id does not match APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID.");
 }
 
+const assets = generated.assets && typeof generated.assets === "object" && !Array.isArray(generated.assets) ? generated.assets : {};
+if (assets.run_worker_first !== true) {
+  fail("Generated Cloudflare preview artifact must set assets.run_worker_first=true so preview authentication executes before static assets.");
+}
+if (String(assets.binding ?? "") !== "ASSETS") {
+  fail("Generated Cloudflare preview artifact must expose the ASSETS binding.");
+}
+
 const vars = generated.vars && typeof generated.vars === "object" && !Array.isArray(generated.vars) ? generated.vars : {};
 if (vars.APPLICATION_MANAGEMENT_DEPLOYMENT_CHANNEL !== EXPECTED_CHANNEL) {
   fail(`Generated deployment channel must be ${EXPECTED_CHANNEL}.`);
