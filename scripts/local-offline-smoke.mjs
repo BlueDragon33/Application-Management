@@ -22,6 +22,7 @@ const checks = [
   ["GrowUP Control", "http://127.0.0.1:3007/health"],
   ["PriceReport Runtime", "http://127.0.0.1:3008/management-contract.json"],
   ["PriceReport Control", "http://127.0.0.1:3009/health"],
+  ["NC03 Control Center", "http://127.0.0.1:3010/"],
   ["Application Management", `${centralOrigin}/`],
 ];
 
@@ -177,7 +178,7 @@ function stop(child) {
 }
 
 async function main() {
-  console.log("[offline-smoke] Khởi động full local stack gồm 6 client qua run:all. Không deploy, không dùng production D1.");
+  console.log("[offline-smoke] Khởi động full local stack gồm 6 client quản trị + NC03 local runtime qua run:all. Không deploy, không dùng production D1.");
   console.log("[offline-smoke] Dependency bootstrap được giao cho run-all/run-local-system để kiểm thử đúng đường chạy người dùng.");
   const child = spawn(process.execPath, [launcherPath, "--local", "--no-browser", ...forwarded], {
     cwd: root,
@@ -209,7 +210,7 @@ async function main() {
       })(),
       earlyExit,
     ]);
-    console.log("\n[offline-smoke] PASS · Full local stack, authenticated operations bridge và quản trị quyền hoạt động trên 127.0.0.1:3000–3009, không publish.");
+    console.log("\n[offline-smoke] PASS · Full local stack, authenticated operations bridge + NC03 runtime hoạt động trên 127.0.0.1:3000–3010, không publish.");
   } finally {
     cancel.abort();
     stop(child);
