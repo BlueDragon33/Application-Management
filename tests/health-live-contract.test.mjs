@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 const healthBridge = fs.readFileSync("app/health-care.server.ts", "utf8");
-const originResolver = fs.readFileSync("app/client-origin.server.ts", "utf8");
+const networkRegistry = fs.readFileSync("app/client-network-registry.ts", "utf8");
 const operations = fs.readFileSync("app/api/operations/route.ts", "utf8");
 const registry = fs.readFileSync("app/application-registry.ts", "utf8");
 const hub = fs.readFileSync("app/application-hub.tsx", "utf8");
@@ -34,7 +34,7 @@ test("Health bridge verifies management contract v3 with idempotent device comma
     'boundary.profileDataInControlPlane === false',
     'registry.namespace === "SK-"',
   ]);
-  mustContain(originResolver, [
+  mustContain(networkRegistry, [
     'productionEnv: "HEALTH_CARE_BASE_URL"',
     'localEnv: "HEALTH_CARE_LOCAL_BASE_URL"',
     'localDefault: "http://127.0.0.1:3001"',
