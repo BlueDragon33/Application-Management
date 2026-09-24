@@ -1,5 +1,0 @@
-Cloudflare preview deployment request
-Requested source: main
-Required application revision before trigger: cec60ef21483390cec5f924f5e0ec87b3c7a0b73
-Purpose: publish current Application Management main to application-management-preview
-Cleanup: remove this file and restore workflow to manual-only after verified read-back
