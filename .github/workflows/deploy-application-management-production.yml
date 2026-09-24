@@ -208,28 +208,10 @@ jobs:
           fi
           echo 'Production anonymous access is blocked and login route is available.'
 
-      - name: Bootstrap and verify real Production owner login when still using the bootstrap password
+      - name: Bootstrap and verify real Production owner login while diagnosing first login
         shell: bash
         run: |
           set -euo pipefail
-          npx wrangler d1 execute application-management-production-db --remote --config wrangler.production.jsonc --json             --command "SELECT COUNT(*) AS account_count, COALESCE(MAX(must_change_password),0) AS any_must_change FROM control_accounts;"             > /tmp/production-account-state.json
-
-          read -r ACCOUNT_COUNT ANY_MUST_CHANGE < <(node --input-type=module - <<'NODE'
-          import fs from 'node:fs';
-          const raw = JSON.parse(fs.readFileSync('/tmp/production-account-state.json', 'utf8'));
-          const root = Array.isArray(raw) ? raw[0] : raw;
-          const rows = root?.results ?? root?.result?.[0]?.results ?? root?.result?.results ?? [];
-          const row = Array.isArray(rows) ? rows[0] : null;
-          if (!row) throw new Error('Could not read Production account state from D1.');
-          process.stdout.write(`${Number(row.account_count ?? 0)} ${Number(row.any_must_change ?? 0)}`);
-          NODE
-          )
-
-          if [[ "$ACCOUNT_COUNT" -gt 1 || ( "$ACCOUNT_COUNT" -eq 1 && "$ANY_MUST_CHANGE" -ne 1 ) ]]; then
-            echo "Production owner account is already initialized beyond bootstrap; skipping credential E2E."
-            exit 0
-          fi
-
           OWNER_EMAIL="${CONTROL_OWNER_EMAILS%%,*}"
           OWNER_EMAIL="$(printf '%s' "$OWNER_EMAIL" | xargs)"
           rm -f /tmp/production-owner.cookies /tmp/production-owner.headers /tmp/production-owner.body
