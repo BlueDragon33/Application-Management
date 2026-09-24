@@ -1,4 +1,4 @@
-import { resolveClientOrigin } from "./client-origin.server";
+import { resolveClientBridge } from "./client-origin.server";
 import { getControlDatabase, type ControlRole } from "./control-device.server";
 import { signRuLifeBrowserTicket } from "./ru-life-ticket";
 
@@ -27,7 +27,7 @@ type BridgeRow = {
 
 async function controlOrigin() {
   try {
-    return await resolveClientOrigin("ru-life");
+    return await resolveClientBridge("ru-life");
   } catch (error) {
     throw new RuLifeBridgeError(
       error instanceof Error ? error.message : "Origin Hòa nhập Nga chưa được cấu hình.",
@@ -73,9 +73,8 @@ function validRole(value: unknown): value is ControlRole {
 export async function issueRuLifeBrowserBridge(actor: string, role: ControlRole, controlDeviceId: string) {
   const origin = await controlOrigin();
   const expiresAt = Date.now() + BRIDGE_TTL_MS;
-  const workers = await import("cloudflare:workers");
-  const configuredSecret = workers.env.RU_LIFE_CONTROL_SERVICE_SECRET;
-  if (typeof configuredSecret === "string" && configuredSecret.length >= 32) {
+  const configuredSecret = origin.secret;
+  if (configuredSecret.length >= 32) {
     return {
       baseUrl: origin.baseUrl,
       token: await signRuLifeBrowserTicket(configuredSecret, actor, role, controlDeviceId),
@@ -86,7 +85,7 @@ export async function issueRuLifeBrowserBridge(actor: string, role: ControlRole,
     };
   }
   if (origin.source === "production") {
-    throw new RuLifeBridgeError("Chưa cấu hình khóa kết nối Hòa nhập Nga.", 503, { code: "RU_LIFE_SECRET_NOT_CONFIGURED" });
+    throw new RuLifeBridgeError("Chưa cấu hình khóa kết nối Hòa nhập Nga.", 503, { code: "RU_LIFE_SECRET_NOT_CONFIGURED", secretEnv: origin.secretEnv });
   }
   // Local development can still introspect an opaque ticket when no shared key exists.
   const database = await ensureBridgeTable();

@@ -1,4 +1,4 @@
-import { normalizeClientOrigin, resolveClientOrigin } from "./client-origin.server";
+import { normalizeClientOrigin, resolveClientBridge, resolveClientOrigin } from "./client-origin.server";
 import type { ControlRole } from "./control-device.server";
 
 const TOKEN_ISSUER = "application-management";
@@ -30,12 +30,6 @@ export class HealthBridgeError extends Error {
   }
 }
 
-async function secret() {
-  const workers = await import("cloudflare:workers");
-  const values = workers.env as unknown as Record<string, unknown>;
-  return typeof values.HEALTH_CONTROL_SERVICE_SECRET === "string" ? values.HEALTH_CONTROL_SERVICE_SECRET : "";
-}
-
 async function requireOrigin() {
   try {
     return await resolveClientOrigin("health-care");
@@ -49,15 +43,24 @@ async function requireOrigin() {
 }
 
 async function configuration() {
-  const [origin, configuredSecret] = await Promise.all([requireOrigin(), secret()]);
-  if (configuredSecret.length < 32) {
+  let configured;
+  try {
+    configured = await resolveClientBridge("health-care");
+  } catch (error) {
     throw new HealthBridgeError(
-      "Chưa cấu hình khóa kết nối Sức khỏe Y tế.",
+      error instanceof Error ? error.message : "Chưa cấu hình origin Sức khỏe Y tế.",
       503,
-      { code: "HEALTH_CARE_SECRET_NOT_CONFIGURED", baseUrl: origin.baseUrl },
+      { code: "HEALTH_CARE_ORIGIN_NOT_CONFIGURED" },
     );
   }
-  return { ...origin, secret: configuredSecret };
+  if (configured.secret.length < 32) {
+    throw new HealthBridgeError(
+      "Chưa cấu hình khóa kết nối Sức khỏe Y tế phù hợp với đường truyền hiện tại.",
+      503,
+      { code: "HEALTH_CARE_SECRET_NOT_CONFIGURED", baseUrl: configured.baseUrl, originSource: configured.source, secretEnv: configured.secretEnv },
+    );
+  }
+  return configured;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

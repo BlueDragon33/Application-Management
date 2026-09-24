@@ -35,7 +35,7 @@ test("network registry is the single transport catalog for managed client bridge
   ]) {
     assert.ok(registry.includes(token), `missing network registry client: ${token}`);
   }
-  for (const key of ["productionEnv", "localEnv", "localDefault", "probePath", "bridgeSecretEnv"]) {
+  for (const key of ["productionEnv", "localEnv", "localDefault", "probePath", "bridgeSecretEnv", "localBridgeSecretEnv"]) {
     assert.ok(registry.includes(key), `missing network registry field: ${key}`);
   }
   assert.match(registry, /satisfies Record<ManagedClientId, ClientNetworkSpec>/);
@@ -62,13 +62,19 @@ test("bridge secrets are declared as metadata without entering origin resolution
   assert.match(registry, /BAUMAN_CONTROL_SERVICE_SECRET/);
   assert.match(registry, /CONTROL_SERVICE_SECRET/);
   assert.match(registry, /PRICE_REPORT_CONTROL_SERVICE_SECRET/);
-  assert.doesNotMatch(resolver, /SERVICE_SECRET/);
+  assert.match(registry, /HEALTH_CONTROL_SERVICE_LOCAL_SECRET/);
+  assert.match(registry, /RU_LIFE_CONTROL_SERVICE_LOCAL_SECRET/);
+  assert.match(registry, /BAUMAN_CONTROL_SERVICE_LOCAL_SECRET/);
+  assert.match(registry, /CONTROL_SERVICE_LOCAL_SECRET/);
+  assert.match(resolver, /resolveClientBridge/);
+  assert.match(resolver, /origin\.source === "local"/);
+  assert.match(resolver, /spec\.localBridgeSecretEnv \?\? spec\.bridgeSecretEnv/);
 });
 
 test("all managed client bridges use the shared resolver and no chatgpt.site fallback", () => {
   for (const path of ["app/health-care.server.ts", "app/ru-life.server.ts", "app/boi-ech.server.ts", "app/bauman.server.ts"]) {
     const bridge = source(path);
-    assert.match(bridge, /resolveClientOrigin/);
+    assert.match(bridge, /resolveClient(?:Origin|Bridge)/);
     assert.doesNotMatch(bridge, /dinhnam3391\.chatgpt\.site/);
   }
   const bauman = source("app/bauman.server.ts");
@@ -96,6 +102,10 @@ test("full local launcher keeps repos independent and local databases isolated",
   assert.match(launcher, /"wrangler", "dev", "--local", "--config", "wrangler\.local\.jsonc"/);
   assert.match(launcher, /BAUMAN_APP_ORIGIN/);
   assert.match(launcher, /BAUMAN_APP_LOCAL_ORIGIN/);
+  assert.match(launcher, /HEALTH_CONTROL_SERVICE_LOCAL_SECRET/);
+  assert.match(launcher, /RU_LIFE_CONTROL_SERVICE_LOCAL_SECRET/);
+  assert.match(launcher, /BAUMAN_CONTROL_SERVICE_LOCAL_SECRET/);
+  assert.match(launcher, /CONTROL_SERVICE_LOCAL_SECRET/);
   assert.match(launcher, /scripts\/serve-local-runtime\.mjs/);
   assert.match(launcher, /BAUMAN-RUNTIME/);
   assert.match(launcher, /_local\/health/);
@@ -114,4 +124,15 @@ test("package exposes central-only and full-system launch paths separately", () 
   assert.equal(pkg.scripts.local, "node scripts/run-local.mjs");
   assert.equal(pkg.scripts["local:system"], "node scripts/run-local-offline-v2.mjs");
   assert.equal(pkg.scripts["local:system:hybrid"], "node scripts/run-local-system.mjs --hybrid");
+});
+
+test("hybrid bridge selects credentials from the same transport source as the resolved origin", () => {
+  for (const path of ["app/health-care.server.ts", "app/ru-life.server.ts", "app/boi-ech.server.ts", "app/bauman.server.ts"]) {
+    const bridge = source(path);
+    assert.match(bridge, /resolveClientBridge/);
+  }
+  assert.doesNotMatch(launcher, /\n\s+HEALTH_CONTROL_SERVICE_SECRET: healthSecret/);
+  assert.doesNotMatch(launcher, /\n\s+RU_LIFE_CONTROL_SERVICE_SECRET: ruSecret/);
+  assert.doesNotMatch(launcher, /\n\s+BAUMAN_CONTROL_SERVICE_SECRET: baumanSecret/);
+  assert.doesNotMatch(launcher, /\n\s+CONTROL_SERVICE_SECRET: boiSecret/);
 });

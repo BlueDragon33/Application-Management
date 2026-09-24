@@ -9,14 +9,14 @@ CONTROL_OWNER_EMAILS=local.owner@example.test
 # Start each independent client on its own loopback port and use the same local-only secret on both sides.
 # Prefer the explicit *_LOCAL_* variables below rather than putting private HTTP origins in production *_BASE_URL variables.
 # HEALTH_CARE_LOCAL_BASE_URL=http://127.0.0.1:3001
-# HEALTH_CONTROL_SERVICE_SECRET=local-only-health-control-secret-change-me-0001
+# HEALTH_CONTROL_SERVICE_LOCAL_SECRET=local-only-health-control-secret-change-me-0001
 # RU_LIFE_LOCAL_BASE_URL=http://127.0.0.1:3002
-# RU_LIFE_CONTROL_SERVICE_SECRET=local-only-ru-control-secret-change-me-0001
+# RU_LIFE_CONTROL_SERVICE_LOCAL_SECRET=local-only-ru-control-secret-change-me-0001
 # BAUMAN_CONTROL_LOCAL_BASE_URL=http://127.0.0.1:3003
 # BAUMAN_APP_LOCAL_ORIGIN=http://127.0.0.1:3005
-# BAUMAN_CONTROL_SERVICE_SECRET=local-only-bauman-control-secret-change-me-0001
+# BAUMAN_CONTROL_SERVICE_LOCAL_SECRET=local-only-bauman-control-secret-change-me-0001
 # BOI_ECH_LOCAL_BASE_URL=http://127.0.0.1:3004
-# CONTROL_SERVICE_SECRET=local-only-boi-control-secret-change-me-0001
+# CONTROL_SERVICE_LOCAL_SECRET=local-only-boi-control-secret-change-me-0001
 
 
 # PriceReport Tùng Gia Bảo is a static GitHub Pages client in phase 1.
@@ -29,3 +29,15 @@ CONTROL_OWNER_EMAILS=local.owner@example.test
 # PRICE_REPORT_CONTROL_BASE_URL=https://<price-report-control-worker-origin>
 # PRICE_REPORT_CONTROL_SERVICE_SECRET=local-only-price-report-control-secret-change-me-0001
 # PRICE_REPORT_BASE_URL=https://bluedragon33.github.io/PriceReport_Tunggiabao
+
+# Optional Hybrid fallback to Cloudflare Production.
+# Keep these production values only in local untracked .dev.vars when remote fallback is desired.
+# HEALTH_CARE_BASE_URL=https://<health-production-origin>
+# HEALTH_CONTROL_SERVICE_SECRET=<health-production-secret>
+# RU_LIFE_BASE_URL=https://<ru-life-production-origin>
+# RU_LIFE_CONTROL_SERVICE_SECRET=<ru-life-production-secret>
+# BAUMAN_CONTROL_BASE_URL=https://bauman-control.boiech-ai.workers.dev
+# BAUMAN_APP_ORIGIN=https://bauman-master-ai.boiech-ai.workers.dev
+# BAUMAN_CONTROL_SERVICE_SECRET=<bauman-production-secret>
+# BOI_ECH_BASE_URL=https://<boi-ech-production-origin>
+# CONTROL_SERVICE_SECRET=<boi-ech-production-secret>

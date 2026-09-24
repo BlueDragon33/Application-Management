@@ -28,14 +28,15 @@ test("Application Management issues signed RU tickets in production and retains 
   const route = source("app/api/apps/hoa-nhap-nga/bridge/route.ts");
   const introspect = source("app/api/apps/hoa-nhap-nga/bridge/introspect/route.ts");
   const client = source("app/admin-device-client.ts");
-  assert.match(server, /resolveClientOrigin\("ru-life"\)/);
+  assert.match(server, /resolveClientBridge\("ru-life"\)/);
   assert.match(networkRegistry, /productionEnv: "RU_LIFE_BASE_URL"/);
   assert.match(networkRegistry, /localEnv: "RU_LIFE_LOCAL_BASE_URL"/);
   assert.match(networkRegistry, /localDefault: "http:\/\/127\.0\.0\.1:3002"/);
   assert.match(server, /BRIDGE_PREFIX = "v1\.rulb_"/);
   assert.match(server, /BRIDGE_TTL_MS = 5 \* 60 \* 1000/);
   assert.match(server, /ru_life_bridge_tickets/);
-  assert.match(server, /RU_LIFE_CONTROL_SERVICE_SECRET/);
+  assert.match(networkRegistry, /bridgeSecretEnv: "RU_LIFE_CONTROL_SERVICE_SECRET"/);
+  assert.match(networkRegistry, /localBridgeSecretEnv: "RU_LIFE_CONTROL_SERVICE_LOCAL_SECRET"/);
   assert.match(server, /signRuLifeBrowserTicket/);
   assert.match(server, /origin.source === "production"/);
   assert.doesNotMatch(server, /DEFAULT_RU_LIFE_BASE_URL|dinhnam3391\.chatgpt\.site/);

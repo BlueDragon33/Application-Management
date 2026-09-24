@@ -109,3 +109,19 @@ export async function resolveClientOrigin(applicationId: ManagedClientId): Promi
   }
   throw new Error(`Không tìm thấy origin local đang hoạt động và ${spec.productionEnv} chưa được cấu hình HTTPS.`);
 }
+
+export type ClientBridgeResolution = ClientOriginResolution & {
+  secret: string;
+  secretEnv: string | null;
+};
+
+export async function resolveClientBridge(applicationId: ManagedClientId): Promise<ClientBridgeResolution> {
+  const origin = await resolveClientOrigin(applicationId);
+  const values = await environment();
+  const spec = getClientNetworkSpec(applicationId);
+  const secretEnv = origin.source === "local"
+    ? (spec.localBridgeSecretEnv ?? spec.bridgeSecretEnv ?? null)
+    : (spec.bridgeSecretEnv ?? null);
+  const secret = secretEnv ? text(values[secretEnv]) : "";
+  return { ...origin, secret, secretEnv };
+}
