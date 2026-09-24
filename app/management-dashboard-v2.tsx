@@ -386,7 +386,8 @@ export default function ManagementDashboardV2({ user }: { user: { displayName: s
     if (!current) return;
     const supported = new Set(current.autoApproveSupportedAppIds);
     const blockSupported = new Set(current.autoBlockPendingSupportedAppIds ?? []);
-    if (selection.appIds.some((id) => !supported.has(id)) || selection.autoBlockAppIds.some((id) => !blockSupported.has(id))) {
+    if (selection.appIds.some((id) => !supported.has(id) && !current.autoApproveAppIds.includes(id))
+      || selection.autoBlockAppIds.some((id) => !blockSupported.has(id) && !current.autoBlockPendingAppIds?.includes(id))) {
       setNotice("Có ứng dụng chưa công bố contract tự động xử lý.");
       return;
     }

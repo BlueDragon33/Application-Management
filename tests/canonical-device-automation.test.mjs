@@ -39,6 +39,7 @@ test("a disconnected client keeps its policy while connected clients can save in
   assert.match(endpoint, /CANDIDATE_APP_IDS\.filter\(\(id\) => targets\.includes\(id\)\)/);
   assert.match(editor, /Quy tắc của ứng dụng chưa trả lời được giữ nguyên/);
   assert.doesNotMatch(editor, /!unavailableEnabled/);
+  assert.match(dashboard, /!supported\.has\(id\) && !current\.autoApproveAppIds\.includes\(id\)/);
 });
 
 test("quick web menu exposes only actual client runtime URLs", () => {

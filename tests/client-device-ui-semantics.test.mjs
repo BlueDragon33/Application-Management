@@ -42,7 +42,8 @@ test("returning to the center triggers a read-only operations resync", () => {
 
 test("automatic approval uses only server-advertised supported client ids", () => {
   assert.match(dashboard, /new Set\(current\.autoApproveSupportedAppIds\)/);
-  assert.match(dashboard, /selection\.appIds\.some\(\(id\) => !supported\.has\(id\)\)/);
+  assert.match(dashboard, /selection\.appIds\.some\(\(id\) => !supported\.has\(id\) && !current\.autoApproveAppIds\.includes\(id\)\)/);
+  assert.match(dashboard, /targetAppIds: current\.autoApproveSupportedAppIds/);
   assert.match(dashboard, /action: "set-auto-approval", appIds: selection\.appIds/);
   assert.match(dashboard, /<AutomaticDevicePolicies/);
 });
