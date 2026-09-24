@@ -7,6 +7,8 @@ on:
         description: "Gõ DEPLOY_PREVIEW để triển khai Application Management vào Cloudflare preview riêng"
         required: true
         type: string
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: read
@@ -44,9 +46,24 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${{ inputs.confirm }}" != "DEPLOY_PREVIEW" ]]; then
-            echo '::error::Deployment cancelled. Enter DEPLOY_PREVIEW exactly.'
-            exit 1
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            if [[ "${{ inputs.confirm }}" != "DEPLOY_PREVIEW" ]]; then
+              echo '::error::Deployment cancelled. Enter DEPLOY_PREVIEW exactly.'
+              exit 1
+            fi
+          else
+            if [[ "${{ github.actor }}" != "BlueDragon33" ]]; then
+              echo '::error::One-shot deploy comment must be created by repository owner BlueDragon33.'
+              exit 1
+            fi
+            if [[ "${{ github.event.issue.number }}" != "91" ]]; then
+              echo '::error::One-shot deploy comment is limited to PR #91.'
+              exit 1
+            fi
+            if [[ "${{ github.event.comment.body }}" != "/deploy-cloudflare-preview" ]]; then
+              echo '::error::One-shot deploy command mismatch.'
+              exit 1
+            fi
           fi
 
       - name: Checkout repository
@@ -182,4 +199,4 @@ jobs:
           echo 'Worker: application-management-preview'
           echo 'D1: application-management-preview-db'
           echo 'Access: application-level preview secret; anonymous read-back verified blocked.'
-          echo 'Production auto-deploy remains disabled.'
+          echo 'Production auto-deploy remains disabled; this one-shot comment trigger will be removed after verification.'
