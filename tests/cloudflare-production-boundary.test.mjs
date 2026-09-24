@@ -77,10 +77,12 @@ test("production template is isolated, Worker-first, and secret-free", () => {
   assert.ok(artifact.includes("Generated production artifact must set assets.run_worker_first=true."));
 });
 
-test("production deploy is manual-only and verifies login anonymous gate and authenticated readback", () => {
+test("production deploy remains push-disabled and the temporary diagnostic trigger is owner-only", () => {
   assert.ok(deploy.includes("workflow_dispatch"));
   assert.equal(/\n\s*push\s*:/.test(deploy), false);
-  assert.equal(deploy.includes("issue_comment:"), false);
+  assert.ok(deploy.includes("issue_comment:"));
+  assert.ok(deploy.includes('github.actor }}" != "BlueDragon33"'));
+  assert.ok(deploy.includes("/deploy-production-bootstrap-e2e"));
   assert.ok(deploy.includes("DEPLOY_PRODUCTION"));
   assert.ok(deploy.includes("APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD"));
   assert.ok(deploy.includes("APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET"));
@@ -94,6 +96,13 @@ test("production deploy is manual-only and verifies login anonymous gate and aut
   assert.ok(deploy.includes("did not become ready within 60 seconds"));
   assert.ok(deploy.includes("value.accessMode !== 'account-session'"));
   assert.ok(deploy.includes("value.productionAuthConfigured"));
+  assert.ok(deploy.includes("SELECT COUNT(*) AS account_count"));
+  assert.ok(deploy.includes("Real Production owner bootstrap/login/session/account E2E PASS."));
+  assert.ok(deploy.includes("x-application-management-auth-stage"));
+  assert.ok(auth.includes("productionAuthFailure"));
+  for (const stage of ["account-lookup", "owner-bootstrap", "password-verify", "login-reset", "session-create"]) {
+    assert.ok(auth.includes(`"${stage}"`), `missing auth diagnostic stage ${stage}`);
+  }
 });
 
 test("dashboard uses production account controls only in production mode", () => {
