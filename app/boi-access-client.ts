@@ -136,7 +136,7 @@ export async function loadBoiPaymentProof(device: BoiAccessDevice) {
   return await response.blob();
 }
 
-export async function manageBoiAccess(device: BoiAccessDevice, operation: BoiAccessOperation, note = "") {
+export async function manageBoiAccess(device: BoiAccessDevice, operation: BoiAccessOperation, note = "", paidAccessDays = 60) {
   return await call({
     action: "manage-access",
     operation,
@@ -144,5 +144,6 @@ export async function manageBoiAccess(device: BoiAccessDevice, operation: BoiAcc
     expectedPaymentStatus: device.paymentStatus,
     expectedAccessGroup: device.accessGroup,
     ...(operation === "reject-payment" ? { note: note.trim().slice(0, 500) } : {}),
+    ...(operation === "verify-payment" ? { paidAccessDays } : {}),
   });
 }

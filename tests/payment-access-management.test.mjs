@@ -69,13 +69,16 @@ test("renewal is exposed only for finalized Boi access", () => {
 });
 
 
-test("generic auto approval excludes Boi so payment classification cannot be bypassed", () => {
+test("free auto mode is explicit and paid access still requires verified proof and a term", () => {
   const operations = source("app/api/operations/route.ts");
   const nativeAutomation = source("app/api/operations-auto-approval/route.ts");
-  assert.match(dashboard, /autoApproveSupportedAppIds \?\? \[\]\)\.filter\(\(id\) => id !== "boi-ech"\)/);
+  const editor = source("app/automatic-device-policies.tsx");
+  assert.match(dashboard, /window\.confirm\("Bật tự động MIỄN PHÍ/);
   assert.match(operations, /BOI_AUTO_APPROVAL_DISABLED_FOR_ACCESS_CLASSIFICATION/);
-  assert.match(nativeAutomation, /BOI_AUTO_APPROVAL_DISABLED_FOR_ACCESS_CLASSIFICATION/);
-  assert.match(nativeAutomation, /await setBoi\(actor, false\)/);
+  assert.match(nativeAutomation, /await setBoi\(actor, desired, defaultAccessDays, defaultDeviceLimit\)/);
+  assert.match(editor, /Chỉ mở trả phí sau khi xác minh thanh toán/);
+  assert.match(api, /paymentReviewReady\(current\)/);
+  assert.match(api, /Number\(updated\.accessDaysRemaining\) !== paidAccessDays/);
 });
 
 

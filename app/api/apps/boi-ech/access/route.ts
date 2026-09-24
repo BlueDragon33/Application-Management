@@ -149,7 +149,8 @@ function accessDevice(row: UnknownRecord) {
 function readbackMatches(operation: AccessOperation, row: UnknownRecord) {
   if (operation === "grant-free") return text(row.accessGroup) === "free" && text(row.paymentStatus) === "free_approved";
   if (operation === "require-payment") return text(row.accessGroup) === "paid" && text(row.paymentStatus) === "awaiting_payment";
-  if (operation === "verify-payment") return text(row.status) === "approved" && text(row.accessGroup) === "paid" && text(row.paymentStatus) === "paid_verified";
+  if (operation === "verify-payment") return text(row.status) === "approved" && text(row.accessGroup) === "paid" && text(row.paymentStatus) === "paid_verified"
+    && Boolean(text(row.accessExpiresAt)) && !bool(row.accessExpired);
   if (operation === "reject-payment") return text(row.status) === "pending" && text(row.accessGroup) === "paid" && text(row.paymentStatus) === "awaiting_payment" && !bool(row.paymentProofAvailable);
   return text(row.status) === "approved" && !bool(row.accessExpired) && Boolean(text(row.accessExpiresAt));
 }
@@ -239,18 +240,25 @@ export async function POST(request: Request) {
       }
       if (operation === "grant-free" && ["proof_submitted", "paid_verified"].includes(currentPaymentStatus)) return json({ error: "Tài khoản đã có chứng từ hoặc đã xác minh thanh toán; không chuyển sang miễn phí tại Trung tâm.", code: "PAYMENT_STATE_CONFLICT" }, 409);
       if ((operation === "verify-payment" || operation === "reject-payment") && !paymentReviewReady(current)) return json({ error: "Cần có chứng từ trả phí đang chờ xác minh trước khi thực hiện thao tác này.", code: "PAYMENT_STATE_CONFLICT" }, 409);
+      const paidAccessDays = Number(payload.paidAccessDays ?? 60);
+      if (operation === "verify-payment" && (!Number.isInteger(paidAccessDays) || paidAccessDays < 1 || paidAccessDays > 365)) {
+        return json({ error: "Thời hạn trả phí phải từ 1 đến 365 ngày.", code: "INVALID_PAID_ACCESS_DAYS" }, 400);
+      }
       const note = operation === "reject-payment" ? text(payload.note).slice(0, 500) : "";
       if (operation === "reject-payment" && note.length < 5) return json({ error: "Hãy ghi lý do từ chối ít nhất 5 ký tự để người học biết cần sửa gì.", code: "PAYMENT_REJECTION_NOTE_REQUIRED" }, 400);
 
       const command = await bridgeJson(bridge, "/api/control/overview", {
         method: "POST",
-        body: { action: operation, deviceId, ...(operation === "reject-payment" ? { note } : {}) },
+        body: { action: operation, deviceId, ...(operation === "reject-payment" ? { note } : {}),
+          ...(operation === "verify-payment" ? { paidAccessDays } : {}) },
       });
       if (!command.ok) return json(command.payload, command.status);
       const after = await overview(bridge);
       if (!after.ok) return json(after.payload, after.status);
       const updated = deviceById(after.payload, deviceId);
-      if (!updated || !readbackMatches(operation, updated)) return json({ error: "Bơi ếch chưa xác nhận trạng thái thanh toán/quyền sau thao tác.", code: "ACCESS_READBACK_MISMATCH" }, 502);
+      if (!updated || !readbackMatches(operation, updated) || operation === "verify-payment" && Number(updated.accessDaysRemaining) !== paidAccessDays) {
+        return json({ error: "Bơi ếch chưa xác nhận trạng thái thanh toán/quyền và thời hạn sau thao tác.", code: "ACCESS_READBACK_MISMATCH" }, 502);
+      }
       return json({ ok: true, verified: true, device: accessDevice(updated) });
     }
 

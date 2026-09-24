@@ -124,6 +124,11 @@ export type OperationsSummary = {
 export type OperationsSettings = {
   autoApproveAppIds: string[];
   autoApproveSupportedAppIds: string[];
+  autoBlockPendingAppIds?: string[];
+  autoBlockPendingSupportedAppIds?: string[];
+  pendingBlockAfterHoursByApp?: Record<string, number>;
+  freeAccessDaysByApp?: Record<string, number>;
+  freeDeviceLimitByApp?: Record<string, number>;
 };
 
 export type OperationsWorkItem = {
@@ -346,7 +351,8 @@ export async function operationsAction(body: Record<string, unknown>) {
     const snapshot = readCachedOperations()?.devices.find((device) => device.appId === appId && device.deviceId === deviceId);
     if (snapshot) actionBody = { ...body, expectedStatus: snapshot.status };
   }
-  const path = focusedDeviceAction ? "/api/focused-device-operation" : "/api/operations";
+  const path = body.action === "set-auto-approval" ? "/api/operations-auto-approval"
+    : focusedDeviceAction ? "/api/focused-device-operation" : "/api/operations";
   return await secureApi(path, credential, access, actionBody) as OperationsActionResponse;
 }
 

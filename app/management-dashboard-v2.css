@@ -549,8 +549,12 @@
   background: #7d312e;
   color: #fff;
 }
+.amv2-device-bulk-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.amv2-device-bulk-actions button:not([data-danger]) { border-color: rgba(57,221,168,.5); background: #145c43; cursor: pointer; }
 .amv2-device-bulk-toolbar button:disabled { opacity: .48; cursor: not-allowed; }
 
 @media (max-width: 700px) {
   .amv2-device-bulk-toolbar { align-items: stretch; flex-direction: column; }
+  .amv2-device-bulk-actions { align-items: stretch; }
+  .amv2-device-bulk-actions button { flex: 1 1 150px; }
 }

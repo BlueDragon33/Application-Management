@@ -1,0 +1,24 @@
+.scrim { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 20px; background: rgba(0, 12, 9, .78); }
+.dialog { width: min(840px, 100%); max-height: min(90dvh, 900px); overflow: auto; padding: 22px; border: 1px solid rgba(57, 221, 168, .4); border-radius: 16px; background: #073126; color: #f2f8f5; box-shadow: 0 24px 80px rgba(0, 0, 0, .45); }
+.dialog header, .dialog footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.dialog header small { color: #83d7ba; font-size: .82rem; letter-spacing: .08em; }
+.dialog h2 { margin: 4px 0 0; font-size: 1.35rem; }
+.dialog p { color: #c9e2d7; line-height: 1.5; }
+.dialog .warning { padding: 10px; border-radius: 8px; background: #5a331d; color: #ffe1ae; }
+.dialog button { min-height: 42px; padding: 8px 14px; border: 1px solid #548e77; border-radius: 8px; background: #0a4936; color: white; cursor: pointer; }
+.dialog button:disabled { opacity: .5; cursor: not-allowed; }
+.dialog header button { font-size: 1.35rem; }
+.list { display: grid; gap: 10px; margin: 18px 0; }
+.app { display: grid; grid-template-columns: minmax(140px, .7fr) minmax(0, 2fr); gap: 15px; padding: 14px; border: 1px solid rgba(255,255,255,.13); border-radius: 10px; background: #0b3b2e; }
+.appTitle, .choices, .choices label span { display: grid; gap: 5px; }
+.appTitle strong, .choices strong { font-size: .98rem; }
+.appTitle small, .choices small, .unavailable { font-size: .86rem; color: #a6c9b9; line-height: 1.45; }
+.choices { gap: 12px; }
+.choices label { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+.choices input[type="checkbox"], .choices input[type="radio"] { flex: 0 0 auto; width: 18px; height: 18px; margin-top: 2px; accent-color: #35dca7; }
+.choices select, .choices input[type="number"] { min-height: 38px; max-width: 165px; padding: 5px 9px; border: 1px solid #679d86; border-radius: 7px; background: #0c382c; color: white; font-size: 1rem; }
+.limits { display: flex; flex-wrap: wrap; gap: 12px; }
+.limits label, .choices .delay { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: .9rem; }
+.dialog footer { position: sticky; bottom: -22px; padding: 12px 0 0; background: #073126; }
+.dialog .save { background: #187c5c; border-color: #34dca4; font-weight: 700; }
+@media (max-width: 700px) { .scrim { padding: 8px; } .dialog { padding: 14px; max-height: 96dvh; } .app { grid-template-columns: 1fr; } .dialog footer { bottom: -14px; } }

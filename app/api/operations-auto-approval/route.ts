@@ -44,14 +44,17 @@ async function bridgeJson(bridge: Bridge, path: string, init?: { method?: "GET" 
   }
 }
 
-async function setBoi(actor: { email: string; role: "viewer" | "reviewer" | "publisher" | "owner" }, enabled: boolean) {
+async function setBoi(actor: { email: string; role: "viewer" | "reviewer" | "publisher" | "owner" }, enabled: boolean, defaultAccessDays: number, defaultDeviceLimit: number) {
   const bridge = await issueBoiBrowserBridge(actor.email, actor.role);
   await bridgeJson(bridge, "/api/control/overview", {
     method: "POST",
-    body: { action: "update-automation", enabled, defaultAccessDays: 60, defaultDeviceLimit: 100 },
+    body: { action: "update-automation", enabled, defaultAccessDays, defaultDeviceLimit },
   });
   const readback = await bridgeJson(bridge, "/api/control/overview?activityDays=0");
-  if (record(readback.automation).enabled !== enabled) throw new Error("Bơi ếch chưa xác nhận quy tắc duyệt tự động sau cập nhật.");
+  const state = record(readback.automation);
+  if (state.enabled !== enabled || state.defaultAccessDays !== defaultAccessDays || state.defaultDeviceLimit !== defaultDeviceLimit) {
+    throw new Error("Bơi ếch chưa xác nhận quy tắc duyệt tự động và thời hạn sau cập nhật.");
+  }
 }
 
 async function setHealth(actor: { email: string; role: "viewer" | "reviewer" | "publisher" | "owner"; deviceId: string }, enabled: boolean) {
@@ -89,26 +92,40 @@ export async function POST(request: Request) {
     if (unsupportedRequested.length) {
       return json({ error: "Một số ứng dụng chưa công bố contract duyệt tự động.", code: "AUTO_APPROVAL_CONTRACT_MISSING", appIds: unsupportedRequested }, 409);
     }
-    if (requested.includes("boi-ech")) {
-      return json({
-        error: "Bơi ếch đang dùng phân loại quyền Miễn phí/Trả phí nên không được bật duyệt tự động từ Trung tâm.",
-        code: "BOI_AUTO_APPROVAL_DISABLED_FOR_ACCESS_CLASSIFICATION",
-      }, 409);
+    const targets = Array.isArray(payload.targetAppIds)
+      ? [...new Set(payload.targetAppIds.filter((item): item is string => typeof item === "string"))]
+      : [...CANDIDATE_APP_IDS];
+    if (targets.some((id) => !CANDIDATE_APP_IDS.includes(id as CandidateAppId)) || !targets.length) {
+      return json({ error: "Danh sách ứng dụng cần sửa không hợp lệ.", code: "INVALID_AUTO_APPROVAL_TARGETS" }, 400);
     }
-
     const current = await readAutoApprovalSettings(["boi-ech", "health-care"]);
     const enabledBefore = new Set(current.autoApproveAppIds);
     const liveSupported = new Set(current.autoApproveSupportedAppIds);
+    if (targets.some((id) => !liveSupported.has(id))) {
+      return json({ error: "Cần đọc được contract hiện tại của từng ứng dụng trước khi sửa.", code: "AUTO_APPROVAL_CONTRACT_NOT_LIVE" }, 409);
+    }
+    const defaultAccessDays = payload.defaultAccessDays === undefined
+      ? current.freeAccessDaysByApp?.["boi-ech"] ?? 60 : Number(payload.defaultAccessDays);
+    const defaultDeviceLimit = payload.defaultDeviceLimit === undefined
+      ? current.freeDeviceLimitByApp?.["boi-ech"] ?? 20 : Number(payload.defaultDeviceLimit);
+    if (!Number.isInteger(defaultAccessDays) || defaultAccessDays < 1 || defaultAccessDays > 365
+      || !Number.isInteger(defaultDeviceLimit) || defaultDeviceLimit < 1 || defaultDeviceLimit > 1_000) {
+      return json({ error: "Thời hạn miễn phí phải từ 1–365 ngày và hạn mức từ 1–1.000 thiết bị.", code: "INVALID_BOI_FREE_POLICY" }, 400);
+    }
 
-    for (const appId of CANDIDATE_APP_IDS) {
+    for (const appId of CANDIDATE_APP_IDS.filter((id) => targets.includes(id))) {
       const desired = requested.includes(appId);
-      const changed = enabledBefore.has(appId) !== desired;
+      const changed = enabledBefore.has(appId) !== desired || appId === "boi-ech" && desired &&
+        (current.freeAccessDaysByApp?.[appId] !== defaultAccessDays || current.freeDeviceLimitByApp?.[appId] !== defaultDeviceLimit);
       if (!changed) continue;
       if (appId === "boi-ech") {
-        // Bơi ếch may still have legacy auto-approval enabled. New requests can only turn it off,
-        // because access must now be classified explicitly as free or paid.
-        await setBoi(actor, false);
-        await rememberAutoApproval(actor.email, appId, false);
+        // Explicit Free mode applies only to unassigned registrations; requests already
+        // awaiting or proving payment remain pending until payment verification.
+        if (desired && !liveSupported.has(appId)) {
+          return json({ error: "Contract duyệt miễn phí của Bơi ếch chưa hoạt động.", code: "AUTO_APPROVAL_CONTRACT_NOT_LIVE", appId }, 409);
+        }
+        await setBoi(actor, desired, defaultAccessDays, defaultDeviceLimit);
+        await rememberAutoApproval(actor.email, appId, desired);
         continue;
       }
       if (!liveSupported.has(appId)) {

@@ -60,6 +60,7 @@ export default function BoiAccessView({ query = "" }: { query?: string }) {
   const [proofBusy, setProofBusy] = useState("");
   const [proof, setProof] = useState<ProofState | null>(null);
   const [rejectNote, setRejectNote] = useState("");
+  const [paidAccessDays, setPaidAccessDays] = useState(60);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
@@ -133,6 +134,7 @@ export default function BoiAccessView({ query = "" }: { query?: string }) {
       const blob = await loadBoiPaymentProof(device);
       const url = URL.createObjectURL(blob);
       setRejectNote("");
+      setPaidAccessDays(60);
       setProof((current) => {
         if (current?.url) URL.revokeObjectURL(current.url);
         return { device, url };
@@ -164,7 +166,7 @@ export default function BoiAccessView({ query = "" }: { query?: string }) {
     setError("");
     setNotice("");
     try {
-      await manageBoiAccess(device, operation, rejectNote);
+      await manageBoiAccess(device, operation, rejectNote, paidAccessDays);
       closeProof();
       const synced = await refresh();
       setNotice(synced
@@ -247,6 +249,8 @@ export default function BoiAccessView({ query = "" }: { query?: string }) {
       <section className={styles.modal} role="dialog" aria-modal="true" aria-label="Xác minh chứng từ thanh toán">
         <header><div><span>CHỨNG TỪ BƠI ẾCH</span><h3>{proof.device.learnerName}</h3><p>{proof.device.deviceCode} · {formatMoney(proof.device.paymentAmount)}</p></div><button onClick={closeProof} aria-label="Đóng">×</button></header>
         <div className={styles.proofImage}><img src={proof.url} alt="Chứng từ thanh toán Bơi ếch"/></div>
+        <label><span>Thời hạn truy cập trả phí sau xác minh</span><select value={paidAccessDays} disabled={actionBusy === proof.device.deviceId} onChange={(event) => setPaidAccessDays(Number(event.target.value))}>{[30, 60, 90, 180, 365].map((days) => <option key={days} value={days}>{days} ngày</option>)}</select></label>
+        <p>Chỉ khi xác minh giao dịch, Bơi ếch mới tự mở quyền trả phí và tính thời hạn từ lúc xác minh.</p>
         <label><span>Lý do từ chối</span><textarea value={rejectNote} onChange={(event) => setRejectNote(event.target.value)} placeholder="Chỉ cần nhập khi từ chối chứng từ…" maxLength={500}/></label>
         <footer><button onClick={closeProof}>Đóng</button><button className={styles.reject} disabled={actionBusy === proof.device.deviceId} onClick={() => void reviewProof("reject-payment")}>Từ chối</button><button className={styles.approve} disabled={actionBusy === proof.device.deviceId} onClick={() => void reviewProof("verify-payment")}>Xác minh thanh toán</button></footer>
       </section>
