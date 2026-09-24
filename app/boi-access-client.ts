@@ -89,7 +89,7 @@ async function proof(access: AdminAccess) {
   const nonce = await challenge(access);
   const message = new TextEncoder().encode(`learning-control:${access.deviceId}:${nonce}`);
   const signature = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, credential.privateKey, message);
-  return { deviceId: access.deviceId, challenge: nonce, signature: base64Url(new Uint8Array(signature)) };
+  return { controlDeviceId: access.deviceId, challenge: nonce, signature: base64Url(new Uint8Array(signature)) };
 }
 
 async function approvedSession() {
