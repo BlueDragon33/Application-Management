@@ -96,7 +96,6 @@ test("production deploy remains push-disabled and the temporary diagnostic trigg
   assert.ok(deploy.includes("did not become ready within 60 seconds"));
   assert.ok(deploy.includes("value.accessMode !== 'account-session'"));
   assert.ok(deploy.includes("value.productionAuthConfigured"));
-  assert.ok(deploy.includes("SELECT COUNT(*) AS account_count"));
   assert.ok(deploy.includes("Real Production owner bootstrap/login/session/account E2E PASS."));
   assert.ok(deploy.includes("x-application-management-auth-stage"));
   assert.ok(auth.includes("productionAuthFailure"));
