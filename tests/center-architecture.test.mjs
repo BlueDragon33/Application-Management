@@ -241,7 +241,7 @@ test("Health Care uses its own managed bridge and real client control surfaces",
   const client = source("app/apps/health-care/health-care-admin.tsx");
   const bridgeRoute = source("app/api/apps/health-care/bridge/route.ts");
   const bridgeServer = source("app/health-care.server.ts");
-  const originResolver = source("app/client-origin.server.ts");
+  const networkRegistry = source("app/client-network-registry.ts");
   const adminClient = source("app/admin-device-client.ts");
   assert.match(route, /HealthCareAdmin/);
   assert.doesNotMatch(route, /ApplicationWorkspace/);
@@ -255,8 +255,8 @@ test("Health Care uses its own managed bridge and real client control surfaces",
   assert.match(bridgeRoute, /issueHealthBrowserBridge/);
   assert.match(bridgeServer, /HEALTH_CONTROL_SERVICE_SECRET/);
   assert.match(bridgeServer, /resolveClientOrigin\("health-care"\)/);
-  assert.match(originResolver, /HEALTH_CARE_BASE_URL/);
-  assert.match(originResolver, /HEALTH_CARE_LOCAL_BASE_URL/);
+  assert.match(networkRegistry, /HEALTH_CARE_BASE_URL/);
+  assert.match(networkRegistry, /HEALTH_CARE_LOCAL_BASE_URL/);
   assert.match(bridgeServer, /application-management/);
   assert.match(bridgeServer, /health-care-control/);
   assert.match(bridgeServer, /local-control/);
