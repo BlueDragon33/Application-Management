@@ -2,6 +2,7 @@ CREATE TABLE IF NOT EXISTS `control_accounts` (
   `email` text PRIMARY KEY NOT NULL,
   `display_name` text NOT NULL,
   `phone` text,
+  `role` text DEFAULT 'owner' NOT NULL,
   `password_salt` text NOT NULL,
   `password_hash` text NOT NULL,
   `password_iterations` integer DEFAULT 310000 NOT NULL,
