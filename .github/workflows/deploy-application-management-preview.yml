@@ -7,6 +7,10 @@ on:
         description: "Gõ DEPLOY_PREVIEW để triển khai Application Management vào Cloudflare preview riêng"
         required: true
         type: string
+  push:
+    branches: [main]
+    paths:
+      - ".cloudflare-preview-deploy-request"
 
 permissions:
   contents: read
@@ -44,9 +48,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${{ inputs.confirm }}" != "DEPLOY_PREVIEW" ]]; then
-            echo '::error::Deployment cancelled. Enter DEPLOY_PREVIEW exactly.'
-            exit 1
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            if [[ "${{ inputs.confirm }}" != "DEPLOY_PREVIEW" ]]; then
+              echo '::error::Deployment cancelled. Enter DEPLOY_PREVIEW exactly.'
+              exit 1
+            fi
+          else
+            if [[ "${{ github.event.head_commit.message }}" != *"[DEPLOY_CLOUDFLARE_PREVIEW]"* ]]; then
+              echo '::error::One-shot push deployment marker is missing.'
+              exit 1
+            fi
+            if [[ ! -f .cloudflare-preview-deploy-request ]]; then
+              echo '::error::One-shot deployment request file is missing.'
+              exit 1
+            fi
           fi
 
       - name: Checkout repository
@@ -182,4 +197,4 @@ jobs:
           echo 'Worker: application-management-preview'
           echo 'D1: application-management-preview-db'
           echo 'Access: application-level preview secret; anonymous read-back verified blocked.'
-          echo 'Production auto-deploy remains disabled.'
+          echo 'Production auto-deploy remains disabled; this preview push trigger is one-shot and will be removed after verification.'
