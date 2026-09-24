@@ -1,0 +1,81 @@
+name: Repair Application Management Production Assets Once
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: application-management-production-assets-repair
+  cancel-in-progress: false
+
+jobs:
+  repair-production-assets:
+    if: github.actor == 'BlueDragon33' && github.event.comment.body == '/repair-production-assets-once'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: application-management-production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID: ${{ secrets.APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID }}
+      APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID: ${{ secrets.APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID }}
+      APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET: ${{ secrets.APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET }}
+      CONTROL_OWNER_EMAILS: ${{ vars.CONTROL_OWNER_EMAILS }}
+      APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN: ${{ vars.APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN }}
+      BOI_ECH_BASE_URL: ${{ vars.BOI_ECH_PRODUCTION_ORIGIN }}
+      HEALTH_CARE_BASE_URL: ${{ vars.HEALTH_CARE_PRODUCTION_ORIGIN }}
+      RU_LIFE_BASE_URL: ${{ vars.RU_LIFE_PRODUCTION_ORIGIN }}
+      BAUMAN_CONTROL_BASE_URL: ${{ vars.BAUMAN_CONTROL_PRODUCTION_ORIGIN }}
+      BAUMAN_APP_ORIGIN: ${{ vars.BAUMAN_RUNTIME_PRODUCTION_ORIGIN }}
+      GROWUP_BASE_URL: ${{ vars.GROWUP_PRODUCTION_ORIGIN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Materialize isolated Production config
+        run: npm run cloudflare:production:prepare
+
+      - name: Validate Production boundary
+        run: npm run cloudflare:production:check
+
+      - name: Build generated Production artifact
+        env:
+          CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH: wrangler.production.jsonc
+        run: npm run build
+
+      - name: Verify generated Production artifact includes client assets
+        run: npm run cloudflare:production:artifact:check
+
+      - name: Redeploy generated artifact without rewriting secrets
+        run: npx wrangler deploy
+
+      - name: Verify Production deployment read-back
+        shell: bash
+        run: |
+          set -euo pipefail
+          CODE="$(curl --silent --show-error --output /tmp/am-repair-deployment.json --write-out '%{http_code}' --max-time 20             -H "Authorization: Bearer $APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET"             "$APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/__deployment")"
+          if [[ "$CODE" != "200" ]]; then
+            echo "::error::Production read-back failed after asset repair with HTTP $CODE."
+            exit 1
+          fi
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          const value = JSON.parse(fs.readFileSync('/tmp/am-repair-deployment.json', 'utf8'));
+          if (value.channel !== 'cloudflare-production') throw new Error('Production channel mismatch after asset repair.');
+          if (!value.databaseReady) throw new Error('Production D1 not ready after asset repair.');
+          if (value.accessMode !== 'account-session') throw new Error('Production auth mode mismatch after asset repair.');
+          console.log('PRODUCTION_ASSET_REPAIR_READBACK=PASS');
+          NODE
