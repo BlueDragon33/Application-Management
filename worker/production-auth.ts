@@ -3,7 +3,9 @@ const LOGOUT_PATH = "/__logout";
 const ACCOUNT_PATH = "/__account";
 const SESSION_COOKIE = "__Host-am_prod_session";
 const SESSION_TTL_SECONDS = 12 * 60 * 60;
-const PASSWORD_ITERATIONS = 310_000;
+// Cloudflare Workers production rejects PBKDF2 iteration counts above 100,000.
+// Keep the deployed runtime ceiling pinned here and guarded by CI.
+const PASSWORD_ITERATIONS = 100_000;
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_SECONDS = 15 * 60;
 const encoder = new TextEncoder();
