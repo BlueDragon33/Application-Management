@@ -1,3 +1,0 @@
-One-shot Production QA deployment trigger.
-Purpose: deploy the audited current main to Cloudflare Production and verify live D1 + static assets.
-Cleanup required immediately after verified deployment.
