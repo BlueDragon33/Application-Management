@@ -7,8 +7,6 @@ on:
         description: "Gõ DEPLOY_PRODUCTION để triển khai Application Management Production lên Cloudflare"
         required: true
         type: string
-  issue_comment:
-    types: [created]
 
 permissions:
   contents: read
@@ -47,16 +45,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            if [[ "${{ inputs.confirm }}" != "DEPLOY_PRODUCTION" ]]; then
-              echo '::error::Deployment cancelled. Enter DEPLOY_PRODUCTION exactly.'
-              exit 1
-            fi
-          else
-            if [[ "${{ github.actor }}" != "BlueDragon33" || "${{ github.event.comment.body }}" != "/deploy-production-bootstrap-e2e" ]]; then
-              echo '::error::One-shot Production diagnostic deploy requires the repository owner and exact command.'
-              exit 1
-            fi
+          if [[ "${{ inputs.confirm }}" != "DEPLOY_PRODUCTION" ]]; then
+            echo '::error::Deployment cancelled. Enter DEPLOY_PRODUCTION exactly.'
+            exit 1
           fi
 
       - name: Checkout repository
@@ -207,33 +198,6 @@ jobs:
             exit 1
           fi
           echo 'Production anonymous access is blocked and login route is available.'
-
-      - name: Bootstrap and verify real Production owner login while diagnosing first login
-        shell: bash
-        run: |
-          set -euo pipefail
-          OWNER_EMAIL="${CONTROL_OWNER_EMAILS%%,*}"
-          OWNER_EMAIL="$(printf '%s' "$OWNER_EMAIL" | xargs)"
-          rm -f /tmp/production-owner.cookies /tmp/production-owner.headers /tmp/production-owner.body
-
-          LOGIN_CODE="$(curl --silent --show-error             --output /tmp/production-owner.body             --dump-header /tmp/production-owner.headers             --cookie-jar /tmp/production-owner.cookies             --write-out '%{http_code}'             --max-time 30             -X POST             -H "Origin: $APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN"             -H "Referer: $APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/__login"             -H "Sec-Fetch-Site: same-origin"             -H "Content-Type: application/x-www-form-urlencoded"             --data-urlencode "email=$OWNER_EMAIL"             --data-urlencode "password=$APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD"             "$APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/__login")"
-
-          if [[ "$LOGIN_CODE" != "303" ]]; then
-            STAGE="$(awk -F': *' 'tolower($1)=="x-application-management-auth-stage"{gsub("\r","",$2); print $2}' /tmp/production-owner.headers | tail -n1)"
-            echo "::error::Real Production owner login failed with HTTP $LOGIN_CODE at stage ${STAGE:-unknown}."
-            cat /tmp/production-owner.body || true
-            exit 1
-          fi
-
-          ACCOUNT_CODE="$(curl --silent --show-error             --output /tmp/production-owner-account.html             --write-out '%{http_code}'             --max-time 20             --cookie /tmp/production-owner.cookies             "$APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/__account")"
-          if [[ "$ACCOUNT_CODE" != "200" ]] || ! grep -q 'Tài khoản & bảo mật' /tmp/production-owner-account.html; then
-            echo "::error::Production owner session did not open /__account successfully (HTTP $ACCOUNT_CODE)."
-            exit 1
-          fi
-
-          curl --silent --show-error --output /dev/null --max-time 15             -X POST             -H "Origin: $APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN"             -H "Referer: $APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/__account"             -H "Sec-Fetch-Site: same-origin"             --cookie /tmp/production-owner.cookies             "$APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/__logout" || true
-
-          echo 'Real Production owner bootstrap/login/session/account E2E PASS.'
 
       - name: Read back production deployment through health secret
         shell: bash
