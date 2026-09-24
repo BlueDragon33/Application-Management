@@ -82,13 +82,11 @@ test("production template is isolated, Worker-first, and secret-free", () => {
   assert.ok(artifact.includes("must contain both CSS and JavaScript bundles"));
 });
 
-test("production deploy stays push-disabled and temporary QA trigger is owner/PR scoped", () => {
+test("production deploy is manual-only and keeps strict deployment verification", () => {
   assert.ok(deploy.includes("workflow_dispatch"));
   assert.equal(/\n\s*push\s*:/.test(deploy), false);
-  assert.ok(deploy.includes("issue_comment:"));
-  assert.ok(deploy.includes('github.actor }}" != "BlueDragon33"'));
-  assert.ok(deploy.includes('github.event.issue.number }}" != "121"'));
-  assert.ok(deploy.includes("/deploy-production-qa-final"));
+  assert.equal(deploy.includes("issue_comment:"), false);
+  assert.equal(deploy.includes("/deploy-production-qa-final"), false);
   assert.equal(deploy.includes("/deploy-production-bootstrap-e2e"), false);
   assert.ok(deploy.includes("DEPLOY_PRODUCTION"));
   assert.ok(deploy.includes("APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD"));
