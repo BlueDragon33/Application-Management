@@ -80,6 +80,9 @@ test("production deploy is manual-only and verifies login anonymous gate and aut
   assert.ok(deploy.includes("Expected Production /__login to return 200"));
   assert.ok(deploy.includes("Expected anonymous Production /__deployment to return 401"));
   assert.ok(deploy.includes("Application Management Cloudflare production read-back PASS"));
+  assert.ok(deploy.includes("for attempt in {1..12}"));
+  assert.ok(deploy.includes("waiting for Cloudflare secret/version propagation"));
+  assert.ok(deploy.includes("did not become ready within 60 seconds"));
   assert.ok(deploy.includes("value.accessMode !== 'account-session'"));
   assert.ok(deploy.includes("value.productionAuthConfigured"));
 });
