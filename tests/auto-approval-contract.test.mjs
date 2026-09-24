@@ -32,7 +32,7 @@ test("native auto approval endpoint verifies owner and writes through each clien
   assert.match(endpoint, /AUTO_APPROVAL_CONTRACT_NOT_LIVE/);
   assert.match(endpoint, /rememberAutoApproval/);
   assert.match(endpoint, /readAutoApprovalSettings/);
-  assert.equal(endpoint.includes("ru-life"), false);
+  assert.match(endpoint, /setRuLife/);
   assert.equal(endpoint.includes("growup-mychildren"), false);
 });
 

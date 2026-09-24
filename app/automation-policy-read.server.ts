@@ -1,6 +1,7 @@
 import { issueBoiBrowserBridge } from "./boi-ech.server";
 import { issueHealthBrowserBridge, probeHealthManagementContract } from "./health-care.server";
 import { issueBaumanBrowserBridge } from "./bauman.server";
+import { issueRuLifeBrowserBridge } from "./ru-life.server";
 
 const AUTOMATION_READ_ACTOR = "automation-state@application-management.local";
 const AUTOMATION_READ_DEVICE_ID = "0".repeat(64);
@@ -82,6 +83,25 @@ async function readBaumanAutomation() {
   };
 }
 
+async function readRuLifeAutomation() {
+  const bridge = await issueRuLifeBrowserBridge(AUTOMATION_READ_ACTOR, "viewer", AUTOMATION_READ_DEVICE_ID);
+  const status = await automationJson(bridge, "/api/control/status");
+  const capabilities = record(status.capabilities);
+  const endpoints = record(status.endpoints);
+  if (status.application !== "ru-life" || capabilities.deviceAutoApproval !== true || endpoints.automation !== "/api/control/automation") {
+    throw new Error("RU_LIFE_AUTO_APPROVAL_CONTRACT_NOT_LIVE");
+  }
+  const policy = await automationJson(bridge, "/api/control/automation");
+  return {
+    autoApproveEnabled: record(policy.automation).autoApproveDevices === true,
+    defaultAccessDays: null,
+    defaultDeviceLimit: null,
+    autoBlockSupported: false,
+    autoBlockEnabled: false,
+    pendingBlockAfterHours: null as number | null,
+  };
+}
+
 /** Read-only policy probes. No registration/device mutation is performed here. */
 export async function readClientAutoApprovalStates(supportedAppIds: readonly string[]) {
   return Promise.allSettled(supportedAppIds.map(async (appId) => {
@@ -95,6 +115,10 @@ export async function readClientAutoApprovalStates(supportedAppIds: readonly str
     }
     if (appId === "bauman-master-ai") {
       const state = await readBaumanAutomation();
+      return { appId, ...state, enabled: state.autoApproveEnabled };
+    }
+    if (appId === "ru-life") {
+      const state = await readRuLifeAutomation();
       return { appId, ...state, enabled: state.autoApproveEnabled };
     }
     throw new Error(`AUTO_APPROVAL_READER_MISSING_${appId}`);
