@@ -14,6 +14,8 @@ test("managed catalog persists contract handshake history", () => {
     assert.ok(contract.includes(column), `runtime state column not consumed: ${column}`);
   }
   assert.ok(contract.includes("rememberManagedProbe"));
+  assert.ok(contract.includes("last_contract_connected_at=CURRENT_TIMESTAMP,last_probe_at=CURRENT_TIMESTAMP,last_probe_error=?2"));
+  assert.ok(contract.includes("rememberManagedProbe(row.id, { connected: true, error: remoteAdminError })"));
 });
 
 test("contract connection state is independent from remote admin readiness", () => {
