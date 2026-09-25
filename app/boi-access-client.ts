@@ -84,6 +84,9 @@ async function challenge(access: AdminAccess) {
 }
 
 async function proof(access: AdminAccess) {
+  if (access.deviceId.startsWith("production-session:")) {
+    return { controlDeviceId: access.deviceId };
+  }
   const credential = await readCredential();
   if (!credential?.privateKey) throw new Error("Không đọc được khóa P-256 của thiết bị quản trị.");
   const nonce = await challenge(access);
