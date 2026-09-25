@@ -78,3 +78,13 @@ test("application classification column uses the short category instead of long 
   assert.match(dashboard, /function appGroup\(app: ApplicationConfig\) \{\s*return app\.category;\s*\}/);
   assert.doesNotMatch(dashboard, /function appGroup[\s\S]{0,180}return app\.scope/);
 });
+
+
+test("unknown device metrics remain unknown instead of being rendered as zero", () => {
+  assert.match(dashboard, /function operationalCounts/);
+  assert.match(dashboard, /if \(summary\) return \{ pending: summary\.pendingCount, online: summary\.onlineCount \}/);
+  assert.match(dashboard, /function countText\(value: number \| null\)/);
+  assert.match(dashboard, /return value === null \? "—" : value/);
+  assert.doesNotMatch(dashboard, /summary\?\.onlineCount \?\? 0/);
+  assert.doesNotMatch(dashboard, /summary\?\.pendingCount \?\?/);
+});
