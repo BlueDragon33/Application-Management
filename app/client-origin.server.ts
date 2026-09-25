@@ -1,4 +1,5 @@
 import { getClientNetworkSpec, type ManagedClientId } from "./client-network-registry";
+import { getManagedContract, resolveManagedContractTransport } from "./managed-contract-registry.server";
 
 export type { ManagedClientId } from "./client-network-registry";
 
@@ -86,13 +87,18 @@ export async function resolveClientOrigin(applicationId: ManagedClientId): Promi
   const values = await environment();
   const mode = networkMode(values);
   const spec = getClientNetworkSpec(applicationId);
-  const production = normalizeClientOrigin(values[spec.productionEnv], false);
+  const registry = await getManagedContract(spec.applicationId).catch(() => null);
+  const registryProduction = normalizeClientOrigin(
+    spec.endpointKind === "runtime" ? registry?.runtimeOrigin : registry?.controlOrigin,
+    false,
+  );
+  const production = registryProduction || normalizeClientOrigin(values[spec.productionEnv], false);
   const explicitLocal = normalizeClientOrigin(values[spec.localEnv], true);
   const legacyLocal = normalizeClientOrigin(values[spec.productionEnv], true);
   const local = explicitLocal || (legacyLocal && !production ? legacyLocal : "") || spec.localDefault;
 
   if (mode === "production") {
-    if (!production) throw new Error(`${spec.productionEnv} chưa được cấu hình HTTPS.`);
+    if (!production) throw new Error(`${spec.label} chưa có Production origin trong Contract Registry hoặc ${spec.productionEnv}.`);
     return { applicationId, baseUrl: production, source: "production", mode };
   }
 
@@ -107,7 +113,7 @@ export async function resolveClientOrigin(applicationId: ManagedClientId): Promi
   if (production) {
     return { applicationId, baseUrl: production, source: "production", mode };
   }
-  throw new Error(`Không tìm thấy origin local đang hoạt động và ${spec.productionEnv} chưa được cấu hình HTTPS.`);
+  throw new Error(`Không tìm thấy origin local đang hoạt động và ${spec.label} chưa có Production origin.`);
 }
 
 export type ClientBridgeResolution = ClientOriginResolution & {
@@ -119,6 +125,14 @@ export async function resolveClientBridge(applicationId: ManagedClientId): Promi
   const origin = await resolveClientOrigin(applicationId);
   const values = await environment();
   const spec = getClientNetworkSpec(applicationId);
+
+  if (origin.source === "production" && spec.endpointKind === "control") {
+    const managed = await resolveManagedContractTransport(spec.applicationId).catch(() => null);
+    if (managed?.token && managed.baseUrl === origin.baseUrl) {
+      return { ...origin, secret: managed.token, secretEnv: "CONTRACT_REGISTRY_VAULT" };
+    }
+  }
+
   const secretEnv = origin.source === "local"
     ? (spec.localBridgeSecretEnv ?? spec.bridgeSecretEnv ?? null)
     : (spec.bridgeSecretEnv ?? null);
