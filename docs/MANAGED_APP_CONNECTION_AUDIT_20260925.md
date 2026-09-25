@@ -130,3 +130,27 @@ Category không tự bật capability.
 Các workflow đặc thù như Bơi ếch Miễn phí/Trả phí, RU_LIFE user binding, modem credential/local command, dữ liệu sức khỏe, dữ liệu trẻ em và dữ liệu báo giá không được ép vào generic mutation nếu contract chưa mô tả semantics tương đương.
 
 Generic không có nghĩa là bỏ guardrail.
+
+
+## Production live reconciliation · 2026-09-25 14:23 ICT
+
+Sau khi publish zero-code onboarding và Bơi ếch Universal Contract v1, Production `sync-existing + probe-all` trả về:
+
+- **Bauman Master AI**: `connected`, credential có mặt, `remoteAdminReady=true`, protocol `bauman-control-v4`, discovery qua `/api/control/status`.
+- **Bơi ếch AI**: Universal Contract v1 đã bắt tay qua `/api/application-management/contract`; không có generic credential/mutation nên `remoteAdminReady=false` theo chủ đích. Luồng Miễn phí/Trả phí vẫn giữ semantics riêng.
+- **PriceReport Tùng Gia Bảo**: contract đã bắt tay qua `/PriceReport_Tunggiabao/management-contract.json`, protocol `price-report-control-v1`; chưa có Production Control credential nên read-only.
+- **RU_LIFE**: catalog entry hiện tại probe các contract path đều 404; trạng thái pending cho tới khi Production origin công bố contract thật.
+- **Health_Care**: chưa có Production Control Origin được cấu hình/xác minh; không coi Preview là Production.
+- **GrowUP MyChildren**: chưa có Production Control Origin đã biết.
+- **NC03 Modem**: local-first, không được biến credential modem thành cloud credential; cần runtime/manifest public nếu muốn contract-connected ở mức quan sát.
+- **CAD CAM 3D**: chưa có Production Control Origin/backend quản trị từ xa.
+
+Batch totals tại thời điểm probe: `connected=1 · warning=2 · pending=1 · unavailable=0` trong 4 catalog entry đã tồn tại; thêm 4 static-registry app được báo `needsOrigin` (Health, NC03, CAD, GrowUP).
+
+### Ý nghĩa trạng thái mới
+
+`contractConnected` và `remoteAdminReady` được tách riêng. App có manifest hợp lệ nhưng chưa có credential/backend mutation không còn bị diễn giải là “mất kết nối”; nó là **contract-connected / read-only**. Legacy adapter chỉ tiếp tục làm fallback khi cần, không còn là điều kiện để app mới xuất hiện trong Trung tâm.
+
+### Quy tắc từ đây
+
+App mới không yêu cầu commit vào Application Management. Client chỉ cần publish contract/manifest chuẩn, sau đó Owner dán URL vào `Catalog & Contract → Khám phá app từ URL`, chọn category nếu manifest chưa khai báo, và lưu. Capability nào chưa live vẫn fail-closed.
