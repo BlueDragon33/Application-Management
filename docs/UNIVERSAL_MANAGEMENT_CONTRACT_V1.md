@@ -364,3 +364,75 @@ Nếu app mới tuân thủ contract trên, các bước cần làm chỉ là:
 - lưu.
 
 Application Management không cần commit source mới để biết tên app đó.
+
+
+## Runtime state model
+
+Trạng thái kết nối được tách thành hai lớp độc lập:
+
+1. **Contract handshake**: Trung tâm đọc và validate được manifest/protocol của client.
+2. **Remote admin readiness**: credential + protected endpoint + capability cần thiết đang hoạt động.
+
+Không được đồng nhất hai lớp này.
+
+### Pending
+
+Chỉ dùng khi ứng dụng **chưa từng handshake contract thành công** tại Production hiện tại.
+
+Ví dụ:
+- chưa publish manifest;
+- chưa khai báo Control Origin;
+- URL contract chưa tồn tại.
+
+### Warning
+
+Contract handshake vẫn thành công nhưng remote admin chưa đầy đủ hoặc tạm lỗi.
+
+Ví dụ:
+- chưa có credential;
+- client chưa bật device-control capability;
+- endpoint thiết bị đang lỗi nhưng manifest vẫn đọc được.
+
+Trong trạng thái này, Website/read-only capability vẫn có thể hoạt động nếu contract cho phép. Không được báo “đang chờ contract”.
+
+### Unavailable
+
+Chỉ dùng khi Dynamic Catalog đã ghi nhận ứng dụng **từng handshake thành công**, nhưng lần probe hiện tại không còn đọc được contract endpoint.
+
+Catalog lưu:
+- `last_contract_connected_at`;
+- `last_probe_at`;
+- `last_probe_error`.
+
+Nhờ đó Trung tâm phân biệt lỗi runtime thật với app chưa từng được Production hóa.
+
+## Generic web launch
+
+App mới không cần route riêng trong Application Management để mở Website.
+
+Contract có thể công bố:
+
+```json
+{
+  "capabilities": {
+    "webLaunch": true
+  },
+  "endpoints": {
+    "web": "/api/control/web"
+  }
+}
+```
+
+Nếu `endpoints.web` có mặt, Trung tâm gọi server-side và chấp nhận payload:
+
+```json
+{
+  "launchUrl": "https://registered-app-origin.example/path"
+}
+```
+
+URL trả về phải thuộc Control Origin hoặc Public URL origin đã đăng ký trong Dynamic Catalog. Redirect sang origin lạ bị từ chối.
+
+Nếu `webLaunch=true` nhưng không có `endpoints.web`, Trung tâm mở trực tiếp Public URL/Control Origin đã đăng ký.
+
+Universal Contract luôn được thử trước adapter legacy.
