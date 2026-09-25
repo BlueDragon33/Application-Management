@@ -41,6 +41,7 @@ for (const token of [
   '__CONTROL_OWNER_EMAILS__',
   '__APPLICATION_MANAGEMENT_BUILD_REVISION__',
   '"CONTROL_PLANE_NETWORK_MODE": "production"',
+  '"global_fetch_strictly_public"',
 ]) {
   if (!template.includes(token)) throw new Error(`Cloudflare preview template thiếu: ${token}`);
 }
