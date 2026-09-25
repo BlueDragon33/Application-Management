@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { applicationRegistry } from "./application-registry";
 import type { OperationsSettings } from "./admin-device-client";
 import styles from "./automatic-device-policies.module.css";
 
@@ -13,7 +12,8 @@ export type AutomationSelection = {
   defaultDeviceLimit: number;
 };
 
-export default function AutomaticDevicePolicies({ settings, busy, close, save }: {
+export default function AutomaticDevicePolicies({ apps, settings, busy, close, save }: {
+  apps: Array<{ id: string; shortName: string }>;
   settings: OperationsSettings | undefined;
   busy: boolean;
   close: () => void;
@@ -44,7 +44,7 @@ export default function AutomaticDevicePolicies({ settings, busy, close, save }:
       <p>Quy tắc chỉ lưu sau khi ứng dụng xác nhận và Trung tâm đọc lại trạng thái. Thiết bị trả phí không được mở chỉ vì đã nộp ảnh.</p>
       {unavailableEnabled ? <p className={styles.warning}>Quy tắc của ứng dụng chưa trả lời được giữ nguyên. Bạn vẫn có thể sửa riêng các ứng dụng đang kết nối.</p> : null}
       <div className={styles.list}>
-        {applicationRegistry.map((app) => {
+        {apps.map((app) => {
           const ready = supported.has(app.id);
           const cancellationReady = blockSupported.has(app.id);
           const automatic = selected.includes(app.id);
