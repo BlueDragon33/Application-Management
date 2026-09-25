@@ -140,8 +140,9 @@ function connectionLabel(value: OperationsSummary["connection"], summary?: Opera
       ? "Đang kết nối · chờ contract"
       : "Kết nối qua adapter";
   }
+  if (summary?.issueCode === "REPOSITORY_METADATA_ONLY") return "Chưa kết nối runtime";
   if (value === "connected") return "Kết nối tốt";
-  if (value === "warning" && summary?.controlChannel === "contract-observe") return "Đã nối contract · hạn chế";
+  if (value === "warning" && summary?.controlChannel === "contract-observe") return "Contract live · chưa có quản trị";
   if (value === "unavailable") return "Mất kết nối";
   if (value === "warning") return "Có cảnh báo";
   return "Chờ contract";

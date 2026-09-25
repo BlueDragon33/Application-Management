@@ -558,8 +558,8 @@ async function buildBootstrap(actor: ControlDeviceState) {
       snapshot.remoteAdminReady,
       snapshot.remoteAdminReady,
       snapshot.issueCode,
-      snapshot.connection === "connected" ? "universal" : snapshot.manifest ? "contract-observe" : "none",
-      snapshot.connection === "connected" ? "ready" : snapshot.manifest ? "partial" : "pending",
+      snapshot.connection === "connected" ? "universal" : snapshot.issueCode === "REPOSITORY_METADATA_ONLY" ? "none" : snapshot.manifest ? "contract-observe" : "none",
+      snapshot.connection === "connected" ? "ready" : snapshot.issueCode === "REPOSITORY_METADATA_ONLY" ? "pending" : snapshot.manifest ? "partial" : "pending",
     ));
     for (const device of dynamicDevices) {
       const item = workFromDevice(device);
@@ -572,9 +572,11 @@ async function buildBootstrap(actor: ControlDeviceState) {
         appName: snapshot.config.shortName,
         href: snapshot.config.href,
         kind: "connection",
-        title: snapshot.issueCode === "OPEN_CONTRACT_PENDING"
-          ? "Ứng dụng đang chờ Universal Contract"
-          : "Contract ứng dụng cần kiểm tra",
+        title: snapshot.issueCode === "REPOSITORY_METADATA_ONLY"
+          ? "Chỉ có metadata repository · chưa kết nối runtime"
+          : snapshot.issueCode === "OPEN_CONTRACT_PENDING"
+            ? "Ứng dụng đang chờ Universal Contract"
+            : "Contract ứng dụng cần kiểm tra",
         detail: snapshot.note,
         deviceType: "—",
         occurredAt: null,

@@ -582,7 +582,7 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
       origin: row.origin,
       publicUrl: row.public_url,
       repository: row.repository,
-      contractState: remoteAdminReady ? "connected" : "migrating",
+      contractState: remoteAdminReady ? "connected" : repositoryMetadataOnly ? "pending" : "migrating",
       contractNote: remoteAdminReady
         ? `${manifest.protocol ?? CONTRACT_SCHEMA} đã xác minh qua ${manifest.discoveredVia ?? row.contract_path}; capability được normalize động từ client.`
         : repositoryMetadataOnly
@@ -597,12 +597,13 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
       config,
       manifest,
       credentialConfigured: Boolean(credential),
-      contractConnected: true,
-      connection: remoteAdminReady ? "connected" : "warning",
+      contractConnected: !repositoryMetadataOnly,
+      connection: remoteAdminReady ? "connected" : repositoryMetadataOnly ? "pending" : "warning",
       devices,
       webHref: row.public_url || (!repositoryMetadataOnly && manifest.capabilities.webLaunch ? row.origin : null),
       remoteAdminReady,
       note: config.contractNote,
+      ...(repositoryMetadataOnly ? { issueCode: "REPOSITORY_METADATA_ONLY" } : {}),
     };
   } catch (error) {
     const config = dynamicApplicationConfig({

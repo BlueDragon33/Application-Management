@@ -215,14 +215,16 @@ test("origin-only discovery onboards new apps without Application Management sou
   assert.ok(catalogUi.includes("Không cần sửa source Trung tâm"));
 });
 
-test("contract handshake is distinct from remote-admin readiness", () => {
+test("contract handshake is distinct from remote-admin readiness and repository metadata", () => {
   assert.ok(contract.includes("contractConnected: boolean"));
-  assert.ok(contract.includes("contractConnected: true"));
+  assert.ok(contract.includes("contractConnected: !repositoryMetadataOnly"));
   assert.ok(contract.includes("contractConnected: false"));
+  assert.ok(contract.includes('issueCode: "REPOSITORY_METADATA_ONLY"'));
   assert.ok(catalogApi.includes("contractConnected: probe.contractConnected"));
   assert.ok(catalogUi.includes('label="Contract"'));
   assert.ok(operations.includes("snapshot.contractConnected"));
   assert.ok(operations.includes("Contract đã kết nối · Remote admin chưa sẵn sàng"));
+  assert.ok(operations.includes('snapshot.issueCode === "REPOSITORY_METADATA_ONLY"'));
 });
 
 test("unknown dynamic app mutations remain generic instead of requiring a new app branch", () => {
