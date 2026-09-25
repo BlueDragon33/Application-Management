@@ -1,5 +1,5 @@
 export type ApplicationStatus = "online" | "warning" | "planned";
-export type ApplicationCategory = "Học tập" | "Y tế" | "Nga" | "Học thuật" | "Gia đình" | "Kế toán" | "Kỹ thuật";
+export type ApplicationCategory = string;
 export type AdminContractState = "connected" | "migrating" | "pending";
 export type DeviceClass = "desktop" | "tablet" | "phone";
 export type SubClientState = "independent" | "module" | "planned";
@@ -27,7 +27,7 @@ export type SubClientConfig = {
 };
 
 export type ApplicationConfig = {
-  id: "boi-ech" | "health-care" | "ru-life" | "bauman-master-ai" | "growup-mychildren" | "price-report-tunggiabao" | "cad-cam-3d" | "nc03-modem";
+  id: string;
   name: string;
   shortName: string;
   href: string;
