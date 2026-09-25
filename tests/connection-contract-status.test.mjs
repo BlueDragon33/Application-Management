@@ -14,7 +14,8 @@ test("live connectivity and Universal Contract readiness are independent dimensi
   assert.match(operations, /"contract-observe"/);
   assert.match(dashboard, /Đang kết nối · chờ contract/);
   assert.match(dashboard, /Kết nối qua adapter/);
-  assert.match(dashboard, /Đã nối contract · hạn chế/);
+  assert.match(dashboard, /Contract live · chưa có quản trị/);
+  assert.match(dashboard, /Chưa kết nối runtime/);
 });
 
 test("Boi connection faults are classified instead of all appearing as offline", () => {
@@ -50,4 +51,9 @@ test("catalog status language distinguishes connected observe-only from real dis
   assert.match(catalog, /Không khả dụng/);
   assert.match(catalog, /chưa bắt tay được Universal Contract/);
   assert.equal(catalog.includes("${warning} warning"), false);
+});
+
+test("repository metadata never counts as live runtime connectivity", () => {
+  assert.match(operations, /REPOSITORY_METADATA_ONLY/);
+  assert.match(operations, /Chỉ có metadata repository · chưa kết nối runtime/);
 });
