@@ -270,9 +270,15 @@ function decodeBase64Url(value: string) {
 
 async function vaultKey() {
   const values = await environment();
-  const secret = text(values.APPLICATION_CONTRACT_VAULT_KEY);
-  if (secret.length < 32) throw new Error("APPLICATION_CONTRACT_VAULT_KEY chưa được cấu hình hoặc quá ngắn.");
-  const digest = await crypto.subtle.digest("SHA-256", encoder.encode(secret));
+  const secret = text(values.APPLICATION_CONTRACT_VAULT_KEY)
+    || text(values.APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET)
+    || text(values.APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET);
+  if (secret.length < 32) {
+    throw new Error("Contract vault chưa có secret nền đủ mạnh để mã hóa pairing token.");
+  }
+  // Domain separation keeps the vault key cryptographically distinct even when
+  // an existing infrastructure secret is used as the stable root material.
+  const digest = await crypto.subtle.digest("SHA-256", encoder.encode(`application-management:contract-vault:v1:${secret}`));
   return crypto.subtle.importKey("raw", digest, "AES-GCM", false, ["encrypt", "decrypt"]);
 }
 
