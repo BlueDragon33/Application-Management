@@ -148,6 +148,33 @@ function isCloudflareClientAsset(request: Request, url: URL) {
   return /\.(?:css|m?js|map|png|jpe?g|webp|avif|gif|svg|ico|woff2?|ttf|otf|webmanifest)$/i.test(url.pathname);
 }
 
+function freshDynamicResponse(response: Response, cloudflareChannel: boolean) {
+  if (!cloudflareChannel) return response;
+  const headers = new Headers(response.headers);
+  headers.set("cache-control", "no-store, no-cache, must-revalidate, private");
+  headers.set("cloudflare-cdn-cache-control", "no-store");
+  headers.set("pragma", "no-cache");
+  headers.set("expires", "0");
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+function repairBrowserCache(env: Env) {
+  const revision = env.APPLICATION_MANAGEMENT_BUILD_REVISION?.trim() || "latest";
+  const headers = new Headers({
+    location: `/?fresh=${encodeURIComponent(revision)}`,
+    "cache-control": "no-store, no-cache, must-revalidate, private",
+    "cloudflare-cdn-cache-control": "no-store",
+    "clear-site-data": '"cache"',
+    pragma: "no-cache",
+    expires: "0",
+  });
+  return new Response(null, { status: 303, headers });
+}
+
 async function routeNativeAutoApproval(request: Request) {
   const url = new URL(request.url);
   if (request.method !== "POST" || url.pathname !== "/api/operations") return request;
@@ -199,6 +226,10 @@ const worker = {
       });
     }
 
+    if (isProduction && request.method === "GET" && url.pathname === "/__repair-cache") {
+      return repairBrowserCache(env);
+    }
+
     if ((isPreview || isProduction) && isCloudflareClientAsset(request, url)) {
       return env.ASSETS.fetch(request);
     }
@@ -210,7 +241,8 @@ const worker = {
     }
 
     request = await routeNativeAutoApproval(request);
-    return handler.fetch(request, env, ctx);
+    const response = await handler.fetch(request, env, ctx);
+    return freshDynamicResponse(response, isPreview || isProduction);
   },
 };
 
