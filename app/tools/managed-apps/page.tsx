@@ -26,6 +26,8 @@ type ProbeSummary = {
   credentialConfigured?: boolean;
   contractConnected?: boolean;
   remoteAdminReady?: boolean;
+  managementMode?: "remote-admin" | "observe-only" | "local-first" | "metadata-only";
+  metadataVerified?: boolean;
   note?: string;
   protocol?: string | null;
   discoveredVia?: string | null;
@@ -67,6 +69,8 @@ type CatalogResponse = {
     connected?: number;
     warning?: number;
     pending?: number;
+    localFirst?: number;
+    metadataOnly?: number;
     unavailable?: number;
   };
   template?: Record<string, unknown>;
@@ -182,11 +186,15 @@ export default function ManagedAppsCatalogPage() {
     try {
       const result = await managedAppsAction({ action: "upsert", ...form }) as CatalogResponse;
       setProbe(result.probe ?? null);
-      setMessage(result.probe?.remoteAdminReady
-        ? "Đã lưu và Universal Contract sẵn sàng quản trị."
-        : result.probe?.contractConnected
-          ? "Đã lưu và đã nối Universal Contract. Hiện ứng dụng ở chế độ chỉ quan sát cho tới khi credential/capability quản trị đầy đủ."
-          : "Đã lưu catalog nhưng chưa bắt tay được Universal Contract. Hệ thống tiếp tục khóa thao tác từ xa cho tới khi contract hợp lệ.");
+      setMessage(result.probe?.managementMode === "local-first" && result.probe?.metadataVerified
+        ? "Đã lưu và xác minh metadata local-first. Ứng dụng không yêu cầu Remote Admin cloud."
+        : result.probe?.managementMode === "metadata-only" && result.probe?.metadataVerified
+          ? "Đã lưu và xác minh metadata. Runtime Production chưa được công bố nên không tạo cảnh báo mất kết nối."
+          : result.probe?.remoteAdminReady
+            ? "Đã lưu và Universal Contract sẵn sàng quản trị."
+            : result.probe?.contractConnected
+              ? "Đã lưu và đã nối Universal Contract. Hiện ứng dụng ở chế độ chỉ quan sát cho tới khi credential/capability quản trị đầy đủ."
+              : "Đã lưu catalog nhưng chưa bắt tay được Universal Contract. Hệ thống tiếp tục khóa thao tác từ xa cho tới khi contract hợp lệ.");
       setForm((current) => ({ ...current, credential: "" }));
       await load();
     } catch (error) {
@@ -265,8 +273,10 @@ export default function ManagedAppsCatalogPage() {
       const connected = result.totals?.connected ?? 0;
       const warning = result.totals?.warning ?? 0;
       const pending = result.totals?.pending ?? 0;
+      const localFirst = result.totals?.localFirst ?? 0;
+      const metadataOnly = result.totals?.metadataOnly ?? 0;
       const unavailable = result.totals?.unavailable ?? 0;
-      setMessage(`Đã kiểm tra toàn bộ contract: ${connected} sẵn sàng quản trị · ${warning} đã nối contract/chỉ quan sát · ${pending} chờ contract · ${unavailable} không khả dụng.`);
+      setMessage(`Đã kiểm tra toàn bộ contract: ${connected} sẵn sàng quản trị · ${warning} đã nối contract/chỉ quan sát · ${localFirst} local-first · ${metadataOnly} metadata-only · ${pending} thực sự chờ contract · ${unavailable} không khả dụng.`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Không thể kiểm tra toàn bộ contract.");
     } finally {
@@ -434,9 +444,9 @@ export default function ManagedAppsCatalogPage() {
         <h2 style={h2}>{probe.name ?? probe.id ?? "Contract"}</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 10 }}>
           <Stat label="Trạng thái" value={connectionLabel(probe)}/>
-          <Stat label="Contract" value={probe.contractConnected ? "Đã bắt tay" : "Chưa bắt tay"}/>
+          <Stat label="Contract" value={probe.metadataVerified ? "Metadata đã xác minh" : probe.contractConnected ? "Đã bắt tay" : "Chưa bắt tay"}/>
           <Stat label="Credential" value={probe.credentialConfigured ? "Đã cấu hình" : "Chưa cấu hình"}/>
-          <Stat label="Remote admin" value={probe.remoteAdminReady ? "Sẵn sàng" : "Fail-closed"}/>
+          <Stat label="Remote admin" value={probe.managementMode === "local-first" || probe.managementMode === "metadata-only" ? "Không yêu cầu" : probe.remoteAdminReady ? "Sẵn sàng" : "Fail-closed"}/>
           <Stat label="Protocol" value={probe.protocol ?? "—"}/>
           <Stat label="Discovery" value={probe.discoveredVia ?? "—"}/>
           <Stat label="Thiết bị đọc được" value={String(probe.deviceCount ?? 0)}/>
@@ -470,6 +480,8 @@ export default function ManagedAppsCatalogPage() {
 
 function connectionLabel(item: ProbeSummary | null | undefined) {
   if (!item) return "—";
+  if (item.managementMode === "local-first" && item.metadataVerified) return "Local-first · metadata đã xác minh";
+  if (item.managementMode === "metadata-only" && item.metadataVerified) return "Metadata đã xác minh · chưa có runtime";
   if (item.remoteAdminReady) return "Sẵn sàng quản trị";
   if (item.contractConnected) return "Đã nối contract · chỉ quan sát";
   if (item.connection === "pending") return "Chờ contract";
