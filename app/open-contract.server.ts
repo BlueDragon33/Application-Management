@@ -291,15 +291,16 @@ export async function removeManagedCatalog(idValue: unknown, actor: ControlDevic
 
 async function rememberManagedProbe(id: string, input: { connected: boolean; error?: string }) {
   const database = await getControlDatabase();
+  const error = text(input.error).slice(0, 1000) || null;
   if (input.connected) {
     await database.prepare(
-      "UPDATE managed_app_catalog SET last_contract_connected_at=CURRENT_TIMESTAMP,last_probe_at=CURRENT_TIMESTAMP,last_probe_error=NULL WHERE id=?1",
-    ).bind(id).run();
+      "UPDATE managed_app_catalog SET last_contract_connected_at=CURRENT_TIMESTAMP,last_probe_at=CURRENT_TIMESTAMP,last_probe_error=?2 WHERE id=?1",
+    ).bind(id, error).run();
     return;
   }
   await database.prepare(
     "UPDATE managed_app_catalog SET last_probe_at=CURRENT_TIMESTAMP,last_probe_error=?2 WHERE id=?1",
-  ).bind(id, text(input.error).slice(0, 1000) || null).run();
+  ).bind(id, error).run();
 }
 
 async function fetchJson(origin: string, path: string, credential = "") {
@@ -575,7 +576,6 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
   let manifest: UniversalContractManifest;
   try {
     manifest = await discoverContract(row, credential, category);
-    await rememberManagedProbe(row.id, { connected: true });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Không đọc được manifest.";
     await rememberManagedProbe(row.id, { connected: false, error: errorMessage });
@@ -629,6 +629,8 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
       remoteAdminError = error instanceof Error ? error.message : "Không đọc được endpoint thiết bị.";
     }
   }
+
+  await rememberManagedProbe(row.id, { connected: true, error: remoteAdminError });
 
   const capabilities = capabilityLabels(manifest.capabilities);
   const note = remoteAdminReady
