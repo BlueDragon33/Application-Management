@@ -41,3 +41,24 @@ export const controlAuditLog = sqliteTable("control_audit_log", {
   detailJson: text("detail_json").notNull().default("{}"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+
+export const managedAppCatalog = sqliteTable("managed_app_catalog", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  shortName: text("short_name").notNull(),
+  category: text("category").notNull(),
+  origin: text("origin").notNull(),
+  publicUrl: text("public_url"),
+  repository: text("repository"),
+  contractPath: text("contract_path").notNull().default("/api/application-management/contract"),
+  enabled: integer("enabled").notNull().default(1),
+  credentialCiphertext: text("credential_ciphertext"),
+  credentialIv: text("credential_iv"),
+  createdBy: text("created_by").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("managed_app_catalog_category_idx").on(table.category),
+  index("managed_app_catalog_enabled_idx").on(table.enabled),
+]);
