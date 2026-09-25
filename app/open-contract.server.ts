@@ -34,6 +34,11 @@ export type UniversalContractManifest = {
     version?: string;
   };
   capabilities: Record<string, boolean>;
+  policy?: {
+    remoteAdminReady?: boolean;
+    credentialRequired?: boolean;
+    credentialEnv?: string;
+  };
   endpoints: {
     status?: string;
     devices?: string;
@@ -330,6 +335,7 @@ function parseManifest(raw: Record<string, unknown>, expectedId: string, expecte
   const schema = text(raw.schema);
   const application = record(raw.application);
   const capabilitiesRaw = record(raw.capabilities);
+  const policyRaw = record(raw.policy);
   const endpointsRaw = record(raw.endpoints);
   if (schema !== CONTRACT_SCHEMA) throw new Error(`Contract schema phải là ${CONTRACT_SCHEMA}.`);
   if (text(application.id) !== expectedId) throw new Error("Contract application.id không khớp catalog.");
@@ -346,6 +352,11 @@ function parseManifest(raw: Record<string, unknown>, expectedId: string, expecte
       version: text(application.version) || undefined,
     },
     capabilities,
+    policy: {
+      ...(typeof policyRaw.remoteAdminReady === "boolean" ? { remoteAdminReady: policyRaw.remoteAdminReady } : {}),
+      ...(typeof policyRaw.credentialRequired === "boolean" ? { credentialRequired: policyRaw.credentialRequired } : {}),
+      ...(text(policyRaw.credentialEnv) ? { credentialEnv: text(policyRaw.credentialEnv) } : {}),
+    },
     endpoints: {
       status: endpoint(endpointsRaw.status),
       devices: endpoint(endpointsRaw.devices),
@@ -562,7 +573,8 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
   try {
     const manifest = await discoverContract(row, credential, category);
     const remoteAdminReady = Boolean(
-      credential
+      manifest.policy?.remoteAdminReady !== false
+      && credential
       && manifest.capabilities.deviceRegistry
       && manifest.endpoints.devices,
     );
