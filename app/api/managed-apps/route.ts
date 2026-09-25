@@ -2,7 +2,7 @@ import { contractCategoryProfiles, contractStarterForCategory } from "../../cont
 import { discoverManagedContractOrigin } from "../../managed-contract-discovery.server";
 import { applicationRegistry, type ApplicationCategory } from "../../application-registry";
 import { listClientNetworkSpecs } from "../../client-network-registry";
-import { resolveClientBridge } from "../../client-origin.server";
+import { resolveClientBridge, resolveConfiguredClientCredential } from "../../client-origin.server";
 import { ControlAccessError, verifyControlProof } from "../../control-device.server";
 import {
   listManagedCatalog,
@@ -49,9 +49,17 @@ async function legacyCatalogCandidate(application: (typeof applicationRegistry)[
     }
   }
   const fallback = publicOrigin(application.publicUrl);
-  return fallback
-    ? { origin: fallback, credential: "", source: "public-url" }
-    : { origin: "", credential: "", source: "missing-origin" };
+  if (fallback) {
+    const credential = spec
+      ? (await resolveConfiguredClientCredential(spec.id, "production")).secret
+      : "";
+    return {
+      origin: fallback,
+      credential,
+      source: credential ? "public-url+legacy-production-secret" : "public-url",
+    };
+  }
+  return { origin: "", credential: "", source: "missing-origin" };
 }
 
 function probeSummary(probe: Awaited<ReturnType<typeof probeManagedCatalogEntry>>) {
