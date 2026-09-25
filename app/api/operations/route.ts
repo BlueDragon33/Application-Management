@@ -25,6 +25,7 @@ export const dynamic = "force-dynamic";
 const UPSTREAM_TIMEOUT_MS = 4_500;
 const RECENT_DEVICE_MS = 7 * 24 * 60 * 60 * 1000;
 const AUTO_APPROVE_SUPPORTED_APP_IDS = ["boi-ech", "health-care"] as const;
+const STATIC_APPLICATION_IDS = new Set(applicationRegistry.map((item) => item.id));
 
 type Bridge = { baseUrl: string; token: string; expiresAt: number };
 type UnknownRecord = Record<string, unknown>;
@@ -447,14 +448,17 @@ async function loadManagedContract(config: ApplicationConfig, actor: ControlDevi
   if (devicesPath && capabilities.deviceRegistry === true) {
     const data = await managedContractRequest(config.id, devicesPath);
     const registryInstanceId = text(status.registryInstanceId) || null;
+    const commandSafetyReady = capabilities.deviceIdempotentCommands === true
+      && capabilities.optimisticConcurrency === true
+      && Boolean(contract.endpoints.deviceCommands || contract.manifest?.endpoints.deviceCommands);
     devices = rows(data).map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
       typeKey: text(record(row).deviceType) ? "deviceType" : "deviceClass",
       userKeys: ["displayName", "userLabel", "label", "userName", "userCode", "platform"],
       environmentKey: "environmentChanged",
-      approve: canManage && capabilities.deviceApproval === true,
-      remove: canManage && (capabilities.deviceBlocking === true || capabilities.deviceRemoval === true),
-      unblock: canManage && capabilities.deviceUnblock === true,
-      editPermission: canManage && capabilities.deviceEditPermission === true,
+      approve: canManage && commandSafetyReady && capabilities.deviceApproval === true,
+      remove: canManage && commandSafetyReady && (capabilities.deviceBlocking === true || capabilities.deviceRemoval === true || capabilities.deviceRemoval === "delete"),
+      unblock: canManage && commandSafetyReady && capabilities.deviceUnblock === true,
+      editPermission: canManage && commandSafetyReady && capabilities.deviceEditPermission === true,
       approvalRequiresRegistrationComplete: false,
       defaultType: "desktop",
       ...(registryInstanceId ? { registryInstanceId } : {}),
@@ -689,6 +693,92 @@ export async function POST(request: Request) {
       const deviceId = text(payload.deviceId);
       const deviceCode = text(payload.deviceCode).toUpperCase();
       if (operation !== "approve" && operation !== "remove") return json({ error: "Thao tác thiết bị không hợp lệ.", code: "INVALID_DEVICE_OPERATION" }, 400);
+
+      const dynamicContract = !STATIC_APPLICATION_IDS.has(appId) ? await getManagedContract(appId) : null;
+      if (dynamicContract?.enabled) {
+        if (!/^[A-Za-z0-9._:-]{8,128}$/.test(deviceId)) {
+          return json({ error: "Mã thiết bị Contract v1 không hợp lệ.", code: "INVALID_DEVICE_ID" }, 400);
+        }
+        if (actor.role !== "publisher" && actor.role !== "owner") {
+          return json({ error: "Vai trò hiện tại không được thay đổi thiết bị ứng dụng này.", code: "PUBLISHER_REQUIRED" }, 403);
+        }
+        const capabilities = dynamicContract.capabilities;
+        const devicesPath = dynamicContract.endpoints.devices || dynamicContract.manifest?.endpoints.devices || "";
+        const commandPath = dynamicContract.endpoints.deviceCommands || dynamicContract.manifest?.endpoints.deviceCommands || "";
+        const safeCommands = devicesPath
+          && commandPath
+          && capabilities.deviceRegistry === true
+          && capabilities.deviceIdempotentCommands === true
+          && capabilities.optimisticConcurrency === true;
+        const operationSupported = operation === "approve"
+          ? capabilities.deviceApproval === true
+          : capabilities.deviceBlocking === true || capabilities.deviceRemoval === true || capabilities.deviceRemoval === "delete";
+        if (!safeCommands || !operationSupported) {
+          return json({ error: "Contract v1 chưa công bố đủ capability an toàn cho thao tác thiết bị.", code: "GENERIC_DEVICE_COMMAND_CONTRACT_NOT_LIVE" }, 409);
+        }
+
+        const before = await managedContractRequest(appId, devicesPath);
+        const current = rowByDeviceId(before, deviceId);
+        if (!current) return json({ error: "Thiết bị không còn trong registry của client.", code: "DEVICE_NOT_FOUND" }, 404);
+
+        const liveStatus = normalizedStatus(current.status);
+        const suppliedExpected = normalizedStatus(payload.expectedStatus);
+        if (suppliedExpected === "unknown") {
+          return json({ error: "expectedStatus hợp lệ là bắt buộc cho thao tác thiết bị.", code: "INVALID_EXPECTED_STATUS" }, 400);
+        }
+        if (suppliedExpected !== liveStatus) {
+          return json({ error: `Snapshot client đã thay đổi: expected ${suppliedExpected}, hiện tại ${liveStatus}.`, code: "DEVICE_STATE_CONFLICT" }, 409);
+        }
+        if (operation === "approve" && liveStatus !== "pending") {
+          return json({ error: "Thiết bị không còn ở trạng thái chờ duyệt.", code: "DEVICE_STATE_CONFLICT" }, 409);
+        }
+        if (operation === "remove" && liveStatus !== "pending" && liveStatus !== "approved") {
+          return json({ error: "Thiết bị đã bị khóa hoặc trạng thái không hỗ trợ.", code: "DEVICE_STATE_CONFLICT" }, 409);
+        }
+
+        const suppliedCommandId = text(payload.commandId).toLowerCase();
+        if (suppliedCommandId && !validCommandId(suppliedCommandId)) {
+          return json({ error: "commandId không hợp lệ.", code: "INVALID_COMMAND_ID" }, 400);
+        }
+        const commandId = suppliedCommandId || crypto.randomUUID();
+        const commandOperation = operation === "approve"
+          ? "approve"
+          : capabilities.deviceRemoval === "delete" ? "remove" : "block";
+        const expected = operation === "approve" ? "approved" : commandOperation === "remove" ? "deleted" : "blocked";
+        const command = await managedContractRequest(appId, commandPath, {
+          method: "POST",
+          body: {
+            commandId,
+            deviceId,
+            operation: commandOperation,
+            expectedStatus: liveStatus,
+          },
+        });
+        if (text(command.commandId).toLowerCase() !== commandId) {
+          return json({ error: "Client chưa xác nhận commandId.", code: "DEVICE_COMMAND_READBACK_MISMATCH" }, 502);
+        }
+        if (commandOperation === "remove") {
+          const readback = await managedContractRequest(appId, devicesPath);
+          if (rowByDeviceId(readback, deviceId)) {
+            return json({ error: "Client chưa xác nhận thiết bị đã được xóa.", code: "DEVICE_COMMAND_READBACK_MISMATCH" }, 502);
+          }
+        } else {
+          const readback = await managedContractRequest(appId, devicesPath);
+          const after = rowByDeviceId(readback, deviceId);
+          if (!after || normalizedStatus(after.status) !== expected) {
+            return json({ error: `Client chưa xác nhận trạng thái ${expected} sau command.`, code: "DEVICE_COMMAND_READBACK_MISMATCH" }, 502);
+          }
+        }
+        return json({
+          ok: true,
+          verified: true,
+          verifiedStatus: expected,
+          commandId,
+          commandReplayed: bool(command.replayed),
+          ...(operation === "approve" ? { approvedDeviceId: deviceId } : { removedDeviceId: deviceId }),
+        });
+      }
+
       if (!/^[a-f0-9]{64}$/.test(deviceId)) return json({ error: "Mã thiết bị không hợp lệ.", code: "INVALID_DEVICE_ID" }, 400);
 
       if (appId === "health-care") {
