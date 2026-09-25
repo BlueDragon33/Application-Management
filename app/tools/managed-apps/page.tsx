@@ -24,6 +24,7 @@ type ProbeSummary = {
   name?: string;
   connection?: string;
   credentialConfigured?: boolean;
+  contractConnected?: boolean;
   remoteAdminReady?: boolean;
   note?: string;
   protocol?: string | null;
@@ -32,9 +33,27 @@ type ProbeSummary = {
   deviceCount?: number;
 };
 
+type DiscoveryDraft = {
+  id: string;
+  name: string;
+  shortName: string;
+  category: string | null;
+  categoryRequired: boolean;
+  origin: string;
+  publicUrl: string;
+  repository: string | null;
+  contractPath: string;
+  protocol: string;
+  version: string | null;
+  discoveredVia: string;
+  credentialRequired: boolean;
+  capabilities: string[];
+};
+
 type CatalogResponse = {
   ok?: boolean;
   error?: string;
+  discovery?: DiscoveryDraft;
   encryptionReady?: boolean;
   apps?: CatalogApp[];
   migrated?: Array<{ id: string; source?: string; probe?: ProbeSummary | null }>;
@@ -81,6 +100,8 @@ export default function ManagedAppsCatalogPage() {
   const [probe, setProbe] = useState<CatalogResponse["probe"] | null>(null);
   const [starter, setStarter] = useState<{ template: Record<string, unknown>; recommended: string[]; guardrails: string[] } | null>(null);
   const [syncResult, setSyncResult] = useState<CatalogResponse | null>(null);
+  const [discoveryTarget, setDiscoveryTarget] = useState("");
+  const [discovery, setDiscovery] = useState<DiscoveryDraft | null>(null);
 
   async function load() {
     setBusy("load");
@@ -116,6 +137,42 @@ export default function ManagedAppsCatalogPage() {
     setStarter(null);
     setMessage("");
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function discoverFromUrl() {
+    setBusy("discover");
+    setMessage("");
+    setProbe(null);
+    setStarter(null);
+    setDiscovery(null);
+    try {
+      const result = await managedAppsAction({
+        action: "discover",
+        target: discoveryTarget,
+        credential: form.credential,
+      }) as CatalogResponse;
+      if (!result.discovery) throw new Error("Không đọc được contract từ URL.");
+      const draft = result.discovery;
+      setDiscovery(draft);
+      setForm((current) => ({
+        ...current,
+        id: draft.id,
+        name: draft.name,
+        shortName: draft.shortName || draft.name,
+        category: draft.category ?? current.category,
+        origin: draft.origin,
+        publicUrl: draft.publicUrl || current.publicUrl,
+        repository: draft.repository ?? current.repository,
+        contractPath: draft.contractPath,
+      }));
+      setMessage(draft.categoryRequired
+        ? `Đã phát hiện ${draft.name}. Contract chưa khai báo category; hãy chọn đúng phân loại rồi lưu.`
+        : `Đã phát hiện ${draft.name} · ${draft.category} · ${draft.protocol}. Kiểm tra lại và bấm Lưu & kiểm tra contract.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Không thể khám phá contract từ URL.");
+    } finally {
+      setBusy("");
+    }
   }
 
   async function save() {
@@ -253,6 +310,25 @@ export default function ManagedAppsCatalogPage() {
         </p>
       </div>
 
+      <section style={{ ...panelStyle, marginBottom: 16, borderColor: "#2c6754" }}>
+        <small style={eyebrow}>ZERO-CODE ONBOARDING</small>
+        <h2 style={h2}>Khám phá app từ URL</h2>
+        <p style={{ color: "#b9d5cb", lineHeight: 1.5, margin: "8px 0 12px" }}>
+          Dán Control Origin, runtime URL, GitHub Pages subpath hoặc URL manifest. Trung tâm tự thử các contract path chuẩn và điền ID, tên, phân loại, protocol, capability. Không cần sửa source Trung tâm.
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", gap: 10, alignItems: "end" }}>
+          <Field label="URL app / control / manifest">
+            <input style={inputStyle} value={discoveryTarget} onChange={(e) => setDiscoveryTarget(e.target.value)} placeholder="https://app.example.com hoặc .../management-contract.json"/>
+          </Field>
+          <button style={primaryButton} disabled={Boolean(busy) || !discoveryTarget.trim()} onClick={() => void discoverFromUrl()}>
+            {busy === "discover" ? "Đang khám phá…" : "Khám phá contract"}
+          </button>
+        </div>
+        <small style={{ display: "block", marginTop: 9, color: "#86aa9d" }}>
+          Nếu endpoint cần Bearer token, nhập token ở ô Credential bên dưới trước khi khám phá. Token chỉ được lưu khi Owner bấm Lưu.
+        </small>
+      </section>
+
       <section style={panelStyle}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
           <div><small style={eyebrow}>CATALOG ENTRY</small><h2 style={h2}>{editing ? `Sửa ${editing.shortName}` : "Thêm ứng dụng mới"}</h2></div>
@@ -284,6 +360,24 @@ export default function ManagedAppsCatalogPage() {
       </section>
 
       {message ? <div style={{ margin: "16px 0", padding: 14, borderRadius: 12, background: "#0d2a20", border: "1px solid #245443", lineHeight: 1.5 }}>{message}</div> : null}
+
+      {discovery ? <section style={{ ...panelStyle, marginBottom: 16 }}>
+        <small style={eyebrow}>DISCOVERY RESULT</small>
+        <h2 style={h2}>{discovery.name}</h2>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 10, marginTop: 12 }}>
+          <Stat label="ID" value={discovery.id}/>
+          <Stat label="Phân loại" value={discovery.category ?? "Cần Owner chọn"}/>
+          <Stat label="Protocol" value={discovery.protocol}/>
+          <Stat label="Discovery path" value={discovery.discoveredVia}/>
+          <Stat label="Credential" value={discovery.credentialRequired ? "Cần credential để đọc" : "Manifest công khai"}/>
+          <Stat label="Version" value={discovery.version ?? "—"}/>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+          {discovery.capabilities.length
+            ? discovery.capabilities.map((item) => <span key={item} style={chipStyle}>{item}</span>)
+            : <span style={{ color: "#9bbcaf" }}>Contract chưa công bố capability bật.</span>}
+        </div>
+      </section> : null}
 
       {syncResult?.needsOrigin?.length ? <section style={{ ...panelStyle, marginBottom: 16, borderColor: "#765d2c" }}>
         <small style={{ ...eyebrow, color: "#f1c86f" }}>CẦN CONTROL ORIGIN</small>
@@ -338,6 +432,7 @@ export default function ManagedAppsCatalogPage() {
         <h2 style={h2}>{probe.name ?? probe.id ?? "Contract"}</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 10 }}>
           <Stat label="Kết nối" value={probe.connection ?? "—"}/>
+          <Stat label="Contract" value={probe.contractConnected ? "Đã bắt tay" : "Chưa bắt tay"}/>
           <Stat label="Credential" value={probe.credentialConfigured ? "Đã cấu hình" : "Chưa cấu hình"}/>
           <Stat label="Remote admin" value={probe.remoteAdminReady ? "Sẵn sàng" : "Fail-closed"}/>
           <Stat label="Protocol" value={probe.protocol ?? "—"}/>

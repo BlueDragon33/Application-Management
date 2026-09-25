@@ -61,6 +61,7 @@ export type DynamicContractSnapshot = {
   config: ReturnType<typeof dynamicApplicationConfig>;
   manifest: UniversalContractManifest | null;
   credentialConfigured: boolean;
+  contractConnected: boolean;
   connection: "connected" | "warning" | "pending" | "unavailable";
   devices: UniversalContractDevice[];
   webHref: string | null;
@@ -588,6 +589,7 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
       config,
       manifest,
       credentialConfigured: Boolean(credential),
+      contractConnected: true,
       connection: remoteAdminReady ? "connected" : "warning",
       devices,
       webHref: row.public_url || (manifest.capabilities.webLaunch ? row.origin : null),
@@ -611,6 +613,7 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
       config,
       manifest: null,
       credentialConfigured: Boolean(credential),
+      contractConnected: false,
       connection: "pending",
       devices: [],
       webHref: row.public_url,

@@ -565,7 +565,7 @@ async function buildBootstrap(actor: ControlDeviceState) {
       const item = workFromDevice(device);
       if (item) workItems.push(item);
     }
-    if (snapshot.connection !== "connected") {
+    if (!snapshot.contractConnected) {
       workItems.push({
         id: `${snapshot.config.id}:contract`,
         appId: snapshot.config.id,
@@ -579,6 +579,19 @@ async function buildBootstrap(actor: ControlDeviceState) {
         deviceType: "—",
         occurredAt: null,
         priority: snapshot.connection === "unavailable" ? "high" : "info",
+      });
+    } else if (!snapshot.remoteAdminReady) {
+      workItems.push({
+        id: `${snapshot.config.id}:contract-readonly`,
+        appId: snapshot.config.id,
+        appName: snapshot.config.shortName,
+        href: snapshot.config.href,
+        kind: "connection",
+        title: "Contract đã kết nối · Remote admin chưa sẵn sàng",
+        detail: snapshot.note,
+        deviceType: "—",
+        occurredAt: null,
+        priority: "info",
       });
     }
   }
