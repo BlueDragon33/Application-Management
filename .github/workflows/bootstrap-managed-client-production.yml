@@ -174,15 +174,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node --input-type=module <<'NODE' >> "$GITHUB_ENV"
-          import crypto from "node:crypto";
-          const health = crypto.randomBytes(48).toString("base64url");
-          const ru = crypto.randomBytes(48).toString("base64url");
-          console.log(`HEALTH_BRIDGE_SECRET=${health}`);
-          console.log(`RU_LIFE_BRIDGE_SECRET=${ru}`);
-          console.log(`::add-mask::${health}`);
-          console.log(`::add-mask::${ru}`);
-          NODE
+          HEALTH_BRIDGE_SECRET="$(node --input-type=module -e 'import crypto from "node:crypto"; process.stdout.write(crypto.randomBytes(48).toString("base64url"))')"
+          RU_LIFE_BRIDGE_SECRET="$(node --input-type=module -e 'import crypto from "node:crypto"; process.stdout.write(crypto.randomBytes(48).toString("base64url"))')"
+          echo "::add-mask::$HEALTH_BRIDGE_SECRET"
+          echo "::add-mask::$RU_LIFE_BRIDGE_SECRET"
+          echo "HEALTH_BRIDGE_SECRET=$HEALTH_BRIDGE_SECRET" >> "$GITHUB_ENV"
+          echo "RU_LIFE_BRIDGE_SECRET=$RU_LIFE_BRIDGE_SECRET" >> "$GITHUB_ENV"
 
       - name: Install Health_Care dependencies
         working-directory: clients/health
@@ -309,15 +306,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node --input-type=module <<'NODE' >> "$GITHUB_ENV"
-          import crypto from "node:crypto";
-          const token = crypto.randomBytes(32).toString("base64url");
-          const hash = crypto.createHash("sha256").update(token).digest("base64url");
-          console.log(`BOOTSTRAP_QA_TOKEN=${token}`);
-          console.log(`BOOTSTRAP_QA_HASH=${hash}`);
-          console.log(`::add-mask::${token}`);
-          NODE
-          source "$GITHUB_ENV"
+          BOOTSTRAP_QA_TOKEN="$(node --input-type=module -e 'import crypto from "node:crypto"; process.stdout.write(crypto.randomBytes(32).toString("base64url"))')"
+          BOOTSTRAP_QA_HASH="$(BOOTSTRAP_QA_TOKEN="$BOOTSTRAP_QA_TOKEN" node --input-type=module -e 'import crypto from "node:crypto"; process.stdout.write(crypto.createHash("sha256").update(process.env.BOOTSTRAP_QA_TOKEN).digest("base64url"))')"
+          echo "::add-mask::$BOOTSTRAP_QA_TOKEN"
+          echo "BOOTSTRAP_QA_TOKEN=$BOOTSTRAP_QA_TOKEN" >> "$GITHUB_ENV"
+          echo "BOOTSTRAP_QA_HASH=$BOOTSTRAP_QA_HASH" >> "$GITHUB_ENV"
           NOW="$(date +%s)"
           EXPIRES="$((NOW + 900))"
           npx wrangler d1 execute application-management-production-db --remote --config wrangler.production.jsonc --command             "INSERT INTO control_sessions (session_id_hash,email,expires_at,created_at,last_seen_at)
