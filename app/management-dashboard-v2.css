@@ -664,3 +664,35 @@
   .amv2-account-identity { grid-template-columns: 1fr; }
   .amv2-login-security > article { grid-template-columns: 1fr; }
 }
+
+
+/* QA audit report header: keep the log readable as a management report instead of a raw event dump. */
+.amv2-audit-report-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:18px;
+  margin:0 0 14px;
+  padding:0 0 14px;
+  border-bottom:1px solid var(--amv2-line,#dfe7e3);
+}
+.amv2-audit-report-head small{
+  display:block;
+  margin-bottom:4px;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.08em;
+  opacity:.68;
+}
+.amv2-audit-report-head h2{margin:0;font-size:20px;line-height:1.25}
+.amv2-audit-report-head p{margin:5px 0 0;max-width:720px;font-size:13px;line-height:1.5;opacity:.72}
+.amv2-audit-report-head>strong{
+  flex:0 0 auto;
+  padding:7px 10px;
+  border:1px solid var(--amv2-line,#dfe7e3);
+  border-radius:999px;
+  font-size:12px;
+}
+@media (max-width:700px){
+  .amv2-audit-report-head{flex-direction:column;gap:10px}
+}
