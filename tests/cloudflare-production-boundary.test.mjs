@@ -119,6 +119,11 @@ test("production deploy requires either manual confirmation or the owner-only PR
   assert.ok(deploy.includes("did not become ready within 60 seconds"));
   assert.ok(deploy.includes("value.accessMode !== 'account-session'"));
   assert.ok(deploy.includes("value.productionAuthConfigured"));
+  assert.ok(deploy.includes("Create short-lived owner contract probe session"));
+  assert.ok(deploy.includes('--data \'{"action":"probe-all"}\''));
+  assert.ok(deploy.includes("POST_DEPLOY_CONTRACT_TOTALS="));
+  assert.ok(deploy.includes("Delete short-lived owner contract probe session"));
+  assert.ok(deploy.includes("DELETE FROM control_sessions WHERE session_id_hash="));
   assert.ok(auth.includes("x-application-management-auth-stage"));
   assert.ok(auth.includes("productionAuthFailure"));
   for (const stage of [

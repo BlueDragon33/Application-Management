@@ -282,6 +282,73 @@ jobs:
           console.log('Application Management Cloudflare production read-back PASS.');
           NODE
 
+      - name: Create short-lived owner contract probe session
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE' >> "$GITHUB_ENV"
+          import crypto from "node:crypto";
+          const token = crypto.randomBytes(32).toString("base64url");
+          const hash = crypto.createHash("sha256").update(token).digest("base64url");
+          console.log(`CATALOG_QA_SESSION_TOKEN=${token}`);
+          console.log(`CATALOG_QA_SESSION_HASH=${hash}`);
+          NODE
+          source "$GITHUB_ENV"
+          NOW="$(date +%s)"
+          EXPIRES="$((NOW + 600))"
+          npx wrangler d1 execute application-management-production-db --remote --config wrangler.production.jsonc --command             "INSERT INTO control_sessions (session_id_hash,email,expires_at,created_at,last_seen_at)
+             SELECT '$CATALOG_QA_SESSION_HASH', email, $EXPIRES, $NOW, $NOW
+             FROM control_accounts
+             WHERE role='owner' AND status='active'
+             ORDER BY created_at ASC LIMIT 1;"
+          COUNT="$(npx wrangler d1 execute application-management-production-db --remote --config wrangler.production.jsonc --json --command             "SELECT COUNT(*) AS count FROM control_sessions WHERE session_id_hash='$CATALOG_QA_SESSION_HASH';" | node --input-type=module -e '
+              let raw=""; for await (const chunk of process.stdin) raw += chunk;
+              const data=JSON.parse(raw); const rows=data?.[0]?.results ?? data?.[0]?.result ?? [];
+              process.stdout.write(String(rows?.[0]?.count ?? 0));
+            ')"
+          if [[ "$COUNT" != "1" ]]; then
+            echo "::error::Could not create the short-lived Production contract probe session."
+            exit 1
+          fi
+
+      - name: Probe managed app contracts after Production deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          CODE="$(curl --silent --show-error --output /tmp/application-management-contract-probe.json --write-out '%{http_code}' --max-time 120             -X POST             -H "Origin: $APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN"             -H "Referer: $APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/tools/managed-apps"             -H "Sec-Fetch-Site: same-origin"             -H "Content-Type: application/json"             -H "Cookie: __Host-am_prod_session=$CATALOG_QA_SESSION_TOKEN"             --data '{"action":"probe-all"}'             "$APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/api/managed-apps")"
+          if [[ "$CODE" != "200" ]]; then
+            echo "::error::Production managed-app probe failed with HTTP $CODE."
+            cat /tmp/application-management-contract-probe.json || true
+            exit 1
+          fi
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          const value = JSON.parse(fs.readFileSync("/tmp/application-management-contract-probe.json", "utf8"));
+          if (!value.ok || !Array.isArray(value.probes)) throw new Error(value.error || "Invalid Production contract probe response.");
+          console.log("POST_DEPLOY_CONTRACT_TOTALS=" + JSON.stringify(value.totals ?? {}));
+          for (const item of value.probes) {
+            console.log(`CONTRACT ${item.id} connection=${item.connection} contractConnected=${Boolean(item.contractConnected)} credential=${Boolean(item.credentialConfigured)} remoteAdminReady=${Boolean(item.remoteAdminReady)} protocol=${item.protocol ?? "none"} via=${item.discoveredVia ?? "none"}`);
+          }
+          NODE
+
+      - name: Upload sanitized post-deploy contract probe
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: application-management-production-contract-probe
+          path: /tmp/application-management-contract-probe.json
+          if-no-files-found: warn
+          retention-days: 3
+
+      - name: Delete short-lived owner contract probe session
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          if [[ -n "${CATALOG_QA_SESSION_HASH:-}" ]]; then
+            npx wrangler d1 execute application-management-production-db --remote --config wrangler.production.jsonc --command               "DELETE FROM control_sessions WHERE session_id_hash='$CATALOG_QA_SESSION_HASH';"
+          fi
+
       - name: Production deployment summary
         shell: bash
         run: |
