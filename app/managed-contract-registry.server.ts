@@ -172,7 +172,7 @@ export function normalizeManagedOrigin(value: unknown, allowPrivateHttp = false)
   try {
     const url = new URL(raw);
     if (url.username || url.password || url.pathname !== "/" || url.search || url.hash) return "";
-    if (url.protocol === "https:") return url.origin;
+    if (url.protocol === "https:" && !privateHostname(url.hostname)) return url.origin;
     if (allowPrivateHttp && url.protocol === "http:" && privateHostname(url.hostname)) return url.origin;
     return "";
   } catch {
