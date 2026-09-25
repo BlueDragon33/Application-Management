@@ -78,7 +78,7 @@ jobs:
             list="$(npx --yes wrangler@4.92.0 d1 list --json)"
             id="$(printf '%s' "$list" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const x=JSON.parse(s);const a=Array.isArray(x)?x:(x.result||[]);const r=a.find(v=>v.name===process.argv[1]);process.stdout.write(r?.uuid||r?.id||'')})" "$name")"
             if [[ -z "$id" ]]; then
-              npx --yes wrangler@4.92.0 d1 create "$name"
+              npx --yes wrangler@4.92.0 d1 create "$name" >&2
               list="$(npx --yes wrangler@4.92.0 d1 list --json)"
               id="$(printf '%s' "$list" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const x=JSON.parse(s);const a=Array.isArray(x)?x:(x.result||[]);const r=a.find(v=>v.name===process.argv[1]);process.stdout.write(r?.uuid||r?.id||'')})" "$name")"
             fi
