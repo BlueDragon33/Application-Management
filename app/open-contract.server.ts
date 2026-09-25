@@ -692,7 +692,7 @@ export async function resolveUniversalWebLaunch(appIdValue: unknown, actor: Cont
   const snapshot = await probeManagedCatalogEntry(row);
   const manifest = snapshot.manifest;
   if (!snapshot.contractConnected || !manifest || manifest.capabilities.webLaunch !== true) {
-    throw new Error("Universal Contract chưa công bố capability mở Website.");
+    return null;
   }
 
   const direct = managedLaunchUrl(row, row.public_url || row.origin);
