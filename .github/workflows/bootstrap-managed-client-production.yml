@@ -217,10 +217,33 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          CONTRACT_CODE="$(curl --silent --show-error --output /tmp/health-contract.json --write-out '%{http_code}' --max-time 30 "$HEALTH_RUNTIME_ORIGIN/api/control/contract")"
-          [[ "$CONTRACT_CODE" == "200" ]] || { cat /tmp/health-contract.json || true; exit 1; }
-          STATUS_CODE="$(curl --silent --show-error --output /tmp/health-status.json --write-out '%{http_code}' --max-time 30 -H "Authorization: Bearer $HEALTH_BRIDGE_SECRET" "$HEALTH_RUNTIME_ORIGIN/api/control/status")"
-          [[ "$STATUS_CODE" == "200" ]] || { cat /tmp/health-status.json || true; exit 1; }
+          READY=0
+          for attempt in {1..12}; do
+            CONTRACT_CODE="$(curl --silent --show-error --output /tmp/health-contract.json --write-out '%{http_code}' --max-time 30 "$HEALTH_RUNTIME_ORIGIN/api/control/contract" || true)"
+            STATUS_CODE="$(curl --silent --show-error --output /tmp/health-status.json --write-out '%{http_code}' --max-time 30 -H "Authorization: Bearer $HEALTH_BRIDGE_SECRET" "$HEALTH_RUNTIME_ORIGIN/api/control/status" || true)"
+            if [[ "$CONTRACT_CODE" == "200" && "$STATUS_CODE" == "200" ]]; then
+              READY=1
+              break
+            fi
+            if [[ "$CONTRACT_CODE" != "200" && "$CONTRACT_CODE" != "404" && "$CONTRACT_CODE" != "000" ]]; then
+              echo "::error::Unexpected Health contract HTTP $CONTRACT_CODE."
+              cat /tmp/health-contract.json || true
+              exit 1
+            fi
+            if [[ "$STATUS_CODE" != "200" && "$STATUS_CODE" != "403" && "$STATUS_CODE" != "503" && "$STATUS_CODE" != "000" ]]; then
+              echo "::error::Unexpected Health control status HTTP $STATUS_CODE."
+              cat /tmp/health-status.json || true
+              exit 1
+            fi
+            echo "Health Production secret/runtime not converged yet (contract=$CONTRACT_CODE status=$STATUS_CODE, attempt $attempt/12); waiting for Worker propagation..."
+            sleep 5
+          done
+          if [[ "$READY" != "1" ]]; then
+            echo "::error::Health Production control plane did not converge within 60 seconds after secret installation."
+            cat /tmp/health-contract.json || true
+            cat /tmp/health-status.json || true
+            exit 1
+          fi
           node --input-type=module <<'NODE'
           import fs from "node:fs";
           const contract = JSON.parse(fs.readFileSync("/tmp/health-contract.json", "utf8"));
@@ -268,9 +291,31 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --max-time 30 "$RU_LIFE_RUNTIME_ORIGIN/" >/tmp/ru-life-home.html
-          CODE="$(curl --silent --show-error --output /tmp/ru-life-status.json --write-out '%{http_code}' --max-time 30 -H "Authorization: Bearer $RU_LIFE_BRIDGE_SECRET" "$RU_LIFE_RUNTIME_ORIGIN/api/control/status")"
-          [[ "$CODE" == "200" ]] || { cat /tmp/ru-life-status.json || true; exit 1; }
+          READY=0
+          for attempt in {1..12}; do
+            HOME_CODE="$(curl --silent --show-error --output /tmp/ru-life-home.html --write-out '%{http_code}' --max-time 30 "$RU_LIFE_RUNTIME_ORIGIN/" || true)"
+            CODE="$(curl --silent --show-error --output /tmp/ru-life-status.json --write-out '%{http_code}' --max-time 30 -H "Authorization: Bearer $RU_LIFE_BRIDGE_SECRET" "$RU_LIFE_RUNTIME_ORIGIN/api/control/status" || true)"
+            if [[ "$HOME_CODE" == "200" && "$CODE" == "200" ]]; then
+              READY=1
+              break
+            fi
+            if [[ "$HOME_CODE" != "200" && "$HOME_CODE" != "404" && "$HOME_CODE" != "000" ]]; then
+              echo "::error::Unexpected RU_LIFE runtime HTTP $HOME_CODE."
+              exit 1
+            fi
+            if [[ "$CODE" != "200" && "$CODE" != "403" && "$CODE" != "503" && "$CODE" != "000" ]]; then
+              echo "::error::Unexpected RU_LIFE control status HTTP $CODE."
+              cat /tmp/ru-life-status.json || true
+              exit 1
+            fi
+            echo "RU_LIFE Production secret/runtime not converged yet (home=$HOME_CODE status=$CODE, attempt $attempt/12); waiting for Worker propagation..."
+            sleep 5
+          done
+          if [[ "$READY" != "1" ]]; then
+            echo "::error::RU_LIFE Production control plane did not converge within 60 seconds after secret installation."
+            cat /tmp/ru-life-status.json || true
+            exit 1
+          fi
           node --input-type=module <<'NODE'
           import fs from "node:fs";
           const status = JSON.parse(fs.readFileSync("/tmp/ru-life-status.json", "utf8"));
