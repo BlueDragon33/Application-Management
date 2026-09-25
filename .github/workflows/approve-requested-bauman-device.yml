@@ -1,0 +1,90 @@
+name: Approve requested Bauman Production device
+
+on:
+  push:
+    branches:
+      - "ops/approve-bauman-device-bm-eaaa-c072-59ee-3964"
+
+permissions:
+  contents: read
+
+jobs:
+  approve:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: application-management-production
+    env:
+      BAUMAN_CONTROL_SERVICE_SECRET: ${{ secrets.BAUMAN_CONTROL_SERVICE_SECRET }}
+      BAUMAN_CONTROL_PRODUCTION_ORIGIN: https://bauman-control.boiech-ai.workers.dev
+      TARGET_DEVICE_CODE: BM-EAAA-C072-59EE-3964
+    steps:
+      - name: Validate Manager-owned Bauman control secret
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ ${#BAUMAN_CONTROL_SERVICE_SECRET} -ge 32 ]] || { echo "::error::Manager Bauman control secret missing or invalid"; exit 1; }
+
+      - name: Read registry, approve exact pending device, verify read-back
+        shell: bash
+        run: |
+          set -euo pipefail
+          get_devices() {
+            curl --silent --show-error --fail --max-time 20               -H "Authorization: Bearer $BAUMAN_CONTROL_SERVICE_SECRET"               -H "x-control-role: owner"               -H "x-control-actor: application-management@system.local"               "$BAUMAN_CONTROL_PRODUCTION_ORIGIN/api/control/devices"
+          }
+
+          get_devices > /tmp/devices.json
+
+          node --input-type=module - <<'NODE' > /tmp/target.env
+          import fs from "node:fs";
+          const body=JSON.parse(fs.readFileSync("/tmp/devices.json","utf8"));
+          const devices=Array.isArray(body.devices)?body.devices:[];
+          const target=devices.find(d=>String(d.deviceCode||"").toUpperCase()===process.env.TARGET_DEVICE_CODE);
+          if(!target) throw new Error(`Device ${process.env.TARGET_DEVICE_CODE} not found in Production registry`);
+          if(!/^[a-f0-9]{64}$/.test(String(target.deviceId||""))) throw new Error("Invalid target deviceId");
+          console.error(`TARGET_FOUND code=${target.deviceCode} status=${target.status} type=${target.deviceType||""} platform=${target.platform||""} browser=${target.browser||""}`);
+          console.log(`DEVICE_ID=${target.deviceId}`);
+          console.log(`DEVICE_STATUS=${target.status}`);
+          NODE
+          source /tmp/target.env
+
+          if [[ "$DEVICE_STATUS" == "blocked" ]]; then
+            echo "::error::Target device is blocked; refusing implicit unblock."
+            exit 1
+          fi
+
+          if [[ "$DEVICE_STATUS" == "pending" ]]; then
+            COMMAND_ID="$(node -e 'console.log(require("crypto").randomUUID())')"
+            export DEVICE_ID COMMAND_ID
+            node --input-type=module - <<'NODE' > /tmp/command.json
+            process.stdout.write(JSON.stringify({
+              commandId: process.env.COMMAND_ID,
+              deviceId: process.env.DEVICE_ID,
+              expectedStatus: "pending",
+              operation: "approve",
+            }));
+            NODE
+
+            CODE="$(curl --silent --show-error --output /tmp/approve.json --write-out '%{http_code}' --max-time 20               -X POST               -H "Authorization: Bearer $BAUMAN_CONTROL_SERVICE_SECRET"               -H "x-control-role: owner"               -H "x-control-actor: application-management@system.local"               -H "content-type: application/json"               --data-binary @/tmp/command.json               "$BAUMAN_CONTROL_PRODUCTION_ORIGIN/api/control/device-commands")"
+            [[ "$CODE" == "200" ]] || { echo "::error::Approve failed (HTTP $CODE)"; cat /tmp/approve.json || true; exit 1; }
+
+            node --input-type=module - <<'NODE'
+            import fs from "node:fs";
+            const v=JSON.parse(fs.readFileSync("/tmp/approve.json","utf8"));
+            if(v.status!=="approved") throw new Error(`Approve result mismatch: ${v.status}`);
+            if(String(v.device?.deviceCode||"").toUpperCase()!==process.env.TARGET_DEVICE_CODE) throw new Error("Wrong device approved");
+            console.log(`APPROVE_PASS ${v.device.deviceCode}`);
+            NODE
+          else
+            [[ "$DEVICE_STATUS" == "approved" ]] || { echo "::error::Unexpected state $DEVICE_STATUS"; exit 1; }
+            echo "Device already approved; no mutation needed."
+          fi
+
+          get_devices > /tmp/final.json
+          node --input-type=module - <<'NODE'
+          import fs from "node:fs";
+          const body=JSON.parse(fs.readFileSync("/tmp/final.json","utf8"));
+          const target=(body.devices||[]).find(d=>String(d.deviceCode||"").toUpperCase()===process.env.TARGET_DEVICE_CODE);
+          if(!target) throw new Error("Target missing during final read-back");
+          if(target.status!=="approved") throw new Error(`Final status mismatch: ${target.status}`);
+          console.log(`FINAL_READBACK_PASS ${target.deviceCode} status=${target.status}`);
+          NODE
