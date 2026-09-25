@@ -1,10 +1,10 @@
-name: Bootstrap Health and RU_LIFE Production runtimes
+name: Bootstrap managed Production runtimes
 
 on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: "Gõ BOOTSTRAP_MANAGED_RUNTIMES để triển khai Health + RU_LIFE Production từ Trung tâm"
+        description: "Gõ BOOTSTRAP_MANAGED_RUNTIMES để triển khai Bơi ếch + Health + RU_LIFE Production từ Trung tâm"
         required: true
         type: string
   issue_comment:
@@ -68,6 +68,13 @@ jobs:
         with:
           path: manager
 
+      - name: Checkout BOIECH_AI
+        uses: actions/checkout@v4
+        with:
+          repository: BlueDragon33/BOIECH_AI
+          ref: main
+          path: clients/boi
+
       - name: Checkout Health_Care
         uses: actions/checkout@v4
         with:
@@ -116,6 +123,7 @@ jobs:
             throw new Error("APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN is not a workers.dev origin.");
           }
           const suffix = labels.slice(1).join(".");
+          console.log(`BOI_RUNTIME_ORIGIN=https://boi-ech.${suffix}`);
           console.log(`HEALTH_RUNTIME_ORIGIN=https://health-care.${suffix}`);
           console.log(`RU_LIFE_RUNTIME_ORIGIN=https://ru-life.${suffix}`);
           NODE
@@ -174,12 +182,66 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          BOI_BRIDGE_SECRET="$(node --input-type=module -e 'import crypto from "node:crypto"; process.stdout.write(crypto.randomBytes(48).toString("base64url"))')"
           HEALTH_BRIDGE_SECRET="$(node --input-type=module -e 'import crypto from "node:crypto"; process.stdout.write(crypto.randomBytes(48).toString("base64url"))')"
           RU_LIFE_BRIDGE_SECRET="$(node --input-type=module -e 'import crypto from "node:crypto"; process.stdout.write(crypto.randomBytes(48).toString("base64url"))')"
+          echo "::add-mask::$BOI_BRIDGE_SECRET"
           echo "::add-mask::$HEALTH_BRIDGE_SECRET"
           echo "::add-mask::$RU_LIFE_BRIDGE_SECRET"
+          echo "BOI_BRIDGE_SECRET=$BOI_BRIDGE_SECRET" >> "$GITHUB_ENV"
           echo "HEALTH_BRIDGE_SECRET=$HEALTH_BRIDGE_SECRET" >> "$GITHUB_ENV"
           echo "RU_LIFE_BRIDGE_SECRET=$RU_LIFE_BRIDGE_SECRET" >> "$GITHUB_ENV"
+
+      - name: Install Bơi ếch app-scoped control secret
+        working-directory: manager
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$BOI_BRIDGE_SECRET" | npx wrangler secret put CONTROL_SERVICE_SECRET --name boi-ech
+
+      - name: Smoke Bơi ếch Production control plane
+        shell: bash
+        run: |
+          set -euo pipefail
+          READY=0
+          for attempt in {1..12}; do
+            RUNTIME_CODE="$(curl --silent --show-error --output /tmp/boi-runtime.json --write-out '%{http_code}' --max-time 30 "$BOI_RUNTIME_ORIGIN/api/control/runtime" || true)"
+            STATUS_CODE="$(curl --silent --show-error --output /tmp/boi-status.json --write-out '%{http_code}' --max-time 30 -H "Authorization: Bearer $BOI_BRIDGE_SECRET" "$BOI_RUNTIME_ORIGIN/api/control/status" || true)"
+            if [[ "$RUNTIME_CODE" == "200" && "$STATUS_CODE" == "200" ]]; then
+              READY=1
+              break
+            fi
+            if [[ "$RUNTIME_CODE" != "200" && "$RUNTIME_CODE" != "404" && "$RUNTIME_CODE" != "000" ]]; then
+              echo "::error::Unexpected Bơi ếch runtime HTTP $RUNTIME_CODE."
+              cat /tmp/boi-runtime.json || true
+              exit 1
+            fi
+            if [[ "$STATUS_CODE" != "200" && "$STATUS_CODE" != "403" && "$STATUS_CODE" != "503" && "$STATUS_CODE" != "000" ]]; then
+              echo "::error::Unexpected Bơi ếch control status HTTP $STATUS_CODE."
+              cat /tmp/boi-status.json || true
+              exit 1
+            fi
+            echo "Bơi ếch Production secret/runtime not converged yet (runtime=$RUNTIME_CODE status=$STATUS_CODE, attempt $attempt/12); waiting for Worker propagation..."
+            sleep 5
+          done
+          if [[ "$READY" != "1" ]]; then
+            echo "::error::Bơi ếch Production control plane did not converge within 60 seconds after secret installation."
+            cat /tmp/boi-runtime.json || true
+            cat /tmp/boi-status.json || true
+            exit 1
+          fi
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          const runtime = JSON.parse(fs.readFileSync("/tmp/boi-runtime.json", "utf8"));
+          const status = JSON.parse(fs.readFileSync("/tmp/boi-status.json", "utf8"));
+          if (runtime.applicationId !== "boi-ech" || runtime.repository !== "BlueDragon33/BOIECH_AI" || runtime.controlGeneration !== 2) {
+            throw new Error("Bơi ếch Production runtime identity mismatch.");
+          }
+          if (status.application !== "boi-ech" || status.protocol !== "boi-ech-control-v1") {
+            throw new Error("Bơi ếch Production control status mismatch.");
+          }
+          console.log("Bơi ếch Production control bootstrap PASS.");
+          NODE
 
       - name: Install Health_Care dependencies
         working-directory: clients/health
@@ -340,8 +402,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          printf '%s' "$BOI_RUNTIME_ORIGIN" | npx wrangler secret put BOI_ECH_BASE_URL_OVERRIDE --config wrangler.production.jsonc
           printf '%s' "$HEALTH_RUNTIME_ORIGIN" | npx wrangler secret put HEALTH_CARE_BASE_URL_OVERRIDE --config wrangler.production.jsonc
           printf '%s' "$RU_LIFE_RUNTIME_ORIGIN" | npx wrangler secret put RU_LIFE_BASE_URL_OVERRIDE --config wrangler.production.jsonc
+          printf '%s' "$BOI_BRIDGE_SECRET" | npx wrangler secret put CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
           printf '%s' "$HEALTH_BRIDGE_SECRET" | npx wrangler secret put HEALTH_CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
           printf '%s' "$RU_LIFE_BRIDGE_SECRET" | npx wrangler secret put RU_LIFE_CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
           npx wrangler deploy
@@ -363,12 +427,24 @@ jobs:
              FROM control_accounts WHERE role='owner' AND status='active'
              ORDER BY created_at ASC LIMIT 1;"
 
-      - name: Promote Health_Care and RU_LIFE into live Dynamic Catalog
+      - name: Promote Bơi ếch, Health_Care and RU_LIFE into live Dynamic Catalog
         shell: bash
         run: |
           set -euo pipefail
           node --input-type=module <<'NODE'
           import fs from "node:fs";
+          const boi = {
+            action: "upsert",
+            id: "boi-ech",
+            name: "Bơi ếch AI",
+            shortName: "Bơi ếch",
+            category: "Học tập",
+            origin: process.env.BOI_RUNTIME_ORIGIN,
+            publicUrl: process.env.BOI_RUNTIME_ORIGIN,
+            repository: "BlueDragon33/BOIECH_AI",
+            contractPath: "/api/application-management/contract",
+            credential: process.env.BOI_BRIDGE_SECRET,
+          };
           const health = {
             action: "upsert",
             id: "health-care",
@@ -393,10 +469,11 @@ jobs:
             contractPath: "/api/control/status",
             credential: process.env.RU_LIFE_BRIDGE_SECRET,
           };
+          fs.writeFileSync("/tmp/boi-upsert.json", JSON.stringify(boi));
           fs.writeFileSync("/tmp/health-upsert.json", JSON.stringify(health));
           fs.writeFileSync("/tmp/ru-upsert.json", JSON.stringify(ru));
           NODE
-          for item in health ru; do
+          for item in boi health ru; do
             CODE="$(curl --silent --show-error --output "/tmp/${item}-upsert-response.json" --write-out '%{http_code}' --max-time 90               -X POST               -H "Origin: $APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN"               -H "Referer: $APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/tools/managed-apps"               -H "Sec-Fetch-Site: same-origin"               -H "Content-Type: application/json"               -H "Cookie: __Host-am_prod_session=$BOOTSTRAP_QA_TOKEN"               --data-binary "@/tmp/${item}-upsert.json"               "$APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/api/managed-apps")"
             if [[ "$CODE" != "200" ]]; then
               echo "::error::Catalog upsert for $item failed with HTTP $CODE."
@@ -415,6 +492,12 @@ jobs:
           import fs from "node:fs";
           const value = JSON.parse(fs.readFileSync("/tmp/managed-runtime-probe.json", "utf8"));
           if (!value.ok || !Array.isArray(value.probes)) throw new Error(value.error || "Invalid probe response.");
+          const boi = value.probes.find((entry) => entry.id === "boi-ech");
+          if (!boi) throw new Error("Missing boi-ech in Dynamic Catalog probe.");
+          if (!boi.contractConnected || !boi.credentialConfigured || boi.remoteAdminReady) {
+            throw new Error(`boi-ech Dynamic Contract semantics are invalid: ${JSON.stringify(boi)}`);
+          }
+          console.log(`SPECIAL boi-ech connection=${boi.connection} protocol=${boi.protocol} remoteAdminReady=${boi.remoteAdminReady}`);
           for (const id of ["health-care", "ru-life"]) {
             const item = value.probes.find((entry) => entry.id === id);
             if (!item) throw new Error(`Missing ${id} in Dynamic Catalog probe.`);
@@ -426,12 +509,31 @@ jobs:
           console.log("Managed runtime bootstrap PASS.");
           NODE
 
+      - name: Verify Bơi ếch operational fallback is truly live
+        shell: bash
+        run: |
+          set -euo pipefail
+          CODE="$(curl --silent --show-error --output /tmp/operations-bootstrap.json --write-out '%{http_code}' --max-time 120             -X POST             -H "Origin: $APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN"             -H "Referer: $APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/"             -H "Sec-Fetch-Site: same-origin"             -H "Content-Type: application/json"             -H "Cookie: __Host-am_prod_session=$BOOTSTRAP_QA_TOKEN"             --data '{"action":"bootstrap"}'             "$APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/api/operations")"
+          [[ "$CODE" == "200" ]] || { cat /tmp/operations-bootstrap.json || true; exit 1; }
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          const value = JSON.parse(fs.readFileSync("/tmp/operations-bootstrap.json", "utf8"));
+          const boi = (value.summaries ?? []).find((item) => item.appId === "boi-ech");
+          if (!boi) throw new Error("Bơi ếch summary is missing from Production operations.");
+          if (boi.connection !== "connected" || boi.controlChannel !== "legacy-adapter" || boi.remoteAdminReady !== true || boi.contractConnected !== true) {
+            throw new Error(`Bơi ếch operational fallback is not fully live: ${JSON.stringify(boi)}`);
+          }
+          console.log(`LIVE boi-ech runtime=${boi.connection} channel=${boi.controlChannel} contract=${boi.contractConnected} admin=${boi.remoteAdminReady}`);
+          NODE
+
       - name: Upload sanitized bootstrap probe
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: health-ru-production-bootstrap
-          path: /tmp/managed-runtime-probe.json
+          name: managed-production-bootstrap
+          path: |
+            /tmp/managed-runtime-probe.json
+            /tmp/operations-bootstrap.json
           if-no-files-found: warn
           retention-days: 3
 
