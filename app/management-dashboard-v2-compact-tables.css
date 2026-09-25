@@ -71,24 +71,37 @@
 .amv2-app-head,
 .amv2-app-row {
   grid-template-columns:
-    minmax(118px, 1.28fr)
-    minmax(70px, .72fr)
-    minmax(68px, .62fr)
-    minmax(50px, .5fr)
-    minmax(96px, .92fr)
-    minmax(68px, .66fr)
-    minmax(68px, .66fr) !important;
+    minmax(118px, 1.18fr)
+    minmax(66px, .62fr)
+    minmax(62px, .54fr)
+    minmax(46px, .42fr)
+    minmax(152px, 1.45fr)
+    minmax(64px, .58fr)
+    minmax(64px, .58fr) !important;
   gap: 5px !important;
 }
+.amv2-app-row { min-height: 66px !important; }
 
 .amv2-app-head > span,
 .amv2-app-row > span,
 .amv2-app-row > strong,
-.amv2-app-row > b,
 .amv2-app-cell strong {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.amv2-status-cell {
+  min-width: 0 !important;
+  overflow: hidden;
+}
+.amv2-status-cell > small {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 2px !important;
+}
+.amv2-status-cell > small span {
+  font-size: 7.25px !important;
+  padding: 1px 3px !important;
 }
 
 .amv2-priority-head,
