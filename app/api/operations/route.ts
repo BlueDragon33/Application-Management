@@ -64,7 +64,9 @@ type ClientSummary = {
   contractConnected: boolean;
   issueCode?: string;
   controlChannel: "universal" | "legacy-adapter" | "contract-observe" | "none";
-  contractReadiness: "ready" | "partial" | "pending" | "not-enrolled";
+  contractReadiness: "ready" | "partial" | "pending" | "not-enrolled" | "metadata";
+  managementMode: "remote-admin" | "observe-only" | "local-first" | "metadata-only";
+  metadataVerified: boolean;
 };
 
 type WorkItem = {
@@ -505,19 +507,22 @@ function summary(
   controlChannel: ClientSummary["controlChannel"] = "none",
   contractReadiness: ClientSummary["contractReadiness"] = connection === "connected" ? "ready" : connection === "warning" ? "partial" : "pending",
   contractConnected = false,
+  managementMode: ClientSummary["managementMode"] = remoteAdminReady ? "remote-admin" : "observe-only",
+  metadataVerified = false,
 ): ClientSummary {
   const connected = connection === "connected";
+  const designedLocal = managementMode === "local-first" || managementMode === "metadata-only";
   const hasOperationalData = hasOperationalDataOverride ?? connected;
   return {
     appId: config.id, appName: config.shortName, href: config.href,
-    webHref: connected ? webHref : null,
+    webHref: connected || designedLocal ? webHref : null,
     managedWebLaunch: connected && managedWebLaunch,
     group: config.category,
     connection, onlineCount: hasOperationalData ? devices.filter((device) => device.active).length : null,
     pendingCount: hasOperationalData ? devices.filter((device) => device.status === "pending").length : null,
     attentionCount: hasOperationalData ? devices.filter((device) => device.attention !== "none").length : null,
-    note, directWebAccess: connected && Boolean(webHref), remoteAdminReady, contractConnected, issueCode,
-    controlChannel, contractReadiness,
+    note, directWebAccess: Boolean(webHref) && (connected || designedLocal), remoteAdminReady, contractConnected, issueCode,
+    controlChannel, contractReadiness, managementMode, metadataVerified,
   };
 }
 
@@ -567,15 +572,26 @@ async function buildBootstrap(actor: ControlDeviceState) {
       snapshot.remoteAdminReady,
       snapshot.remoteAdminReady,
       snapshot.issueCode,
-      snapshot.connection === "connected" ? "universal" : snapshot.issueCode === "REPOSITORY_METADATA_ONLY" ? "none" : snapshot.manifest ? "contract-observe" : "none",
-      snapshot.connection === "connected" ? "ready" : snapshot.issueCode === "REPOSITORY_METADATA_ONLY" ? "pending" : snapshot.manifest ? "partial" : "pending",
+      snapshot.connection === "connected"
+        ? "universal"
+        : snapshot.managementMode === "local-first" || snapshot.managementMode === "metadata-only"
+          ? "none"
+          : snapshot.manifest ? "contract-observe" : "none",
+      snapshot.connection === "connected"
+        ? "ready"
+        : snapshot.managementMode === "local-first" || snapshot.managementMode === "metadata-only"
+          ? "metadata"
+          : snapshot.manifest ? "partial" : "pending",
       snapshot.contractConnected,
+      snapshot.managementMode,
+      snapshot.metadataVerified,
     ));
     for (const device of dynamicDevices) {
       const item = workFromDevice(device);
       if (item) workItems.push(item);
     }
-    if (!snapshot.contractConnected) {
+    const designedLocal = snapshot.managementMode === "local-first" || snapshot.managementMode === "metadata-only";
+    if (!snapshot.contractConnected && !designedLocal) {
       workItems.push({
         id: `${snapshot.config.id}:contract`,
         appId: snapshot.config.id,
@@ -592,7 +608,7 @@ async function buildBootstrap(actor: ControlDeviceState) {
         occurredAt: null,
         priority: snapshot.connection === "unavailable" ? "high" : "info",
       });
-    } else if (!snapshot.remoteAdminReady) {
+    } else if (!snapshot.remoteAdminReady && snapshot.managementMode === "observe-only") {
       workItems.push({
         id: `${snapshot.config.id}:contract-readonly`,
         appId: snapshot.config.id,
@@ -705,9 +721,17 @@ async function buildBootstrap(actor: ControlDeviceState) {
       undefined,
       "legacy-adapter",
       dynamic
-        ? dynamic.connection === "warning" ? "partial" : "pending"
+        ? dynamic.contractConnected
+          ? "ready"
+          : dynamic.managementMode === "local-first" || dynamic.managementMode === "metadata-only"
+            ? "metadata"
+            : dynamic.connection === "warning" ? "partial" : "pending"
         : config.contractState === "connected" ? "ready" : config.contractState === "migrating" ? "partial" : "not-enrolled",
       dynamic?.contractConnected ?? false,
+      "remoteAdminReady" in result.value && Boolean(result.value.remoteAdminReady)
+        ? "remote-admin"
+        : dynamic?.managementMode ?? (result.id === "growup-mychildren" ? "local-first" : "observe-only"),
+      dynamic?.metadataVerified ?? false,
     ));
     for (const device of result.value.devices) {
       const item = workFromDevice(device);
@@ -716,18 +740,20 @@ async function buildBootstrap(actor: ControlDeviceState) {
 
     if (dynamic) {
       handledDynamicIds.add(result.id);
-      workItems.push({
-        id: `${config.id}:contract-migration`,
-        appId: config.id,
-        appName: config.shortName,
-        href: config.href,
-        kind: "connection",
-        title: "Đang dùng adapter fallback",
-        detail: `Universal Contract đã được đăng ký nhưng chưa đủ điều kiện thay adapter: ${dynamic.note}`,
-        deviceType: "—",
-        occurredAt: null,
-        priority: "info",
-      });
+      if (dynamic.managementMode !== "local-first" && dynamic.managementMode !== "metadata-only") {
+        workItems.push({
+          id: `${config.id}:contract-migration`,
+          appId: config.id,
+          appName: config.shortName,
+          href: config.href,
+          kind: "connection",
+          title: "Đang dùng adapter fallback",
+          detail: `Universal Contract đã được đăng ký nhưng chưa đủ điều kiện thay adapter: ${dynamic.note}`,
+          deviceType: "—",
+          occurredAt: null,
+          priority: "info",
+        });
+      }
     }
   }
 

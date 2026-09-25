@@ -38,6 +38,8 @@ export type UniversalContractManifest = {
     remoteAdminReady?: boolean;
     credentialRequired?: boolean;
     credentialEnv?: string;
+    localFirst?: boolean;
+    productionRuntimeReady?: boolean;
   };
   endpoints: {
     status?: string;
@@ -61,6 +63,8 @@ export type UniversalContractDevice = {
   registryInstanceId?: string | null;
 };
 
+export type ManagedContractMode = "remote-admin" | "observe-only" | "local-first" | "metadata-only";
+
 export type DynamicContractSnapshot = {
   catalog: ManagedCatalogRow;
   config: ReturnType<typeof dynamicApplicationConfig>;
@@ -71,6 +75,8 @@ export type DynamicContractSnapshot = {
   devices: UniversalContractDevice[];
   webHref: string | null;
   remoteAdminReady: boolean;
+  managementMode: ManagedContractMode;
+  metadataVerified: boolean;
   note: string;
   issueCode?: string;
 };
@@ -356,6 +362,8 @@ function parseManifest(raw: Record<string, unknown>, expectedId: string, expecte
       ...(typeof policyRaw.remoteAdminReady === "boolean" ? { remoteAdminReady: policyRaw.remoteAdminReady } : {}),
       ...(typeof policyRaw.credentialRequired === "boolean" ? { credentialRequired: policyRaw.credentialRequired } : {}),
       ...(text(policyRaw.credentialEnv) ? { credentialEnv: text(policyRaw.credentialEnv) } : {}),
+      ...(typeof policyRaw.localFirst === "boolean" ? { localFirst: policyRaw.localFirst } : {}),
+      ...(typeof policyRaw.productionRuntimeReady === "boolean" ? { productionRuntimeReady: policyRaw.productionRuntimeReady } : {}),
     },
     endpoints: {
       status: endpoint(endpointsRaw.status),
@@ -550,6 +558,19 @@ function metadataOnlyRepositoryOrigin(origin: string) {
   catch { return false; }
 }
 
+function contractManagementMode(
+  manifest: UniversalContractManifest,
+  repositoryMetadataOnly: boolean,
+  remoteAdminReady: boolean,
+): ManagedContractMode {
+  const protocol = (manifest.protocol ?? "").toLowerCase();
+  const localFirst = manifest.policy?.localFirst === true || protocol.includes("local-first");
+  if (localFirst) return "local-first";
+  if (repositoryMetadataOnly) return "metadata-only";
+  if (remoteAdminReady) return "remote-admin";
+  return "observe-only";
+}
+
 function capabilityLabels(capabilities: Record<string, boolean>) {
   const labels: Record<string, string> = {
     deviceRegistry: "Thiết bị",
@@ -586,6 +607,8 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
     }
     const capabilities = capabilityLabels(manifest.capabilities);
     const repositoryMetadataOnly = metadataOnlyRepositoryOrigin(row.origin);
+    const managementMode = contractManagementMode(manifest, repositoryMetadataOnly, remoteAdminReady);
+    const metadataVerified = repositoryMetadataOnly;
     const config = dynamicApplicationConfig({
       id: row.id,
       name: row.name,
@@ -597,11 +620,13 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
       contractState: remoteAdminReady ? "connected" : repositoryMetadataOnly ? "pending" : "migrating",
       contractNote: remoteAdminReady
         ? `${manifest.protocol ?? CONTRACT_SCHEMA} đã xác minh qua ${manifest.discoveredVia ?? row.contract_path}; capability được normalize động từ client.`
-        : repositoryMetadataOnly
-          ? `Đã xác minh contract metadata ${manifest.protocol ?? "contract"} từ repository; chưa có Control Origin/credential production nên chỉ phân loại và quan sát.`
-          : credential
-            ? `Đã phát hiện ${manifest.protocol ?? "contract"} qua ${manifest.discoveredVia ?? row.contract_path}, nhưng client chưa công bố đủ device-control endpoint.`
-            : `Đã phát hiện ${manifest.protocol ?? "contract"} qua ${manifest.discoveredVia ?? row.contract_path}; chưa có credential quản trị nên chỉ ở chế độ quan sát.`,
+        : managementMode === "local-first"
+          ? `Đã xác minh metadata ${manifest.protocol ?? "contract"} từ repository. Ứng dụng chủ đích local-first; không yêu cầu Remote Admin cloud.`
+          : managementMode === "metadata-only"
+            ? `Đã xác minh metadata ${manifest.protocol ?? "contract"} từ repository. Runtime Production chưa được công bố; Trung tâm không tạo cảnh báo kết nối giả.`
+            : credential
+              ? `Đã phát hiện ${manifest.protocol ?? "contract"} qua ${manifest.discoveredVia ?? row.contract_path}, nhưng client chưa công bố đủ device-control endpoint.`
+              : `Đã phát hiện ${manifest.protocol ?? "contract"} qua ${manifest.discoveredVia ?? row.contract_path}; chưa có credential quản trị nên chỉ ở chế độ quan sát.`,
       capabilities,
     });
     return {
@@ -614,6 +639,8 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
       devices,
       webHref: row.public_url || (!repositoryMetadataOnly && manifest.capabilities.webLaunch ? row.origin : null),
       remoteAdminReady,
+      managementMode,
+      metadataVerified,
       note: config.contractNote,
       ...(repositoryMetadataOnly ? { issueCode: "REPOSITORY_METADATA_ONLY" } : {}),
     };
@@ -639,6 +666,8 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
       devices: [],
       webHref: row.public_url,
       remoteAdminReady: false,
+      managementMode: "observe-only",
+      metadataVerified: false,
       note: config.contractNote,
       issueCode: "OPEN_CONTRACT_PENDING",
     };

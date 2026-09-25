@@ -9,7 +9,9 @@ const catalog = fs.readFileSync(new URL("../app/tools/managed-apps/page.tsx", im
 
 test("live connectivity and Universal Contract readiness are independent dimensions", () => {
   assert.match(client, /controlChannel\?: "universal" \| "legacy-adapter" \| "contract-observe" \| "none"/);
-  assert.match(client, /contractReadiness\?: "ready" \| "partial" \| "pending" \| "not-enrolled"/);
+  assert.match(client, /contractReadiness\?: "ready" \| "partial" \| "pending" \| "not-enrolled" \| "metadata"/);
+  assert.match(client, /managementMode\?: "remote-admin" \| "observe-only" \| "local-first" \| "metadata-only"/);
+  assert.match(client, /metadataVerified\?: boolean/);
   assert.match(client, /contractConnected\?: boolean/);
   assert.match(operations, /contractConnected: boolean/);
   assert.match(operations, /snapshot\.contractConnected/);
@@ -20,6 +22,8 @@ test("live connectivity and Universal Contract readiness are independent dimensi
   assert.match(dashboard, /Kết nối qua adapter/);
   assert.match(dashboard, /Contract live · chưa có quản trị/);
   assert.match(dashboard, /Chưa kết nối runtime/);
+  assert.match(dashboard, /Local-first · metadata đã xác minh/);
+  assert.match(dashboard, /Metadata đã xác minh · chưa có runtime/);
 });
 
 test("Boi connection faults are classified instead of all appearing as offline", () => {
@@ -46,7 +50,7 @@ test("read-only control probes retry transient upstream failures once", () => {
 
 test("dashboard contract counter follows live operation snapshots before static registry metadata", () => {
   assert.match(dashboard, /summaryMap\.get\(app\.id\)\?\.contractReadiness/);
-  assert.match(dashboard, /return live \? live !== "ready" : app\.contractState !== "connected"/);
+  assert.match(dashboard, /return live \? live !== "ready" && live !== "metadata" : app\.contractState !== "connected"/);
 });
 
 
@@ -62,6 +66,9 @@ test("catalog status language distinguishes connected observe-only from real dis
 test("repository metadata never counts as live runtime connectivity", () => {
   assert.match(operations, /REPOSITORY_METADATA_ONLY/);
   assert.match(operations, /Chỉ có metadata repository · chưa kết nối runtime/);
+  assert.match(operations, /const designedLocal = snapshot\.managementMode === "local-first" \|\| snapshot\.managementMode === "metadata-only"/);
+  assert.match(operations, /!snapshot\.contractConnected && !designedLocal/);
+  assert.match(operations, /dynamic\.managementMode !== "local-first" && dynamic\.managementMode !== "metadata-only"/);
 });
 
 
@@ -73,6 +80,9 @@ test("application table renders runtime, contract and admin readiness as separat
   assert.match(dashboard, /summary\?\.contractConnected === true/);
   assert.match(dashboard, /summary\?\.remoteAdminReady === true/);
   assert.match(dashboard, /REPOSITORY_METADATA_ONLY/);
+  assert.match(dashboard, /summary\?\.metadataVerified/);
+  assert.match(dashboard, /Quản trị \{axes\.admin\.label\}/);
+  assert.match(dashboard, /Không yêu cầu/);
 });
 
 

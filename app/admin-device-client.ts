@@ -139,7 +139,9 @@ export type OperationsSummary = {
   contractConnected?: boolean;
   issueCode?: string;
   controlChannel?: "universal" | "legacy-adapter" | "contract-observe" | "none";
-  contractReadiness?: "ready" | "partial" | "pending" | "not-enrolled";
+  contractReadiness?: "ready" | "partial" | "pending" | "not-enrolled" | "metadata";
+  managementMode?: "remote-admin" | "observe-only" | "local-first" | "metadata-only";
+  metadataVerified?: boolean;
 };
 
 export type OperationsSettings = {
