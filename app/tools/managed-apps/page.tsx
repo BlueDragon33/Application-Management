@@ -184,7 +184,9 @@ export default function ManagedAppsCatalogPage() {
       setProbe(result.probe ?? null);
       setMessage(result.probe?.remoteAdminReady
         ? "Đã lưu và Universal Contract sẵn sàng quản trị."
-        : "Đã lưu catalog. Contract được giữ fail-closed cho tới khi capability/credential đầy đủ.");
+        : result.probe?.contractConnected
+          ? "Đã lưu và đã nối Universal Contract. Hiện ứng dụng ở chế độ chỉ quan sát cho tới khi credential/capability quản trị đầy đủ."
+          : "Đã lưu catalog nhưng chưa bắt tay được Universal Contract. Hệ thống tiếp tục khóa thao tác từ xa cho tới khi contract hợp lệ.");
       setForm((current) => ({ ...current, credential: "" }));
       await load();
     } catch (error) {
@@ -264,7 +266,7 @@ export default function ManagedAppsCatalogPage() {
       const warning = result.totals?.warning ?? 0;
       const pending = result.totals?.pending ?? 0;
       const unavailable = result.totals?.unavailable ?? 0;
-      setMessage(`Đã kiểm tra toàn bộ contract: ${connected} connected · ${warning} warning · ${pending} pending · ${unavailable} unavailable.`);
+      setMessage(`Đã kiểm tra toàn bộ contract: ${connected} sẵn sàng quản trị · ${warning} đã nối contract/chỉ quan sát · ${pending} chờ contract · ${unavailable} không khả dụng.`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Không thể kiểm tra toàn bộ contract.");
     } finally {
@@ -400,7 +402,7 @@ export default function ManagedAppsCatalogPage() {
         <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
           {syncResult.probes.map((item) => <article key={item?.id ?? item?.name} style={{ display: "grid", gridTemplateColumns: "minmax(180px,1fr) 110px minmax(260px,2fr)", gap: 10, border: "1px solid #214b3d", borderRadius: 10, padding: 11 }}>
             <strong>{item?.name ?? item?.id}</strong>
-            <b style={{ color: item?.connection === "connected" ? "#72ddb9" : item?.connection === "warning" ? "#f1c86f" : "#e59b9b" }}>{item?.connection ?? "—"}</b>
+            <b style={{ color: item?.connection === "connected" ? "#72ddb9" : item?.connection === "warning" ? "#f1c86f" : "#e59b9b" }}>{connectionLabel(item)}</b>
             <span style={{ color: "#a9c9bd" }}>{item?.note ?? "—"}</span>
           </article>)}
         </div>
@@ -431,7 +433,7 @@ export default function ManagedAppsCatalogPage() {
         <small style={eyebrow}>LIVE CONTRACT PROBE</small>
         <h2 style={h2}>{probe.name ?? probe.id ?? "Contract"}</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 10 }}>
-          <Stat label="Kết nối" value={probe.connection ?? "—"}/>
+          <Stat label="Trạng thái" value={connectionLabel(probe)}/>
           <Stat label="Contract" value={probe.contractConnected ? "Đã bắt tay" : "Chưa bắt tay"}/>
           <Stat label="Credential" value={probe.credentialConfigured ? "Đã cấu hình" : "Chưa cấu hình"}/>
           <Stat label="Remote admin" value={probe.remoteAdminReady ? "Sẵn sàng" : "Fail-closed"}/>
@@ -464,6 +466,17 @@ export default function ManagedAppsCatalogPage() {
       </section>
     </section>
   </main>;
+}
+
+function connectionLabel(item: ProbeSummary | null | undefined) {
+  if (!item) return "—";
+  if (item.remoteAdminReady) return "Sẵn sàng quản trị";
+  if (item.contractConnected) return "Đã nối contract · chỉ quan sát";
+  if (item.connection === "pending") return "Chờ contract";
+  if (item.connection === "unavailable") return "Không khả dụng";
+  if (item.connection === "warning") return "Cần cấu hình";
+  if (item.connection === "connected") return "Đã kết nối";
+  return "Chưa xác định";
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
