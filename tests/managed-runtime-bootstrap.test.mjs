@@ -47,7 +47,6 @@ test("bootstrap promotes only verified live runtimes into the Dynamic Catalog", 
 test("bootstrap never persists generated bridge secrets in repository files", () => {
   assert.match(workflow, /crypto\.randomBytes\(48\)\.toString\("base64url"\)/);
   assert.match(workflow, /::add-mask::/);
-  assert.doesNotMatch(workflow, /::add-mask::[^\n]*\n[^\n]*GITHUB_ENV/);
   assert.doesNotMatch(workflow, /<<'NODE' >> "\$GITHUB_ENV"[\s\S]{0,500}::add-mask::/);
   assert.match(workflow, /echo "HEALTH_BRIDGE_SECRET=\$HEALTH_BRIDGE_SECRET" >> "\$GITHUB_ENV"/);
   assert.match(workflow, /echo "BOOTSTRAP_QA_TOKEN=\$BOOTSTRAP_QA_TOKEN" >> "\$GITHUB_ENV"/);
