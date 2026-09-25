@@ -116,9 +116,7 @@ function appGlyph(appId: string) {
 }
 
 function appGroup(app: ApplicationConfig) {
-  if (app.id === "boi-ech") return "Học tập";
-  if (app.id === "bauman-master-ai") return "Học thuật";
-  return app.scope;
+  return app.category;
 }
 
 function connectionFor(app: ApplicationConfig, summary?: OperationsSummary): OperationsSummary["connection"] {
