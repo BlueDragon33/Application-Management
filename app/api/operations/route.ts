@@ -742,7 +742,14 @@ async function buildBootstrap(actor: ControlDeviceState) {
     summaries,
     devices,
     workItems: visibleWorkItems,
-    settings: await readAutoApprovalSettings(AUTO_APPROVE_SUPPORTED_APP_IDS),
+    settings: await readAutoApprovalSettings([
+      ...AUTO_APPROVE_SUPPORTED_APP_IDS,
+      ...dynamicSnapshots
+        .filter((snapshot) => snapshot.manifest?.endpoints.automation
+          && (snapshot.manifest.capabilities.deviceAutoApproval === true
+            || snapshot.manifest.capabilities.deviceAutoBlockPending === true))
+        .map((snapshot) => snapshot.config.id),
+    ]),
     metrics: {
       applications: applicationRegistry.length + dynamicConfigs.filter((item) => !applicationRegistry.some((existing) => existing.id === item.id)).length,
       pendingDevices: devices.filter((device) => device.status === "pending").length,
