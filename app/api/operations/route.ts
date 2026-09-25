@@ -664,24 +664,47 @@ export async function POST(request: Request) {
     if (action === "set-auto-block-pending") {
       if (actor.role !== "owner") return json({ error: "Chỉ Chủ hệ thống được đổi quy tắc tự động khóa thiết bị.", code: "OWNER_REQUIRED" }, 403);
       const appId = text(payload.appId);
-      if (appId !== "health-care") return json({ error: "Ứng dụng chưa công bố contract tự động khóa pending an toàn.", code: "AUTO_BLOCK_CONTRACT_MISSING" }, 409);
       if (typeof payload.enabled !== "boolean") return json({ error: "Trạng thái tự động khóa không hợp lệ.", code: "INVALID_AUTO_BLOCK_STATE" }, 400);
       const pendingBlockAfterHours = Math.round(Number(payload.pendingBlockAfterHours));
       if (![24, 168, 720].includes(pendingBlockAfterHours)) return json({ error: "Ngưỡng tự động khóa phải là 24 giờ, 7 ngày hoặc 30 ngày.", code: "INVALID_AUTO_BLOCK_THRESHOLD" }, 400);
 
       const current = await readAutoApprovalSettings(AUTO_APPROVE_SUPPORTED_APP_IDS);
       if (!current.autoBlockPendingSupportedAppIds.includes(appId)) {
-        return json({ error: "Contract production của Sức khỏe Y tế chưa xác nhận tự động khóa pending.", code: "AUTO_BLOCK_CONTRACT_NOT_LIVE" }, 409);
+        return json({ error: "Contract của ứng dụng chưa xác nhận tự động khóa pending.", code: "AUTO_BLOCK_CONTRACT_NOT_LIVE" }, 409);
       }
 
-      const bridge = await issueHealthBrowserBridge(actor.email, actor.role, actor.deviceId);
-      const updated = await bridgeJson(bridge, "/api/control/automation", {
-        method: "POST",
-        body: { autoBlockPendingDevices: payload.enabled, pendingBlockAfterHours },
-      });
-      const automation = record(updated.automation);
+      let updated: UnknownRecord;
+      if (appId === "health-care") {
+        const bridge = await issueHealthBrowserBridge(actor.email, actor.role, actor.deviceId);
+        updated = await bridgeJson(bridge, "/api/control/automation", {
+          method: "POST",
+          body: { autoBlockPendingDevices: payload.enabled, pendingBlockAfterHours },
+        });
+      } else {
+        const contract = await getManagedContract(appId);
+        const automationPath = contract?.endpoints.automation || contract?.manifest?.endpoints.automation || "";
+        if (!contract?.enabled || contract.capabilities.deviceAutoBlockPending !== true || !automationPath) {
+          return json({ error: "Contract v1 chưa công bố auto-block pending an toàn.", code: "AUTO_BLOCK_CONTRACT_NOT_LIVE" }, 409);
+        }
+        updated = await managedContractRequest(appId, automationPath, {
+          method: "POST",
+          body: { autoBlockPendingDevices: payload.enabled, pendingBlockAfterHours },
+        });
+      }
+
+      let automation = record(updated.automation);
       if (automation.autoBlockPendingDevices !== payload.enabled || Number(automation.pendingBlockAfterHours) !== pendingBlockAfterHours) {
-        return json({ error: "Client chưa xác nhận quy tắc tự động khóa sau khi cập nhật.", code: "AUTO_BLOCK_READBACK_MISMATCH" }, 502);
+        if (appId !== "health-care") {
+          const contract = await getManagedContract(appId);
+          const automationPath = contract?.endpoints.automation || contract?.manifest?.endpoints.automation || "";
+          if (automationPath) {
+            const readback = await managedContractRequest(appId, automationPath);
+            automation = record(readback.automation);
+          }
+        }
+        if (automation.autoBlockPendingDevices !== payload.enabled || Number(automation.pendingBlockAfterHours) !== pendingBlockAfterHours) {
+          return json({ error: "Client chưa xác nhận quy tắc tự động khóa sau khi cập nhật.", code: "AUTO_BLOCK_READBACK_MISMATCH" }, 502);
+        }
       }
       await rememberAutoBlockPending(actor.email, appId, payload.enabled, pendingBlockAfterHours);
       return json({ ok: true, settings: await readAutoApprovalSettings(AUTO_APPROVE_SUPPORTED_APP_IDS) });
