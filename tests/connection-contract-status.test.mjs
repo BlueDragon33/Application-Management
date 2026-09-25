@@ -72,3 +72,9 @@ test("application table renders runtime, contract and admin readiness as separat
   assert.match(dashboard, /summary\?\.remoteAdminReady === true/);
   assert.match(dashboard, /REPOSITORY_METADATA_ONLY/);
 });
+
+
+test("application classification column uses the short category instead of long scope prose", () => {
+  assert.match(dashboard, /function appGroup\(app: ApplicationConfig\) \{\s*return app\.category;\s*\}/);
+  assert.doesNotMatch(dashboard, /function appGroup[\s\S]{0,180}return app\.scope/);
+});
