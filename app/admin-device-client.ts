@@ -1,3 +1,4 @@
+import type { ApplicationConfig } from "./application-registry";
 "use client";
 
 export type ControlRole = "viewer" | "reviewer" | "publisher" | "owner";
@@ -147,6 +148,7 @@ export type OperationsWorkItem = {
 export type OperationsBootstrap = {
   actor: { deviceCode: string; role: ControlRole };
   generatedAt: string;
+  applications?: ApplicationConfig[];
   summaries: OperationsSummary[];
   devices: OperationsDevice[];
   workItems: OperationsWorkItem[];
