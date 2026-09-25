@@ -63,6 +63,7 @@ function probeSummary(probe: Awaited<ReturnType<typeof probeManagedCatalogEntry>
     contractConnected: probe.contractConnected,
     remoteAdminReady: probe.remoteAdminReady,
     note: probe.note,
+    issueCode: probe.issueCode ?? null,
     protocol: probe.manifest?.protocol ?? null,
     discoveredVia: probe.manifest?.discoveredVia ?? null,
     capabilities: probe.config.capabilities,
@@ -97,6 +98,9 @@ export async function POST(request: Request) {
           credentialConfigured: Boolean(row.credential_ciphertext && row.credential_iv),
           createdAt: row.created_at,
           updatedAt: row.updated_at,
+          lastConnectedAt: row.last_contract_connected_at,
+          lastProbeAt: row.last_probe_at,
+          lastProbeError: row.last_probe_error,
         })),
       });
     }
