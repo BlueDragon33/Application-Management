@@ -120,17 +120,22 @@ jobs:
           console.log(`RU_LIFE_RUNTIME_ORIGIN=https://ru-life.${suffix}`);
           NODE
 
-      - name: Ensure isolated Health and RU_LIFE D1 databases
+      - name: Ensure isolated Health and RU_LIFE Production D1 databases
         working-directory: manager
         shell: bash
         run: |
           set -euo pipefail
+          npx wrangler d1 list --json > /tmp/d1-inventory.json
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          const rows = JSON.parse(fs.readFileSync("/tmp/d1-inventory.json", "utf8"));
+          console.log("D1_INVENTORY=" + rows.map((item) => item?.name).filter(Boolean).sort().join(","));
+          NODE
           ensure_d1() {
             local name="$1"
             local key="$2"
-            npx wrangler d1 list --json > "/tmp/d1-list-${key}.json"
             local id
-            id="$(node --input-type=module - "$name" "/tmp/d1-list-${key}.json" <<'NODE'
+            id="$(node --input-type=module - "$name" /tmp/d1-inventory.json <<'NODE'
           import fs from "node:fs";
           const [name, file] = process.argv.slice(2);
           const rows = JSON.parse(fs.readFileSync(file, "utf8"));
@@ -139,9 +144,13 @@ jobs:
           NODE
             )"
             if [[ -z "$id" ]]; then
-              npx wrangler d1 create "$name" > "/tmp/d1-create-${key}.log"
-              npx wrangler d1 list --json > "/tmp/d1-list-${key}.json"
-              id="$(node --input-type=module - "$name" "/tmp/d1-list-${key}.json" <<'NODE'
+              if ! npx wrangler d1 create "$name" > "/tmp/d1-create-${key}.log" 2>&1; then
+                cat "/tmp/d1-create-${key}.log" || true
+                echo "::error::Could not create $name. Current D1 inventory is shown above; no database was deleted automatically."
+                exit 1
+              fi
+              npx wrangler d1 list --json > /tmp/d1-inventory.json
+              id="$(node --input-type=module - "$name" /tmp/d1-inventory.json <<'NODE'
           import fs from "node:fs";
           const [name, file] = process.argv.slice(2);
           const rows = JSON.parse(fs.readFileSync(file, "utf8"));
@@ -157,9 +166,9 @@ jobs:
             echo "$key=$id" >> "$GITHUB_ENV"
           }
           ensure_d1 "health-care-production-db" "HEALTH_PRODUCTION_D1_DATABASE_ID"
-          ensure_d1 "health-care-preview-db" "HEALTH_PREVIEW_D1_DATABASE_ID"
           ensure_d1 "ru-life-production-db" "RU_LIFE_PRODUCTION_D1_DATABASE_ID"
-          ensure_d1 "ru-life-preview-db" "RU_LIFE_PREVIEW_D1_DATABASE_ID"
+          echo "HEALTH_PREVIEW_D1_DATABASE_ID=$APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID" >> "$GITHUB_ENV"
+          echo "RU_LIFE_PREVIEW_D1_DATABASE_ID=$APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID" >> "$GITHUB_ENV"
 
       - name: Generate app-scoped bridge secrets
         shell: bash
