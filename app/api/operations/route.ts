@@ -758,6 +758,60 @@ export async function POST(request: Request) {
       const deviceId = text(payload.deviceId);
       const deviceCode = text(payload.deviceCode).toUpperCase();
       if (operation !== "approve" && operation !== "remove") return json({ error: "Thao tác thiết bị không hợp lệ.", code: "INVALID_DEVICE_OPERATION" }, 400);
+
+      const dynamicSnapshot = (await probeDynamicManagedApplications()).find((snapshot) => snapshot.config.id === appId);
+      const dynamicCapabilities = dynamicSnapshot?.manifest?.capabilities ?? {};
+      const dynamicMutationReady = Boolean(
+        dynamicSnapshot?.connection === "connected"
+        && dynamicSnapshot.remoteAdminReady
+        && dynamicSnapshot.manifest?.endpoints.deviceCommands
+        && dynamicCapabilities.deviceIdempotentCommands === true
+        && dynamicCapabilities.optimisticConcurrency === true
+        && (
+          operation === "approve"
+            ? dynamicCapabilities.deviceApproval === true
+            : dynamicCapabilities.deviceBlock === true
+        )
+      );
+
+      if (dynamicMutationReady) {
+        if (!deviceId || deviceId.length > 256) {
+          return json({ error: "Mã thiết bị Universal Contract không hợp lệ.", code: "INVALID_DEVICE_ID" }, 400);
+        }
+        const suppliedExpected = normalizedStatus(payload.expectedStatus);
+        if (suppliedExpected === "unknown") {
+          return json({ error: "expectedStatus hợp lệ là bắt buộc cho Universal Contract.", code: "INVALID_EXPECTED_STATUS" }, 400);
+        }
+        const suppliedCommandId = text(payload.commandId).toLowerCase();
+        if (suppliedCommandId && !validCommandId(suppliedCommandId)) {
+          return json({ error: "commandId không hợp lệ.", code: "INVALID_COMMAND_ID" }, 400);
+        }
+        const commandId = suppliedCommandId || crypto.randomUUID();
+        try {
+          const result = await executeUniversalDeviceCommand({
+            appId,
+            operation,
+            deviceId,
+            expectedStatus: suppliedExpected as "pending" | "approved" | "blocked",
+            commandId,
+          }, actor);
+          return json({
+            ok: true,
+            verified: true,
+            verifiedStatus: operation === "approve" ? "approved" : "blocked",
+            commandId,
+            commandReplayed: result.commandReplayed,
+            contractPath: "universal",
+            ...(operation === "approve" ? { approvedDeviceId: deviceId } : { removedDeviceId: deviceId }),
+          });
+        } catch (error) {
+          return json({
+            error: error instanceof Error ? error.message : "Universal Contract chưa hoàn tất thao tác.",
+            code: "UNIVERSAL_CONTRACT_ACTION_FAILED",
+          }, 409);
+        }
+      }
+
       const legacyDeviceIdApp = ["health-care", "ru-life", "growup-mychildren", "price-report-tunggiabao", "bauman-master-ai", "boi-ech"].includes(appId);
       if (legacyDeviceIdApp && !/^[a-f0-9]{64}$/.test(deviceId)) return json({ error: "Mã thiết bị không hợp lệ.", code: "INVALID_DEVICE_ID" }, 400);
       if (!legacyDeviceIdApp && (!deviceId || deviceId.length > 256)) return json({ error: "Mã thiết bị Universal Contract không hợp lệ.", code: "INVALID_DEVICE_ID" }, 400);
