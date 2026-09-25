@@ -40,11 +40,9 @@ const fontScaleOptions: Array<{ id: FontScale; label: string; hint: string }> = 
   { id: "xlarge", label: "Rất lớn", hint: "Ưu tiên khả năng đọc" },
 ];
 
-// The registry is the single source of truth for what belongs to the central
-// management surface. Do not maintain a second hard-coded allow-list here:
-// doing so can leave a real client connected on the server but invisible in UI.
-const activeApps = applicationRegistry;
-const activeAppSet = new Set<string>(activeApps.map((app) => app.id));
+// Static registry remains the compatibility baseline. The operations bootstrap
+// may append Contract Registry v1 applications at runtime without a code change.
+const staticApps = applicationRegistry;
 const systemTools: readonly SystemTool[] = [
   {
     id: "tool-contract-registry",
@@ -104,8 +102,8 @@ function relativeTime(value: string | null | undefined) {
   return `${Math.floor(hours / 24)} ngày trước`;
 }
 
-function appFor(appId: string) {
-  return activeApps.find((app) => app.id === appId);
+function appFor(apps: readonly ApplicationConfig[], appId: string) {
+  return apps.find((app) => app.id === appId);
 }
 
 function appGlyph(appId: string) {
@@ -238,23 +236,28 @@ export default function ManagementDashboardV2({ user, authMode }: {
     try { window.localStorage.setItem(fontScaleStorageKey, next); } catch { /* Device-local persistence is optional. */ }
   }
 
-  const summaries = useMemo(() => (operations?.summaries ?? []).filter((item) => activeAppSet.has(item.appId)), [operations]);
+  const runtimeApps = useMemo(
+    () => operations?.applications?.length ? operations.applications : staticApps,
+    [operations?.applications],
+  );
+  const runtimeAppSet = useMemo(() => new Set(runtimeApps.map((app) => app.id)), [runtimeApps]);
+  const summaries = useMemo(() => (operations?.summaries ?? []).filter((item) => runtimeAppSet.has(item.appId)), [operations, runtimeAppSet]);
   const summaryMap = useMemo(() => new Map(summaries.map((item) => [item.appId, item])), [summaries]);
-  const devices = useMemo(() => (operations?.devices ?? []).filter((item) => activeAppSet.has(item.appId)), [operations]);
-  const workItems = useMemo(() => (operations?.workItems ?? []).filter((item) => activeAppSet.has(item.appId)), [operations]);
+  const devices = useMemo(() => (operations?.devices ?? []).filter((item) => runtimeAppSet.has(item.appId)), [operations, runtimeAppSet]);
+  const workItems = useMemo(() => (operations?.workItems ?? []).filter((item) => runtimeAppSet.has(item.appId)), [operations, runtimeAppSet]);
   const pendingDevices = devices.filter((device) => device.status === "pending");
   const approvalDevices = devices.filter((device) => device.status === "pending" || device.attention !== "none");
   const environmentCount = devices.filter((device) => device.attention === "environment").length;
-  const unavailableCount = activeApps.filter((app) => connectionFor(app, summaryMap.get(app.id)) === "unavailable").length;
-  const contractPending = activeApps.filter((app) => app.contractState !== "connected").length;
+  const unavailableCount = runtimeApps.filter((app) => connectionFor(app, summaryMap.get(app.id)) === "unavailable").length;
+  const contractPending = runtimeApps.filter((app) => connectionFor(app, summaryMap.get(app.id)) !== "connected").length;
   const highAlerts = workItems.filter((item) => item.priority === "high").length;
   const notificationCount = workItems.length;
   const approvalCount = approvalDevices.length;
-  const onlineApps = activeApps.filter((app) => connectionFor(app, summaryMap.get(app.id)) === "connected").length;
+  const onlineApps = runtimeApps.filter((app) => connectionFor(app, summaryMap.get(app.id)) === "connected").length;
   const onlineDevices = summaries.reduce((sum, item) => sum + (item.onlineCount ?? 0), 0);
   const searchValue = search.trim().toLowerCase();
 
-  const filteredApps = activeApps.filter((app) => {
+  const filteredApps = runtimeApps.filter((app) => {
     if (appFilter !== "all" && app.id !== appFilter) return false;
     return !searchValue || `${app.name} ${app.shortName} ${app.scope}`.toLowerCase().includes(searchValue);
   });
@@ -363,7 +366,7 @@ export default function ManagementDashboardV2({ user, authMode }: {
   }
 
   async function launchWeb(appId: string) {
-    const app = appFor(appId);
+    const app = appFor(runtimeApps, appId);
     const summary = summaryMap.get(appId);
     const fallback = app?.publicUrl ?? (localRuntime ? app?.localUrl : undefined);
     if (!summary?.webHref && !fallback) {
@@ -492,7 +495,7 @@ export default function ManagementDashboardV2({ user, authMode }: {
     <aside className="amv2-sidebar">
       <div className="amv2-brand"><div>QT</div><span><small>TRUNG TÂM ĐIỀU PHỐI</small><strong>QUẢN TRỊ ỨNG DỤNG</strong><em>Kết nối · Kiểm soát · Phát triển</em></span></div>
       <nav aria-label="Điều hướng quản trị">{navItems.map((item) => <button key={item.view} data-active={view === item.view} onClick={() => switchView(item.view)}><i>{item.icon}</i><span>{item.label}</span>{item.view === "devices" && pendingDevices.length ? <b>{pendingDevices.length}</b> : null}{item.view === "approvals" && approvalCount ? <b>{approvalCount}</b> : null}</button>)}</nav>
-      <section className="amv2-system-card"><header><span>▣</span><div><small>Trạng thái hệ thống</small><strong>{unavailableCount ? "Cần kiểm tra" : "Đã cập nhật dữ liệu"}</strong></div></header><p><span>Ứng dụng & Tool</span><b>{activeApps.length + systemTools.length}</b></p><p><span>Kết nối tốt</span><b>{onlineApps}</b></p><p><span>Thiết bị chờ duyệt</span><b>{pendingDevices.length}</b></p><p><span>Lần cập nhật</span><b>{clock ? new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(clock) : "—"}</b></p></section>
+      <section className="amv2-system-card"><header><span>▣</span><div><small>Trạng thái hệ thống</small><strong>{unavailableCount ? "Cần kiểm tra" : "Đã cập nhật dữ liệu"}</strong></div></header><p><span>Ứng dụng & Tool</span><b>{runtimeApps.length + systemTools.length}</b></p><p><span>Kết nối tốt</span><b>{onlineApps}</b></p><p><span>Thiết bị chờ duyệt</span><b>{pendingDevices.length}</b></p><p><span>Lần cập nhật</span><b>{clock ? new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(clock) : "—"}</b></p></section>
       <blockquote>Quản trị tập trung<br/>Vận hành an toàn<br/>Phát triển bền vững</blockquote>
       <footer><i/>Hệ thống hoạt động</footer>
     </aside>
@@ -500,7 +503,7 @@ export default function ManagementDashboardV2({ user, authMode }: {
     <section className="amv2-workspace">
       <header className="amv2-topbar">
         <label className="amv2-search"><span>⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm theo ứng dụng, thiết bị, người dùng…"/></label>
-        <label className="amv2-filter"><span>▽</span><select value={appFilter} onChange={(event) => setAppFilter(event.target.value)}><option value="all">Bộ lọc nhanh</option>{activeApps.map((app) => <option key={app.id} value={app.id}>{app.shortName}</option>)}{systemTools.map((tool) => <option key={tool.id} value={tool.id}>Tool · {tool.name}</option>)}</select></label>
+        <label className="amv2-filter"><span>▽</span><select value={appFilter} onChange={(event) => setAppFilter(event.target.value)}><option value="all">Bộ lọc nhanh</option>{runtimeApps.map((app) => <option key={app.id} value={app.id}>{app.shortName}</option>)}{systemTools.map((tool) => <option key={tool.id} value={tool.id}>Tool · {tool.name}</option>)}</select></label>
         <button className="amv2-bell" onClick={() => switchView("approvals")}>♧{notificationCount ? <b>{notificationCount}</b> : null}</button>
         <span className="amv2-online"><i/><strong>Hệ thống kết nối</strong><small>{syncing ? "Đang đồng bộ…" : "Dữ liệu đã cập nhật"}</small></span>
         <details className="amv2-account"><summary><span>{initials(user.displayName)}</span><div><strong>{user.displayName}</strong><small>{roleLabels[access.role]}</small></div><b>⌄</b></summary><div><small>{user.email}</small>{authMode === "cloudflare-production" ? <a href="/__account">Tài khoản & bảo mật</a> : <button onClick={() => setAccountSecurityOpen(true)}>Tài khoản & bảo mật</button>}<button onClick={() => switchView("settings")}>Cấu hình</button>{authMode === "cloudflare-production" ? <form method="post" action="/__logout"><button type="submit">Đăng xuất</button></form> : <a href="/signout-with-chatgpt?return_to=%2F">Đăng xuất</a>}</div></details>
@@ -637,7 +640,7 @@ function Overview({ apps, tools, summaryMap, devices, pendingDevices, approvalDe
 
   return <>
     <section className="amv2-metrics">
-      <button data-tone="teal" onClick={() => switchView("applications")}><i>◇</i><div><small>Tổng ứng dụng</small><strong>{activeApps.length + systemTools.length}</strong><em>Ứng dụng & Tool đang quản lý</em></div><b>›</b></button>
+      <button data-tone="teal" onClick={() => switchView("applications")}><i>◇</i><div><small>Tổng ứng dụng</small><strong>{apps.length + tools.length}</strong><em>Ứng dụng & Tool đang quản lý</em></div><b>›</b></button>
       <button data-tone="gold" onClick={() => switchView("devices")}><i>▣</i><div><small>Thiết bị mới chờ duyệt</small><strong>{pendingDevices.length}</strong><em>Thiết bị cần cấp quyền</em></div><b>›</b></button>
       <button data-tone="red" onClick={() => switchView("alerts")}><i>△</i><div><small>Cảnh báo hôm nay</small><strong>{highAlerts}</strong><em>{highAlerts ? "Có cảnh báo cần kiểm tra" : "Không có cảnh báo cao"}</em></div><b>›</b></button>
       <button data-tone="blue" onClick={() => switchView("approvals")}><i>▤</i><div><small>Ca kiểm duyệt cần xử lý</small><strong>{approvalDevices.length}</strong><em>Yêu cầu đang chờ xử lý</em></div><b>›</b></button>
