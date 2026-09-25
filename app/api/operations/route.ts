@@ -6,7 +6,7 @@ import { issueRuLifeBrowserBridge } from "../../ru-life.server";
 import { issueBaumanBrowserBridge } from "../../bauman.server";
 import { issueGrowUpBrowserBridge, probeGrowUpManagementContract } from "../../growup.server";
 import { issuePriceReportBrowserBridge, probePriceReportManagementContract } from "../../price-report.server";
-import { executeUniversalDeviceCommand, probeDynamicManagedApplications, resolveUniversalWebLaunch, type DynamicContractSnapshot } from "../../open-contract.server";
+import { executeUniversalDeviceCommand, probeDynamicManagedApplications, resolveUniversalWebLaunch, setUniversalAutomationPolicy, type DynamicContractSnapshot } from "../../open-contract.server";
 import {
   dismissedNotificationHashes,
   hashWorkItem,
@@ -842,14 +842,43 @@ export async function POST(request: Request) {
     if (action === "set-auto-block-pending") {
       if (actor.role !== "owner") return json({ error: "Chỉ Chủ hệ thống được đổi quy tắc tự động khóa thiết bị.", code: "OWNER_REQUIRED" }, 403);
       const appId = text(payload.appId);
-      if (appId !== "health-care") return json({ error: "Ứng dụng chưa công bố contract tự động khóa pending an toàn.", code: "AUTO_BLOCK_CONTRACT_MISSING" }, 409);
       if (typeof payload.enabled !== "boolean") return json({ error: "Trạng thái tự động khóa không hợp lệ.", code: "INVALID_AUTO_BLOCK_STATE" }, 400);
       const pendingBlockAfterHours = Math.round(Number(payload.pendingBlockAfterHours));
-      if (![24, 168, 720].includes(pendingBlockAfterHours)) return json({ error: "Ngưỡng tự động khóa phải là 24 giờ, 7 ngày hoặc 30 ngày.", code: "INVALID_AUTO_BLOCK_THRESHOLD" }, 400);
+      if (![24, 168, 720].includes(pendingBlockAfterHours)) {
+        return json({ error: "Ngưỡng tự động khóa phải là 24 giờ, 7 ngày hoặc 30 ngày.", code: "INVALID_AUTO_BLOCK_THRESHOLD" }, 400);
+      }
 
-      const current = await readAutoApprovalSettings(AUTO_APPROVE_SUPPORTED_APP_IDS);
+      const dynamicSnapshots = await probeDynamicManagedApplications();
+      const dynamic = dynamicSnapshots.find((snapshot) => snapshot.config.id === appId);
+      const universalReady = Boolean(
+        dynamic?.contractConnected
+        && dynamic.manifest?.endpoints.automation
+        && dynamic.manifest.capabilities.deviceAutoBlockPending === true,
+      );
+      const automationCandidates = [
+        ...AUTO_APPROVE_SUPPORTED_APP_IDS,
+        ...dynamicSnapshots
+          .filter((snapshot) => snapshot.manifest?.endpoints.automation
+            && (snapshot.manifest.capabilities.deviceAutoApproval === true
+              || snapshot.manifest.capabilities.deviceAutoBlockPending === true))
+          .map((snapshot) => snapshot.config.id),
+      ];
+      const current = await readAutoApprovalSettings(automationCandidates);
       if (!current.autoBlockPendingSupportedAppIds.includes(appId)) {
-        return json({ error: "Contract production của Sức khỏe Y tế chưa xác nhận tự động khóa pending.", code: "AUTO_BLOCK_CONTRACT_NOT_LIVE" }, 409);
+        return json({ error: "Contract production chưa xác nhận tự động khóa pending.", code: "AUTO_BLOCK_CONTRACT_NOT_LIVE", appId }, 409);
+      }
+
+      if (universalReady) {
+        await setUniversalAutomationPolicy(appId, actor, {
+          autoBlockPendingDevices: payload.enabled,
+          pendingBlockAfterHours,
+        });
+        await rememberAutoBlockPending(actor.email, appId, payload.enabled, pendingBlockAfterHours);
+        return json({ ok: true, settings: await readAutoApprovalSettings(automationCandidates) });
+      }
+
+      if (appId !== "health-care") {
+        return json({ error: "Ứng dụng chưa có legacy adapter và Universal auto-block chưa sẵn sàng.", code: "AUTO_BLOCK_CONTRACT_MISSING", appId }, 409);
       }
 
       const bridge = await issueHealthBrowserBridge(actor.email, actor.role, actor.deviceId);
@@ -862,7 +891,7 @@ export async function POST(request: Request) {
         return json({ error: "Client chưa xác nhận quy tắc tự động khóa sau khi cập nhật.", code: "AUTO_BLOCK_READBACK_MISMATCH" }, 502);
       }
       await rememberAutoBlockPending(actor.email, appId, payload.enabled, pendingBlockAfterHours);
-      return json({ ok: true, settings: await readAutoApprovalSettings(AUTO_APPROVE_SUPPORTED_APP_IDS) });
+      return json({ ok: true, settings: await readAutoApprovalSettings(automationCandidates) });
     }
 
     if (action === "manage-client-device") {
