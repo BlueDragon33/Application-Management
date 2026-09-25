@@ -21,6 +21,7 @@ test("hybrid resolver supports production, local and hybrid without allowing pub
   assert.match(resolver, /source: "local"/);
   assert.match(resolver, /source: "production"/);
   assert.match(resolver, /values\.LOCAL_DEV_AUTH === "1" \? "hybrid" : "production"/);
+  assert.match(resolver, /productionOverride \|\| normalizeClientOrigin\(values\[spec\.productionEnv\], false\)/);
   assert.doesNotMatch(resolver, /const CLIENTS/);
 });
 
@@ -35,7 +36,7 @@ test("network registry is the single transport catalog for managed client bridge
   ]) {
     assert.ok(registry.includes(token), `missing network registry client: ${token}`);
   }
-  for (const key of ["productionEnv", "localEnv", "localDefault", "probePath", "bridgeSecretEnv", "localBridgeSecretEnv"]) {
+  for (const key of ["productionEnv", "productionOverrideEnv", "localEnv", "localDefault", "probePath", "bridgeSecretEnv", "localBridgeSecretEnv"]) {
     assert.ok(registry.includes(key), `missing network registry field: ${key}`);
   }
   assert.match(registry, /satisfies Record<ManagedClientId, ClientNetworkSpec>/);
@@ -135,4 +136,14 @@ test("hybrid bridge selects credentials from the same transport source as the re
   assert.doesNotMatch(launcher, /\n\s+RU_LIFE_CONTROL_SERVICE_SECRET: ruSecret/);
   assert.doesNotMatch(launcher, /\n\s+BAUMAN_CONTROL_SERVICE_SECRET: baumanSecret/);
   assert.doesNotMatch(launcher, /\n\s+CONTROL_SERVICE_SECRET: boiSecret/);
+});
+
+
+test("production client origins can be injected as protected override bindings without replacing declared vars", () => {
+  assert.match(registry, /HEALTH_CARE_BASE_URL_OVERRIDE/);
+  assert.match(registry, /RU_LIFE_BASE_URL_OVERRIDE/);
+  assert.match(registry, /BOI_ECH_BASE_URL_OVERRIDE/);
+  assert.match(registry, /PRICE_REPORT_CONTROL_BASE_URL_OVERRIDE/);
+  assert.match(resolver, /spec\.productionOverrideEnv/);
+  assert.match(resolver, /const productionOverride/);
 });
