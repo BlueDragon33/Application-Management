@@ -67,7 +67,7 @@ const baumanChildren: readonly SubClientConfig[] = [
 
 export const applicationRegistry: readonly ApplicationConfig[] = [
   {
-    id: "boi-ech", name: "Bơi ếch AI", shortName: "Bơi ếch", href: "/apps/boi-ech", initials: "BE", category: "Học tập", tier: "client", status: "online", contractState: "connected", repository: "BlueDragon33/BOIECH_AI",
+    id: "boi-ech", name: "Bơi ếch AI", shortName: "Bơi ếch", href: "/apps/boi-ech", publicUrl: "https://boi-ech.boiech-ai.workers.dev", initials: "BE", category: "Học tập", tier: "client", status: "online", contractState: "connected", repository: "BlueDragon33/BOIECH_AI",
     scope: "Client học Bơi ếch độc lập; Trung tâm quản trị qua bridge ký số và không chạy nội dung học tập.",
     contractNote: "Admin bridge đang hoạt động. Khu quản trị Bơi ếch đã tách vật lý khỏi control-plane và chỉ còn nghiệp vụ của chính client.",
     devicePolicy: "Registry BE riêng · tự nhận diện desktop/phone/tablet-iPad · quyền truy cập và quyền sửa tách biệt.",
