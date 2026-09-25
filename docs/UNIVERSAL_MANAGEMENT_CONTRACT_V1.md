@@ -436,3 +436,59 @@ URL trả về phải thuộc Control Origin hoặc Public URL origin đã đăn
 Nếu `webLaunch=true` nhưng không có `endpoints.web`, Trung tâm mở trực tiếp Public URL/Control Origin đã đăng ký.
 
 Universal Contract luôn được thử trước adapter legacy.
+
+
+## Optional automation capability
+
+Ứng dụng mới có thể tham gia luồng Tự động xử lý mà không cần thêm ID vào source Trung tâm.
+
+Manifest:
+
+```json
+{
+  "capabilities": {
+    "deviceAutoApproval": true,
+    "deviceAutoBlockPending": true
+  },
+  "endpoints": {
+    "automation": "/api/control/automation"
+  }
+}
+```
+
+Hai capability độc lập. Client chỉ bật capability đã triển khai thật.
+
+### GET automation
+
+```json
+{
+  "automation": {
+    "autoApproveDevices": false,
+    "autoBlockPendingDevices": false,
+    "pendingBlockAfterHours": 168
+  }
+}
+```
+
+### POST automation
+
+Request có thể chứa một hoặc cả hai policy:
+
+```json
+{
+  "autoApproveDevices": true,
+  "autoBlockPendingDevices": true,
+  "pendingBlockAfterHours": 168
+}
+```
+
+Client phải trả trạng thái mới hoặc cho phép GET ngay sau POST để Trung tâm read-back xác minh.
+
+Guardrail:
+
+- chỉ Owner được thay đổi policy;
+- Dynamic Catalog phải có credential app-scoped;
+- `pendingBlockAfterHours` chỉ nhận 24, 168 hoặc 720;
+- capability false hoặc endpoint thiếu thì UI giữ fail-closed;
+- Bơi ếch vẫn giữ nghiệp vụ Miễn phí/Trả phí riêng qua adapter tương thích cho tới khi contract của chính Bơi ếch mô hình hóa đầy đủ nghiệp vụ đó;
+- app mới không cần sửa `AUTO_APPROVE_SUPPORTED_APP_IDS`, modal hay route trung tâm.
