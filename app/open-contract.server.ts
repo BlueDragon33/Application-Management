@@ -156,6 +156,26 @@ function normalizeContractPath(value: unknown) {
   return path;
 }
 
+function publicBasePath(row: Pick<ManagedCatalogRow, "origin" | "public_url">) {
+  const raw = text(row.public_url);
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    if (url.origin !== row.origin || url.username || url.password || url.search || url.hash) return "";
+    const pathname = url.pathname.replace(/\/+$/, "");
+    if (!pathname || pathname === "/") return "";
+    return validContractPath(pathname) ? pathname : "";
+  } catch {
+    return "";
+  }
+}
+
+function joinContractPath(base: string, path: string) {
+  if (!base) return path;
+  const joined = `${base}${path.startsWith("/") ? path : `/${path}`}`;
+  return validContractPath(joined) ? joined : "";
+}
+
 function bytesToBase64Url(bytes: Uint8Array) {
   let binary = "";
   bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
@@ -444,11 +464,23 @@ async function discoverContract(
     }
   };
 
+  const basePath = publicBasePath(row);
   add(row.contract_path, row.contract_path === "/api/control/status" ? credential : "");
+  if (basePath) {
+    add(joinContractPath(basePath, row.contract_path), row.contract_path === "/api/control/status" ? credential : "");
+  }
   add("/api/control/contract");
   add("/management-contract.json");
   add("/control/application-management.contract.json");
-  if (credential) add("/api/control/status", credential);
+  if (basePath) {
+    add(joinContractPath(basePath, "/api/control/contract"));
+    add(joinContractPath(basePath, "/management-contract.json"));
+    add(joinContractPath(basePath, "/control/application-management.contract.json"));
+  }
+  if (credential) {
+    add("/api/control/status", credential);
+    if (basePath) add(joinContractPath(basePath, "/api/control/status"), credential);
+  }
 
   const failures: string[] = [];
   for (const candidate of candidates) {
