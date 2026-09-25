@@ -507,7 +507,7 @@ export default function ManagementDashboardV2({ user, authMode }: {
     <aside className="amv2-sidebar">
       <div className="amv2-brand"><div>QT</div><span><small>TRUNG TÂM ĐIỀU PHỐI</small><strong>QUẢN TRỊ ỨNG DỤNG</strong><em>Kết nối · Kiểm soát · Phát triển</em></span></div>
       <nav aria-label="Điều hướng quản trị">{navItems.map((item) => <button key={item.view} data-active={view === item.view} onClick={() => switchView(item.view)}><i>{item.icon}</i><span>{item.label}</span>{item.view === "devices" && pendingDevices.length ? <b>{pendingDevices.length}</b> : null}{item.view === "approvals" && approvalCount ? <b>{approvalCount}</b> : null}</button>)}</nav>
-      <section className="amv2-system-card"><header><span>▣</span><div><small>Trạng thái hệ thống</small><strong>{unavailableCount ? "Cần kiểm tra" : "Đã cập nhật dữ liệu"}</strong></div></header><p><span>Ứng dụng & Tool</span><b>{apps.length + tools.length}</b></p><p><span>Kết nối tốt</span><b>{onlineApps}</b></p><p><span>Thiết bị chờ duyệt</span><b>{pendingDevices.length}</b></p><p><span>Lần cập nhật</span><b>{clock ? new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(clock) : "—"}</b></p></section>
+      <section className="amv2-system-card"><header><span>▣</span><div><small>Trạng thái hệ thống</small><strong>{unavailableCount ? "Cần kiểm tra" : "Đã cập nhật dữ liệu"}</strong></div></header><p><span>Ứng dụng & Tool</span><b>{activeApps.length + systemTools.length}</b></p><p><span>Kết nối tốt</span><b>{onlineApps}</b></p><p><span>Thiết bị chờ duyệt</span><b>{pendingDevices.length}</b></p><p><span>Lần cập nhật</span><b>{clock ? new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(clock) : "—"}</b></p></section>
       <blockquote>Quản trị tập trung<br/>Vận hành an toàn<br/>Phát triển bền vững</blockquote>
       <footer><i/>Hệ thống hoạt động</footer>
     </aside>
@@ -652,7 +652,7 @@ function Overview({ apps, tools, summaryMap, devices, pendingDevices, approvalDe
 
   return <>
     <section className="amv2-metrics">
-      <button data-tone="teal" onClick={() => switchView("applications")}><i>◇</i><div><small>Tổng ứng dụng</small><strong>{activeApps.length + systemTools.length}</strong><em>Ứng dụng & Tool đang quản lý</em></div><b>›</b></button>
+      <button data-tone="teal" onClick={() => switchView("applications")}><i>◇</i><div><small>Tổng ứng dụng</small><strong>{apps.length + tools.length}</strong><em>Ứng dụng & Tool đang quản lý</em></div><b>›</b></button>
       <button data-tone="gold" onClick={() => switchView("devices")}><i>▣</i><div><small>Thiết bị mới chờ duyệt</small><strong>{pendingDevices.length}</strong><em>Thiết bị cần cấp quyền</em></div><b>›</b></button>
       <button data-tone="red" onClick={() => switchView("alerts")}><i>△</i><div><small>Cảnh báo hôm nay</small><strong>{highAlerts}</strong><em>{highAlerts ? "Có cảnh báo cần kiểm tra" : "Không có cảnh báo cao"}</em></div><b>›</b></button>
       <button data-tone="blue" onClick={() => switchView("approvals")}><i>▤</i><div><small>Ca kiểm duyệt cần xử lý</small><strong>{approvalDevices.length}</strong><em>Yêu cầu đang chờ xử lý</em></div><b>›</b></button>
