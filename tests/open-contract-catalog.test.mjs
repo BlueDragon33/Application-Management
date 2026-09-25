@@ -37,6 +37,9 @@ test("Universal Contract v1 is schema-driven and fail-closed", () => {
   assert.ok(contract.includes("manifest.capabilities.optimisticConcurrency"));
   assert.ok(contract.includes("OPEN_CONTRACT_PENDING"));
   assert.ok(contract.includes("Universal Contract chưa sẵn sàng cho thao tác từ xa."));
+  assert.ok(contract.includes("manifest.policy?.remoteAdminReady !== false"));
+  assert.ok(contract.includes("remoteAdminReady?: boolean"));
+  assert.ok(contract.includes("credentialRequired?: boolean"));
 });
 
 test("dynamic credentials are AES-GCM encrypted with a one-time root key", () => {
