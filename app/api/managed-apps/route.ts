@@ -1,5 +1,7 @@
 import { contractCategoryProfiles, contractStarterForCategory } from "../../contract-category-profiles";
-import type { ApplicationCategory } from "../../application-registry";
+import { applicationRegistry, type ApplicationCategory } from "../../application-registry";
+import { listClientNetworkSpecs } from "../../client-network-registry";
+import { resolveClientBridge } from "../../client-origin.server";
 import { ControlAccessError, verifyControlProof } from "../../control-device.server";
 import {
   listManagedCatalog,
@@ -16,6 +18,54 @@ function json(data: unknown, status = 200) {
     status,
     headers: { "cache-control": "no-store, private", "x-content-type-options": "nosniff" },
   });
+}
+
+function publicOrigin(value?: string) {
+  if (!value) return "";
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" ? url.origin : "";
+  } catch {
+    return "";
+  }
+}
+
+async function legacyCatalogCandidate(application: (typeof applicationRegistry)[number]) {
+  const spec = listClientNetworkSpecs().find((item) =>
+    item.endpointKind === "control" && item.applicationId === application.id,
+  );
+  if (spec) {
+    try {
+      const bridge = await resolveClientBridge(spec.id);
+      return {
+        origin: bridge.baseUrl,
+        credential: bridge.secret,
+        source: bridge.source === "production" ? "legacy-production-bridge" : "legacy-local-bridge",
+      };
+    } catch {
+      // Missing legacy env is not fatal. Dynamic Catalog may still use a
+      // public manifest origin, or report that the owner must supply one.
+    }
+  }
+  const fallback = publicOrigin(application.publicUrl);
+  return fallback
+    ? { origin: fallback, credential: "", source: "public-url" }
+    : { origin: "", credential: "", source: "missing-origin" };
+}
+
+function probeSummary(probe: Awaited<ReturnType<typeof probeManagedCatalogEntry>>) {
+  return {
+    id: probe.config.id,
+    name: probe.config.name,
+    connection: probe.connection,
+    credentialConfigured: probe.credentialConfigured,
+    remoteAdminReady: probe.remoteAdminReady,
+    note: probe.note,
+    protocol: probe.manifest?.protocol ?? null,
+    discoveredVia: probe.manifest?.discoveredVia ?? null,
+    capabilities: probe.config.capabilities,
+    deviceCount: probe.devices.length,
+  };
 }
 
 export async function POST(request: Request) {
@@ -46,6 +96,97 @@ export async function POST(request: Request) {
           createdAt: row.created_at,
           updatedAt: row.updated_at,
         })),
+      });
+    }
+
+    if (action === "sync-existing") {
+      const rowsBefore = await listManagedCatalog();
+      const byId = new Map(rowsBefore.map((row) => [row.id, row]));
+      const migrated: Array<Record<string, unknown>> = [];
+      const needsOrigin: Array<Record<string, unknown>> = [];
+      const existing: Array<Record<string, unknown>> = [];
+
+      for (const application of applicationRegistry) {
+        const current = byId.get(application.id);
+        const candidate = await legacyCatalogCandidate(application);
+
+        if (!current && !candidate.origin) {
+          needsOrigin.push({
+            id: application.id,
+            name: application.name,
+            category: application.category,
+            repository: application.repository,
+            reason: "Cần khai báo Control Origin trong Dynamic Catalog.",
+          });
+          continue;
+        }
+
+        if (!current) {
+          try {
+            const id = await upsertManagedCatalog({
+              id: application.id,
+              name: application.name,
+              shortName: application.shortName,
+              category: application.category,
+              origin: candidate.origin,
+              publicUrl: application.publicUrl ?? "",
+              repository: application.repository,
+              contractPath: "/api/application-management/contract",
+              credential: candidate.credential,
+            }, actor);
+            const row = (await listManagedCatalog()).find((item) => item.id === id);
+            const probe = row ? await probeManagedCatalogEntry(row) : null;
+            migrated.push({
+              id,
+              source: candidate.source,
+              probe: probe ? probeSummary(probe) : null,
+            });
+          } catch (error) {
+            needsOrigin.push({
+              id: application.id,
+              name: application.name,
+              category: application.category,
+              repository: application.repository,
+              reason: error instanceof Error ? error.message : "Không thể migrate vào Dynamic Catalog.",
+            });
+          }
+          continue;
+        }
+
+        // Existing Dynamic Catalog entries are authoritative. Never overwrite
+        // an owner-selected origin/credential during compatibility sync.
+        const probe = await probeManagedCatalogEntry(current);
+        existing.push({ id: current.id, probe: probeSummary(probe) });
+      }
+
+      return json({
+        ok: true,
+        migrated,
+        existing,
+        needsOrigin,
+        totals: {
+          migrated: migrated.length,
+          existing: existing.length,
+          needsOrigin: needsOrigin.length,
+        },
+      });
+    }
+
+    if (action === "probe-all") {
+      const rows = (await listManagedCatalog()).filter((row) => row.enabled === 1);
+      const probes = [];
+      for (const row of rows) {
+        probes.push(probeSummary(await probeManagedCatalogEntry(row)));
+      }
+      return json({
+        ok: true,
+        probes,
+        totals: {
+          connected: probes.filter((item) => item.connection === "connected").length,
+          warning: probes.filter((item) => item.connection === "warning").length,
+          pending: probes.filter((item) => item.connection === "pending").length,
+          unavailable: probes.filter((item) => item.connection === "unavailable").length,
+        },
       });
     }
 
@@ -98,17 +239,8 @@ export async function POST(request: Request) {
       return json({
         ok: true,
         probe: {
-          id: probe.config.id,
-          name: probe.config.name,
-          connection: probe.connection,
-          credentialConfigured: probe.credentialConfigured,
-          remoteAdminReady: probe.remoteAdminReady,
-          note: probe.note,
-          protocol: probe.manifest?.protocol ?? null,
-          discoveredVia: probe.manifest?.discoveredVia ?? null,
-          capabilities: probe.config.capabilities,
+          ...probeSummary(probe),
           manifest: probe.manifest,
-          deviceCount: probe.devices.length,
         },
       });
     }
