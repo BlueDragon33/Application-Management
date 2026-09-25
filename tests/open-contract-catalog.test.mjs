@@ -167,3 +167,15 @@ test("batch reprobe can recover pending contracts without deployment or source e
   assert.ok(catalogApi.includes('item.connection === "pending"'));
   assert.ok(catalogApi.includes('item.connection === "unavailable"'));
 });
+
+
+test("same-origin public subpaths participate in contract discovery without app-specific branching", () => {
+  assert.ok(contract.includes("function publicBasePath"));
+  assert.ok(contract.includes("function joinContractPath"));
+  assert.ok(contract.includes("url.origin !== row.origin"));
+  assert.ok(contract.includes('joinContractPath(basePath, "/management-contract.json")'));
+  assert.ok(contract.includes('joinContractPath(basePath, "/control/application-management.contract.json")'));
+  assert.ok(contract.includes('joinContractPath(basePath, "/api/control/contract")'));
+  assert.equal(contract.includes("PriceReport_Tunggiabao/management-contract.json"), false);
+  assert.equal(contract.includes('if (row.id === "price-report-tunggiabao")'), false);
+});
