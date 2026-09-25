@@ -86,13 +86,14 @@ export async function resolveClientOrigin(applicationId: ManagedClientId): Promi
   const values = await environment();
   const mode = networkMode(values);
   const spec = getClientNetworkSpec(applicationId);
-  const production = normalizeClientOrigin(values[spec.productionEnv], false);
+  const productionOverride = spec.productionOverrideEnv ? normalizeClientOrigin(values[spec.productionOverrideEnv], false) : "";
+  const production = productionOverride || normalizeClientOrigin(values[spec.productionEnv], false);
   const explicitLocal = normalizeClientOrigin(values[spec.localEnv], true);
   const legacyLocal = normalizeClientOrigin(values[spec.productionEnv], true);
   const local = explicitLocal || (legacyLocal && !production ? legacyLocal : "") || spec.localDefault;
 
   if (mode === "production") {
-    if (!production) throw new Error(`${spec.productionEnv} chưa được cấu hình HTTPS.`);
+    if (!production) throw new Error(`${spec.productionOverrideEnv ?? spec.productionEnv}/${spec.productionEnv} chưa được cấu hình HTTPS.`);
     return { applicationId, baseUrl: production, source: "production", mode };
   }
 
@@ -107,7 +108,7 @@ export async function resolveClientOrigin(applicationId: ManagedClientId): Promi
   if (production) {
     return { applicationId, baseUrl: production, source: "production", mode };
   }
-  throw new Error(`Không tìm thấy origin local đang hoạt động và ${spec.productionEnv} chưa được cấu hình HTTPS.`);
+  throw new Error(`Không tìm thấy origin local đang hoạt động và ${spec.productionOverrideEnv ?? spec.productionEnv}/${spec.productionEnv} chưa được cấu hình HTTPS.`);
 }
 
 export type ClientBridgeResolution = ClientOriginResolution & {
