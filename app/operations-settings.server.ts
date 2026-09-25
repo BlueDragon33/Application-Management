@@ -1,5 +1,6 @@
 import { readClientAutoApprovalStates } from "./automation-policy-read.server";
 import { getControlDatabase } from "./control-device.server";
+import { listManagedContracts } from "./managed-contract-registry.server";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -52,7 +53,13 @@ export async function dismissedNotificationHashes(actor: string) {
  * by a live Bauman capability probe. Historic central audit never fabricates support.
  */
 export async function readAutoApprovalSettings(supportedAppIds: readonly string[]) {
-  const effectiveAppIds = [...new Set([...supportedAppIds, "bauman-master-ai", "ru-life"])] as string[];
+  const managedCandidates = (await listManagedContracts())
+    .filter((item) => item.enabled && (
+      item.capabilities.deviceAutoApproval === true
+      || item.capabilities.deviceAutoBlockPending === true
+    ))
+    .map((item) => item.applicationId);
+  const effectiveAppIds = [...new Set([...supportedAppIds, "bauman-master-ai", "ru-life", ...managedCandidates])] as string[];
   const fallback = await auditAutoApprovalFallback(effectiveAppIds);
   const autoApproveSupported = new Set<string>();
   const autoApproveEnabled = new Set<string>();
