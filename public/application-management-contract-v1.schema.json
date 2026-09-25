@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://application-management.boiech-ai.workers.dev/application-management-contract-v1.schema.json",
+  "title": "Application Management Contract Registry v1 manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol",
+    "application",
+    "auth",
+    "endpoints",
+    "capabilities"
+  ],
+  "properties": {
+    "protocol": {
+      "const": "application-management.contract.v1"
+    },
+    "application": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "shortName",
+        "initials",
+        "classification",
+        "categoryLabel"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9](?:[a-z0-9-]{1,62}[a-z0-9])?$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "shortName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "initials": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4
+        },
+        "classification": {
+          "enum": [
+            "learning",
+            "health",
+            "academic",
+            "family",
+            "accounting",
+            "engineering",
+            "infrastructure",
+            "operations",
+            "other"
+          ]
+        },
+        "categoryLabel": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "repository": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+        },
+        "runtimeOrigin": {
+          "type": "string",
+          "format": "uri"
+        }
+      }
+    },
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "none",
+            "paired-bearer"
+          ]
+        },
+        "pairEndpoint": {
+          "type": "string",
+          "pattern": "^/(?!/).*$"
+        }
+      }
+    },
+    "endpoints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "pattern": "^/(?!/).*$"
+        },
+        "devices": {
+          "type": "string",
+          "pattern": "^/(?!/).*$"
+        },
+        "deviceCommands": {
+          "type": "string",
+          "pattern": "^/(?!/).*$"
+        },
+        "automation": {
+          "type": "string",
+          "pattern": "^/(?!/).*$"
+        },
+        "launch": {
+          "type": "string",
+          "pattern": "^/(?!/).*$"
+        }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": {
+        "type": [
+          "boolean",
+          "string",
+          "number"
+        ]
+      }
+    }
+  }
+}
