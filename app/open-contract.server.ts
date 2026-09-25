@@ -672,6 +672,66 @@ export async function probeDynamicManagedApplications() {
   return Promise.all(rows.map((row) => probeManagedCatalogEntry(row)));
 }
 
+function managedLaunchUrl(row: ManagedCatalogRow, value: unknown) {
+  const normalized = normalizePublicUrl(value);
+  if (!normalized) return null;
+  const candidate = new URL(normalized);
+  const allowedOrigins = new Set<string>([row.origin]);
+  if (row.public_url) {
+    try { allowedOrigins.add(new URL(row.public_url).origin); } catch { /* Catalog validation already guards public URL. */ }
+  }
+  return allowedOrigins.has(candidate.origin) ? candidate.toString() : null;
+}
+
+export async function resolveUniversalWebLaunch(appIdValue: unknown, actor: ControlDeviceState) {
+  const appId = text(appIdValue).toLowerCase();
+  if (!validAppId(appId)) return null;
+  const row = (await listManagedCatalog()).find((item) => item.id === appId && item.enabled === 1);
+  if (!row) return null;
+
+  const snapshot = await probeManagedCatalogEntry(row);
+  const manifest = snapshot.manifest;
+  if (!snapshot.contractConnected || !manifest || manifest.capabilities.webLaunch !== true) {
+    throw new Error("Universal Contract chưa công bố capability mở Website.");
+  }
+
+  const direct = managedLaunchUrl(row, row.public_url || row.origin);
+  if (!manifest.endpoints.web) {
+    if (!direct) throw new Error("Contract chưa công bố Website hợp lệ.");
+    return { launchUrl: direct, managed: false, contractPath: manifest.discoveredVia ?? row.contract_path };
+  }
+
+  const credential = await decryptCredential(row);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), CONTRACT_TIMEOUT_MS);
+  try {
+    const headers: Record<string, string> = {
+      accept: "application/json",
+      "x-control-actor": actor.email,
+      "x-control-role": actor.role,
+      "x-control-device": actor.deviceId,
+    };
+    if (credential) headers.authorization = `Bearer ${credential}`;
+    const response = await fetch(`${row.origin}${manifest.endpoints.web}`, {
+      method: "GET",
+      cache: "no-store",
+      redirect: "manual",
+      headers,
+      signal: controller.signal,
+    });
+    const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
+    if (!response.ok) throw new Error(text(payload.error) || `HTTP_${response.status}`);
+    const launchUrl = managedLaunchUrl(row, payload.launchUrl || payload.url || payload.href);
+    if (!launchUrl) throw new Error("Web launch endpoint trả URL ngoài origin đã đăng ký.");
+    return { launchUrl, managed: true, contractPath: manifest.discoveredVia ?? row.contract_path };
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error(`Web launch phản hồi quá ${CONTRACT_TIMEOUT_MS / 1000} giây.`);
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function executeUniversalDeviceCommand(input: {
   appId: string;
   operation: "approve" | "remove";
