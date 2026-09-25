@@ -92,7 +92,7 @@ test("global auto-approval dialog can safely control Health_Care", () => {
   assert.match(operations, /enabledBefore\.has\("health-care"\) !== healthEnabled/);
 });
 
-test("Health direct web launch uses a purpose-scoped 60 second ticket in local or cloud transport", () => {
+test("Health keeps its purpose-scoped 60 second ticket as fallback after Universal web launch", () => {
   mustContain(healthBridge, [
     'purpose: "control" | "web-launch"',
     'issueHealthWebLaunch',
@@ -104,12 +104,16 @@ test("Health direct web launch uses a purpose-scoped 60 second ticket in local o
   ]);
   mustContain(operations, [
     'action === "launch-client-web"',
-    'appId !== "health-care"',
+    'await resolveUniversalWebLaunch(appId, actor)',
+    'if (appId === "health-care")',
     'issueHealthWebLaunch(actor.email, actor.role, actor.deviceId)',
     'managedWebLaunch: true',
     'webHref: bridge.baseUrl',
+    'WEB_LAUNCH_CONTRACT_MISSING',
   ]);
-  assert.match(operations, /if \(appId !== "health-care"\).*WEB_LAUNCH_CONTRACT_MISSING/);
+  const universalIndex = operations.indexOf("await resolveUniversalWebLaunch(appId, actor)");
+  const healthFallbackIndex = operations.indexOf('if (appId === "health-care")', universalIndex);
+  assert.ok(universalIndex >= 0 && healthFallbackIndex > universalIndex, "Universal web launch must run before Health legacy fallback");
 });
 
 test("application table opens Health runtime instead of the internal admin route", () => {
