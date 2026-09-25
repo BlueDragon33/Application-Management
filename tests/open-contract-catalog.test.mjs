@@ -87,6 +87,8 @@ test("dashboard merges static registry and D1 managed apps without a second allo
 test("owner can manage app catalog through UI and API without source edits", () => {
   assert.ok(catalogApi.includes('action === "upsert"'));
   assert.ok(catalogApi.includes('action === "probe"'));
+  assert.ok(catalogApi.includes('action === "probe-all"'));
+  assert.ok(catalogApi.includes('action === "sync-existing"'));
   assert.ok(catalogApi.includes('action === "remove"'));
   assert.ok(catalogApi.includes('action === "template"'));
   assert.ok(catalogApi.includes("OWNER_REQUIRED"));
@@ -94,6 +96,10 @@ test("owner can manage app catalog through UI and API without source edits", () 
   assert.ok(catalogUi.includes("Ứng dụng & Universal Contract"));
   assert.ok(catalogUi.includes("Lưu & kiểm tra contract"));
   assert.ok(catalogUi.includes("Tạo contract mẫu theo phân loại"));
+  assert.ok(catalogUi.includes("Đồng bộ ứng dụng hiện có"));
+  assert.ok(catalogUi.includes("Kiểm tra lại tất cả contract"));
+  assert.ok(catalogUi.includes("CẦN CONTROL ORIGIN"));
+  assert.ok(catalogUi.includes("BATCH CONTRACT PROBE"));
   assert.ok(catalogUi.includes("CATEGORY CONTRACT STARTER"));
   assert.ok(catalogUi.includes("/api/application-management/contract"));
   assert.ok(dashboard.includes('id: "tool-managed-apps"'));
@@ -139,4 +145,25 @@ test("contract path supports safe static manifests but endpoint paths remain API
   assert.ok(contract.includes("validEndpointPath"));
   assert.ok(contract.includes("Contract path phải là absolute path an toàn"));
   assert.ok(contract.includes('/^\\/api\\/[a-z0-9/_-]+$/i'));
+});
+
+
+test("legacy sync migrates only missing catalog rows and never overwrites dynamic owner config", () => {
+  assert.ok(catalogApi.includes("applicationRegistry"));
+  assert.ok(catalogApi.includes("listClientNetworkSpecs"));
+  assert.ok(catalogApi.includes("resolveClientBridge"));
+  assert.ok(catalogApi.includes("legacyCatalogCandidate"));
+  assert.ok(catalogApi.includes("if (!current && !candidate.origin)"));
+  assert.ok(catalogApi.includes("if (!current)"));
+  assert.ok(catalogApi.includes("Existing Dynamic Catalog entries are authoritative"));
+  assert.equal(catalogApi.includes("upsertManagedCatalog({ ...current"), false);
+});
+
+test("batch reprobe can recover pending contracts without deployment or source edits", () => {
+  assert.ok(catalogApi.includes('if (action === "probe-all")'));
+  assert.ok(catalogApi.includes("probeManagedCatalogEntry(row)"));
+  assert.ok(catalogApi.includes('item.connection === "connected"'));
+  assert.ok(catalogApi.includes('item.connection === "warning"'));
+  assert.ok(catalogApi.includes('item.connection === "pending"'));
+  assert.ok(catalogApi.includes('item.connection === "unavailable"'));
 });
