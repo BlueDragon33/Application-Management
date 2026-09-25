@@ -15,9 +15,10 @@ test("bulk pending-device action is explicitly destructive instead of ambiguous"
   assert.doesNotMatch(dashboard, /Xử lý tất cả chờ duyệt/);
 });
 
-test("notification badge matches the Hộp việc destination", () => {
-  assert.match(dashboard, /className="amv2-bell"[\s\S]*approvalCount/);
-  assert.doesNotMatch(dashboard, /const notificationCount = workItems\.length/);
+test("notification badge counts dismissible work items and opens the matching alerts view", () => {
+  assert.match(dashboard, /const notificationCount = workItems\.length/);
+  assert.match(dashboard, /className="amv2-bell"[\s\S]*switchView\("alerts"\)/);
+  assert.match(dashboard, /Mở Cảnh báo/);
 });
 
 test("intentional local-first and metadata-only states are not counted as unfinished remote contracts", () => {
