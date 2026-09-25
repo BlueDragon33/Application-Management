@@ -47,5 +47,9 @@ test("quick web menu exposes only actual client runtime URLs", () => {
   assert.match(dashboard, /const hasWeb = Boolean\(summary\?\.webHref \|\| app\.publicUrl \|\| \(localRuntime && app\.localUrl\)\)/);
   assert.match(dashboard, /app\?\.publicUrl \?\? \(localRuntime \? app\?\.localUrl : undefined\)/);
   assert.match(dashboard, /disabled=\{!hasWeb \|\| webBusy === app\.id\}/);
-  assert.match(dashboard, /hasWeb \? "Mở ↗" : "Chờ"/);
+  assert.match(dashboard, /hasWeb \? "Mở ↗" : webActionLabel\(summary, false\)/);
+  assert.match(dashboard, /function webActionLabel/);
+  assert.match(dashboard, /return "Chỉ cục bộ"/);
+  assert.match(dashboard, /return "Chưa có web"/);
+  assert.doesNotMatch(dashboard, /hasWeb \? "Mở ↗" : "Chờ"/);
 });

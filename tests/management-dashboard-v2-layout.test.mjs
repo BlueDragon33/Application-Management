@@ -24,8 +24,9 @@ test("overview matches the approved panel order", () => {
 test("application table uses separate Website and Quản Trị columns with short actions", () => {
   const ui = source("app/management-dashboard-v2.tsx");
   assert.match(ui, /<span>Website<\/span><span>Quản Trị<\/span>/);
-  assert.match(ui, /hasWeb \? "Đến" : "Chờ"/);
-  assert.match(ui, />Vào<\/Link>/);
+  assert.match(ui, /webActionLabel\(summary, hasWeb, webBusy === app\.id\)/);
+  assert.match(ui, />Quản trị<\/Link>/);
+  assert.doesNotMatch(ui, /hasWeb \? "Đến" : "Chờ"/);
 });
 
 test("desktop overview aligns the left split with quick actions and bottom panels", () => {
