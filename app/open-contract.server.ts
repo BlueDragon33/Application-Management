@@ -620,11 +620,13 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
       contractState: remoteAdminReady ? "connected" : repositoryMetadataOnly ? "pending" : "migrating",
       contractNote: remoteAdminReady
         ? `${manifest.protocol ?? CONTRACT_SCHEMA} đã xác minh qua ${manifest.discoveredVia ?? row.contract_path}; capability được normalize động từ client.`
-        : repositoryMetadataOnly
-          ? `Đã xác minh contract metadata ${manifest.protocol ?? "contract"} từ repository; chưa có Control Origin/credential production nên chỉ phân loại và quan sát.`
-          : credential
-            ? `Đã phát hiện ${manifest.protocol ?? "contract"} qua ${manifest.discoveredVia ?? row.contract_path}, nhưng client chưa công bố đủ device-control endpoint.`
-            : `Đã phát hiện ${manifest.protocol ?? "contract"} qua ${manifest.discoveredVia ?? row.contract_path}; chưa có credential quản trị nên chỉ ở chế độ quan sát.`,
+        : managementMode === "local-first"
+          ? `Đã xác minh metadata ${manifest.protocol ?? "contract"} từ repository. Ứng dụng chủ đích local-first; không yêu cầu Remote Admin cloud.`
+          : managementMode === "metadata-only"
+            ? `Đã xác minh metadata ${manifest.protocol ?? "contract"} từ repository. Runtime Production chưa được công bố; Trung tâm không tạo cảnh báo kết nối giả.`
+            : credential
+              ? `Đã phát hiện ${manifest.protocol ?? "contract"} qua ${manifest.discoveredVia ?? row.contract_path}, nhưng client chưa công bố đủ device-control endpoint.`
+              : `Đã phát hiện ${manifest.protocol ?? "contract"} qua ${manifest.discoveredVia ?? row.contract_path}; chưa có credential quản trị nên chỉ ở chế độ quan sát.`,
       capabilities,
     });
     return {
