@@ -19,15 +19,28 @@ type CatalogApp = {
   updatedAt: string;
 };
 
+type ProbeSummary = {
+  id?: string;
+  name?: string;
+  connection?: string;
+  credentialConfigured?: boolean;
+  remoteAdminReady?: boolean;
+  note?: string;
+  protocol?: string | null;
+  discoveredVia?: string | null;
+  capabilities?: string[];
+  deviceCount?: number;
+};
+
 type CatalogResponse = {
   ok?: boolean;
   error?: string;
   encryptionReady?: boolean;
   apps?: CatalogApp[];
-  migrated?: Array<{ id: string; source?: string; probe?: CatalogResponse["probe"] | null }>;
-  existing?: Array<{ id: string; probe?: CatalogResponse["probe"] | null }>;
+  migrated?: Array<{ id: string; source?: string; probe?: ProbeSummary | null }>;
+  existing?: Array<{ id: string; probe?: ProbeSummary | null }>;
   needsOrigin?: Array<{ id: string; name: string; category: string; repository?: string; reason: string }>;
-  probes?: CatalogResponse["probe"][];
+  probes?: ProbeSummary[];
   totals?: {
     migrated?: number;
     existing?: number;
@@ -42,18 +55,7 @@ type CatalogResponse = {
     recommendedContractCapabilities?: string[];
     defaultGuardrails?: string[];
   };
-  probe?: {
-    id?: string;
-    name?: string;
-    connection?: string;
-    credentialConfigured?: boolean;
-    remoteAdminReady?: boolean;
-    note?: string;
-    protocol?: string | null;
-    discoveredVia?: string | null;
-    capabilities?: string[];
-    deviceCount?: number;
-  };
+  probe?: ProbeSummary;
 };
 
 const categories = ["Học tập", "Y tế", "Nga", "Học thuật", "Gia đình", "Kế toán", "Kỹ thuật"] as const;
