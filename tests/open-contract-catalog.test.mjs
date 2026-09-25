@@ -87,6 +87,14 @@ test("owner can manage app catalog through UI and API without source edits", () 
   assert.ok(dashboard.includes('id: "tool-managed-apps"'));
 });
 
+test("Production catalog blocks SSRF-style private origins and legacy adapter shadowing", () => {
+  assert.ok(contract.includes("Production không cho phép contract origin trỏ tới localhost/LAN/private IP."));
+  assert.ok(contract.includes("privateHost(url.hostname) && !localAllowed"));
+  assert.ok(contract.includes("protectedLegacyIds"));
+  assert.ok(contract.includes("chưa được phép ghi đè bằng Dynamic Catalog"));
+  assert.ok(contract.includes("Credential quản trị vượt quá giới hạn 4096 ký tự."));
+});
+
 test("new apps do not need new workflow secret names", () => {
   assert.equal(contract.includes("CONTROL_SERVICE_SECRET"), false);
   assert.equal(contract.includes("HEALTH_CONTROL_SERVICE_SECRET"), false);
