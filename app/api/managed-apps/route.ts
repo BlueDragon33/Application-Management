@@ -114,6 +114,8 @@ function probeSummary(probe: Awaited<ReturnType<typeof probeManagedCatalogEntry>
     credentialConfigured: probe.credentialConfigured,
     contractConnected: probe.contractConnected,
     remoteAdminReady: probe.remoteAdminReady,
+    managementMode: probe.managementMode,
+    metadataVerified: probe.metadataVerified,
     note: probe.note,
     protocol: probe.manifest?.protocol ?? null,
     discoveredVia: probe.manifest?.discoveredVia ?? null,
@@ -289,7 +291,9 @@ export async function POST(request: Request) {
         totals: {
           connected: probes.filter((item) => item.connection === "connected").length,
           warning: probes.filter((item) => item.connection === "warning").length,
-          pending: probes.filter((item) => item.connection === "pending").length,
+          pending: probes.filter((item) => item.connection === "pending" && item.managementMode !== "local-first" && item.managementMode !== "metadata-only").length,
+          localFirst: probes.filter((item) => item.managementMode === "local-first").length,
+          metadataOnly: probes.filter((item) => item.managementMode === "metadata-only").length,
           unavailable: probes.filter((item) => item.connection === "unavailable").length,
         },
       });
@@ -327,15 +331,7 @@ export async function POST(request: Request) {
       return json({
         ok: true,
         id,
-        probe: probe ? {
-          connection: probe.connection,
-          credentialConfigured: probe.credentialConfigured,
-          remoteAdminReady: probe.remoteAdminReady,
-          note: probe.note,
-          protocol: probe.manifest?.protocol ?? null,
-          discoveredVia: probe.manifest?.discoveredVia ?? null,
-          capabilities: probe.config.capabilities,
-        } : null,
+        probe: probe ? probeSummary(probe) : null,
       });
     }
 
