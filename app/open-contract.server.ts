@@ -38,6 +38,8 @@ export type UniversalContractManifest = {
     remoteAdminReady?: boolean;
     credentialRequired?: boolean;
     credentialEnv?: string;
+    localFirst?: boolean;
+    productionRuntimeReady?: boolean;
   };
   endpoints: {
     status?: string;
@@ -61,6 +63,8 @@ export type UniversalContractDevice = {
   registryInstanceId?: string | null;
 };
 
+export type ManagedContractMode = "remote-admin" | "observe-only" | "local-first" | "metadata-only";
+
 export type DynamicContractSnapshot = {
   catalog: ManagedCatalogRow;
   config: ReturnType<typeof dynamicApplicationConfig>;
@@ -71,6 +75,8 @@ export type DynamicContractSnapshot = {
   devices: UniversalContractDevice[];
   webHref: string | null;
   remoteAdminReady: boolean;
+  managementMode: ManagedContractMode;
+  metadataVerified: boolean;
   note: string;
   issueCode?: string;
 };
@@ -356,6 +362,8 @@ function parseManifest(raw: Record<string, unknown>, expectedId: string, expecte
       ...(typeof policyRaw.remoteAdminReady === "boolean" ? { remoteAdminReady: policyRaw.remoteAdminReady } : {}),
       ...(typeof policyRaw.credentialRequired === "boolean" ? { credentialRequired: policyRaw.credentialRequired } : {}),
       ...(text(policyRaw.credentialEnv) ? { credentialEnv: text(policyRaw.credentialEnv) } : {}),
+      ...(typeof policyRaw.localFirst === "boolean" ? { localFirst: policyRaw.localFirst } : {}),
+      ...(typeof policyRaw.productionRuntimeReady === "boolean" ? { productionRuntimeReady: policyRaw.productionRuntimeReady } : {}),
     },
     endpoints: {
       status: endpoint(endpointsRaw.status),
@@ -550,6 +558,19 @@ function metadataOnlyRepositoryOrigin(origin: string) {
   catch { return false; }
 }
 
+function contractManagementMode(
+  manifest: UniversalContractManifest,
+  repositoryMetadataOnly: boolean,
+  remoteAdminReady: boolean,
+): ManagedContractMode {
+  const protocol = (manifest.protocol ?? "").toLowerCase();
+  const localFirst = manifest.policy?.localFirst === true || protocol.includes("local-first");
+  if (localFirst) return "local-first";
+  if (repositoryMetadataOnly) return "metadata-only";
+  if (remoteAdminReady) return "remote-admin";
+  return "observe-only";
+}
+
 function capabilityLabels(capabilities: Record<string, boolean>) {
   const labels: Record<string, string> = {
     deviceRegistry: "Thiết bị",
@@ -586,6 +607,8 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
     }
     const capabilities = capabilityLabels(manifest.capabilities);
     const repositoryMetadataOnly = metadataOnlyRepositoryOrigin(row.origin);
+    const managementMode = contractManagementMode(manifest, repositoryMetadataOnly, remoteAdminReady);
+    const metadataVerified = repositoryMetadataOnly;
     const config = dynamicApplicationConfig({
       id: row.id,
       name: row.name,
@@ -614,6 +637,8 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
       devices,
       webHref: row.public_url || (!repositoryMetadataOnly && manifest.capabilities.webLaunch ? row.origin : null),
       remoteAdminReady,
+      managementMode,
+      metadataVerified,
       note: config.contractNote,
       ...(repositoryMetadataOnly ? { issueCode: "REPOSITORY_METADATA_ONLY" } : {}),
     };
@@ -639,6 +664,8 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
       devices: [],
       webHref: row.public_url,
       remoteAdminReady: false,
+      managementMode: "observe-only",
+      metadataVerified: false,
       note: config.contractNote,
       issueCode: "OPEN_CONTRACT_PENDING",
     };
