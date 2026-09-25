@@ -162,6 +162,7 @@ function identityFromContract(raw: Record<string, unknown>) {
 export async function discoverManagedContractOrigin(input: {
   target: unknown;
   credential?: unknown;
+  directOnly?: boolean;
 }): Promise<ManagedContractDiscovery> {
   const target = await normalizeTarget(input.target);
   const credential = text(input.credential);
@@ -179,9 +180,11 @@ export async function discoverManagedContractOrigin(input: {
     add(target.directPath);
     if (credential) add(target.directPath, credential);
   }
-  for (const path of DEFAULT_CANDIDATES) {
-    add(join(target.basePath, path));
-    if (credential) add(join(target.basePath, path), credential);
+  if (!input.directOnly) {
+    for (const path of DEFAULT_CANDIDATES) {
+      add(join(target.basePath, path));
+      if (credential) add(join(target.basePath, path), credential);
+    }
   }
 
   const failures: string[] = [];
@@ -204,4 +207,58 @@ export async function discoverManagedContractOrigin(input: {
   }
 
   throw new Error(`Không phát hiện contract tương thích từ URL này. ${failures.join(" · ").slice(0, 1_000)}`);
+}
+
+
+const PUBLIC_REPOSITORY_CONTRACT_PATHS = [
+  "control/application-management.contract.json",
+  "public/control/application-management.contract.json",
+  "management-contract.json",
+  "public/management-contract.json",
+] as const;
+
+function normalizeRepository(value: unknown) {
+  const repository = text(value);
+  return /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository) ? repository : "";
+}
+
+/**
+ * Safe metadata-only fallback for public GitHub repositories.
+ *
+ * This does not infer a live control origin. It only verifies a committed
+ * contract manifest by exact application identity so an app can enter the
+ * catalog without editing Application Management source or inventing a
+ * remote-admin connection.
+ */
+export async function discoverManagedRepositoryContract(input: {
+  repository: unknown;
+  expectedId?: unknown;
+}): Promise<ManagedContractDiscovery> {
+  const repository = normalizeRepository(input.repository);
+  if (!repository) throw new Error("Repository phải có dạng owner/name hợp lệ.");
+  const expectedId = text(input.expectedId);
+  if (expectedId && !validAppId(expectedId)) throw new Error("Expected application.id không hợp lệ.");
+
+  const failures: string[] = [];
+  for (const branch of ["main", "master"] as const) {
+    for (const relativePath of PUBLIC_REPOSITORY_CONTRACT_PATHS) {
+      const target = `https://raw.githubusercontent.com/${repository}/${branch}/${relativePath}`;
+      try {
+        const discovery = await discoverManagedContractOrigin({ target, directOnly: true });
+        if (expectedId && discovery.id !== expectedId) {
+          failures.push(`${branch}/${relativePath}: application.id=${discovery.id} không khớp ${expectedId}`);
+          continue;
+        }
+        if (discovery.repository && discovery.repository.toLowerCase() !== repository.toLowerCase()) {
+          failures.push(`${branch}/${relativePath}: repository trong contract không khớp`);
+          continue;
+        }
+        return { ...discovery, repository: discovery.repository ?? repository };
+      } catch (error) {
+        failures.push(`${branch}/${relativePath}: ${error instanceof Error ? error.message : "không đọc được"}`);
+      }
+    }
+  }
+
+  throw new Error(`Repository chưa công bố contract metadata tương thích. ${failures.join(" · ").slice(0, 1_000)}`);
 }
