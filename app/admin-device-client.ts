@@ -171,6 +171,48 @@ export type OperationsActionResponse = {
   settings?: OperationsSettings;
 };
 
+export type ContractRegistryApplication = {
+  applicationId: string;
+  name: string;
+  shortName: string;
+  initials: string;
+  classification: string;
+  categoryLabel: string;
+  repository: string | null;
+  controlOrigin: string | null;
+  runtimeOrigin: string | null;
+  manifestPath: string;
+  contractVersion: string;
+  authMode: "none" | "paired-bearer" | "legacy-env";
+  tokenExpiresAt: number | null;
+  capabilities: Record<string, boolean | string | number>;
+  endpoints: Record<string, string>;
+  enabled: boolean;
+  state: "connected" | "warning" | "pending" | "disabled";
+  lastProbeAt: string | null;
+  lastError: string | null;
+};
+
+export type ContractRegistryResponse = {
+  ok?: boolean;
+  error?: string;
+  code?: string;
+  applications?: ContractRegistryApplication[];
+  application?: ContractRegistryApplication | null;
+  applicationId?: string;
+  discovery?: {
+    origin: string;
+    manifestPath: string;
+    manifest: {
+      protocol: string;
+      application: Record<string, unknown>;
+      auth: Record<string, unknown>;
+      endpoints: Record<string, string>;
+      capabilities: Record<string, boolean | string | number>;
+    };
+  };
+};
+
 export type CenterApiResponse = Partial<CenterBootstrap> & {
   error?: string;
   code?: string;
@@ -404,6 +446,12 @@ export async function centerAdminAction(body: Record<string, unknown>) {
   const { credential, access } = await approvedSession();
   if (access.status !== "approved") throw new AdminApiError("Thiết bị quản trị chưa được cấp quyền.", { device: access });
   return await secureApi("/api/center", credential, access, body) as CenterApiResponse;
+}
+
+export async function contractRegistryAction(body: Record<string, unknown>) {
+  const { credential, access } = await approvedSession();
+  if (access.status !== "approved") throw new AdminApiError("Thiết bị quản trị chưa được cấp quyền.", { device: access });
+  return await secureApi("/api/contract-registry", credential, access, body) as ContractRegistryResponse;
 }
 
 /** Bridge bootstrap dành riêng cho client Bơi ếch. */
