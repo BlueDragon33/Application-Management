@@ -6,7 +6,7 @@ import { issueRuLifeBrowserBridge } from "../../ru-life.server";
 import { issueBaumanBrowserBridge } from "../../bauman.server";
 import { issueGrowUpBrowserBridge, probeGrowUpManagementContract } from "../../growup.server";
 import { issuePriceReportBrowserBridge, probePriceReportManagementContract } from "../../price-report.server";
-import { executeUniversalDeviceCommand, probeDynamicManagedApplications, type DynamicContractSnapshot } from "../../open-contract.server";
+import { executeUniversalDeviceCommand, probeDynamicManagedApplications, resolveUniversalWebLaunch, type DynamicContractSnapshot } from "../../open-contract.server";
 import {
   dismissedNotificationHashes,
   hashWorkItem,
@@ -501,13 +501,13 @@ function summary(
   const hasOperationalData = hasOperationalDataOverride ?? connected;
   return {
     appId: config.id, appName: config.shortName, href: config.href,
-    webHref: connected ? webHref : null,
-    managedWebLaunch: connected && managedWebLaunch,
+    webHref,
+    managedWebLaunch,
     group: config.category,
     connection, onlineCount: hasOperationalData ? devices.filter((device) => device.active).length : null,
     pendingCount: hasOperationalData ? devices.filter((device) => device.status === "pending").length : null,
     attentionCount: hasOperationalData ? devices.filter((device) => device.attention !== "none").length : null,
-    note, directWebAccess: connected && Boolean(webHref), remoteAdminReady, issueCode,
+    note, directWebAccess: Boolean(webHref), remoteAdminReady, issueCode,
     controlChannel, contractReadiness,
   };
 }
@@ -554,7 +554,7 @@ async function buildBootstrap(actor: ControlDeviceState) {
       snapshot.connection,
       snapshot.note,
       snapshot.webHref,
-      false,
+      Boolean(snapshot.contractConnected && snapshot.manifest?.capabilities.webLaunch && snapshot.manifest?.endpoints.web),
       snapshot.remoteAdminReady,
       snapshot.remoteAdminReady,
       snapshot.issueCode,
@@ -762,9 +762,26 @@ export async function POST(request: Request) {
 
     if (action === "launch-client-web") {
       const appId = text(payload.appId);
-      if (appId !== "health-care") return json({ error: "Client này chưa công bố direct web launch do control-plane quản lý.", code: "WEB_LAUNCH_CONTRACT_MISSING" }, 409);
-      const launch = await issueHealthWebLaunch(actor.email, actor.role, actor.deviceId);
-      return json({ ok: true, ...launch });
+
+      try {
+        const universal = await resolveUniversalWebLaunch(appId, actor);
+        if (universal) return json({ ok: true, ...universal, source: "universal-contract" });
+      } catch (error) {
+        return json({
+          error: error instanceof Error ? error.message : "Universal Contract chưa thể mở Website.",
+          code: "UNIVERSAL_WEB_LAUNCH_UNAVAILABLE",
+        }, 409);
+      }
+
+      if (appId === "health-care") {
+        const launch = await issueHealthWebLaunch(actor.email, actor.role, actor.deviceId);
+        return json({ ok: true, ...launch, source: "legacy-adapter" });
+      }
+
+      return json({
+        error: "Ứng dụng chưa đăng ký webLaunch trong Dynamic Catalog và không có adapter tương thích.",
+        code: "WEB_LAUNCH_CONTRACT_MISSING",
+      }, 409);
     }
 
     if (action === "dismiss-notifications") {
