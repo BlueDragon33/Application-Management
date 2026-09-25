@@ -1,0 +1,58 @@
+name: Audit Real Client Connectivity
+
+on:
+  push:
+    branches:
+      - "ops/audit-real-client-connectivity-20260925"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: application-management-production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Query production managed app catalog
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4.92.0 d1 execute application-management-production-db --remote --command "SELECT id,name,origin,public_url,repository,contract_path,enabled,CASE WHEN credential_ciphertext IS NOT NULL AND credential_ciphertext<>'' THEN 1 ELSE 0 END AS has_credential FROM managed_app_catalog ORDER BY id;" --json > /tmp/catalog.json
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          const raw=JSON.parse(fs.readFileSync('/tmp/catalog.json','utf8'));
+          const rows=raw?.[0]?.results ?? raw?.result?.[0]?.results ?? raw?.results ?? [];
+          console.log('CATALOG_ROWS=' + JSON.stringify(rows));
+          NODE
+
+      - name: Probe public contract/runtime targets
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          import { execFileSync } from 'node:child_process';
+          const raw=JSON.parse(fs.readFileSync('/tmp/catalog.json','utf8'));
+          const rows=raw?.[0]?.results ?? raw?.result?.[0]?.results ?? raw?.results ?? [];
+          for (const row of rows) {
+            const result={id:row.id,origin:row.origin,public_url:row.public_url,repository:row.repository,has_credential:Boolean(row.has_credential)};
+            for (const [label,url] of [['contract', row.origin && row.contract_path ? row.origin + row.contract_path : ''], ['origin', row.origin || ''], ['public', row.public_url || '']]) {
+              if (!url) { result[label]={configured:false}; continue; }
+              try {
+                const out=execFileSync('curl',['--silent','--show-error','--max-time','12','--output','/dev/null','--write-out','%{http_code}|%{content_type}|%{redirect_url}',url],{encoding:'utf8'}).trim();
+                const [status,contentType,redirect]=out.split('|');
+                result[label]={configured:true,status:Number(status),contentType:contentType||null,redirect:redirect||null,url};
+              } catch (e) {
+                result[label]={configured:true,status:0,url,error:'request_failed'};
+              }
+            }
+            console.log('PROBE=' + JSON.stringify(result));
+          }
+          NODE
