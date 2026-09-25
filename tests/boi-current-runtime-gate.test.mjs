@@ -39,5 +39,6 @@ test("local startup and smoke require the current Boi runtime identity endpoint"
 test("Boi operational data is still read only after the runtime gate passes", () => {
   const operations = read("app/api/operations/route.ts");
   assert.match(operations, /const bridge = await issueBoiBrowserBridge\(actor\.email, actor\.role\)/);
-  assert.match(operations, /bridgeJson\(bridge, "\/api\/control\/overview\?activityDays=0"\)/);
+  assert.match(operations, /bridgeReadJson\(bridge, "\/api\/control\/overview\?activityDays=0"\)/);
+  assert.match(operations, /function retryableReadError/);
 });

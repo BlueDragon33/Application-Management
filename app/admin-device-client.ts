@@ -137,6 +137,8 @@ export type OperationsSummary = {
   directWebAccess: boolean;
   remoteAdminReady?: boolean;
   issueCode?: string;
+  controlChannel?: "universal" | "legacy-adapter" | "contract-observe" | "none";
+  contractReadiness?: "ready" | "partial" | "pending" | "not-enrolled";
 };
 
 export type OperationsSettings = {

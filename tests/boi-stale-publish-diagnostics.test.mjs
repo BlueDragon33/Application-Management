@@ -14,7 +14,10 @@ test("operations preserve Boi stale publish issue codes instead of flattening th
   assert.match(route, /issueCode\?: string/);
   assert.match(route, /result\.issueCode === "BOI_ECH_STALE_PUBLISH"/);
   assert.match(route, /Bơi ếch đang publish bản cũ/);
-  assert.match(route, /Bơi ếch chưa cập nhật runtime identity/);
+  assert.match(route, /Bơi ếch chưa xác minh được runtime identity/);
+  assert.match(route, /BOI_ECH_CONTROL_AUTH_MISMATCH/);
+  assert.match(route, /BOI_ECH_CONTROL_API_MISSING/);
+  assert.match(route, /BOI_ECH_CONTROL_UNAVAILABLE/);
 });
 
 test("Boi client admin receives the real stale publish error from dashboard bootstrap", () => {
@@ -33,6 +36,9 @@ test("central dashboard labels a rejected stale Boi publish without implying a g
   assert.match(ui, /BOI_ECH_STALE_PUBLISH/);
   assert.match(ui, /Publish cũ · đã chặn/);
   assert.match(ui, /BOI_ECH_RUNTIME_IDENTITY_UNAVAILABLE/);
-  assert.match(ui, /Chưa cập nhật publish/);
-  assert.match(ui, /connectionLabel\(state, summary\?\.issueCode\)/);
+  assert.match(ui, /Chưa xác minh runtime/);
+  assert.match(ui, /Sai khóa kết nối/);
+  assert.match(ui, /Thiếu Control API/);
+  assert.match(ui, /Mất kết nối Control/);
+  assert.match(ui, /connectionLabel\(state, summary\)/);
 });
