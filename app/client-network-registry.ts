@@ -19,6 +19,7 @@ export type ClientNetworkSpec = {
   label: string;
   endpointKind: ClientNetworkEndpointKind;
   productionEnv: string;
+  productionOverrideEnv?: string;
   localEnv: string;
   localDefault: string;
   probePath: string;
@@ -41,6 +42,7 @@ export const clientNetworkRegistry = {
     label: "Sức khỏe Y tế Control",
     endpointKind: "control",
     productionEnv: "HEALTH_CARE_BASE_URL",
+    productionOverrideEnv: "HEALTH_CARE_BASE_URL_OVERRIDE",
     localEnv: "HEALTH_CARE_LOCAL_BASE_URL",
     localDefault: "http://127.0.0.1:3001",
     probePath: "/api/control/contract",
@@ -53,6 +55,7 @@ export const clientNetworkRegistry = {
     label: "Hòa nhập Nga Control",
     endpointKind: "control",
     productionEnv: "RU_LIFE_BASE_URL",
+    productionOverrideEnv: "RU_LIFE_BASE_URL_OVERRIDE",
     localEnv: "RU_LIFE_LOCAL_BASE_URL",
     localDefault: "http://127.0.0.1:3002",
     probePath: "/api/control/status",
@@ -89,6 +92,7 @@ export const clientNetworkRegistry = {
     label: "Bơi ếch Control",
     endpointKind: "control",
     productionEnv: "BOI_ECH_BASE_URL",
+    productionOverrideEnv: "BOI_ECH_BASE_URL_OVERRIDE",
     localEnv: "BOI_ECH_LOCAL_BASE_URL",
     localDefault: "http://127.0.0.1:3004",
     probePath: "/api/control/runtime",
@@ -101,6 +105,7 @@ export const clientNetworkRegistry = {
     label: "PriceReport KT Control",
     endpointKind: "control",
     productionEnv: "PRICE_REPORT_CONTROL_BASE_URL",
+    productionOverrideEnv: "PRICE_REPORT_CONTROL_BASE_URL_OVERRIDE",
     localEnv: "PRICE_REPORT_CONTROL_LOCAL_BASE_URL",
     localDefault: "http://127.0.0.1:3009",
     probePath: "/api/control/status",
