@@ -294,3 +294,73 @@ Thêm app mới không cần sửa code Trung tâm:
 
 Không thêm env name mới, route riêng, allow-list dashboard hay adapter mới cho app mới.
 Adapter legacy chỉ tồn tại cho các app cũ trong giai đoạn migration.
+
+
+## Zero-code onboarding by URL
+
+Từ lớp Catalog mới, Owner không cần khai báo source code Trung tâm cho từng app.
+
+Quy trình chuẩn:
+
+1. Client publish một trong các endpoint/manifest:
+   - `/api/application-management/contract`
+   - `/api/control/contract`
+   - `/management-contract.json`
+   - `/control/application-management.contract.json`
+   - hoặc legacy `/api/control/status`.
+2. Trong `Catalog & Contract`, dán URL app/control/manifest vào `Khám phá app từ URL`.
+3. Trung tâm tự đọc:
+   - application id;
+   - tên;
+   - category nếu client công bố;
+   - protocol/version;
+   - capability;
+   - contract path thực tế.
+4. Nếu manifest chưa có category, Owner chọn đúng một trong các category chuẩn. Trung tâm không đoán category từ tên app.
+5. Nếu manifest protected, nhập credential app-scoped để probe. Credential chỉ được lưu khi Owner bấm `Lưu`, sau đó mã hóa AES-GCM trong D1.
+6. Sau khi lưu, dashboard tự merge entry từ Dynamic Catalog. Không thêm route riêng, allow-list riêng, env name riêng hoặc branch theo app id.
+7. `contractConnected` và `remoteAdminReady` là hai trạng thái khác nhau:
+   - Contract Connected: manifest đã bắt tay/validate thành công.
+   - Remote Admin Ready: đã có credential + endpoint/capability/guardrail đủ cho mutation.
+8. Contract đã kết nối nhưng mutation chưa sẵn sàng phải hiển thị read-only/warning, không được báo giả là mất kết nối.
+
+### Yêu cầu tối thiểu của app mới
+
+Manifest tối thiểu nên công bố:
+
+```json
+{
+  "schema": "application-management.contract/v1",
+  "protocol": "application-management.contract/v1",
+  "application": {
+    "id": "my-app",
+    "name": "My App",
+    "category": "Kỹ thuật",
+    "version": "1"
+  },
+  "capabilities": {
+    "deviceRegistry": false,
+    "deviceApproval": false,
+    "deviceBlock": false,
+    "deviceIdempotentCommands": false,
+    "optimisticConcurrency": false,
+    "audit": false,
+    "webLaunch": true
+  },
+  "endpoints": {}
+}
+```
+
+Mọi capability mặc định phải là `false`. Chỉ chuyển sang `true` khi endpoint/backend tương ứng đã hoạt động thật.
+
+### Không cần sửa Application Management khi thêm app mới
+
+Nếu app mới tuân thủ contract trên, các bước cần làm chỉ là:
+
+- deploy app;
+- mở `Catalog & Contract`;
+- dán URL;
+- xác nhận category/credential nếu cần;
+- lưu.
+
+Application Management không cần commit source mới để biết tên app đó.
