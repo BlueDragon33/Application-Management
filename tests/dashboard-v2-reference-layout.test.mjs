@@ -18,8 +18,9 @@ test("dashboard v2 keeps the approved one-screen overview composition", () => {
 test("managed application table exposes Website then Quản Trị actions", () => {
   const ui = source("app/management-dashboard-v2.tsx");
   assert.match(ui, /<span>Website<\/span><span>Quản Trị<\/span>/);
-  assert.match(ui, /hasWeb \? "Đến" : "Chờ"/);
-  assert.match(ui, />Vào<\/Link>/);
+  assert.match(ui, /webActionLabel\(summary, hasWeb, webBusy === app\.id\)/);
+  assert.match(ui, />Quản trị<\/Link>/);
+  assert.doesNotMatch(ui, /hasWeb \? "Đến" : "Chờ"/);
 });
 
 test("approved layout contains no decorative pager/footer strips", () => {
