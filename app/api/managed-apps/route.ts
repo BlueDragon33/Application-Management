@@ -78,6 +78,8 @@ export async function POST(request: Request) {
           credentialConfigured: probe.credentialConfigured,
           remoteAdminReady: probe.remoteAdminReady,
           note: probe.note,
+          protocol: probe.manifest?.protocol ?? null,
+          discoveredVia: probe.manifest?.discoveredVia ?? null,
           capabilities: probe.config.capabilities,
         } : null,
       });
@@ -102,6 +104,8 @@ export async function POST(request: Request) {
           credentialConfigured: probe.credentialConfigured,
           remoteAdminReady: probe.remoteAdminReady,
           note: probe.note,
+          protocol: probe.manifest?.protocol ?? null,
+          discoveredVia: probe.manifest?.discoveredVia ?? null,
           capabilities: probe.config.capabilities,
           manifest: probe.manifest,
           deviceCount: probe.devices.length,
