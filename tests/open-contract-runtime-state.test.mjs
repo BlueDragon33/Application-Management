@@ -29,6 +29,7 @@ test("contract connection state is independent from remote admin readiness", () 
 test("Universal Contract web launch is generic and origin constrained", () => {
   assert.ok(contract.includes("export async function resolveUniversalWebLaunch"));
   assert.ok(contract.includes("manifest.capabilities.webLaunch !== true"));
+  assert.ok(contract.includes("return null;"));
   assert.ok(contract.includes("allowedOrigins"));
   assert.ok(contract.includes("Web launch endpoint trả URL ngoài origin đã đăng ký."));
   assert.ok(operations.includes("await resolveUniversalWebLaunch(appId, actor)"));
