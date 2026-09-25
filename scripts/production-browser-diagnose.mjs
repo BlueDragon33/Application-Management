@@ -40,8 +40,23 @@ page.on("response", (response) => {
 });
 
 let navigationStatus = 0;
+let repairResponse = null;
+page.on("response", (response) => {
+  try {
+    if (new URL(response.url()).pathname !== "/__repair-cache") return;
+    repairResponse = {
+      status: response.status(),
+      clearSiteData: response.headers()["clear-site-data"] ?? "",
+      cacheControl: response.headers()["cache-control"] ?? "",
+      location: response.headers().location ?? "",
+    };
+    push("repair", JSON.stringify(repairResponse));
+  } catch {
+    // Diagnostic observation must never break the browser run.
+  }
+});
 try {
-  const response = await page.goto(origin + "/", { waitUntil: "domcontentloaded", timeout: 45_000 });
+  const response = await page.goto(origin + "/__repair-cache", { waitUntil: "domcontentloaded", timeout: 45_000 });
   navigationStatus = response?.status() ?? 0;
   push("navigation", `status=${navigationStatus} url=${page.url()}`);
   await page.waitForTimeout(8_000);
@@ -61,10 +76,16 @@ try {
 
   console.log("=== PRODUCTION_BROWSER_SNAPSHOT ===");
   console.log(JSON.stringify(snapshot, null, 2));
-  fs.writeFileSync("/tmp/application-management-production-browser.json", JSON.stringify({ snapshot, diagnostics }, null, 2));
+  fs.writeFileSync("/tmp/application-management-production-browser.json", JSON.stringify({ snapshot, repairResponse, diagnostics }, null, 2));
   await page.screenshot({ path: "/tmp/application-management-production-browser.png", fullPage: true });
 
-  if (navigationStatus !== 200) throw new Error(`Authenticated root returned HTTP ${navigationStatus}.`);
+  if (navigationStatus !== 200) throw new Error(`Authenticated repaired root returned HTTP ${navigationStatus}.`);
+  if (!repairResponse || repairResponse.status !== 303) throw new Error("Cache repair route did not return HTTP 303 before redirect.");
+  if (!repairResponse.clearSiteData.includes('"cache"')) throw new Error("Cache repair route did not request browser cache clearing.");
+  if (repairResponse.clearSiteData.includes('"cookies"') || repairResponse.clearSiteData.includes('"storage"')) {
+    throw new Error("Cache repair route must not clear login cookies or local storage.");
+  }
+  if (!snapshot.url.includes("?fresh=")) throw new Error("Cache repair did not redirect to a revision-busted root.");
   if (snapshot.url.includes("/__login")) throw new Error("QA session was redirected to login.");
   if (!snapshot.bodyText.toLocaleUpperCase("vi-VN").includes("QUẢN TRỊ ỨNG DỤNG")) {
     throw new Error("Production body does not contain the management shell/gate text.");
