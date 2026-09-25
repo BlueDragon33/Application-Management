@@ -13,6 +13,9 @@ const autoUi = fs.readFileSync("app/automatic-device-policies.tsx", "utf8");
 const registryApi = fs.readFileSync("app/api/contract-registry/route.ts", "utf8");
 const registryPage = fs.readFileSync("app/tools/contract-registry/page.tsx", "utf8");
 const appRegistry = fs.readFileSync("app/application-registry.ts", "utf8");
+const worker = fs.readFileSync("worker/index.ts", "utf8");
+const productionDeploy = fs.readFileSync(".github/workflows/deploy-application-management-production.yml", "utf8");
+const schema = JSON.parse(fs.readFileSync("public/application-management-contract-v1.schema.json", "utf8"));
 
 test("dynamic registry removes the central fixed application id type boundary", () => {
   assert.ok(appRegistry.includes("id: string;"));
@@ -85,4 +88,24 @@ test("owner registry API and UI expose discovery pairing probe and legacy origin
   assert.ok(registryPage.includes("Đưa vào quản trị"));
   assert.ok(registryPage.includes("Pair & Probe"));
   assert.ok(registryPage.includes("Không cần redeploy Trung tâm"));
+});
+
+test("dynamic origins block private hosts and deployment health requires registry schema", () => {
+  assert.ok(registry.includes('url.protocol === "https:" && !privateHostname(url.hostname)'));
+  assert.ok(worker.includes('SELECT application_id FROM managed_contract_apps LIMIT 1'));
+  assert.ok(migration.includes("managed_contract_apps_state_idx"));
+});
+
+test("legacy secret installation no longer depends on legacy URL env variables", () => {
+  assert.ok(productionDeploy.includes("if: ${{ env.CONTROL_SERVICE_SECRET != '' }}"));
+  assert.ok(productionDeploy.includes("if: ${{ env.HEALTH_CONTROL_SERVICE_SECRET != '' }}"));
+  assert.ok(productionDeploy.includes("if: ${{ env.RU_LIFE_CONTROL_SERVICE_SECRET != '' }}"));
+  assert.ok(productionDeploy.includes("if: ${{ env.BAUMAN_CONTROL_SERVICE_SECRET != '' }}"));
+});
+
+test("public JSON schema advertises the no-code Contract Registry protocol", () => {
+  assert.equal(schema.properties.protocol.const, "application-management.contract.v1");
+  assert.equal(schema.properties.application.properties.classification.enum.includes("engineering"), true);
+  assert.equal(schema.properties.auth.properties.mode.enum.includes("paired-bearer"), true);
+  assert.ok(schema.properties.endpoints.required.includes("status"));
 });
