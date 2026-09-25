@@ -56,6 +56,15 @@ test("bootstrap never persists generated bridge secrets in repository files", ()
   assert.doesNotMatch(workflow, /RU_LIFE_BRIDGE_SECRET:\s*[^$\n]/);
 });
 
+test("managed runtime smoke waits for Worker secret propagation instead of false-failing on transient 403", () => {
+  assert.match(workflow, /Health Production secret\/runtime not converged yet/);
+  assert.match(workflow, /RU_LIFE Production secret\/runtime not converged yet/);
+  assert.match(workflow, /for attempt in \{1\.\.12\}/);
+  assert.match(workflow, /STATUS_CODE" != "200" && "\$STATUS_CODE" != "403"/);
+  assert.match(workflow, /CODE" != "200" && "\$CODE" != "403"/);
+  assert.match(workflow, /did not converge within 60 seconds after secret installation/);
+});
+
 test("bootstrap cleans the temporary Production owner session", () => {
   assert.match(workflow, /Create short-lived owner catalog session/);
   assert.match(workflow, /Delete short-lived owner catalog session/);
