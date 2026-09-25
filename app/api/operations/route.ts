@@ -572,15 +572,26 @@ async function buildBootstrap(actor: ControlDeviceState) {
       snapshot.remoteAdminReady,
       snapshot.remoteAdminReady,
       snapshot.issueCode,
-      snapshot.connection === "connected" ? "universal" : snapshot.issueCode === "REPOSITORY_METADATA_ONLY" ? "none" : snapshot.manifest ? "contract-observe" : "none",
-      snapshot.connection === "connected" ? "ready" : snapshot.issueCode === "REPOSITORY_METADATA_ONLY" ? "pending" : snapshot.manifest ? "partial" : "pending",
+      snapshot.connection === "connected"
+        ? "universal"
+        : snapshot.managementMode === "local-first" || snapshot.managementMode === "metadata-only"
+          ? "none"
+          : snapshot.manifest ? "contract-observe" : "none",
+      snapshot.connection === "connected"
+        ? "ready"
+        : snapshot.managementMode === "local-first" || snapshot.managementMode === "metadata-only"
+          ? "metadata"
+          : snapshot.manifest ? "partial" : "pending",
       snapshot.contractConnected,
+      snapshot.managementMode,
+      snapshot.metadataVerified,
     ));
     for (const device of dynamicDevices) {
       const item = workFromDevice(device);
       if (item) workItems.push(item);
     }
-    if (!snapshot.contractConnected) {
+    const designedLocal = snapshot.managementMode === "local-first" || snapshot.managementMode === "metadata-only";
+    if (!snapshot.contractConnected && !designedLocal) {
       workItems.push({
         id: `${snapshot.config.id}:contract`,
         appId: snapshot.config.id,
@@ -597,7 +608,7 @@ async function buildBootstrap(actor: ControlDeviceState) {
         occurredAt: null,
         priority: snapshot.connection === "unavailable" ? "high" : "info",
       });
-    } else if (!snapshot.remoteAdminReady) {
+    } else if (!snapshot.remoteAdminReady && snapshot.managementMode === "observe-only") {
       workItems.push({
         id: `${snapshot.config.id}:contract-readonly`,
         appId: snapshot.config.id,
@@ -710,9 +721,17 @@ async function buildBootstrap(actor: ControlDeviceState) {
       undefined,
       "legacy-adapter",
       dynamic
-        ? dynamic.connection === "warning" ? "partial" : "pending"
+        ? dynamic.contractConnected
+          ? "ready"
+          : dynamic.managementMode === "local-first" || dynamic.managementMode === "metadata-only"
+            ? "metadata"
+            : dynamic.connection === "warning" ? "partial" : "pending"
         : config.contractState === "connected" ? "ready" : config.contractState === "migrating" ? "partial" : "not-enrolled",
       dynamic?.contractConnected ?? false,
+      "remoteAdminReady" in result.value && Boolean(result.value.remoteAdminReady)
+        ? "remote-admin"
+        : dynamic?.managementMode ?? (result.id === "growup-mychildren" ? "local-first" : "observe-only"),
+      dynamic?.metadataVerified ?? false,
     ));
     for (const device of result.value.devices) {
       const item = workFromDevice(device);
