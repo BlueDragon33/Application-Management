@@ -1,0 +1,64 @@
+name: One-shot Application Management production release
+
+on:
+  push:
+    branches:
+      - "ops/production-release-real-connectivity-20260925"
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: one-shot-am-production-real-connectivity
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      TARGET_SHA: 214a97ac1ba52aeda24271e17ffc5c1f9137595a
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Verify exact main revision
+        shell: bash
+        run: |
+          node <<'NODE'
+          const repo=process.env.GITHUB_REPOSITORY,target=process.env.TARGET_SHA,token=process.env.GH_TOKEN;
+          const headers={authorization:`Bearer ${token}`,accept:'application/vnd.github+json','x-github-api-version':'2022-11-28'};
+          const r=await fetch(`https://api.github.com/repos/${repo}/git/ref/heads/main`,{headers});
+          if(!r.ok) throw new Error(`main ref HTTP ${r.status}`);
+          const actual=(await r.json()).object.sha;
+          if(actual!==target) throw new Error(`Main moved: ${actual} !== ${target}`);
+          console.log(`MAIN_EXACT_TARGET_PASS ${actual}`);
+          NODE
+
+      - name: Dispatch canonical Production workflow and wait
+        shell: bash
+        run: |
+          node <<'NODE'
+          const repo=process.env.GITHUB_REPOSITORY,target=process.env.TARGET_SHA,token=process.env.GH_TOKEN;
+          const workflow='deploy-application-management-production.yml';
+          const headers={authorization:`Bearer ${token}`,accept:'application/vnd.github+json','content-type':'application/json','x-github-api-version':'2022-11-28'};
+          const started=Date.now()-15000;
+          let r=await fetch(`https://api.github.com/repos/${repo}/actions/workflows/${workflow}/dispatches`,{method:'POST',headers,body:JSON.stringify({ref:'main',inputs:{confirm:'DEPLOY_PRODUCTION'}})});
+          if(!r.ok) throw new Error(`Production dispatch HTTP ${r.status}: ${await r.text()}`);
+          console.log('PRODUCTION_DISPATCH_ACCEPTED');
+          const deadline=Date.now()+30*60*1000;
+          while(Date.now()<deadline){
+            r=await fetch(`https://api.github.com/repos/${repo}/actions/workflows/${workflow}/runs?branch=main&event=workflow_dispatch&per_page=20`,{headers});
+            if(!r.ok) throw new Error(`run lookup HTTP ${r.status}`);
+            const runs=(await r.json()).workflow_runs||[];
+            const run=runs.find(x=>x.head_sha===target && Date.parse(x.created_at)>=started);
+            if(run){
+              console.log(`PRODUCTION_RUN id=${run.id} status=${run.status} conclusion=${run.conclusion||''}`);
+              if(run.status==='completed'){
+                if(run.conclusion!=='success') throw new Error(`Production run ${run.id} => ${run.conclusion}`);
+                process.exit(0);
+              }
+            }
+            await new Promise(resolve=>setTimeout(resolve,10000));
+          }
+          throw new Error('Production wait timeout');
+          NODE
