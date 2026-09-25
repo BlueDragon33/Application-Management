@@ -62,6 +62,8 @@ type ClientSummary = {
   directWebAccess: boolean;
   remoteAdminReady?: boolean;
   issueCode?: string;
+  controlChannel: "universal" | "legacy-adapter" | "contract-observe" | "none";
+  contractReadiness: "ready" | "partial" | "pending" | "not-enrolled";
 };
 
 type WorkItem = {
@@ -141,6 +143,27 @@ async function bridgeJson(bridge: Bridge, path: string, init?: { method?: "GET" 
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function retryableReadError(error: unknown) {
+  if (error instanceof TypeError) return true;
+  if (!(error instanceof Error)) return false;
+  return error.message.includes("Client phản hồi quá thời hạn")
+    || /HTTP_(?:408|425|429|500|502|503|504)\b/.test(error.message);
+}
+
+async function bridgeReadJson(bridge: Bridge, path: string) {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      return await bridgeJson(bridge, path);
+    } catch (error) {
+      lastError = error;
+      if (!retryableReadError(error) || attempt === 1) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 160));
+    }
+  }
+  throw lastError;
 }
 
 async function bridgeCommandJson(bridge: Bridge, path: string, body: UnknownRecord) {
@@ -282,7 +305,23 @@ function workFromDevice(device: ClientDevice): WorkItem | null {
 async function loadBoi(actor: ControlDeviceState) {
   const config = app("boi-ech");
   const bridge = await issueBoiBrowserBridge(actor.email, actor.role);
-  const data = await bridgeJson(bridge, "/api/control/overview?activityDays=0");
+  let data: UnknownRecord;
+  try {
+    data = await bridgeReadJson(bridge, "/api/control/overview?activityDays=0");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Control API Bơi ếch không phản hồi.";
+    const authMismatch = /HTTP_(?:401|403)\b/.test(message);
+    const apiMissing = /HTTP_404\b/.test(message);
+    throw new UpstreamError(
+      authMismatch
+        ? "Bơi ếch đang online nhưng khóa quản trị giữa hai ứng dụng không khớp."
+        : apiMissing
+          ? "Bơi ếch đang online nhưng Control API hiện hành chưa được publish đầy đủ."
+          : "Bơi ếch đã xác minh runtime nhưng Control API tạm thời không phản hồi.",
+      authMismatch ? 401 : apiMissing ? 409 : 503,
+      { code: authMismatch ? "BOI_ECH_CONTROL_AUTH_MISMATCH" : apiMissing ? "BOI_ECH_CONTROL_API_MISSING" : "BOI_ECH_CONTROL_UNAVAILABLE" },
+    );
+  }
   const devices = rows(data).map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
     typeKey: "deviceType", userKeys: ["learnerName", "personCode"],
     approve: actor.role === "publisher" || actor.role === "owner", remove: actor.role === "owner",
@@ -293,7 +332,7 @@ async function loadBoi(actor: ControlDeviceState) {
 async function loadHealth(actor: ControlDeviceState) {
   const config = app("health-care");
   const bridge = await issueHealthBrowserBridge(actor.email, actor.role, actor.deviceId);
-  const data = await bridgeJson(bridge, "/api/control/devices");
+  const data = await bridgeReadJson(bridge, "/api/control/devices");
   const canManage = actor.role === "publisher" || actor.role === "owner";
   const devices = rows(data).map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
     typeKey: "deviceType",
@@ -309,7 +348,7 @@ async function loadHealth(actor: ControlDeviceState) {
 async function loadRu(actor: ControlDeviceState) {
   const config = app("ru-life");
   const bridge = await issueRuLifeBrowserBridge(actor.email, actor.role, actor.deviceId);
-  const data = await bridgeJson(bridge, "/api/control/devices");
+  const data = await bridgeReadJson(bridge, "/api/control/devices");
   const canManage = actor.role === "publisher" || actor.role === "owner";
   const devices = rows(data).map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
     typeKey: "deviceClass",
@@ -324,7 +363,7 @@ async function loadRu(actor: ControlDeviceState) {
 async function loadBauman(actor: ControlDeviceState) {
   const config = app("bauman-master-ai");
   const bridge = await issueBaumanBrowserBridge(actor.email, actor.role, actor.deviceId);
-  const status = await bridgeJson(bridge, "/api/control/status");
+  const status = await bridgeReadJson(bridge, "/api/control/status");
   const endpoints = record(status.endpoints);
   const capabilities = record(status.capabilities);
   const devicesPath = text(endpoints.devices);
@@ -338,7 +377,7 @@ async function loadBauman(actor: ControlDeviceState) {
   const canApproveBlock = commandContractReady && bool(capabilities.deviceApproval);
   const canUnblock = commandContractReady && bool(capabilities.deviceUnblock);
   const canEditPermission = commandContractReady && bool(capabilities.deviceEditPermission);
-  const data = await bridgeJson(bridge, devicesPath);
+  const data = await bridgeReadJson(bridge, devicesPath);
   const devices = rows(data).map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
     typeKey: "deviceType",
     userKeys: ["displayName", "label", "platform", "browser"],
@@ -356,7 +395,7 @@ async function loadGrowUp(actor: ControlDeviceState) {
   const config = app("growup-mychildren");
   const contract = await probeGrowUpManagementContract();
   const bridge = await issueGrowUpBrowserBridge();
-  const data = await bridgeJson(bridge, "/api/control/devices");
+  const data = await bridgeReadJson(bridge, "/api/control/devices");
   const canManage = actor.role === "publisher" || actor.role === "owner";
   const devices = rows(data).map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
     typeKey: "deviceClass",
@@ -385,7 +424,7 @@ async function loadPriceReport(actor: ControlDeviceState) {
 
   try {
     const bridge = await issuePriceReportBrowserBridge(actor.email, actor.role, actor.deviceId);
-    const status = await bridgeJson(bridge, "/api/control/status");
+    const status = await bridgeReadJson(bridge, "/api/control/status");
     const endpoints = record(status.endpoints);
     const capabilities = record(status.capabilities);
     const devicesPath = text(endpoints.devices);
@@ -412,7 +451,7 @@ async function loadPriceReport(actor: ControlDeviceState) {
       };
     }
 
-    const data = await bridgeJson(bridge, devicesPath);
+    const data = await bridgeReadJson(bridge, devicesPath);
     const canManage = actor.role === "owner";
     const devices = rows(data).map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
       typeKey: "deviceType",
@@ -455,6 +494,8 @@ function summary(
   hasOperationalDataOverride?: boolean,
   remoteAdminReady?: boolean,
   issueCode?: string,
+  controlChannel: ClientSummary["controlChannel"] = "none",
+  contractReadiness: ClientSummary["contractReadiness"] = connection === "connected" ? "ready" : connection === "warning" ? "partial" : "pending",
 ): ClientSummary {
   const connected = connection === "connected";
   const hasOperationalData = hasOperationalDataOverride ?? connected;
@@ -467,6 +508,7 @@ function summary(
     pendingCount: hasOperationalData ? devices.filter((device) => device.status === "pending").length : null,
     attentionCount: hasOperationalData ? devices.filter((device) => device.attention !== "none").length : null,
     note, directWebAccess: connected && Boolean(webHref), remoteAdminReady, issueCode,
+    controlChannel, contractReadiness,
   };
 }
 
@@ -516,6 +558,8 @@ async function buildBootstrap(actor: ControlDeviceState) {
       snapshot.remoteAdminReady,
       snapshot.remoteAdminReady,
       snapshot.issueCode,
+      snapshot.connection === "connected" ? "universal" : snapshot.manifest ? "contract-observe" : "none",
+      snapshot.connection === "connected" ? "ready" : snapshot.manifest ? "partial" : "pending",
     ));
     for (const device of dynamicDevices) {
       const item = workFromDevice(device);
@@ -562,15 +606,42 @@ async function buildBootstrap(actor: ControlDeviceState) {
 
       if (config.contractState !== "connected") {
         const connection = config.contractState === "pending" ? "pending" : "warning";
-        summaries.push(summary(config, [], connection, `${config.contractNote} Trạng thái production: ${result.error}`));
+        summaries.push(summary(
+          config,
+          [],
+          connection,
+          `${config.contractNote} Trạng thái production: ${result.error}`,
+          null,
+          false,
+          false,
+          undefined,
+          result.issueCode,
+          "none",
+          config.contractState === "pending" ? "pending" : "partial",
+        ));
         continue;
       }
-      summaries.push(summary(config, [], "unavailable", result.error, null, false, false, undefined, result.issueCode));
+      const configurationIssue = [
+        "BOI_ECH_NOT_CONFIGURED",
+        "BOI_ECH_SECRET_NOT_CONFIGURED",
+        "BOI_ECH_STALE_PUBLISH",
+        "BOI_ECH_RUNTIME_IDENTITY_UNAVAILABLE",
+        "BOI_ECH_CONTROL_AUTH_MISMATCH",
+        "BOI_ECH_CONTROL_API_MISSING",
+      ].includes(result.issueCode ?? "");
+      const failedConnection: ClientSummary["connection"] = configurationIssue ? "warning" : "unavailable";
+      summaries.push(summary(config, [], failedConnection, result.error, null, false, false, undefined, result.issueCode, "none", "ready"));
       const title = result.issueCode === "BOI_ECH_STALE_PUBLISH"
         ? "Bơi ếch đang publish bản cũ"
         : result.issueCode === "BOI_ECH_RUNTIME_IDENTITY_UNAVAILABLE"
-          ? "Bơi ếch chưa cập nhật runtime identity"
-          : "Không đọc được trạng thái client";
+          ? "Bơi ếch chưa xác minh được runtime identity"
+          : result.issueCode === "BOI_ECH_CONTROL_AUTH_MISMATCH"
+            ? "Khóa quản trị Bơi ếch không khớp"
+            : result.issueCode === "BOI_ECH_CONTROL_API_MISSING"
+              ? "Control API Bơi ếch chưa được publish đầy đủ"
+              : result.issueCode === "BOI_ECH_CONTROL_UNAVAILABLE"
+                ? "Control API Bơi ếch tạm mất kết nối"
+                : "Không đọc được trạng thái client";
       workItems.push({
         id: `${config.id}:connection`,
         appId: config.id,
@@ -581,7 +652,7 @@ async function buildBootstrap(actor: ControlDeviceState) {
         detail: result.error,
         deviceType: "—",
         occurredAt: null,
-        priority: "high",
+        priority: failedConnection === "unavailable" ? "high" : "normal",
       });
       continue;
     }
@@ -606,6 +677,11 @@ async function buildBootstrap(actor: ControlDeviceState) {
       result.value.managedWebLaunch,
       result.value.hasOperationalData,
       "remoteAdminReady" in result.value ? Boolean(result.value.remoteAdminReady) : undefined,
+      undefined,
+      "legacy-adapter",
+      dynamic
+        ? dynamic.connection === "warning" ? "partial" : "pending"
+        : config.contractState === "connected" ? "ready" : config.contractState === "migrating" ? "partial" : "not-enrolled",
     ));
     for (const device of result.value.devices) {
       const item = workFromDevice(device);
