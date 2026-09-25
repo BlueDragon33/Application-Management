@@ -86,6 +86,16 @@ test("application table renders runtime, contract and admin readiness as separat
 });
 
 
+test("website and management actions use explicit availability language", () => {
+  assert.match(dashboard, /function webActionLabel/);
+  assert.match(dashboard, /return "Mở"/);
+  assert.match(dashboard, /return "Chỉ cục bộ"/);
+  assert.match(dashboard, /return "Chưa có web"/);
+  assert.match(dashboard, /return "Chưa sẵn sàng"/);
+  assert.match(dashboard, />Quản trị<\/Link>/);
+  assert.doesNotMatch(dashboard, /hasWeb \? "Đến" : "Chờ"/);
+});
+
 test("application classification column uses the short category instead of long scope prose", () => {
   assert.match(dashboard, /function appGroup\(app: ApplicationConfig\) \{\s*return app\.category;\s*\}/);
   assert.doesNotMatch(dashboard, /function appGroup[\s\S]{0,180}return app\.scope/);
