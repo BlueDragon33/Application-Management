@@ -48,8 +48,10 @@ test("read-only control probes retry transient upstream failures once", () => {
   assert.match(operations, /await new Promise\(\(resolve\) => setTimeout\(resolve, 160\)\)/);
 });
 
-test("dashboard contract counter follows live operation snapshots before static registry metadata", () => {
-  assert.match(dashboard, /summaryMap\.get\(app\.id\)\?\.contractReadiness/);
+test("dashboard contract counter follows live operation snapshots and excludes intentional non-remote modes", () => {
+  assert.match(dashboard, /const summary = summaryMap\.get\(app\.id\)/);
+  assert.match(dashboard, /if \(intentionalNonRemoteMode\(summary\)\) return false/);
+  assert.match(dashboard, /const live = summary\?\.contractReadiness/);
   assert.match(dashboard, /return live \? live !== "ready" && live !== "metadata" : app\.contractState !== "connected"/);
 });
 

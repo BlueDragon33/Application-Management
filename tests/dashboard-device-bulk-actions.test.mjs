@@ -38,7 +38,8 @@ test("bulk Boi deletion is explicitly destructive and requires a second confirma
 test("device bulk toolbar is present and responsive", () => {
   const ui = source("app/management-dashboard-v2.tsx");
   const css = source("app/management-dashboard-v2.css");
-  assert.match(ui, /Xử lý tất cả chờ duyệt/);
+  assert.match(ui, /Khóa \/ loại chờ duyệt/);
+  assert.doesNotMatch(ui, /Xử lý tất cả chờ duyệt/);
   assert.match(css, /\.amv2-device-bulk-toolbar/);
   assert.match(css, /@media \(max-width: 700px\)[\s\S]*\.amv2-device-bulk-toolbar \{ align-items: stretch; flex-direction: column; \}/);
 });

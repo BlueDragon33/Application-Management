@@ -156,6 +156,10 @@ function webActionLabel(summary: OperationsSummary | undefined, hasWeb: boolean,
   return "Chưa sẵn sàng";
 }
 
+function intentionalNonRemoteMode(summary?: OperationsSummary) {
+  return Boolean(summary?.metadataVerified && (summary.managementMode === "local-first" || summary.managementMode === "metadata-only"));
+}
+
 function statusAxes(app: ApplicationConfig, summary?: OperationsSummary) {
   const state = connectionFor(app, summary);
   const localFirst = summary?.managementMode === "local-first";
@@ -351,7 +355,9 @@ export default function ManagementDashboardV2({ user, authMode }: {
   const environmentCount = devices.filter((device) => device.attention === "environment").length;
   const unavailableCount = activeApps.filter((app) => connectionFor(app, summaryMap.get(app.id)) === "unavailable").length;
   const contractPending = activeApps.filter((app) => {
-    const live = summaryMap.get(app.id)?.contractReadiness;
+    const summary = summaryMap.get(app.id);
+    if (intentionalNonRemoteMode(summary)) return false;
+    const live = summary?.contractReadiness;
     return live ? live !== "ready" && live !== "metadata" : app.contractState !== "connected";
   }).length;
   const highAlerts = workItems.filter((item) => item.priority === "high").length;
@@ -608,7 +614,7 @@ export default function ManagementDashboardV2({ user, authMode }: {
       <header className="amv2-topbar">
         <label className="amv2-search"><span>⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm theo ứng dụng, thiết bị, người dùng…"/></label>
         <label className="amv2-filter"><span>▽</span><select value={appFilter} onChange={(event) => setAppFilter(event.target.value)}><option value="all">Bộ lọc nhanh</option>{activeApps.map((app) => <option key={app.id} value={app.id}>{app.shortName}</option>)}{systemTools.map((tool) => <option key={tool.id} value={tool.id}>Tool · {tool.name}</option>)}</select></label>
-        <button className="amv2-bell" onClick={() => switchView("approvals")}>♧{notificationCount ? <b>{notificationCount}</b> : null}</button>
+        <button className="amv2-bell" aria-label={notificationCount ? `Mở Cảnh báo: ${notificationCount} thông báo` : "Mở Cảnh báo"} onClick={() => switchView("alerts")}>♧{notificationCount ? <b>{notificationCount}</b> : null}</button>
         <span className="amv2-online"><i/><strong>Hệ thống kết nối</strong><small>{syncing ? "Đang đồng bộ…" : "Dữ liệu đã cập nhật"}</small></span>
         <details className="amv2-account"><summary><span>{initials(user.displayName)}</span><div><strong>{user.displayName}</strong><small>{roleLabels[access.role]}</small></div><b>⌄</b></summary><div><small>{user.email}</small>{authMode === "cloudflare-production" ? <a href="/__account">Tài khoản & bảo mật</a> : <button onClick={() => setAccountSecurityOpen(true)}>Tài khoản & bảo mật</button>}<button onClick={() => switchView("settings")}>Cấu hình</button>{authMode === "cloudflare-production" ? <form method="post" action="/__logout"><button type="submit">Đăng xuất</button></form> : <a href="/signout-with-chatgpt?return_to=%2F">Đăng xuất</a>}</div></details>
       </header>
@@ -680,11 +686,17 @@ function AccountSecurityDialog({ user, role, authMode, close }: {
           <p>Môi trường local dùng danh tính phát triển từ cấu hình máy. Không lưu thông tin đăng nhập thật.</p>
           <article><div><span>Email local</span><strong>{user.email}</strong></div><em>Chỉ dùng phát triển</em></article>
         </> : <>
-          <p>Application Management không lưu mật khẩu, email đăng nhập hoặc số điện thoại của tài khoản ChatGPT. Thay đổi các thông tin này tại cài đặt tài khoản ChatGPT.</p>
-          <article><div><span>Email đăng nhập</span><strong>{user.email}</strong></div><em>Quản lý tại ChatGPT</em></article>
-          <article><div><span>Mật khẩu / phương thức đăng nhập</span><strong>Không lưu trong ứng dụng</strong></div><em>Quản lý tại ChatGPT</em></article>
-          <article><div><span>Số điện thoại</span><strong>Site không được cung cấp số điện thoại</strong></div><em>Quản lý tại ChatGPT</em></article>
-          <a href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">Mở ChatGPT để quản lý tài khoản ↗</a>
+          {authMode === "cloudflare-production" ? <>
+            <p>Production dùng tài khoản Application Management riêng. Phiên đăng nhập và quyền quản trị được xác minh trên control-plane Production.</p>
+            <article><div><span>Email đăng nhập</span><strong>{user.email}</strong></div><em>Tài khoản Production</em></article>
+            <article><div><span>Mật khẩu / phiên đăng nhập</span><strong>Không hiển thị trong giao diện quản trị</strong></div><em>Quản lý tại trang Tài khoản & bảo mật</em></article>
+          </> : <>
+            <p>Application Management không lưu mật khẩu, email đăng nhập hoặc số điện thoại của tài khoản ChatGPT. Thay đổi các thông tin này tại cài đặt tài khoản ChatGPT.</p>
+            <article><div><span>Email đăng nhập</span><strong>{user.email}</strong></div><em>Quản lý tại ChatGPT</em></article>
+            <article><div><span>Mật khẩu / phương thức đăng nhập</span><strong>Không lưu trong ứng dụng</strong></div><em>Quản lý tại ChatGPT</em></article>
+            <article><div><span>Số điện thoại</span><strong>Site không được cung cấp số điện thoại</strong></div><em>Quản lý tại ChatGPT</em></article>
+            <a href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">Mở ChatGPT để quản lý tài khoản ↗</a>
+          </>}
         </>}
       </div>
       <footer><button onClick={close}>Đóng</button></footer>
@@ -783,18 +795,37 @@ function DevicesView({ devices, actionBusy, manageDevice, bulkRemovePendingDevic
   return <section className="amv2-page-panel">
     <div className="amv2-device-bulk-toolbar">
       <div><strong>Thiết bị đang hiển thị</strong><small>Bulk-action chỉ áp dụng thiết bị chờ duyệt có contract xử lý thật. Bơi ếch xóa vĩnh viễn và luôn cần xác nhận hai lần.</small></div>
-      <div className="amv2-device-bulk-actions"><button disabled={Boolean(actionBusy)} onClick={openAutomation}>⚙ Tự động</button><button data-danger="true" disabled={!bulkTargets.length || Boolean(actionBusy)} onClick={() => void bulkRemovePendingDevices(devices)}>{actionBusy === "bulk-pending" ? "Đang xử lý…" : `Xử lý tất cả chờ duyệt (${bulkTargets.length})`}</button></div>
+      <div className="amv2-device-bulk-actions"><button disabled={Boolean(actionBusy)} onClick={openAutomation}>⚙ Tự động</button><button data-danger="true" aria-label="Khóa hoặc loại toàn bộ thiết bị chờ duyệt đang hiển thị" disabled={!bulkTargets.length || Boolean(actionBusy)} onClick={() => void bulkRemovePendingDevices(devices)}>{actionBusy === "bulk-pending" ? "Đang khóa/loại…" : `Khóa / loại chờ duyệt (${bulkTargets.length})`}</button></div>
     </div>
     <div className="amv2-view-table devices"><div className="head"><span>Ứng dụng</span><span>Thiết bị</span><span>Người dùng</span><span>Trạng thái</span><span>Hoạt động</span><span>Thao tác</span></div>{devices.map((device) => { const rowBusy = actionBusy === `${device.appId}:${device.deviceId}` || actionBusy === "bulk-pending"; return <div className="row" key={`${device.appId}:${device.deviceId}`}><AppCell appId={device.appId} name={device.appName}/><div><strong>{deviceKind(device)}</strong><small>{device.deviceCode}</small></div><span>{device.userLabel}</span><b>{device.status === "approved" ? "Đã duyệt" : device.status === "pending" ? "Chờ duyệt" : device.status === "blocked" ? "Đã khóa" : "Chưa rõ"}</b><span>{device.active ? "● Online" : relativeTime(device.lastSeenAt)}</span><div>{device.canApprove && device.status === "pending" ? <button disabled={rowBusy} onClick={() => void manageDevice(device, "approve")}>{device.appId === "boi-ech" ? "Phân quyền" : "Duyệt"}</button> : null}{device.canRemove ? <button data-danger="true" disabled={rowBusy} onClick={() => void manageDevice(device, "remove")}>{device.appId === "boi-ech" ? "Xóa" : "Khóa"}</button> : null}<Link href={device.href}>Quản trị</Link></div></div>; })}{!devices.length ? <div className="amv2-empty"><strong>Không tìm thấy thiết bị phù hợp.</strong></div> : null}</div>
   </section>;
 }
 
 function AlertsView({ apps, summaryMap, workItems, lastUpdated }: { apps: ApplicationConfig[]; summaryMap: Map<string, OperationsSummary>; workItems: OperationsWorkItem[]; lastUpdated: string }) {
-  return <section className="amv2-page-panel alerts"><div className="amv2-alert-list">{apps.map((app) => { const summary = summaryMap.get(app.id); const state = connectionFor(app, summary); return <article key={app.id}><AppCell appId={app.id} name={app.shortName}/><b data-state={state}>{connectionLabel(state, summary)}</b><p>{summary?.note ?? app.contractNote}</p><time>{lastUpdated}</time></article>; })}{workItems.map((item) => <article key={item.id}><AppCell appId={item.appId} name={item.appName}/><b data-state={item.priority === "high" ? "unavailable" : "warning"}>{item.priority === "high" ? "Cần xử lý" : "Theo dõi"}</b><p>{item.title} · {item.detail}</p><time>{relativeTime(item.occurredAt)}</time></article>)}</div></section>;
+  const appAlerts = apps.filter((app) => {
+    const summary = summaryMap.get(app.id);
+    if (intentionalNonRemoteMode(summary)) return false;
+    return connectionFor(app, summary) !== "connected";
+  });
+  return <section className="amv2-page-panel alerts"><div className="amv2-alert-list">{appAlerts.map((app) => { const summary = summaryMap.get(app.id); const state = connectionFor(app, summary); return <article key={app.id}><AppCell appId={app.id} name={app.shortName}/><b data-state={state}>{connectionLabel(state, summary)}</b><p>{summary?.note ?? app.contractNote}</p><time>{lastUpdated}</time></article>; })}{workItems.map((item) => <article key={item.id}><AppCell appId={item.appId} name={item.appName}/><b data-state={item.priority === "high" ? "unavailable" : "warning"}>{item.priority === "high" ? "Cần xử lý" : "Theo dõi"}</b><p>{item.title} · {item.detail}</p><time>{relativeTime(item.occurredAt)}</time></article>)}{!appAlerts.length && !workItems.length ? <div className="amv2-empty"><strong>Không có cảnh báo cần xử lý.</strong><small>Các trạng thái local-first hoặc metadata-only đã xác minh không bị tính là lỗi kết nối.</small></div> : null}</div></section>;
+}
+
+const auditActionLabels: Record<string, string> = {
+  control_device_approved: "Cấp quyền thiết bị quản trị",
+  control_device_blocked: "Khóa thiết bị quản trị",
+  control_member_deactivated: "Thu hồi tài khoản quản trị",
+  control_member_deleted: "Xóa tài khoản quản trị",
+};
+
+function auditActionLabel(action: string) {
+  return auditActionLabels[action] ?? action.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function AuditView({ center }: { center: CenterBootstrap }) {
-  return <section className="amv2-page-panel"><div className="amv2-audit-list">{center.auditLog.map((entry) => <article key={entry.id}><time>{new Intl.DateTimeFormat("vi-VN", { dateStyle: "short", timeStyle: "short" }).format(new Date(entry.createdAt))}</time><div><strong>{entry.action.replaceAll("_", " ")}</strong><small>{entry.actor}</small></div><code>{entry.target}</code></article>)}{!center.auditLog.length ? <div className="amv2-empty"><strong>Chưa có sự kiện audit.</strong></div> : null}</div></section>;
+  return <section className="amv2-page-panel">
+    <div className="amv2-audit-report-head"><div><small>NHẬT KÝ QUẢN TRỊ</small><h2>100 sự kiện gần nhất</h2><p>Hiển thị thời gian, hành động, người thực hiện và đối tượng tác động theo thứ tự mới nhất.</p></div><strong>{center.auditLog.length} sự kiện</strong></div>
+    <div className="amv2-audit-list">{center.auditLog.map((entry) => <article key={entry.id}><time>{new Intl.DateTimeFormat("vi-VN", { dateStyle: "short", timeStyle: "short" }).format(new Date(entry.createdAt))}</time><div><strong>{auditActionLabel(entry.action)}</strong><small>{entry.actor} · {entry.source}</small></div><code title={entry.target}>{entry.target}</code></article>)}{!center.auditLog.length ? <div className="amv2-empty"><strong>Chưa có sự kiện audit.</strong></div> : null}</div>
+  </section>;
 }
 
 function SettingsView({ center, access, actionBusy, fontScale, changeFontScale, manageControlDevice }: {
