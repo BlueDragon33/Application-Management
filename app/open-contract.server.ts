@@ -41,6 +41,7 @@ export type UniversalContractManifest = {
     status?: string;
     devices?: string;
     deviceCommands?: string;
+    automation?: string;
     web?: string;
   };
 };
@@ -368,6 +369,7 @@ function parseManifest(raw: Record<string, unknown>, expectedId: string, expecte
       status: endpoint(endpointsRaw.status),
       devices: endpoint(endpointsRaw.devices),
       deviceCommands: endpoint(endpointsRaw.deviceCommands),
+      automation: endpoint(endpointsRaw.automation),
       web: endpoint(endpointsRaw.web),
     },
   };
@@ -403,6 +405,8 @@ function normalizeLegacyContract(
     ?? (routes.includes("/api/control/devices") ? "/api/control/devices" : undefined);
   const deviceCommandsPath = endpoint(endpointsRaw.deviceCommands)
     ?? (routes.includes("/api/control/device-commands") ? "/api/control/device-commands" : undefined);
+  const automationPath = endpoint(endpointsRaw.automation)
+    ?? (routes.includes("/api/control/automation") ? "/api/control/automation" : undefined);
 
   const capsObject = record(raw.capabilities);
   const capsList = capabilitySet(raw.capabilities);
@@ -430,6 +434,8 @@ function normalizeLegacyContract(
     deviceBlock: explicit("deviceBlock", "device-block"),
     deviceUnblock: explicit("deviceUnblock", "device-unblock"),
     deviceEditPermission: explicit("deviceEditPermission", "device-edit-permission"),
+    deviceAutoApproval: Boolean(automationPath) && explicit("deviceAutoApproval", "device-auto-approval"),
+    deviceAutoBlockPending: Boolean(automationPath) && explicit("deviceAutoBlockPending", "device-auto-block-pending"),
     deviceIdempotentCommands: explicit("deviceIdempotentCommands", "device-idempotent-commands"),
     optimisticConcurrency: explicit("optimisticConcurrency", "optimistic-concurrency"),
     sessions: explicit("sessions", "session-revocation", "revocable-device-sessions")
@@ -465,6 +471,7 @@ function normalizeLegacyContract(
       status: statusPath,
       devices: devicesPath,
       deviceCommands: deviceCommandsPath,
+      automation: automationPath,
       web: endpoint(endpointsRaw.web),
     },
   };
@@ -559,6 +566,8 @@ function capabilityLabels(capabilities: Record<string, boolean>) {
     deviceBlock: "Khóa thiết bị",
     deviceUnblock: "Mở khóa thiết bị",
     deviceEditPermission: "Quyền chỉnh sửa",
+    deviceAutoApproval: "Tự động duyệt thiết bị",
+    deviceAutoBlockPending: "Tự động khóa pending",
     sessions: "Phiên & thu hồi",
     audit: "Audit",
     contentReview: "Kiểm duyệt nội dung",
