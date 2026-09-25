@@ -17,6 +17,8 @@ const catalogUi = read("app/tools/managed-apps/page.tsx");
 const client = read("app/admin-device-client.ts");
 const production = read(".github/workflows/deploy-application-management-production.yml");
 const preview = read(".github/workflows/deploy-application-management-preview.yml");
+const productionWrangler = read("wrangler.production.example.jsonc");
+const previewWrangler = read("wrangler.cloudflare.example.jsonc");
 
 test("dynamic managed app catalog persists config without plaintext credentials", () => {
   assert.match(migration, /CREATE TABLE IF NOT EXISTS `managed_app_catalog`/);
@@ -178,4 +180,13 @@ test("same-origin public subpaths participate in contract discovery without app-
   assert.ok(contract.includes('joinContractPath(basePath, "/api/control/contract")'));
   assert.equal(contract.includes("PriceReport_Tunggiabao/management-contract.json"), false);
   assert.equal(contract.includes('if (row.id === "price-report-tunggiabao")'), false);
+});
+
+
+test("dynamic Catalog can fetch public Workers without per-app Service Bindings", () => {
+  assert.ok(productionWrangler.includes('"global_fetch_strictly_public"'));
+  assert.ok(previewWrangler.includes('"global_fetch_strictly_public"'));
+  assert.equal(productionWrangler.includes('"services"'), false);
+  assert.equal(previewWrangler.includes('"services"'), false);
+  assert.ok(contract.includes("fetch(`${origin}${path}`"));
 });
