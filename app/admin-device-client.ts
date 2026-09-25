@@ -1,5 +1,6 @@
-import type { ApplicationConfig } from "./application-registry";
 "use client";
+
+import type { ApplicationConfig } from "./application-registry";
 
 export type ControlRole = "viewer" | "reviewer" | "publisher" | "owner";
 export type DeviceStatus = "pending" | "approved" | "blocked";
