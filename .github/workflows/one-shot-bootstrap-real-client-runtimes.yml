@@ -130,6 +130,7 @@ jobs:
         env:
           CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH: wrangler.production.jsonc
           HEALTH_SECRET: ${{ steps.secrets.outputs.health_secret }}
+          HEALTH_D1_ID: ${{ steps.d1.outputs.health_id }}
         shell: bash
         run: |
           set -euo pipefail
@@ -141,7 +142,20 @@ jobs:
           npm run lint
           npx wrangler d1 migrations apply health-care-production-db --remote --config wrangler.production.jsonc
           npm run build
-          npm run cloudflare:artifact:check
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const redirect=JSON.parse(fs.readFileSync('.wrangler/deploy/config.json','utf8'));
+          const generatedPath=path.resolve('.wrangler/deploy',redirect.configPath);
+          const generated=JSON.parse(fs.readFileSync(generatedPath,'utf8'));
+          if(generated.name!=='health-care') throw new Error('Health production Worker name mismatch');
+          const db=(generated.d1_databases||[]).find(x=>x.binding==='DB');
+          if(!db||db.database_name!=='health-care-production-db'||String(db.database_id).toLowerCase()!==process.env.HEALTH_D1_ID.toLowerCase()) throw new Error('Health production D1 binding mismatch');
+          if(generated.vars?.HEALTH_DEPLOYMENT_CHANNEL!=='cloudflare-production') throw new Error('Health production channel mismatch');
+          if(!/^[A-Za-z0-9._-]{7,80}$/.test(String(generated.vars?.HEALTH_BUILD_REVISION||''))) throw new Error('Health revision missing');
+          if(generated.assets?.binding!=='ASSETS'||generated.images?.binding!=='IMAGES') throw new Error('Health asset/image binding missing');
+          console.log('HEALTH_PRODUCTION_ARTIFACT_PASS');
+          NODE
           npx wrangler deploy --config wrangler.production.jsonc
           printf '%s' "$HEALTH_SECRET" | npx wrangler secret put HEALTH_CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
           curl --fail --silent --show-error --max-time 20 "$HEALTH_ORIGIN/api/control/contract" > /tmp/health-contract.json
@@ -181,6 +195,7 @@ jobs:
         env:
           CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH: wrangler.production.jsonc
           RU_SECRET: ${{ steps.secrets.outputs.ru_secret }}
+          RU_D1_ID: ${{ steps.d1.outputs.ru_id }}
         shell: bash
         run: |
           set -euo pipefail
@@ -189,7 +204,20 @@ jobs:
           npm test
           npx wrangler d1 migrations apply ru-life-production-db --remote --config wrangler.production.jsonc
           npm run build
-          npm run cloudflare:artifact:check
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const redirect=JSON.parse(fs.readFileSync('.wrangler/deploy/config.json','utf8'));
+          const generatedPath=path.resolve('.wrangler/deploy',redirect.configPath);
+          const generated=JSON.parse(fs.readFileSync(generatedPath,'utf8'));
+          if(generated.name!=='ru-life') throw new Error('RU_LIFE production Worker name mismatch');
+          const db=(generated.d1_databases||[]).find(x=>x.binding==='DB');
+          if(!db||db.database_name!=='ru-life-production-db'||String(db.database_id).toLowerCase()!==process.env.RU_D1_ID.toLowerCase()) throw new Error('RU_LIFE production D1 binding mismatch');
+          if(generated.vars?.RU_LIFE_DEPLOYMENT_CHANNEL!=='cloudflare-production') throw new Error('RU_LIFE production channel mismatch');
+          if(!/^[A-Za-z0-9._-]{7,80}$/.test(String(generated.vars?.RU_LIFE_BUILD_REVISION||''))) throw new Error('RU_LIFE revision missing');
+          if(generated.assets?.binding!=='ASSETS'||generated.images?.binding!=='IMAGES') throw new Error('RU_LIFE asset/image binding missing');
+          console.log('RU_PRODUCTION_ARTIFACT_PASS');
+          NODE
           npx wrangler deploy --config wrangler.production.jsonc
           printf '%s' "$RU_SECRET" | npx wrangler secret put RU_LIFE_CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
           curl --fail --silent --show-error --max-time 20 "$RU_ORIGIN/" > /tmp/ru-home.html
