@@ -338,9 +338,17 @@ function rowToRecord(row: ManagedContractRow): ManagedContractRecord {
   };
 }
 
+let legacyRegistrySeeded = false;
+
 async function seedLegacyRegistryRows() {
+  if (legacyRegistrySeeded) return;
   const database = await getControlDatabase();
+  const existing = await database.prepare(
+    "SELECT application_id FROM managed_contract_apps WHERE auth_mode='legacy-env'",
+  ).all<{ application_id: string }>();
+  const present = new Set(existing.results.map((row) => row.application_id));
   for (const app of applicationRegistry) {
+    if (present.has(app.id)) continue;
     const kind: ManagedClassification =
       app.category === "Học tập" ? "learning"
       : app.category === "Y tế" ? "health"
@@ -367,6 +375,7 @@ async function seedLegacyRegistryRows() {
       app.contractState === "connected" || verified.controlOrigin ? "connected" : "pending",
     ).run();
   }
+  legacyRegistrySeeded = true;
 }
 
 export async function listManagedContracts() {
@@ -598,6 +607,9 @@ export async function probeManagedContract(applicationId: string) {
   const contract = await getManagedContract(applicationId);
   if (!contract) throw new Error("Không tìm thấy ứng dụng trong Contract Registry.");
   if (!contract.enabled) return contract;
+  // Legacy clients keep their specialized compatibility probe in Operations.
+  // Contract Registry v1 only probes manifests it actually owns.
+  if (contract.authMode === "legacy-env" && !contract.manifest) return contract;
   if (!contract.controlOrigin) {
     const database = await getControlDatabase();
     await database.prepare(
