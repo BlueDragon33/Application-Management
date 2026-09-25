@@ -47,6 +47,13 @@ const activeApps = applicationRegistry;
 const activeAppSet = new Set<string>(activeApps.map((app) => app.id));
 const systemTools: readonly SystemTool[] = [
   {
+    id: "tool-contract-registry",
+    name: "Ứng dụng & Contract",
+    href: "/tools/contract-registry",
+    category: "Tool",
+    note: "Discovery, phân loại, pairing và kiểm tra contract ứng dụng mà không cần sửa code Trung tâm.",
+  },
+  {
     id: "tool-secret-generator",
     name: "Tạo Key / Secret",
     href: "/tools/secret-generator",
@@ -102,6 +109,7 @@ function appFor(appId: string) {
 }
 
 function appGlyph(appId: string) {
+  if (appId === "tool-contract-registry") return "⊙";
   if (appId === "tool-secret-generator") return "⌘";
   if (appId === "boi-ech") return "≋";
   if (appId === "bauman-master-ai") return "◇";
