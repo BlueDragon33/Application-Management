@@ -78,8 +78,9 @@ jobs:
             list="$(npx --yes wrangler@4.92.0 d1 list --json)"
             id="$(printf '%s' "$list" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const x=JSON.parse(s);const a=Array.isArray(x)?x:(x.result||[]);const r=a.find(v=>v.name===process.argv[1]);process.stdout.write(r?.uuid||r?.id||'')})" "$name")"
             if [[ -z "$id" ]]; then
-              create="$(npx --yes wrangler@4.92.0 d1 create "$name" --json)"
-              id="$(printf '%s' "$create" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const x=JSON.parse(s);process.stdout.write(x.uuid||x.id||x.result?.uuid||x.result?.id||'')})")"
+              npx --yes wrangler@4.92.0 d1 create "$name"
+              list="$(npx --yes wrangler@4.92.0 d1 list --json)"
+              id="$(printf '%s' "$list" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const x=JSON.parse(s);const a=Array.isArray(x)?x:(x.result||[]);const r=a.find(v=>v.name===process.argv[1]);process.stdout.write(r?.uuid||r?.id||'')})" "$name")"
             fi
             if [[ ! "$id" =~ ^[0-9a-fA-F-]{36}$ ]]; then echo "::error::Cannot resolve D1 id for $name"; exit 1; fi
             printf '%s' "$id"
