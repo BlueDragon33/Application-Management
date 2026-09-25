@@ -251,3 +251,13 @@ test("repository bootstrap metadata never masquerades as a Website or live contr
   assert.ok(contract.includes("!repositoryMetadataOnly && manifest.capabilities.webLaunch"));
   assert.ok(contract.includes("chưa có Control Origin/credential production"));
 });
+
+
+test("failed credential-free public bootstrap rows can recover from the canonical repository contract", () => {
+  assert.ok(catalogApi.includes("recoverablePublicBootstrapRow"));
+  assert.ok(catalogApi.includes("public-bootstrap-recovered-from-repository"));
+  assert.ok(catalogApi.includes("!probe.contractConnected"));
+  assert.ok(catalogApi.includes("row.origin === fallback"));
+  assert.ok(catalogApi.includes("row.repository?.toLowerCase() === application.repository.toLowerCase()"));
+  assert.ok(catalogApi.includes("repositoryCatalogCandidate(application)"));
+});
