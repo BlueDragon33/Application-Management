@@ -77,8 +77,16 @@ function validAppId(value: string) {
   return /^[a-z0-9][a-z0-9-]{1,62}$/.test(value);
 }
 
-function validPath(value: string) {
+function validEndpointPath(value: string) {
   return /^\/api\/[a-z0-9/_-]+$/i.test(value) && !value.includes("..");
+}
+
+function validContractPath(value: string) {
+  return /^\/[a-z0-9._/-]+$/i.test(value)
+    && !value.includes("..")
+    && !value.includes("//")
+    && !value.includes("?")
+    && !value.includes("#");
 }
 
 function privateHost(hostname: string) {
@@ -142,7 +150,7 @@ function normalizeCategory(value: unknown): ApplicationCategory {
 
 function normalizeContractPath(value: unknown) {
   const path = text(value) || DEFAULT_CONTRACT_PATH;
-  if (!validPath(path)) throw new Error("Contract path phải nằm dưới /api/ và không chứa '..'.");
+  if (!validContractPath(path)) throw new Error("Contract path phải là absolute path an toàn, không chứa '..', query hoặc fragment.");
   return path;
 }
 
@@ -278,7 +286,7 @@ async function fetchJson(origin: string, path: string, credential = "") {
 
 function endpoint(value: unknown) {
   const path = text(value);
-  return path && validPath(path) ? path : undefined;
+  return path && validEndpointPath(path) ? path : undefined;
 }
 
 function parseManifest(raw: Record<string, unknown>, expectedId: string): UniversalContractManifest {
