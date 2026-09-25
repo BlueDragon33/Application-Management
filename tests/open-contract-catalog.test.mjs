@@ -151,14 +151,17 @@ test("contract path supports safe static manifests but endpoint paths remain API
 });
 
 
-test("legacy sync migrates only missing catalog rows and never overwrites dynamic owner config", () => {
+test("legacy sync preserves owner config but can bootstrap from verified public repository contracts", () => {
   assert.ok(catalogApi.includes("applicationRegistry"));
   assert.ok(catalogApi.includes("listClientNetworkSpecs"));
   assert.ok(catalogApi.includes("resolveClientBridge"));
   assert.ok(catalogApi.includes("legacyCatalogCandidate"));
+  assert.ok(catalogApi.includes("repositoryCatalogCandidate"));
+  assert.ok(catalogApi.includes("repositoryBootstrapRow"));
+  assert.ok(catalogApi.includes("public-repository-contract"));
+  assert.ok(catalogApi.includes("repository-bootstrap-upgraded"));
   assert.ok(catalogApi.includes("if (!current && !candidate.origin)"));
   assert.ok(catalogApi.includes("if (!current)"));
-  assert.ok(catalogApi.includes("Existing Dynamic Catalog entries are authoritative"));
   assert.equal(catalogApi.includes("upsertManagedCatalog({ ...current"), false);
 });
 
@@ -227,4 +230,16 @@ test("unknown dynamic app mutations remain generic instead of requiring a new ap
   assert.ok(operations.includes("dynamicMutationReady"));
   assert.ok(operations.includes('contractPath: "universal"'));
   assert.ok(operations.includes("if (appId !== \"boi-ech\")"));
+});
+
+
+test("public GitHub repository manifests can classify apps without pretending remote admin is live", () => {
+  assert.ok(discovery.includes("discoverManagedRepositoryContract"));
+  assert.ok(discovery.includes("raw.githubusercontent.com"));
+  assert.ok(discovery.includes("PUBLIC_REPOSITORY_CONTRACT_PATHS"));
+  assert.ok(discovery.includes("public/control/application-management.contract.json"));
+  assert.ok(discovery.includes("expectedId"));
+  assert.ok(discovery.includes("repository trong contract không khớp"));
+  assert.ok(catalogApi.includes("public-repository-contract"));
+  assert.ok(catalogApi.includes("candidate.contractPath"));
 });
