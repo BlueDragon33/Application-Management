@@ -24,6 +24,7 @@ type ProbeSummary = {
   name?: string;
   connection?: string;
   credentialConfigured?: boolean;
+  contractConnected?: boolean;
   remoteAdminReady?: boolean;
   note?: string;
   protocol?: string | null;
@@ -431,6 +432,7 @@ export default function ManagedAppsCatalogPage() {
         <h2 style={h2}>{probe.name ?? probe.id ?? "Contract"}</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 10 }}>
           <Stat label="Kết nối" value={probe.connection ?? "—"}/>
+          <Stat label="Contract" value={probe.contractConnected ? "Đã bắt tay" : "Chưa bắt tay"}/>
           <Stat label="Credential" value={probe.credentialConfigured ? "Đã cấu hình" : "Chưa cấu hình"}/>
           <Stat label="Remote admin" value={probe.remoteAdminReady ? "Sẵn sàng" : "Fail-closed"}/>
           <Stat label="Protocol" value={probe.protocol ?? "—"}/>
