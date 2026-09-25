@@ -1,1 +1,0 @@
-Temporary staging marker for one-shot Production Dynamic Catalog sync.
