@@ -7,6 +7,8 @@ on:
         description: "Gõ DEPLOY_PRODUCTION để triển khai Application Management Production lên Cloudflare"
         required: true
         type: string
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: read
@@ -46,9 +48,24 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${{ inputs.confirm }}" != "DEPLOY_PRODUCTION" ]]; then
-            echo '::error::Deployment cancelled. Enter DEPLOY_PRODUCTION exactly.'
-            exit 1
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            if [[ "${{ inputs.confirm }}" != "DEPLOY_PRODUCTION" ]]; then
+              echo '::error::Deployment cancelled. Enter DEPLOY_PRODUCTION exactly.'
+              exit 1
+            fi
+          else
+            if [[ "${{ github.actor }}" != "BlueDragon33" ]]; then
+              echo '::error::One-shot open-contract deploy must be requested by repository owner.'
+              exit 1
+            fi
+            if [[ "${{ github.event.issue.number }}" != "135" ]]; then
+              echo '::error::One-shot open-contract deploy is restricted to PR #135.'
+              exit 1
+            fi
+            if [[ "${{ github.event.comment.body }}" != "/deploy-production-open-contract" ]]; then
+              echo '::error::One-shot open-contract deploy command mismatch.'
+              exit 1
+            fi
           fi
 
       - name: Checkout repository
