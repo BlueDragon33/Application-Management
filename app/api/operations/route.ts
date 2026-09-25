@@ -506,15 +506,15 @@ async function buildBootstrap(actor: ControlDeviceState) {
   const allApplications = [...applicationRegistry, ...dynamicApplications];
   const configMap = new Map(allApplications.map((item) => [item.id, item]));
   const loaders: Array<{ id: string; run: () => Promise<LoadedClient> }> = [
-    { id: "boi-ech", run: async () => await loadBoi(actor) },
-    { id: "health-care", run: async () => await loadHealth(actor) },
-    { id: "ru-life", run: async () => await loadRu(actor) },
-    { id: "bauman-master-ai", run: async () => await loadBauman(actor) },
-    { id: "price-report-tunggiabao", run: async () => await loadPriceReport(actor) },
-    { id: "growup-mychildren", run: async () => await loadGrowUp(actor) },
+    { id: "boi-ech", run: () => loadBoi(actor) },
+    { id: "health-care", run: () => loadHealth(actor) },
+    { id: "ru-life", run: () => loadRu(actor) },
+    { id: "bauman-master-ai", run: () => loadBauman(actor) },
+    { id: "price-report-tunggiabao", run: () => loadPriceReport(actor) },
+    { id: "growup-mychildren", run: () => loadGrowUp(actor) },
     ...dynamicApplications.map((config) => ({
       id: config.id,
-      run: async () => await loadManagedContract(config, actor),
+      run: () => loadManagedContract(config, actor),
     })),
   ];
   const settled = await Promise.all(loaders.map(async (loader) => {
