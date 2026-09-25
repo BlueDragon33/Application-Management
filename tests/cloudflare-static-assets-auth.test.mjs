@@ -19,7 +19,7 @@ test("Cloudflare Preview and Production serve client bundles from ASSETS only af
   const productionGate = runtime.indexOf("await productionIdentity(request, env)");
   const deploymentRoute = runtime.indexOf('url.pathname === "/__deployment"');
   const assetRoute = runtime.indexOf("isCloudflareClientAsset(request, url)");
-  const applicationHandler = runtime.lastIndexOf("return handler.fetch(request, env, ctx)");
+  const applicationHandler = runtime.lastIndexOf("const response = await handler.fetch(request, env, ctx)");
 
   assert.ok(previewGate >= 0 && previewGate < assetRoute, "Preview access must be authorized before static assets are served.");
   assert.ok(productionGate >= 0 && productionGate < assetRoute, "Production session must be authorized before static assets are served.");
