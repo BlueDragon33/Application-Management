@@ -93,6 +93,19 @@ function repositoryBootstrapRow(row: Awaited<ReturnType<typeof listManagedCatalo
     && !row.credential_iv;
 }
 
+function recoverablePublicBootstrapRow(
+  row: Awaited<ReturnType<typeof listManagedCatalog>>[number],
+  application: (typeof applicationRegistry)[number],
+) {
+  const fallback = publicOrigin(application.publicUrl);
+  return Boolean(fallback)
+    && row.origin === fallback
+    && Boolean(row.repository)
+    && row.repository?.toLowerCase() === application.repository.toLowerCase()
+    && !row.credential_ciphertext
+    && !row.credential_iv;
+}
+
 function probeSummary(probe: Awaited<ReturnType<typeof probeManagedCatalogEntry>>) {
   return {
     id: probe.config.id,
@@ -224,6 +237,30 @@ export async function POST(request: Request) {
         }
 
         const probe = await probeManagedCatalogEntry(current);
+        if (!probe.contractConnected && recoverablePublicBootstrapRow(current, application)) {
+          const repositoryCandidate = await repositoryCatalogCandidate(application);
+          if (repositoryCandidate.origin) {
+            const id = await upsertManagedCatalog({
+              id: application.id,
+              name: application.name,
+              shortName: application.shortName,
+              category: application.category,
+              origin: repositoryCandidate.origin,
+              publicUrl: application.publicUrl ?? "",
+              repository: application.repository,
+              contractPath: repositoryCandidate.contractPath,
+              credential: "",
+            }, actor);
+            const recovered = (await listManagedCatalog()).find((item) => item.id === id);
+            const recoveredProbe = recovered ? await probeManagedCatalogEntry(recovered) : null;
+            existing.push({
+              id,
+              source: "public-bootstrap-recovered-from-repository",
+              probe: recoveredProbe ? probeSummary(recoveredProbe) : null,
+            });
+            continue;
+          }
+        }
         existing.push({ id: current.id, probe: probeSummary(probe) });
       }
 
