@@ -134,22 +134,22 @@ jobs:
         run: printf '%s' "$APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET" | npx wrangler secret put APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET --config wrangler.production.jsonc
 
       - name: Install Bơi ếch bridge secret
-        if: ${{ env.BOI_ECH_BASE_URL != '' }}
+        if: ${{ env.CONTROL_SERVICE_SECRET != '' }}
         shell: bash
         run: printf '%s' "$CONTROL_SERVICE_SECRET" | npx wrangler secret put CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
 
       - name: Install Health bridge secret
-        if: ${{ env.HEALTH_CARE_BASE_URL != '' }}
+        if: ${{ env.HEALTH_CONTROL_SERVICE_SECRET != '' }}
         shell: bash
         run: printf '%s' "$HEALTH_CONTROL_SERVICE_SECRET" | npx wrangler secret put HEALTH_CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
 
       - name: Install RU_LIFE bridge secret
-        if: ${{ env.RU_LIFE_BASE_URL != '' }}
+        if: ${{ env.RU_LIFE_CONTROL_SERVICE_SECRET != '' }}
         shell: bash
         run: printf '%s' "$RU_LIFE_CONTROL_SERVICE_SECRET" | npx wrangler secret put RU_LIFE_CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
 
       - name: Install Bauman bridge secret
-        if: ${{ env.BAUMAN_CONTROL_BASE_URL != '' }}
+        if: ${{ env.BAUMAN_CONTROL_SERVICE_SECRET != '' }}
         shell: bash
         run: printf '%s' "$BAUMAN_CONTROL_SERVICE_SECRET" | npx wrangler secret put BAUMAN_CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
 
