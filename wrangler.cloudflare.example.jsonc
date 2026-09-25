@@ -3,7 +3,7 @@
   "name": "application-management-preview",
   "main": "./worker/index.ts",
   "compatibility_date": "2026-09-10",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
 
   // Preview authentication must execute before every asset request. The
   // Cloudflare Vite plugin supplies the generated asset directory.
