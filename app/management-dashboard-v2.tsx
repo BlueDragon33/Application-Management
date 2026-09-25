@@ -148,8 +148,6 @@ function connectionLabel(value: OperationsSummary["connection"], summary?: Opera
   return "Chờ contract";
 }
 
-type StatusAxisTone = "good" | "warn" | "bad" | "idle";
-
 function statusAxes(app: ApplicationConfig, summary?: OperationsSummary) {
   const state = connectionFor(app, summary);
   const repositoryOnly = summary?.issueCode === "REPOSITORY_METADATA_ONLY";
