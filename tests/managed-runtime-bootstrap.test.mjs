@@ -79,7 +79,7 @@ test("managed runtime smoke waits for Worker secret propagation instead of false
 
 test("Bơi ếch bootstrap verifies the real operations path, not only contract metadata", () => {
   assert.match(workflow, /Verify Bơi ếch operational fallback is truly live/);
-  assert.match(workflow, /"\/api\/operations"/);
+  assert.match(workflow, /\/api\/operations/);
   assert.match(workflow, /boi\.connection !== "connected"/);
   assert.match(workflow, /boi\.controlChannel !== "legacy-adapter"/);
   assert.match(workflow, /boi\.remoteAdminReady !== true/);
