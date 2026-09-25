@@ -21,6 +21,12 @@ test("central bootstrap owns Health and RU_LIFE Cloudflare runtime provisioning"
   assert.match(workflow, /repository: BlueDragon33\/RU_LIFE/);
   assert.match(workflow, /ensure_d1 "health-care-production-db"/);
   assert.match(workflow, /ensure_d1 "ru-life-production-db"/);
+  assert.match(workflow, /D1_INVENTORY=/);
+  assert.match(workflow, /no database was deleted automatically/);
+  assert.match(workflow, /HEALTH_PREVIEW_D1_DATABASE_ID=\$APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID/);
+  assert.match(workflow, /RU_LIFE_PREVIEW_D1_DATABASE_ID=\$APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID/);
+  assert.doesNotMatch(workflow, /ensure_d1 "health-care-preview-db"/);
+  assert.doesNotMatch(workflow, /ensure_d1 "ru-life-preview-db"/);
   assert.match(workflow, /HEALTH_CONTROL_SERVICE_SECRET/);
   assert.match(workflow, /RU_LIFE_CONTROL_SERVICE_SECRET/);
   assert.match(workflow, /HEALTH_CARE_BASE_URL_OVERRIDE/);
