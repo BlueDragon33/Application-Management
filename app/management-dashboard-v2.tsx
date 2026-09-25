@@ -148,6 +148,52 @@ function connectionLabel(value: OperationsSummary["connection"], summary?: Opera
   return "Chờ contract";
 }
 
+type StatusAxisTone = "good" | "warn" | "bad" | "idle";
+
+function statusAxes(app: ApplicationConfig, summary?: OperationsSummary) {
+  const state = connectionFor(app, summary);
+  const repositoryOnly = summary?.issueCode === "REPOSITORY_METADATA_ONLY";
+  const runtimeLive = !repositoryOnly && (state === "connected" || summary?.contractConnected === true);
+
+  const runtime = state === "unavailable"
+    ? { label: "Mất kết nối", tone: "bad" as const }
+    : runtimeLive
+      ? { label: "Live", tone: "good" as const }
+      : state === "warning"
+        ? { label: "Có cảnh báo", tone: "warn" as const }
+        : { label: "Chưa live", tone: "idle" as const };
+
+  const contract = summary?.contractConnected === true
+    ? { label: "Đã bắt tay", tone: "good" as const }
+    : summary?.contractReadiness === "partial"
+      ? { label: "Đang hoàn tất", tone: "warn" as const }
+      : summary?.contractReadiness === "not-enrolled"
+        ? { label: "Chưa đăng ký", tone: "idle" as const }
+        : { label: "Chờ", tone: "idle" as const };
+
+  const admin = summary?.remoteAdminReady === true
+    ? { label: "Sẵn sàng", tone: "good" as const }
+    : summary?.contractConnected === true
+      ? { label: "Chỉ quan sát", tone: "warn" as const }
+      : { label: "Chưa sẵn sàng", tone: "idle" as const };
+
+  return { runtime, contract, admin };
+}
+
+function StatusCell({ app, summary }: { app: ApplicationConfig; summary?: OperationsSummary }) {
+  const state = connectionFor(app, summary);
+  const axes = statusAxes(app, summary);
+  const title = summary?.note ?? app.contractNote;
+  return <div className="amv2-status-cell" title={title}>
+    <b data-state={state}><i/>{connectionLabel(state, summary)}</b>
+    <small aria-label="Chi tiết trạng thái kết nối">
+      <span data-tone={axes.runtime.tone}>Runtime {axes.runtime.label}</span>
+      <span data-tone={axes.contract.tone}>Contract {axes.contract.label}</span>
+      <span data-tone={axes.admin.tone}>Quản trị {axes.admin.label}</span>
+    </small>
+  </div>;
+}
+
 function deviceKind(device: OperationsDevice) {
   if (device.deviceType === "desktop") return "Desktop";
   if (device.deviceType === "phone") return "Điện thoại";
@@ -681,7 +727,7 @@ function Overview({ apps, tools, summaryMap, devices, pendingDevices, approvalDe
 
       <section className="amv2-panel amv2-quick-panel"><header><h2>⚡ Thao tác nhanh</h2></header><div className="amv2-quick-grid"><button onClick={() => switchView("applications")}>◇<span>Quản trị ứng dụng</span></button><button data-active={webMenu} onClick={() => setWebMenu((current) => !current)}>◎<span>Truy cập web</span></button><button onClick={() => switchView("devices")}>▣<span>Duyệt thiết bị</span></button><button onClick={() => switchView("approvals")}>⬡<span>Yêu cầu chờ duyệt</span></button><button data-danger="true" disabled={Boolean(actionBusy)} onClick={() => void clearNotifications()}>⌫<span>{actionBusy === "clear" ? "Đang xóa…" : "Xóa hết thông báo"}</span></button><button disabled={Boolean(actionBusy)} onClick={() => void enableAutoApproval()}>⚙<span>{actionBusy === "auto" ? "Đang lưu…" : "Duyệt tự động"}</span></button><button disabled={syncing} onClick={() => void refreshOperations()}>↻<span>{syncing ? "Đang đồng bộ…" : "Đồng bộ dữ liệu"}</span></button><button onClick={() => switchView("settings")}>▦<span>Giao diện</span></button><button onClick={() => switchView("audit")}>▤<span>Xem nhật ký</span></button></div>{webMenu ? <div className="amv2-web-menu">{apps.map((app) => { const summary = summaryMap.get(app.id); const hasWeb = Boolean(summary?.webHref || app.publicUrl || (localRuntime && app.localUrl)); return <button key={app.id} disabled={!hasWeb || webBusy === app.id} onClick={() => void launchWeb(app.id)}><span>{app.shortName}</span><b>{webBusy === app.id ? "Đang mở…" : hasWeb ? "Mở ↗" : "Chờ"}</b></button>; })}</div> : null}</section>
 
-      <section className="amv2-panel amv2-apps-panel"><PanelTitle icon="◇" title="Ứng dụng đang quản lý" onClick={() => switchView("applications")}/><div className="amv2-app-table"><div className="amv2-app-head"><span>Ứng dụng</span><span>Nhóm nghiệp vụ</span><span>Việc chờ xử lý</span><span>Thiết bị online</span><span>Trạng thái</span><span>Website</span><span>Quản Trị</span></div>{tools.map((tool) => <ToolRow key={tool.id} tool={tool}/>)}{apps.map((app) => { const summary = summaryMap.get(app.id); const state = connectionFor(app, summary); const pending = summary?.pendingCount ?? devices.filter((device) => device.appId === app.id && device.status === "pending").length; const hasWeb = Boolean(summary?.webHref || app.publicUrl || (localRuntime && app.localUrl)); return <div className="amv2-app-row" key={app.id}><AppCell appId={app.id} name={app.shortName}/><span>{appGroup(app)}</span><strong>{pending}</strong><strong>{summary?.onlineCount ?? 0}</strong><b data-state={state}><i/>{connectionLabel(state, summary)}</b><button className="amv2-web-action" disabled={!hasWeb || webBusy === app.id} onClick={() => void launchWeb(app.id)}>{webBusy === app.id ? "…" : hasWeb ? "Đến" : "Chờ"}</button><Link className="amv2-manage-action" href={app.href}>Vào</Link></div>; })}{!apps.length && !tools.length ? <div className="amv2-empty compact"><strong>Không tìm thấy ứng dụng hoặc Tool phù hợp.</strong></div> : null}</div></section>
+      <section className="amv2-panel amv2-apps-panel"><PanelTitle icon="◇" title="Ứng dụng đang quản lý" onClick={() => switchView("applications")}/><div className="amv2-app-table"><div className="amv2-app-head"><span>Ứng dụng</span><span>Nhóm nghiệp vụ</span><span>Việc chờ xử lý</span><span>Thiết bị online</span><span>Trạng thái</span><span>Website</span><span>Quản Trị</span></div>{tools.map((tool) => <ToolRow key={tool.id} tool={tool}/>)}{apps.map((app) => { const summary = summaryMap.get(app.id); const pending = summary?.pendingCount ?? devices.filter((device) => device.appId === app.id && device.status === "pending").length; const hasWeb = Boolean(summary?.webHref || app.publicUrl || (localRuntime && app.localUrl)); return <div className="amv2-app-row" key={app.id}><AppCell appId={app.id} name={app.shortName}/><span>{appGroup(app)}</span><strong>{pending}</strong><strong>{summary?.onlineCount ?? 0}</strong><StatusCell app={app} summary={summary}/><button className="amv2-web-action" disabled={!hasWeb || webBusy === app.id} onClick={() => void launchWeb(app.id)}>{webBusy === app.id ? "…" : hasWeb ? "Đến" : "Chờ"}</button><Link className="amv2-manage-action" href={app.href}>Vào</Link></div>; })}{!apps.length && !tools.length ? <div className="amv2-empty compact"><strong>Không tìm thấy ứng dụng hoặc Tool phù hợp.</strong></div> : null}</div></section>
 
       <section className="amv2-panel amv2-devices-panel"><PanelTitle icon="▣" title="Thiết bị mới theo ứng dụng" count={pendingDevices.length} onClick={() => switchView("devices")}/><div className="amv2-device-table"><div className="amv2-device-head"><span>Ứng dụng</span><span>Thiết bị</span><span>Người dùng</span><span>Thời gian</span><span>Thao tác</span></div>{pendingDevices.slice(0, 4).map((device) => { const rowBusy = actionBusy === `${device.appId}:${device.deviceId}`; return <div className="amv2-device-row" key={`${device.appId}:${device.deviceId}`}><AppCell appId={device.appId} name={device.appName}/><span>{deviceKind(device)}</span><span title={device.userLabel}>{device.userLabel}</span><span>{relativeTime(device.createdAt)}</span><div>{device.canApprove ? <button disabled={rowBusy} onClick={() => void manageDevice(device, "approve")}>{device.appId === "boi-ech" ? "Phân quyền" : "Duyệt"}</button> : null}{device.canRemove ? <button data-danger="true" disabled={rowBusy} onClick={() => void manageDevice(device, "remove")}>{device.appId === "boi-ech" ? "Xóa" : "Khóa"}</button> : null}</div></div>; })}{!pendingDevices.length ? <div className="amv2-empty compact"><strong>Không có thiết bị chờ duyệt.</strong></div> : null}</div></section>
     </section>
@@ -693,7 +739,7 @@ function ApprovalView({ devices, actionBusy, manageDevice }: { devices: Operatio
 }
 
 function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb, localRuntime }: { apps: ApplicationConfig[]; tools: SystemTool[]; summaryMap: Map<string, OperationsSummary>; devices: OperationsDevice[]; webBusy: string; launchWeb: (appId: string) => Promise<void>; localRuntime: boolean }) {
-  return <section className="amv2-page-panel"><div className="amv2-app-table full"><div className="amv2-app-head"><span>Ứng dụng</span><span>Nhóm nghiệp vụ</span><span>Việc chờ xử lý</span><span>Thiết bị online</span><span>Trạng thái</span><span>Website</span><span>Quản Trị</span></div>{tools.map((tool) => <ToolRow key={tool.id} tool={tool}/>)}{apps.map((app) => { const summary = summaryMap.get(app.id); const state = connectionFor(app, summary); const pending = summary?.pendingCount ?? devices.filter((device) => device.appId === app.id && device.status === "pending").length; const hasWeb = Boolean(summary?.webHref || app.publicUrl || (localRuntime && app.localUrl)); return <div className="amv2-app-row" key={app.id}><AppCell appId={app.id} name={app.shortName}/><span>{appGroup(app)}</span><strong>{pending}</strong><strong>{summary?.onlineCount ?? 0}</strong><b data-state={state}><i/>{connectionLabel(state, summary)}</b><button className="amv2-web-action" disabled={!hasWeb || webBusy === app.id} onClick={() => void launchWeb(app.id)}>{webBusy === app.id ? "…" : hasWeb ? "Đến" : "Chờ"}</button><Link className="amv2-manage-action" href={app.href}>Vào</Link></div>; })}{!apps.length && !tools.length ? <div className="amv2-empty"><strong>Không tìm thấy ứng dụng hoặc Tool phù hợp.</strong></div> : null}</div></section>;
+  return <section className="amv2-page-panel"><div className="amv2-app-table full"><div className="amv2-app-head"><span>Ứng dụng</span><span>Nhóm nghiệp vụ</span><span>Việc chờ xử lý</span><span>Thiết bị online</span><span>Trạng thái</span><span>Website</span><span>Quản Trị</span></div>{tools.map((tool) => <ToolRow key={tool.id} tool={tool}/>)}{apps.map((app) => { const summary = summaryMap.get(app.id); const pending = summary?.pendingCount ?? devices.filter((device) => device.appId === app.id && device.status === "pending").length; const hasWeb = Boolean(summary?.webHref || app.publicUrl || (localRuntime && app.localUrl)); return <div className="amv2-app-row" key={app.id}><AppCell appId={app.id} name={app.shortName}/><span>{appGroup(app)}</span><strong>{pending}</strong><strong>{summary?.onlineCount ?? 0}</strong><StatusCell app={app} summary={summary}/><button className="amv2-web-action" disabled={!hasWeb || webBusy === app.id} onClick={() => void launchWeb(app.id)}>{webBusy === app.id ? "…" : hasWeb ? "Đến" : "Chờ"}</button><Link className="amv2-manage-action" href={app.href}>Vào</Link></div>; })}{!apps.length && !tools.length ? <div className="amv2-empty"><strong>Không tìm thấy ứng dụng hoặc Tool phù hợp.</strong></div> : null}</div></section>;
 }
 
 function DevicesView({ devices, actionBusy, manageDevice, bulkRemovePendingDevices, openAutomation }: {
