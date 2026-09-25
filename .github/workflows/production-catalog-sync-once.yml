@@ -103,7 +103,7 @@ jobs:
           if (!value.ok) throw new Error(value.error || "Catalog probe-all did not return ok.");
           console.log("CATALOG_PROBE_TOTALS=" + JSON.stringify(value.totals ?? {}));
           for (const item of value.probes ?? []) {
-            console.log(`PROBE ${item.id} connection=${item.connection} credential=${Boolean(item.credentialConfigured)} remoteAdminReady=${Boolean(item.remoteAdminReady)} protocol=${item.protocol ?? "none"} via=${item.discoveredVia ?? "none"}`);
+            console.log(`PROBE ${item.id} connection=${item.connection} credential=${Boolean(item.credentialConfigured)} remoteAdminReady=${Boolean(item.remoteAdminReady)} protocol=${item.protocol ?? "none"} via=${item.discoveredVia ?? "none"} note=${String(item.note ?? "").replace(/\\s+/g, " ").slice(0, 700)}`);
           }
           NODE
 
