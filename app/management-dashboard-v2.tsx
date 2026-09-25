@@ -361,6 +361,7 @@ export default function ManagementDashboardV2({ user, authMode }: {
     return live ? live !== "ready" && live !== "metadata" : app.contractState !== "connected";
   }).length;
   const highAlerts = workItems.filter((item) => item.priority === "high").length;
+  const notificationCount = workItems.length;
   const approvalCount = approvalDevices.length;
   const onlineApps = activeApps.filter((app) => connectionFor(app, summaryMap.get(app.id)) === "connected").length;
   const onlineDevices = summaries.reduce((sum, item) => sum + (item.onlineCount ?? 0), 0);
@@ -613,7 +614,7 @@ export default function ManagementDashboardV2({ user, authMode }: {
       <header className="amv2-topbar">
         <label className="amv2-search"><span>⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm theo ứng dụng, thiết bị, người dùng…"/></label>
         <label className="amv2-filter"><span>▽</span><select value={appFilter} onChange={(event) => setAppFilter(event.target.value)}><option value="all">Bộ lọc nhanh</option>{activeApps.map((app) => <option key={app.id} value={app.id}>{app.shortName}</option>)}{systemTools.map((tool) => <option key={tool.id} value={tool.id}>Tool · {tool.name}</option>)}</select></label>
-        <button className="amv2-bell" aria-label={approvalCount ? `Mở Hộp việc: ${approvalCount} yêu cầu cần xử lý` : "Mở Hộp việc"} onClick={() => switchView("approvals")}>♧{approvalCount ? <b>{approvalCount}</b> : null}</button>
+        <button className="amv2-bell" aria-label={notificationCount ? `Mở Cảnh báo: ${notificationCount} thông báo` : "Mở Cảnh báo"} onClick={() => switchView("alerts")}>♧{notificationCount ? <b>{notificationCount}</b> : null}</button>
         <span className="amv2-online"><i/><strong>Hệ thống kết nối</strong><small>{syncing ? "Đang đồng bộ…" : "Dữ liệu đã cập nhật"}</small></span>
         <details className="amv2-account"><summary><span>{initials(user.displayName)}</span><div><strong>{user.displayName}</strong><small>{roleLabels[access.role]}</small></div><b>⌄</b></summary><div><small>{user.email}</small>{authMode === "cloudflare-production" ? <a href="/__account">Tài khoản & bảo mật</a> : <button onClick={() => setAccountSecurityOpen(true)}>Tài khoản & bảo mật</button>}<button onClick={() => switchView("settings")}>Cấu hình</button>{authMode === "cloudflare-production" ? <form method="post" action="/__logout"><button type="submit">Đăng xuất</button></form> : <a href="/signout-with-chatgpt?return_to=%2F">Đăng xuất</a>}</div></details>
       </header>
