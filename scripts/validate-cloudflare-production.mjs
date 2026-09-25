@@ -29,6 +29,7 @@ for (const file of [
 const template = fs.readFileSync("wrangler.production.example.jsonc", "utf8");
 if (!/"run_worker_first"\s*:\s*true/.test(template)) fail("Production assets must run Worker authentication first.");
 if (!/"binding"\s*:\s*"ASSETS"/.test(template)) fail("Production template must expose ASSETS binding.");
+if (!template.includes('"global_fetch_strictly_public"')) fail("Production must allow dynamic public Worker-to-Worker contract discovery.");
 if (!template.includes('"APPLICATION_MANAGEMENT_DEPLOYMENT_CHANNEL": "cloudflare-production"')) fail("Production template must declare cloudflare-production channel.");
 
 if (!fs.existsSync("wrangler.production.jsonc")) {
