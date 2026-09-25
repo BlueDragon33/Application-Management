@@ -2,6 +2,7 @@ import { issueBoiBrowserBridge } from "./boi-ech.server";
 import { issueHealthBrowserBridge, probeHealthManagementContract } from "./health-care.server";
 import { issueBaumanBrowserBridge } from "./bauman.server";
 import { issueRuLifeBrowserBridge } from "./ru-life.server";
+import { getManagedContract, managedContractRequest } from "./managed-contract-registry.server";
 
 const AUTOMATION_READ_ACTOR = "automation-state@application-management.local";
 const AUTOMATION_READ_DEVICE_ID = "0".repeat(64);
@@ -102,6 +103,26 @@ async function readRuLifeAutomation() {
   };
 }
 
+async function readManagedAutomation(appId: string) {
+  const contract = await getManagedContract(appId);
+  if (!contract?.enabled) throw new Error(`AUTO_APPROVAL_CONTRACT_DISABLED_${appId}`);
+  const automationPath = contract.endpoints.automation || contract.manifest?.endpoints.automation || "";
+  if (!automationPath || contract.capabilities.deviceAutoApproval !== true && contract.capabilities.deviceAutoBlockPending !== true) {
+    throw new Error(`AUTO_APPROVAL_CONTRACT_NOT_LIVE_${appId}`);
+  }
+  const payload = await managedContractRequest(appId, automationPath);
+  const automation = record(payload.automation);
+  const rawHours = Math.round(Number(automation.pendingBlockAfterHours));
+  return {
+    autoApproveEnabled: automation.autoApproveDevices === true,
+    defaultAccessDays: null,
+    defaultDeviceLimit: null,
+    autoBlockSupported: contract.capabilities.deviceAutoBlockPending === true,
+    autoBlockEnabled: automation.autoBlockPendingDevices === true,
+    pendingBlockAfterHours: [24, 168, 720].includes(rawHours) ? rawHours : 168,
+  };
+}
+
 /** Read-only policy probes. No registration/device mutation is performed here. */
 export async function readClientAutoApprovalStates(supportedAppIds: readonly string[]) {
   return Promise.allSettled(supportedAppIds.map(async (appId) => {
@@ -121,6 +142,7 @@ export async function readClientAutoApprovalStates(supportedAppIds: readonly str
       const state = await readRuLifeAutomation();
       return { appId, ...state, enabled: state.autoApproveEnabled };
     }
-    throw new Error(`AUTO_APPROVAL_READER_MISSING_${appId}`);
+    const state = await readManagedAutomation(appId);
+    return { appId, ...state, enabled: state.autoApproveEnabled };
   }));
 }
