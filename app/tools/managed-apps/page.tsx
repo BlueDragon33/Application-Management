@@ -36,6 +36,8 @@ type CatalogResponse = {
     credentialConfigured?: boolean;
     remoteAdminReady?: boolean;
     note?: string;
+    protocol?: string | null;
+    discoveredVia?: string | null;
     capabilities?: string[];
     deviceCount?: number;
   };
@@ -191,7 +193,7 @@ export default function ManagedAppsCatalogPage() {
         <p style={{ margin: "6px 0 0", color: "#c9ddd5", lineHeight: 1.5 }}>
           {encryptionReady
             ? "Token app được mã hóa AES-GCM trước khi lưu D1. Có thể thêm/đổi credential trực tiếp tại đây."
-            : "Có thể thêm app và probe manifest ngay. Để lưu token quản trị, cấu hình một lần MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY (32 byte URL-safe) cho Worker."}
+            : "Có thể thêm app và probe manifest ngay. Khi deploy Cloudflare, hệ thống sẽ tự tạo khóa mã hóa credential một lần nếu Worker chưa có."}
         </p>
       </div>
 
@@ -253,6 +255,8 @@ export default function ManagedAppsCatalogPage() {
           <Stat label="Kết nối" value={probe.connection ?? "—"}/>
           <Stat label="Credential" value={probe.credentialConfigured ? "Đã cấu hình" : "Chưa cấu hình"}/>
           <Stat label="Remote admin" value={probe.remoteAdminReady ? "Sẵn sàng" : "Fail-closed"}/>
+          <Stat label="Protocol" value={probe.protocol ?? "—"}/>
+          <Stat label="Discovery" value={probe.discoveredVia ?? "—"}/>
           <Stat label="Thiết bị đọc được" value={String(probe.deviceCount ?? 0)}/>
         </div>
         <p style={{ color: "#b9d5cb" }}>{probe.note}</p>
