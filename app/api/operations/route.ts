@@ -64,7 +64,9 @@ type ClientSummary = {
   contractConnected: boolean;
   issueCode?: string;
   controlChannel: "universal" | "legacy-adapter" | "contract-observe" | "none";
-  contractReadiness: "ready" | "partial" | "pending" | "not-enrolled";
+  contractReadiness: "ready" | "partial" | "pending" | "not-enrolled" | "metadata";
+  managementMode: "remote-admin" | "observe-only" | "local-first" | "metadata-only";
+  metadataVerified: boolean;
 };
 
 type WorkItem = {
@@ -505,19 +507,22 @@ function summary(
   controlChannel: ClientSummary["controlChannel"] = "none",
   contractReadiness: ClientSummary["contractReadiness"] = connection === "connected" ? "ready" : connection === "warning" ? "partial" : "pending",
   contractConnected = false,
+  managementMode: ClientSummary["managementMode"] = remoteAdminReady ? "remote-admin" : "observe-only",
+  metadataVerified = false,
 ): ClientSummary {
   const connected = connection === "connected";
+  const designedLocal = managementMode === "local-first" || managementMode === "metadata-only";
   const hasOperationalData = hasOperationalDataOverride ?? connected;
   return {
     appId: config.id, appName: config.shortName, href: config.href,
-    webHref: connected ? webHref : null,
+    webHref: connected || designedLocal ? webHref : null,
     managedWebLaunch: connected && managedWebLaunch,
     group: config.category,
     connection, onlineCount: hasOperationalData ? devices.filter((device) => device.active).length : null,
     pendingCount: hasOperationalData ? devices.filter((device) => device.status === "pending").length : null,
     attentionCount: hasOperationalData ? devices.filter((device) => device.attention !== "none").length : null,
-    note, directWebAccess: connected && Boolean(webHref), remoteAdminReady, contractConnected, issueCode,
-    controlChannel, contractReadiness,
+    note, directWebAccess: Boolean(webHref) && (connected || designedLocal), remoteAdminReady, contractConnected, issueCode,
+    controlChannel, contractReadiness, managementMode, metadataVerified,
   };
 }
 
