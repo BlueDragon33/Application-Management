@@ -8,6 +8,11 @@ const UPSTREAM_TIMEOUT_MS = 4_500;
 type UnknownRecord = Record<string, unknown>;
 type Bridge = { baseUrl: string; token: string };
 type DeviceStatus = "pending" | "approved" | "blocked" | "unknown";
+type ReconciledDevice = {
+  row: UnknownRecord;
+  rebound: boolean;
+  reason: "device-id" | "device-code" | "single-pending-reconcile";
+};
 
 function json(data: unknown, status = 200) {
   return Response.json(data, {
@@ -61,14 +66,14 @@ function rowByDeviceCode(data: UnknownRecord, deviceCode: string) {
   return rows(data).find((item) => normalizedDeviceCode(item.deviceCode) === deviceCode) ?? null;
 }
 
-function resolveLiveDevice(data: UnknownRecord, deviceId: string, deviceCode: string) {
+function resolveLiveDevice(data: UnknownRecord, deviceId: string, deviceCode: string): ReconciledDevice | null {
   const byId = rowByDeviceId(data, deviceId);
   if (byId) return { row: byId, rebound: false, reason: "device-id" as const };
   const byCode = rowByDeviceCode(data, deviceCode);
   return byCode ? { row: byCode, rebound: text(byCode.deviceId) !== deviceId, reason: "device-code" as const } : null;
 }
 
-function resolveBaumanPendingFallback(data: UnknownRecord, payload: Record<string, unknown>, deviceId: string) {
+function resolveBaumanPendingFallback(data: UnknownRecord, payload: Record<string, unknown>, deviceId: string): ReconciledDevice | null {
   const pending = rows(data).filter((item) => normalizedStatus(item.status) === "pending");
   if (!pending.length) return null;
 

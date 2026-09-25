@@ -84,12 +84,15 @@ async function challenge(access: AdminAccess) {
 }
 
 async function proof(access: AdminAccess) {
+  if (access.deviceId.startsWith("production-session:")) {
+    return { controlDeviceId: access.deviceId };
+  }
   const credential = await readCredential();
   if (!credential?.privateKey) throw new Error("Không đọc được khóa P-256 của thiết bị quản trị.");
   const nonce = await challenge(access);
   const message = new TextEncoder().encode(`learning-control:${access.deviceId}:${nonce}`);
   const signature = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, credential.privateKey, message);
-  return { deviceId: access.deviceId, challenge: nonce, signature: base64Url(new Uint8Array(signature)) };
+  return { controlDeviceId: access.deviceId, challenge: nonce, signature: base64Url(new Uint8Array(signature)) };
 }
 
 async function approvedSession() {

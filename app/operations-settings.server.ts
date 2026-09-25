@@ -71,8 +71,8 @@ export async function readAutoApprovalSettings(supportedAppIds: readonly string[
       if (appId === "boi-ech") {
         const days = probe.value.defaultAccessDays;
         const limit = probe.value.defaultDeviceLimit;
-        if (Number.isInteger(days) && days >= 1 && days <= 365) freeAccessDaysByApp[appId] = days;
-        if (Number.isInteger(limit) && limit >= 1 && limit <= 1_000) freeDeviceLimitByApp[appId] = limit;
+        if (typeof days === "number" && Number.isInteger(days) && days >= 1 && days <= 365) freeAccessDaysByApp[appId] = days;
+        if (typeof limit === "number" && Number.isInteger(limit) && limit >= 1 && limit <= 1_000) freeDeviceLimitByApp[appId] = limit;
       }
       if (probe.value.autoBlockSupported) {
         autoBlockSupported.add(appId);

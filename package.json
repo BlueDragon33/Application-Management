@@ -19,7 +19,7 @@
     "build": "bash scripts/build-verified.sh",
     "preview": "npm run build && vite preview",
     "start": "vinext start",
-    "test": "npm run build && node --test tests/*.test.mjs",
+    "test": "npm run typecheck && npm run build && node --test tests/*.test.mjs",
     "validate:artifact": "bash scripts/validate-artifact.sh",
     "validate:local-first": "node --test tests/local-first-runtime.test.mjs",
     "validate:cloudflare-preview": "node scripts/validate-cloudflare-preview.mjs",
@@ -33,7 +33,8 @@
     "validate:cloudflare-production": "node scripts/validate-cloudflare-production.mjs",
     "cloudflare:production:prepare": "node scripts/prepare-cloudflare-production.mjs",
     "cloudflare:production:check": "node scripts/validate-cloudflare-production.mjs",
-    "cloudflare:production:artifact:check": "node scripts/validate-cloudflare-production-artifact.mjs"
+    "cloudflare:production:artifact:check": "node scripts/validate-cloudflare-production-artifact.mjs",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",

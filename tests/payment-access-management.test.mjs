@@ -12,7 +12,7 @@ const view = source("app/boi-access-view.tsx");
 const dashboard = source("app/management-dashboard-v2.tsx");
 
 test("Boi payment/access API is proof-gated, concurrency-safe and read-back verified", () => {
-  assert.match(api, /verifyControlProof\(payload/);
+  assert.match(api, /verifyControlProof\(controlProofPayload/);
   assert.match(api, /expectedPaymentStatus/);
   assert.match(api, /expectedAccessGroup/);
   assert.match(api, /PAYMENT_STATE_CONFLICT/);
@@ -112,4 +112,21 @@ test("legacy Boi drawer cannot bypass finalized payment state", () => {
   assert.match(controlCenter, />Duyệt lại · gia hạn<\/button>/);
   assert.match(controlCenter, /\{canGrantFree \? <button/);
   assert.match(controlCenter, />Duyệt miễn phí<\/button>/);
+});
+
+
+test("Boi access keeps the control proof identity separate from the target device", () => {
+  assert.match(client, /controlDeviceId: access\.deviceId/);
+  assert.doesNotMatch(client, /return \{ deviceId: access\.deviceId, challenge:/);
+  assert.match(api, /const controlDeviceId = text\(payload\.controlDeviceId\)/);
+  assert.match(api, /controlProofPayload = controlDeviceId \? \{ \.\.\.payload, deviceId: controlDeviceId \} : payload/);
+  assert.match(api, /verifyControlProof\(controlProofPayload/);
+  assert.match(api, /const deviceId = text\(payload\.deviceId\)\.toLowerCase\(\)/);
+});
+
+
+test("Boi access honors Production account session without IndexedDB challenge", () => {
+  assert.match(client, /access\.deviceId\.startsWith\("production-session:"\)/);
+  assert.match(client, /return \{ controlDeviceId: access\.deviceId \};/);
+  assert.match(client, /const credential = await readCredential\(\)/);
 });
