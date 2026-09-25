@@ -25,6 +25,8 @@ export type ManagedCatalogRow = {
 
 export type UniversalContractManifest = {
   schema: typeof CONTRACT_SCHEMA;
+  protocol?: string;
+  discoveredVia?: string;
   application: {
     id: string;
     name: string;
@@ -289,20 +291,37 @@ function endpoint(value: unknown) {
   return path && validEndpointPath(path) ? path : undefined;
 }
 
-function parseManifest(raw: Record<string, unknown>, expectedId: string): UniversalContractManifest {
+function record(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function capabilitySet(value: unknown) {
+  if (!Array.isArray(value)) return new Set<string>();
+  return new Set(value.filter((item): item is string => typeof item === "string").map((item) => item.trim().toLowerCase()));
+}
+
+function categoryMatches(value: unknown, expected: ApplicationCategory) {
+  const actual = text(value);
+  if (actual && actual !== expected) throw new Error(`Contract category "${actual}" không khớp Catalog "${expected}".`);
+}
+
+function parseManifest(raw: Record<string, unknown>, expectedId: string, expectedCategory: ApplicationCategory, discoveredVia = DEFAULT_CONTRACT_PATH): UniversalContractManifest {
   const schema = text(raw.schema);
-  const application = raw.application && typeof raw.application === "object" ? raw.application as Record<string, unknown> : {};
-  const capabilitiesRaw = raw.capabilities && typeof raw.capabilities === "object" ? raw.capabilities as Record<string, unknown> : {};
-  const endpointsRaw = raw.endpoints && typeof raw.endpoints === "object" ? raw.endpoints as Record<string, unknown> : {};
+  const application = record(raw.application);
+  const capabilitiesRaw = record(raw.capabilities);
+  const endpointsRaw = record(raw.endpoints);
   if (schema !== CONTRACT_SCHEMA) throw new Error(`Contract schema phải là ${CONTRACT_SCHEMA}.`);
   if (text(application.id) !== expectedId) throw new Error("Contract application.id không khớp catalog.");
+  categoryMatches(application.category, expectedCategory);
   const capabilities = Object.fromEntries(Object.entries(capabilitiesRaw).filter(([, value]) => typeof value === "boolean")) as Record<string, boolean>;
   return {
     schema: CONTRACT_SCHEMA,
+    protocol: text(raw.protocol) || CONTRACT_SCHEMA,
+    discoveredVia,
     application: {
       id: expectedId,
       name: text(application.name) || expectedId,
-      category: text(application.category) || undefined,
+      category: expectedCategory,
       version: text(application.version) || undefined,
     },
     capabilities,
@@ -313,6 +332,140 @@ function parseManifest(raw: Record<string, unknown>, expectedId: string): Univer
       web: endpoint(endpointsRaw.web),
     },
   };
+}
+
+function normalizeLegacyContract(
+  raw: Record<string, unknown>,
+  expectedId: string,
+  expectedCategory: ApplicationCategory,
+  discoveredVia: string,
+  publicUrl: string | null,
+): UniversalContractManifest | null {
+  const applicationRaw = raw.application;
+  const application = record(applicationRaw);
+  const applicationId = typeof applicationRaw === "string"
+    ? text(applicationRaw)
+    : text(application.id) || text(raw.canonicalApplication) || text(raw.appId);
+  if (!applicationId || applicationId !== expectedId) return null;
+
+  categoryMatches(application.category, expectedCategory);
+
+  const controlService = record(raw.controlService);
+  const endpointsRaw = Object.keys(record(raw.endpoints)).length
+    ? record(raw.endpoints)
+    : record(controlService.endpoints);
+  const routes = Array.isArray(controlService.routes)
+    ? controlService.routes.filter((item): item is string => typeof item === "string")
+    : [];
+
+  const statusPath = endpoint(endpointsRaw.status)
+    ?? (routes.includes("/api/control/status") ? "/api/control/status" : discoveredVia === "/api/control/status" ? "/api/control/status" : undefined);
+  const devicesPath = endpoint(endpointsRaw.devices)
+    ?? (routes.includes("/api/control/devices") ? "/api/control/devices" : undefined);
+  const deviceCommandsPath = endpoint(endpointsRaw.deviceCommands)
+    ?? (routes.includes("/api/control/device-commands") ? "/api/control/device-commands" : undefined);
+
+  const capsObject = record(raw.capabilities);
+  const capsList = capabilitySet(raw.capabilities);
+  const readiness = record(raw.readiness);
+  const policy = record(raw.policy);
+
+  const explicit = (key: string, ...aliases: string[]) => {
+    if (capsObject[key] === true) return true;
+    return aliases.some((alias) => capsList.has(alias.toLowerCase()));
+  };
+  const readinessAvailable = (key: string) => {
+    const value = text(readiness[key]).toLowerCase();
+    return Boolean(value && value !== "missing" && value !== "unavailable" && value !== "disabled");
+  };
+
+  const deviceRegistry = Boolean(devicesPath) && (
+    explicit("deviceRegistry", "device-registry", "device-access")
+    || explicit("deviceRegistration", "device-registration")
+    || readinessAvailable("deviceRegistry")
+  );
+
+  const capabilities: Record<string, boolean> = {
+    deviceRegistry,
+    deviceApproval: explicit("deviceApproval", "device-approval"),
+    deviceBlock: explicit("deviceBlock", "device-block"),
+    deviceUnblock: explicit("deviceUnblock", "device-unblock"),
+    deviceEditPermission: explicit("deviceEditPermission", "device-edit-permission"),
+    deviceIdempotentCommands: explicit("deviceIdempotentCommands", "device-idempotent-commands"),
+    optimisticConcurrency: explicit("optimisticConcurrency", "optimistic-concurrency"),
+    sessions: explicit("sessions", "session-revocation", "revocable-device-sessions")
+      || capsObject.sessionRevocation === true
+      || capsObject.revocableDeviceSessions === true,
+    audit: explicit("audit", "control-audit"),
+    contentReview: explicit("contentReview", "content-review") || capsObject.contentReviewApi === true,
+    payments: explicit("payments", "payment-review") || capsObject.paymentReview === true,
+    reports: explicit("reports", "reporting"),
+    webLaunch: explicit("webLaunch", "control-web-launch") || Boolean(publicUrl),
+  };
+
+  // A legacy manifest may explicitly declare remote-admin false. Keep the
+  // normalized contract observable, but never infer mutation readiness.
+  if (policy.remoteAdminReady === false) {
+    capabilities.deviceApproval = false;
+    capabilities.deviceBlock = false;
+    capabilities.deviceUnblock = false;
+  }
+
+  return {
+    schema: CONTRACT_SCHEMA,
+    protocol: text(raw.protocol) || text(controlService.protocol) || `legacy-contract-v${text(raw.contractVersion) || text(raw.schemaVersion) || "1"}`,
+    discoveredVia,
+    application: {
+      id: expectedId,
+      name: text(application.name) || text(raw.displayName) || expectedId,
+      category: expectedCategory,
+      version: text(application.version) || text(raw.contractVersion) || text(raw.schemaVersion) || undefined,
+    },
+    capabilities,
+    endpoints: {
+      status: statusPath,
+      devices: devicesPath,
+      deviceCommands: deviceCommandsPath,
+      web: endpoint(endpointsRaw.web),
+    },
+  };
+}
+
+async function discoverContract(
+  row: ManagedCatalogRow,
+  credential: string,
+  category: ApplicationCategory,
+): Promise<UniversalContractManifest> {
+  const candidates: Array<{ path: string; credential: string }> = [];
+  const add = (path: string, suppliedCredential = "") => {
+    if (!validContractPath(path)) return;
+    if (!candidates.some((item) => item.path === path && item.credential === suppliedCredential)) {
+      candidates.push({ path, credential: suppliedCredential });
+    }
+  };
+
+  add(row.contract_path, row.contract_path === "/api/control/status" ? credential : "");
+  add("/api/control/contract");
+  add("/management-contract.json");
+  add("/control/application-management.contract.json");
+  if (credential) add("/api/control/status", credential);
+
+  const failures: string[] = [];
+  for (const candidate of candidates) {
+    try {
+      const raw = await fetchJson(row.origin, candidate.path, candidate.credential);
+      if (text(raw.schema) === CONTRACT_SCHEMA) {
+        return parseManifest(raw, row.id, category, candidate.path);
+      }
+      const normalized = normalizeLegacyContract(raw, row.id, category, candidate.path, row.public_url);
+      if (normalized) return normalized;
+      failures.push(`${candidate.path}: schema/id không khớp`);
+    } catch (error) {
+      failures.push(`${candidate.path}: ${error instanceof Error ? error.message : "không đọc được"}`);
+    }
+  }
+
+  throw new Error(`Không phát hiện contract tương thích. ${failures.join(" · ").slice(0, 900)}`);
 }
 
 function deviceType(value: unknown): UniversalContractDevice["deviceType"] {
