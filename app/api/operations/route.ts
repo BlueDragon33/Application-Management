@@ -1,4 +1,4 @@
-import { applicationRegistry } from "../../application-registry";
+import { applicationRegistry, type ApplicationConfig } from "../../application-registry";
 import { verifyControlProof, type ControlDeviceState } from "../../control-device.server";
 import { UpstreamError, issueBoiBrowserBridge } from "../../boi-ech.server";
 import { issueHealthBrowserBridge, issueHealthWebLaunch } from "../../health-care.server";
@@ -6,6 +6,11 @@ import { issueRuLifeBrowserBridge } from "../../ru-life.server";
 import { issueBaumanBrowserBridge } from "../../bauman.server";
 import { issueGrowUpBrowserBridge, probeGrowUpManagementContract } from "../../growup.server";
 import { issuePriceReportBrowserBridge, probePriceReportManagementContract } from "../../price-report.server";
+import {
+  getManagedContract,
+  listDynamicApplicationConfigs,
+  managedContractRequest,
+} from "../../managed-contract-registry.server";
 import {
   dismissedNotificationHashes,
   hashWorkItem,
@@ -74,6 +79,16 @@ type WorkItem = {
   deviceType: string;
   occurredAt: string | null;
   priority: "high" | "normal" | "info";
+};
+
+type LoadedClient = {
+  config: ApplicationConfig;
+  devices: ClientDevice[];
+  webHref: string | null;
+  managedWebLaunch: boolean;
+  hasOperationalData: boolean;
+  remoteAdminReady?: boolean;
+  controlNote?: string;
 };
 
 function json(data: unknown, status = 200) {
@@ -416,8 +431,49 @@ async function loadPriceReport(actor: ControlDeviceState) {
   }
 }
 
+async function loadManagedContract(config: ApplicationConfig, actor: ControlDeviceState): Promise<LoadedClient> {
+  const contract = await getManagedContract(config.id);
+  if (!contract?.enabled) throw new Error("Contract Registry đã tắt ứng dụng này.");
+  if (!contract.controlOrigin) throw new Error("Contract Registry chưa có control origin.");
+  const statusPath = contract.endpoints.status || contract.manifest?.endpoints.status;
+  if (!statusPath) throw new Error("Manifest chưa công bố status endpoint.");
+
+  const status = await managedContractRequest(config.id, statusPath);
+  const devicesPath = contract.endpoints.devices || contract.manifest?.endpoints.devices || "";
+  const capabilities = contract.capabilities;
+  const canManage = actor.role === "publisher" || actor.role === "owner";
+  let devices: ClientDevice[] = [];
+
+  if (devicesPath && capabilities.deviceRegistry === true) {
+    const data = await managedContractRequest(config.id, devicesPath);
+    const registryInstanceId = text(status.registryInstanceId) || null;
+    devices = rows(data).map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
+      typeKey: text(record(row).deviceType) ? "deviceType" : "deviceClass",
+      userKeys: ["displayName", "userLabel", "label", "userName", "userCode", "platform"],
+      environmentKey: "environmentChanged",
+      approve: canManage && capabilities.deviceApproval === true,
+      remove: canManage && (capabilities.deviceBlocking === true || capabilities.deviceRemoval === true),
+      unblock: canManage && capabilities.deviceUnblock === true,
+      editPermission: canManage && capabilities.deviceEditPermission === true,
+      approvalRequiresRegistrationComplete: false,
+      defaultType: "desktop",
+      ...(registryInstanceId ? { registryInstanceId } : {}),
+    }));
+  }
+
+  return {
+    config,
+    devices,
+    webHref: contract.runtimeOrigin,
+    managedWebLaunch: false,
+    hasOperationalData: Boolean(devicesPath && capabilities.deviceRegistry === true),
+    remoteAdminReady: true,
+    controlNote: "Application Management Contract Registry v1 đã probe thành công.",
+  };
+}
+
 function summary(
-  config: ReturnType<typeof app>,
+  config: ApplicationConfig,
   devices: ClientDevice[],
   connection: ClientSummary["connection"],
   note: string,
@@ -442,14 +498,21 @@ function summary(
 }
 
 async function buildBootstrap(actor: ControlDeviceState) {
-  const loaders = [
-    { id: "boi-ech", run: () => loadBoi(actor) },
-    { id: "health-care", run: () => loadHealth(actor) },
-    { id: "ru-life", run: () => loadRu(actor) },
-    { id: "bauman-master-ai", run: () => loadBauman(actor) },
-    { id: "price-report-tunggiabao", run: () => loadPriceReport(actor) },
-    { id: "growup-mychildren", run: () => loadGrowUp(actor) },
-  ] as const;
+  const dynamicApplications = await listDynamicApplicationConfigs();
+  const allApplications = [...applicationRegistry, ...dynamicApplications];
+  const configMap = new Map(allApplications.map((item) => [item.id, item]));
+  const loaders: Array<{ id: string; run: () => Promise<LoadedClient> }> = [
+    { id: "boi-ech", run: async () => await loadBoi(actor) },
+    { id: "health-care", run: async () => await loadHealth(actor) },
+    { id: "ru-life", run: async () => await loadRu(actor) },
+    { id: "bauman-master-ai", run: async () => await loadBauman(actor) },
+    { id: "price-report-tunggiabao", run: async () => await loadPriceReport(actor) },
+    { id: "growup-mychildren", run: async () => await loadGrowUp(actor) },
+    ...dynamicApplications.map((config) => ({
+      id: config.id,
+      run: async () => await loadManagedContract(config, actor),
+    })),
+  ];
   const settled = await Promise.all(loaders.map(async (loader) => {
     try { return { id: loader.id, ok: true as const, value: await loader.run() }; }
     catch (error) {
@@ -469,7 +532,8 @@ async function buildBootstrap(actor: ControlDeviceState) {
   const workItems: WorkItem[] = [];
 
   for (const result of settled) {
-    const config = app(result.id);
+    const config = configMap.get(result.id);
+    if (!config) continue;
     if (!result.ok) {
       if (config.contractState !== "connected") {
         const connection = config.contractState === "pending" ? "pending" : "warning";
@@ -518,10 +582,11 @@ async function buildBootstrap(actor: ControlDeviceState) {
   const visibleWorkItems = (await Promise.all(workItems.slice(0, 60).map(async (item) => ({ item, hash: await hashWorkItem(item.id) }))))
     .filter(({ hash }) => !hidden.has(hash)).map(({ item }) => item);
   return {
-    actor: { deviceCode: actor.deviceCode, role: actor.role }, generatedAt: new Date().toISOString(), summaries, devices,
+    actor: { deviceCode: actor.deviceCode, role: actor.role }, generatedAt: new Date().toISOString(),
+    applications: allApplications, summaries, devices,
     workItems: visibleWorkItems, settings: await readAutoApprovalSettings(AUTO_APPROVE_SUPPORTED_APP_IDS),
     metrics: {
-      applications: applicationRegistry.length,
+      applications: allApplications.length,
       pendingDevices: devices.filter((device) => device.status === "pending").length,
       alerts: visibleWorkItems.filter((item) => item.priority === "high").length,
       workItems: visibleWorkItems.length,
