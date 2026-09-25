@@ -123,3 +123,10 @@ test("Boi access keeps the control proof identity separate from the target devic
   assert.match(api, /verifyControlProof\(controlProofPayload/);
   assert.match(api, /const deviceId = text\(payload\.deviceId\)\.toLowerCase\(\)/);
 });
+
+
+test("Boi access honors Production account session without IndexedDB challenge", () => {
+  assert.match(client, /access\.deviceId\.startsWith\("production-session:"\)/);
+  assert.match(client, /return \{ controlDeviceId: access\.deviceId \};/);
+  assert.match(client, /const credential = await readCredential\(\)/);
+});
