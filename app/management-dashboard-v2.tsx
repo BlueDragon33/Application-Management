@@ -52,6 +52,13 @@ const systemTools: readonly SystemTool[] = [
     category: "Tool",
     note: "Sinh chuỗi ngẫu nhiên, mật khẩu và secret bằng Web Crypto; không lưu secret vào URL hoặc storage.",
   },
+  {
+    id: "tool-managed-apps",
+    name: "Catalog & Contract",
+    href: "/tools/managed-apps",
+    category: "Tool",
+    note: "Thêm ứng dụng mới theo phân loại và Universal Contract mà không sửa code Trung tâm.",
+  },
 ];
 const validViews: readonly View[] = ["overview", "approvals", "applications", "devices", "access", "alerts", "audit", "settings"];
 
@@ -102,6 +109,7 @@ function appFor(apps: readonly ApplicationConfig[], appId: string) {
 
 function appGlyph(appId: string) {
   if (appId === "tool-secret-generator") return "⌘";
+  if (appId === "tool-managed-apps") return "⊕";
   if (appId === "boi-ech") return "≋";
   if (appId === "bauman-master-ai") return "◇";
   return "◆";
