@@ -41,22 +41,23 @@ page.on("response", (response) => {
 
 let navigationStatus = 0;
 let repairResponse = null;
-page.on("response", (response) => {
-  try {
-    if (new URL(response.url()).pathname !== "/__repair-cache") return;
-    repairResponse = {
-      status: response.status(),
-      clearSiteData: response.headers()["clear-site-data"] ?? "",
-      cacheControl: response.headers()["cache-control"] ?? "",
-      location: response.headers().location ?? "",
-    };
-    push("repair", JSON.stringify(repairResponse));
-  } catch {
-    // Diagnostic observation must never break the browser run.
-  }
-});
 try {
-  const response = await page.goto(origin + "/__repair-cache", { waitUntil: "domcontentloaded", timeout: 45_000 });
+  const repairPromise = page.waitForResponse((candidate) => {
+    try { return new URL(candidate.url()).pathname === "/__repair-cache"; }
+    catch { return false; }
+  }, { timeout: 45_000 });
+  const [response, repair] = await Promise.all([
+    page.goto(origin + "/__repair-cache", { waitUntil: "domcontentloaded", timeout: 45_000 }),
+    repairPromise,
+  ]);
+  const repairHeaders = await repair.allHeaders();
+  repairResponse = {
+    status: repair.status(),
+    clearSiteData: repairHeaders["clear-site-data"] ?? "",
+    cacheControl: repairHeaders["cache-control"] ?? "",
+    location: repairHeaders.location ?? "",
+  };
+  push("repair", JSON.stringify(repairResponse));
   navigationStatus = response?.status() ?? 0;
   push("navigation", `status=${navigationStatus} url=${page.url()}`);
   await page.waitForTimeout(8_000);
