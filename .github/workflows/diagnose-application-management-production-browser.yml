@@ -1,0 +1,184 @@
+name: Application Management Production Browser Diagnostic
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    if: ${{ github.actor == 'BlueDragon33' && github.event.issue.number == 123 && github.event.comment.body == '/diagnose-production-browser' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: application-management-production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID: ${{ secrets.APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID }}
+      APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID: ${{ secrets.APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID }}
+      APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD: ${{ secrets.APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD }}
+      APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET: ${{ secrets.APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET }}
+      CONTROL_OWNER_EMAILS: ${{ vars.CONTROL_OWNER_EMAILS }}
+      APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN: ${{ vars.APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN }}
+      BOI_ECH_BASE_URL: ${{ vars.BOI_ECH_PRODUCTION_ORIGIN }}
+      HEALTH_CARE_BASE_URL: ${{ vars.HEALTH_CARE_PRODUCTION_ORIGIN }}
+      RU_LIFE_BASE_URL: ${{ vars.RU_LIFE_PRODUCTION_ORIGIN }}
+      BAUMAN_CONTROL_BASE_URL: ${{ vars.BAUMAN_CONTROL_PRODUCTION_ORIGIN }}
+      BAUMAN_APP_ORIGIN: ${{ vars.BAUMAN_RUNTIME_PRODUCTION_ORIGIN }}
+      GROWUP_BASE_URL: ${{ vars.GROWUP_PRODUCTION_ORIGIN }}
+      CONTROL_SERVICE_SECRET: ${{ secrets.CONTROL_SERVICE_SECRET }}
+      HEALTH_CONTROL_SERVICE_SECRET: ${{ secrets.HEALTH_CONTROL_SERVICE_SECRET }}
+      RU_LIFE_CONTROL_SERVICE_SECRET: ${{ secrets.RU_LIFE_CONTROL_SERVICE_SECRET }}
+      BAUMAN_CONTROL_SERVICE_SECRET: ${{ secrets.BAUMAN_CONTROL_SERVICE_SECRET }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Materialize production config for D1 diagnostics
+        run: npm run cloudflare:production:prepare
+
+      - name: Create short-lived diagnostic owner session
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import crypto from 'node:crypto';
+          import fs from 'node:fs';
+          const owner = String(process.env.CONTROL_OWNER_EMAILS || '').split(',')[0].trim().toLowerCase();
+          if (!owner) throw new Error('CONTROL_OWNER_EMAILS missing');
+          const token = crypto.randomBytes(32).toString('base64url');
+          const hash = crypto.createHash('sha256').update(token).digest('hex');
+          console.log('::add-mask::' + token);
+          fs.appendFileSync(process.env.GITHUB_ENV, 'AM_DIAG_TOKEN=' + token + '\nAM_DIAG_HASH=' + hash + '\n');
+          const now = Math.floor(Date.now()/1000);
+          const exp = now + 1200;
+          const q = (v) => "'" + String(v).replaceAll("'", "''") + "'";
+          fs.writeFileSync('/tmp/am-diag.sql',
+            'DELETE FROM control_sessions WHERE session_id_hash=' + q(hash) + ';\n' +
+            'INSERT INTO control_sessions (session_id_hash,email,expires_at,created_at,last_seen_at) VALUES (' +
+            [q(hash),q(owner),exp,now,now].join(',') + ');\n'
+          );
+          NODE
+          npx wrangler d1 execute application-management-production-db --remote --config wrangler.production.jsonc --file=/tmp/am-diag.sql
+
+      - name: Install browser diagnostic runtime
+        run: npm install --no-save --ignore-scripts puppeteer-core@24.19.0
+
+      - name: Run authenticated Production browser diagnostic
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser)"
+          if [[ -z "$CHROME_BIN" ]]; then
+            echo '::error::Chrome/Chromium not available on runner.'
+            exit 1
+          fi
+          export CHROME_BIN
+          node --input-type=module <<'NODE'
+          import puppeteer from 'puppeteer-core';
+          import fs from 'node:fs';
+          const origin = process.env.APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN;
+          const browser = await puppeteer.launch({
+            executablePath: process.env.CHROME_BIN,
+            headless: true,
+            args: ['--no-sandbox','--disable-dev-shm-usage'],
+          });
+          const page = await browser.newPage();
+          const events = [];
+          page.on('console', msg => {
+            if (['error','warning'].includes(msg.type())) events.push({ kind:'console', type:msg.type(), text:msg.text().slice(0,1200) });
+          });
+          page.on('pageerror', err => events.push({ kind:'pageerror', text:String(err?.stack || err).slice(0,1800) }));
+          page.on('requestfailed', req => events.push({ kind:'requestfailed', url:req.url(), error:req.failure()?.errorText || '' }));
+          page.on('response', res => {
+            if (res.status() >= 400) events.push({ kind:'http', status:res.status(), url:res.url() });
+          });
+          await page.setCookie({
+            name:'__Host-am_prod_session',
+            value:process.env.AM_DIAG_TOKEN,
+            url:origin,
+            secure:true,
+            httpOnly:true,
+            sameSite:'Strict'
+          });
+          const navigation = await page.goto(origin + '/', { waitUntil:'networkidle2', timeout:60000 });
+          await new Promise(r => setTimeout(r, 4000));
+          const state = await page.evaluate(async () => {
+            const post = async (path, body) => {
+              try {
+                const response = await fetch(path, {
+                  method:'POST',
+                  credentials:'same-origin',
+                  cache:'no-store',
+                  headers:{'content-type':'application/json'},
+                  body:JSON.stringify(body),
+                });
+                const text = await response.text();
+                let json = null; try { json = JSON.parse(text); } catch {}
+                return {
+                  status:response.status,
+                  code:json?.code || null,
+                  error:json?.error || null,
+                  hasDevice:Boolean(json?.device),
+                  deviceStatus:json?.device?.status || null,
+                  actorRole:json?.actor?.role || null,
+                  summaries:Array.isArray(json?.summaries) ? json.summaries.length : null,
+                  devices:Array.isArray(json?.devices) ? json.devices.length : null,
+                  html:text.trim().startsWith('<'),
+                  prefix:text.slice(0,160)
+                };
+              } catch (error) {
+                return { fetchError:String(error) };
+              }
+            };
+            return {
+              url:location.href,
+              title:document.title,
+              bodyText:(document.body?.innerText || '').slice(0,2000),
+              bodyHtmlLength:document.body?.innerHTML?.length || 0,
+              shell:Boolean(document.querySelector('.amv2-shell')),
+              gate:Boolean(document.querySelector('.amv2-gate')),
+              gateText:document.querySelector('.amv2-gate')?.textContent?.slice(0,1000) || '',
+              scripts:[...document.scripts].map(s => s.src).filter(Boolean),
+              styles:[...document.querySelectorAll('link[rel="stylesheet"]')].map(l => l.href),
+              device:await post('/api/device',{action:'session'}),
+              center:await post('/api/center',{action:'bootstrap'}),
+              operations:await post('/api/operations',{action:'bootstrap'}),
+            };
+          });
+          await page.screenshot({ path:'/tmp/application-management-production.png', fullPage:true });
+          const report = {
+            navigationStatus:navigation?.status() ?? null,
+            ...state,
+            events
+          };
+          fs.writeFileSync('/tmp/application-management-production.json', JSON.stringify(report,null,2));
+          console.log('=== PRODUCTION BROWSER DIAGNOSTIC ===');
+          console.log(JSON.stringify(report,null,2));
+          await browser.close();
+          NODE
+
+      - name: Upload diagnostic screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: application-management-production-browser-diagnostic
+          path: |
+            /tmp/application-management-production.png
+            /tmp/application-management-production.json
+          retention-days: 1
+
+      - name: Remove diagnostic session
+        if: always()
+        shell: bash
+        run: |
+          if [[ -n "${AM_DIAG_HASH:-}" ]]; then
+            printf "DELETE FROM control_sessions WHERE session_id_hash='%s';\n" "$AM_DIAG_HASH" > /tmp/am-diag-cleanup.sql
+            npx wrangler d1 execute application-management-production-db --remote --config wrangler.production.jsonc --file=/tmp/am-diag-cleanup.sql
+          fi
