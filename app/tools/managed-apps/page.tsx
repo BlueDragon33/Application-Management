@@ -24,6 +24,11 @@ type CatalogResponse = {
   error?: string;
   encryptionReady?: boolean;
   apps?: CatalogApp[];
+  template?: Record<string, unknown>;
+  profile?: {
+    recommendedContractCapabilities?: string[];
+    defaultGuardrails?: string[];
+  };
   probe?: {
     id?: string;
     name?: string;
@@ -57,6 +62,7 @@ export default function ManagedAppsCatalogPage() {
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [probe, setProbe] = useState<CatalogResponse["probe"] | null>(null);
+  const [starter, setStarter] = useState<{ template: Record<string, unknown>; recommended: string[]; guardrails: string[] } | null>(null);
 
   async function load() {
     setBusy("load");
@@ -89,6 +95,7 @@ export default function ManagedAppsCatalogPage() {
       credential: "",
     });
     setProbe(null);
+    setStarter(null);
     setMessage("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -107,6 +114,30 @@ export default function ManagedAppsCatalogPage() {
       await load();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Không thể lưu ứng dụng.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function generateStarter() {
+    setBusy("template");
+    setMessage("");
+    try {
+      const result = await managedAppsAction({
+        action: "template",
+        id: form.id,
+        name: form.name,
+        category: form.category,
+      }) as CatalogResponse;
+      if (!result.template) throw new Error("Không tạo được contract starter.");
+      setStarter({
+        template: result.template,
+        recommended: result.profile?.recommendedContractCapabilities ?? [],
+        guardrails: result.profile?.defaultGuardrails ?? [],
+      });
+      setMessage("Đã sinh contract starter theo phân loại. Chỉ bật capability sau khi endpoint thật đã triển khai.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Không thể tạo contract starter.");
     } finally {
       setBusy("");
     }
@@ -186,12 +217,35 @@ export default function ManagedAppsCatalogPage() {
         </div>
         <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
           <button style={primaryButton} disabled={Boolean(busy) || !form.id || !form.name || !form.origin} onClick={() => void save()}>{busy === "save" ? "Đang lưu…" : "Lưu & kiểm tra contract"}</button>
+          <button style={secondaryButton} disabled={Boolean(busy) || !form.id || !form.name} onClick={() => void generateStarter()}>{busy === "template" ? "Đang tạo…" : "Tạo contract mẫu theo phân loại"}</button>
           <Link href="/tools/contract-diagnostics" style={linkStyle}>Mở chẩn đoán hệ thống</Link>
           <Link href="/tools/secret-generator" style={linkStyle}>Tạo Key / Secret</Link>
         </div>
       </section>
 
       {message ? <div style={{ margin: "16px 0", padding: 14, borderRadius: 12, background: "#0d2a20", border: "1px solid #245443", lineHeight: 1.5 }}>{message}</div> : null}
+
+      {starter ? <section style={panelStyle}>
+        <small style={eyebrow}>CATEGORY CONTRACT STARTER</small>
+        <h2 style={h2}>Khung contract cho {form.category}</h2>
+        <p style={{ color: "#b9d5cb", lineHeight: 1.5 }}>
+          Capability trong mẫu mặc định đều <strong>false</strong>. App chỉ đổi sang <strong>true</strong> khi endpoint tương ứng đã hoạt động thật.
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.5fr) minmax(240px,.8fr)", gap: 14, alignItems: "start" }}>
+          <pre style={{ margin: 0, padding: 14, borderRadius: 10, background: "#061710", border: "1px solid #214b3d", overflow: "auto", maxHeight: 520, color: "#d8fff1", fontSize: 12, lineHeight: 1.5 }}>{JSON.stringify(starter.template, null, 2)}</pre>
+          <div style={{ display: "grid", gap: 12 }}>
+            <div>
+              <strong>Capability gợi ý theo loại</strong>
+              <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginTop: 8 }}>{starter.recommended.map((item) => <span key={item} style={chipStyle}>{item}</span>)}</div>
+            </div>
+            <div>
+              <strong>Guardrail bắt buộc</strong>
+              <ul style={{ color: "#b9d5cb", paddingLeft: 18, lineHeight: 1.55 }}>{starter.guardrails.map((item) => <li key={item}>{item}</li>)}</ul>
+            </div>
+          </div>
+        </div>
+      </section> : null}
+
       {probe ? <section style={panelStyle}>
         <small style={eyebrow}>LIVE CONTRACT PROBE</small>
         <h2 style={h2}>{probe.name ?? probe.id ?? "Contract"}</h2>
