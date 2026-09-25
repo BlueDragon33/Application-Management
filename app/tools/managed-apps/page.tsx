@@ -24,6 +24,19 @@ type CatalogResponse = {
   error?: string;
   encryptionReady?: boolean;
   apps?: CatalogApp[];
+  migrated?: Array<{ id: string; source?: string; probe?: CatalogResponse["probe"] | null }>;
+  existing?: Array<{ id: string; probe?: CatalogResponse["probe"] | null }>;
+  needsOrigin?: Array<{ id: string; name: string; category: string; repository?: string; reason: string }>;
+  probes?: CatalogResponse["probe"][];
+  totals?: {
+    migrated?: number;
+    existing?: number;
+    needsOrigin?: number;
+    connected?: number;
+    warning?: number;
+    pending?: number;
+    unavailable?: number;
+  };
   template?: Record<string, unknown>;
   profile?: {
     recommendedContractCapabilities?: string[];
@@ -65,6 +78,7 @@ export default function ManagedAppsCatalogPage() {
   const [message, setMessage] = useState("");
   const [probe, setProbe] = useState<CatalogResponse["probe"] | null>(null);
   const [starter, setStarter] = useState<{ template: Record<string, unknown>; recommended: string[]; guardrails: string[] } | null>(null);
+  const [syncResult, setSyncResult] = useState<CatalogResponse | null>(null);
 
   async function load() {
     setBusy("load");
@@ -159,6 +173,46 @@ export default function ManagedAppsCatalogPage() {
     }
   }
 
+  async function syncExisting() {
+    setBusy("sync-existing");
+    setMessage("");
+    setProbe(null);
+    setSyncResult(null);
+    try {
+      const result = await managedAppsAction({ action: "sync-existing" }) as CatalogResponse;
+      setSyncResult(result);
+      const migrated = result.totals?.migrated ?? 0;
+      const existing = result.totals?.existing ?? 0;
+      const needsOrigin = result.totals?.needsOrigin ?? 0;
+      setMessage(`Đã đồng bộ: ${migrated} app mới vào Catalog, ${existing} app đã có, ${needsOrigin} app cần khai báo Control Origin.`);
+      await load();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Không thể đồng bộ ứng dụng hiện có.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function probeAll() {
+    setBusy("probe-all");
+    setMessage("");
+    setProbe(null);
+    setSyncResult(null);
+    try {
+      const result = await managedAppsAction({ action: "probe-all" }) as CatalogResponse;
+      setSyncResult(result);
+      const connected = result.totals?.connected ?? 0;
+      const warning = result.totals?.warning ?? 0;
+      const pending = result.totals?.pending ?? 0;
+      const unavailable = result.totals?.unavailable ?? 0;
+      setMessage(`Đã kiểm tra toàn bộ contract: ${connected} connected · ${warning} warning · ${pending} pending · ${unavailable} unavailable.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Không thể kiểm tra toàn bộ contract.");
+    } finally {
+      setBusy("");
+    }
+  }
+
   async function remove(id: string) {
     if (!window.confirm(`Loại ${id} khỏi catalog quản trị? Dữ liệu nghiệp vụ của client không bị xóa.`)) return;
     setBusy(`remove:${id}`);
@@ -220,12 +274,41 @@ export default function ManagedAppsCatalogPage() {
         <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
           <button style={primaryButton} disabled={Boolean(busy) || !form.id || !form.name || !form.origin} onClick={() => void save()}>{busy === "save" ? "Đang lưu…" : "Lưu & kiểm tra contract"}</button>
           <button style={secondaryButton} disabled={Boolean(busy) || !form.id || !form.name} onClick={() => void generateStarter()}>{busy === "template" ? "Đang tạo…" : "Tạo contract mẫu theo phân loại"}</button>
+          <button style={secondaryButton} disabled={Boolean(busy)} onClick={() => void syncExisting()}>{busy === "sync-existing" ? "Đang đồng bộ…" : "Đồng bộ ứng dụng hiện có"}</button>
+          <button style={secondaryButton} disabled={Boolean(busy)} onClick={() => void probeAll()}>{busy === "probe-all" ? "Đang kiểm tra…" : "Kiểm tra lại tất cả contract"}</button>
           <Link href="/tools/contract-diagnostics" style={linkStyle}>Mở chẩn đoán hệ thống</Link>
           <Link href="/tools/secret-generator" style={linkStyle}>Tạo Key / Secret</Link>
         </div>
       </section>
 
       {message ? <div style={{ margin: "16px 0", padding: 14, borderRadius: 12, background: "#0d2a20", border: "1px solid #245443", lineHeight: 1.5 }}>{message}</div> : null}
+
+      {syncResult?.needsOrigin?.length ? <section style={{ ...panelStyle, marginBottom: 16, borderColor: "#765d2c" }}>
+        <small style={{ ...eyebrow, color: "#f1c86f" }}>CẦN CONTROL ORIGIN</small>
+        <h2 style={h2}>{syncResult.needsOrigin.length} ứng dụng chưa thể tự nối contract</h2>
+        <p style={{ color: "#c9ddd5", lineHeight: 1.5 }}>
+          Đây không phải lỗi code Trung tâm. Client chưa có Production Control Origin đã biết. Chọn app, nhập origin/credential một lần trong Catalog; từ các lần sau hệ thống tự discovery và re-probe.
+        </p>
+        <div style={{ display: "grid", gap: 8 }}>
+          {syncResult.needsOrigin.map((item) => <article key={item.id} style={{ border: "1px solid #5f4e2d", borderRadius: 10, padding: 12, background: "#261f10" }}>
+            <strong>{item.name}</strong>
+            <small style={{ display: "block", color: "#cfb979", marginTop: 4 }}>{item.id} · {item.category}{item.repository ? ` · ${item.repository}` : ""}</small>
+            <span style={{ display: "block", marginTop: 6, color: "#ead9ab" }}>{item.reason}</span>
+          </article>)}
+        </div>
+      </section> : null}
+
+      {syncResult?.probes?.length ? <section style={{ ...panelStyle, marginBottom: 16 }}>
+        <small style={eyebrow}>BATCH CONTRACT PROBE</small>
+        <h2 style={h2}>Trạng thái contract động</h2>
+        <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
+          {syncResult.probes.map((item) => <article key={item?.id ?? item?.name} style={{ display: "grid", gridTemplateColumns: "minmax(180px,1fr) 110px minmax(260px,2fr)", gap: 10, border: "1px solid #214b3d", borderRadius: 10, padding: 11 }}>
+            <strong>{item?.name ?? item?.id}</strong>
+            <b style={{ color: item?.connection === "connected" ? "#72ddb9" : item?.connection === "warning" ? "#f1c86f" : "#e59b9b" }}>{item?.connection ?? "—"}</b>
+            <span style={{ color: "#a9c9bd" }}>{item?.note ?? "—"}</span>
+          </article>)}
+        </div>
+      </section> : null}
 
       {starter ? <section style={panelStyle}>
         <small style={eyebrow}>CATEGORY CONTRACT STARTER</small>
