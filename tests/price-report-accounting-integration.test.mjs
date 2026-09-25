@@ -93,6 +93,7 @@ test('registry copy distinguishes local KT control from production readiness', (
 
 test('generic device mutations reject missing optimistic-concurrency snapshots', () => {
   const occurrences = operations.match(/code: "INVALID_EXPECTED_STATUS"/g) ?? [];
-  assert.equal(occurrences.length, 5);
+  assert.ok(occurrences.length >= 6, "legacy + generic Contract v1 mutations must all reject missing expectedStatus");
+  assert.match(operations, /GENERIC_DEVICE_COMMAND_CONTRACT_NOT_LIVE/);
   assert.doesNotMatch(operations, /suppliedExpected === "unknown" \? liveStatus : suppliedExpected/);
 });
