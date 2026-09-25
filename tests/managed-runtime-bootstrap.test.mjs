@@ -16,12 +16,14 @@ test("managed runtime bootstrap is owner-gated and uses the Production environme
   assert.match(workflow, /environment: application-management-production/);
 });
 
-test("central bootstrap owns Bơi ếch, Health and RU_LIFE control provisioning", () => {
+test("central bootstrap owns Bơi ếch, Health, RU_LIFE and PriceReport control provisioning", () => {
   assert.match(workflow, /repository: BlueDragon33\/BOIECH_AI/);
   assert.match(workflow, /repository: BlueDragon33\/Health_Care/);
   assert.match(workflow, /repository: BlueDragon33\/RU_LIFE/);
+  assert.match(workflow, /repository: BlueDragon33\/PriceReport_Tunggiabao/);
   assert.match(workflow, /ensure_d1 "health-care-production-db"/);
   assert.match(workflow, /ensure_d1 "ru-life-production-db"/);
+  assert.match(workflow, /ensure_d1 "price-report-control-db"/);
   assert.match(workflow, /D1_INVENTORY=/);
   assert.match(workflow, /no database was deleted automatically/);
   assert.match(workflow, /HEALTH_PREVIEW_D1_DATABASE_ID=\$APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID/);
@@ -31,16 +33,18 @@ test("central bootstrap owns Bơi ếch, Health and RU_LIFE control provisioning
   assert.match(workflow, /CONTROL_SERVICE_SECRET --name boi-ech/);
   assert.match(workflow, /HEALTH_CONTROL_SERVICE_SECRET/);
   assert.match(workflow, /RU_LIFE_CONTROL_SERVICE_SECRET/);
+  assert.match(workflow, /PRICE_REPORT_CONTROL_SERVICE_SECRET/);
   assert.match(workflow, /BOI_ECH_BASE_URL_OVERRIDE/);
   assert.match(workflow, /HEALTH_CARE_BASE_URL_OVERRIDE/);
   assert.match(workflow, /RU_LIFE_BASE_URL_OVERRIDE/);
+  assert.match(workflow, /PRICE_REPORT_CONTROL_BASE_URL_OVERRIDE/);
 });
 
 test("bootstrap promotes only verified live runtimes into the Dynamic Catalog", () => {
   assert.match(workflow, /contractPath: "\/api\/application-management\/contract"/);
   assert.match(workflow, /contractPath: "\/api\/control\/contract"/);
   assert.match(workflow, /contractPath: "\/api\/control\/status"/);
-  assert.match(workflow, /"health-care", "ru-life"/);
+  assert.match(workflow, /"health-care", "ru-life", "price-report-tunggiabao"/);
   assert.match(workflow, /boi\.contractConnected/);
   assert.match(workflow, /boi\.credentialConfigured/);
   assert.match(workflow, /boi\.remoteAdminReady/);
@@ -58,23 +62,37 @@ test("bootstrap never persists generated bridge secrets in repository files", ()
   assert.doesNotMatch(workflow, /<<'NODE' >> "\$GITHUB_ENV"[\s\S]{0,500}::add-mask::/);
   assert.match(workflow, /echo "BOI_BRIDGE_SECRET=\$BOI_BRIDGE_SECRET" >> "\$GITHUB_ENV"/);
   assert.match(workflow, /echo "HEALTH_BRIDGE_SECRET=\$HEALTH_BRIDGE_SECRET" >> "\$GITHUB_ENV"/);
+  assert.match(workflow, /echo "PRICE_REPORT_BRIDGE_SECRET=\$PRICE_REPORT_BRIDGE_SECRET" >> "\$GITHUB_ENV"/);
   assert.match(workflow, /echo "BOOTSTRAP_QA_TOKEN=\$BOOTSTRAP_QA_TOKEN" >> "\$GITHUB_ENV"/);
   assert.match(workflow, /wrangler secret put CONTROL_SERVICE_SECRET --name boi-ech/);
   assert.match(workflow, /wrangler secret put HEALTH_CONTROL_SERVICE_SECRET/);
   assert.match(workflow, /wrangler secret put RU_LIFE_CONTROL_SERVICE_SECRET/);
+  assert.match(workflow, /wrangler secret put PRICE_REPORT_CONTROL_SERVICE_SECRET/);
   assert.doesNotMatch(workflow, /BOI_BRIDGE_SECRET:\s*[^$\n]/);
   assert.doesNotMatch(workflow, /HEALTH_BRIDGE_SECRET:\s*[^$\n]/);
   assert.doesNotMatch(workflow, /RU_LIFE_BRIDGE_SECRET:\s*[^$\n]/);
+  assert.doesNotMatch(workflow, /PRICE_REPORT_BRIDGE_SECRET:\s*[^$\n]/);
 });
 
 test("managed runtime smoke waits for Worker secret propagation instead of false-failing on transient 403", () => {
   assert.match(workflow, /Bơi ếch Production secret\/runtime not converged yet/);
   assert.match(workflow, /Health Production secret\/runtime not converged yet/);
   assert.match(workflow, /RU_LIFE Production secret\/runtime not converged yet/);
+  assert.match(workflow, /PriceReport Production secret\/runtime not converged yet/);
   assert.match(workflow, /for attempt in \{1\.\.12\}/);
   assert.match(workflow, /STATUS_CODE" != "200" && "\$STATUS_CODE" != "403"/);
   assert.match(workflow, /CODE" != "200" && "\$CODE" != "403"/);
   assert.match(workflow, /did not converge within 60 seconds after secret installation/);
+});
+
+test("PriceReport bootstrap deploys the real KT Control service and promotes it as fully live", () => {
+  assert.match(workflow, /PriceReport KT Control Production bootstrap PASS/);
+  assert.match(workflow, /PRICE_REPORT_CONTROL_ORIGIN=https:\/\/price-report-control-service\./);
+  assert.match(workflow, /PRICE_REPORT_APP_ORIGIN=https:\/\/bluedragon33\.github\.io/);
+  assert.match(workflow, /price-report-control-db/);
+  assert.match(workflow, /id: "price-report-tunggiabao"/);
+  assert.match(workflow, /credential: process\.env\.PRICE_REPORT_BRIDGE_SECRET/);
+  assert.match(workflow, /PRICE_REPORT_CONTROL_BASE_URL_OVERRIDE/);
 });
 
 test("Bơi ếch bootstrap verifies the real operations path, not only contract metadata", () => {

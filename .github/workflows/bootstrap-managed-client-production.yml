@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: "Gõ BOOTSTRAP_MANAGED_RUNTIMES để triển khai Bơi ếch + Health + RU_LIFE Production từ Trung tâm"
+        description: "Gõ BOOTSTRAP_MANAGED_RUNTIMES để triển khai Bơi ếch + Health + RU_LIFE + PriceReport Production từ Trung tâm"
         required: true
         type: string
   issue_comment:
@@ -89,6 +89,13 @@ jobs:
           ref: main
           path: clients/ru-life
 
+      - name: Checkout PriceReport_Tunggiabao
+        uses: actions/checkout@v4
+        with:
+          repository: BlueDragon33/PriceReport_Tunggiabao
+          ref: main
+          path: clients/price-report
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -126,9 +133,11 @@ jobs:
           console.log(`BOI_RUNTIME_ORIGIN=https://boi-ech.${suffix}`);
           console.log(`HEALTH_RUNTIME_ORIGIN=https://health-care.${suffix}`);
           console.log(`RU_LIFE_RUNTIME_ORIGIN=https://ru-life.${suffix}`);
+          console.log(`PRICE_REPORT_CONTROL_ORIGIN=https://price-report-control-service.${suffix}`);
+          console.log("PRICE_REPORT_APP_ORIGIN=https://bluedragon33.github.io");
           NODE
 
-      - name: Ensure isolated Health and RU_LIFE Production D1 databases
+      - name: Ensure isolated managed-client Production D1 databases
         working-directory: manager
         shell: bash
         run: |
@@ -175,6 +184,7 @@ jobs:
           }
           ensure_d1 "health-care-production-db" "HEALTH_PRODUCTION_D1_DATABASE_ID"
           ensure_d1 "ru-life-production-db" "RU_LIFE_PRODUCTION_D1_DATABASE_ID"
+          ensure_d1 "price-report-control-db" "PRICE_REPORT_CONTROL_D1_DATABASE_ID"
           echo "HEALTH_PREVIEW_D1_DATABASE_ID=$APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID" >> "$GITHUB_ENV"
           echo "RU_LIFE_PREVIEW_D1_DATABASE_ID=$APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID" >> "$GITHUB_ENV"
 
@@ -185,12 +195,15 @@ jobs:
           BOI_BRIDGE_SECRET="$(node --input-type=module -e 'import crypto from "node:crypto"; process.stdout.write(crypto.randomBytes(48).toString("base64url"))')"
           HEALTH_BRIDGE_SECRET="$(node --input-type=module -e 'import crypto from "node:crypto"; process.stdout.write(crypto.randomBytes(48).toString("base64url"))')"
           RU_LIFE_BRIDGE_SECRET="$(node --input-type=module -e 'import crypto from "node:crypto"; process.stdout.write(crypto.randomBytes(48).toString("base64url"))')"
+          PRICE_REPORT_BRIDGE_SECRET="$(node --input-type=module -e 'import crypto from "node:crypto"; process.stdout.write(crypto.randomBytes(48).toString("base64url"))')"
           echo "::add-mask::$BOI_BRIDGE_SECRET"
           echo "::add-mask::$HEALTH_BRIDGE_SECRET"
           echo "::add-mask::$RU_LIFE_BRIDGE_SECRET"
+          echo "::add-mask::$PRICE_REPORT_BRIDGE_SECRET"
           echo "BOI_BRIDGE_SECRET=$BOI_BRIDGE_SECRET" >> "$GITHUB_ENV"
           echo "HEALTH_BRIDGE_SECRET=$HEALTH_BRIDGE_SECRET" >> "$GITHUB_ENV"
           echo "RU_LIFE_BRIDGE_SECRET=$RU_LIFE_BRIDGE_SECRET" >> "$GITHUB_ENV"
+          echo "PRICE_REPORT_BRIDGE_SECRET=$PRICE_REPORT_BRIDGE_SECRET" >> "$GITHUB_ENV"
 
       - name: Install Bơi ếch app-scoped control secret
         working-directory: manager
@@ -387,6 +400,78 @@ jobs:
           console.log("RU_LIFE Production bootstrap PASS.");
           NODE
 
+      - name: Install PriceReport KT Control dependencies
+        working-directory: clients/price-report/control-service
+        run: npm ci --no-audit --no-fund
+
+      - name: Gate and materialize PriceReport KT Control Production
+        working-directory: clients/price-report/control-service
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run gate
+          PRICE_REPORT_CONTROL_D1_DATABASE_ID="$PRICE_REPORT_CONTROL_D1_DATABASE_ID" \
+          PRICE_REPORT_APP_ORIGIN="$PRICE_REPORT_APP_ORIGIN" \
+          APPLICATION_MANAGEMENT_ORIGIN="$APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN" \
+          node scripts/prepare-production.mjs
+
+      - name: Apply PriceReport KT Control Production migrations
+        working-directory: clients/price-report/control-service
+        run: npx wrangler d1 migrations apply price-report-control-db --remote --config wrangler.production.jsonc
+
+      - name: Deploy PriceReport KT Control Production
+        working-directory: clients/price-report/control-service
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler deploy --config wrangler.production.jsonc
+          printf '%s' "$PRICE_REPORT_BRIDGE_SECRET" | npx wrangler secret put PRICE_REPORT_CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
+          npx wrangler deploy --config wrangler.production.jsonc
+
+      - name: Smoke PriceReport KT Control Production
+        shell: bash
+        run: |
+          set -euo pipefail
+          READY=0
+          for attempt in {1..12}; do
+            HEALTH_CODE="$(curl --silent --show-error --output /tmp/price-report-health.json --write-out '%{http_code}' --max-time 30 "$PRICE_REPORT_CONTROL_ORIGIN/health" || true)"
+            STATUS_CODE="$(curl --silent --show-error --output /tmp/price-report-status.json --write-out '%{http_code}' --max-time 30 -H "Authorization: Bearer $PRICE_REPORT_BRIDGE_SECRET" -H "X-Control-Role: owner" "$PRICE_REPORT_CONTROL_ORIGIN/api/control/status" || true)"
+            if [[ "$HEALTH_CODE" == "200" && "$STATUS_CODE" == "200" ]]; then
+              READY=1
+              break
+            fi
+            if [[ "$HEALTH_CODE" != "200" && "$HEALTH_CODE" != "404" && "$HEALTH_CODE" != "503" && "$HEALTH_CODE" != "000" ]]; then
+              echo "::error::Unexpected PriceReport health HTTP $HEALTH_CODE."
+              cat /tmp/price-report-health.json || true
+              exit 1
+            fi
+            if [[ "$STATUS_CODE" != "200" && "$STATUS_CODE" != "403" && "$STATUS_CODE" != "503" && "$STATUS_CODE" != "000" ]]; then
+              echo "::error::Unexpected PriceReport control status HTTP $STATUS_CODE."
+              cat /tmp/price-report-status.json || true
+              exit 1
+            fi
+            echo "PriceReport Production secret/runtime not converged yet (health=$HEALTH_CODE status=$STATUS_CODE, attempt $attempt/12); waiting for Worker propagation..."
+            sleep 5
+          done
+          if [[ "$READY" != "1" ]]; then
+            echo "::error::PriceReport Production control plane did not converge within 60 seconds after secret installation."
+            cat /tmp/price-report-health.json || true
+            cat /tmp/price-report-status.json || true
+            exit 1
+          fi
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          const health = JSON.parse(fs.readFileSync("/tmp/price-report-health.json", "utf8"));
+          const status = JSON.parse(fs.readFileSync("/tmp/price-report-status.json", "utf8"));
+          if (health.application !== "price-report-tunggiabao" || health.protocol !== "price-report-control-v1" || health.databaseReady !== true) {
+            throw new Error("PriceReport Production health mismatch.");
+          }
+          if (status.application !== "price-report-tunggiabao" || status.protocol !== "price-report-control-v1" || status.capabilities?.deviceRegistry !== true) {
+            throw new Error("PriceReport Production control status mismatch.");
+          }
+          console.log("PriceReport KT Control Production bootstrap PASS.");
+          NODE
+
       - name: Build current Application Management Production artifact
         working-directory: manager
         shell: bash
@@ -405,9 +490,11 @@ jobs:
           printf '%s' "$BOI_RUNTIME_ORIGIN" | npx wrangler secret put BOI_ECH_BASE_URL_OVERRIDE --config wrangler.production.jsonc
           printf '%s' "$HEALTH_RUNTIME_ORIGIN" | npx wrangler secret put HEALTH_CARE_BASE_URL_OVERRIDE --config wrangler.production.jsonc
           printf '%s' "$RU_LIFE_RUNTIME_ORIGIN" | npx wrangler secret put RU_LIFE_BASE_URL_OVERRIDE --config wrangler.production.jsonc
+          printf '%s' "$PRICE_REPORT_CONTROL_ORIGIN" | npx wrangler secret put PRICE_REPORT_CONTROL_BASE_URL_OVERRIDE --config wrangler.production.jsonc
           printf '%s' "$BOI_BRIDGE_SECRET" | npx wrangler secret put CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
           printf '%s' "$HEALTH_BRIDGE_SECRET" | npx wrangler secret put HEALTH_CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
           printf '%s' "$RU_LIFE_BRIDGE_SECRET" | npx wrangler secret put RU_LIFE_CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
+          printf '%s' "$PRICE_REPORT_BRIDGE_SECRET" | npx wrangler secret put PRICE_REPORT_CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
           npx wrangler deploy
 
       - name: Create short-lived owner catalog session
@@ -427,7 +514,7 @@ jobs:
              FROM control_accounts WHERE role='owner' AND status='active'
              ORDER BY created_at ASC LIMIT 1;"
 
-      - name: Promote Bơi ếch, Health_Care and RU_LIFE into live Dynamic Catalog
+      - name: Promote Bơi ếch, Health_Care, RU_LIFE and PriceReport into live Dynamic Catalog
         shell: bash
         run: |
           set -euo pipefail
@@ -469,11 +556,24 @@ jobs:
             contractPath: "/api/control/status",
             credential: process.env.RU_LIFE_BRIDGE_SECRET,
           };
+          const priceReport = {
+            action: "upsert",
+            id: "price-report-tunggiabao",
+            name: "PriceReport Tùng Gia Bảo",
+            shortName: "Báo giá Tùng Gia Bảo",
+            category: "Kế toán",
+            origin: process.env.PRICE_REPORT_CONTROL_ORIGIN,
+            publicUrl: "https://bluedragon33.github.io/PriceReport_Tunggiabao/",
+            repository: "BlueDragon33/PriceReport_Tunggiabao",
+            contractPath: "/api/control/status",
+            credential: process.env.PRICE_REPORT_BRIDGE_SECRET,
+          };
           fs.writeFileSync("/tmp/boi-upsert.json", JSON.stringify(boi));
           fs.writeFileSync("/tmp/health-upsert.json", JSON.stringify(health));
           fs.writeFileSync("/tmp/ru-upsert.json", JSON.stringify(ru));
+          fs.writeFileSync("/tmp/price-report-upsert.json", JSON.stringify(priceReport));
           NODE
-          for item in boi health ru; do
+          for item in boi health ru price-report; do
             CODE="$(curl --silent --show-error --output "/tmp/${item}-upsert-response.json" --write-out '%{http_code}' --max-time 90               -X POST               -H "Origin: $APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN"               -H "Referer: $APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/tools/managed-apps"               -H "Sec-Fetch-Site: same-origin"               -H "Content-Type: application/json"               -H "Cookie: __Host-am_prod_session=$BOOTSTRAP_QA_TOKEN"               --data-binary "@/tmp/${item}-upsert.json"               "$APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/api/managed-apps")"
             if [[ "$CODE" != "200" ]]; then
               echo "::error::Catalog upsert for $item failed with HTTP $CODE."
@@ -498,7 +598,7 @@ jobs:
             throw new Error(`boi-ech Dynamic Contract semantics are invalid: ${JSON.stringify(boi)}`);
           }
           console.log(`SPECIAL boi-ech connection=${boi.connection} protocol=${boi.protocol} remoteAdminReady=${boi.remoteAdminReady}`);
-          for (const id of ["health-care", "ru-life"]) {
+          for (const id of ["health-care", "ru-life", "price-report-tunggiabao"]) {
             const item = value.probes.find((entry) => entry.id === id);
             if (!item) throw new Error(`Missing ${id} in Dynamic Catalog probe.`);
             if (item.connection !== "connected" || !item.contractConnected || !item.credentialConfigured || !item.remoteAdminReady) {
