@@ -4,6 +4,8 @@
 
 Một ứng dụng mới có thể tham gia **Quản trị Ứng dụng** mà không sửa source trung tâm.
 
+Dynamic Catalog là đường onboarding chuẩn. Trung tâm ưu tiên contract động và chỉ dùng adapter legacy làm fallback tương thích trong giai đoạn migration.
+
 Quy trình:
 
 1. Client triển khai manifest công khai tại `/api/application-management/contract`.
@@ -213,14 +215,45 @@ Client mới `robot-lab`:
 4. Nếu contract hợp lệ, app tự xuất hiện trong dashboard.
 5. Không sửa `application-registry.ts`, `operations/route.ts`, workflow hoặc dashboard.
 
-## Legacy adapters
+## Contract discovery tương thích
 
-Bơi ếch, Health, RU LIFE, Bauman, PriceReport và GrowUP hiện có adapter chuyên biệt để bảo toàn contract hiện hữu.
+Catalog không bắt buộc mọi client phải đổi schema trong cùng một lần. Probe server-side thử các protocol theo thứ tự:
+
+1. contract path khai báo trong Catalog;
+2. `/api/control/contract`;
+3. `/management-contract.json`;
+4. `/control/application-management.contract.json`;
+5. `/api/control/status` bằng credential app-scoped nếu có.
+
+Contract cũ chỉ được normalize khi `application.id` khớp catalog, category không xung đột và endpoint/capability hợp lệ. Trung tâm không suy quyền theo tên app.
+
+## Dynamic-first / legacy-fallback
+
+Bơi ếch, Health, RU LIFE, Bauman, PriceReport và GrowUP vẫn có adapter chuyên biệt để bảo toàn workflow hiện hữu.
 
 Quá trình migrate:
-1. client bổ sung Universal Contract v1;
-2. kiểm thử generic path;
-3. đưa client vào Dynamic Catalog;
-4. sau khi parity đầy đủ mới bỏ adapter cũ.
+1. thêm chính ID legacy vào Dynamic Catalog;
+2. probe protocol live;
+3. nếu Dynamic Contract `connected`, Trung tâm dùng generic path trước;
+4. nếu Dynamic Contract chưa đủ, adapter legacy tiếp tục làm fallback;
+5. sau khi parity đầy đủ mới bỏ adapter cũ.
 
-Không đại phẫu đồng loạt.
+Không cần flag-day cutover và không cần sửa dashboard/route mỗi lần migrate một app.
+
+## Category contract starter
+
+Catalog có thể sinh contract starter từ category. Starter luôn đặt capability ở `false` mặc định; danh sách capability theo category chỉ là gợi ý onboarding, không tạo quyền ngầm.
+
+## Credential encryption key
+
+Credential app-scoped được mã hóa AES-GCM. Cloudflare deploy workflow bảo đảm `MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY` tồn tại:
+
+- nếu Environment đã cung cấp key thì dùng key đó;
+- nếu Worker đã có key thì giữ nguyên;
+- nếu chưa có thì sinh ngẫu nhiên 32 byte đúng một lần và lưu trực tiếp dưới dạng Worker Secret.
+
+Giá trị key không được ghi log hoặc lưu D1.
+
+## Legacy adapters
+
+Adapter cũ chỉ còn là compatibility layer trong thời gian migration. Dynamic Catalog là đường chuẩn cho app mới và app cũ sau khi contract generic đạt parity.

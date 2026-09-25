@@ -1,3 +1,5 @@
+import { contractCategoryProfiles, contractStarterForCategory } from "../../contract-category-profiles";
+import type { ApplicationCategory } from "../../application-registry";
 import { ControlAccessError, verifyControlProof } from "../../control-device.server";
 import {
   listManagedCatalog,
@@ -47,6 +49,23 @@ export async function POST(request: Request) {
       });
     }
 
+    if (action === "template") {
+      const id = typeof payload.id === "string" ? payload.id.trim().toLowerCase() : "";
+      const name = typeof payload.name === "string" ? payload.name.trim() : "";
+      const category = typeof payload.category === "string" ? payload.category.trim() as ApplicationCategory : "Học tập";
+      if (!/^[a-z0-9][a-z0-9-]{1,62}$/.test(id) || !name) {
+        return json({ error: "Cần ID và tên ứng dụng hợp lệ để tạo contract starter.", code: "INVALID_TEMPLATE_INPUT" }, 400);
+      }
+      if (!(category in contractCategoryProfiles)) {
+        return json({ error: "Phân loại ứng dụng không được hỗ trợ.", code: "INVALID_CATEGORY" }, 400);
+      }
+      return json({
+        ok: true,
+        template: contractStarterForCategory({ id, name, category }),
+        profile: contractCategoryProfiles[category],
+      });
+    }
+
     if (action === "upsert") {
       const id = await upsertManagedCatalog(payload, actor);
       const row = (await listManagedCatalog()).find((item) => item.id === id);
@@ -59,6 +78,8 @@ export async function POST(request: Request) {
           credentialConfigured: probe.credentialConfigured,
           remoteAdminReady: probe.remoteAdminReady,
           note: probe.note,
+          protocol: probe.manifest?.protocol ?? null,
+          discoveredVia: probe.manifest?.discoveredVia ?? null,
           capabilities: probe.config.capabilities,
         } : null,
       });
@@ -83,6 +104,8 @@ export async function POST(request: Request) {
           credentialConfigured: probe.credentialConfigured,
           remoteAdminReady: probe.remoteAdminReady,
           note: probe.note,
+          protocol: probe.manifest?.protocol ?? null,
+          discoveredVia: probe.manifest?.discoveredVia ?? null,
           capabilities: probe.config.capabilities,
           manifest: probe.manifest,
           deviceCount: probe.devices.length,

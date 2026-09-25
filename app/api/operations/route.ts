@@ -480,6 +480,7 @@ async function buildBootstrap(actor: ControlDeviceState) {
     { id: "price-report-tunggiabao", run: () => loadPriceReport(actor) },
     { id: "growup-mychildren", run: () => loadGrowUp(actor) },
   ] as const;
+
   const settled = await Promise.all(loaders.map(async (loader) => {
     try { return { id: loader.id, ok: true as const, value: await loader.run() }; }
     catch (error) {
@@ -494,53 +495,15 @@ async function buildBootstrap(actor: ControlDeviceState) {
       };
     }
   }));
+
   const devices: ClientDevice[] = [];
   const summaries: ClientSummary[] = [];
   const workItems: WorkItem[] = [];
+  const dynamicSnapshots = await probeDynamicManagedApplications();
+  const dynamicById = new Map(dynamicSnapshots.map((snapshot) => [snapshot.config.id, snapshot]));
+  const handledDynamicIds = new Set<string>();
 
-  const dynamicSnapshots = (await probeDynamicManagedApplications())
-    .filter((snapshot) => !legacyAdapterIds.has(snapshot.config.id));
-
-  for (const result of settled) {
-    const config = app(result.id);
-    if (!result.ok) {
-      if (config.contractState !== "connected") {
-        const connection = config.contractState === "pending" ? "pending" : "warning";
-        summaries.push(summary(config, [], connection, `${config.contractNote} Trạng thái production: ${result.error}`));
-        continue;
-      }
-      summaries.push(summary(config, [], "unavailable", result.error, null, false, false, undefined, result.issueCode));
-      const title = result.issueCode === "BOI_ECH_STALE_PUBLISH"
-        ? "Bơi ếch đang publish bản cũ"
-        : result.issueCode === "BOI_ECH_RUNTIME_IDENTITY_UNAVAILABLE"
-          ? "Bơi ếch chưa cập nhật runtime identity"
-          : "Không đọc được trạng thái client";
-      workItems.push({ id: `${config.id}:connection`, appId: config.id, appName: config.shortName, href: config.href, kind: "connection", title, detail: result.error, deviceType: "—", occurredAt: null, priority: "high" });
-      continue;
-    }
-    devices.push(...result.value.devices);
-    const note = result.id === "growup-mychildren"
-      ? `${config.contractNote} Direct site contract đã xác minh; dữ liệu trẻ em vẫn ở phía GrowUP.`
-      : result.id === "price-report-tunggiabao"
-        ? `${config.contractNote} ${"controlNote" in result.value ? String(result.value.controlNote || "") : ""}`.trim()
-        : config.contractNote;
-    summaries.push(summary(
-      config,
-      result.value.devices,
-      "connected",
-      note,
-      result.value.webHref,
-      result.value.managedWebLaunch,
-      result.value.hasOperationalData,
-      "remoteAdminReady" in result.value ? Boolean(result.value.remoteAdminReady) : undefined,
-    ));
-    for (const device of result.value.devices) {
-      const item = workFromDevice(device);
-      if (item) workItems.push(item);
-    }
-  }
-
-  for (const snapshot of dynamicSnapshots) {
+  function appendDynamicSnapshot(snapshot: DynamicContractSnapshot) {
     const dynamicDevices = snapshot.devices.map((device) => deviceFromUniversal(snapshot, device, actor));
     devices.push(...dynamicDevices);
     summaries.push(summary(
@@ -565,13 +528,110 @@ async function buildBootstrap(actor: ControlDeviceState) {
         appName: snapshot.config.shortName,
         href: snapshot.config.href,
         kind: "connection",
-        title: snapshot.issueCode === "OPEN_CONTRACT_PENDING" ? "Ứng dụng đang chờ Universal Contract" : "Contract ứng dụng cần kiểm tra",
+        title: snapshot.issueCode === "OPEN_CONTRACT_PENDING"
+          ? "Ứng dụng đang chờ Universal Contract"
+          : "Contract ứng dụng cần kiểm tra",
         detail: snapshot.note,
         deviceType: "—",
         occurredAt: null,
         priority: snapshot.connection === "unavailable" ? "high" : "info",
       });
     }
+  }
+
+  for (const result of settled) {
+    const dynamic = dynamicById.get(result.id);
+
+    // A verified Universal Contract becomes the primary control path even for
+    // legacy application IDs. No source edit or adapter removal is required.
+    if (dynamic?.connection === "connected") {
+      appendDynamicSnapshot(dynamic);
+      handledDynamicIds.add(result.id);
+      continue;
+    }
+
+    const config = app(result.id);
+    if (!result.ok) {
+      // If a dynamic enrollment exists but is not ready, surface its real
+      // contract state instead of hiding it behind a failed legacy adapter.
+      if (dynamic) {
+        appendDynamicSnapshot(dynamic);
+        handledDynamicIds.add(result.id);
+        continue;
+      }
+
+      if (config.contractState !== "connected") {
+        const connection = config.contractState === "pending" ? "pending" : "warning";
+        summaries.push(summary(config, [], connection, `${config.contractNote} Trạng thái production: ${result.error}`));
+        continue;
+      }
+      summaries.push(summary(config, [], "unavailable", result.error, null, false, false, undefined, result.issueCode));
+      const title = result.issueCode === "BOI_ECH_STALE_PUBLISH"
+        ? "Bơi ếch đang publish bản cũ"
+        : result.issueCode === "BOI_ECH_RUNTIME_IDENTITY_UNAVAILABLE"
+          ? "Bơi ếch chưa cập nhật runtime identity"
+          : "Không đọc được trạng thái client";
+      workItems.push({
+        id: `${config.id}:connection`,
+        appId: config.id,
+        appName: config.shortName,
+        href: config.href,
+        kind: "connection",
+        title,
+        detail: result.error,
+        deviceType: "—",
+        occurredAt: null,
+        priority: "high",
+      });
+      continue;
+    }
+
+    devices.push(...result.value.devices);
+    const legacyNote = result.id === "growup-mychildren"
+      ? `${config.contractNote} Direct site contract đã xác minh; dữ liệu trẻ em vẫn ở phía GrowUP.`
+      : result.id === "price-report-tunggiabao"
+        ? `${config.contractNote} ${"controlNote" in result.value ? String(result.value.controlNote || "") : ""}`.trim()
+        : config.contractNote;
+
+    const note = dynamic
+      ? `${legacyNote} Adapter legacy đang làm fallback trong khi Universal Contract chuyển đổi: ${dynamic.note}`
+      : legacyNote;
+
+    summaries.push(summary(
+      config,
+      result.value.devices,
+      "connected",
+      note,
+      result.value.webHref,
+      result.value.managedWebLaunch,
+      result.value.hasOperationalData,
+      "remoteAdminReady" in result.value ? Boolean(result.value.remoteAdminReady) : undefined,
+    ));
+    for (const device of result.value.devices) {
+      const item = workFromDevice(device);
+      if (item) workItems.push(item);
+    }
+
+    if (dynamic) {
+      handledDynamicIds.add(result.id);
+      workItems.push({
+        id: `${config.id}:contract-migration`,
+        appId: config.id,
+        appName: config.shortName,
+        href: config.href,
+        kind: "connection",
+        title: "Đang dùng adapter fallback",
+        detail: `Universal Contract đã được đăng ký nhưng chưa đủ điều kiện thay adapter: ${dynamic.note}`,
+        deviceType: "—",
+        occurredAt: null,
+        priority: "info",
+      });
+    }
+  }
+
+  for (const snapshot of dynamicSnapshots) {
+    if (handledDynamicIds.has(snapshot.config.id)) continue;
+    appendDynamicSnapshot(snapshot);
   }
 
   workItems.sort((a, b) => {
@@ -585,11 +645,15 @@ async function buildBootstrap(actor: ControlDeviceState) {
   const visibleWorkItems = (await Promise.all(workItems.slice(0, 60).map(async (item) => ({ item, hash: await hashWorkItem(item.id) }))))
     .filter(({ hash }) => !hidden.has(hash)).map(({ item }) => item);
   const dynamicConfigs = dynamicSnapshots.map((snapshot) => snapshot.config);
+
   return {
-    actor: { deviceCode: actor.deviceCode, role: actor.role }, generatedAt: new Date().toISOString(),
+    actor: { deviceCode: actor.deviceCode, role: actor.role },
+    generatedAt: new Date().toISOString(),
     managedApps: dynamicConfigs,
-    summaries, devices,
-    workItems: visibleWorkItems, settings: await readAutoApprovalSettings(AUTO_APPROVE_SUPPORTED_APP_IDS),
+    summaries,
+    devices,
+    workItems: visibleWorkItems,
+    settings: await readAutoApprovalSettings(AUTO_APPROVE_SUPPORTED_APP_IDS),
     metrics: {
       applications: applicationRegistry.length + dynamicConfigs.filter((item) => !applicationRegistry.some((existing) => existing.id === item.id)).length,
       pendingDevices: devices.filter((device) => device.status === "pending").length,
@@ -694,6 +758,60 @@ export async function POST(request: Request) {
       const deviceId = text(payload.deviceId);
       const deviceCode = text(payload.deviceCode).toUpperCase();
       if (operation !== "approve" && operation !== "remove") return json({ error: "Thao tác thiết bị không hợp lệ.", code: "INVALID_DEVICE_OPERATION" }, 400);
+
+      const dynamicSnapshot = (await probeDynamicManagedApplications()).find((snapshot) => snapshot.config.id === appId);
+      const dynamicCapabilities = dynamicSnapshot?.manifest?.capabilities ?? {};
+      const dynamicMutationReady = Boolean(
+        dynamicSnapshot?.connection === "connected"
+        && dynamicSnapshot.remoteAdminReady
+        && dynamicSnapshot.manifest?.endpoints.deviceCommands
+        && dynamicCapabilities.deviceIdempotentCommands === true
+        && dynamicCapabilities.optimisticConcurrency === true
+        && (
+          operation === "approve"
+            ? dynamicCapabilities.deviceApproval === true
+            : dynamicCapabilities.deviceBlock === true
+        )
+      );
+
+      if (dynamicMutationReady) {
+        if (!deviceId || deviceId.length > 256) {
+          return json({ error: "Mã thiết bị Universal Contract không hợp lệ.", code: "INVALID_DEVICE_ID" }, 400);
+        }
+        const suppliedExpected = normalizedStatus(payload.expectedStatus);
+        if (suppliedExpected === "unknown") {
+          return json({ error: "expectedStatus hợp lệ là bắt buộc cho Universal Contract.", code: "INVALID_EXPECTED_STATUS" }, 400);
+        }
+        const suppliedCommandId = text(payload.commandId).toLowerCase();
+        if (suppliedCommandId && !validCommandId(suppliedCommandId)) {
+          return json({ error: "commandId không hợp lệ.", code: "INVALID_COMMAND_ID" }, 400);
+        }
+        const commandId = suppliedCommandId || crypto.randomUUID();
+        try {
+          const result = await executeUniversalDeviceCommand({
+            appId,
+            operation,
+            deviceId,
+            expectedStatus: suppliedExpected as "pending" | "approved" | "blocked",
+            commandId,
+          }, actor);
+          return json({
+            ok: true,
+            verified: true,
+            verifiedStatus: operation === "approve" ? "approved" : "blocked",
+            commandId,
+            commandReplayed: result.commandReplayed,
+            contractPath: "universal",
+            ...(operation === "approve" ? { approvedDeviceId: deviceId } : { removedDeviceId: deviceId }),
+          });
+        } catch (error) {
+          return json({
+            error: error instanceof Error ? error.message : "Universal Contract chưa hoàn tất thao tác.",
+            code: "UNIVERSAL_CONTRACT_ACTION_FAILED",
+          }, 409);
+        }
+      }
+
       const legacyDeviceIdApp = ["health-care", "ru-life", "growup-mychildren", "price-report-tunggiabao", "bauman-master-ai", "boi-ech"].includes(appId);
       if (legacyDeviceIdApp && !/^[a-f0-9]{64}$/.test(deviceId)) return json({ error: "Mã thiết bị không hợp lệ.", code: "INVALID_DEVICE_ID" }, 400);
       if (!legacyDeviceIdApp && (!deviceId || deviceId.length > 256)) return json({ error: "Mã thiết bị Universal Contract không hợp lệ.", code: "INVALID_DEVICE_ID" }, 400);

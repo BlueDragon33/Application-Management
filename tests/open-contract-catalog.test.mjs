@@ -43,8 +43,12 @@ test("dynamic credentials are AES-GCM encrypted with a one-time root key", () =>
   assert.ok(contract.includes("credential_iv"));
   assert.ok(production.includes("MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY"));
   assert.ok(preview.includes("MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY"));
-  assert.ok(production.includes("Install managed app credential encryption key"));
-  assert.ok(preview.includes("Install managed app credential encryption key"));
+  assert.ok(production.includes("Ensure managed app credential encryption key"));
+  assert.ok(preview.includes("Ensure managed app credential encryption key"));
+  assert.ok(production.includes("crypto.randomBytes(32).toString('base64url')"));
+  assert.ok(preview.includes("crypto.randomBytes(32).toString('base64url')"));
+  assert.ok(production.includes("secret list --config wrangler.production.jsonc"));
+  assert.ok(preview.includes("secret list --config wrangler.cloudflare.jsonc"));
 });
 
 test("category profiles define defaults instead of per-app UI code", () => {
@@ -53,17 +57,22 @@ test("category profiles define defaults instead of per-app UI code", () => {
   }
   assert.ok(profiles.includes("defaultCapabilities"));
   assert.ok(profiles.includes("defaultGuardrails"));
+  assert.ok(profiles.includes("recommendedContractCapabilities"));
+  assert.ok(profiles.includes("contractStarterForCategory"));
   assert.ok(profiles.includes("dynamicApplicationConfig"));
 });
 
-test("operations dashboard loads dynamic contracts beside legacy adapters", () => {
+test("operations dashboard is dynamic-first with safe legacy fallback", () => {
   assert.ok(operations.includes("probeDynamicManagedApplications"));
   assert.ok(operations.includes("dynamicSnapshots"));
+  assert.ok(operations.includes("dynamicById"));
+  assert.ok(operations.includes('dynamic?.connection === "connected"'));
+  assert.ok(operations.includes("Adapter legacy đang làm fallback"));
   assert.ok(operations.includes("deviceFromUniversal"));
   assert.ok(operations.includes("executeUniversalDeviceCommand"));
-  assert.ok(operations.includes("legacyAdapterIds"));
+  assert.ok(operations.includes("dynamicMutationReady"));
+  assert.ok(operations.includes('contractPath: "universal"'));
   assert.ok(operations.includes("managedApps: dynamicConfigs"));
-  assert.ok(operations.includes("UNIVERSAL_CONTRACT_ACTION_UNAVAILABLE"));
 });
 
 test("dashboard merges static registry and D1 managed apps without a second allow-list", () => {
@@ -79,19 +88,22 @@ test("owner can manage app catalog through UI and API without source edits", () 
   assert.ok(catalogApi.includes('action === "upsert"'));
   assert.ok(catalogApi.includes('action === "probe"'));
   assert.ok(catalogApi.includes('action === "remove"'));
+  assert.ok(catalogApi.includes('action === "template"'));
   assert.ok(catalogApi.includes("OWNER_REQUIRED"));
   assert.ok(client.includes("managedAppsAction"));
   assert.ok(catalogUi.includes("Ứng dụng & Universal Contract"));
   assert.ok(catalogUi.includes("Lưu & kiểm tra contract"));
+  assert.ok(catalogUi.includes("Tạo contract mẫu theo phân loại"));
+  assert.ok(catalogUi.includes("CATEGORY CONTRACT STARTER"));
   assert.ok(catalogUi.includes("/api/application-management/contract"));
   assert.ok(dashboard.includes('id: "tool-managed-apps"'));
 });
 
-test("Production catalog blocks SSRF-style private origins and legacy adapter shadowing", () => {
+test("Production catalog blocks SSRF-style origins while allowing controlled legacy migration", () => {
   assert.ok(contract.includes("Production không cho phép contract origin trỏ tới localhost/LAN/private IP."));
   assert.ok(contract.includes("privateHost(url.hostname) && !localAllowed"));
-  assert.ok(contract.includes("protectedLegacyIds"));
-  assert.ok(contract.includes("chưa được phép ghi đè bằng Dynamic Catalog"));
+  assert.equal(contract.includes("protectedLegacyIds"), false);
+  assert.ok(contract.includes("dynamic-first / legacy-fallback"));
   assert.ok(contract.includes("Credential quản trị vượt quá giới hạn 4096 ký tự."));
 });
 
@@ -101,4 +113,30 @@ test("new apps do not need new workflow secret names", () => {
   assert.equal(contract.includes("BAUMAN_CONTROL_SERVICE_SECRET"), false);
   assert.ok(contract.includes("credential_ciphertext"));
   assert.ok(production.includes("MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY"));
+});
+
+
+test("contract discovery normalizes multiple protocol families without app-name branching", () => {
+  for (const candidate of [
+    "/api/control/contract",
+    "/api/control/status",
+    "/management-contract.json",
+    "/control/application-management.contract.json",
+  ]) {
+    assert.ok(contract.includes(candidate), `missing discovery candidate ${candidate}`);
+  }
+  assert.ok(contract.includes("normalizeLegacyContract"));
+  assert.ok(contract.includes("discoverContract"));
+  assert.ok(contract.includes("Contract category"));
+  assert.ok(contract.includes("discoveredVia"));
+  assert.ok(contract.includes("protocol"));
+  assert.equal(contract.includes('if (row.id === "health-care")'), false);
+  assert.equal(contract.includes('if (row.id === "bauman-master-ai")'), false);
+});
+
+test("contract path supports safe static manifests but endpoint paths remain API-only", () => {
+  assert.ok(contract.includes("validContractPath"));
+  assert.ok(contract.includes("validEndpointPath"));
+  assert.ok(contract.includes("Contract path phải là absolute path an toàn"));
+  assert.ok(contract.includes('/^\\/api\\/[a-z0-9/_-]+$/i'));
 });

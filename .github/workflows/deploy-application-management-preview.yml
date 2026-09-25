@@ -128,10 +128,21 @@ jobs:
         shell: bash
         run: printf '%s' "$APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET" | npx wrangler secret put APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET --config wrangler.cloudflare.jsonc
 
-      - name: Install managed app credential encryption key
-        if: ${{ env.MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY != '' }}
+      - name: Ensure managed app credential encryption key
         shell: bash
-        run: printf '%s' "$MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY" | npx wrangler secret put MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY --config wrangler.cloudflare.jsonc
+        run: |
+          set -euo pipefail
+          if [[ -n "${MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY:-}" ]]; then
+            printf '%s' "$MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY" | npx wrangler secret put MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY --config wrangler.cloudflare.jsonc
+            echo 'Managed app credential encryption key installed from protected environment secret.'
+          elif npx wrangler secret list --config wrangler.cloudflare.jsonc 2>/dev/null | grep -q 'MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY'; then
+            echo 'Managed app credential encryption key already exists; keeping the current key.'
+          else
+            GENERATED_KEY="$(node --input-type=module -e "import crypto from 'node:crypto'; process.stdout.write(crypto.randomBytes(32).toString('base64url'))")"
+            printf '%s' "$GENERATED_KEY" | npx wrangler secret put MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY --config wrangler.cloudflare.jsonc
+            unset GENERATED_KEY
+            echo 'Managed app credential encryption key created once as a Worker secret.'
+          fi
 
       - name: Install Bơi ếch bridge secret
         if: ${{ env.BOI_ECH_BASE_URL != '' }}
