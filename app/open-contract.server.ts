@@ -683,6 +683,108 @@ export async function probeDynamicManagedApplications() {
   return Promise.all(rows.map((row) => probeManagedCatalogEntry(row)));
 }
 
+function automationHours(value: unknown) {
+  const hours = Math.round(Number(value));
+  return [24, 168, 720].includes(hours) ? hours : 168;
+}
+
+async function universalAutomationContext(appIdValue: unknown) {
+  const appId = text(appIdValue).toLowerCase();
+  if (!validAppId(appId)) return null;
+  const row = (await listManagedCatalog()).find((item) => item.id === appId && item.enabled === 1);
+  if (!row) return null;
+  const snapshot = await probeManagedCatalogEntry(row);
+  const manifest = snapshot.manifest;
+  if (!snapshot.contractConnected || !manifest || !manifest.endpoints.automation) return null;
+  const autoApproveSupported = manifest.capabilities.deviceAutoApproval === true;
+  const autoBlockSupported = manifest.capabilities.deviceAutoBlockPending === true;
+  if (!autoApproveSupported && !autoBlockSupported) return null;
+  const credential = await decryptCredential(row);
+  if (!credential) throw new Error("Universal automation cần credential app-scoped trong Dynamic Catalog.");
+  return { appId, row, snapshot, manifest, credential, autoApproveSupported, autoBlockSupported };
+}
+
+export async function readUniversalAutomationState(appIdValue: unknown) {
+  const context = await universalAutomationContext(appIdValue);
+  if (!context) return null;
+  const payload = await fetchJson(context.row.origin, context.manifest.endpoints.automation!, context.credential);
+  const automation = record(payload.automation);
+  return {
+    appId: context.appId,
+    enabled: context.autoApproveSupported && automation.autoApproveDevices === true,
+    autoApproveSupported: context.autoApproveSupported,
+    autoBlockSupported: context.autoBlockSupported,
+    autoBlockEnabled: context.autoBlockSupported && automation.autoBlockPendingDevices === true,
+    pendingBlockAfterHours: context.autoBlockSupported ? automationHours(automation.pendingBlockAfterHours) : null,
+    defaultAccessDays: null as number | null,
+    defaultDeviceLimit: null as number | null,
+  };
+}
+
+export async function setUniversalAutomationPolicy(
+  appIdValue: unknown,
+  actor: ControlDeviceState,
+  input: { autoApproveDevices?: boolean; autoBlockPendingDevices?: boolean; pendingBlockAfterHours?: number },
+) {
+  if (actor.role !== "owner") throw new Error("Chỉ Chủ hệ thống được đổi automation policy.");
+  const context = await universalAutomationContext(appIdValue);
+  if (!context) throw new Error("Universal automation contract chưa sẵn sàng.");
+
+  const body: Record<string, unknown> = {};
+  if (typeof input.autoApproveDevices === "boolean") {
+    if (!context.autoApproveSupported) throw new Error("Contract chưa công bố deviceAutoApproval.");
+    body.autoApproveDevices = input.autoApproveDevices;
+  }
+  if (typeof input.autoBlockPendingDevices === "boolean") {
+    if (!context.autoBlockSupported) throw new Error("Contract chưa công bố deviceAutoBlockPending.");
+    body.autoBlockPendingDevices = input.autoBlockPendingDevices;
+    const hours = automationHours(input.pendingBlockAfterHours);
+    if (![24, 168, 720].includes(Number(input.pendingBlockAfterHours))) throw new Error("Ngưỡng auto-block không hợp lệ.");
+    body.pendingBlockAfterHours = hours;
+  }
+  if (!Object.keys(body).length) throw new Error("Không có automation policy hợp lệ để cập nhật.");
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), CONTRACT_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${context.row.origin}${context.manifest.endpoints.automation}`, {
+      method: "POST",
+      cache: "no-store",
+      redirect: "manual",
+      headers: {
+        authorization: `Bearer ${context.credential}`,
+        accept: "application/json",
+        "content-type": "application/json",
+        "x-control-actor": actor.email,
+        "x-control-role": actor.role,
+        "x-control-device": actor.deviceId,
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
+    if (!response.ok) throw new Error(text(payload.error) || `HTTP_${response.status}`);
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error(`Automation endpoint phản hồi quá ${CONTRACT_TIMEOUT_MS / 1000} giây.`);
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+
+  const readback = await readUniversalAutomationState(context.appId);
+  if (!readback) throw new Error("Không đọc lại được Universal automation policy.");
+  if (typeof input.autoApproveDevices === "boolean" && readback.enabled !== input.autoApproveDevices) {
+    throw new Error("Universal automation chưa xác nhận autoApproveDevices sau cập nhật.");
+  }
+  if (typeof input.autoBlockPendingDevices === "boolean") {
+    if (readback.autoBlockEnabled !== input.autoBlockPendingDevices
+      || readback.pendingBlockAfterHours !== automationHours(input.pendingBlockAfterHours)) {
+      throw new Error("Universal automation chưa xác nhận auto-block policy sau cập nhật.");
+    }
+  }
+  return readback;
+}
+
 function managedLaunchUrl(row: ManagedCatalogRow, value: unknown) {
   const normalized = normalizePublicUrl(value);
   if (!normalized) return null;
