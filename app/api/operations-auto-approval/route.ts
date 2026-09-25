@@ -9,9 +9,7 @@ import { getManagedContract, listManagedContracts, managedContractRequest } from
 
 export const dynamic = "force-dynamic";
 
-const CANDIDATE_APP_IDS = ["boi-ech", "health-care", "ru-life", "bauman-master-ai"] as const;
 const TIMEOUT_MS = 4_500;
-type CandidateAppId = typeof CANDIDATE_APP_IDS[number];
 type UnknownRecord = Record<string, unknown>;
 type Bridge = { baseUrl: string; token: string };
 
