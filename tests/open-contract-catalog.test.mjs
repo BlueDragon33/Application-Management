@@ -40,6 +40,9 @@ test("Universal Contract v1 is schema-driven and fail-closed", () => {
   assert.ok(contract.includes("manifest.policy?.remoteAdminReady !== false"));
   assert.ok(contract.includes("remoteAdminReady?: boolean"));
   assert.ok(contract.includes("credentialRequired?: boolean"));
+  assert.ok(contract.includes("localFirst?: boolean"));
+  assert.ok(contract.includes("productionRuntimeReady?: boolean"));
+  assert.ok(contract.includes('ManagedContractMode = "remote-admin" | "observe-only" | "local-first" | "metadata-only"'));
 });
 
 test("dynamic credentials are AES-GCM encrypted with a one-time root key", () => {
@@ -223,6 +226,9 @@ test("contract handshake is distinct from remote-admin readiness and repository 
   assert.ok(contract.includes("contractConnected: !repositoryMetadataOnly"));
   assert.ok(contract.includes("contractConnected: false"));
   assert.ok(contract.includes('issueCode: "REPOSITORY_METADATA_ONLY"'));
+  assert.ok(contract.includes("contractManagementMode"));
+  assert.ok(contract.includes('protocol.includes("local-first")'));
+  assert.ok(contract.includes("metadataVerified"));
   assert.ok(catalogApi.includes("contractConnected: probe.contractConnected"));
   assert.ok(catalogUi.includes('label="Contract"'));
   assert.ok(operations.includes("snapshot.contractConnected"));
@@ -254,7 +260,10 @@ test("repository bootstrap metadata never masquerades as a Website or live contr
   assert.ok(contract.includes("metadataOnlyRepositoryOrigin"));
   assert.ok(contract.includes('hostname.toLowerCase() === "raw.githubusercontent.com"'));
   assert.ok(contract.includes("!repositoryMetadataOnly && manifest.capabilities.webLaunch"));
-  assert.ok(contract.includes("chưa có Control Origin/credential production"));
+  assert.ok(contract.includes("managementMode"));
+  assert.ok(contract.includes("metadataVerified"));
+  assert.ok(contract.includes("không yêu cầu Remote Admin cloud"));
+  assert.ok(contract.includes("không tạo cảnh báo kết nối giả"));
 });
 
 
