@@ -61,6 +61,7 @@ type ClientSummary = {
   note: string;
   directWebAccess: boolean;
   remoteAdminReady?: boolean;
+  contractConnected: boolean;
   issueCode?: string;
   controlChannel: "universal" | "legacy-adapter" | "contract-observe" | "none";
   contractReadiness: "ready" | "partial" | "pending" | "not-enrolled";
@@ -496,6 +497,7 @@ function summary(
   issueCode?: string,
   controlChannel: ClientSummary["controlChannel"] = "none",
   contractReadiness: ClientSummary["contractReadiness"] = connection === "connected" ? "ready" : connection === "warning" ? "partial" : "pending",
+  contractConnected = false,
 ): ClientSummary {
   const connected = connection === "connected";
   const hasOperationalData = hasOperationalDataOverride ?? connected;
@@ -507,7 +509,7 @@ function summary(
     connection, onlineCount: hasOperationalData ? devices.filter((device) => device.active).length : null,
     pendingCount: hasOperationalData ? devices.filter((device) => device.status === "pending").length : null,
     attentionCount: hasOperationalData ? devices.filter((device) => device.attention !== "none").length : null,
-    note, directWebAccess: connected && Boolean(webHref), remoteAdminReady, issueCode,
+    note, directWebAccess: connected && Boolean(webHref), remoteAdminReady, contractConnected, issueCode,
     controlChannel, contractReadiness,
   };
 }
@@ -560,6 +562,7 @@ async function buildBootstrap(actor: ControlDeviceState) {
       snapshot.issueCode,
       snapshot.connection === "connected" ? "universal" : snapshot.issueCode === "REPOSITORY_METADATA_ONLY" ? "none" : snapshot.manifest ? "contract-observe" : "none",
       snapshot.connection === "connected" ? "ready" : snapshot.issueCode === "REPOSITORY_METADATA_ONLY" ? "pending" : snapshot.manifest ? "partial" : "pending",
+      snapshot.contractConnected,
     ));
     for (const device of dynamicDevices) {
       const item = workFromDevice(device);
@@ -697,6 +700,7 @@ async function buildBootstrap(actor: ControlDeviceState) {
       dynamic
         ? dynamic.connection === "warning" ? "partial" : "pending"
         : config.contractState === "connected" ? "ready" : config.contractState === "migrating" ? "partial" : "not-enrolled",
+      dynamic?.contractConnected ?? false,
     ));
     for (const device of result.value.devices) {
       const item = workFromDevice(device);
