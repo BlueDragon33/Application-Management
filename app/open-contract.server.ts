@@ -21,6 +21,9 @@ export type ManagedCatalogRow = {
   created_by: string;
   created_at: string;
   updated_at: string;
+  last_contract_connected_at: string | null;
+  last_probe_at: string | null;
+  last_probe_error: string | null;
 };
 
 export type UniversalContractManifest = {
@@ -231,7 +234,8 @@ export async function listManagedCatalog() {
   const database = await getControlDatabase();
   const result = await database.prepare(
     `SELECT id,name,short_name,category,origin,public_url,repository,contract_path,enabled,
-            credential_ciphertext,credential_iv,created_by,created_at,updated_at
+            credential_ciphertext,credential_iv,created_by,created_at,updated_at,
+            last_contract_connected_at,last_probe_at,last_probe_error
        FROM managed_app_catalog
       ORDER BY category,name`,
   ).all<ManagedCatalogRow>();
@@ -283,6 +287,19 @@ export async function removeManagedCatalog(idValue: unknown, actor: ControlDevic
   if (!validAppId(id)) throw new Error("ID ứng dụng không hợp lệ.");
   const database = await getControlDatabase();
   await database.prepare("DELETE FROM managed_app_catalog WHERE id=?1").bind(id).run();
+}
+
+async function rememberManagedProbe(id: string, input: { connected: boolean; error?: string }) {
+  const database = await getControlDatabase();
+  if (input.connected) {
+    await database.prepare(
+      "UPDATE managed_app_catalog SET last_contract_connected_at=CURRENT_TIMESTAMP,last_probe_at=CURRENT_TIMESTAMP,last_probe_error=NULL WHERE id=?1",
+    ).bind(id).run();
+    return;
+  }
+  await database.prepare(
+    "UPDATE managed_app_catalog SET last_probe_at=CURRENT_TIMESTAMP,last_probe_error=?2 WHERE id=?1",
+  ).bind(id, text(input.error).slice(0, 1000) || null).run();
 }
 
 async function fetchJson(origin: string, path: string, credential = "") {
@@ -554,49 +571,19 @@ function capabilityLabels(capabilities: Record<string, boolean>) {
 export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<DynamicContractSnapshot> {
   const category = normalizeCategory(row.category);
   const credential = await decryptCredential(row);
+
+  let manifest: UniversalContractManifest;
   try {
-    const manifest = await discoverContract(row, credential, category);
-    const remoteAdminReady = Boolean(
-      credential
-      && manifest.capabilities.deviceRegistry
-      && manifest.endpoints.devices,
-    );
-    let devices: UniversalContractDevice[] = [];
-    if (remoteAdminReady && manifest.endpoints.devices) {
-      const devicePayload = await fetchJson(row.origin, manifest.endpoints.devices, credential);
-      const rawDevices = Array.isArray(devicePayload.devices) ? devicePayload.devices : [];
-      devices = rawDevices.map(universalDevice).filter((item): item is UniversalContractDevice => Boolean(item));
-    }
-    const capabilities = capabilityLabels(manifest.capabilities);
-    const config = dynamicApplicationConfig({
-      id: row.id,
-      name: row.name,
-      shortName: row.short_name,
-      category,
-      origin: row.origin,
-      publicUrl: row.public_url,
-      repository: row.repository,
-      contractState: remoteAdminReady ? "connected" : "migrating",
-      contractNote: remoteAdminReady
-        ? `${manifest.protocol ?? CONTRACT_SCHEMA} đã xác minh qua ${manifest.discoveredVia ?? row.contract_path}; capability được normalize động từ client.`
-        : credential
-          ? `Đã phát hiện ${manifest.protocol ?? "contract"} qua ${manifest.discoveredVia ?? row.contract_path}, nhưng client chưa công bố đủ device-control endpoint.`
-          : `Đã phát hiện ${manifest.protocol ?? "contract"} qua ${manifest.discoveredVia ?? row.contract_path}; chưa có credential quản trị nên chỉ ở chế độ quan sát.`,
-      capabilities,
-    });
-    return {
-      catalog: row,
-      config,
-      manifest,
-      credentialConfigured: Boolean(credential),
-      contractConnected: true,
-      connection: remoteAdminReady ? "connected" : "warning",
-      devices,
-      webHref: row.public_url || (manifest.capabilities.webLaunch ? row.origin : null),
-      remoteAdminReady,
-      note: config.contractNote,
-    };
+    manifest = await discoverContract(row, credential, category);
+    await rememberManagedProbe(row.id, { connected: true });
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Không đọc được manifest.";
+    await rememberManagedProbe(row.id, { connected: false, error: errorMessage });
+    const previouslyConnected = Boolean(row.last_contract_connected_at);
+    const state = previouslyConnected ? "unavailable" as const : "pending" as const;
+    const note = previouslyConnected
+      ? `Universal Contract từng kết nối thành công nhưng hiện không phản hồi tại ${row.contract_path}. ${errorMessage}`
+      : `Chưa phát hiện Universal Contract chuẩn tại ${row.contract_path}. ${errorMessage}`;
     const config = dynamicApplicationConfig({
       id: row.id,
       name: row.name,
@@ -605,8 +592,8 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
       origin: row.origin,
       publicUrl: row.public_url,
       repository: row.repository,
-      contractState: "pending",
-      contractNote: `Chờ contract chuẩn tại ${row.contract_path}. ${error instanceof Error ? error.message : "Không đọc được manifest."}`,
+      contractState: previouslyConnected ? "migrating" : "pending",
+      contractNote: note,
     });
     return {
       catalog: row,
@@ -614,14 +601,70 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
       manifest: null,
       credentialConfigured: Boolean(credential),
       contractConnected: false,
-      connection: "pending",
+      connection: state,
       devices: [],
       webHref: row.public_url,
       remoteAdminReady: false,
-      note: config.contractNote,
-      issueCode: "OPEN_CONTRACT_PENDING",
+      note,
+      issueCode: previouslyConnected ? "OPEN_CONTRACT_UNAVAILABLE" : "OPEN_CONTRACT_PENDING",
     };
   }
+
+  const remoteAdminDeclared = Boolean(
+    credential
+    && manifest.capabilities.deviceRegistry
+    && manifest.endpoints.devices,
+  );
+  let devices: UniversalContractDevice[] = [];
+  let remoteAdminReady = false;
+  let remoteAdminError = "";
+
+  if (remoteAdminDeclared && manifest.endpoints.devices) {
+    try {
+      const devicePayload = await fetchJson(row.origin, manifest.endpoints.devices, credential);
+      const rawDevices = Array.isArray(devicePayload.devices) ? devicePayload.devices : [];
+      devices = rawDevices.map(universalDevice).filter((item): item is UniversalContractDevice => Boolean(item));
+      remoteAdminReady = true;
+    } catch (error) {
+      remoteAdminError = error instanceof Error ? error.message : "Không đọc được endpoint thiết bị.";
+    }
+  }
+
+  const capabilities = capabilityLabels(manifest.capabilities);
+  const note = remoteAdminReady
+    ? `${manifest.protocol ?? CONTRACT_SCHEMA} đã xác minh qua ${manifest.discoveredVia ?? row.contract_path}; remote-admin đang hoạt động.`
+    : remoteAdminError
+      ? `Contract đã kết nối qua ${manifest.discoveredVia ?? row.contract_path}, nhưng remote-admin tạm chưa sẵn sàng: ${remoteAdminError}`
+      : credential
+        ? `Contract đã kết nối qua ${manifest.discoveredVia ?? row.contract_path}, nhưng client chưa công bố đủ device-control capability/endpoint.`
+        : `Contract đã kết nối qua ${manifest.discoveredVia ?? row.contract_path}; chưa có credential quản trị nên đang ở chế độ quan sát.`;
+
+  const config = dynamicApplicationConfig({
+    id: row.id,
+    name: row.name,
+    shortName: row.short_name,
+    category,
+    origin: row.origin,
+    publicUrl: row.public_url,
+    repository: row.repository,
+    contractState: remoteAdminReady ? "connected" : "migrating",
+    contractNote: note,
+    capabilities,
+  });
+
+  return {
+    catalog: row,
+    config,
+    manifest,
+    credentialConfigured: Boolean(credential),
+    contractConnected: true,
+    connection: remoteAdminReady ? "connected" : "warning",
+    devices,
+    webHref: row.public_url || (manifest.capabilities.webLaunch ? row.origin : null),
+    remoteAdminReady,
+    note,
+    issueCode: remoteAdminError ? "OPEN_CONTRACT_REMOTE_ADMIN_UNAVAILABLE" : undefined,
+  };
 }
 
 export async function probeDynamicManagedApplications() {
