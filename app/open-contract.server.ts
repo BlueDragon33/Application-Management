@@ -618,7 +618,13 @@ export async function executeUniversalDeviceCommand(input: {
   const response = await fetch(`${row.origin}${manifest.endpoints.deviceCommands}`, {
     method: "POST",
     cache: "no-store",
-    headers: { authorization: `Bearer ${credential}`, "content-type": "application/json" },
+    headers: {
+      authorization: `Bearer ${credential}`,
+      "content-type": "application/json",
+      "x-control-actor": actor.email,
+      "x-control-role": actor.role,
+      "x-control-device": actor.deviceId,
+    },
     body: JSON.stringify({
       commandId: input.commandId,
       operation: input.operation === "remove" ? "block" : "approve",
