@@ -125,6 +125,8 @@ function connectionFor(app: ApplicationConfig, summary?: OperationsSummary): Ope
 }
 
 function connectionLabel(value: OperationsSummary["connection"], summary?: OperationsSummary) {
+  if (summary?.managementMode === "local-first" && summary.metadataVerified) return "Local-first · metadata đã xác minh";
+  if (summary?.managementMode === "metadata-only" && summary.metadataVerified) return "Metadata đã xác minh · chưa có runtime";
   const issueCode = summary?.issueCode;
   if (issueCode === "BOI_ECH_STALE_PUBLISH") return "Publish cũ · đã chặn";
   if (issueCode === "BOI_ECH_RUNTIME_IDENTITY_UNAVAILABLE") return "Chưa xác minh runtime";
@@ -148,30 +150,40 @@ function connectionLabel(value: OperationsSummary["connection"], summary?: Opera
 
 function statusAxes(app: ApplicationConfig, summary?: OperationsSummary) {
   const state = connectionFor(app, summary);
+  const localFirst = summary?.managementMode === "local-first";
+  const metadataOnly = summary?.managementMode === "metadata-only";
   const repositoryOnly = summary?.issueCode === "REPOSITORY_METADATA_ONLY";
   const runtimeLive = !repositoryOnly && (state === "connected" || summary?.contractConnected === true);
 
-  const runtime = state === "unavailable"
-    ? { label: "Mất kết nối", tone: "bad" as const }
-    : runtimeLive
-      ? { label: "Live", tone: "good" as const }
-      : state === "warning"
-        ? { label: "Có cảnh báo", tone: "warn" as const }
-        : { label: "Chưa live", tone: "idle" as const };
+  const runtime = localFirst
+    ? { label: "Local-first", tone: "good" as const }
+    : metadataOnly
+      ? { label: "Chưa có cloud", tone: "idle" as const }
+      : state === "unavailable"
+        ? { label: "Mất kết nối", tone: "bad" as const }
+        : runtimeLive
+          ? { label: "Live", tone: "good" as const }
+          : state === "warning"
+            ? { label: "Có cảnh báo", tone: "warn" as const }
+            : { label: "Chưa live", tone: "idle" as const };
 
-  const contract = summary?.contractConnected === true
-    ? { label: "Đã bắt tay", tone: "good" as const }
-    : summary?.contractReadiness === "partial"
-      ? { label: "Đang hoàn tất", tone: "warn" as const }
-      : summary?.contractReadiness === "not-enrolled"
-        ? { label: "Chưa đăng ký", tone: "idle" as const }
-        : { label: "Chờ", tone: "idle" as const };
-
-  const admin = summary?.remoteAdminReady === true
-    ? { label: "Sẵn sàng", tone: "good" as const }
+  const contract = summary?.metadataVerified
+    ? { label: "Metadata ✓", tone: "good" as const }
     : summary?.contractConnected === true
-      ? { label: "Chỉ quan sát", tone: "warn" as const }
-      : { label: "Chưa sẵn sàng", tone: "idle" as const };
+      ? { label: "Đã bắt tay", tone: "good" as const }
+      : summary?.contractReadiness === "partial"
+        ? { label: "Đang hoàn tất", tone: "warn" as const }
+        : summary?.contractReadiness === "not-enrolled"
+          ? { label: "Chưa đăng ký", tone: "idle" as const }
+          : { label: "Chờ", tone: "idle" as const };
+
+  const admin = localFirst || metadataOnly
+    ? { label: "Không yêu cầu", tone: "good" as const }
+    : summary?.remoteAdminReady === true
+      ? { label: "Sẵn sàng", tone: "good" as const }
+      : summary?.contractConnected === true
+        ? { label: "Chỉ quan sát", tone: "warn" as const }
+        : { label: "Chưa sẵn sàng", tone: "idle" as const };
 
   return { runtime, contract, admin };
 }
@@ -180,8 +192,9 @@ function StatusCell({ app, summary }: { app: ApplicationConfig; summary?: Operat
   const state = connectionFor(app, summary);
   const axes = statusAxes(app, summary);
   const title = summary?.note ?? app.contractNote;
+  const visualState = summary?.managementMode === "local-first" ? "connected" : state;
   return <div className="amv2-status-cell" title={title}>
-    <b data-state={state}><i/>{connectionLabel(state, summary)}</b>
+    <b data-state={visualState}><i/>{connectionLabel(state, summary)}</b>
     <small aria-label="Chi tiết trạng thái kết nối">
       <span data-tone={axes.runtime.tone}>Runtime {axes.runtime.label}</span>
       <span data-tone={axes.contract.tone}>Contract {axes.contract.label}</span>
@@ -331,7 +344,7 @@ export default function ManagementDashboardV2({ user, authMode }: {
   const unavailableCount = activeApps.filter((app) => connectionFor(app, summaryMap.get(app.id)) === "unavailable").length;
   const contractPending = activeApps.filter((app) => {
     const live = summaryMap.get(app.id)?.contractReadiness;
-    return live ? live !== "ready" : app.contractState !== "connected";
+    return live ? live !== "ready" && live !== "metadata" : app.contractState !== "connected";
   }).length;
   const highAlerts = workItems.filter((item) => item.priority === "high").length;
   const notificationCount = workItems.length;
