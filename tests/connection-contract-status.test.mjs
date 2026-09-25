@@ -10,6 +10,10 @@ const catalog = fs.readFileSync(new URL("../app/tools/managed-apps/page.tsx", im
 test("live connectivity and Universal Contract readiness are independent dimensions", () => {
   assert.match(client, /controlChannel\?: "universal" \| "legacy-adapter" \| "contract-observe" \| "none"/);
   assert.match(client, /contractReadiness\?: "ready" \| "partial" \| "pending" \| "not-enrolled"/);
+  assert.match(client, /contractConnected\?: boolean/);
+  assert.match(operations, /contractConnected: boolean/);
+  assert.match(operations, /snapshot\.contractConnected/);
+  assert.match(operations, /dynamic\?\.contractConnected \?\? false/);
   assert.match(operations, /"legacy-adapter"/);
   assert.match(operations, /"contract-observe"/);
   assert.match(dashboard, /Đang kết nối · chờ contract/);
@@ -56,4 +60,15 @@ test("catalog status language distinguishes connected observe-only from real dis
 test("repository metadata never counts as live runtime connectivity", () => {
   assert.match(operations, /REPOSITORY_METADATA_ONLY/);
   assert.match(operations, /Chỉ có metadata repository · chưa kết nối runtime/);
+});
+
+
+test("application table renders runtime, contract and admin readiness as separate axes", () => {
+  assert.match(dashboard, /function StatusCell/);
+  assert.match(dashboard, /Runtime \{axes\.runtime\.label\}/);
+  assert.match(dashboard, /Contract \{axes\.contract\.label\}/);
+  assert.match(dashboard, /Quản trị \{axes\.admin\.label\}/);
+  assert.match(dashboard, /summary\?\.contractConnected === true/);
+  assert.match(dashboard, /summary\?\.remoteAdminReady === true/);
+  assert.match(dashboard, /REPOSITORY_METADATA_ONLY/);
 });
