@@ -66,7 +66,9 @@ try {
 
   if (navigationStatus !== 200) throw new Error(`Authenticated root returned HTTP ${navigationStatus}.`);
   if (snapshot.url.includes("/__login")) throw new Error("QA session was redirected to login.");
-  if (!snapshot.bodyText.includes("Quản trị Ứng dụng")) throw new Error("Production body does not contain the management shell/gate text.");
+  if (!snapshot.bodyText.toLocaleUpperCase("vi-VN").includes("QUẢN TRỊ ỨNG DỤNG")) {
+    throw new Error("Production body does not contain the management shell/gate text.");
+  }
   if (!snapshot.shell && !snapshot.gate) throw new Error("Neither .amv2-shell nor .amv2-gate rendered.");
   if (diagnostics.some((line) => line.startsWith("[pageerror]"))) throw new Error("Browser pageerror detected.");
   push("result", `PASS shell=${snapshot.shell} gate=${snapshot.gate} bodyChars=${snapshot.bodyText.length}`);
