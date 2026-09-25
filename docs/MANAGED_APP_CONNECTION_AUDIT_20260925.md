@@ -154,3 +154,32 @@ Batch totals tại thời điểm probe: `connected=1 · warning=2 · pending=1 
 ### Quy tắc từ đây
 
 App mới không yêu cầu commit vào Application Management. Client chỉ cần publish contract/manifest chuẩn, sau đó Owner dán URL vào `Catalog & Contract → Khám phá app từ URL`, chọn category nếu manifest chưa khai báo, và lưu. Capability nào chưa live vẫn fail-closed.
+
+
+## Production reconciliation · 2026-09-25 16:19 ICT
+
+Zero-code Dynamic Catalog đã được reconcile lại sau khi RU_LIFE công bố contract repository chuẩn.
+
+Kết quả live:
+
+- Catalog: `8 existing · 0 migrated · 0 needsOrigin`.
+- Probe: `connected=1 · warning=7 · pending=0 · unavailable=0`.
+- **Bauman Master AI**: contract-connected + credential + remote admin ready.
+- **Bơi ếch AI**: Universal Contract v1 live, contract-connected; chưa có generic admin credential nên observe-only.
+- **Health_Care**: repository contract hợp lệ, contract-connected; chưa có Production Control Origin/credential nên observe-only.
+- **RU_LIFE**: repository contract `ru-life-control-v2` đã được phục hồi tự động, contract-connected; chưa có Production Control Origin/credential nên observe-only.
+- **PriceReport Tùng Gia Bảo**: contract `price-report-control-v1` live qua GitHub Pages, contract-connected; chưa có Control credential nên observe-only.
+- **NC03 Modem**: repository contract `nc03-local-first-v1`, contract-connected ở mức metadata; remote control vẫn khóa theo local-first guardrail.
+- **CAD CAM 3D**: repository contract `cad-cam-3d-metadata-v1`, contract-connected ở mức metadata; chưa có Production Control backend.
+- **GrowUP MyChildren**: repository contract `growup-local-first-v1`, contract-connected ở mức metadata; chưa có Production Control Origin/credential.
+
+### Diễn giải bắt buộc
+
+Từ mốc này, `warning` không đồng nghĩa "mất kết nối".
+
+- `contractConnected=true, remoteAdminReady=false` = **Đã nối contract · chỉ quan sát / chờ backend hoặc credential**.
+- `contractConnected=false, pending` = **Chưa có contract**.
+- `unavailable` = **Contract/origin đã cấu hình nhưng probe thất bại**.
+- `connected + remoteAdminReady=true` = **Quản trị từ xa đầy đủ**.
+
+Mọi app mới phải đi qua Dynamic Catalog. Không thêm case mới vào `application-registry.ts`, `client-network-registry.ts`, route riêng hoặc dashboard hard-code chỉ để onboarding.
