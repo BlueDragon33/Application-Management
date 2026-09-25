@@ -17,9 +17,10 @@ test("operations dashboard does not hide managed clients on the browser", () => 
 
 test("dashboard v2 renders the registry instead of a second hard-coded app allow-list", () => {
   const dashboard = read("app/management-dashboard-v2.tsx");
-  assert.match(dashboard, /const activeApps = applicationRegistry;/);
-  assert.match(dashboard, /activeApps\.map\(\(app\) => app\.id\)/);
-  assert.doesNotMatch(dashboard, /ACTIVE_APP_IDS/);
+  assert.match(dashboard, /const staticApps = applicationRegistry;/);
+  assert.match(dashboard, /operations\?\.applications\?\.length \? operations\.applications : staticApps/);
+  assert.match(dashboard, /new Set\(runtimeApps\.map\(\(app\) => app\.id\)\)/);
+  assert.doesNotMatch(dashboard, /ACTIVE_APP_IDS|activeAppSet/);
   for (const id of ["boi-ech", "health-care", "ru-life", "bauman-master-ai", "price-report-tunggiabao", "growup-mychildren", "nc03-modem"]) {
     assert.match(read("app/application-registry.ts"), new RegExp(`id: "${id}"`));
   }
