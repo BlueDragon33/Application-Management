@@ -1,4 +1,5 @@
 import { contractCategoryProfiles, contractStarterForCategory } from "../../contract-category-profiles";
+import { discoverManagedContractOrigin } from "../../managed-contract-discovery.server";
 import { applicationRegistry, type ApplicationCategory } from "../../application-registry";
 import { listClientNetworkSpecs } from "../../client-network-registry";
 import { resolveClientBridge } from "../../client-origin.server";
@@ -188,6 +189,14 @@ export async function POST(request: Request) {
           unavailable: probes.filter((item) => item.connection === "unavailable").length,
         },
       });
+    }
+
+    if (action === "discover") {
+      const discovery = await discoverManagedContractOrigin({
+        target: payload.target,
+        credential: payload.credential,
+      });
+      return json({ ok: true, discovery });
     }
 
     if (action === "template") {
