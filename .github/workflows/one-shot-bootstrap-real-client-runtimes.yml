@@ -156,7 +156,7 @@ jobs:
           if(generated.assets?.binding!=='ASSETS'||generated.images?.binding!=='IMAGES') throw new Error('Health asset/image binding missing');
           console.log('HEALTH_PRODUCTION_ARTIFACT_PASS');
           NODE
-          npx wrangler deploy --config wrangler.production.jsonc
+          npx wrangler deploy
           printf '%s' "$HEALTH_SECRET" | npx wrangler secret put HEALTH_CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
           curl --fail --silent --show-error --max-time 20 "$HEALTH_ORIGIN/api/control/contract" > /tmp/health-contract.json
           node -e "const x=require('/tmp/health-contract.json'); if(x.application!=='health-care') throw Error('Health contract mismatch'); console.log('HEALTH_RUNTIME_PASS')"
@@ -218,7 +218,7 @@ jobs:
           if(generated.assets?.binding!=='ASSETS'||generated.images?.binding!=='IMAGES') throw new Error('RU_LIFE asset/image binding missing');
           console.log('RU_PRODUCTION_ARTIFACT_PASS');
           NODE
-          npx wrangler deploy --config wrangler.production.jsonc
+          npx wrangler deploy
           printf '%s' "$RU_SECRET" | npx wrangler secret put RU_LIFE_CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
           curl --fail --silent --show-error --max-time 20 "$RU_ORIGIN/" > /tmp/ru-home.html
           test -s /tmp/ru-home.html
