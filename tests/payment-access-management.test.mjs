@@ -12,7 +12,7 @@ const view = source("app/boi-access-view.tsx");
 const dashboard = source("app/management-dashboard-v2.tsx");
 
 test("Boi payment/access API is proof-gated, concurrency-safe and read-back verified", () => {
-  assert.match(api, /verifyControlProof\(payload/);
+  assert.match(api, /verifyControlProof\(controlProofPayload/);
   assert.match(api, /expectedPaymentStatus/);
   assert.match(api, /expectedAccessGroup/);
   assert.match(api, /PAYMENT_STATE_CONFLICT/);
