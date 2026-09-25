@@ -1,5 +1,5 @@
 import { contractCategoryProfiles, contractStarterForCategory } from "../../contract-category-profiles";
-import { discoverManagedContractOrigin } from "../../managed-contract-discovery.server";
+import { discoverManagedContractOrigin, discoverManagedRepositoryContract } from "../../managed-contract-discovery.server";
 import { applicationRegistry, type ApplicationCategory } from "../../application-registry";
 import { listClientNetworkSpecs } from "../../client-network-registry";
 import { resolveClientBridge } from "../../client-origin.server";
@@ -31,7 +31,14 @@ function publicOrigin(value?: string) {
   }
 }
 
-async function legacyCatalogCandidate(application: (typeof applicationRegistry)[number]) {
+type CatalogCandidate = {
+  origin: string;
+  credential: string;
+  source: "legacy-production-bridge" | "legacy-local-bridge" | "public-url" | "public-repository-contract" | "missing-origin";
+  contractPath: string;
+};
+
+async function transportCatalogCandidate(application: (typeof applicationRegistry)[number]): Promise<CatalogCandidate> {
   const spec = listClientNetworkSpecs().find((item) =>
     item.endpointKind === "control" && item.applicationId === application.id,
   );
@@ -42,16 +49,48 @@ async function legacyCatalogCandidate(application: (typeof applicationRegistry)[
         origin: bridge.baseUrl,
         credential: bridge.secret,
         source: bridge.source === "production" ? "legacy-production-bridge" : "legacy-local-bridge",
+        contractPath: "/api/application-management/contract",
       };
     } catch {
-      // Missing legacy env is not fatal. Dynamic Catalog may still use a
-      // public manifest origin, or report that the owner must supply one.
+      // A missing runtime origin is not equivalent to a missing contract.
+      // Repository metadata discovery below can still classify the app safely.
     }
   }
   const fallback = publicOrigin(application.publicUrl);
   return fallback
-    ? { origin: fallback, credential: "", source: "public-url" }
-    : { origin: "", credential: "", source: "missing-origin" };
+    ? { origin: fallback, credential: "", source: "public-url", contractPath: "/api/application-management/contract" }
+    : { origin: "", credential: "", source: "missing-origin", contractPath: "/api/application-management/contract" };
+}
+
+async function repositoryCatalogCandidate(application: (typeof applicationRegistry)[number]): Promise<CatalogCandidate> {
+  try {
+    const discovery = await discoverManagedRepositoryContract({
+      repository: application.repository,
+      expectedId: application.id,
+    });
+    return {
+      origin: discovery.origin,
+      credential: "",
+      source: "public-repository-contract",
+      contractPath: discovery.contractPath,
+    };
+  } catch {
+    return { origin: "", credential: "", source: "missing-origin", contractPath: "/api/application-management/contract" };
+  }
+}
+
+async function legacyCatalogCandidate(application: (typeof applicationRegistry)[number]): Promise<CatalogCandidate> {
+  const transport = await transportCatalogCandidate(application);
+  if (transport.origin) return transport;
+  return repositoryCatalogCandidate(application);
+}
+
+function repositoryBootstrapRow(row: Awaited<ReturnType<typeof listManagedCatalog>>[number], repository: string) {
+  return row.origin === "https://raw.githubusercontent.com"
+    && Boolean(row.repository)
+    && row.repository?.toLowerCase() === repository.toLowerCase()
+    && !row.credential_ciphertext
+    && !row.credential_iv;
 }
 
 function probeSummary(probe: Awaited<ReturnType<typeof probeManagedCatalogEntry>>) {
@@ -133,7 +172,7 @@ export async function POST(request: Request) {
               origin: candidate.origin,
               publicUrl: application.publicUrl ?? "",
               repository: application.repository,
-              contractPath: "/api/application-management/contract",
+              contractPath: candidate.contractPath,
               credential: candidate.credential,
             }, actor);
             const row = (await listManagedCatalog()).find((item) => item.id === id);
@@ -155,8 +194,35 @@ export async function POST(request: Request) {
           continue;
         }
 
-        // Existing Dynamic Catalog entries are authoritative. Never overwrite
-        // an owner-selected origin/credential during compatibility sync.
+        // Owner-selected entries remain authoritative. The only automatic
+        // upgrade allowed is a credential-free raw GitHub bootstrap row:
+        // when a real HTTPS transport later appears, promote that row to the
+        // live origin without requiring source edits or deleting catalog data.
+        if (repositoryBootstrapRow(current, application.repository)) {
+          const liveCandidate = await transportCatalogCandidate(application);
+          if (liveCandidate.origin && liveCandidate.origin !== current.origin) {
+            const id = await upsertManagedCatalog({
+              id: application.id,
+              name: application.name,
+              shortName: application.shortName,
+              category: application.category,
+              origin: liveCandidate.origin,
+              publicUrl: application.publicUrl ?? "",
+              repository: application.repository,
+              contractPath: liveCandidate.contractPath,
+              credential: liveCandidate.credential,
+            }, actor);
+            const upgraded = (await listManagedCatalog()).find((item) => item.id === id);
+            const probe = upgraded ? await probeManagedCatalogEntry(upgraded) : null;
+            existing.push({
+              id,
+              source: "repository-bootstrap-upgraded",
+              probe: probe ? probeSummary(probe) : null,
+            });
+            continue;
+          }
+        }
+
         const probe = await probeManagedCatalogEntry(current);
         existing.push({ id: current.id, probe: probeSummary(probe) });
       }
