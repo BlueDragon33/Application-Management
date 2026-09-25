@@ -9,6 +9,7 @@ function read(path) {
 const migration = read("drizzle/0005_managed_app_catalog.sql");
 const schema = read("db/schema.ts");
 const contract = read("app/open-contract.server.ts");
+const discovery = read("app/managed-contract-discovery.server.ts");
 const profiles = read("app/contract-category-profiles.ts");
 const operations = read("app/api/operations/route.ts");
 const catalogApi = read("app/api/managed-apps/route.ts");
@@ -189,4 +190,41 @@ test("dynamic Catalog can fetch public Workers without per-app Service Bindings"
   assert.equal(productionWrangler.includes('"services"'), false);
   assert.equal(previewWrangler.includes('"services"'), false);
   assert.ok(contract.includes("fetch(`${origin}${path}`"));
+});
+
+
+test("origin-only discovery onboards new apps without Application Management source edits", () => {
+  assert.ok(discovery.includes("discoverManagedContractOrigin"));
+  assert.ok(discovery.includes("/api/application-management/contract"));
+  assert.ok(discovery.includes("/api/control/contract"));
+  assert.ok(discovery.includes("/management-contract.json"));
+  assert.ok(discovery.includes("/control/application-management.contract.json"));
+  assert.ok(discovery.includes("/api/control/status"));
+  assert.ok(discovery.includes("Contract chưa công bố application.id hợp lệ."));
+  assert.ok(discovery.includes("categoryRequired"));
+  assert.equal(discovery.includes('if (id === "boi-ech")'), false);
+  assert.equal(discovery.includes('if (id === "health-care")'), false);
+  assert.equal(discovery.includes('if (id === "bauman-master-ai")'), false);
+  assert.ok(catalogApi.includes('if (action === "discover")'));
+  assert.ok(catalogApi.includes("discoverManagedContractOrigin"));
+  assert.ok(catalogUi.includes("ZERO-CODE ONBOARDING"));
+  assert.ok(catalogUi.includes("Khám phá contract"));
+  assert.ok(catalogUi.includes("Không cần sửa source Trung tâm"));
+});
+
+test("contract handshake is distinct from remote-admin readiness", () => {
+  assert.ok(contract.includes("contractConnected: boolean"));
+  assert.ok(contract.includes("contractConnected: true"));
+  assert.ok(contract.includes("contractConnected: false"));
+  assert.ok(catalogApi.includes("contractConnected: probe.contractConnected"));
+  assert.ok(catalogUi.includes('label="Contract"'));
+  assert.ok(operations.includes("snapshot.contractConnected"));
+  assert.ok(operations.includes("Contract đã kết nối · Remote admin chưa sẵn sàng"));
+});
+
+test("unknown dynamic app mutations remain generic instead of requiring a new app branch", () => {
+  assert.ok(operations.includes("executeUniversalDeviceCommand"));
+  assert.ok(operations.includes("dynamicMutationReady"));
+  assert.ok(operations.includes('contractPath: "universal"'));
+  assert.ok(operations.includes("if (appId !== \"boi-ech\")"));
 });
