@@ -1,0 +1,213 @@
+name: One-shot provision real Health and RU runtimes
+
+on:
+  push:
+    branches: ["ops/provision-real-health-ru-20260925"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: provision-real-health-ru-production
+  cancel-in-progress: false
+
+jobs:
+  provision:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    environment: application-management-production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID: ${{ secrets.APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID }}
+      APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID: ${{ secrets.APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID }}
+      APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD: ${{ secrets.APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD }}
+      APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET: ${{ secrets.APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET }}
+      BAUMAN_CONTROL_SERVICE_SECRET: ${{ secrets.BAUMAN_CONTROL_SERVICE_SECRET }}
+      CONTROL_OWNER_EMAILS: ${{ vars.CONTROL_OWNER_EMAILS }}
+      APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN: https://application-management.boiech-ai.workers.dev
+      HEALTH_PRODUCTION_ORIGIN: https://health-care.boiech-ai.workers.dev
+      RU_LIFE_PRODUCTION_ORIGIN: https://ru-life.boiech-ai.workers.dev
+      BAUMAN_CONTROL_BASE_URL: https://bauman-control.boiech-ai.workers.dev
+      BAUMAN_APP_ORIGIN: https://bauman-master-ai.boiech-ai.workers.dev
+      MANAGER_SHA: b27df756d72c21607c7b39446c5f99a330a95012
+      HEALTH_SHA: 061485b852b1ac9ee1c29a94553fa6bc109ac43b
+      RU_SHA: 00a9c755826f4779d939b6b09a502529335ca1dd
+
+    steps:
+      - name: Validate central Production credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          for key in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET CONTROL_OWNER_EMAILS BAUMAN_CONTROL_SERVICE_SECRET; do
+            [[ -n "${!key:-}" ]] || { echo "::error::$key missing from Application Management Production environment"; exit 1; }
+          done
+
+      - name: Checkout exact Application Management main
+        uses: actions/checkout@v4
+        with:
+          repository: BlueDragon33/Application-Management
+          ref: ${{ env.MANAGER_SHA }}
+          path: manager
+
+      - name: Checkout exact Health source
+        uses: actions/checkout@v4
+        with:
+          repository: BlueDragon33/Health_Care
+          ref: ${{ env.HEALTH_SHA }}
+          path: health
+
+      - name: Checkout exact RU_LIFE source
+        uses: actions/checkout@v4
+        with:
+          repository: BlueDragon33/RU_LIFE
+          ref: ${{ env.RU_SHA }}
+          path: ru
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+
+      - name: Generate shared app control secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          HEALTH_SECRET="$(openssl rand -base64 48 | tr -d '\n=+/')$(openssl rand -hex 8)"
+          RU_SECRET="$(openssl rand -base64 48 | tr -d '\n=+/')$(openssl rand -hex 8)"
+          echo "::add-mask::$HEALTH_SECRET"
+          echo "::add-mask::$RU_SECRET"
+          echo "HEALTH_CONTROL_SERVICE_SECRET=$HEALTH_SECRET" >> "$GITHUB_ENV"
+          echo "RU_LIFE_CONTROL_SERVICE_SECRET=$RU_SECRET" >> "$GITHUB_ENV"
+
+      - name: Ensure isolated Health and RU Production D1 databases
+        shell: bash
+        run: |
+          set -euo pipefail
+          ensure_db() {
+            local name="$1" envkey="$2"
+            npx --yes wrangler@4.92.0 d1 list --json > "/tmp/${name}.list.json"
+            local id
+            id="$(DB_NAME="$name" node --input-type=module - <<'NODE'
+            import fs from "node:fs";
+            const rows=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));
+            const name=process.env.DB_NAME;
+            const row=rows.find((x)=>x.name===name);
+            process.stdout.write(row?.uuid ?? row?.id ?? "");
+NODE
+"/tmp/${name}.list.json")"
+            if [[ -z "$id" ]]; then
+              npx --yes wrangler@4.92.0 d1 create "$name"
+              npx --yes wrangler@4.92.0 d1 list --json > "/tmp/${name}.list.json"
+              id="$(DB_NAME="$name" node --input-type=module - <<'NODE'
+              import fs from "node:fs";
+              const rows=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));
+              const row=rows.find((x)=>x.name===process.env.DB_NAME);
+              if(!row) throw new Error("D1 create read-back missing");
+              process.stdout.write(row.uuid ?? row.id ?? "");
+NODE
+"/tmp/${name}.list.json")"
+            fi
+            [[ "$id" =~ ^[0-9a-fA-F-]{36}$ ]] || { echo "::error::Invalid D1 id for $name"; exit 1; }
+            echo "$envkey=$id" >> "$GITHUB_ENV"
+            echo "$name ready."
+          }
+          ensure_db health-care-production-db HEALTH_PRODUCTION_D1_DATABASE_ID
+          ensure_db ru-life-production-db RU_LIFE_PRODUCTION_D1_DATABASE_ID
+
+      - name: Install Health dependencies
+        working-directory: health
+        run: npm ci
+
+      - name: Prepare and deploy Health Production runtime
+        working-directory: health
+        env:
+          APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN: ${{ env.APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN }}
+          HEALTH_BUILD_REVISION: ${{ env.HEALTH_SHA }}
+          HEALTH_PREVIEW_D1_DATABASE_ID: 11111111-1111-4111-8111-111111111111
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/prepare-cloudflare-production.mjs
+          npx wrangler d1 migrations apply health-care-production-db --remote --config wrangler.cloudflare.production.jsonc
+          CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH=wrangler.cloudflare.production.jsonc npm run build
+          HEALTH_PREVIEW_D1_DATABASE_ID=11111111-1111-4111-8111-111111111111 node scripts/validate-cloudflare-production-artifact.mjs
+          npx wrangler deploy
+          printf '%s' "$HEALTH_CONTROL_SERVICE_SECRET" | npx wrangler secret put HEALTH_CONTROL_SERVICE_SECRET --config wrangler.cloudflare.production.jsonc
+          npx wrangler deploy
+
+      - name: Install RU_LIFE dependencies
+        working-directory: ru
+        run: npm install --no-audit --no-fund
+
+      - name: Prepare and deploy RU_LIFE Production runtime
+        working-directory: ru
+        env:
+          APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN: ${{ env.APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN }}
+          RU_LIFE_BUILD_REVISION: ${{ env.RU_SHA }}
+          RU_LIFE_PREVIEW_D1_DATABASE_ID: 22222222-2222-4222-8222-222222222222
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/prepare-cloudflare-production.mjs
+          npx wrangler d1 migrations apply ru-life-production-db --remote --config wrangler.cloudflare.production.jsonc
+          CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH=wrangler.cloudflare.production.jsonc npm run build
+          RU_LIFE_PREVIEW_D1_DATABASE_ID=22222222-2222-4222-8222-222222222222 node scripts/validate-cloudflare-production-artifact.mjs
+          npx wrangler deploy
+          printf '%s' "$RU_LIFE_CONTROL_SERVICE_SECRET" | npx wrangler secret put RU_LIFE_CONTROL_SERVICE_SECRET --config wrangler.cloudflare.production.jsonc
+          npx wrangler deploy
+
+      - name: Smoke test app control runtimes with direct shared secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          for spec in "health:$HEALTH_PRODUCTION_ORIGIN:$HEALTH_CONTROL_SERVICE_SECRET" "ru:$RU_LIFE_PRODUCTION_ORIGIN:$RU_LIFE_CONTROL_SERVICE_SECRET"; do
+            IFS=: read -r label scheme rest <<< "$spec"
+          done
+          HC="$(curl --silent --show-error --output /tmp/health-status.json --write-out '%{http_code}' --max-time 20 -H "Authorization: Bearer $HEALTH_CONTROL_SERVICE_SECRET" "$HEALTH_PRODUCTION_ORIGIN/api/control/status")"
+          RU="$(curl --silent --show-error --output /tmp/ru-status.json --write-out '%{http_code}' --max-time 20 -H "Authorization: Bearer $RU_LIFE_CONTROL_SERVICE_SECRET" "$RU_LIFE_PRODUCTION_ORIGIN/api/control/status")"
+          [[ "$HC" == 200 ]] || { cat /tmp/health-status.json; exit 1; }
+          [[ "$RU" == 200 ]] || { cat /tmp/ru-status.json; exit 1; }
+          echo "Health and RU direct control smoke PASS."
+
+      - name: Install Application Management dependencies
+        working-directory: manager
+        run: npm ci
+
+      - name: Materialize Manager Production with real Health and RU origins
+        working-directory: manager
+        env:
+          GITHUB_SHA: ${{ env.MANAGER_SHA }}
+          HEALTH_CARE_BASE_URL: ${{ env.HEALTH_PRODUCTION_ORIGIN }}
+          RU_LIFE_BASE_URL: ${{ env.RU_LIFE_PRODUCTION_ORIGIN }}
+          BOI_ECH_BASE_URL: ""
+          GROWUP_BASE_URL: ""
+          BAUMAN_CONTROL_BASE_URL: ${{ env.BAUMAN_CONTROL_BASE_URL }}
+          BAUMAN_APP_ORIGIN: ${{ env.BAUMAN_APP_ORIGIN }}
+        run: node scripts/prepare-cloudflare-production.mjs
+
+      - name: Build and deploy Manager with real Health and RU bridge origins
+        working-directory: manager
+        shell: bash
+        run: |
+          set -euo pipefail
+          CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH=wrangler.production.jsonc npm run build
+          npx wrangler deploy
+          printf '%s' "$APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD" | npx wrangler secret put APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD --config wrangler.production.jsonc
+          printf '%s' "$APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET" | npx wrangler secret put APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET --config wrangler.production.jsonc
+          printf '%s' "$HEALTH_CONTROL_SERVICE_SECRET" | npx wrangler secret put HEALTH_CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
+          printf '%s' "$RU_LIFE_CONTROL_SERVICE_SECRET" | npx wrangler secret put RU_LIFE_CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
+          printf '%s' "$BAUMAN_CONTROL_SERVICE_SECRET" | npx wrangler secret put BAUMAN_CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
+          npx wrangler deploy
+
+      - name: Read back exact Manager deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          CODE="$(curl --silent --show-error --output /tmp/manager-deployment.json --write-out '%{http_code}' --max-time 20 -H "Authorization: Bearer $APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET" "$APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/__deployment")"
+          [[ "$CODE" == 200 ]] || { cat /tmp/manager-deployment.json; exit 1; }
+          MANAGER_SHA="$MANAGER_SHA" node --input-type=module - <<'NODE'
+          import fs from "node:fs";
+          const v=JSON.parse(fs.readFileSync("/tmp/manager-deployment.json","utf8"));
+          if(v.revision!==process.env.MANAGER_SHA) throw new Error(`Manager revision mismatch: ${v.revision}`);
+          console.log("Manager exact revision read-back PASS.");
+          NODE
