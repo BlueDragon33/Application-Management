@@ -257,3 +257,40 @@ Giá trị key không được ghi log hoặc lưu D1.
 ## Legacy adapters
 
 Adapter cũ chỉ còn là compatibility layer trong thời gian migration. Dynamic Catalog là đường chuẩn cho app mới và app cũ sau khi contract generic đạt parity.
+
+
+## Đồng bộ ứng dụng hiện có
+
+Trang `Catalog & Contract` có hai thao tác vận hành:
+
+### Đồng bộ ứng dụng hiện có
+
+- đọc danh sách app legacy đang thuộc diện quản trị;
+- nếu app chưa có Dynamic Catalog entry, hệ thống thử lấy Control Origin/credential legacy server-side;
+- nếu không có legacy origin nhưng app có public HTTPS origin, dùng public origin để discovery manifest tĩnh;
+- credential legacy, nếu có, chỉ được chuyển server-side và mã hóa AES-GCM trong D1;
+- entry động đã tồn tại là nguồn chính và **không bị ghi đè** bởi sync legacy;
+- app chưa có origin được trả về trạng thái **Cần Control Origin**, không bị gắn nhãn contract lỗi.
+
+### Kiểm tra lại tất cả contract
+
+- probe lại toàn bộ entry enabled;
+- thử Universal Contract và các protocol tương thích;
+- không cần deploy lại Application Management;
+- app có thể tự chuyển `pending → warning → connected` sau khi client publish endpoint/capability;
+- mutation vẫn fail-closed nếu credential/capability/guardrail chưa đủ.
+
+## Quy trình chuẩn từ nay
+
+Thêm app mới không cần sửa code Trung tâm:
+
+1. Mở `Catalog & Contract`.
+2. Nhập ID, tên, phân loại, Control Origin, Website và repository.
+3. Nếu client chưa có contract, sinh `Contract mẫu theo phân loại`.
+4. Client publish manifest/endpoint.
+5. Nhập credential app-scoped nếu endpoint protected.
+6. Bấm `Lưu & kiểm tra contract`.
+7. Sau này khi client nâng capability, chỉ cần `Kiểm tra lại tất cả contract`.
+
+Không thêm env name mới, route riêng, allow-list dashboard hay adapter mới cho app mới.
+Adapter legacy chỉ tồn tại cho các app cũ trong giai đoạn migration.
