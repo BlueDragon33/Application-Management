@@ -17,6 +17,9 @@ type CatalogApp = {
   credentialConfigured: boolean;
   createdAt: string;
   updatedAt: string;
+  lastConnectedAt?: string | null;
+  lastProbeAt?: string | null;
+  lastProbeError?: string | null;
 };
 
 type ProbeSummary = {
@@ -31,6 +34,7 @@ type ProbeSummary = {
   discoveredVia?: string | null;
   capabilities?: string[];
   deviceCount?: number;
+  issueCode?: string | null;
 };
 
 type DiscoveryDraft = {
@@ -90,6 +94,22 @@ const emptyForm = {
   contractPath: "/api/application-management/contract",
   credential: "",
 };
+
+function runtimeLabel(app: CatalogApp) {
+  if (app.lastConnectedAt) {
+    if (app.lastProbeError) return { label: "Từng kết nối · hiện cần kiểm tra", tone: "#f1c86f" };
+    return { label: "Đã từng bắt tay contract", tone: "#72ddb9" };
+  }
+  if (app.lastProbeAt) return { label: "Chưa từng bắt tay thành công", tone: "#f1c86f" };
+  return { label: "Chưa probe", tone: "#9bbcaf" };
+}
+
+function timeLabel(value?: string | null) {
+  if (!value) return "—";
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed)) return value;
+  return new Date(parsed).toLocaleString("vi-VN");
+}
 
 export default function ManagedAppsCatalogPage() {
   const [apps, setApps] = useState<CatalogApp[]>([]);
@@ -449,16 +469,29 @@ export default function ManagedAppsCatalogPage() {
           <button style={secondaryButton} onClick={() => void load()} disabled={busy === "load"}>{busy === "load" ? "Đang tải…" : "↻ Làm mới"}</button>
         </div>
         <div style={{ display: "grid", gap: 10 }}>
-          {apps.map((app) => <article key={app.id} style={{ border: "1px solid #214b3d", borderRadius: 12, padding: 14, background: "#0a241b", display: "grid", gridTemplateColumns: "minmax(180px,1.2fr) minmax(150px,.7fr) minmax(240px,1.4fr) auto", gap: 12, alignItems: "center" }}>
-            <div><strong>{app.name}</strong><small style={{ display: "block", color: "#7fa99a", marginTop: 4 }}>{app.id} · {app.category}</small></div>
-            <div><small style={{ color: "#8fb4a7" }}>Credential</small><strong style={{ display: "block", color: app.credentialConfigured ? "#72ddb9" : "#f1c86f" }}>{app.credentialConfigured ? "Đã mã hóa" : "Chưa có"}</strong></div>
-            <code style={{ color: "#c8eadf", overflowWrap: "anywhere" }}>{app.origin}{app.contractPath}</code>
-            <div style={{ display: "flex", gap: 7, flexWrap: "wrap", justifyContent: "flex-end" }}>
-              <button style={secondaryButton} onClick={() => void probeApp(app.id)} disabled={busy === `probe:${app.id}`}>Probe</button>
-              <button style={secondaryButton} onClick={() => edit(app)}>Sửa</button>
-              <button style={dangerButton} onClick={() => void remove(app.id)} disabled={busy === `remove:${app.id}`}>Loại</button>
-            </div>
-          </article>)}
+          {apps.map((app) => {
+            const runtime = runtimeLabel(app);
+            return <article key={app.id} style={{ border: "1px solid #214b3d", borderRadius: 12, padding: 14, background: "#0a241b", display: "grid", gridTemplateColumns: "minmax(180px,1.1fr) minmax(180px,.9fr) minmax(240px,1.4fr) auto", gap: 12, alignItems: "center" }}>
+              <div>
+                <strong>{app.name}</strong>
+                <small style={{ display: "block", color: "#7fa99a", marginTop: 4 }}>{app.id} · {app.category}</small>
+                <small style={{ display: "block", color: runtime.tone, marginTop: 7, fontWeight: 800 }}>{runtime.label}</small>
+                <small style={{ display: "block", color: "#73988a", marginTop: 3 }}>Lần probe: {timeLabel(app.lastProbeAt)}</small>
+                {app.lastConnectedAt ? <small style={{ display: "block", color: "#73988a", marginTop: 2 }}>Lần connected gần nhất: {timeLabel(app.lastConnectedAt)}</small> : null}
+              </div>
+              <div>
+                <small style={{ color: "#8fb4a7" }}>Credential</small>
+                <strong style={{ display: "block", color: app.credentialConfigured ? "#72ddb9" : "#f1c86f" }}>{app.credentialConfigured ? "Đã mã hóa" : "Chưa có"}</strong>
+                {app.lastProbeError ? <small style={{ display: "block", color: "#f0aa92", marginTop: 6, lineHeight: 1.35 }}>{app.lastProbeError}</small> : null}
+              </div>
+              <code style={{ color: "#c8eadf", overflowWrap: "anywhere" }}>{app.origin}{app.contractPath}</code>
+              <div style={{ display: "flex", gap: 7, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                <button style={secondaryButton} onClick={() => void probeApp(app.id)} disabled={busy === `probe:${app.id}`}>Probe</button>
+                <button style={secondaryButton} onClick={() => edit(app)}>Sửa</button>
+                <button style={dangerButton} onClick={() => void remove(app.id)} disabled={busy === `remove:${app.id}`}>Loại</button>
+              </div>
+            </article>;
+          })}
           {!apps.length ? <p style={{ color: "#9bbcaf" }}>Chưa có app động. Các app legacy hiện tại vẫn tiếp tục hoạt động qua adapter riêng.</p> : null}
         </div>
       </section>
