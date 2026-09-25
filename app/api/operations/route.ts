@@ -740,18 +740,20 @@ async function buildBootstrap(actor: ControlDeviceState) {
 
     if (dynamic) {
       handledDynamicIds.add(result.id);
-      workItems.push({
-        id: `${config.id}:contract-migration`,
-        appId: config.id,
-        appName: config.shortName,
-        href: config.href,
-        kind: "connection",
-        title: "Đang dùng adapter fallback",
-        detail: `Universal Contract đã được đăng ký nhưng chưa đủ điều kiện thay adapter: ${dynamic.note}`,
-        deviceType: "—",
-        occurredAt: null,
-        priority: "info",
-      });
+      if (dynamic.managementMode !== "local-first" && dynamic.managementMode !== "metadata-only") {
+        workItems.push({
+          id: `${config.id}:contract-migration`,
+          appId: config.id,
+          appName: config.shortName,
+          href: config.href,
+          kind: "connection",
+          title: "Đang dùng adapter fallback",
+          detail: `Universal Contract đã được đăng ký nhưng chưa đủ điều kiện thay adapter: ${dynamic.note}`,
+          deviceType: "—",
+          occurredAt: null,
+          priority: "info",
+        });
+      }
     }
   }
 
