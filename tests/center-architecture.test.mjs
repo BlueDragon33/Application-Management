@@ -102,7 +102,7 @@ test("dashboard v2 supports shared search, app filtering and compact application
   const dashboard = source("app/management-dashboard-v2.tsx");
   assert.match(dashboard, /const \[search, setSearch\]/);
   assert.match(dashboard, /const \[appFilter, setAppFilter\]/);
-  assert.match(dashboard, /const filteredApps = activeApps\.filter/);
+  assert.match(dashboard, /const filteredApps = runtimeApps\.filter/);
   assert.match(dashboard, /const filteredDevices = devices\.filter/);
   assert.match(dashboard, /className="amv2-app-row"/);
   assert.match(dashboard, /className="amv2-search"/);
