@@ -30,7 +30,8 @@ test("operations control plane reads Bauman devices only after the live registry
   assert.match(loader, /capabilities\.deviceRegistry/);
   assert.match(loader, /devicesPath !== "\/api\/control\/devices"/);
   assert.match(loader, /Bauman device registry chưa sẵn sàng/);
-  assert.match(loader, /await bridgeJson\(bridge, devicesPath\)/);
+  assert.match(loader, /await bridgeReadJson\(bridge, devicesPath\)/);
+  assert.match(loader, /function retryableReadError|bridgeReadJson/);
   assert.doesNotMatch(loader, /devices: \[\]/);
 });
 
