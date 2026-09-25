@@ -534,6 +534,11 @@ function universalDevice(raw: unknown): UniversalContractDevice | null {
   };
 }
 
+function metadataOnlyRepositoryOrigin(origin: string) {
+  try { return new URL(origin).hostname.toLowerCase() === "raw.githubusercontent.com"; }
+  catch { return false; }
+}
+
 function capabilityLabels(capabilities: Record<string, boolean>) {
   const labels: Record<string, string> = {
     deviceRegistry: "Thiết bị",
@@ -568,6 +573,7 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
       devices = rawDevices.map(universalDevice).filter((item): item is UniversalContractDevice => Boolean(item));
     }
     const capabilities = capabilityLabels(manifest.capabilities);
+    const repositoryMetadataOnly = metadataOnlyRepositoryOrigin(row.origin);
     const config = dynamicApplicationConfig({
       id: row.id,
       name: row.name,
@@ -592,7 +598,7 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
       contractConnected: true,
       connection: remoteAdminReady ? "connected" : "warning",
       devices,
-      webHref: row.public_url || (manifest.capabilities.webLaunch ? row.origin : null),
+      webHref: row.public_url || (!repositoryMetadataOnly && manifest.capabilities.webLaunch ? row.origin : null),
       remoteAdminReady,
       note: config.contractNote,
     };
