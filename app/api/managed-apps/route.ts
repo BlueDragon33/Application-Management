@@ -60,6 +60,7 @@ function probeSummary(probe: Awaited<ReturnType<typeof probeManagedCatalogEntry>
     name: probe.config.name,
     connection: probe.connection,
     credentialConfigured: probe.credentialConfigured,
+    contractConnected: probe.contractConnected,
     remoteAdminReady: probe.remoteAdminReady,
     note: probe.note,
     protocol: probe.manifest?.protocol ?? null,
