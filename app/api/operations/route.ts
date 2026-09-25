@@ -1,4 +1,4 @@
-import { applicationRegistry } from "../../application-registry";
+import { applicationRegistry, type ApplicationConfig } from "../../application-registry";
 import { verifyControlProof, type ControlDeviceState } from "../../control-device.server";
 import { UpstreamError, issueBoiBrowserBridge } from "../../boi-ech.server";
 import { issueHealthBrowserBridge, issueHealthWebLaunch } from "../../health-care.server";
@@ -6,6 +6,7 @@ import { issueRuLifeBrowserBridge } from "../../ru-life.server";
 import { issueBaumanBrowserBridge } from "../../bauman.server";
 import { issueGrowUpBrowserBridge, probeGrowUpManagementContract } from "../../growup.server";
 import { issuePriceReportBrowserBridge, probePriceReportManagementContract } from "../../price-report.server";
+import { executeUniversalDeviceCommand, probeDynamicManagedApplications, type DynamicContractSnapshot } from "../../open-contract.server";
 import {
   dismissedNotificationHashes,
   hashWorkItem,
@@ -232,6 +233,34 @@ function deviceFrom(
   };
 }
 
+function deviceFromUniversal(snapshot: DynamicContractSnapshot, raw: DynamicContractSnapshot["devices"][number], actor: ControlDeviceState): ClientDevice {
+  const canManage = actor.role === "publisher" || actor.role === "owner";
+  const capabilities = snapshot.manifest?.capabilities ?? {};
+  const createdAt = raw.createdAt;
+  const recent = createdAt ? Date.now() - Date.parse(createdAt) <= RECENT_DEVICE_MS : false;
+  return {
+    appId: snapshot.config.id,
+    appName: snapshot.config.shortName,
+    href: snapshot.config.href,
+    deviceId: raw.deviceId,
+    deviceCode: raw.deviceCode,
+    deviceType: raw.deviceType,
+    deviceTypeLabel: typeLabel(raw.deviceType),
+    userLabel: raw.userLabel,
+    status: raw.status,
+    active: raw.active,
+    createdAt: raw.createdAt,
+    lastSeenAt: raw.lastSeenAt,
+    attention: raw.environmentChanged ? "environment" : recent && raw.status === "pending" ? "new" : "none",
+    canApprove: canManage && raw.status === "pending" && capabilities.deviceApproval === true,
+    canRemove: canManage && (raw.status === "pending" || raw.status === "approved") && capabilities.deviceBlock === true,
+    canUnblock: canManage && raw.status === "blocked" && capabilities.deviceUnblock === true,
+    canEditPermission: canManage && raw.status === "approved" && capabilities.deviceEditPermission === true,
+    editEnabled: raw.editEnabled,
+    registryInstanceId: raw.registryInstanceId ?? null,
+  };
+}
+
 function workFromDevice(device: ClientDevice): WorkItem | null {
   if (device.attention === "environment") {
     return {
@@ -417,7 +446,7 @@ async function loadPriceReport(actor: ControlDeviceState) {
 }
 
 function summary(
-  config: ReturnType<typeof app>,
+  config: ApplicationConfig,
   devices: ClientDevice[],
   connection: ClientSummary["connection"],
   note: string,
@@ -442,6 +471,7 @@ function summary(
 }
 
 async function buildBootstrap(actor: ControlDeviceState) {
+  const legacyAdapterIds = new Set(["boi-ech", "health-care", "ru-life", "bauman-master-ai", "price-report-tunggiabao", "growup-mychildren"]);
   const loaders = [
     { id: "boi-ech", run: () => loadBoi(actor) },
     { id: "health-care", run: () => loadHealth(actor) },
@@ -467,6 +497,9 @@ async function buildBootstrap(actor: ControlDeviceState) {
   const devices: ClientDevice[] = [];
   const summaries: ClientSummary[] = [];
   const workItems: WorkItem[] = [];
+
+  const dynamicSnapshots = (await probeDynamicManagedApplications())
+    .filter((snapshot) => !legacyAdapterIds.has(snapshot.config.id));
 
   for (const result of settled) {
     const config = app(result.id);
@@ -507,6 +540,40 @@ async function buildBootstrap(actor: ControlDeviceState) {
     }
   }
 
+  for (const snapshot of dynamicSnapshots) {
+    const dynamicDevices = snapshot.devices.map((device) => deviceFromUniversal(snapshot, device, actor));
+    devices.push(...dynamicDevices);
+    summaries.push(summary(
+      snapshot.config,
+      dynamicDevices,
+      snapshot.connection,
+      snapshot.note,
+      snapshot.webHref,
+      false,
+      snapshot.remoteAdminReady,
+      snapshot.remoteAdminReady,
+      snapshot.issueCode,
+    ));
+    for (const device of dynamicDevices) {
+      const item = workFromDevice(device);
+      if (item) workItems.push(item);
+    }
+    if (snapshot.connection !== "connected") {
+      workItems.push({
+        id: `${snapshot.config.id}:contract`,
+        appId: snapshot.config.id,
+        appName: snapshot.config.shortName,
+        href: snapshot.config.href,
+        kind: "connection",
+        title: snapshot.issueCode === "OPEN_CONTRACT_PENDING" ? "Ứng dụng đang chờ Universal Contract" : "Contract ứng dụng cần kiểm tra",
+        detail: snapshot.note,
+        deviceType: "—",
+        occurredAt: null,
+        priority: snapshot.connection === "unavailable" ? "high" : "info",
+      });
+    }
+  }
+
   workItems.sort((a, b) => {
     const priority = { high: 0, normal: 1, info: 2 } as const;
     if (priority[a.priority] !== priority[b.priority]) return priority[a.priority] - priority[b.priority];
@@ -517,11 +584,14 @@ async function buildBootstrap(actor: ControlDeviceState) {
   const hidden = await dismissedNotificationHashes(actor.email);
   const visibleWorkItems = (await Promise.all(workItems.slice(0, 60).map(async (item) => ({ item, hash: await hashWorkItem(item.id) }))))
     .filter(({ hash }) => !hidden.has(hash)).map(({ item }) => item);
+  const dynamicConfigs = dynamicSnapshots.map((snapshot) => snapshot.config);
   return {
-    actor: { deviceCode: actor.deviceCode, role: actor.role }, generatedAt: new Date().toISOString(), summaries, devices,
+    actor: { deviceCode: actor.deviceCode, role: actor.role }, generatedAt: new Date().toISOString(),
+    managedApps: dynamicConfigs,
+    summaries, devices,
     workItems: visibleWorkItems, settings: await readAutoApprovalSettings(AUTO_APPROVE_SUPPORTED_APP_IDS),
     metrics: {
-      applications: applicationRegistry.length,
+      applications: applicationRegistry.length + dynamicConfigs.filter((item) => !applicationRegistry.some((existing) => existing.id === item.id)).length,
       pendingDevices: devices.filter((device) => device.status === "pending").length,
       alerts: visibleWorkItems.filter((item) => item.priority === "high").length,
       workItems: visibleWorkItems.length,
