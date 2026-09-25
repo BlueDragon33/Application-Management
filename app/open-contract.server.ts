@@ -112,8 +112,12 @@ export async function normalizeManagedOrigin(value: unknown) {
   if (url.username || url.password || url.pathname !== "/" || url.search || url.hash) {
     throw new Error("Origin phải là origin thuần, không chứa path/query/credential.");
   }
+  const localAllowed = await allowPrivateHttp();
+  if (privateHost(url.hostname) && !localAllowed) {
+    throw new Error("Production không cho phép contract origin trỏ tới localhost/LAN/private IP.");
+  }
   if (url.protocol === "https:") return url.origin;
-  if (url.protocol === "http:" && privateHost(url.hostname) && await allowPrivateHttp()) return url.origin;
+  if (url.protocol === "http:" && privateHost(url.hostname) && localAllowed) return url.origin;
   throw new Error("Production contract chỉ chấp nhận HTTPS; HTTP chỉ dùng cho local/LAN.");
 }
 
@@ -216,6 +220,11 @@ export async function upsertManagedCatalog(input: Record<string, unknown>, actor
   const repository = text(input.repository).slice(0, 180) || null;
   const contractPath = normalizeContractPath(input.contractPath);
   const credential = text(input.credential);
+  if (credential.length > 4_096) throw new Error("Credential quản trị vượt quá giới hạn 4096 ký tự.");
+  const protectedLegacyIds = new Set(["boi-ech", "health-care", "ru-life", "bauman-master-ai", "price-report-tunggiabao", "growup-mychildren"]);
+  if (protectedLegacyIds.has(id)) {
+    throw new Error("Ứng dụng legacy đang có adapter chuyên biệt; chưa được phép ghi đè bằng Dynamic Catalog.");
+  }
   const database = await getControlDatabase();
   const current = await database.prepare(
     "SELECT credential_ciphertext,credential_iv FROM managed_app_catalog WHERE id=?1 LIMIT 1",
