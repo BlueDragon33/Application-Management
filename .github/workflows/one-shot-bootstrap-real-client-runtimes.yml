@@ -1,0 +1,256 @@
+name: One-shot bootstrap real client runtimes
+
+on:
+  push:
+    branches:
+      - "ops/bootstrap-real-client-runtimes-20260925"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bootstrap-real-client-runtimes-production
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    environment: application-management-production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      APPLICATION_MANAGEMENT_ORIGIN: ${{ vars.APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN }}
+      AM_WORKER_NAME: application-management
+      HEALTH_SHA: 8989f3c2441f370cf43e2cdcc3a866f633ef7050
+      RU_SHA: d2b474495f9454d576cb0f898c713022cfd2f8fd
+      PRICE_SHA: e9d042a25886c61bf060ac0b94280e33868b1d42
+      HEALTH_ORIGIN: https://health-care.boiech-ai.workers.dev
+      RU_ORIGIN: https://ru-life.boiech-ai.workers.dev
+      PRICE_CONTROL_ORIGIN: https://price-report-control.boiech-ai.workers.dev
+      PRICE_APP_ORIGIN: https://bluedragon33.github.io
+      BOI_ORIGIN: https://boi-ech.boiech-ai.workers.dev
+    steps:
+      - name: Validate central production credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          for key in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID APPLICATION_MANAGEMENT_ORIGIN; do
+            if [[ -z "${!key:-}" ]]; then echo "::error::$key missing"; exit 1; fi
+          done
+          test "$APPLICATION_MANAGEMENT_ORIGIN" = "https://application-management.boiech-ai.workers.dev"
+          npx --yes wrangler@4.92.0 whoami
+
+      - name: Checkout Health
+        uses: actions/checkout@v4
+        with:
+          repository: BlueDragon33/Health_Care
+          ref: ${{ env.HEALTH_SHA }}
+          path: health
+
+      - name: Checkout RU_LIFE
+        uses: actions/checkout@v4
+        with:
+          repository: BlueDragon33/RU_LIFE
+          ref: ${{ env.RU_SHA }}
+          path: ru
+
+      - name: Checkout PriceReport
+        uses: actions/checkout@v4
+        with:
+          repository: BlueDragon33/PriceReport_Tunggiabao
+          ref: ${{ env.PRICE_SHA }}
+          path: price
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+
+      - name: Ensure isolated production D1 databases
+        id: d1
+        shell: bash
+        run: |
+          set -euo pipefail
+          ensure_d1() {
+            local name="$1"
+            local list id create
+            list="$(npx --yes wrangler@4.92.0 d1 list --json)"
+            id="$(printf '%s' "$list" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const x=JSON.parse(s);const a=Array.isArray(x)?x:(x.result||[]);const r=a.find(v=>v.name===process.argv[1]);process.stdout.write(r?.uuid||r?.id||'')})" "$name")"
+            if [[ -z "$id" ]]; then
+              create="$(npx --yes wrangler@4.92.0 d1 create "$name" --json)"
+              id="$(printf '%s' "$create" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const x=JSON.parse(s);process.stdout.write(x.uuid||x.id||x.result?.uuid||x.result?.id||'')})")"
+            fi
+            if [[ ! "$id" =~ ^[0-9a-fA-F-]{36}$ ]]; then echo "::error::Cannot resolve D1 id for $name"; exit 1; fi
+            printf '%s' "$id"
+          }
+          HEALTH_ID="$(ensure_d1 health-care-production-db)"
+          RU_ID="$(ensure_d1 ru-life-production-db)"
+          PRICE_ID="$(ensure_d1 price-report-control-db)"
+          echo "health_id=$HEALTH_ID" >> "$GITHUB_OUTPUT"
+          echo "ru_id=$RU_ID" >> "$GITHUB_OUTPUT"
+          echo "price_id=$PRICE_ID" >> "$GITHUB_OUTPUT"
+          echo "D1 production databases ready."
+
+      - name: Generate app-scoped bridge secrets
+        id: secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE' >> "$GITHUB_OUTPUT"
+          const { randomBytes } = require('node:crypto');
+          for (const key of ['health_secret','ru_secret','price_secret','boi_secret']) {
+            console.log(`${key}=${randomBytes(32).toString('base64url')}`);
+          }
+          NODE
+
+      - name: Prepare Health production config
+        working-directory: health
+        env:
+          HEALTH_D1_ID: ${{ steps.d1.outputs.health_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('node:fs');
+          let s=fs.readFileSync('wrangler.cloudflare.preview.example.jsonc','utf8');
+          s=s.replace('"name": "health-care-preview"','"name": "health-care"')
+             .replace('"database_name": "health-care-preview-db"','"database_name": "health-care-production-db"')
+             .replace('__HEALTH_PREVIEW_D1_DATABASE_ID__',process.env.HEALTH_D1_ID)
+             .replace('__APPLICATION_MANAGEMENT_PREVIEW_ORIGIN__',process.env.APPLICATION_MANAGEMENT_ORIGIN)
+             .replace('"HEALTH_DEPLOYMENT_CHANNEL": "cloudflare-preview"','"HEALTH_DEPLOYMENT_CHANNEL": "cloudflare-production"')
+             .replace('__HEALTH_BUILD_REVISION__',process.env.HEALTH_SHA);
+          if (/__[A-Z0-9_]+__/.test(s)) throw new Error('Health production config placeholder remains');
+          fs.writeFileSync('wrangler.production.jsonc',s);
+          NODE
+
+      - name: Gate and deploy Health production
+        working-directory: health
+        env:
+          CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH: wrangler.production.jsonc
+          HEALTH_SECRET: ${{ steps.secrets.outputs.health_secret }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm run validate:growth
+          npm run validate:framework
+          npm run validate:device
+          npm run validate:control
+          npm run lint
+          npx wrangler d1 migrations apply health-care-production-db --remote --config wrangler.production.jsonc
+          npm run build
+          npm run cloudflare:artifact:check
+          npx wrangler deploy --config wrangler.production.jsonc
+          printf '%s' "$HEALTH_SECRET" | npx wrangler secret put HEALTH_CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
+          curl --fail --silent --show-error --max-time 20 "$HEALTH_ORIGIN/api/control/contract" > /tmp/health-contract.json
+          node -e "const x=require('/tmp/health-contract.json'); if(x.application!=='health-care') throw Error('Health contract mismatch'); console.log('HEALTH_RUNTIME_PASS')"
+
+      - name: Register Health bridge on Application Management
+        env:
+          HEALTH_SECRET: ${{ steps.secrets.outputs.health_secret }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$HEALTH_ORIGIN" | npx --yes wrangler@4.92.0 secret put HEALTH_CARE_BASE_URL --name "$AM_WORKER_NAME"
+          printf '%s' "$HEALTH_SECRET" | npx --yes wrangler@4.92.0 secret put HEALTH_CONTROL_SERVICE_SECRET --name "$AM_WORKER_NAME"
+
+      - name: Prepare RU_LIFE production config
+        working-directory: ru
+        env:
+          RU_D1_ID: ${{ steps.d1.outputs.ru_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('node:fs');
+          let s=fs.readFileSync('wrangler.cloudflare.preview.example.jsonc','utf8');
+          s=s.replace('"name": "ru-life-preview"','"name": "ru-life"')
+             .replace('"database_name": "ru-life-preview-db"','"database_name": "ru-life-production-db"')
+             .replace('__RU_LIFE_PREVIEW_D1_DATABASE_ID__',process.env.RU_D1_ID)
+             .replace('__APPLICATION_MANAGEMENT_PREVIEW_ORIGIN__',process.env.APPLICATION_MANAGEMENT_ORIGIN)
+             .replace('"RU_LIFE_DEPLOYMENT_CHANNEL": "cloudflare-preview"','"RU_LIFE_DEPLOYMENT_CHANNEL": "cloudflare-production"')
+             .replace('__RU_LIFE_BUILD_REVISION__',process.env.RU_SHA);
+          if (/__[A-Z0-9_]+__/.test(s)) throw new Error('RU production config placeholder remains');
+          fs.writeFileSync('wrangler.production.jsonc',s);
+          NODE
+
+      - name: Gate and deploy RU_LIFE production
+        working-directory: ru
+        env:
+          CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH: wrangler.production.jsonc
+          RU_SECRET: ${{ steps.secrets.outputs.ru_secret }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --no-audit --no-fund
+          npm run lint
+          npm test
+          npx wrangler d1 migrations apply ru-life-production-db --remote --config wrangler.production.jsonc
+          npm run build
+          npm run cloudflare:artifact:check
+          npx wrangler deploy --config wrangler.production.jsonc
+          printf '%s' "$RU_SECRET" | npx wrangler secret put RU_LIFE_CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
+          curl --fail --silent --show-error --max-time 20 "$RU_ORIGIN/" > /tmp/ru-home.html
+          test -s /tmp/ru-home.html
+          echo "RU_RUNTIME_PASS"
+
+      - name: Register RU_LIFE bridge on Application Management
+        env:
+          RU_SECRET: ${{ steps.secrets.outputs.ru_secret }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$RU_ORIGIN" | npx --yes wrangler@4.92.0 secret put RU_LIFE_BASE_URL --name "$AM_WORKER_NAME"
+          printf '%s' "$RU_SECRET" | npx --yes wrangler@4.92.0 secret put RU_LIFE_CONTROL_SERVICE_SECRET --name "$AM_WORKER_NAME"
+
+      - name: Gate and deploy PriceReport KT Control production
+        working-directory: price/control-service
+        env:
+          PRICE_REPORT_CONTROL_D1_DATABASE_ID: ${{ steps.d1.outputs.price_id }}
+          PRICE_REPORT_CONTROL_SERVICE_SECRET: ${{ steps.secrets.outputs.price_secret }}
+          PRICE_REPORT_CONTROL_ORIGIN: ${{ env.PRICE_CONTROL_ORIGIN }}
+          PRICE_REPORT_APP_ORIGIN: ${{ env.PRICE_APP_ORIGIN }}
+          APPLICATION_MANAGEMENT_ORIGIN: ${{ env.APPLICATION_MANAGEMENT_ORIGIN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm run gate
+          node scripts/prepare-production.mjs
+          npx wrangler d1 migrations apply price-report-control-db --remote --config wrangler.production.jsonc
+          npx wrangler deploy --config wrangler.production.jsonc
+          printf '%s' "$PRICE_REPORT_CONTROL_SERVICE_SECRET" | npx wrangler secret put PRICE_REPORT_CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
+          curl --fail --silent --show-error --max-time 20 "$PRICE_REPORT_CONTROL_ORIGIN/health" > /tmp/price-health.json
+          node -e "const x=require('/tmp/price-health.json'); if(x.application!=='price-report-tunggiabao'||x.databaseReady!==true||x.controlSecretConfigured!==true) throw Error('PriceReport health mismatch'); console.log('PRICE_CONTROL_RUNTIME_PASS')"
+
+      - name: Register PriceReport bridge on Application Management
+        env:
+          PRICE_SECRET: ${{ steps.secrets.outputs.price_secret }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$PRICE_CONTROL_ORIGIN" | npx --yes wrangler@4.92.0 secret put PRICE_REPORT_CONTROL_BASE_URL --name "$AM_WORKER_NAME"
+          printf '%s' "$PRICE_SECRET" | npx --yes wrangler@4.92.0 secret put PRICE_REPORT_CONTROL_SERVICE_SECRET --name "$AM_WORKER_NAME"
+
+      - name: Activate Bơi ếch bridge using the existing production runtime
+        env:
+          BOI_SECRET: ${{ steps.secrets.outputs.boi_secret }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 20 "$BOI_ORIGIN/api/application-management/contract" > /tmp/boi-contract.json
+          printf '%s' "$BOI_SECRET" | npx --yes wrangler@4.92.0 secret put CONTROL_SERVICE_SECRET --name boi-ech
+          printf '%s' "$BOI_ORIGIN" | npx --yes wrangler@4.92.0 secret put BOI_ECH_BASE_URL --name "$AM_WORKER_NAME"
+          printf '%s' "$BOI_SECRET" | npx --yes wrangler@4.92.0 secret put CONTROL_SERVICE_SECRET --name "$AM_WORKER_NAME"
+          echo "BOI_BRIDGE_REGISTERED"
+
+      - name: Final public runtime smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 15 "$HEALTH_ORIGIN/" >/dev/null
+          curl --fail --silent --show-error --max-time 15 "$RU_ORIGIN/" >/dev/null
+          curl --fail --silent --show-error --max-time 15 "$PRICE_CONTROL_ORIGIN/health" >/dev/null
+          curl --fail --silent --show-error --max-time 15 "$BOI_ORIGIN/" >/dev/null
+          echo "REAL_CLIENT_RUNTIME_BOOTSTRAP_PASS"
