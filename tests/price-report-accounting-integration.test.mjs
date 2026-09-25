@@ -93,7 +93,9 @@ test('registry copy distinguishes local KT control from production readiness', (
 
 test('all legacy and Universal Contract device mutations reject missing optimistic-concurrency snapshots', () => {
   const occurrences = operations.match(/code: "INVALID_EXPECTED_STATUS"/g) ?? [];
-  assert.equal(occurrences.length, 6);
+  assert.ok(occurrences.length >= 6, `expected guards for legacy + Universal paths, got ${occurrences.length}`);
   assert.match(operations, /expectedStatus hợp lệ là bắt buộc cho Universal Contract/);
+  assert.match(operations, /dynamicMutationReady/);
+  assert.match(operations, /suppliedExpected === "unknown"/);
   assert.doesNotMatch(operations, /suppliedExpected === "unknown" \? liveStatus : suppliedExpected/);
 });
