@@ -2,7 +2,7 @@ import { contractCategoryProfiles, contractStarterForCategory } from "../../cont
 import { discoverManagedContractOrigin, discoverManagedRepositoryContract } from "../../managed-contract-discovery.server";
 import { applicationRegistry, type ApplicationCategory } from "../../application-registry";
 import { listClientNetworkSpecs } from "../../client-network-registry";
-import { resolveClientBridge } from "../../client-origin.server";
+import { resolveClientBridge, resolveConfiguredClientCredential } from "../../client-origin.server";
 import { ControlAccessError, verifyControlProof } from "../../control-device.server";
 import {
   listManagedCatalog,
@@ -34,7 +34,7 @@ function publicOrigin(value?: string) {
 type CatalogCandidate = {
   origin: string;
   credential: string;
-  source: "legacy-production-bridge" | "legacy-local-bridge" | "public-url" | "public-repository-contract" | "missing-origin";
+  source: "legacy-production-bridge" | "legacy-local-bridge" | "public-url" | "public-url+legacy-production-secret" | "public-repository-contract" | "missing-origin";
   contractPath: string;
 };
 
@@ -57,9 +57,18 @@ async function transportCatalogCandidate(application: (typeof applicationRegistr
     }
   }
   const fallback = publicOrigin(application.publicUrl);
-  return fallback
-    ? { origin: fallback, credential: "", source: "public-url", contractPath: "/api/application-management/contract" }
-    : { origin: "", credential: "", source: "missing-origin", contractPath: "/api/application-management/contract" };
+  if (fallback) {
+    const credential = spec
+      ? (await resolveConfiguredClientCredential(spec.id, "production")).secret
+      : "";
+    return {
+      origin: fallback,
+      credential,
+      source: credential ? "public-url+legacy-production-secret" : "public-url",
+      contractPath: "/api/application-management/contract",
+    };
+  }
+  return { origin: "", credential: "", source: "missing-origin", contractPath: "/api/application-management/contract" };
 }
 
 async function repositoryCatalogCandidate(application: (typeof applicationRegistry)[number]): Promise<CatalogCandidate> {
@@ -102,6 +111,7 @@ function probeSummary(probe: Awaited<ReturnType<typeof probeManagedCatalogEntry>
     contractConnected: probe.contractConnected,
     remoteAdminReady: probe.remoteAdminReady,
     note: probe.note,
+    issueCode: probe.issueCode ?? null,
     protocol: probe.manifest?.protocol ?? null,
     discoveredVia: probe.manifest?.discoveredVia ?? null,
     capabilities: probe.config.capabilities,
@@ -136,6 +146,9 @@ export async function POST(request: Request) {
           credentialConfigured: Boolean(row.credential_ciphertext && row.credential_iv),
           createdAt: row.created_at,
           updatedAt: row.updated_at,
+          lastConnectedAt: row.last_contract_connected_at,
+          lastProbeAt: row.last_probe_at,
+          lastProbeError: row.last_probe_error,
         })),
       });
     }
