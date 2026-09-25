@@ -104,6 +104,24 @@ export type OperationsDevice = {
   registryInstanceId?: string | null;
 };
 
+export type ManagedApplicationDescriptor = {
+  id: string;
+  name: string;
+  shortName: string;
+  href: string;
+  publicUrl?: string | null;
+  initials: string;
+  category: "Học tập" | "Y tế" | "Nga" | "Học thuật" | "Gia đình" | "Kế toán" | "Kỹ thuật";
+  status: "online" | "warning" | "planned";
+  contractState: "connected" | "migrating" | "pending";
+  repository: string;
+  scope: string;
+  contractNote: string;
+  devicePolicy: string;
+  capabilities: string[];
+  guardrails: string[];
+};
+
 export type OperationsSummary = {
   appId: string;
   appName: string;
@@ -147,6 +165,7 @@ export type OperationsWorkItem = {
 export type OperationsBootstrap = {
   actor: { deviceCode: string; role: ControlRole };
   generatedAt: string;
+  managedApps?: ManagedApplicationDescriptor[];
   summaries: OperationsSummary[];
   devices: OperationsDevice[];
   workItems: OperationsWorkItem[];
@@ -398,6 +417,12 @@ export async function operationsAction(body: Record<string, unknown>) {
   const path = body.action === "set-auto-approval" ? "/api/operations-auto-approval"
     : focusedDeviceAction ? "/api/focused-device-operation" : "/api/operations";
   return await secureApi(path, credential, access, actionBody) as OperationsActionResponse;
+}
+
+export async function managedAppsAction(body: Record<string, unknown>) {
+  const { credential, access } = await approvedSession();
+  if (access.status !== "approved") throw new AdminApiError("Thiết bị quản trị chưa được cấp quyền.", { device: access });
+  return await secureApi("/api/managed-apps", credential, access, body) as ApiPayload;
 }
 
 export async function centerAdminAction(body: Record<string, unknown>) {

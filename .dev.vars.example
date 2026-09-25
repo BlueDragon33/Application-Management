@@ -41,3 +41,9 @@ CONTROL_OWNER_EMAILS=local.owner@example.test
 # BAUMAN_CONTROL_SERVICE_SECRET=<bauman-production-secret>
 # BOI_ECH_BASE_URL=https://<boi-ech-production-origin>
 # CONTROL_SERVICE_SECRET=<boi-ech-production-secret>
+
+
+# Dynamic Managed App Catalog
+# One-time root key used to AES-GCM encrypt per-app management credentials in D1.
+# Generate exactly 32 random bytes and encode URL-safe base64 without padding (43 chars).
+# MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY=<43-char-url-safe-key>

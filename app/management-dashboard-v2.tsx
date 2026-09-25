@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { applicationRegistry, type ApplicationConfig } from "./application-registry";
+import { applicationRegistry, standardDeviceExperiences, type ApplicationConfig } from "./application-registry";
 import BoiAccessView from "./boi-access-view";
 import AutomaticDevicePolicies, { type AutomationSelection } from "./automatic-device-policies";
 import {
@@ -43,8 +43,7 @@ const fontScaleOptions: Array<{ id: FontScale; label: string; hint: string }> = 
 // The registry is the single source of truth for what belongs to the central
 // management surface. Do not maintain a second hard-coded allow-list here:
 // doing so can leave a real client connected on the server but invisible in UI.
-const activeApps = applicationRegistry;
-const activeAppSet = new Set<string>(activeApps.map((app) => app.id));
+const staticApps = applicationRegistry;
 const systemTools: readonly SystemTool[] = [
   {
     id: "tool-secret-generator",
@@ -52,6 +51,13 @@ const systemTools: readonly SystemTool[] = [
     href: "/tools/secret-generator",
     category: "Tool",
     note: "Sinh chuỗi ngẫu nhiên, mật khẩu và secret bằng Web Crypto; không lưu secret vào URL hoặc storage.",
+  },
+  {
+    id: "tool-managed-apps",
+    name: "Catalog & Contract",
+    href: "/tools/managed-apps",
+    category: "Tool",
+    note: "Thêm ứng dụng mới theo phân loại và Universal Contract mà không sửa code Trung tâm.",
   },
 ];
 const validViews: readonly View[] = ["overview", "approvals", "applications", "devices", "access", "alerts", "audit", "settings"];
@@ -97,12 +103,13 @@ function relativeTime(value: string | null | undefined) {
   return `${Math.floor(hours / 24)} ngày trước`;
 }
 
-function appFor(appId: string) {
-  return activeApps.find((app) => app.id === appId);
+function appFor(apps: readonly ApplicationConfig[], appId: string) {
+  return apps.find((app) => app.id === appId);
 }
 
 function appGlyph(appId: string) {
   if (appId === "tool-secret-generator") return "⌘";
+  if (appId === "tool-managed-apps") return "⊕";
   if (appId === "boi-ech") return "≋";
   if (appId === "bauman-master-ai") return "◇";
   return "◆";
@@ -230,10 +237,26 @@ export default function ManagementDashboardV2({ user, authMode }: {
     try { window.localStorage.setItem(fontScaleStorageKey, next); } catch { /* Device-local persistence is optional. */ }
   }
 
-  const summaries = useMemo(() => (operations?.summaries ?? []).filter((item) => activeAppSet.has(item.appId)), [operations]);
+  const activeApps = useMemo<ApplicationConfig[]>(() => {
+    const merged = new Map<string, ApplicationConfig>(staticApps.map((app) => [app.id, app]));
+    for (const dynamicApp of operations?.managedApps ?? []) {
+      const existing = merged.get(dynamicApp.id);
+      merged.set(dynamicApp.id, {
+        ...(existing ?? {}),
+        ...dynamicApp,
+        tier: "client",
+        deviceExperiences: existing?.deviceExperiences ?? standardDeviceExperiences,
+        childClients: existing?.childClients,
+      } as ApplicationConfig);
+    }
+    return [...merged.values()];
+  }, [operations]);
+  const activeAppSet = useMemo(() => new Set(activeApps.map((app) => app.id)), [activeApps]);
+
+  const summaries = useMemo(() => (operations?.summaries ?? []).filter((item) => activeAppSet.has(item.appId)), [operations, activeAppSet]);
   const summaryMap = useMemo(() => new Map(summaries.map((item) => [item.appId, item])), [summaries]);
-  const devices = useMemo(() => (operations?.devices ?? []).filter((item) => activeAppSet.has(item.appId)), [operations]);
-  const workItems = useMemo(() => (operations?.workItems ?? []).filter((item) => activeAppSet.has(item.appId)), [operations]);
+  const devices = useMemo(() => (operations?.devices ?? []).filter((item) => activeAppSet.has(item.appId)), [operations, activeAppSet]);
+  const workItems = useMemo(() => (operations?.workItems ?? []).filter((item) => activeAppSet.has(item.appId)), [operations, activeAppSet]);
   const pendingDevices = devices.filter((device) => device.status === "pending");
   const approvalDevices = devices.filter((device) => device.status === "pending" || device.attention !== "none");
   const environmentCount = devices.filter((device) => device.attention === "environment").length;
@@ -355,7 +378,7 @@ export default function ManagementDashboardV2({ user, authMode }: {
   }
 
   async function launchWeb(appId: string) {
-    const app = appFor(appId);
+    const app = appFor(activeApps, appId);
     const summary = summaryMap.get(appId);
     const fallback = app?.publicUrl ?? (localRuntime ? app?.localUrl : undefined);
     if (!summary?.webHref && !fallback) {
@@ -629,7 +652,7 @@ function Overview({ apps, tools, summaryMap, devices, pendingDevices, approvalDe
 
   return <>
     <section className="amv2-metrics">
-      <button data-tone="teal" onClick={() => switchView("applications")}><i>◇</i><div><small>Tổng ứng dụng</small><strong>{activeApps.length + systemTools.length}</strong><em>Ứng dụng & Tool đang quản lý</em></div><b>›</b></button>
+      <button data-tone="teal" onClick={() => switchView("applications")}><i>◇</i><div><small>Tổng ứng dụng</small><strong>{apps.length + tools.length}</strong><em>Ứng dụng & Tool đang quản lý</em></div><b>›</b></button>
       <button data-tone="gold" onClick={() => switchView("devices")}><i>▣</i><div><small>Thiết bị mới chờ duyệt</small><strong>{pendingDevices.length}</strong><em>Thiết bị cần cấp quyền</em></div><b>›</b></button>
       <button data-tone="red" onClick={() => switchView("alerts")}><i>△</i><div><small>Cảnh báo hôm nay</small><strong>{highAlerts}</strong><em>{highAlerts ? "Có cảnh báo cần kiểm tra" : "Không có cảnh báo cao"}</em></div><b>›</b></button>
       <button data-tone="blue" onClick={() => switchView("approvals")}><i>▤</i><div><small>Ca kiểm duyệt cần xử lý</small><strong>{approvalDevices.length}</strong><em>Yêu cầu đang chờ xử lý</em></div><b>›</b></button>

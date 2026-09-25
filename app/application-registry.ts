@@ -27,7 +27,7 @@ export type SubClientConfig = {
 };
 
 export type ApplicationConfig = {
-  id: "boi-ech" | "health-care" | "ru-life" | "bauman-master-ai" | "growup-mychildren" | "price-report-tunggiabao" | "cad-cam-3d" | "nc03-modem";
+  id: string;
   name: string;
   shortName: string;
   href: string;
