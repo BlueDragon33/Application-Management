@@ -1,3 +1,4 @@
+import { readUniversalAutomationState } from "./open-contract.server";
 import { issueBoiBrowserBridge } from "./boi-ech.server";
 import { issueHealthBrowserBridge, probeHealthManagementContract } from "./health-care.server";
 import { issueBaumanBrowserBridge } from "./bauman.server";
@@ -105,21 +106,35 @@ async function readRuLifeAutomation() {
 /** Read-only policy probes. No registration/device mutation is performed here. */
 export async function readClientAutoApprovalStates(supportedAppIds: readonly string[]) {
   return Promise.allSettled(supportedAppIds.map(async (appId) => {
+    const universal = await readUniversalAutomationState(appId);
+    if (universal) {
+      return {
+        appId,
+        enabled: universal.enabled,
+        autoApproveEnabled: universal.enabled,
+        defaultAccessDays: universal.defaultAccessDays,
+        defaultDeviceLimit: universal.defaultDeviceLimit,
+        autoBlockSupported: universal.autoBlockSupported,
+        autoBlockEnabled: universal.autoBlockEnabled,
+        pendingBlockAfterHours: universal.pendingBlockAfterHours,
+        source: "universal-contract" as const,
+      };
+    }
     if (appId === "boi-ech") {
       const state = await readBoiAutomation();
-      return { appId, ...state, enabled: state.autoApproveEnabled };
+      return { appId, ...state, enabled: state.autoApproveEnabled, source: "legacy-adapter" as const };
     }
     if (appId === "health-care") {
       const state = await readHealthAutomation();
-      return { appId, ...state, enabled: state.autoApproveEnabled };
+      return { appId, ...state, enabled: state.autoApproveEnabled, source: "legacy-adapter" as const };
     }
     if (appId === "bauman-master-ai") {
       const state = await readBaumanAutomation();
-      return { appId, ...state, enabled: state.autoApproveEnabled };
+      return { appId, ...state, enabled: state.autoApproveEnabled, source: "legacy-adapter" as const };
     }
     if (appId === "ru-life") {
       const state = await readRuLifeAutomation();
-      return { appId, ...state, enabled: state.autoApproveEnabled };
+      return { appId, ...state, enabled: state.autoApproveEnabled, source: "legacy-adapter" as const };
     }
     throw new Error(`AUTO_APPROVAL_READER_MISSING_${appId}`);
   }));
