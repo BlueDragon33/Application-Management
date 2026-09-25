@@ -125,3 +125,15 @@ export async function resolveClientBridge(applicationId: ManagedClientId): Promi
   const secret = secretEnv ? text(values[secretEnv]) : "";
   return { ...origin, secret, secretEnv };
 }
+
+export async function resolveConfiguredClientCredential(applicationId: ManagedClientId, source: ClientOriginSource = "production") {
+  const values = await environment();
+  const spec = getClientNetworkSpec(applicationId);
+  const secretEnv = source === "local"
+    ? (spec.localBridgeSecretEnv ?? spec.bridgeSecretEnv ?? null)
+    : (spec.bridgeSecretEnv ?? null);
+  return {
+    secret: secretEnv ? text(values[secretEnv]) : "",
+    secretEnv,
+  };
+}
