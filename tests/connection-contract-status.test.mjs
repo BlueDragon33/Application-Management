@@ -5,6 +5,7 @@ import test from "node:test";
 const operations = fs.readFileSync(new URL("../app/api/operations/route.ts", import.meta.url), "utf8");
 const dashboard = fs.readFileSync(new URL("../app/management-dashboard-v2.tsx", import.meta.url), "utf8");
 const client = fs.readFileSync(new URL("../app/admin-device-client.ts", import.meta.url), "utf8");
+const catalog = fs.readFileSync(new URL("../app/tools/managed-apps/page.tsx", import.meta.url), "utf8");
 
 test("live connectivity and Universal Contract readiness are independent dimensions", () => {
   assert.match(client, /controlChannel\?: "universal" \| "legacy-adapter" \| "contract-observe" \| "none"/);
@@ -39,4 +40,14 @@ test("read-only control probes retry transient upstream failures once", () => {
 test("dashboard contract counter follows live operation snapshots before static registry metadata", () => {
   assert.match(dashboard, /summaryMap\.get\(app\.id\)\?\.contractReadiness/);
   assert.match(dashboard, /return live \? live !== "ready" : app\.contractState !== "connected"/);
+});
+
+
+test("catalog status language distinguishes connected observe-only from real disconnects", () => {
+  assert.match(catalog, /Sẵn sàng quản trị/);
+  assert.match(catalog, /Đã nối contract · chỉ quan sát/);
+  assert.match(catalog, /Chờ contract/);
+  assert.match(catalog, /Không khả dụng/);
+  assert.match(catalog, /chưa bắt tay được Universal Contract/);
+  assert.equal(catalog.includes("${warning} warning"), false);
 });
