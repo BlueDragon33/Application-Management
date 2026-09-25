@@ -327,7 +327,14 @@ async function loadBoi(actor: ControlDeviceState) {
     typeKey: "deviceType", userKeys: ["learnerName", "personCode"],
     approve: actor.role === "publisher" || actor.role === "owner", remove: actor.role === "owner",
   }));
-  return { config, devices, webHref: bridge.baseUrl, managedWebLaunch: false, hasOperationalData: true };
+  return {
+    config,
+    devices,
+    webHref: bridge.baseUrl,
+    managedWebLaunch: false,
+    hasOperationalData: true,
+    remoteAdminReady: true,
+  };
 }
 
 async function loadHealth(actor: ControlDeviceState) {
