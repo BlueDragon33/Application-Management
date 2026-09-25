@@ -13,6 +13,8 @@ test("notification badges count dismissible work items instead of double-countin
   assert.match(ui, /const highAlerts = workItems\.filter\(\(item\) => item\.priority === "high"\)\.length/);
   assert.doesNotMatch(ui, /pendingDevices\.length \+ workItems\.length/);
   assert.doesNotMatch(ui, /workItems\.filter\(\(item\) => item\.priority === "high"\)\.length \+ unavailableCount/);
+  assert.match(ui, /className="amv2-bell"[\s\S]*switchView\("alerts"\)/);
+  assert.match(ui, /Mở Cảnh báo/);
 });
 
 test("approval queue renders actionable devices once and keeps connection alerts in alerts", () => {
