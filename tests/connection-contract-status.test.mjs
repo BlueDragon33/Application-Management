@@ -33,6 +33,8 @@ test("Boi connection faults are classified instead of all appearing as offline",
   assert.match(dashboard, /Thiếu Control API/);
   assert.match(dashboard, /Mất kết nối Control/);
   assert.match(operations, /configurationIssue \? "warning" : "unavailable"/);
+  assert.match(operations, /remoteAdminReady: true/);
+  assert.match(operations, /loadBoi/);
 });
 
 test("read-only control probes retry transient upstream failures once", () => {
