@@ -11,7 +11,8 @@ test("canonical device screen opens a per-client automation editor", () => {
   assert.match(entry, /ManagementDashboardV2/);
   assert.match(dashboard, /<AutomaticDevicePolicies/);
   assert.match(dashboard, /Tự động/);
-  assert.match(editor, /applicationRegistry\.map/);
+  assert.match(editor, /const apps = applications\?\.length \? applications : applicationRegistry/);
+  assert.match(editor, /apps\.map/);
   assert.match(editor, /autoApproveSupportedAppIds/);
   assert.match(editor, /autoBlockPendingSupportedAppIds/);
   assert.match(editor, /Chờ contract/);
@@ -36,7 +37,9 @@ test("a disconnected client keeps its policy while connected clients can save in
   const endpoint = source("app/api/operations-auto-approval/route.ts");
   const editor = source("app/automatic-device-policies.tsx");
   assert.match(dashboard, /targetAppIds: current\.autoApproveSupportedAppIds/);
-  assert.match(endpoint, /CANDIDATE_APP_IDS\.filter\(\(id\) => targets\.includes\(id\)\)/);
+  assert.doesNotMatch(endpoint, /CANDIDATE_APP_IDS/);
+  assert.match(endpoint, /for \(const appId of targets\)/);
+  assert.match(endpoint, /const liveSupported = new Set\(current\.autoApproveSupportedAppIds\)/);
   assert.match(editor, /Quy tắc của ứng dụng chưa trả lời được giữ nguyên/);
   assert.doesNotMatch(editor, /!unavailableEnabled/);
   assert.match(dashboard, /!supported\.has\(id\) && !current\.autoApproveAppIds\.includes\(id\)/);
