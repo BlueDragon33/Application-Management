@@ -221,10 +221,9 @@ export async function upsertManagedCatalog(input: Record<string, unknown>, actor
   const contractPath = normalizeContractPath(input.contractPath);
   const credential = text(input.credential);
   if (credential.length > 4_096) throw new Error("Credential quản trị vượt quá giới hạn 4096 ký tự.");
-  const protectedLegacyIds = new Set(["boi-ech", "health-care", "ru-life", "bauman-master-ai", "price-report-tunggiabao", "growup-mychildren"]);
-  if (protectedLegacyIds.has(id)) {
-    throw new Error("Ứng dụng legacy đang có adapter chuyên biệt; chưa được phép ghi đè bằng Dynamic Catalog.");
-  }
+  // Legacy application IDs may also be enrolled in the Dynamic Catalog.
+  // The operations layer uses a dynamic-first / legacy-fallback policy, so
+  // adding a Universal Contract never requires a flag-day adapter removal.
   const database = await getControlDatabase();
   const current = await database.prepare(
     "SELECT credential_ciphertext,credential_iv FROM managed_app_catalog WHERE id=?1 LIMIT 1",
