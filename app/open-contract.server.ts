@@ -522,8 +522,7 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
   const category = normalizeCategory(row.category);
   const credential = await decryptCredential(row);
   try {
-    const rawManifest = await fetchJson(row.origin, row.contract_path);
-    const manifest = parseManifest(rawManifest, row.id);
+    const manifest = await discoverContract(row, credential, category);
     const remoteAdminReady = Boolean(
       credential
       && manifest.capabilities.deviceRegistry
@@ -546,10 +545,10 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
       repository: row.repository,
       contractState: remoteAdminReady ? "connected" : "migrating",
       contractNote: remoteAdminReady
-        ? `Universal Contract ${manifest.application.version ?? "v1"} đã xác minh; capability được đọc động từ client.`
+        ? `${manifest.protocol ?? CONTRACT_SCHEMA} đã xác minh qua ${manifest.discoveredVia ?? row.contract_path}; capability được normalize động từ client.`
         : credential
-          ? "Đã phát hiện Universal Contract nhưng client chưa công bố đủ device-control endpoint."
-          : "Đã phát hiện Universal Contract; chưa có credential quản trị nên chỉ ở chế độ quan sát.",
+          ? `Đã phát hiện ${manifest.protocol ?? "contract"} qua ${manifest.discoveredVia ?? row.contract_path}, nhưng client chưa công bố đủ device-control endpoint.`
+          : `Đã phát hiện ${manifest.protocol ?? "contract"} qua ${manifest.discoveredVia ?? row.contract_path}; chưa có credential quản trị nên chỉ ở chế độ quan sát.`,
       capabilities,
     });
     return {
