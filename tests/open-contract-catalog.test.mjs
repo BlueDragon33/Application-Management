@@ -243,3 +243,11 @@ test("public GitHub repository manifests can classify apps without pretending re
   assert.ok(catalogApi.includes("public-repository-contract"));
   assert.ok(catalogApi.includes("candidate.contractPath"));
 });
+
+
+test("repository bootstrap metadata never masquerades as a Website or live control origin", () => {
+  assert.ok(contract.includes("metadataOnlyRepositoryOrigin"));
+  assert.ok(contract.includes('hostname.toLowerCase() === "raw.githubusercontent.com"'));
+  assert.ok(contract.includes("!repositoryMetadataOnly && manifest.capabilities.webLaunch"));
+  assert.ok(contract.includes("chưa có Control Origin/credential production"));
+});
