@@ -310,8 +310,8 @@ async function loadBoi(actor: ControlDeviceState) {
     data = await bridgeReadJson(bridge, "/api/control/overview?activityDays=0");
   } catch (error) {
     const message = error instanceof Error ? error.message : "Control API Bơi ếch không phản hồi.";
-    const authMismatch = /HTTP_(?:401|403)\b/.test(message);
-    const apiMissing = /HTTP_404\b/.test(message);
+    const authMismatch = /HTTP_(?:401|403)\b|unauthori[sz]ed|forbidden|invalid[ _-]?(?:token|signature)|signature.*invalid|token.*invalid/i.test(message);
+    const apiMissing = /HTTP_404\b|not found|route.*missing/i.test(message);
     throw new UpstreamError(
       authMismatch
         ? "Bơi ếch đang online nhưng khóa quản trị giữa hai ứng dụng không khớp."
