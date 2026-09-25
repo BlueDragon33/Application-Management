@@ -104,6 +104,17 @@ const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 const PROBE_TIMEOUT_MS = 4_500;
 
+const verifiedLegacyProductionOrigins: Record<string, { controlOrigin?: string; runtimeOrigin?: string }> = {
+  "boi-ech": {
+    controlOrigin: "https://boi-ech.boiech-ai.workers.dev",
+    runtimeOrigin: "https://boi-ech.boiech-ai.workers.dev",
+  },
+  "bauman-master-ai": {
+    controlOrigin: "https://bauman-control.boiech-ai.workers.dev",
+    runtimeOrigin: "https://bauman-master-ai.boiech-ai.workers.dev",
+  },
+};
+
 const classificationLabels: Record<ManagedClassification, string> = {
   learning: "Học tập",
   health: "Y tế",
@@ -338,8 +349,9 @@ async function seedLegacyRegistryRows() {
       : app.category === "Kế toán" ? "accounting"
       : app.category === "Kỹ thuật" ? "engineering"
       : "other";
+    const verified = verifiedLegacyProductionOrigins[app.id] ?? {};
     await database.prepare(
-      "INSERT OR IGNORE INTO managed_contract_apps (application_id,name,short_name,initials,classification,category_label,repository,control_origin,runtime_origin,manifest_path,contract_version,auth_mode,manifest_json,capabilities_json,endpoints_json,enabled,state,created_at,updated_at) VALUES (?1,?2,?3,?4,?5,?6,?7,NULL,?8,?9,?10,'legacy-env','{}','{}','{}',1,?11,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)",
+      "INSERT OR IGNORE INTO managed_contract_apps (application_id,name,short_name,initials,classification,category_label,repository,control_origin,runtime_origin,manifest_path,contract_version,auth_mode,manifest_json,capabilities_json,endpoints_json,enabled,state,created_at,updated_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,'legacy-env','{}','{}','{}',1,?12,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)",
     ).bind(
       app.id,
       app.name,
@@ -348,10 +360,11 @@ async function seedLegacyRegistryRows() {
       kind,
       app.category,
       app.repository,
-      app.publicUrl ?? null,
+      verified.controlOrigin ?? null,
+      verified.runtimeOrigin ?? app.publicUrl ?? null,
       DEFAULT_MANIFEST_PATH,
       MANAGED_CONTRACT_PROTOCOL,
-      app.contractState === "connected" ? "connected" : "pending",
+      app.contractState === "connected" || verified.controlOrigin ? "connected" : "pending",
     ).run();
   }
 }
