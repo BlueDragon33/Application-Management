@@ -694,7 +694,9 @@ export async function POST(request: Request) {
       const deviceId = text(payload.deviceId);
       const deviceCode = text(payload.deviceCode).toUpperCase();
       if (operation !== "approve" && operation !== "remove") return json({ error: "Thao tác thiết bị không hợp lệ.", code: "INVALID_DEVICE_OPERATION" }, 400);
-      if (!/^[a-f0-9]{64}$/.test(deviceId)) return json({ error: "Mã thiết bị không hợp lệ.", code: "INVALID_DEVICE_ID" }, 400);
+      const legacyDeviceIdApp = ["health-care", "ru-life", "growup-mychildren", "price-report-tunggiabao", "bauman-master-ai", "boi-ech"].includes(appId);
+      if (legacyDeviceIdApp && !/^[a-f0-9]{64}$/.test(deviceId)) return json({ error: "Mã thiết bị không hợp lệ.", code: "INVALID_DEVICE_ID" }, 400);
+      if (!legacyDeviceIdApp && (!deviceId || deviceId.length > 256)) return json({ error: "Mã thiết bị Universal Contract không hợp lệ.", code: "INVALID_DEVICE_ID" }, 400);
 
       if (appId === "health-care") {
         if (actor.role !== "publisher" && actor.role !== "owner") return json({ error: "Vai trò hiện tại không được thay đổi thiết bị Health_Care.", code: "PUBLISHER_REQUIRED" }, 403);
@@ -1002,7 +1004,39 @@ export async function POST(request: Request) {
         });
       }
 
-      if (appId !== "boi-ech") return json({ error: "Client chưa hỗ trợ thao tác này.", code: "CLIENT_ACTION_UNAVAILABLE" }, 409);
+      if (appId !== "boi-ech") {
+        const suppliedExpected = normalizedStatus(payload.expectedStatus);
+        if (suppliedExpected === "unknown") {
+          return json({ error: "expectedStatus hợp lệ là bắt buộc cho Universal Contract.", code: "INVALID_EXPECTED_STATUS" }, 400);
+        }
+        const suppliedCommandId = text(payload.commandId).toLowerCase();
+        if (suppliedCommandId && !validCommandId(suppliedCommandId)) {
+          return json({ error: "commandId không hợp lệ.", code: "INVALID_COMMAND_ID" }, 400);
+        }
+        try {
+          const commandId = suppliedCommandId || crypto.randomUUID();
+          const result = await executeUniversalDeviceCommand({
+            appId,
+            operation,
+            deviceId,
+            expectedStatus: suppliedExpected as "pending" | "approved" | "blocked",
+            commandId,
+          }, actor);
+          return json({
+            ok: true,
+            verified: true,
+            verifiedStatus: operation === "approve" ? "approved" : "blocked",
+            commandId,
+            commandReplayed: result.commandReplayed,
+            ...(operation === "approve" ? { approvedDeviceId: deviceId } : { removedDeviceId: deviceId }),
+          });
+        } catch (error) {
+          return json({
+            error: error instanceof Error ? error.message : "Universal Contract chưa hỗ trợ thao tác này.",
+            code: "UNIVERSAL_CONTRACT_ACTION_UNAVAILABLE",
+          }, 409);
+        }
+      }
       const bridge = await issueBoiBrowserBridge(actor.email, actor.role);
       if (operation === "approve") {
         if (actor.role !== "publisher" && actor.role !== "owner") return json({ error: "Vai trò hiện tại không được phân quyền Bơi ếch.", code: "PUBLISHER_REQUIRED" }, 403);
