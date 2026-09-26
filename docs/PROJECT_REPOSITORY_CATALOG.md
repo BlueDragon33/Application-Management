@@ -7,6 +7,7 @@ Nguồn chuẩn để đối chiếu các repo thuộc tài khoản `BlueDragon3
 | Repo | Vai trò | Trạng thái quản lý |
 | --- | --- | --- |
 | `BlueDragon33/Application-Management` | Control-plane trung tâm | Quản trị lõi |
+| `BlueDragon33/Software-Blueprint-Hub` | Blueprint OS / chuẩn thiết kế & xây dựng phần mềm | Design bootstrap · chưa dựng application |
 | `BlueDragon33/Bauman-master-ai-system` | Bauman Hub | Có khu quản trị |
 | `BlueDragon33/Math_Bauman` | Site Toán Bauman | Theo dõi repo / liên kết Bauman |
 | `BlueDragon33/BOIECH_AI` | Bơi ếch AI | Có khu quản trị |
@@ -14,13 +15,17 @@ Nguồn chuẩn để đối chiếu các repo thuộc tài khoản `BlueDragon3
 | `BlueDragon33/RU_LIFE` | Hòa nhập Nga | Có khu quản trị |
 | `BlueDragon33/GrowUP_MyChildren` | GrowUP MyChildren | Có khu quản trị |
 | `BlueDragon33/PriceReport_Tunggiabao` | Báo giá / kế toán | Có khu quản trị |
-| `BlueDragon33/NC03_Modem` | NC03 Control Center / modem 5G | Phase 1 v0.3.0 verified artifact · fail-closed · chờ HAR thật |
+| `BlueDragon33/NC03_Modem` | NC03 Control Center / modem 5G | v0.6.3 read-path HAR2 hoàn tất · live 10 giây · AUTH/write evidence-gated |
 | `BlueDragon33/ROS-1-2` | Robot / ROS / LiDAR | Theo dõi dự án kỹ thuật |
 | `BlueDragon33/Hardware_Simulation` | Virtual Hardware Lab | Theo dõi dự án kỹ thuật |
 | `BlueDragon33/MPC_PID_System` | Control Research Workbench | Theo dõi dự án kỹ thuật |
 | `BlueDragon33/CAD_CAM_3D` | CAD/CAM cho chi tiết in 3D | Có khu quản trị fail-closed |
 
-Tổng: **13 repo hiện hữu**.
+Tổng: **14 repo hiện hữu**.
+
+## Repo thiết kế / blueprint
+
+`Software-Blueprint-Hub` hiện là **design bootstrap** của Blueprint OS. Repo này phải có mặt trong catalog để không bị Project Repository Watch coi là thất lạc, nhưng chưa được dựng `managementHref` hay thao tác quản trị giả khi application implementation chưa được authorize.
 
 ## Source cũ / module đã xác minh vẫn còn
 
