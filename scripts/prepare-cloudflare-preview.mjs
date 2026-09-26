@@ -60,6 +60,10 @@ function revision() {
   return value;
 }
 
+function accessMode() {
+  return text("APPLICATION_MANAGEMENT_ACCESS_MODE").toLowerCase() === "managed" ? "managed" : "standalone";
+}
+
 function safeReplacement(value, name) {
   if (/["\\\r\n]/.test(value)) throw new Error(`${name} contains characters that are unsafe for the JSONC template.`);
   return value;
@@ -86,6 +90,7 @@ const replacements = {
   __APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID__: d1Id(),
   __CONTROL_OWNER_EMAILS__: ownerEmails(),
   __APPLICATION_MANAGEMENT_BUILD_REVISION__: revision(),
+  __APPLICATION_MANAGEMENT_ACCESS_MODE__: accessMode(),
   ...Object.fromEntries(Object.entries(clients).map(([key, value]) => [`__${key}__`, value])),
 };
 
