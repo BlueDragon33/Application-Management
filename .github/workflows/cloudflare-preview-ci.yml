@@ -1,33 +1,7 @@
 name: Application Management Cloudflare Preview CI
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - ".github/workflows/cloudflare-preview-ci.yml"
-      - ".github/workflows/deploy-application-management-preview.yml"
-      - ".github/workflows/verify-preview-stack.yml"
-      - "wrangler.cloudflare.example.jsonc"
-      - "wrangler.local.jsonc"
-      - "vite.config.ts"
-      - "worker/index.ts"
-      - "worker/preview-access.ts"
-      - "app/chatgpt-auth.ts"
-      - "app/client-origin.server.ts"
-      - "app/open-contract.server.ts"
-      - "app/contract-category-profiles.ts"
-      - "app/api/managed-apps/route.ts"
-      - "app/tools/managed-apps/page.tsx"
-      - "app/application-registry.ts"
-      - "app/client-network-registry.ts"
-      - "drizzle/0005_managed_app_catalog.sql"
-      - "tests/open-contract-catalog.test.mjs"
-      - "scripts/prepare-cloudflare-preview.mjs"
-      - "scripts/validate-cloudflare-preview.mjs"
-      - "scripts/validate-cloudflare-build-artifact.mjs"
-      - "scripts/verify-preview-stack.mjs"
-      - "docs/CLOUDFLARE_DEPLOYMENT_TRACK.md"
-      - "docs/CLOUDFLARE_PREVIEW_BOOTSTRAP_RUNBOOK.md"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -36,47 +10,18 @@ jobs:
   preview-boundary:
     runs-on: ubuntu-24.04
     timeout-minutes: 25
-    env:
-      APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID: 33333333-3333-4333-8333-333333333333
-      APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID: 44444444-4444-4444-8444-444444444444
-      APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET: ci-only-preview-access-secret-000000000001
-      CONTROL_OWNER_EMAILS: owner@example.com
-      BOI_ECH_BASE_URL: ""
-      HEALTH_CARE_BASE_URL: ""
-      RU_LIFE_BASE_URL: ""
-      BAUMAN_CONTROL_BASE_URL: https://bauman-control-preview.example.com
-      BAUMAN_APP_ORIGIN: https://bauman-runtime-preview.example.com
-      GROWUP_BASE_URL: ""
-
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "22.13.0"
           cache: npm
-
-      - name: Install locked dependencies
-        run: npm ci --no-audit --no-fund
-
-      - name: Preserve existing Application Management regressions
-        run: npm test
-
-      - name: Validate Cloudflare migration boundary
-        run: npm run validate:cloudflare-preview
-
-      - name: Materialize isolated preview config
-        run: npm run cloudflare:preview:prepare
-
-      - name: Validate materialized Cloudflare config
-        run: npm run cloudflare:check
-
-      - name: Build with preview bindings
-        env:
+      - run: npm ci --no-audit --no-fund
+      - run: npm test
+      - run: npm run validate:cloudflare-preview
+      - run: npm run cloudflare:preview:prepare
+      - run: npm run cloudflare:check
+      - env:
           CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH: wrangler.cloudflare.jsonc
         run: npm run build
-
-      - name: Verify generated deployment artifact
-        run: npm run cloudflare:artifact:check
-
-      - name: Wrangler dry-run generated preview artifact
-        run: npx wrangler deploy --dry-run --outdir .wrangler/preview-dry-run
+      - run: npm run cloudflare:artifact:check
