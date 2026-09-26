@@ -10,6 +10,9 @@ export type ChatGPTUser = {
 
 export type ApplicationAuthMode = "chatgpt-sites" | "cloudflare-preview" | "cloudflare-production" | "local";
 
+export type ApplicationAccessMode = "standalone" | "managed";
+
+
 const USER_ID_HEADER = "oai-authenticated-user-id";
 const USER_EMAIL_HEADER = "oai-authenticated-user-email";
 const USER_FULL_NAME_HEADER = "oai-authenticated-user-full-name";
@@ -40,6 +43,25 @@ async function runtimeVariables() {
   } catch {
     return process.env as unknown as Record<string, unknown>;
   }
+}
+
+export async function applicationAccessMode(): Promise<ApplicationAccessMode> {
+  const runtime = await runtimeVariables();
+  const configured = typeof runtime.APPLICATION_MANAGEMENT_ACCESS_MODE === "string"
+    ? runtime.APPLICATION_MANAGEMENT_ACCESS_MODE.trim().toLowerCase()
+    : "";
+  return configured === "managed" ? "managed" : "standalone";
+}
+
+export async function standaloneDevelopmentUser(): Promise<ChatGPTUser> {
+  const current = await getChatGPTUser();
+  if (current) return current;
+  return {
+    userId: "standalone:local-owner",
+    displayName: "Local Owner",
+    email: "local-owner@standalone.invalid",
+    fullName: "Local Owner",
+  };
 }
 
 function localDevelopmentUser(requestHeaders: Headers, runtime: Record<string, unknown>): ChatGPTUser | null {

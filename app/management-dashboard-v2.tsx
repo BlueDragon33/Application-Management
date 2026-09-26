@@ -34,6 +34,7 @@ type SystemTool = {
 };
 
 const fontScaleStorageKey = "application-management:font-scale:v1";
+const approvalGateStorageKey = "application-management:approval-gate:v1";
 const fontScaleOptions: Array<{ id: FontScale; label: string; hint: string }> = [
   { id: "compact", label: "Gọn", hint: "Mức hiện tại · nhiều nội dung" },
   { id: "standard", label: "Chuẩn", hint: "Dễ đọc hơn" },
@@ -45,6 +46,30 @@ const fontScaleOptions: Array<{ id: FontScale; label: string; hint: string }> = 
 // management surface. Do not maintain a second hard-coded allow-list here:
 // doing so can leave a real client connected on the server but invisible in UI.
 const staticApps = applicationRegistry;
+
+function standaloneAccess(user: { displayName: string; email: string }): AdminAccess {
+  return {
+    deviceId: "standalone:local-owner",
+    deviceCode: "LOCAL-OPEN",
+    email: user.email,
+    displayName: user.displayName,
+    status: "approved",
+    role: "owner",
+    label: "Standalone Development",
+    owner: true,
+  };
+}
+
+function standaloneCenter(user: { displayName: string; email: string }): CenterBootstrap {
+  const actor = standaloneAccess(user);
+  return {
+    actor,
+    applications: staticApps.map((app) => ({ id: app.id, name: app.name, status: app.status })),
+    controlDevices: [],
+    auditLog: [],
+    upstreamError: null,
+  };
+}
 const systemTools: readonly SystemTool[] = [
   {
     id: "tool-secret-generator",
@@ -243,9 +268,10 @@ function Gate({ busy, error, access, retry }: { busy: boolean; error: string; ac
   return <main className="amv2-gate"><section><div>QT</div><h1>Quản trị Ứng dụng</h1><p>{busy ? "Đang xác minh thiết bị quản trị…" : error || (access?.status === "pending" ? "Thiết bị này đang chờ Chủ hệ thống cấp quyền." : access?.status === "blocked" ? "Thiết bị quản trị đã bị khóa." : "Không thể mở Trung tâm quản trị.")}</p>{busy ? <span/> : <button onClick={retry}>Kiểm tra lại</button>}</section></main>;
 }
 
-export default function ManagementDashboardV2({ user, authMode }: {
+export default function ManagementDashboardV2({ user, authMode, defaultApprovalGate }: {
   user: { displayName: string; email: string };
   authMode: "chatgpt-sites" | "cloudflare-preview" | "cloudflare-production" | "local";
+  defaultApprovalGate: boolean;
 }) {
   const [access, setAccess] = useState<AdminAccess | null>(null);
   const [center, setCenter] = useState<CenterBootstrap | null>(null);
@@ -266,10 +292,18 @@ export default function ManagementDashboardV2({ user, authMode }: {
   const [accountSecurityOpen, setAccountSecurityOpen] = useState(false);
   const [fontScale, setFontScale] = useState<FontScale>("compact");
   const [localRuntime, setLocalRuntime] = useState(false);
+  const [approvalGateEnabled, setApprovalGateEnabled] = useState(defaultApprovalGate);
 
   async function refreshOperations(silent = false) {
     if (!silent) setSyncing(true);
     setSyncError("");
+    if (!approvalGateEnabled) {
+      const cached = readCachedOperations();
+      if (cached) setOperations(cached);
+      if (!silent) setNotice("Standalone Mode: dữ liệu local được ưu tiên. Bật Kiểm duyệt truy cập khi cần đồng bộ quyền/thiết bị online.");
+      if (!silent) setSyncing(false);
+      return cached;
+    }
     try {
       const result = await connectOperationsDashboard();
       if (result.bootstrap) setOperations(result.bootstrap);
@@ -288,11 +322,22 @@ export default function ManagementDashboardV2({ user, authMode }: {
     try {
       const cached = readCachedOperations();
       if (cached) setOperations(cached);
+      if (!approvalGateEnabled) {
+        const actor = standaloneAccess(user);
+        setAccess(actor);
+        setCenter(standaloneCenter(user));
+        return;
+      }
       const result = await connectAdminCenter();
       setAccess(result.access);
       setCenter(result.bootstrap);
       if (result.bootstrap) void refreshOperations(true);
     } catch (caught) {
+      if (!approvalGateEnabled) {
+        setAccess(standaloneAccess(user));
+        setCenter(standaloneCenter(user));
+        return;
+      }
       setError(caught instanceof Error ? caught.message : "Không thể mở Trung tâm quản trị.");
     } finally {
       setBusy(false);
@@ -307,7 +352,13 @@ export default function ManagementDashboardV2({ user, authMode }: {
     resolveView();
     setClock(new Date());
     setLocalRuntime(["127.0.0.1", "localhost"].includes(window.location.hostname));
-    void initialize();
+    try {
+      const saved = window.localStorage.getItem(approvalGateStorageKey);
+      if (saved === "on") setApprovalGateEnabled(true);
+      if (saved === "off") setApprovalGateEnabled(false);
+    } catch {
+      // Standalone preference is device-local and optional.
+    }
     const timer = window.setInterval(() => setClock(new Date()), 1000);
     const onFocus = () => void refreshOperations(true);
     window.addEventListener("popstate", resolveView);
@@ -319,6 +370,11 @@ export default function ManagementDashboardV2({ user, authMode }: {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    void initialize();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [approvalGateEnabled]);
 
   useEffect(() => {
     if (!notice) return;
@@ -338,6 +394,20 @@ export default function ManagementDashboardV2({ user, authMode }: {
   function changeFontScale(next: FontScale) {
     setFontScale(next);
     try { window.localStorage.setItem(fontScaleStorageKey, next); } catch { /* Device-local persistence is optional. */ }
+  }
+
+  function changeApprovalGate(next: boolean) {
+    setApprovalGateEnabled(next);
+    setNotice(next
+      ? "Đã bật Kiểm duyệt truy cập. Trung tâm sẽ xác minh quyền/thiết bị online."
+      : "Đã tắt Kiểm duyệt truy cập. Standalone Mode cho phép vào thẳng và ưu tiên dữ liệu local.");
+    try { window.localStorage.setItem(approvalGateStorageKey, next ? "on" : "off"); } catch { /* Device-local persistence is optional. */ }
+  }
+
+  function requireManagedAccess(actionLabel: string) {
+    if (approvalGateEnabled) return true;
+    setNotice(`${actionLabel} cần quyền quản trị online. Bật “Kiểm duyệt truy cập” khi cần thao tác quyền/thiết bị.`);
+    return false;
   }
 
   const activeApps = useMemo<ApplicationConfig[]>(() => {
@@ -406,6 +476,7 @@ export default function ManagementDashboardV2({ user, authMode }: {
   }
 
   async function manageDevice(device: OperationsDevice, operation: "approve" | "remove") {
+    if (!requireManagedAccess("Quản lý thiết bị")) return;
     if (operation === "approve" && device.appId === "boi-ech") {
       setAppFilter("boi-ech");
       switchView("access");
@@ -451,6 +522,7 @@ export default function ManagementDashboardV2({ user, authMode }: {
   }
 
   async function bulkRemovePendingDevices(visibleDevices: OperationsDevice[]) {
+    if (!requireManagedAccess("Xử lý hàng loạt thiết bị")) return;
     const targets = visibleDevices.filter((device) => device.status === "pending" && device.canRemove).slice(0, 24);
     if (!targets.length) {
       setNotice("Không có thiết bị chờ duyệt nào hỗ trợ xử lý trực tiếp trong phạm vi đang hiển thị.");
@@ -505,7 +577,7 @@ export default function ManagementDashboardV2({ user, authMode }: {
     setWebBusy(appId);
     setNotice("");
     try {
-      if (summary?.managedWebLaunch) {
+      if (summary?.managedWebLaunch && approvalGateEnabled) {
         const popup = window.open("about:blank", "_blank");
         if (popup) popup.opener = null;
         try {
@@ -529,6 +601,7 @@ export default function ManagementDashboardV2({ user, authMode }: {
   }
 
   async function clearNotifications() {
+    if (!requireManagedAccess("Dọn thông báo online")) return;
     const ids = workItems.map((item) => item.id);
     if (!ids.length) {
       setNotice("Không có thông báo cần dọn.");
@@ -548,6 +621,7 @@ export default function ManagementDashboardV2({ user, authMode }: {
   }
 
   async function saveAutomation(selection: AutomationSelection) {
+    if (!requireManagedAccess("Lưu quy tắc tự động")) return;
     const current = operations?.settings;
     if (!current) return;
     const supported = new Set(current.autoApproveSupportedAppIds);
@@ -594,6 +668,7 @@ export default function ManagementDashboardV2({ user, authMode }: {
   }
 
   async function manageControlDevice(device: ControlAdminDevice, operation: ControlDeviceOperation, selectedRole?: "reviewer" | "publisher") {
+    if (!requireManagedAccess("Quản lý quyền quản trị")) return;
     if (!access || access.role !== "owner" || device.owner || device.deviceId === access.deviceId) return;
     if (operation === "block" && !window.confirm(`Khóa thiết bị quản trị ${device.deviceCode}?`)) return;
     if (operation === "deactivate-member" && !window.confirm(`Thu hồi toàn bộ quyền quản trị của ${device.email}?`)) return;
@@ -613,7 +688,8 @@ export default function ManagementDashboardV2({ user, authMode }: {
     }
   }
 
-  if (!access || access.status !== "approved" || !center) return <Gate busy={busy} error={error} access={access} retry={() => void initialize()}/>;
+  if (approvalGateEnabled && (!access || access.status !== "approved" || !center)) return <Gate busy={busy} error={error} access={access} retry={() => void initialize()}/>;
+  if (!access || !center) return <Gate busy={busy} error={error} access={access} retry={() => void initialize()}/>;
 
   const title = viewTitles[view];
   const lastUpdated = operations?.generatedAt ? relativeTime(operations.generatedAt) : "Chưa có dữ liệu";
@@ -633,9 +709,10 @@ export default function ManagementDashboardV2({ user, authMode }: {
       <header className="amv2-topbar">
         <label className="amv2-search"><span>⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm theo ứng dụng, thiết bị, người dùng…"/></label>
         <label className="amv2-filter"><span>▽</span><select value={appFilter} onChange={(event) => setAppFilter(event.target.value)}><option value="all">Bộ lọc nhanh</option>{activeApps.map((app) => <option key={app.id} value={app.id}>{app.shortName}</option>)}{systemTools.map((tool) => <option key={tool.id} value={tool.id}>Tool · {tool.name}</option>)}</select></label>
+        <button className="amv2-access-mode" data-enabled={approvalGateEnabled} onClick={() => changeApprovalGate(!approvalGateEnabled)} title="Bật/tắt kiểm duyệt quyền và thiết bị"><span>{approvalGateEnabled ? "🔒" : "⚡"}</span><div><small>Kiểm duyệt truy cập</small><strong>{approvalGateEnabled ? "BẬT" : "TẮT · Vào thẳng"}</strong></div></button>
         <button className="amv2-bell" aria-label={notificationCount ? `Mở Cảnh báo: ${notificationCount} thông báo` : "Mở Cảnh báo"} onClick={() => switchView("alerts")}>♧{notificationCount ? <b>{notificationCount}</b> : null}</button>
-        <span className="amv2-online"><i/><strong>Hệ thống kết nối</strong><small>{syncing ? "Đang đồng bộ…" : "Dữ liệu đã cập nhật"}</small></span>
-        <details className="amv2-account"><summary><span>{initials(user.displayName)}</span><div><strong>{user.displayName}</strong><small>{roleLabels[access.role]}</small></div><b>⌄</b></summary><div><small>{user.email}</small>{authMode === "cloudflare-production" ? <a href="/__account">Tài khoản & bảo mật</a> : <button onClick={() => setAccountSecurityOpen(true)}>Tài khoản & bảo mật</button>}<button onClick={() => switchView("settings")}>Cấu hình</button>{authMode === "cloudflare-production" ? <form method="post" action="/__logout"><button type="submit">Đăng xuất</button></form> : <a href="/signout-with-chatgpt?return_to=%2F">Đăng xuất</a>}</div></details>
+        <span className="amv2-online" data-standalone={!approvalGateEnabled}><i/><strong>{approvalGateEnabled ? "Hệ thống kết nối" : "Standalone · Local-first"}</strong><small>{syncing ? "Đang đồng bộ…" : approvalGateEnabled ? "Dữ liệu đã cập nhật" : "Internet chỉ cần khi lấy quyền/sync"}</small></span>
+        <details className="amv2-account"><summary><span>{initials(user.displayName)}</span><div><strong>{user.displayName}</strong><small>{approvalGateEnabled ? roleLabels[access.role] : "Standalone Owner"}</small></div><b>⌄</b></summary><div><small>{user.email}</small>{authMode === "cloudflare-production" ? <a href="/__account">Tài khoản & bảo mật</a> : <button onClick={() => setAccountSecurityOpen(true)}>Tài khoản & bảo mật</button>}<button onClick={() => switchView("settings")}>Cấu hình</button>{authMode === "cloudflare-production" ? <form method="post" action="/__logout"><button type="submit">Đăng xuất</button></form> : <a href="/signout-with-chatgpt?return_to=%2F">Đăng xuất</a>}</div></details>
       </header>
 
       <div className="amv2-content">
@@ -675,7 +752,7 @@ export default function ManagementDashboardV2({ user, authMode }: {
           {view === "access" ? <BoiAccessView query={search}/> : null}
           {view === "alerts" ? <AlertsView apps={filteredApps} summaryMap={summaryMap} workItems={filteredWork} lastUpdated={lastUpdated}/> : null}
           {view === "audit" ? <AuditView center={center}/> : null}
-          {view === "settings" ? <SettingsView center={center} access={access} actionBusy={actionBusy} fontScale={fontScale} changeFontScale={changeFontScale} manageControlDevice={manageControlDevice}/> : null}
+          {view === "settings" ? <SettingsView center={center} access={access} actionBusy={actionBusy} fontScale={fontScale} changeFontScale={changeFontScale} manageControlDevice={manageControlDevice} approvalGateEnabled={approvalGateEnabled} changeApprovalGate={changeApprovalGate}/> : null}
         </div>
       </div>
     </section>
@@ -858,16 +935,28 @@ function AuditView({ center }: { center: CenterBootstrap }) {
   </section>;
 }
 
-function SettingsView({ center, access, actionBusy, fontScale, changeFontScale, manageControlDevice }: {
+function SettingsView({ center, access, actionBusy, fontScale, changeFontScale, manageControlDevice, approvalGateEnabled, changeApprovalGate }: {
   center: CenterBootstrap;
   access: AdminAccess;
   actionBusy: string;
   fontScale: FontScale;
   changeFontScale: (next: FontScale) => void;
   manageControlDevice: (device: ControlAdminDevice, operation: ControlDeviceOperation, selectedRole?: "reviewer" | "publisher") => Promise<void>;
+  approvalGateEnabled: boolean;
+  changeApprovalGate: (next: boolean) => void;
 }) {
   const [roles, setRoles] = useState<Record<string, "reviewer" | "publisher">>({});
   return <section className="amv2-settings-grid">
+    <div className="amv2-page-panel amv2-standalone-settings">
+      <h2>Chế độ truy cập khi phát triển</h2>
+      <p>Standalone Mode cho phép mở thẳng web-app và dùng dữ liệu local. Internet chỉ cần khi bạn muốn lấy quyền, đồng bộ thiết bị hoặc thao tác quản trị online.</p>
+      <button className="amv2-standalone-toggle" data-enabled={approvalGateEnabled} onClick={() => changeApprovalGate(!approvalGateEnabled)}>
+        <span>{approvalGateEnabled ? "🔒" : "⚡"}</span>
+        <div><strong>Kiểm duyệt truy cập</strong><small>{approvalGateEnabled ? "Đang BẬT · cần xác minh quyền/thiết bị" : "Đang TẮT · vào thẳng, local-first"}</small></div>
+        <b>{approvalGateEnabled ? "TẮT" : "BẬT"}</b>
+      </button>
+      <small>Đến giai đoạn Release, bật lại chế độ này để khôi phục luồng kiểm duyệt đầy đủ.</small>
+    </div>
     <div className="amv2-page-panel">
       <h2>Thiết bị quản trị Trung tâm</h2>
       <div className="amv2-control-list">{center.controlDevices.map((device) => {

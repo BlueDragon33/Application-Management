@@ -1,8 +1,6 @@
 name: Application Management Cloudflare Preview Deploy
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -25,6 +23,7 @@ jobs:
       APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET: ${{ secrets.APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET }}
       MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY: ${{ secrets.MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY }}
       APPLICATION_MANAGEMENT_PREVIEW_ORIGIN: ${{ vars.APPLICATION_MANAGEMENT_PREVIEW_ORIGIN }}
+      APPLICATION_MANAGEMENT_ACCESS_MODE: standalone
       CONTROL_OWNER_EMAILS: owner@example.com
       BOI_ECH_BASE_URL: ${{ vars.BOI_ECH_PREVIEW_ORIGIN }}
       HEALTH_CARE_BASE_URL: ${{ vars.HEALTH_CARE_PREVIEW_ORIGIN }}

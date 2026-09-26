@@ -163,6 +163,53 @@
 .amv2-filter select { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: inherit; font-size: 12px; }
 .amv2-filter option { color: #14261f; background: #fff; }
 
+.amv2-access-mode {
+  min-width: 150px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 10px;
+  background: rgba(255,255,255,.04);
+  color: #dff7ef;
+  cursor: pointer;
+  text-align: left;
+}
+.amv2-access-mode > span { font-size: 18px; line-height: 1; }
+.amv2-access-mode > div { min-width: 0; display: grid; gap: 1px; }
+.amv2-access-mode small { color: #9bc5b8; font-size: 9px; }
+.amv2-access-mode strong { color: #fff; font-size: 10px; white-space: nowrap; }
+.amv2-access-mode[data-enabled="false"] { border-color: rgba(76,224,185,.35); background: rgba(15,116,91,.22); }
+.amv2-access-mode[data-enabled="false"] strong { color: #73f1cb; }
+.amv2-online[data-standalone="true"] i { background: #f2c879; box-shadow: 0 0 0 4px rgba(242,200,121,.12); }
+
+.amv2-standalone-settings { grid-column: 1 / -1; }
+.amv2-standalone-settings > p { max-width: 760px; color: #afc9c0; line-height: 1.6; }
+.amv2-standalone-toggle {
+  width: min(680px, 100%);
+  margin: 10px 0;
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 12px;
+  background: rgba(255,255,255,.035);
+  color: #edf8f4;
+  cursor: pointer;
+  text-align: left;
+}
+.amv2-standalone-toggle > span { font-size: 22px; }
+.amv2-standalone-toggle > div { display: grid; gap: 3px; }
+.amv2-standalone-toggle > div strong { font-size: 13px; }
+.amv2-standalone-toggle > div small { color: #a5c7bc; font-size: 10.5px; }
+.amv2-standalone-toggle > b { min-width: 54px; padding: 6px 8px; border-radius: 999px; background: rgba(255,255,255,.08); text-align: center; font-size: 10px; }
+.amv2-standalone-toggle[data-enabled="false"] { border-color: rgba(76,224,185,.36); background: rgba(12,101,79,.22); }
+.amv2-standalone-toggle[data-enabled="false"] > b { background: #18a77e; color: #fff; }
+
 .amv2-bell {
   width: 42px;
   height: 42px;
