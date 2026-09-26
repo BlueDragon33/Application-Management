@@ -15,13 +15,15 @@ concurrency:
 jobs:
   deploy-preview:
     runs-on: ubuntu-24.04
-    timeout-minutes: 18
+    timeout-minutes: 22
     environment: application-management-preview
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID: ${{ secrets.APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID }}
       APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID: ${{ secrets.APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID }}
+      APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET: ${{ secrets.APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET }}
+      MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY: ${{ secrets.MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY }}
       APPLICATION_MANAGEMENT_PREVIEW_ORIGIN: ${{ vars.APPLICATION_MANAGEMENT_PREVIEW_ORIGIN }}
       CONTROL_OWNER_EMAILS: owner@example.com
       BOI_ECH_BASE_URL: ${{ vars.BOI_ECH_PREVIEW_ORIGIN }}
@@ -47,12 +49,21 @@ jobs:
           [[ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ]] || missing+=("CLOUDFLARE_ACCOUNT_ID")
           [[ -n "${APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID:-}" ]] || missing+=("APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID")
           [[ -n "${APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID:-}" ]] || missing+=("APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID")
+          [[ -n "${APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET:-}" ]] || missing+=("APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET")
           if (( ${#missing[@]} )); then
             echo "ready=false" >> "$GITHUB_OUTPUT"
             echo "::notice::Development preview skipped; missing: ${missing[*]}"
-          else
-            echo "ready=true" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+          if [[ ${#APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET} -lt 32 ]]; then
+            echo "::error::APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET must contain at least 32 characters."
+            exit 1
+          fi
+          if [[ -n "${MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY:-}" && ! "$MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY" =~ ^[A-Za-z0-9_-]{43}$ ]]; then
+            echo "::error::MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY must be a 32-byte URL-safe base64 key (43 chars, no padding)."
+            exit 1
+          fi
+          echo "ready=true" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies
         if: steps.config.outputs.ready == 'true'
@@ -68,29 +79,115 @@ jobs:
 
       - name: Build preview
         if: steps.config.outputs.ready == 'true'
-        run: CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH=wrangler.cloudflare.jsonc npm run build
+        env:
+          CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH: wrangler.cloudflare.jsonc
+        run: npm run build
 
-      - name: Deploy preview
+      - name: Verify generated preview artifact
         if: steps.config.outputs.ready == 'true'
-        run: npx wrangler deploy
+        run: npm run cloudflare:artifact:check
 
-      - name: Quick availability check
-        if: steps.config.outputs.ready == 'true' && env.APPLICATION_MANAGEMENT_PREVIEW_ORIGIN != ''
+      - name: Deploy preview artifact
+        id: deploy
+        if: steps.config.outputs.ready == 'true'
         shell: bash
         run: |
           set -euo pipefail
-          for i in {1..10}; do
-            code="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 10 "$APPLICATION_MANAGEMENT_PREVIEW_ORIGIN/" || true)"
-            case "$code" in 200|301|302|303|307|308|401|403) echo "Preview reachable: HTTP $code"; exit 0 ;; esac
-            sleep 2
+          npx wrangler deploy 2>&1 | tee /tmp/application-management-preview-deploy.log
+          ORIGIN="${APPLICATION_MANAGEMENT_PREVIEW_ORIGIN:-}"
+          if [[ -z "$ORIGIN" ]]; then
+            ORIGIN="$(grep -Eo 'https://[^[:space:]]+\.workers\.dev' /tmp/application-management-preview-deploy.log | tail -1 || true)"
+          fi
+          ORIGIN="${ORIGIN%/}"
+          if [[ -z "$ORIGIN" ]]; then
+            echo "::error::Unable to determine deployed Preview origin."
+            exit 1
+          fi
+          case "$ORIGIN" in https://*) ;; *) echo "::error::Preview origin must be HTTPS."; exit 1 ;; esac
+          echo "origin=$ORIGIN" >> "$GITHUB_OUTPUT"
+
+      - name: Install preview access Worker secret
+        if: steps.config.outputs.ready == 'true'
+        shell: bash
+        run: printf '%s' "$APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET" | npx wrangler secret put APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET --config wrangler.cloudflare.jsonc
+
+      - name: Ensure managed app credential encryption key
+        if: steps.config.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY:-}" ]]; then
+            printf '%s' "$MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY" | npx wrangler secret put MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY --config wrangler.cloudflare.jsonc
+            echo "Managed app credential encryption key installed from protected environment secret."
+          elif npx wrangler secret list --config wrangler.cloudflare.jsonc 2>/dev/null | grep -q 'MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY'; then
+            echo "Managed app credential encryption key already exists; keeping the current key."
+          else
+            GENERATED_KEY="$(node --input-type=module -e "import crypto from 'node:crypto'; process.stdout.write(crypto.randomBytes(32).toString('base64url'))")"
+            printf '%s' "$GENERATED_KEY" | npx wrangler secret put MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY --config wrangler.cloudflare.jsonc
+            unset GENERATED_KEY
+            echo "Managed app credential encryption key created once as a Worker secret."
+          fi
+
+      - name: Restore exact Preview artifact after secret versions
+        if: steps.config.outputs.ready == 'true'
+        run: npx wrangler deploy
+
+      - name: Verify anonymous protection and Preview read-back
+        if: steps.config.outputs.ready == 'true'
+        shell: bash
+        env:
+          PREVIEW_ORIGIN: ${{ steps.deploy.outputs.origin }}
+        run: |
+          set -euo pipefail
+          ANON_CODE="$(curl --silent --show-error --output /tmp/application-management-preview-anon.json --write-out '%{http_code}' --max-time 15 "$PREVIEW_ORIGIN/__deployment" || true)"
+          if [[ "$ANON_CODE" != "401" ]]; then
+            echo "::error::Expected anonymous /__deployment to return 401, got HTTP $ANON_CODE."
+            cat /tmp/application-management-preview-anon.json || true
+            exit 1
+          fi
+
+          READY=0
+          for attempt in {1..12}; do
+            CODE="$(curl --silent --show-error --output /tmp/application-management-preview.json --write-out '%{http_code}' --max-time 20 -H "Authorization: Bearer $APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET" "$PREVIEW_ORIGIN/__deployment" || true)"
+            if [[ "$CODE" == "200" ]]; then
+              READY=1
+              break
+            fi
+            if [[ "$CODE" != "401" && "$CODE" != "403" && "$CODE" != "404" && "$CODE" != "503" && "$CODE" != "000" ]]; then
+              echo "::error::Unexpected Preview read-back HTTP $CODE."
+              cat /tmp/application-management-preview.json || true
+              exit 1
+            fi
+            echo "Preview read-back not ready yet (HTTP $CODE, attempt $attempt/12); waiting for secret/version propagation..."
+            sleep 5
           done
-          echo "::warning::Deploy completed but configured preview URL did not answer yet."
+          if [[ "$READY" != "1" ]]; then
+            echo "::error::Preview read-back did not become ready within 60 seconds."
+            cat /tmp/application-management-preview.json || true
+            exit 1
+          fi
+
+          node --input-type=module - <<'NODE'
+          import fs from "node:fs";
+          const value = JSON.parse(fs.readFileSync("/tmp/application-management-preview.json", "utf8"));
+          if (value.application !== "application-management" || value.runtime !== "control-plane") throw new Error("Preview deployment identity mismatch.");
+          if (value.channel !== "cloudflare-preview") throw new Error("Preview deployment channel mismatch.");
+          if (value.revision !== process.env.GITHUB_SHA) throw new Error("Preview revision does not match the pushed commit.");
+          if (!value.databaseReady) throw new Error("Preview D1 schema is not ready.");
+          if (!value.assetsReady) throw new Error("Preview static assets are not ready.");
+          if (!value.previewAccessConfigured) throw new Error("Preview access secret is not active.");
+          if (value.accessMode !== "application-preview-secret") throw new Error("Unexpected Preview access mode.");
+          if (!value.ownerPolicyConfigured) throw new Error("Preview owner policy is missing.");
+          if (value.networkMode !== "production") throw new Error("Preview must use production network resolution.");
+          console.log("Application Management Cloudflare preview read-back PASS");
+          NODE
 
       - name: Development publish summary
         if: always()
+        shell: bash
         run: |
           if [[ "${{ steps.config.outputs.ready }}" == "true" ]]; then
-            echo "Development preview publish path executed."
+            echo "Development preview publish path executed with app-secret protection and read-back."
           else
             echo "Development continues without blocking: Cloudflare preview credentials/bindings are not configured in this repository."
           fi

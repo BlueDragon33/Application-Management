@@ -83,7 +83,7 @@ test("preview deployment installs the Worker secret and requires anonymous 401 r
   assert.ok(worker.includes("previewRequestAuthorized"));
   assert.ok(deploy.includes("APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET"));
   assert.ok(deploy.includes("wrangler secret put APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET"));
-  assert.ok(deploy.includes('if [[ "$CODE" != "401" ]]'));
+  assert.ok(deploy.includes('if [[ "$ANON_CODE" != "401" ]]'));
   assert.equal(deploy.includes("CF_ACCESS_CLIENT_ID"), false);
   assert.equal(deploy.includes("CF_ACCESS_CLIENT_SECRET"), false);
 });

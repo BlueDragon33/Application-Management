@@ -36,3 +36,21 @@ jobs:
           node -e "JSON.parse(require('fs').readFileSync('package.json','utf8'))"
       - name: Development mode summary
         run: echo "Fast CI only. Heavy validation is manual during active development."
+
+
+  release-check:
+    if: ${{ github.event_name == 'pull_request' && startsWith(github.head_ref, 'release/') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Release regression suite
+        run: npm test
+      - name: Release policy summary
+        run: echo "Release branch full npm test PASS before merge."

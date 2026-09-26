@@ -50,10 +50,10 @@ test("NC03 route has a matching pending registry entry and no fake remote contro
   assert.match(block, /contractState: "pending"/);
   assert.match(block, /BlueDragon33\/NC03_Modem/);
   assert.match(block, /Không lưu hoặc proxy mật khẩu admin NC03/);
-  assert.match(block, /NC03 Control Center v0\.5\.1/);
+  assert.match(block, /NC03 Control Center v0\.6\.1/);
   assert.match(block, /firmware 8\.00\.42/);
   assert.match(block, /localUrl: "\/api\/local-web-launch\?app=nc03-modem"/);
-  assert.match(block, /Offline\/PWA gate/);
+  assert.match(block, /Offline\/PWA self-refresh/);
   assert.match(route, /getApplicationConfig\("nc03-modem"\)/);
   assert.doesNotMatch(block, /contractState: "connected"/);
 });
