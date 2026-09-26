@@ -149,3 +149,15 @@ test("production client origins can be injected as protected override bindings w
   assert.match(resolver, /spec\.productionOverrideEnv/);
   assert.match(resolver, /const productionOverride/);
 });
+
+
+test("NC03 startup gate verifies runtime identity and exact sibling source version", () => {
+  assert.match(launcher, /function waitForNc03Runtime/);
+  assert.match(launcher, /payload\?\.app === "nc03-control-center"/);
+  assert.match(launcher, /payload\?\.applicationId === "nc03-modem"/);
+  assert.match(launcher, /payload\?\.version === expectedVersion/);
+  assert.match(launcher, /readPackageVersion\(paths\.nc03\)/);
+  assert.match(launcher, /VERSION_MISMATCH/);
+  assert.match(launcher, /WRONG_RUNTIME_IDENTITY/);
+  assert.match(launcher, /waitForNc03Runtime\("NC03 Control Center"/);
+});
