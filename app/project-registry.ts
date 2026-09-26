@@ -42,7 +42,7 @@ export const projectRepositories: readonly ProjectRepositoryConfig[] = [
     defaultBranch: "main",
     group: "core",
     state: "developing",
-    summary: "Blueprint OS / Core Engineering Compass của hệ sinh thái. Phase 8 đã PASS; Phase 9 xây dựng theo bản đồ 20 tầng. P9-001–P9-009 COMPLETE, P9-010 Bounded AI Copilot ACTIVE tại Storey 18; Application Management chỉ đọc metadata lifecycle/readiness qua contract metadata-only.",
+    summary: "Blueprint OS / Core Engineering Compass của hệ sinh thái. Phase 8 đã PASS; Phase 9 Compass Construction xây dựng theo bản đồ 20 tầng. P9-001–P9-009 COMPLETE, P9-010 Bounded AI Copilot ACTIVE tại Storey 18; Application Management chỉ đọc metadata lifecycle/readiness qua contract metadata-only.",
     managementHref: "/apps/software-blueprint-hub",
   },
   {
@@ -122,7 +122,7 @@ export const projectRepositories: readonly ProjectRepositoryConfig[] = [
     defaultBranch: "main",
     group: "control",
     state: "developing",
-    summary: "Website-app/PWA local-first quản trị modem HYBRID Wi-Fi 5G NC03; v0.7.3 thêm HAR Evidence Lab local-only, tách AUTH/WRITE candidate, redaction bí mật và sanitized evidence export. Read-path HAR2/live 10 giây/báo cáo A4 giữ nguyên; AUTH/write tiếp tục evidence-gated.",
+    summary: "Website-app/PWA local-first quản trị modem HYBRID Wi-Fi 5G NC03; v0.7.15 có HAR Evidence Lab, AUTH Source Probe, login payload-origin tracing, redaction bí mật và sanitized evidence export. Read-path HAR2/live 10 giây/báo cáo A4 giữ nguyên; AUTH/write tiếp tục evidence-gated.",
     managementHref: "/apps/nc03-modem",
   },
   {

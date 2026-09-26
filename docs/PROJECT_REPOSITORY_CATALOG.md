@@ -15,7 +15,7 @@ Nguồn chuẩn để đối chiếu các repo thuộc tài khoản `BlueDragon3
 | `BlueDragon33/RU_LIFE` | Hòa nhập Nga | Có khu quản trị |
 | `BlueDragon33/GrowUP_MyChildren` | GrowUP MyChildren | Có khu quản trị |
 | `BlueDragon33/PriceReport_Tunggiabao` | Báo giá / kế toán | V6.14 Standalone-first · vào thẳng local-first · Managed Mode tùy chọn |
-| `BlueDragon33/NC03_Modem` | NC03 Control Center / modem 5G | v0.7.3 · HAR Evidence Lab local-only · sanitized evidence export · AUTH/write evidence-gated |
+| `BlueDragon33/NC03_Modem` | NC03 Control Center / modem 5G | v0.7.15 · HAR Evidence Lab + AUTH Source Probe + payload-origin tracing · sanitized evidence export · AUTH/write evidence-gated |
 | `BlueDragon33/ROS-1-2` | Robot / ROS / LiDAR | Theo dõi dự án kỹ thuật |
 | `BlueDragon33/Hardware_Simulation` | Virtual Hardware Lab | Theo dõi dự án kỹ thuật |
 | `BlueDragon33/MPC_PID_System` | Control Research Workbench | Theo dõi dự án kỹ thuật |

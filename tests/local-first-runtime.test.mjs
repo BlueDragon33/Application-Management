@@ -95,6 +95,9 @@ test("management home uses verified local web launcher and compact device labels
 
   assert.match(localWebLaunch, /getChatGPTUser/);
   assert.match(localWebLaunch, /Local Web Launcher chỉ hoạt động trên localhost\/127\.0\.0\.1/);
+  assert.match(localWebLaunch, /resolveClientOrigin\("nc03-runtime"\)/);
+  assert.match(localWebLaunch, /Response\.redirect\(`\$\{resolved\.baseUrl\}\/`, 307\)/);
+  assert.doesNotMatch(localWebLaunch, /nc03-modem[^\n]+127\.0\.0\.1:3010/);
   assert.match(localWebLaunch, /Response\.redirect\(target\.url, 307\)/);
   for (const port of [3001, 3002, 3004, 3005]) assert.ok(localWebLaunch.includes(`127.0.0.1:${port}`));
 

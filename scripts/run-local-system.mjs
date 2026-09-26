@@ -213,6 +213,42 @@ async function waitForEndpoint(name, url, timeoutMs = 45_000) {
   throw new Error(`${name} không sẵn sàng sau ${Math.round(timeoutMs / 1000)} giây: ${url}`);
 }
 
+function readPackageVersion(root) {
+  const value = JSON.parse(readFileSync(join(root, "package.json"), "utf8"))?.version;
+  if (typeof value !== "string" || !value.trim()) throw new Error(`Không đọc được version package tại ${root}.`);
+  return value.trim();
+}
+
+async function waitForNc03Runtime(name, url, expectedVersion, timeoutMs = 45_000) {
+  const deadline = Date.now() + timeoutMs;
+  let lastReason = "NO_RESPONSE";
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(url, { redirect:"manual", signal:AbortSignal.timeout(1200), cache:"no-store" });
+      if (!response.ok) {
+        lastReason = `HTTP_${response.status}`;
+      } else {
+        const payload = await response.json().catch(() => null);
+        const identityOk = payload?.ok === true
+          && payload?.app === "nc03-control-center"
+          && payload?.applicationId === "nc03-modem";
+        const versionOk = payload?.version === expectedVersion;
+        if (identityOk && versionOk) {
+          console.log(`[local-system] ${name} sẵn sàng · v${payload.version} · ${payload.assetRoot ?? "unknown-root"}`);
+          return;
+        }
+        lastReason = !identityOk
+          ? "WRONG_RUNTIME_IDENTITY"
+          : `VERSION_MISMATCH expected=${expectedVersion} actual=${payload?.version ?? "unknown"}`;
+      }
+    } catch {
+      lastReason = "NETWORK_ERROR";
+    }
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 450));
+  }
+  throw new Error(`${name} không vượt runtime identity/version gate: ${lastReason} · ${url}`);
+}
+
 function openBrowser(url) {
   try {
     if (process.platform === "win32") spawn("cmd.exe", ["/c", "start", "", url], { detached: true, stdio: "ignore" }).unref();
@@ -265,7 +301,8 @@ async function main() {
   requirePath(join(paths.boi, "wrangler.local.jsonc"), "BOIECH_AI/boi-ech/wrangler.local.jsonc");
   requirePath(join(paths.baumanRuntime, "scripts", "serve-local-runtime.mjs"), "Bauman scripts/serve-local-runtime.mjs");
   requirePath(join(paths.nc03, "scripts", "serve-local.mjs"), "NC03_Modem/scripts/serve-local.mjs");
-  const externalNc03Origin = process.env.NC03_LOCAL_BASE_URL?.trim();
+  const externalNc03Origin = process.env.NC03_LOCAL_BASE_URL?.trim().replace(/\/+$/, "");
+  const nc03SourceVersion = readPackageVersion(paths.nc03);
   requirePorts(externalNc03Origin ? [3000, 3001, 3002, 3003, 3004, 3005] : [3000, 3001, 3002, 3003, 3004, 3005, 3010]);
 
   ensureDependencies("Application Management", paths.central, true, options.skipInstall);
@@ -347,7 +384,7 @@ async function main() {
     waitForEndpoint("Bauman Control", "http://127.0.0.1:3003/health"),
     waitForEndpoint("Bơi ếch", "http://127.0.0.1:3004/api/control/runtime"),
     waitForEndpoint("Bauman Hub + môn học", `${baumanRuntimeOrigin}/_local/health`),
-    waitForEndpoint("NC03 Control Center", `${nc03Origin}/_local/health`),
+    waitForNc03Runtime("NC03 Control Center", `${nc03Origin}/_local/health`, nc03SourceVersion),
   ]);
 
   const centralEnv = {
@@ -387,7 +424,7 @@ async function main() {
   console.log(" Bauman Control  : http://127.0.0.1:3003 · D1 bauman-control-local");
   console.log(" Bơi ếch         : http://127.0.0.1:3004");
   console.log(` Bauman Hub      : ${baumanRuntimeOrigin}`);
-  console.log(` NC03 Control    : ${nc03Origin}`);
+  console.log(` NC03 Control    : ${nc03Origin} · expected v${nc03SourceVersion}`);
   console.log(" Môn Bauman      : chạy bên trong Bauman Hub, không cần port riêng");
   console.log("---------------------------------------------------------------");
   console.log(" GrowUP chỉ được theo dõi contract/site; chưa bật quản trị từ xa khi backend thật chưa tồn tại.");

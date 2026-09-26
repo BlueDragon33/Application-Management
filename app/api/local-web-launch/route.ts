@@ -1,4 +1,5 @@
 import { getChatGPTUser } from "../../chatgpt-auth";
+import { resolveClientOrigin } from "../../client-origin.server";
 
 export const dynamic = "force-dynamic";
 
@@ -7,7 +8,7 @@ const LOCAL_TARGETS = {
   "health-care": { label: "Sức khỏe Y tế", url: "http://127.0.0.1:3001/suc-khoe-tre" },
   "ru-life": { label: "Hòa nhập Nga", url: "http://127.0.0.1:3002/" },
   "bauman-master-ai": { label: "Bauman Runtime", url: "http://127.0.0.1:3005/" },
-  "nc03-modem": { label: "NC03 Control Center", url: "http://127.0.0.1:3010/" },
+  "nc03-modem": { label: "NC03 Control Center", url: null },
 } as const;
 
 type LocalAppId = keyof typeof LOCAL_TARGETS;
@@ -45,5 +46,14 @@ export async function GET(request: Request) {
   // negative for host loopback even when the browser can reach the runtime.
   // Redirect the authenticated local browser to the verified runtime instead.
   const target = LOCAL_TARGETS[appId];
+  if (appId === "nc03-modem") {
+    try {
+      const resolved = await resolveClientOrigin("nc03-runtime");
+      return Response.redirect(`${resolved.baseUrl}/`, 307);
+    } catch {
+      return text("NC03 local runtime chưa sẵn sàng hoặc chưa được resolve đúng origin.", 503);
+    }
+  }
+  if (!target.url) return text("Ứng dụng local chưa có runtime target hợp lệ.", 503);
   return Response.redirect(target.url, 307);
 }
