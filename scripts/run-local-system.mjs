@@ -249,6 +249,29 @@ async function waitForNc03Runtime(name, url, expectedVersion, timeoutMs = 45_000
   throw new Error(`${name} không vượt runtime identity/version gate: ${lastReason} · ${url}`);
 }
 
+async function verifyNc03ProbeCompatibility(origin) {
+  const url = new URL("/api/nc03/auth-source-probe", origin);
+  url.searchParams.set("baseUrl", "http://192.168.0.1");
+  let response;
+  try {
+    response = await fetch(url, {
+      method: "GET",
+      cache: "no-store",
+      redirect: "manual",
+      signal: AbortSignal.timeout(8000),
+    });
+  } catch {
+    throw new Error(`NC03 AUTH Source Probe compatibility gate không kết nối được: ${url.origin}`);
+  }
+  const payload = await response.json().catch(() => null);
+  if (!response.ok || payload?.ok !== true || !payload?.payload?.diagnostics) {
+    throw new Error(
+      `NC03 runtime thiếu AUTH probe compatibility (GET) · HTTP ${response.status} · ${payload?.code ?? "INVALID_RESPONSE"}. `
+      + "Hãy cập nhật repo NC03_Modem trước khi mở từ Application Management.",
+    );
+  }
+  console.log("[local-system] NC03 AUTH Source Probe compatibility · GET/POST bridge contract OK");
+}
 function openBrowser(url) {
   try {
     if (process.platform === "win32") spawn("cmd.exe", ["/c", "start", "", url], { detached: true, stdio: "ignore" }).unref();
@@ -386,6 +409,7 @@ async function main() {
     waitForEndpoint("Bauman Hub + môn học", `${baumanRuntimeOrigin}/_local/health`),
     waitForNc03Runtime("NC03 Control Center", `${nc03Origin}/_local/health`, nc03SourceVersion),
   ]);
+  await verifyNc03ProbeCompatibility(nc03Origin);
 
   const centralEnv = {
     ...devVars,
