@@ -97,6 +97,7 @@ test("NC03 project catalog reflects the current AUTH evidence release", () => {
   assert.match(block, /HAR Evidence Lab/);
   assert.match(block, /sanitized evidence export/i);
   assert.match(block, /payload-origin tracing/i);
+  assert.match(block, /payload-origin tracing/i);
   assert.match(projectDocs, /v0\.7\.15/);
 });
 
