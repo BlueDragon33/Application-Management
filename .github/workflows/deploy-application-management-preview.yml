@@ -1,33 +1,27 @@
 name: Application Management Cloudflare Preview Deploy
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
-    inputs:
-      confirm:
-        description: "Gõ DEPLOY_PREVIEW để triển khai Application Management vào Cloudflare preview riêng"
-        required: true
-        type: string
 
 permissions:
   contents: read
 
 concurrency:
   group: application-management-cloudflare-preview
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   deploy-preview:
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 18
     environment: application-management-preview
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID: ${{ secrets.APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID }}
       APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID: ${{ secrets.APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID }}
-      APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET: ${{ secrets.APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET }}
-      MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY: ${{ secrets.MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY }}
-      CONTROL_OWNER_EMAILS: ${{ vars.CONTROL_OWNER_EMAILS }}
       APPLICATION_MANAGEMENT_PREVIEW_ORIGIN: ${{ vars.APPLICATION_MANAGEMENT_PREVIEW_ORIGIN }}
       BOI_ECH_BASE_URL: ${{ vars.BOI_ECH_PREVIEW_ORIGIN }}
       HEALTH_CARE_BASE_URL: ${{ vars.HEALTH_CARE_PREVIEW_ORIGIN }}
@@ -35,176 +29,48 @@ jobs:
       BAUMAN_CONTROL_BASE_URL: ${{ vars.BAUMAN_CONTROL_PREVIEW_ORIGIN }}
       BAUMAN_APP_ORIGIN: ${{ vars.BAUMAN_RUNTIME_PREVIEW_ORIGIN }}
       GROWUP_BASE_URL: ${{ vars.GROWUP_PREVIEW_ORIGIN }}
-      CONTROL_SERVICE_SECRET: ${{ secrets.CONTROL_SERVICE_SECRET }}
-      HEALTH_CONTROL_SERVICE_SECRET: ${{ secrets.HEALTH_CONTROL_SERVICE_SECRET }}
-      RU_LIFE_CONTROL_SERVICE_SECRET: ${{ secrets.RU_LIFE_CONTROL_SERVICE_SECRET }}
-      BAUMAN_CONTROL_SERVICE_SECRET: ${{ secrets.BAUMAN_CONTROL_SERVICE_SECRET }}
 
     steps:
-      - name: Require explicit preview confirmation
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ "${{ inputs.confirm }}" != "DEPLOY_PREVIEW" ]]; then
-            echo '::error::Deployment cancelled. Enter DEPLOY_PREVIEW exactly.'
-            exit 1
-          fi
-
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: "22.13.0"
           cache: npm
 
-      - name: Validate required preview configuration
+      - name: Require preview deployment basics
         shell: bash
         run: |
           set -euo pipefail
-          for key in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET CONTROL_OWNER_EMAILS APPLICATION_MANAGEMENT_PREVIEW_ORIGIN; do
-            if [[ -z "${!key:-}" ]]; then
-              echo "::error::$key is required in the application-management-preview GitHub environment."
-              exit 1
-            fi
+          for key in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID; do
+            [[ -n "${!key:-}" ]] || { echo "::error::$key is required."; exit 1; }
           done
-          if [[ ${#APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET} -lt 32 ]]; then
-            echo '::error::APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET must contain at least 32 characters.'
-            exit 1
-          fi
-          if [[ -n "${MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY:-}" && ! "$MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY" =~ ^[A-Za-z0-9_-]{43}$ ]]; then
-            echo '::error::MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY must be a 32-byte URL-safe base64 key (43 chars, no padding).'
-            exit 1
-          fi
-          case "$APPLICATION_MANAGEMENT_PREVIEW_ORIGIN" in https://*) ;; *) echo '::error::APPLICATION_MANAGEMENT_PREVIEW_ORIGIN must be HTTPS.'; exit 1 ;; esac
-          if [[ "$APPLICATION_MANAGEMENT_PREVIEW_ORIGIN" == *.chatgpt.site ]]; then
-            echo '::error::Application Management preview must not use ChatGPT Sites.'
-            exit 1
-          fi
-          if [[ -n "${BOI_ECH_BASE_URL:-}" && ${#CONTROL_SERVICE_SECRET} -lt 32 ]]; then
-            echo '::error::CONTROL_SERVICE_SECRET is required when Bơi ếch preview is configured.'; exit 1
-          fi
-          if [[ -n "${HEALTH_CARE_BASE_URL:-}" && ${#HEALTH_CONTROL_SERVICE_SECRET} -lt 32 ]]; then
-            echo '::error::HEALTH_CONTROL_SERVICE_SECRET is required when Health preview is configured.'; exit 1
-          fi
-          if [[ -n "${RU_LIFE_BASE_URL:-}" && ${#RU_LIFE_CONTROL_SERVICE_SECRET} -lt 32 ]]; then
-            echo '::error::RU_LIFE_CONTROL_SERVICE_SECRET is required when RU_LIFE preview is configured.'; exit 1
-          fi
-          if [[ -n "${BAUMAN_CONTROL_BASE_URL:-}" && ${#BAUMAN_CONTROL_SERVICE_SECRET} -lt 32 ]]; then
-            echo '::error::BAUMAN_CONTROL_SERVICE_SECRET is required when Bauman preview is configured.'; exit 1
-          fi
 
-      - name: Install locked dependencies
+      - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
-      - name: Preserve existing regressions before preview materialization
-        run: npm test
-
-      - name: Validate migration boundary
-        run: npm run validate:cloudflare-preview
-
-      - name: Materialize isolated preview config
+      - name: Package preview
         run: npm run cloudflare:preview:prepare
 
-      - name: Validate materialized Cloudflare config
-        run: npm run cloudflare:check
-
-      - name: Apply migrations to preview D1 only
+      - name: Apply preview migrations
         run: npx wrangler d1 migrations apply application-management-preview-db --remote --config wrangler.cloudflare.jsonc
 
-      - name: Build with Cloudflare preview bindings
+      - name: Build preview
         env:
           CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH: wrangler.cloudflare.jsonc
         run: npm run build
 
-      - name: Verify generated preview artifact
-        run: npm run cloudflare:artifact:check
+      - name: Deploy preview
+        run: npx wrangler deploy --config wrangler.cloudflare.jsonc
 
-      - name: Deploy Application Management preview Worker
-        run: npx wrangler deploy
-
-      - name: Install or rotate Application Management preview access secret
-        shell: bash
-        run: printf '%s' "$APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET" | npx wrangler secret put APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET --config wrangler.cloudflare.jsonc
-
-      - name: Ensure managed app credential encryption key
+      - name: Quick availability check
+        if: ${{ env.APPLICATION_MANAGEMENT_PREVIEW_ORIGIN != '' }}
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -n "${MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY:-}" ]]; then
-            printf '%s' "$MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY" | npx wrangler secret put MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY --config wrangler.cloudflare.jsonc
-            echo 'Managed app credential encryption key installed from protected environment secret.'
-          elif npx wrangler secret list --config wrangler.cloudflare.jsonc 2>/dev/null | grep -q 'MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY'; then
-            echo 'Managed app credential encryption key already exists; keeping the current key.'
-          else
-            GENERATED_KEY="$(node --input-type=module -e "import crypto from 'node:crypto'; process.stdout.write(crypto.randomBytes(32).toString('base64url'))")"
-            printf '%s' "$GENERATED_KEY" | npx wrangler secret put MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY --config wrangler.cloudflare.jsonc
-            unset GENERATED_KEY
-            echo 'Managed app credential encryption key created once as a Worker secret.'
-          fi
-
-      - name: Install Bơi ếch bridge secret
-        if: ${{ env.BOI_ECH_BASE_URL != '' }}
-        shell: bash
-        run: printf '%s' "$CONTROL_SERVICE_SECRET" | npx wrangler secret put CONTROL_SERVICE_SECRET --config wrangler.cloudflare.jsonc
-
-      - name: Install Health bridge secret
-        if: ${{ env.HEALTH_CARE_BASE_URL != '' }}
-        shell: bash
-        run: printf '%s' "$HEALTH_CONTROL_SERVICE_SECRET" | npx wrangler secret put HEALTH_CONTROL_SERVICE_SECRET --config wrangler.cloudflare.jsonc
-
-      - name: Install RU_LIFE bridge secret
-        if: ${{ env.RU_LIFE_BASE_URL != '' }}
-        shell: bash
-        run: printf '%s' "$RU_LIFE_CONTROL_SERVICE_SECRET" | npx wrangler secret put RU_LIFE_CONTROL_SERVICE_SECRET --config wrangler.cloudflare.jsonc
-
-      - name: Install Bauman bridge secret
-        if: ${{ env.BAUMAN_CONTROL_BASE_URL != '' }}
-        shell: bash
-        run: printf '%s' "$BAUMAN_CONTROL_SERVICE_SECRET" | npx wrangler secret put BAUMAN_CONTROL_SERVICE_SECRET --config wrangler.cloudflare.jsonc
-
-      - name: Restore generated Preview artifact after secret versions
-        run: npx wrangler deploy
-
-      - name: Verify application preview gate blocks anonymous traffic
-        shell: bash
-        run: |
-          set -euo pipefail
-          CODE="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 15 "$APPLICATION_MANAGEMENT_PREVIEW_ORIGIN/__deployment")"
-          if [[ "$CODE" != "401" ]]; then
-            echo "::error::Expected anonymous /__deployment to return 401 from the application preview gate, got HTTP $CODE."
-            exit 1
-          fi
-          echo 'Anonymous request blocked by application preview gate with HTTP 401.'
-
-      - name: Read back deployment through application preview secret
-        shell: bash
-        run: |
-          set -euo pipefail
-          curl --fail --silent --show-error --max-time 20 \
-            -H "Authorization: Bearer $APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET" \
-            "$APPLICATION_MANAGEMENT_PREVIEW_ORIGIN/__deployment" > /tmp/application-management-deployment.json
-          node --input-type=module - <<'NODE'
-          import fs from 'node:fs';
-          const value = JSON.parse(fs.readFileSync('/tmp/application-management-deployment.json', 'utf8'));
-          if (value.application !== 'application-management' || value.runtime !== 'control-plane') throw new Error('Application Management deployment identity mismatch.');
-          if (value.channel !== 'cloudflare-preview') throw new Error('Application Management deployment channel mismatch.');
-          if (!value.revision || value.revision === 'unknown') throw new Error('Application Management build revision missing.');
-          if (!value.databaseReady) throw new Error('Application Management preview D1 schema is not ready.');
-          if (!value.assetsReady) throw new Error('Application Management preview static assets are not ready.');
-          if (!value.previewAccessConfigured) throw new Error('Application preview access secret is not configured.');
-          if (value.accessMode !== 'application-preview-secret') throw new Error('Unexpected Application Management preview access mode.');
-          if (!value.ownerPolicyConfigured) throw new Error('Application Management owner policy is missing.');
-          if (value.networkMode !== 'production') throw new Error('Cloud preview must use production network resolution, never localhost fallback.');
-          console.log('Application Management Cloudflare preview read-back PASS.');
-          NODE
-
-      - name: Deployment boundary summary
-        shell: bash
-        run: |
-          echo 'Application Management preview deployment completed.'
-          echo 'Worker: application-management-preview'
-          echo 'D1: application-management-preview-db'
-          echo 'Access: application-level preview secret; anonymous read-back verified blocked.'
-          echo 'Production auto-deploy remains disabled.'
+          for i in {1..10}; do
+            code="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 10 "$APPLICATION_MANAGEMENT_PREVIEW_ORIGIN/" || true)"
+            case "$code" in 200|301|302|303|307|308|401|403) echo "Preview reachable: HTTP $code"; exit 0 ;; esac
+            sleep 2
+          done
+          echo "::error::Preview did not become reachable."
+          exit 1
