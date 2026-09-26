@@ -36,6 +36,15 @@ export const projectRepositories: readonly ProjectRepositoryConfig[] = [
     managementHref: "/",
   },
   {
+    id: "software-blueprint-hub",
+    name: "Software Blueprint Hub",
+    repository: "BlueDragon33/Software-Blueprint-Hub",
+    defaultBranch: "main",
+    group: "core",
+    state: "scaffold",
+    summary: "Blueprint OS / hệ thống chuẩn hóa thiết kế, kiến trúc, work package, kiểm thử và nghiệm thu phần mềm; hiện ở design bootstrap, chưa được phép dựng application.",
+  },
+  {
     id: "bauman-master-ai",
     name: "Bauman Master AI",
     repository: "BlueDragon33/Bauman-master-ai-system",
@@ -112,7 +121,7 @@ export const projectRepositories: readonly ProjectRepositoryConfig[] = [
     defaultBranch: "main",
     group: "control",
     state: "developing",
-    summary: "Website-app/PWA local-first quản trị modem HYBRID Wi-Fi 5G NC03; Phase 1 v0.3.0 đã qua đầy đủ release gates, có verified PWA artifact và chờ HAR thật để reverse-engineer API.",
+    summary: "Website-app/PWA local-first quản trị modem HYBRID Wi-Fi 5G NC03; v0.6.3 hoàn tất read-path HAR2, pin/kết nối/sóng live 10 giây, last-known-good, Local Bridge RFC1918 và safe Advanced snapshot. AUTH/write còn khóa vì chưa có capture xác minh.",
     managementHref: "/apps/nc03-modem",
   },
   {
