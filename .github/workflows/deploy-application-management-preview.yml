@@ -72,7 +72,7 @@ jobs:
 
       - name: Deploy preview
         if: steps.config.outputs.ready == 'true'
-        run: npx wrangler deploy --config wrangler.cloudflare.jsonc
+        run: npx wrangler deploy
 
       - name: Quick availability check
         if: steps.config.outputs.ready == 'true' && env.APPLICATION_MANAGEMENT_PREVIEW_ORIGIN != ''
