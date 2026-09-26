@@ -6,6 +6,7 @@ import { applicationRegistry, standardDeviceExperiences, type ApplicationConfig 
 import BoiAccessView from "./boi-access-view";
 import AutomaticDevicePolicies, { type AutomationSelection } from "./automatic-device-policies";
 import {
+  AdminApiError,
   centerAdminAction,
   connectAdminCenter,
   connectOperationsDashboard,
@@ -318,6 +319,12 @@ export default function ManagementDashboardV2({ user, authMode }: {
   }, []);
 
   useEffect(() => {
+    if (!notice) return;
+    const timer = window.setTimeout(() => setNotice(""), 5_500);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
+
+  useEffect(() => {
     try {
       const saved = window.localStorage.getItem(fontScaleStorageKey);
       if (saved && fontScaleOptions.some((option) => option.id === saved)) setFontScale(saved as FontScale);
@@ -425,8 +432,17 @@ export default function ManagementDashboardV2({ user, authMode }: {
         ? `Thiết bị ${device.deviceCode} không còn trong registry; danh sách đã được đồng bộ lại.`
         : operation === "approve" ? `Đã duyệt ${device.deviceCode}.` : `Đã xử lý ${device.deviceCode}.`);
     } catch (caught) {
-      setNotice(caught instanceof Error ? caught.message : "Không thể cập nhật thiết bị.");
+      const code = caught instanceof AdminApiError ? caught.data.code : undefined;
+      const growUpStale = device.appId === "growup-mychildren"
+        && (code === "DEVICE_NOT_FOUND" || code === "GROWUP_REGISTRY_INSTANCE_MISMATCH");
       await refreshOperations(true);
+      if (growUpStale) {
+        setNotice(code === "GROWUP_REGISTRY_INSTANCE_MISMATCH"
+          ? "Registry GrowUP vừa thay đổi; danh sách thiết bị đã được đồng bộ lại."
+          : `Thiết bị ${device.deviceCode} không còn trong registry GU-; dòng dữ liệu cũ đã được loại khỏi danh sách.`);
+      } else {
+        setNotice(caught instanceof Error ? caught.message : "Không thể cập nhật thiết bị.");
+      }
     } finally {
       setActionBusy("");
     }
@@ -623,7 +639,7 @@ export default function ManagementDashboardV2({ user, authMode }: {
       <div className="amv2-content">
         <header className="amv2-page-head"><div><h1>{title.title}</h1><p>{title.subtitle}</p></div>{view === "overview" ? <section className="amv2-clock"><span>▣</span><div><small>{clock ? new Intl.DateTimeFormat("vi-VN", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }).format(clock) : ""}</small><strong>{clock ? new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(clock) : ""}</strong></div><i/><div><small>Hệ thống</small><strong>{unavailableCount ? "Cần kiểm tra" : "Hoạt động ổn định"}</strong></div></section> : <button className="amv2-sync" disabled={syncing} onClick={() => void refreshOperations()}>{syncing ? "Đang đồng bộ…" : "↻ Đồng bộ"}</button>}</header>
         {syncError ? <div className="amv2-warning"><strong>Cảnh báo đồng bộ:</strong> {syncError}</div> : null}
-        {notice ? <div className="amv2-notice">{notice}</div> : null}
+        {notice ? <div className="amv2-notice" role="status" aria-live="polite"><span>{notice}</span><button type="button" aria-label="Đóng thông báo" onClick={() => setNotice("")}>×</button></div> : null}
 
         <div className="amv2-stage" data-view={view}>
           {view === "overview" ? <Overview

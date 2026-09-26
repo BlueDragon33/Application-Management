@@ -1154,7 +1154,15 @@ export async function POST(request: Request) {
 
         const before = await bridgeJson(bridge, "/api/control/devices");
         const current = rowByDeviceId(before, deviceId);
-        if (!current) return json({ error: "Thiết bị GrowUP không còn trong registry GU-.", code: "DEVICE_NOT_FOUND" }, 404);
+        if (!current) {
+          return json({
+            ok: true,
+            verified: true,
+            code: "STALE_DEVICE_REMOVED",
+            removedDeviceId: deviceId,
+            message: "Thiết bị GrowUP không còn trong registry GU-; snapshot Trung tâm cần được đồng bộ lại.",
+          });
+        }
 
         const liveStatus = normalizedStatus(current.status);
         const suppliedExpected = normalizedStatus(payload.expectedStatus);

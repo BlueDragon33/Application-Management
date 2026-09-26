@@ -54,3 +54,21 @@ test("clear-all notifications only dismisses central work items and preserves cl
   assert.match(dashboard, /Dữ liệu nghiệp vụ gốc không bị xóa/);
   assert.match(dashboard, /dữ liệu gốc được giữ nguyên/);
 });
+
+
+test("dashboard notices auto-dismiss and remain manually dismissible", () => {
+  assert.match(dashboard, /window\.setTimeout\(\(\) => setNotice\(""\), 5_500\)/);
+  assert.match(dashboard, /aria-label="Đóng thông báo"/);
+  assert.match(dashboard, /role="status"/);
+  assert.match(dashboard, /aria-live="polite"/);
+});
+
+test("GrowUP stale device errors trigger a read-only resync instead of persisting as raw errors", () => {
+  const start = dashboard.indexOf("async function manageDevice");
+  const end = dashboard.indexOf("async function bulkRemovePendingDevices", start);
+  const block = dashboard.slice(start, end);
+  assert.match(block, /GROWUP_REGISTRY_INSTANCE_MISMATCH/);
+  assert.match(block, /DEVICE_NOT_FOUND/);
+  assert.match(block, /await refreshOperations\(true\)/);
+  assert.match(block, /dòng dữ liệu cũ đã được loại khỏi danh sách/);
+});

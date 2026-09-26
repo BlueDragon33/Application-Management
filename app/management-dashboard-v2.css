@@ -241,7 +241,10 @@
   box-shadow: 0 12px 28px rgba(0,0,0,.22);
   font-size: 11px;
 }
-.amv2-notice { border: 1px solid rgba(52,213,163,.28); background: #0b4939; color: #b9f2df; }
+.amv2-notice { border: 1px solid rgba(52,213,163,.28); background: #0b4939; color: #b9f2df; display:flex; align-items:flex-start; gap:10px; }
+.amv2-notice > span { flex:1 1 auto; min-width:0; line-height:1.45; }
+.amv2-notice > button { flex:0 0 auto; border:0; background:transparent; color:inherit; font:inherit; font-size:16px; line-height:1; cursor:pointer; opacity:.78; padding:0 1px; }
+.amv2-notice > button:hover { opacity:1; }
 .amv2-warning { border: 1px solid rgba(236,151,84,.3); background: #4c3021; color: #f3d0ae; }
 
 .amv2-stage { min-height: 0; overflow: auto; scrollbar-width: thin; scrollbar-color: rgba(55,216,171,.55) transparent; }

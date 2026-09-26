@@ -134,3 +134,13 @@ test("Bauman bridge metadata no longer claims read-only once capability-gated v4
   assert.match(bridge, /mode: "capability-gated"/);
   assert.doesNotMatch(bridge, /mode: "read-only"/);
 });
+
+
+test("GrowUP missing registry rows reconcile as stale snapshots instead of user-facing 404 errors", () => {
+  const route = source("app/api/operations/route.ts");
+  const grow = actionBlock(route, "growup-mychildren", "price-report-tunggiabao");
+  assert.match(grow, /STALE_DEVICE_REMOVED/);
+  assert.match(grow, /snapshot Trung tâm cần được đồng bộ lại/);
+  assert.match(grow, /removedDeviceId: deviceId/);
+  assert.doesNotMatch(grow, /Thiết bị GrowUP không còn trong registry GU-\.", code: "DEVICE_NOT_FOUND"/);
+});
