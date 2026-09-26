@@ -111,9 +111,11 @@ function appFor(apps: readonly ApplicationConfig[], appId: string) {
 function appGlyph(appId: string) {
   if (appId === "tool-secret-generator") return "⌘";
   if (appId === "tool-managed-apps") return "⊕";
-  if (appId === "boi-ech") return "≋";
-  if (appId === "bauman-master-ai") return "◇";
   return "◆";
+}
+
+function appIconPath(appId: string) {
+  return staticApps.find((app) => app.id === appId)?.iconPath;
 }
 
 function appGroup(app: ApplicationConfig) {
@@ -737,8 +739,19 @@ function PanelTitle({ icon, title, count, onClick }: { icon: string; title: stri
   return <header className="amv2-panel-title"><div><span>{icon}</span><h2>{title}</h2>{typeof count === "number" && count > 0 ? <b>{count}</b> : null}</div>{onClick ? <button onClick={onClick}>Xem tất cả →</button> : null}</header>;
 }
 
+function AppIcon({ appId }: { appId: string }) {
+  const iconPath = appIconPath(appId);
+  return <i
+    className="amv2-app-icon"
+    data-app={appId}
+    data-image={iconPath ? "true" : "false"}
+    style={iconPath ? { backgroundImage: `url("${iconPath}")` } : undefined}
+    aria-hidden="true"
+  >{iconPath ? null : appGlyph(appId)}</i>;
+}
+
 function AppCell({ appId, name }: { appId: string; name: string }) {
-  return <div className="amv2-app-cell"><i data-app={appId}>{appGlyph(appId)}</i><strong>{name}</strong></div>;
+  return <div className="amv2-app-cell"><AppIcon appId={appId}/><strong>{name}</strong></div>;
 }
 
 function Overview({ apps, tools, summaryMap, devices, pendingDevices, approvalDevices, workItems, highAlerts, unavailableCount, environmentCount, contractPending, actionBusy, webBusy, syncing, webMenu, setWebMenu, switchView, launchWeb, manageDevice, clearNotifications, enableAutoApproval, refreshOperations, localRuntime }: {
@@ -784,7 +797,7 @@ function Overview({ apps, tools, summaryMap, devices, pendingDevices, approvalDe
 
       <section className="amv2-panel amv2-alert-panel"><PanelTitle icon="♧" title="Cảnh báo nhanh" onClick={() => switchView("alerts")}/><div className="amv2-alert-grid"><button onClick={() => switchView("devices")} data-tone="gold"><small>Thiết bị mới</small><strong>{pendingDevices.length}</strong></button><button onClick={() => switchView("alerts")} data-tone="red"><small>App mất kết nối</small><strong>{unavailableCount}</strong></button><button onClick={() => switchView("alerts")} data-tone="olive"><small>Môi trường thay đổi</small><strong>{environmentCount}</strong></button><button onClick={() => switchView("applications")} data-tone="blue"><small>Kết nối chờ hoàn tất</small><strong>{contractPending}</strong></button></div></section>
 
-      <section className="amv2-panel amv2-quick-panel"><header><h2>⚡ Thao tác nhanh</h2></header><div className="amv2-quick-grid"><button onClick={() => switchView("applications")}>◇<span>Quản trị ứng dụng</span></button><button data-active={webMenu} onClick={() => setWebMenu((current) => !current)}>◎<span>Truy cập web</span></button><button onClick={() => switchView("devices")}>▣<span>Duyệt thiết bị</span></button><button onClick={() => switchView("approvals")}>⬡<span>Yêu cầu chờ duyệt</span></button><button data-danger="true" disabled={Boolean(actionBusy)} onClick={() => void clearNotifications()}>⌫<span>{actionBusy === "clear" ? "Đang xóa…" : "Xóa hết thông báo"}</span></button><button disabled={Boolean(actionBusy)} onClick={() => void enableAutoApproval()}>⚙<span>{actionBusy === "auto" ? "Đang lưu…" : "Duyệt tự động"}</span></button><button disabled={syncing} onClick={() => void refreshOperations()}>↻<span>{syncing ? "Đang đồng bộ…" : "Đồng bộ dữ liệu"}</span></button><button onClick={() => switchView("settings")}>▦<span>Giao diện</span></button><button onClick={() => switchView("audit")}>▤<span>Xem nhật ký</span></button></div>{webMenu ? <div className="amv2-web-menu">{apps.map((app) => { const summary = summaryMap.get(app.id); const hasWeb = Boolean(summary?.webHref || app.publicUrl || (localRuntime && app.localUrl)); return <button key={app.id} disabled={!hasWeb || webBusy === app.id} onClick={() => void launchWeb(app.id)}><span>{app.shortName}</span><b>{webBusy === app.id ? "Đang mở…" : hasWeb ? "Mở ↗" : webActionLabel(summary, false)}</b></button>; })}</div> : null}</section>
+      <section className="amv2-panel amv2-quick-panel"><header><h2>⚡ Thao tác nhanh</h2></header><div className="amv2-quick-grid"><button onClick={() => switchView("applications")}>◇<span>Quản trị ứng dụng</span></button><button data-active={webMenu} onClick={() => setWebMenu((current) => !current)}>◎<span>Truy cập web</span></button><button onClick={() => switchView("devices")}>▣<span>Duyệt thiết bị</span></button><button onClick={() => switchView("approvals")}>⬡<span>Yêu cầu chờ duyệt</span></button><button data-danger="true" disabled={Boolean(actionBusy)} onClick={() => void clearNotifications()}>⌫<span>{actionBusy === "clear" ? "Đang xóa…" : "Xóa hết thông báo"}</span></button><button disabled={Boolean(actionBusy)} onClick={() => void enableAutoApproval()}>⚙<span>{actionBusy === "auto" ? "Đang lưu…" : "Duyệt tự động"}</span></button><button disabled={syncing} onClick={() => void refreshOperations()}>↻<span>{syncing ? "Đang đồng bộ…" : "Đồng bộ dữ liệu"}</span></button><button onClick={() => switchView("settings")}>▦<span>Giao diện</span></button><button onClick={() => switchView("audit")}>▤<span>Xem nhật ký</span></button></div>{webMenu ? <div className="amv2-web-menu">{apps.map((app) => { const summary = summaryMap.get(app.id); const hasWeb = Boolean(summary?.webHref || app.publicUrl || (localRuntime && app.localUrl)); return <button key={app.id} disabled={!hasWeb || webBusy === app.id} onClick={() => void launchWeb(app.id)}><span className="amv2-web-menu-app"><AppIcon appId={app.id}/><span>{app.shortName}</span></span><b>{webBusy === app.id ? "Đang mở…" : hasWeb ? "Mở ↗" : webActionLabel(summary, false)}</b></button>; })}</div> : null}</section>
 
       <section className="amv2-panel amv2-apps-panel"><PanelTitle icon="◇" title="Ứng dụng đang quản lý" onClick={() => switchView("applications")}/><div className="amv2-app-table"><div className="amv2-app-head"><span>Ứng dụng</span><span>Nhóm nghiệp vụ</span><span>Việc chờ xử lý</span><span>Thiết bị online</span><span>Trạng thái</span><span>Website</span><span>Quản Trị</span></div>{tools.map((tool) => <ToolRow key={tool.id} tool={tool}/>)}{apps.map((app) => { const summary = summaryMap.get(app.id); const counts = operationalCounts(app.id, summary, devices); const hasWeb = Boolean(summary?.webHref || app.publicUrl || (localRuntime && app.localUrl)); return <div className="amv2-app-row" key={app.id}><AppCell appId={app.id} name={app.shortName}/><span>{appGroup(app)}</span><strong title={counts.pending === null ? "Client chưa cung cấp dữ liệu thiết bị." : undefined}>{countText(counts.pending)}</strong><strong title={counts.online === null ? "Client chưa cung cấp dữ liệu online." : undefined}>{countText(counts.online)}</strong><StatusCell app={app} summary={summary}/><button className="amv2-web-action" disabled={!hasWeb || webBusy === app.id} onClick={() => void launchWeb(app.id)}>{webActionLabel(summary, hasWeb, webBusy === app.id)}</button><Link className="amv2-manage-action" href={app.href}>Quản trị</Link></div>; })}{!apps.length && !tools.length ? <div className="amv2-empty compact"><strong>Không tìm thấy ứng dụng hoặc Tool phù hợp.</strong></div> : null}</div></section>
 
