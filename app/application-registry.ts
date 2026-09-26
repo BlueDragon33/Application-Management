@@ -69,7 +69,7 @@ const baumanChildren: readonly SubClientConfig[] = [
 export const applicationRegistry: readonly ApplicationConfig[] = [
   {
     id: "boi-ech", name: "Bơi ếch AI", shortName: "Bơi ếch", href: "/apps/boi-ech", publicUrl: "https://boi-ech.boiech-ai.workers.dev/", initials: "BE", iconPath: "/app-icons/boi-ech.svg", category: "Học tập", tier: "client", status: "online", contractState: "connected", repository: "BlueDragon33/BOIECH_AI",
-    scope: "Client học Bơi ếch độc lập; Trung tâm quản trị qua bridge ký số và không chạy nội dung học tập.",
+    scope: "Web-app Bơi ếch độc lập, local-first; mở trực tiếp khi phát triển. Bridge/quyền online chỉ dùng khi cần thao tác quản trị từ xa.",
     contractNote: "Admin bridge đang hoạt động. Khu quản trị Bơi ếch đã tách vật lý khỏi control-plane và chỉ còn nghiệp vụ của chính client.",
     devicePolicy: "Registry BE riêng · tự nhận diện desktop/phone/tablet-iPad · quyền truy cập và quyền sửa tách biệt.",
     deviceExperiences: standardDeviceExperiences,
@@ -78,7 +78,7 @@ export const applicationRegistry: readonly ApplicationConfig[] = [
   },
   {
     id: "health-care", name: "Sức khỏe Y tế", shortName: "Sức khỏe Y tế", href: "/apps/health-care", initials: "YT", iconPath: "/app-icons/health-care.svg", category: "Y tế", tier: "client", status: "warning", contractState: "migrating", repository: "BlueDragon33/Health_Care",
-    scope: "Client sức khỏe độc lập; runtime, Device Gate, dữ liệu và Control API nằm trong Health_Care.",
+    scope: "Web-app Sức khỏe độc lập, local-first. Giao diện phải mở không phụ thuộc App Manager; Device Gate/Control API chỉ phục vụ quyền và đồng bộ online khi được bật.",
     contractNote: "Adapter quản trị thật đã được nối và CI đã xanh: thiết bị, policy, session, duyệt nội dung và audit đều gọi Control API riêng của Health_Care. Chưa chuyển sang connected cho tới khi xác minh secret/origin/deployment production.",
     devicePolicy: "Registry Health_Care riêng · tự phân loại máy tính, điện thoại, tablet/iPad · không lưu hồ sơ sức khỏe cá nhân tại Trung tâm.",
     deviceExperiences: standardDeviceExperiences,
@@ -87,7 +87,7 @@ export const applicationRegistry: readonly ApplicationConfig[] = [
   },
   {
     id: "ru-life", name: "Hòa nhập Nga", shortName: "Hòa nhập Nga", href: "/apps/ru-life", publicUrl: "https://hoa-nhap-nga.dinhnam3391.chatgpt.site", initials: "RU", iconPath: "/app-icons/ru-life.svg", category: "Nga", tier: "client", status: "warning", contractState: "migrating", repository: "BlueDragon33/RU_LIFE",
-    scope: "Client Hòa nhập Nga độc lập; RU_LIFE sở hữu D1, registry HN, challenge P-256, session ledger và audit; không có đăng nhập trực tiếp.",
+    scope: "Web-app Hòa nhập Nga độc lập, local-first. Standalone Development không phụ thuộc App Manager; D1/registry HN/challenge/session chỉ là lớp online tùy chọn và được bật lại khi release.",
     contractNote: "Application Management phát vé quản trị opaque 5 phút; RU_LIFE introspect ngược vé với Trung tâm rồi tự xử lý Control API trên D1/registry/session của chính RU_LIFE. Giữ migrating cho tới khi hai Site production được publish và handshake live được xác minh.",
     devicePolicy: "Registry HN thuộc RU_LIFE · server RU_LIFE tự phân loại computer/phone/tablet-iPad · Application Management chỉ gắn người dùng/cấp policy qua Control API · access/edit tách biệt.",
     deviceExperiences: standardDeviceExperiences,
@@ -95,10 +95,10 @@ export const applicationRegistry: readonly ApplicationConfig[] = [
     guardrails: ["Không lưu registry/session HN trong DB Trung tâm", "Không dùng QT/BE/SK làm namespace HN", "Không có đăng nhập trực tiếp trên RU_LIFE", "Thiết bị QT không tự kế thừa quyền HN"],
   },
   {
-    id: "bauman-master-ai", name: "Bauman Master AI", shortName: "Bauman Hub", href: "/apps/bauman-master-ai", initials: "BM", iconPath: "/app-icons/bauman-master-ai.svg", category: "Học thuật", tier: "client", status: "warning", contractState: "migrating", repository: "BlueDragon33/Bauman-master-ai-system",
-    scope: "Client lớn cấp 1 đóng vai trò Bauman Hub; Bauman sở hữu runtime học, Device Gate, registry BM-, session, audit và Control Service riêng; các site/môn cấp 2 vẫn nằm dưới Hub.",
+    id: "bauman-master-ai", name: "Bauman Master AI", shortName: "Bauman Hub", href: "/apps/bauman-master-ai", publicUrl: "https://bauman-master-ai.boiech-ai.workers.dev/", initials: "BM", iconPath: "/app-icons/bauman-master-ai.svg", category: "Học thuật", tier: "client", status: "warning", contractState: "migrating", repository: "BlueDragon33/Bauman-master-ai-system",
+    scope: "Web-app Bauman độc lập, local-first. Trong Standalone Development Mode mở thẳng runtime học; Device Gate/registry BM-/Control Service chỉ bật khi cần quyền online hoặc khi chuyển Release Mode.",
     contractNote: "Bauman Control, registry BM-, P-256 Device Gate, session/revoke, audit và idempotent device commands đã được triển khai và đã qua local E2E. Khu quản trị thiết bị thật đã nối vào Application Management; giữ trạng thái migrating cho tới khi origin runtime + Control Service production được deploy và handshake live được xác minh.",
-    devicePolicy: "Registry BM- thuộc Bauman · Device Gate P-256 bắt buộc trên runtime · quyền truy cập, session và audit không được lưu trong DB Trung tâm.",
+    devicePolicy: "Standalone Development: không bắt duyệt thiết bị để mở app. Managed/Release Mode mới bật lại registry BM-, P-256, session và audit.",
     deviceExperiences: standardDeviceExperiences, childClients: baumanChildren,
     capabilities: ["Lộ trình & môn học", "Sub-client môn học", "Thiết bị BM-", "Duyệt/khóa truy cập", "P-256 Device Gate", "Session & thu hồi", "Audit Bauman", "Theo dõi trạng thái"],
     guardrails: ["Nút Website phải mở runtime học Bauman, không mở Control Service", "Không dùng hàng đợi Bơi ếch", "Sub-client thuộc Bauman không tự trở thành client cấp 1", "Không đánh dấu production connected chỉ vì CI xanh"],
