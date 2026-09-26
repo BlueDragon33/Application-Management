@@ -22,7 +22,8 @@ const checks = [
   ["GrowUP Control", "http://127.0.0.1:3007/health"],
   ["PriceReport Runtime", "http://127.0.0.1:3008/management-contract.json"],
   ["PriceReport Control", "http://127.0.0.1:3009/health"],
-  ["NC03 Control Center", "http://127.0.0.1:3010/"],
+  ["NC03 Health", "http://127.0.0.1:3010/_local/health"],
+  ["NC03 Contract", "http://127.0.0.1:3010/api/application-management/contract"],
   ["Application Management", `${centralOrigin}/`],
 ];
 
@@ -33,6 +34,7 @@ const expectedManagedApps = [
   "bauman-master-ai",
   "growup-mychildren",
   "price-report-tunggiabao",
+  "nc03-modem",
 ];
 
 const forbiddenRenderedLabels = [
@@ -151,10 +153,14 @@ async function assertAuthenticatedOperations(cancelSignal) {
     }
   }
   if (failed.length) {
-    throw new Error(`Operations bridge chưa kết nối đủ 6 ứng dụng: ${failed.join(" | ")}`);
+    throw new Error(`Operations bridge chưa kết nối đủ 7 ứng dụng: ${failed.join(" | ")}`);
   }
 
-  console.log(`[offline-smoke] PASS Authenticated operations bridge · ${expectedManagedApps.length}/6 ứng dụng connected`);
+  const nc03 = summaryById.get("nc03-modem");
+  if (!nc03 || nc03.contractConnected !== true || nc03.managementMode !== "local-first" || nc03.remoteAdminReady !== false) {
+    throw new Error("NC03 phải contract-connected/local-first và không được bật remote modem admin.");
+  }
+  console.log(`[offline-smoke] PASS Authenticated operations bridge · ${expectedManagedApps.length}/7 ứng dụng connected · NC03 contract live/local-first`);
 
   const boiAccess = await requestJson(
     "/api/apps/boi-ech/access",
@@ -178,7 +184,7 @@ function stop(child) {
 }
 
 async function main() {
-  console.log("[offline-smoke] Khởi động full local stack gồm 6 client quản trị + NC03 local runtime qua run:all. Không deploy, không dùng production D1.");
+  console.log("[offline-smoke] Khởi động full local stack gồm 7 ứng dụng quản lý, bao gồm NC03 local runtime qua run:all. Không deploy, không dùng production D1.");
   console.log("[offline-smoke] Dependency bootstrap được giao cho run-all/run-local-system để kiểm thử đúng đường chạy người dùng.");
   const child = spawn(process.execPath, [launcherPath, "--local", "--no-browser", ...forwarded], {
     cwd: root,
@@ -210,7 +216,7 @@ async function main() {
       })(),
       earlyExit,
     ]);
-    console.log("\n[offline-smoke] PASS · Full local stack, authenticated operations bridge + NC03 runtime hoạt động trên 127.0.0.1:3000–3010, không publish.");
+    console.log("\n[offline-smoke] PASS · Full local stack, authenticated operations bridge + NC03 runtime/contract hoạt động trên 127.0.0.1:3000–3010, không publish.");
   } finally {
     cancel.abort();
     stop(child);

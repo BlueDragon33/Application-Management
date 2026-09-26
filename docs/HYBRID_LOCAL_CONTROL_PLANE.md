@@ -59,6 +59,7 @@ Không dùng git submodule. Mỗi repo giữ lịch sử, branch, CI và release
 | Bauman Control Service | 3003 | `http://127.0.0.1:3003` |
 | Bơi ếch | 3004 | `http://127.0.0.1:3004` |
 | Bauman Learning Runtime | 3005 | `http://127.0.0.1:3005` |
+| NC03 Control Center | 3010 | `http://127.0.0.1:3010` |
 
 Bauman có **hai origin khác nhau**. `:3003` là backend quản trị/API, còn `:3005` là website học tập. Nút `Truy cập web` của Application Management chỉ được trỏ tới runtime `:3005`, không được mở Control Service `:3003`.
 
@@ -74,6 +75,7 @@ RU_LIFE_LOCAL_BASE_URL=http://127.0.0.1:3002
 BAUMAN_CONTROL_LOCAL_BASE_URL=http://127.0.0.1:3003
 BOI_ECH_LOCAL_BASE_URL=http://127.0.0.1:3004
 BAUMAN_APP_LOCAL_ORIGIN=http://127.0.0.1:3005
+NC03_LOCAL_BASE_URL=http://127.0.0.1:3010
 ```
 
 Production tương ứng dùng HTTPS. Riêng Bauman phải cấu hình hai giá trị độc lập:
@@ -151,3 +153,15 @@ LAN mode chưa được bật trong launcher. Khi triển khai LAN phải có au
 ## Gate trước khi merge/release
 
 Mỗi client phải pass CI riêng. Sau đó Application Management phải pass build + toàn bộ contract/regression tests. Bauman Control v4 và Device Gate đã được triển khai và local E2E đã kiểm chứng; tuy nhiên `contractState` vẫn phải giữ `migrating` cho tới khi **cả** Control Service production và Learning Runtime production được deploy, cấu hình đúng origin/secret và handshake live được xác minh.
+
+
+## NC03 local-first contract
+
+NC03 Control Center tham gia control-plane theo mức **runtime + contract observe**:
+
+- runtime local: `http://127.0.0.1:3010`;
+- health: `/_local/health`;
+- Universal Contract: `/api/application-management/contract`;
+- status: `/api/control/status`.
+
+Application Management được phép xác minh runtime/contract và mở website NC03. Mật khẩu, session và lệnh tới modem `192.168.0.1` không đi qua control-plane. Vì vậy NC03 có thể hiển thị **Runtime Live / Contract Đã bắt tay / Quản trị Không yêu cầu** trong local mode mà không giả remote modem administration.

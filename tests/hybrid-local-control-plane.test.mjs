@@ -33,6 +33,7 @@ test("network registry is the single transport catalog for managed client bridge
     '"bauman-master-ai"',
     '"bauman-runtime"',
     '"price-report-control"',
+    '"nc03-runtime"',
   ]) {
     assert.ok(registry.includes(token), `missing network registry client: ${token}`);
   }
@@ -51,6 +52,7 @@ test("local port convention keeps Bauman control and learning runtime physically
   assert.match(registry, /bauman-runtime[\s\S]*BAUMAN_APP_ORIGIN[\s\S]*BAUMAN_APP_LOCAL_ORIGIN[\s\S]*127\.0\.0\.1:3005/);
   assert.match(registry, /boi-ech[\s\S]*127\.0\.0\.1:3004/);
   assert.match(registry, /price-report-control[\s\S]*127\.0\.0\.1:3009/);
+  assert.match(registry, /nc03-runtime[\s\S]*NC03_LOCAL_BASE_URL[\s\S]*127\.0\.0\.1:3010[\s\S]*_local\/health/);
   assert.match(registry, /bauman-master-ai[\s\S]*pairedWith: "bauman-runtime"/);
   assert.match(registry, /bauman-runtime[\s\S]*pairedWith: "bauman-master-ai"/);
   assert.match(launcher, /baumanRuntimeOrigin = "http:\/\/127\.0\.0\.1:3005"/);
@@ -87,7 +89,7 @@ test("full local launcher keeps repos independent and local databases isolated",
   for (const token of ["Health_Care", "RU_LIFE", "Bauman-master-ai-system", "BOIECH_AI", "Application Management"]) {
     assert.ok(launcher.includes(token), `missing launcher repo token: ${token}`);
   }
-  for (const port of [3000, 3001, 3002, 3003, 3004, 3005]) {
+  for (const port of [3000, 3001, 3002, 3003, 3004, 3005, 3010]) {
     assert.ok(launcher.includes(String(port)), `missing local port ${port}`);
   }
   assert.match(launcher, /randomBytes\(48\)\.toString\("base64url"\)/);

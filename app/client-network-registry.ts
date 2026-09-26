@@ -4,7 +4,8 @@ export type ManagedClientId =
   | "boi-ech"
   | "bauman-master-ai"
   | "bauman-runtime"
-  | "price-report-control";
+  | "price-report-control"
+  | "nc03-runtime";
 
 export type ClientNetworkEndpointKind = "control" | "runtime";
 
@@ -15,7 +16,8 @@ export type ClientNetworkSpec = {
     | "ru-life"
     | "boi-ech"
     | "bauman-master-ai"
-    | "price-report-tunggiabao";
+    | "price-report-tunggiabao"
+    | "nc03-modem";
   label: string;
   endpointKind: ClientNetworkEndpointKind;
   productionEnv: string;
@@ -98,6 +100,16 @@ export const clientNetworkRegistry = {
     probePath: "/api/control/runtime",
     bridgeSecretEnv: "CONTROL_SERVICE_SECRET",
     localBridgeSecretEnv: "CONTROL_SERVICE_LOCAL_SECRET",
+  },
+  "nc03-runtime": {
+    id: "nc03-runtime",
+    applicationId: "nc03-modem",
+    label: "NC03 Control Center Runtime",
+    endpointKind: "runtime",
+    productionEnv: "NC03_APP_ORIGIN",
+    localEnv: "NC03_LOCAL_BASE_URL",
+    localDefault: "http://127.0.0.1:3010",
+    probePath: "/_local/health",
   },
   "price-report-control": {
     id: "price-report-control",

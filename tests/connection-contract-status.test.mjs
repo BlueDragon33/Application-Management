@@ -112,3 +112,20 @@ test("unknown device metrics remain unknown instead of being rendered as zero", 
   assert.doesNotMatch(dashboard, /summary\?\.onlineCount \?\? 0/);
   assert.doesNotMatch(dashboard, /summary\?\.pendingCount \?\?/);
 });
+
+
+test("NC03 live local contract is distinct from repository-only metadata", () => {
+  assert.match(operations, /async function loadNc03Runtime/);
+  assert.match(operations, /contractConnected: true/);
+  assert.match(operations, /controlChannel: "contract-observe"/);
+  assert.match(operations, /contractReadiness: "ready"/);
+  assert.match(operations, /managementMode: "local-first"/);
+});
+
+
+test("live local-first NC03 prioritizes real contract handshake over repository metadata", () => {
+  assert.match(dashboard, /managementMode === "local-first" && summary\.contractConnected === true\) return "Local-first · contract live"/);
+  assert.match(dashboard, /const contract = summary\?\.contractConnected === true/);
+  assert.match(dashboard, /\? \{ label: "Đã bắt tay", tone: "good" as const \}/);
+  assert.match(dashboard, /\(summary\?\.contractConnected === true \|\| summary\?\.metadataVerified\)/);
+});

@@ -244,12 +244,18 @@ async function main() {
     args: ["vite", "--host", "127.0.0.1", "--port", String(PRICE_PORT)],
     cwd: priceRoot,
   });
+  const nc03Runtime = spawnService({
+    name: "NC03",
+    command: process.execPath,
+    args: ["scripts/serve-local.mjs"],
+    cwd: nc03Root,
+    env: { NC03_HOST: "127.0.0.1", NC03_PORT: String(NC03_PORT) },
+  });
 
   let core = null;
   let growUpServer = null;
-  let nc03Server = null;
   let closing = false;
-  const children = [growUpControl, priceControl, priceRuntime];
+  const children = [growUpControl, priceControl, priceRuntime, nc03Runtime];
 
   const close = (signal = "SIGTERM") => {
     if (closing) return;
@@ -257,7 +263,6 @@ async function main() {
     kill(core, signal);
     for (const child of [...children].reverse()) kill(child, signal);
     growUpServer?.close(() => {});
-    nc03Server?.close(() => {});
   };
   process.on("SIGINT", () => close("SIGINT"));
   process.on("SIGTERM", () => close("SIGTERM"));
@@ -266,6 +271,7 @@ async function main() {
     [growUpControl, "GrowUP Control"],
     [priceControl, "PriceReport Control"],
     [priceRuntime, "PriceReport Runtime"],
+    [nc03Runtime, "NC03 Control Center"],
   ]);
   for (const child of children) {
     child.on("exit", (code, signal) => {
@@ -290,9 +296,9 @@ async function main() {
     await verifyPriceContract();
     console.log(`[RUN-ALL] PriceReport Runtime sẵn sàng · ${PRICE_ORIGIN}`);
 
-    nc03Server = await startStaticServer(join(nc03Root, "dist"), NC03_PORT);
-    await waitFor(NC03_ORIGIN);
-    console.log(`[RUN-ALL] NC03 Control Center sẵn sàng · ${NC03_ORIGIN}`);
+    await waitFor(`${NC03_ORIGIN}/_local/health`);
+    await waitFor(`${NC03_ORIGIN}/api/application-management/contract`);
+    console.log(`[RUN-ALL] NC03 Control Center + management contract sẵn sàng · ${NC03_ORIGIN}`);
 
     core = spawn(process.execPath, [join(scriptDir, "run-local-system.mjs"), ...forwarded], {
       cwd: centralRoot,
@@ -320,11 +326,9 @@ async function main() {
       closing = true;
       for (const child of [...children].reverse()) kill(child);
       growUpServer?.close(() => {});
-      nc03Server?.close(() => {
-        if (signal) console.log(`[RUN-ALL] Control plane lõi dừng bởi ${signal}.`);
-        const pendingExitCode = typeof process.exitCode === "number" ? process.exitCode : 0;
-        process.exit(pendingExitCode !== 0 ? pendingExitCode : (code ?? 0));
-      });
+      if (signal) console.log(`[RUN-ALL] Control plane lõi dừng bởi ${signal}.`);
+      const pendingExitCode = typeof process.exitCode === "number" ? process.exitCode : 0;
+      process.exit(pendingExitCode !== 0 ? pendingExitCode : (code ?? 0));
     });
 
     await waitFor(CENTRAL_ORIGIN, 120_000);

@@ -125,6 +125,7 @@ function connectionFor(app: ApplicationConfig, summary?: OperationsSummary): Ope
 }
 
 function connectionLabel(value: OperationsSummary["connection"], summary?: OperationsSummary) {
+  if (summary?.managementMode === "local-first" && summary.contractConnected === true) return "Local-first · contract live";
   if (summary?.managementMode === "local-first" && summary.metadataVerified) return "Local-first · metadata đã xác minh";
   if (summary?.managementMode === "metadata-only" && summary.metadataVerified) return "Metadata đã xác minh · chưa có runtime";
   const issueCode = summary?.issueCode;
@@ -157,7 +158,7 @@ function webActionLabel(summary: OperationsSummary | undefined, hasWeb: boolean,
 }
 
 function intentionalNonRemoteMode(summary?: OperationsSummary) {
-  return Boolean(summary?.metadataVerified && (summary.managementMode === "local-first" || summary.managementMode === "metadata-only"));
+  return Boolean((summary?.contractConnected === true || summary?.metadataVerified) && (summary.managementMode === "local-first" || summary.managementMode === "metadata-only"));
 }
 
 function statusAxes(app: ApplicationConfig, summary?: OperationsSummary) {
@@ -179,10 +180,10 @@ function statusAxes(app: ApplicationConfig, summary?: OperationsSummary) {
             ? { label: "Có cảnh báo", tone: "warn" as const }
             : { label: "Chưa live", tone: "idle" as const };
 
-  const contract = summary?.metadataVerified
-    ? { label: "Metadata ✓", tone: "good" as const }
-    : summary?.contractConnected === true
-      ? { label: "Đã bắt tay", tone: "good" as const }
+  const contract = summary?.contractConnected === true
+    ? { label: "Đã bắt tay", tone: "good" as const }
+    : summary?.metadataVerified
+      ? { label: "Metadata ✓", tone: "good" as const }
       : summary?.contractReadiness === "partial"
         ? { label: "Đang hoàn tất", tone: "warn" as const }
         : summary?.contractReadiness === "not-enrolled"

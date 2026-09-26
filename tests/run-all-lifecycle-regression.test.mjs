@@ -35,9 +35,13 @@ test("run:all preserves a prior failure exit code when core shutdown follows", (
 });
 
 
-test("run:all starts and closes the NC03 static runtime with the rest of the stack", () => {
+test("run:all starts NC03 through its live local server and probes the management contract", () => {
   assert.match(source, /const NC03_PORT = 3010;/);
-  assert.match(source, /nc03Server = await startStaticServer\(join\(nc03Root, "dist"\), NC03_PORT\);/);
-  assert.match(source, /nc03Server\?\.close/);
-  assert.match(source, /NC03 Control Center : http:\/\/127\.0\.0\.1:3010/);
+  assert.match(source, /name: "NC03"/);
+  assert.match(source, /args: \["scripts\/serve-local\.mjs"\]/);
+  assert.match(source, /NC03_PORT: String\(NC03_PORT\)/);
+  assert.match(source, /\$\{NC03_ORIGIN\}\/\_local\/health/);
+  assert.match(source, /\$\{NC03_ORIGIN\}\/api\/application-management\/contract/);
+  assert.match(source, /\[nc03Runtime, "NC03 Control Center"\]/);
+  assert.doesNotMatch(source, /nc03Server = await startStaticServer/);
 });

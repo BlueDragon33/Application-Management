@@ -29,7 +29,7 @@ test("dashboard v2 renders the static registry plus D1 catalog instead of a seco
 
 test("server bootstrap connects every registered client and keeps GrowUP admin local-contract backed", () => {
   const operations = read("app/api/operations/route.ts");
-  for (const loader of ["loadBoi(actor)", "loadHealth(actor)", "loadRu(actor)", "loadBauman(actor)", "loadPriceReport(actor)", "loadGrowUp(actor)"]) {
+  for (const loader of ["loadBoi(actor)", "loadHealth(actor)", "loadRu(actor)", "loadBauman(actor)", "loadPriceReport(actor)", "loadGrowUp(actor)", "loadNc03Runtime()"]) {
     assert.ok(operations.includes(loader), `missing operations loader: ${loader}`);
   }
   assert.match(operations, /probeGrowUpManagementContract/);
@@ -89,4 +89,30 @@ test("NC03 is reachable from Application Management through the authenticated lo
   assert.match(launcher, /"nc03-modem": \{ label: "NC03 Control Center", url: "http:\/\/127\.0\.0\.1:3010\/" \}/);
   assert.match(dashboard, /localRuntime && app\.localUrl/);
   assert.match(workspace, /Mở Website ↗/);
+});
+
+
+test("NC03 local runtime is contract-connected without proxying modem credentials", () => {
+  const operations = read("app/api/operations/route.ts");
+  const network = read("app/client-network-registry.ts");
+  assert.match(network, /"nc03-runtime"/);
+  assert.match(network, /applicationId: "nc03-modem"/);
+  assert.match(operations, /resolveClientOrigin\("nc03-runtime"\)/);
+  assert.match(operations, /\/api\/application-management\/contract/);
+  assert.match(operations, /policy\.modemSecretsInControlPlane !== false/);
+  assert.match(operations, /policy\.modemCommandsFromCloud !== false/);
+  assert.match(operations, /managementMode: "local-first"/);
+  assert.match(operations, /remoteAdminReady: false/);
+});
+
+
+test("offline smoke requires NC03 to be an authenticated Operations connection, not only a reachable website", () => {
+  const smoke = read("scripts/local-offline-smoke.mjs");
+  assert.match(smoke, /"nc03-modem"/);
+  assert.match(smoke, /3010\/_local\/health/);
+  assert.match(smoke, /3010\/api\/application-management\/contract/);
+  assert.match(smoke, /nc03\.contractConnected !== true/);
+  assert.match(smoke, /nc03\.managementMode !== "local-first"/);
+  assert.match(smoke, /nc03\.remoteAdminReady !== false/);
+  assert.match(smoke, /7 ứng dụng connected/);
 });
