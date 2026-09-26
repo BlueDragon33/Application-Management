@@ -161,3 +161,13 @@ test("NC03 startup gate verifies runtime identity and exact sibling source versi
   assert.match(launcher, /WRONG_RUNTIME_IDENTITY/);
   assert.match(launcher, /waitForNc03Runtime\("NC03 Control Center"/);
 });
+
+
+test("NC03 startup gate verifies AUTH Source Probe compatibility before opening the manager", () => {
+  assert.match(launcher, /async function verifyNc03ProbeCompatibility/);
+  assert.match(launcher, /\/api\/nc03\/auth-source-probe/);
+  assert.match(launcher, /method: "GET"/);
+  assert.match(launcher, /payload\?\.payload\?\.diagnostics/);
+  assert.match(launcher, /Hãy cập nhật repo NC03_Modem/);
+  assert.match(launcher, /await verifyNc03ProbeCompatibility\(nc03Origin\)/);
+});

@@ -94,6 +94,15 @@ test("NC03 is reachable from Application Management through the authenticated lo
 });
 
 
+test("run-all blocks stale NC03 runtimes that still reject legacy AUTH probe GET", () => {
+  const runAll = read("scripts/run-all.mjs");
+  assert.match(runAll, /async function verifyNc03ProbeCompatibility/);
+  assert.match(runAll, /method: "GET"/);
+  assert.match(runAll, /\/api\/nc03\/auth-source-probe/);
+  assert.match(runAll, /Hãy git pull repo NC03_Modem rồi chạy lại/);
+  assert.match(runAll, /await verifyNc03ProbeCompatibility\(\)/);
+});
+
 test("NC03 local runtime is contract-connected without proxying modem credentials", () => {
   const operations = read("app/api/operations/route.ts");
   const network = read("app/client-network-registry.ts");

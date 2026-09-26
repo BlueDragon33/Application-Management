@@ -178,6 +178,23 @@ async function verifyPriceContract() {
   }
 }
 
+async function verifyNc03ProbeCompatibility() {
+  const url = new URL("/api/nc03/auth-source-probe", NC03_ORIGIN);
+  url.searchParams.set("baseUrl", "http://192.168.0.1");
+  const response = await fetch(url, {
+    method: "GET",
+    cache: "no-store",
+    redirect: "manual",
+    signal: AbortSignal.timeout(8000),
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok || payload?.ok !== true || !payload?.payload?.diagnostics) {
+    throw new Error(
+      `NC03 AUTH Source Probe compatibility gate thất bại · HTTP ${response.status} · ${payload?.code ?? "INVALID_RESPONSE"}. `
+      + "Hãy git pull repo NC03_Modem rồi chạy lại.",
+    );
+  }
+}
 function kill(child, signal = "SIGTERM") {
   if (!child || child.killed) return;
   if (isWindows && child.pid) {
@@ -298,7 +315,8 @@ async function main() {
 
     await waitFor(`${NC03_ORIGIN}/_local/health`);
     await waitFor(`${NC03_ORIGIN}/api/application-management/contract`);
-    console.log(`[RUN-ALL] NC03 Control Center + management contract sẵn sàng · ${NC03_ORIGIN}`);
+    await verifyNc03ProbeCompatibility();
+    console.log(`[RUN-ALL] NC03 Control Center + management contract + AUTH probe compatibility sẵn sàng · ${NC03_ORIGIN}`);
 
     core = spawn(process.execPath, [join(scriptDir, "run-local-system.mjs"), ...forwarded], {
       cwd: centralRoot,
