@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "Application Management", statusBarStyle: "default" },
   other: { "codex-preview": "development" },
-  icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
+  icons: { icon: "/favicon.svg?v=site-id-1", shortcut: "/favicon.svg?v=site-id-1" },
 };
 
 export const viewport = { themeColor: "#173b33" };
