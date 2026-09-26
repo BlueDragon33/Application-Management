@@ -104,3 +104,15 @@ test("NC03 local runtime is contract-connected without proxying modem credential
   assert.match(operations, /managementMode: "local-first"/);
   assert.match(operations, /remoteAdminReady: false/);
 });
+
+
+test("offline smoke requires NC03 to be an authenticated Operations connection, not only a reachable website", () => {
+  const smoke = read("scripts/local-offline-smoke.mjs");
+  assert.match(smoke, /"nc03-modem"/);
+  assert.match(smoke, /3010\/_local\/health/);
+  assert.match(smoke, /3010\/api\/application-management\/contract/);
+  assert.match(smoke, /nc03\.contractConnected !== true/);
+  assert.match(smoke, /nc03\.managementMode !== "local-first"/);
+  assert.match(smoke, /nc03\.remoteAdminReady !== false/);
+  assert.match(smoke, /7 ứng dụng connected/);
+});
