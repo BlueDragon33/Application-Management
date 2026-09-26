@@ -58,7 +58,8 @@ Không dùng git submodule. Mỗi repo giữ lịch sử, branch, CI và release
 | Hòa nhập Nga | 3002 | `http://127.0.0.1:3002` |
 | Bauman Control Service | 3003 | `http://127.0.0.1:3003` |
 | Bơi ếch | 3004 | `http://127.0.0.1:3004` |
-| Bauman Learning Runtime | 3005 | `http://127.0.0.1:3005` |\n| NC03 Control Center | 3010 | `http://127.0.0.1:3010` |
+| Bauman Learning Runtime | 3005 | `http://127.0.0.1:3005` |
+| NC03 Control Center | 3010 | `http://127.0.0.1:3010` |
 
 Bauman có **hai origin khác nhau**. `:3003` là backend quản trị/API, còn `:3005` là website học tập. Nút `Truy cập web` của Application Management chỉ được trỏ tới runtime `:3005`, không được mở Control Service `:3003`.
 
@@ -73,7 +74,8 @@ HEALTH_CARE_LOCAL_BASE_URL=http://127.0.0.1:3001
 RU_LIFE_LOCAL_BASE_URL=http://127.0.0.1:3002
 BAUMAN_CONTROL_LOCAL_BASE_URL=http://127.0.0.1:3003
 BOI_ECH_LOCAL_BASE_URL=http://127.0.0.1:3004
-BAUMAN_APP_LOCAL_ORIGIN=http://127.0.0.1:3005\nNC03_LOCAL_BASE_URL=http://127.0.0.1:3010
+BAUMAN_APP_LOCAL_ORIGIN=http://127.0.0.1:3005
+NC03_LOCAL_BASE_URL=http://127.0.0.1:3010
 ```
 
 Production tương ứng dùng HTTPS. Riêng Bauman phải cấu hình hai giá trị độc lập:
