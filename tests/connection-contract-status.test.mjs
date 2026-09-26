@@ -112,3 +112,12 @@ test("unknown device metrics remain unknown instead of being rendered as zero", 
   assert.doesNotMatch(dashboard, /summary\?\.onlineCount \?\? 0/);
   assert.doesNotMatch(dashboard, /summary\?\.pendingCount \?\?/);
 });
+
+
+test("NC03 live local contract is distinct from repository-only metadata", () => {
+  assert.match(operations, /async function loadNc03Runtime/);
+  assert.match(operations, /contractConnected: true/);
+  assert.match(operations, /controlChannel: "contract-observe"/);
+  assert.match(operations, /contractReadiness: "ready"/);
+  assert.match(operations, /managementMode: "local-first"/);
+});
