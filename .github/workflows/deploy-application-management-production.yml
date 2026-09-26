@@ -1,19 +1,34 @@
 name: Application Management Cloudflare Production Deploy
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Gõ DEPLOY_PRODUCTION để triển khai Application Management Production lên Cloudflare"
+        required: true
+        type: string
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: read
 
 concurrency:
   group: application-management-cloudflare-production
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy-production:
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event_name == 'issue_comment' &&
+          github.actor == 'BlueDragon33' &&
+          github.event.issue.pull_request != null &&
+          github.event.comment.body == '/deploy-production'
+        )
+      }}
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     environment: application-management-production
@@ -27,7 +42,6 @@ jobs:
       MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY: ${{ secrets.MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY }}
       CONTROL_OWNER_EMAILS: ${{ vars.CONTROL_OWNER_EMAILS }}
       APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN: ${{ vars.APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN }}
-      APPLICATION_MANAGEMENT_ACCESS_MODE: standalone
       BOI_ECH_BASE_URL: ${{ vars.BOI_ECH_PRODUCTION_ORIGIN }}
       HEALTH_CARE_BASE_URL: ${{ vars.HEALTH_CARE_PRODUCTION_ORIGIN }}
       RU_LIFE_BASE_URL: ${{ vars.RU_LIFE_PRODUCTION_ORIGIN }}
@@ -40,11 +54,21 @@ jobs:
       BAUMAN_CONTROL_SERVICE_SECRET: ${{ secrets.BAUMAN_CONTROL_SERVICE_SECRET }}
 
     steps:
-      - name: Development live mode
+      - name: Require explicit production confirmation
+        shell: bash
         run: |
-          echo "main -> live"
-          echo "Access mode: standalone"
-          echo "Approval gate can be re-enabled from Application Management UI when needed."
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            if [[ "${{ inputs.confirm }}" != "DEPLOY_PRODUCTION" ]]; then
+              echo '::error::Deployment cancelled. Enter DEPLOY_PRODUCTION exactly.'
+              exit 1
+            fi
+          else
+            if [[ "${{ github.actor }}" != "BlueDragon33" || "${{ github.event.comment.body }}" != "/deploy-production" ]]; then
+              echo '::error::Only the repository owner exact /deploy-production command may deploy Production.'
+              exit 1
+            fi
+          fi
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -102,8 +126,14 @@ jobs:
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
 
+      - name: Preserve existing regressions before production materialization
+        run: npm test
+
       - name: Materialize isolated production config
         run: npm run cloudflare:production:prepare
+
+      - name: Validate production boundary
+        run: npm run cloudflare:production:check
 
       - name: Apply migrations to production D1 only
         run: npx wrangler d1 migrations apply application-management-production-db --remote --config wrangler.production.jsonc
@@ -112,6 +142,9 @@ jobs:
         env:
           CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH: wrangler.production.jsonc
         run: npm run build
+
+      - name: Verify generated production artifact
+        run: npm run cloudflare:production:artifact:check
 
       - name: Deploy Application Management production Worker
         run: npx wrangler deploy
