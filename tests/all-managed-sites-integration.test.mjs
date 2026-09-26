@@ -22,7 +22,7 @@ test("dashboard v2 renders the static registry plus D1 catalog instead of a seco
   assert.match(dashboard, /new Map<string, ApplicationConfig>/);
   assert.match(dashboard, /new Set\(activeApps\.map\(\(app\) => app\.id\)\)/);
   assert.doesNotMatch(dashboard, /ACTIVE_APP_IDS/);
-  for (const id of ["boi-ech", "health-care", "ru-life", "bauman-master-ai", "price-report-tunggiabao", "growup-mychildren", "nc03-modem"]) {
+  for (const id of ["software-blueprint-hub", "boi-ech", "health-care", "ru-life", "bauman-master-ai", "price-report-tunggiabao", "growup-mychildren", "nc03-modem"]) {
     assert.match(read("app/application-registry.ts"), new RegExp(`id: "${id}"`));
   }
 });
