@@ -121,7 +121,7 @@ export const projectRepositories: readonly ProjectRepositoryConfig[] = [
     defaultBranch: "main",
     group: "control",
     state: "developing",
-    summary: "Website-app/PWA local-first quản trị modem HYBRID Wi-Fi 5G NC03; v0.7.0 hoàn tất professional QA cho read-path HAR2, live 10 giây/last-known-good, Local Bridge RFC1918, safe Advanced snapshot và báo cáo chẩn đoán A4 privacy-safe. AUTH/write còn khóa vì chưa có capture xác minh.",
+    summary: "Website-app/PWA local-first quản trị modem HYBRID Wi-Fi 5G NC03; v0.7.1 hoàn tất professional QA cho read-path HAR2 và báo cáo chẩn đoán A4: live 10 giây/last-known-good, Local Bridge RFC1918, dữ liệu thiếu không bị biến thành 0, Live/Advanced freshness tách riêng. AUTH/write còn khóa vì chưa có capture xác minh.",
     managementHref: "/apps/nc03-modem",
   },
   {
