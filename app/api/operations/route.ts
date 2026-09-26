@@ -99,6 +99,24 @@ function bool(value: unknown) {
   return value === true;
 }
 
+function controlChannel(value: unknown, fallback: ClientSummary["controlChannel"] = "none"): ClientSummary["controlChannel"] {
+  return value === "universal" || value === "legacy-adapter" || value === "contract-observe" || value === "none"
+    ? value
+    : fallback;
+}
+
+function contractReadiness(value: unknown, fallback: ClientSummary["contractReadiness"] = "pending"): ClientSummary["contractReadiness"] {
+  return value === "ready" || value === "partial" || value === "pending" || value === "not-enrolled" || value === "metadata"
+    ? value
+    : fallback;
+}
+
+function managementMode(value: unknown, fallback: ClientSummary["managementMode"] = "observe-only"): ClientSummary["managementMode"] {
+  return value === "remote-admin" || value === "observe-only" || value === "local-first" || value === "metadata-only"
+    ? value
+    : fallback;
+}
+
 function normalizedStatus(value: unknown): ClientDevice["status"] {
   return value === "pending" || value === "approved" || value === "blocked" ? value : "unknown";
 }
@@ -777,9 +795,9 @@ async function buildBootstrap(actor: ControlDeviceState) {
       result.value.hasOperationalData,
       "remoteAdminReady" in result.value ? Boolean(result.value.remoteAdminReady) : undefined,
       undefined,
-      "controlChannel" in result.value ? result.value.controlChannel : "legacy-adapter",
+      "controlChannel" in result.value ? controlChannel(result.value.controlChannel, "legacy-adapter") : "legacy-adapter",
       "contractReadiness" in result.value
-        ? result.value.contractReadiness
+        ? contractReadiness(result.value.contractReadiness)
         : dynamic
           ? dynamic.contractConnected
             ? "ready"
@@ -789,7 +807,7 @@ async function buildBootstrap(actor: ControlDeviceState) {
           : config.contractState === "connected" ? "ready" : config.contractState === "migrating" ? "partial" : "not-enrolled",
       "contractConnected" in result.value ? Boolean(result.value.contractConnected) : dynamic?.contractConnected ?? false,
       "managementMode" in result.value
-        ? result.value.managementMode
+        ? managementMode(result.value.managementMode)
         : "remoteAdminReady" in result.value && Boolean(result.value.remoteAdminReady)
           ? "remote-admin"
           : dynamic?.managementMode ?? (result.id === "growup-mychildren" ? "local-first" : "observe-only"),
