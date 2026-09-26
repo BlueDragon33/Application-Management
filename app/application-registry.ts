@@ -120,7 +120,7 @@ export const applicationRegistry: readonly ApplicationConfig[] = [
     initials: "KT", iconPath: "/app-icons/price-report-tunggiabao.svg", category: "Kế toán", tier: "client", status: "warning", contractState: "migrating",
     repository: "BlueDragon33/PriceReport_Tunggiabao",
     scope: "Web-app báo giá/kế toán độc lập, local-first. V6.14 mặc định Standalone Mode: mở trực tiếp, không cần Application Management duyệt thiết bị; dữ liệu báo giá, khách hàng, danh mục và backup vẫn thuộc client.",
-    contractNote: "V6.14 đã live trên GitHub Pages với Device Gate DISABLED / STANDALONE MODE. Managed Mode và KT Control vẫn được giữ để bật lại khi cần quản trị tập trung; production materializer chỉ bật managed sau khi control origin + health read-back hợp lệ.",
+    contractNote: "KT Control đã có registry/device-control thật trong local stack. V6.14 đã live trên GitHub Pages với Device Gate DISABLED / STANDALONE MODE. Production vẫn giữ trạng thái migrating; Managed Mode chỉ bật khi control origin + health read-back hợp lệ.",
     devicePolicy: "Namespace KT- · client tự phân loại máy tính/tablet-iPad/điện thoại · Standalone không yêu cầu duyệt thiết bị · Managed/Release Mode mới bật registry P-256, session/revoke và remote-admin.",
     deviceExperiences: standardDeviceExperiences,
     capabilities: ["Báo giá & bảng giá", "Excel / PDF / OCR", "Standalone/Managed access mode", "Phân loại thiết bị KT-", "UI theo loại thiết bị", "Backup local/PC", "Management contract"],
