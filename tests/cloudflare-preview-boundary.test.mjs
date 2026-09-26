@@ -9,6 +9,7 @@ const prepare = fs.readFileSync("scripts/prepare-cloudflare-preview.mjs", "utf8"
 const artifact = fs.readFileSync("scripts/validate-cloudflare-build-artifact.mjs", "utf8");
 const previewCi = fs.readFileSync(".github/workflows/cloudflare-preview-ci.yml", "utf8");
 const deploy = fs.readFileSync(".github/workflows/deploy-application-management-preview.yml", "utf8");
+const liveDevelopment = fs.readFileSync(".github/workflows/live-development-deploy.yml", "utf8");
 const worker = fs.readFileSync("worker/index.ts", "utf8");
 const gate = fs.readFileSync("worker/preview-access.ts", "utf8");
 
@@ -60,9 +61,11 @@ test("generated Cloudflare artifact validation follows Wrangler's config redirec
   assert.ok(artifact.includes("assets.run_worker_first !== true"));
 });
 
-test("Cloudflare preview deploys automatically on main in Development Mode while remaining app-secret protected and read-back verified", () => {
+test("Cloudflare preview remains an explicit protected verification path while main auto-publishes standalone development", () => {
   assert.ok(deploy.includes("workflow_dispatch"));
-  assert.match(deploy, /push:\s*\n\s*branches: \[main\]/);
+  assert.doesNotMatch(deploy, /push:\s*\n\s*branches: \[main\]/);
+  assert.match(liveDevelopment, /push:\s*\n\s*branches: \[main\]/);
+  assert.match(liveDevelopment, /APPLICATION_MANAGEMENT_ACCESS_MODE: standalone/);
   assert.ok(deploy.includes("cancel-in-progress: true"));
   assert.ok(deploy.includes("Detect preview readiness"));
   assert.ok(deploy.includes("APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET"));
