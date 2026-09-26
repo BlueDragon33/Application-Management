@@ -112,7 +112,7 @@ export const projectRepositories: readonly ProjectRepositoryConfig[] = [
     defaultBranch: "main",
     group: "accounting",
     state: "developing",
-    summary: "Ứng dụng báo giá/kế toán local-first với KT Control, registry thiết bị KT- và contract quản trị riêng.",
+    summary: "PriceReport V6.14 local-first: Standalone Mode mặc định vào thẳng, Device Gate OFF; Managed Mode/KT Control chỉ bật lại khi cần quản trị tập trung hoặc Release.",
     managementHref: "/apps/price-report-tunggiabao",
   },
   {
@@ -122,7 +122,7 @@ export const projectRepositories: readonly ProjectRepositoryConfig[] = [
     defaultBranch: "main",
     group: "control",
     state: "developing",
-    summary: "Website-app/PWA local-first quản trị modem HYBRID Wi-Fi 5G NC03; v0.7.1 hoàn tất professional QA cho read-path HAR2 và báo cáo chẩn đoán A4: live 10 giây/last-known-good, Local Bridge RFC1918, dữ liệu thiếu không bị biến thành 0, Live/Advanced freshness tách riêng. AUTH/write còn khóa vì chưa có capture xác minh.",
+    summary: "Website-app/PWA local-first quản trị modem HYBRID Wi-Fi 5G NC03; v0.7.3 thêm HAR Evidence Lab local-only, tách AUTH/WRITE candidate, redaction bí mật và sanitized evidence export. Read-path HAR2/live 10 giây/báo cáo A4 giữ nguyên; AUTH/write tiếp tục evidence-gated.",
     managementHref: "/apps/nc03-modem",
   },
   {
