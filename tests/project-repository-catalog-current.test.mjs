@@ -89,12 +89,22 @@ test("Software Blueprint Hub is tracked as active core compass with a metadata-o
 });
 
 
-test("NC03 project catalog reflects the professional QA reporting release", () => {
+test("NC03 project catalog reflects the v0.7.3 HAR Evidence Lab release", () => {
   const start = registry.indexOf('id: "nc03-modem"');
   const end = registry.indexOf("\n  },", start);
   const block = registry.slice(start, end);
-  assert.match(block, /v0\.7\.1/);
-  assert.match(block, /báo cáo chẩn đoán A4/);
-  assert.match(block, /dữ liệu thiếu không bị biến thành 0/);
-  assert.match(projectDocs, /v0\.7\.1 professional QA/);
+  assert.match(block, /v0\.7\.3/);
+  assert.match(block, /HAR Evidence Lab/);
+  assert.match(block, /sanitized evidence export/i);
+  assert.match(projectDocs, /v0\.7\.3/);
+});
+
+test("PriceReport catalog reflects V6.14 standalone-first access", () => {
+  const start = registry.indexOf('id: "price-report-tunggiabao"');
+  const end = registry.indexOf("\n  },", start);
+  const block = registry.slice(start, end);
+  assert.match(block, /V6\.14/);
+  assert.match(block, /Standalone Mode/);
+  assert.match(block, /Device Gate OFF/);
+  assert.match(projectDocs, /V6\.14 Standalone-first/);
 });
