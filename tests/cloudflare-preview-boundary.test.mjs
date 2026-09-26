@@ -60,10 +60,11 @@ test("generated Cloudflare artifact validation follows Wrangler's config redirec
   assert.ok(artifact.includes("assets.run_worker_first !== true"));
 });
 
-test("Cloudflare preview deployment is explicit, app-secret protected and read-back verified", () => {
+test("Cloudflare preview deploys automatically on main in Development Mode while remaining app-secret protected and read-back verified", () => {
   assert.ok(deploy.includes("workflow_dispatch"));
-  assert.equal(/\n\s*push\s*:/.test(deploy), false);
-  assert.ok(deploy.includes("DEPLOY_PREVIEW"));
+  assert.match(deploy, /push:\s*\n\s*branches: \[main\]/);
+  assert.ok(deploy.includes("cancel-in-progress: true"));
+  assert.ok(deploy.includes("Detect preview readiness"));
   assert.ok(deploy.includes("APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET"));
   assert.ok(deploy.includes("wrangler secret put APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET"));
   assert.ok(deploy.includes("Expected anonymous /__deployment to return 401"));
