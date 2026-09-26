@@ -86,3 +86,13 @@ test("Software Blueprint Hub is tracked as design-only core infrastructure witho
   assert.match(block, /design bootstrap/);
   assert.doesNotMatch(block, /managementHref:/);
 });
+
+
+test("NC03 project catalog reflects the professional QA reporting release", () => {
+  const start = registry.indexOf('id: "nc03-modem"');
+  const end = registry.indexOf("\n  },", start);
+  const block = registry.slice(start, end);
+  assert.match(block, /v0\.7\.0/);
+  assert.match(block, /báo cáo chẩn đoán A4 privacy-safe/);
+  assert.match(projectDocs, /v0\.7\.0 professional QA/);
+});
