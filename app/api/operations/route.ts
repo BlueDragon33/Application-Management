@@ -7,6 +7,7 @@ import { issueBaumanBrowserBridge } from "../../bauman.server";
 import { issueGrowUpBrowserBridge, probeGrowUpManagementContract } from "../../growup.server";
 import { issuePriceReportBrowserBridge, probePriceReportManagementContract } from "../../price-report.server";
 import { executeUniversalDeviceCommand, probeDynamicManagedApplications, type DynamicContractSnapshot } from "../../open-contract.server";
+import { resolveClientOrigin } from "../../client-origin.server";
 import {
   dismissedNotificationHashes,
   hashWorkItem,
@@ -428,6 +429,62 @@ async function loadGrowUp(actor: ControlDeviceState) {
   };
 }
 
+async function publicRuntimeJson(baseUrl: string, path: string) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${baseUrl}${path}`, {
+      method: "GET",
+      headers: { accept: "application/json" },
+      cache: "no-store",
+      redirect: "manual",
+      signal: controller.signal,
+    });
+    const data = await response.json().catch(() => ({})) as UnknownRecord;
+    if (!response.ok) throw new Error(text(data.error, `HTTP_${response.status}`));
+    return data;
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error(`Client phản hồi quá thời hạn ${UPSTREAM_TIMEOUT_MS / 1_000} giây.`);
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function loadNc03Runtime() {
+  const config = app("nc03-modem");
+  const runtime = await resolveClientOrigin("nc03-runtime");
+  const health = await publicRuntimeJson(runtime.baseUrl, "/_local/health");
+  if (!bool(health.ok) || text(health.applicationId) !== "nc03-modem") {
+    throw new Error("NC03 runtime health identity không hợp lệ.");
+  }
+
+  const contract = await publicRuntimeJson(runtime.baseUrl, "/api/application-management/contract");
+  const application = record(contract.application);
+  const policy = record(contract.policy);
+  if (text(contract.schema) !== "application-management.contract/v1" || text(application.id) !== "nc03-modem") {
+    throw new Error("NC03 Application Management Contract không hợp lệ.");
+  }
+  if (policy.modemSecretsInControlPlane !== false || policy.modemCommandsFromCloud !== false) {
+    throw new Error("NC03 contract vi phạm local-first credential boundary.");
+  }
+
+  return {
+    config,
+    devices: [] as ClientDevice[],
+    webHref: `${runtime.baseUrl}/`,
+    managedWebLaunch: false,
+    hasOperationalData: false,
+    remoteAdminReady: false,
+    controlNote: `NC03 runtime live qua ${runtime.source}; Universal Contract đã bắt tay. Mật khẩu/session modem vẫn chỉ nằm trong NC03 Control Center.`,
+    controlChannel: "contract-observe" as const,
+    contractReadiness: "ready" as const,
+    contractConnected: true,
+    managementMode: "local-first" as const,
+    metadataVerified: true,
+  };
+}
+
 async function loadPriceReport(actor: ControlDeviceState) {
   const config = app("price-report-tunggiabao");
   const contract = await probePriceReportManagementContract();
@@ -527,7 +584,7 @@ function summary(
 }
 
 async function buildBootstrap(actor: ControlDeviceState) {
-  const legacyAdapterIds = new Set(["boi-ech", "health-care", "ru-life", "bauman-master-ai", "price-report-tunggiabao", "growup-mychildren"]);
+  const legacyAdapterIds = new Set(["boi-ech", "health-care", "ru-life", "bauman-master-ai", "price-report-tunggiabao", "growup-mychildren", "nc03-modem"]);
   const loaders = [
     { id: "boi-ech", run: () => loadBoi(actor) },
     { id: "health-care", run: () => loadHealth(actor) },
@@ -535,6 +592,7 @@ async function buildBootstrap(actor: ControlDeviceState) {
     { id: "bauman-master-ai", run: () => loadBauman(actor) },
     { id: "price-report-tunggiabao", run: () => loadPriceReport(actor) },
     { id: "growup-mychildren", run: () => loadGrowUp(actor) },
+    { id: "nc03-modem", run: () => loadNc03Runtime() },
   ] as const;
 
   const settled = await Promise.all(loaders.map(async (loader) => {
@@ -701,8 +759,8 @@ async function buildBootstrap(actor: ControlDeviceState) {
     devices.push(...result.value.devices);
     const legacyNote = result.id === "growup-mychildren"
       ? `${config.contractNote} Direct site contract đã xác minh; dữ liệu trẻ em vẫn ở phía GrowUP.`
-      : result.id === "price-report-tunggiabao"
-        ? `${config.contractNote} ${"controlNote" in result.value ? String(result.value.controlNote || "") : ""}`.trim()
+      : "controlNote" in result.value
+        ? `${config.contractNote} ${String(result.value.controlNote || "")}`.trim()
         : config.contractNote;
 
     const note = dynamic
@@ -719,19 +777,23 @@ async function buildBootstrap(actor: ControlDeviceState) {
       result.value.hasOperationalData,
       "remoteAdminReady" in result.value ? Boolean(result.value.remoteAdminReady) : undefined,
       undefined,
-      "legacy-adapter",
-      dynamic
-        ? dynamic.contractConnected
-          ? "ready"
-          : dynamic.managementMode === "local-first" || dynamic.managementMode === "metadata-only"
-            ? "metadata"
-            : dynamic.connection === "warning" ? "partial" : "pending"
-        : config.contractState === "connected" ? "ready" : config.contractState === "migrating" ? "partial" : "not-enrolled",
-      dynamic?.contractConnected ?? false,
-      "remoteAdminReady" in result.value && Boolean(result.value.remoteAdminReady)
-        ? "remote-admin"
-        : dynamic?.managementMode ?? (result.id === "growup-mychildren" ? "local-first" : "observe-only"),
-      dynamic?.metadataVerified ?? false,
+      "controlChannel" in result.value ? result.value.controlChannel : "legacy-adapter",
+      "contractReadiness" in result.value
+        ? result.value.contractReadiness
+        : dynamic
+          ? dynamic.contractConnected
+            ? "ready"
+            : dynamic.managementMode === "local-first" || dynamic.managementMode === "metadata-only"
+              ? "metadata"
+              : dynamic.connection === "warning" ? "partial" : "pending"
+          : config.contractState === "connected" ? "ready" : config.contractState === "migrating" ? "partial" : "not-enrolled",
+      "contractConnected" in result.value ? Boolean(result.value.contractConnected) : dynamic?.contractConnected ?? false,
+      "managementMode" in result.value
+        ? result.value.managementMode
+        : "remoteAdminReady" in result.value && Boolean(result.value.remoteAdminReady)
+          ? "remote-admin"
+          : dynamic?.managementMode ?? (result.id === "growup-mychildren" ? "local-first" : "observe-only"),
+      "metadataVerified" in result.value ? Boolean(result.value.metadataVerified) : dynamic?.metadataVerified ?? false,
     ));
     for (const device of result.value.devices) {
       const item = workFromDevice(device);
