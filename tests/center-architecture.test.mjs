@@ -54,6 +54,8 @@ test("NC03 route has a matching pending registry entry and no fake remote contro
   assert.match(block, /firmware 8\.00\.42/);
   assert.match(block, /localUrl: "\/api\/local-web-launch\?app=nc03-modem"/);
   assert.match(block, /Offline\/PWA self-refresh/);
+  assert.match(block, /Báo cáo chẩn đoán A4/);
+  assert.match(block, /Privacy-safe report allow-list/);
   assert.match(route, /getApplicationConfig\("nc03-modem"\)/);
   assert.doesNotMatch(block, /contractState: "connected"/);
 });
