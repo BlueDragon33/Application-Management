@@ -17,6 +17,7 @@ const pkg = JSON.parse(source("package.json"));
 
 const repositories = [
   "BlueDragon33/Application-Management",
+  "BlueDragon33/Software-Blueprint-Hub",
   "BlueDragon33/Bauman-master-ai-system",
   "BlueDragon33/Math_Bauman",
   "BlueDragon33/BOIECH_AI",
@@ -36,7 +37,7 @@ test("project registry tracks the current owned project set", () => {
   assert.match(registry, /projectRepositoryCount = projectRepositories\.length/);
   assert.match(registry, /group: "accounting"/);
   assert.match(projectDocs, /BlueDragon33\/NC03_Modem/);
-  assert.match(projectDocs, /Tổng: \*\*13 repo hiện hữu\*\*/);
+  assert.match(projectDocs, /Tổng: \*\*14 repo hiện hữu\*\*/);
 });
 
 test("current dashboard exposes the GitHub project catalog", () => {
@@ -70,4 +71,16 @@ test("technical repositories do not invent remote controls", () => {
   const nc03End = registry.indexOf("\n  },", nc03Start);
   const nc03Block = registry.slice(nc03Start, nc03End);
   assert.match(nc03Block, /managementHref: "\/apps\/nc03-modem"/);
+});
+
+
+test("Software Blueprint Hub is tracked as design-only core infrastructure without fake management controls", () => {
+  const start = registry.indexOf('id: "software-blueprint-hub"');
+  const end = registry.indexOf("\n  },", start);
+  const block = registry.slice(start, end);
+  assert.ok(start >= 0);
+  assert.match(block, /BlueDragon33\/Software-Blueprint-Hub/);
+  assert.match(block, /state: "scaffold"/);
+  assert.match(block, /design bootstrap/);
+  assert.doesNotMatch(block, /managementHref:/);
 });
