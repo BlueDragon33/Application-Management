@@ -8,7 +8,7 @@ function source(path) {
 
 test("management entry keeps one persistent dashboard v2 shell", () => {
   const entry = source("app/management-entry.tsx");
-  assert.ok(entry.includes("return <ManagementDashboardV2 user={user} authMode={authMode} />"));
+  assert.match(entry, /return <ManagementDashboardV2 user=\{user\} authMode=\{authMode\} defaultApprovalGate=\{defaultApprovalGate\} \/>/);
   assert.doesNotMatch(entry, /ManagementModernOverview|ApplicationHub/);
 });
 
