@@ -53,6 +53,8 @@ test("catalog reconciliation is read-only and detects drift", () => {
   assert.match(liveRoute, /notVisiblePublicly/);
   assert.match(repositoryWatch, /process\.exitCode = 1/);
   assert.match(repositoryWatchWorkflow, /cron: "0 2 \* \* \*"/);
+  assert.match(repositoryWatchWorkflow, /push:/);
+  assert.match(repositoryWatchWorkflow, /app\/project-registry\.ts/);
   assert.equal(pkg.scripts["projects:check"], "node scripts/check-project-repositories.mjs");
 });
 
