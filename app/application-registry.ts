@@ -120,10 +120,10 @@ export const applicationRegistry: readonly ApplicationConfig[] = [
     initials: "N3", category: "Kỹ thuật", tier: "client", status: "warning", contractState: "pending",
     repository: "BlueDragon33/NC03_Modem",
     scope: "Website-app/PWA local-first quản trị modem HYBRID Wi-Fi 5G NC03. Application Management quản lý lifecycle, release và điểm mở ứng dụng; credential/session modem luôn ở thiết bị người dùng.",
-    contractNote: "NC03 Control Center v0.5.1 đã map HAR thật của firmware 8.00.42: đọc được trạng thái, firmware, Wi-Fi, client, runtime state và phần trăm pin chính xác. Login UX đã chốt địa chỉ modem tùy chỉnh + mật khẩu nhớ cục bộ. App Management mở runtime NC03 local qua Local Web Launcher; write modem vẫn khóa cho tới khi WRITE VERIFIED.",
+    contractNote: "NC03 Control Center v0.6.0 đã map HAR2 firmware 8.00.42: % pin, kết nối, 4G/5G/nhà mạng và chất lượng sóng luôn hiển thị, telemetry tự cập nhật 10 giây/lần. Read-only mở rộng cho network settings, 4 Wi-Fi AP, USB/Cradle, IP Passthrough, security/filter/DMZ, NTP, power/display, data usage và FOTA. App Management mở runtime/contract NC03 local; modem credential không đi qua control-plane và write vẫn khóa tới khi WRITE VERIFIED.",
     devicePolicy: "Desktop/tablet/phone responsive · local-first · không đồng bộ mật khẩu/token/session modem lên control-plane · App Management chỉ mở runtime local, không proxy lệnh modem.",
     deviceExperiences: standardDeviceExperiences,
-    capabilities: ["Mở NC03 Control Center", "Trạng thái build/release", "API discovery progress", "Firmware 8.00.42 read profile", "Pin % chính xác", "Thiết bị kết nối", "Security gate", "Offline/PWA gate"],
+    capabilities: ["Mở NC03 Control Center", "Live telemetry 10 giây", "Pin % chính xác luôn hiển thị", "Kết nối + sóng + 4G/5G", "Firmware 8.00.42 HAR2 read profile", "4 Wi-Fi AP", "USB/Bridge/Security/NTP/Power/FOTA read-only", "Thiết bị kết nối", "Security gate", "Offline/PWA gate"],
     guardrails: ["Không lưu hoặc proxy mật khẩu admin NC03", "Không gửi token/session modem lên cloud", "Không bật remote modem controls trong Manager", "Không đánh dấu connected chỉ vì runtime local mở được"],
   },
   {
