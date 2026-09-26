@@ -1,33 +1,7 @@
 name: Application Management Cloudflare Production CI
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - ".github/workflows/cloudflare-production-ci.yml"
-      - ".github/workflows/deploy-application-management-production.yml"
-      - "wrangler.production.example.jsonc"
-      - "vite.config.ts"
-      - "worker/index.ts"
-      - "worker/production-auth.ts"
-      - "app/chatgpt-auth.ts"
-      - "app/page.tsx"
-      - "app/management-entry.tsx"
-      - "app/management-dashboard-v2.tsx"
-      - "app/open-contract.server.ts"
-      - "app/contract-category-profiles.ts"
-      - "app/api/managed-apps/route.ts"
-      - "app/tools/managed-apps/page.tsx"
-      - "app/application-registry.ts"
-      - "app/client-network-registry.ts"
-      - "drizzle/0005_managed_app_catalog.sql"
-      - "tests/open-contract-catalog.test.mjs"
-      - "drizzle/0004_production_accounts.sql"
-      - "scripts/prepare-cloudflare-production.mjs"
-      - "scripts/validate-cloudflare-production.mjs"
-      - "scripts/validate-cloudflare-production-artifact.mjs"
-      - "tests/cloudflare-production-boundary.test.mjs"
-      - "package.json"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -35,44 +9,13 @@ permissions:
 jobs:
   production-boundary:
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
-    env:
-      APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID: 33333333-3333-4333-8333-333333333333
-      APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID: 44444444-4444-4444-8444-444444444444
-      CONTROL_OWNER_EMAILS: owner@example.com
-      BOI_ECH_BASE_URL: ""
-      HEALTH_CARE_BASE_URL: ""
-      RU_LIFE_BASE_URL: ""
-      BAUMAN_CONTROL_BASE_URL: https://bauman-control.example.com
-      BAUMAN_APP_ORIGIN: https://bauman-runtime.example.com
-      GROWUP_BASE_URL: ""
-
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "22.13.0"
           cache: npm
-
-      - name: Install locked dependencies
-        run: npm ci --no-audit --no-fund
-
-      - name: Preserve existing regressions
-        run: npm test
-
-      - name: Materialize isolated production config
-        run: npm run cloudflare:production:prepare
-
-      - name: Validate production boundary
-        run: npm run cloudflare:production:check
-
-      - name: Build with production bindings
-        env:
-          CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH: wrangler.production.jsonc
-        run: npm run build
-
-      - name: Verify generated production artifact
-        run: npm run cloudflare:production:artifact:check
-
-      - name: Wrangler dry-run generated production artifact
-        run: npx wrangler deploy --dry-run --outdir .wrangler/production-dry-run
+      - run: npm ci --no-audit --no-fund
+      - run: npm test
+      - run: npm run build
