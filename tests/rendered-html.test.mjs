@@ -17,7 +17,7 @@ const executionContext = {
   passThroughOnException() {},
 };
 
-test("standalone development opens the root without upstream identity", async () => {
+test("root access follows the configured standalone/managed boundary", async () => {
   const worker = await loadWorker();
   const response = await worker.fetch(
     new Request("http://localhost/", { headers: { accept: "text/html" }, redirect: "manual" }),
@@ -25,7 +25,15 @@ test("standalone development opens the root without upstream identity", async ()
     executionContext,
   );
 
-  assert.equal(response.status, 200);
+  const managed = process.env.APPLICATION_MANAGEMENT_ACCESS_MODE?.trim().toLowerCase() === "managed";
+  if (managed) {
+    assert.equal(response.status, 307);
+    const location = new URL(response.headers.get("location"));
+    assert.equal(location.pathname, "/signin-with-chatgpt");
+    assert.equal(location.searchParams.get("return_to"), "/");
+  } else {
+    assert.equal(response.status, 200);
+  }
 });
 
 test("declares Application Management as the authenticated root product", async () => {
