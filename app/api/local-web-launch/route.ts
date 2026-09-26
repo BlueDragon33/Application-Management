@@ -54,5 +54,6 @@ export async function GET(request: Request) {
       return text("NC03 local runtime chưa sẵn sàng hoặc chưa được resolve đúng origin.", 503);
     }
   }
+  if (!target.url) return text("Ứng dụng local chưa có runtime target hợp lệ.", 503);
   return Response.redirect(target.url, 307);
 }
