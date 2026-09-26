@@ -17,7 +17,7 @@ const executionContext = {
   passThroughOnException() {},
 };
 
-test("redirects unauthenticated visitors to ChatGPT sign-in", async () => {
+test("standalone development opens the root without upstream identity", async () => {
   const worker = await loadWorker();
   const response = await worker.fetch(
     new Request("http://localhost/", { headers: { accept: "text/html" }, redirect: "manual" }),
@@ -25,10 +25,7 @@ test("redirects unauthenticated visitors to ChatGPT sign-in", async () => {
     executionContext,
   );
 
-  assert.equal(response.status, 307);
-  const location = new URL(response.headers.get("location"));
-  assert.equal(location.pathname, "/signin-with-chatgpt");
-  assert.equal(location.searchParams.get("return_to"), "/");
+  assert.equal(response.status, 200);
 });
 
 test("declares Application Management as the authenticated root product", async () => {
@@ -41,4 +38,16 @@ test("declares Application Management as the authenticated root product", async 
   assert.match(layout, /Application Management · Trung tâm quản trị ứng dụng/);
   assert.match(layout, /codex-preview/);
   assert.equal(packageJson.displayName, "Application Management");
+});
+
+
+test("managed and production access remain explicitly gated in source", async () => {
+  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const worker = await readFile(new URL("../worker/index.ts", import.meta.url), "utf8");
+  assert.match(page, /accessMode === "managed"/);
+  assert.match(page, /requireChatGPTUser\("\/"\)/);
+  assert.match(worker, /if \(isProduction\)/);
+  assert.match(worker, /productionUnauthorized\(request\)/);
+  assert.match(worker, /if \(isPreview\)/);
+  assert.match(worker, /previewUnauthorized\(request\)/);
 });
