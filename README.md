@@ -12,6 +12,7 @@ Application Management · ChatGPT Site
 ├── application registry
 ├── audit/bảo mật Trung tâm
 └── app-scoped admin contracts
+    ├── LEVEL 1 · Software Blueprint Hub · Core Engineering Compass (metadata-only)
     ├── LEVEL 1 · Bơi ếch
     ├── LEVEL 1 · Sức khỏe Y tế
     ├── LEVEL 1 · Hòa nhập Nga
@@ -58,6 +59,12 @@ Application Management không được:
 | CAD CAM 3D | `CAD-` | Namespace dành riêng; remote registry/control chưa bật |
 
 Quyền **truy cập** và quyền **chỉnh sửa** luôn là hai lớp độc lập.
+
+## Software Blueprint Hub — Core Engineering Compass
+
+`Software-Blueprint-Hub` là app dẫn lối kiến trúc cho toàn hệ sinh thái, được xây theo mô hình **20 tầng**. Application Management chỉ hiển thị trạng thái xây dựng, readiness và boundary metadata; không được sửa Constitution/Blueprint canonical state, không PASS Quality Gate và không authorize Production release.
+
+Trạng thái hiện tại: **Phase 8 PASS; Phase 9 Compass Construction; P9-001–P9-003 COMPLETE; P9-004 Source-of-truth contradiction detector ACTIVE**. Khu quản trị riêng: `/apps/software-blueprint-hub`.
 
 ## Bơi ếch
 
@@ -147,6 +154,7 @@ Remote registry `CAD-`, signed Device Gate và Control API chưa tồn tại nê
 
 | Client | Runtime | Admin code | Production contract |
 |---|---|---|---|
+| Software Blueprint Hub | Compass web-app | Metadata-only lifecycle/readiness | Phase 9 Development · Production not authorized |
 | Bơi ếch | Có | Signed bridge + Thanh toán & Quyền | Connected |
 | Health_Care | Có | ChatGPT Sites adapter + UI thật | Migrating |
 | RU_LIFE | Có + D1 riêng | Signed bridge + Control API | Migrating |
