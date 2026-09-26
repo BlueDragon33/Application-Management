@@ -42,7 +42,7 @@ export const projectRepositories: readonly ProjectRepositoryConfig[] = [
     defaultBranch: "main",
     group: "core",
     state: "developing",
-    summary: "Blueprint OS / engineering compass của hệ sinh thái. B0, A1, A2, Product UX, Hardening và Phase 8 Reference Import đã PASS; Phase 9 Compass Construction đang triển khai theo bản đồ 20 tầng và contract metadata-only với Application Management.",
+    summary: "Blueprint OS / Core Engineering Compass của hệ sinh thái. Phase 8 đã PASS; Phase 9 xây dựng theo bản đồ 20 tầng. P9-001–P9-003 COMPLETE, P9-004 Source-of-truth contradiction detector ACTIVE; Application Management chỉ đọc metadata lifecycle/readiness qua contract metadata-only.",
     managementHref: "/apps/software-blueprint-hub",
   },
   {
