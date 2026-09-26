@@ -68,6 +68,17 @@ const baumanChildren: readonly SubClientConfig[] = [
 
 export const applicationRegistry: readonly ApplicationConfig[] = [
   {
+    id: "software-blueprint-hub", name: "Software Blueprint Hub", shortName: "Blueprint OS", href: "/apps/software-blueprint-hub",
+    initials: "BP", category: "Kỹ thuật", tier: "client", status: "warning", contractState: "migrating",
+    repository: "BlueDragon33/Software-Blueprint-Hub",
+    scope: "Core engineering compass của hệ sinh thái: chuẩn hóa Constitution, Blueprint, Roadmap, Work Package, Quality Gate, Prompt Projection, Knowledge và Release evidence. Application Management chỉ quan sát lifecycle/readiness metadata; canonical engineering state vẫn thuộc Blueprint OS.",
+    contractNote: "Blueprint OS đã công bố application-management.contract/v1 dạng metadata-only sau Phase 8 PASS và đang ở Phase 9 Compass Construction. Không có Remote Admin, Device Gate hay Production authority; Catalog chỉ được phép xác minh metadata và mở khu quản trị mô tả boundary.",
+    devicePolicy: "Không có device registry riêng cho metadata integration. UI Blueprint OS vẫn phải responsive desktop/tablet/phone; mọi identity/authority canonical do Blueprint OS sở hữu, không kế thừa quyền từ Application Management.",
+    deviceExperiences: standardDeviceExperiences,
+    capabilities: ["Constitution & authority", "Blueprint resolver & Project Profile", "Roadmap · Work Package · dependency", "Quality Gate & evidence", "Prompt Projection", "Knowledge & Reference Case", "Release & Lessons", "20 tầng Compass Construction"],
+    guardrails: ["Control-plane chỉ đọc lifecycle/readiness metadata", "Không mutate canonical Blueprint/Constitution", "Không PASS Quality Gate thay Blueprint OS", "Không authorize Production release", "Không bịa remote-admin/device operations khi contract metadata-only"],
+  },
+  {
     id: "boi-ech", name: "Bơi ếch AI", shortName: "Bơi ếch", href: "/apps/boi-ech", publicUrl: "https://boi-ech.boiech-ai.workers.dev/", initials: "BE", iconPath: "/app-icons/boi-ech.svg", category: "Học tập", tier: "client", status: "online", contractState: "connected", repository: "BlueDragon33/BOIECH_AI",
     scope: "Web-app Bơi ếch độc lập, local-first; mở trực tiếp khi phát triển. Bridge/quyền online chỉ dùng khi cần thao tác quản trị từ xa.",
     contractNote: "Admin bridge đang hoạt động. Khu quản trị Bơi ếch đã tách vật lý khỏi control-plane và chỉ còn nghiệp vụ của chính client.",
