@@ -41,8 +41,9 @@ export const projectRepositories: readonly ProjectRepositoryConfig[] = [
     repository: "BlueDragon33/Software-Blueprint-Hub",
     defaultBranch: "main",
     group: "core",
-    state: "scaffold",
-    summary: "Blueprint OS / hệ thống chuẩn hóa thiết kế, kiến trúc, work package, kiểm thử và nghiệm thu phần mềm; hiện ở design bootstrap, chưa được phép dựng application.",
+    state: "developing",
+    summary: "Blueprint OS / engineering compass của hệ sinh thái. B0, A1, A2, Product UX, Hardening và Phase 8 Reference Import đã PASS; Phase 9 Compass Construction đang triển khai theo bản đồ 20 tầng và contract metadata-only với Application Management.",
+    managementHref: "/apps/software-blueprint-hub",
   },
   {
     id: "bauman-master-ai",

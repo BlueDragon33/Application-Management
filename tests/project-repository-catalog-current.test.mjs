@@ -76,15 +76,16 @@ test("technical repositories do not invent remote controls", () => {
 });
 
 
-test("Software Blueprint Hub is tracked as design-only core infrastructure without fake management controls", () => {
+test("Software Blueprint Hub is tracked as active core compass with a metadata-only management surface", () => {
   const start = registry.indexOf('id: "software-blueprint-hub"');
   const end = registry.indexOf("\n  },", start);
   const block = registry.slice(start, end);
   assert.ok(start >= 0);
   assert.match(block, /BlueDragon33\/Software-Blueprint-Hub/);
-  assert.match(block, /state: "scaffold"/);
-  assert.match(block, /design bootstrap/);
-  assert.doesNotMatch(block, /managementHref:/);
+  assert.match(block, /state: "developing"/);
+  assert.match(block, /Phase 9 Compass Construction/);
+  assert.match(block, /managementHref: "\/apps\/software-blueprint-hub"/);
+  assert.match(projectDocs, /metadata-only/);
 });
 
 

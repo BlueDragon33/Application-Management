@@ -7,7 +7,7 @@ Nguồn chuẩn để đối chiếu các repo thuộc tài khoản `BlueDragon3
 | Repo | Vai trò | Trạng thái quản lý |
 | --- | --- | --- |
 | `BlueDragon33/Application-Management` | Control-plane trung tâm | Quản trị lõi |
-| `BlueDragon33/Software-Blueprint-Hub` | Blueprint OS / chuẩn thiết kế & xây dựng phần mềm | Design bootstrap · chưa dựng application |
+| `BlueDragon33/Software-Blueprint-Hub` | Blueprint OS / engineering compass | Có khu quản trị metadata-only · Phase 9 Compass Construction |
 | `BlueDragon33/Bauman-master-ai-system` | Bauman Hub | Có khu quản trị |
 | `BlueDragon33/Math_Bauman` | Site Toán Bauman | Theo dõi repo / liên kết Bauman |
 | `BlueDragon33/BOIECH_AI` | Bơi ếch AI | Có khu quản trị |
@@ -23,9 +23,11 @@ Nguồn chuẩn để đối chiếu các repo thuộc tài khoản `BlueDragon3
 
 Tổng: **14 repo hiện hữu**.
 
-## Repo thiết kế / blueprint
+## Blueprint OS / engineering compass
 
-`Software-Blueprint-Hub` hiện là **design bootstrap** của Blueprint OS. Repo này phải có mặt trong catalog để không bị Project Repository Watch coi là thất lạc, nhưng chưa được dựng `managementHref` hay thao tác quản trị giả khi application implementation chưa được authorize.
+`Software-Blueprint-Hub` đã vượt qua B0, A1, A2, Product UX, Hardening và Phase 8 Reference Import Gate. Repo hiện công bố `control/application-management.contract.json` theo chế độ **metadata-only** và có khu `/apps/software-blueprint-hub` trong Application Management.
+
+Application Management chỉ được đọc lifecycle/readiness/contract metadata. Nó không được mutate Constitution/Blueprint canonical state, PASS Quality Gate, chỉnh Prompt source state hay authorize Production release.
 
 ## Source cũ / module đã xác minh vẫn còn
 
