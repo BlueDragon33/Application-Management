@@ -23,6 +23,8 @@ const PRICE_ORIGIN = `http://127.0.0.1:${PRICE_PORT}`;
 const PRICE_CONTROL_ORIGIN = `http://127.0.0.1:${PRICE_CONTROL_PORT}`;
 const NC03_ORIGIN = `http://127.0.0.1:${NC03_PORT}`;
 const CENTRAL_ORIGIN = "http://127.0.0.1:3000";
+const REQUIRED_NC03_RUNTIME_PROTOCOL = "nc03-local-runtime/v3";
+const REQUIRED_NC03_AUTH_LOGIN_PROTOCOL = "nc03-auth-login/v1";
 
 const mime = new Map([
   [".html", "text/html; charset=utf-8"],
@@ -178,6 +180,33 @@ async function verifyPriceContract() {
   }
 }
 
+async function verifyNc03AuthRuntime() {
+  const healthResponse = await waitFor(`${NC03_ORIGIN}/_local/health`);
+  const health = await healthResponse.json().catch(() => null);
+  if (health?.runtimeProtocol !== REQUIRED_NC03_RUNTIME_PROTOCOL
+    || health?.authLoginProtocol !== REQUIRED_NC03_AUTH_LOGIN_PROTOCOL) {
+    throw new Error(
+      `NC03 runtime AUTH protocol quá cũ · runtime=${health?.runtimeProtocol ?? "unknown"} · auth=${health?.authLoginProtocol ?? "missing"}. `
+      + "Hãy git pull repo NC03_Modem, dừng process 3010 cũ rồi chạy lại.",
+    );
+  }
+
+  const contractResponse = await waitFor(`${NC03_ORIGIN}/api/application-management/contract`);
+  const contract = await contractResponse.json().catch(() => null);
+  const authContractOk = contract?.capabilities?.authRealLogin === true
+    && contract?.capabilities?.authSessionVerification === true
+    && contract?.endpoints?.authReadiness === "/api/nc03/auth-readiness"
+    && contract?.endpoints?.login === "/api/nc03/login"
+    && contract?.boundary?.applicationManagementOwnsModemCredentials === false;
+  if (!authContractOk) {
+    throw new Error(
+      "NC03 contract chưa đạt AUTH runtime v3. Hãy git pull repo NC03_Modem, build và restart runtime trước khi mở từ Application Management.",
+    );
+  }
+
+  console.log(`[RUN-ALL] NC03 AUTH runtime gate OK · ${health.runtimeProtocol} · ${health.authLoginProtocol}`);
+}
+
 async function verifyNc03ProbeCompatibility() {
   const url = new URL("/api/nc03/auth-source-probe", NC03_ORIGIN);
   url.searchParams.set("baseUrl", "http://192.168.0.1");
@@ -315,6 +344,7 @@ async function main() {
 
     await waitFor(`${NC03_ORIGIN}/_local/health`);
     await waitFor(`${NC03_ORIGIN}/api/application-management/contract`);
+    await verifyNc03AuthRuntime();
     await verifyNc03ProbeCompatibility();
     console.log(`[RUN-ALL] NC03 Control Center + management contract + AUTH probe compatibility sẵn sàng · ${NC03_ORIGIN}`);
 
