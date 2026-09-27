@@ -51,10 +51,13 @@ test("NC03 route has a matching pending registry entry and no fake remote contro
   assert.match(block, /BlueDragon33\/NC03_Modem/);
   assert.match(block, /Không lưu hoặc proxy mật khẩu admin NC03/);
   assert.match(block, /network resolver/);
-  assert.match(block, /application identity \+ version/);
+  assert.match(block, /runtime protocol v3 \+ auth-login v1/);
   assert.match(block, /8\.00\.42/);
   assert.match(block, /localUrl: "\/api\/local-web-launch\?app=nc03-modem"/);
   assert.match(block, /Offline\/PWA self-refresh/);
+  assert.match(block, /Real login local-only/);
+  assert.match(block, /Session-expiry re-auth/);
+  assert.match(block, /AES-GCM credential vault local/);
   assert.match(block, /Báo cáo chẩn đoán A4/);
   assert.match(block, /Privacy-safe report allow-list/);
   assert.match(route, /getApplicationConfig\("nc03-modem"\)/);
