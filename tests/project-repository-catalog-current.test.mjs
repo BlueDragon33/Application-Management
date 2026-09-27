@@ -89,17 +89,18 @@ test("Software Blueprint Hub is tracked as active core compass with a metadata-o
 });
 
 
-test("NC03 project catalog reflects the current runtime-gated AUTH release", () => {
+test("NC03 project catalog reflects runtime-gated AUTH plus read-only write readiness", () => {
   const start = registry.indexOf('id: "nc03-modem"');
   const end = registry.indexOf("\n  },", start);
   const block = registry.slice(start, end);
-  assert.match(block, /v0\.7\.22/);
+  assert.match(block, /v0\.7\.23/);
   assert.match(block, /runtime v3/i);
   assert.match(block, /real login local-only/i);
   assert.match(block, /session-expiry re-auth/i);
-  assert.match(block, /AES-GCM credential vault/i);
-  assert.match(block, /WRITE.*fail-closed/i);
-  assert.match(projectDocs, /v0\.7\.22/);
+  assert.match(block, /Write Readiness Lab read-only/i);
+  assert.match(block, /Long Life Charging/i);
+  assert.match(block, /WRITE.*(?:khóa|fail-closed)/i);
+  assert.match(projectDocs, /v0\.7\.23/);
 });
 
 test("PriceReport catalog reflects V6.14 standalone-first access", () => {
