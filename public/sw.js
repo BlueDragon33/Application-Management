@@ -1,4 +1,4 @@
-const CACHE_NAME = "learning-control-webapp-v1";
+const CACHE_NAME = "application-management-webapp-v2";
 const SAFE_ASSETS = ["/manifest.webmanifest", "/favicon.svg", "/icon-192.png", "/icon-512.png", "/offline.html"];
 
 self.addEventListener("install", (event) => {
