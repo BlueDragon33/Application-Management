@@ -25,6 +25,10 @@ import {
 type View = "overview" | "approvals" | "applications" | "devices" | "access" | "alerts" | "audit" | "settings";
 type ControlDeviceOperation = "approve" | "block" | "deactivate-member" | "delete-member";
 type FontScale = "compact" | "standard" | "large" | "xlarge";
+type InstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform?: string }>;
+};
 type SystemTool = {
   id: string;
   name: string;
@@ -293,6 +297,8 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   const [fontScale, setFontScale] = useState<FontScale>("compact");
   const [localRuntime, setLocalRuntime] = useState(false);
   const [approvalGateEnabled, setApprovalGateEnabled] = useState(defaultApprovalGate);
+  const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
+  const [appInstalled, setAppInstalled] = useState(false);
 
   async function refreshOperations(silent = false) {
     if (!silent) setSyncing(true);
@@ -345,6 +351,33 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   }
 
   useEffect(() => {
+    const standaloneDisplay = window.matchMedia("(display-mode: standalone)").matches
+      || Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
+    setAppInstalled(standaloneDisplay);
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+    }
+
+    const handleInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as InstallPromptEvent);
+    };
+    const handleInstalled = () => {
+      setInstallPrompt(null);
+      setAppInstalled(true);
+      setNotice("Application Management đã được cài như Web-App.");
+    };
+
+    window.addEventListener("beforeinstallprompt", handleInstallPrompt);
+    window.addEventListener("appinstalled", handleInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleInstallPrompt);
+      window.removeEventListener("appinstalled", handleInstalled);
+    };
+  }, []);
+
+  useEffect(() => {
     const resolveView = () => {
       const requested = new URLSearchParams(window.location.search).get("view");
       setView(requested && validViews.includes(requested as View) ? requested as View : "overview");
@@ -394,6 +427,19 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   function changeFontScale(next: FontScale) {
     setFontScale(next);
     try { window.localStorage.setItem(fontScaleStorageKey, next); } catch { /* Device-local persistence is optional. */ }
+  }
+
+  async function installWebApp() {
+    if (!installPrompt) return;
+    try {
+      await installPrompt.prompt();
+      const choice = await installPrompt.userChoice;
+      if (choice.outcome === "accepted") {
+        setNotice("Đang hoàn tất cài đặt Application Management như Web-App…");
+      }
+    } finally {
+      setInstallPrompt(null);
+    }
   }
 
   function changeApprovalGate(next: boolean) {
@@ -712,7 +758,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
         <button className="amv2-access-mode" data-enabled={approvalGateEnabled} onClick={() => changeApprovalGate(!approvalGateEnabled)} title="Bật/tắt kiểm duyệt quyền và thiết bị"><span>{approvalGateEnabled ? "🔒" : "⚡"}</span><div><small>Kiểm duyệt truy cập</small><strong>{approvalGateEnabled ? "BẬT" : "TẮT · Vào thẳng"}</strong></div></button>
         <button className="amv2-bell" aria-label={notificationCount ? `Mở Cảnh báo: ${notificationCount} thông báo` : "Mở Cảnh báo"} onClick={() => switchView("alerts")}>♧{notificationCount ? <b>{notificationCount}</b> : null}</button>
         <span className="amv2-online" data-standalone={!approvalGateEnabled}><i/><strong>{approvalGateEnabled ? "Hệ thống kết nối" : "Standalone · Local-first"}</strong><small>{syncing ? "Đang đồng bộ…" : approvalGateEnabled ? "Dữ liệu đã cập nhật" : "Internet chỉ cần khi lấy quyền/sync"}</small></span>
-        <details className="amv2-account"><summary><span>{initials(user.displayName)}</span><div><strong>{user.displayName}</strong><small>{approvalGateEnabled ? roleLabels[access.role] : "Standalone Owner"}</small></div><b>⌄</b></summary><div><small>{user.email}</small>{authMode === "cloudflare-production" ? <a href="/__account">Tài khoản & bảo mật</a> : <button onClick={() => setAccountSecurityOpen(true)}>Tài khoản & bảo mật</button>}<button onClick={() => switchView("settings")}>Cấu hình</button>{authMode === "cloudflare-production" ? <form method="post" action="/__logout"><button type="submit">Đăng xuất</button></form> : <a href="/signout-with-chatgpt?return_to=%2F">Đăng xuất</a>}</div></details>
+        <details className="amv2-account"><summary><span>{initials(user.displayName)}</span><div><strong>{user.displayName}</strong><small>{approvalGateEnabled ? roleLabels[access.role] : "Standalone Owner"}</small></div><b>⌄</b></summary><div><small>{user.email}</small>{authMode === "cloudflare-production" ? <a href="/__account">Tài khoản & bảo mật</a> : <button onClick={() => setAccountSecurityOpen(true)}>Tài khoản & bảo mật</button>}{installPrompt ? <button onClick={() => void installWebApp()}>⇩ Cài Web-App</button> : appInstalled ? <span className="amv2-installed-note">✓ Đã cài Web-App</span> : null}<button onClick={() => switchView("settings")}>Cấu hình</button>{authMode === "cloudflare-production" ? <form method="post" action="/__logout"><button type="submit">Đăng xuất</button></form> : <a href="/signout-with-chatgpt?return_to=%2F">Đăng xuất</a>}</div></details>
       </header>
 
       <div className="amv2-content">
@@ -756,6 +802,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
         </div>
       </div>
     </section>
+    {installPrompt ? <button className="amv2-install-fab" onClick={() => void installWebApp()} aria-label="Cài Application Management như Web-App" title="Cài Web-App"><span aria-hidden="true">⇩</span><b>Cài Web-App</b></button> : null}
   </main>;
 }
 
