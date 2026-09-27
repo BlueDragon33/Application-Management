@@ -259,6 +259,41 @@
 .amv2-account > div a { padding: 8px; border: 1px solid rgba(255,255,255,.07); border-radius: 7px; background: rgba(255,255,255,.03); color: #e9f4f0; text-decoration: none; cursor: pointer; text-align: left; }
 .amv2-account > div form { margin: 0; }
 .amv2-account > div form button { width: 100%; }
+.amv2-installed-note {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid rgba(55,226,177,.16);
+  border-radius: 7px;
+  background: rgba(20,111,82,.16);
+  color: #7ce6c4;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.amv2-install-fab {
+  position: fixed;
+  z-index: 68;
+  right: 20px;
+  bottom: 20px;
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 15px;
+  border: 1px solid rgba(61,226,179,.48);
+  border-radius: 12px;
+  background: linear-gradient(135deg,#0f7a5e,#07503e);
+  color: #f2fff9;
+  box-shadow: 0 14px 34px rgba(0,0,0,.30);
+  cursor: pointer;
+  font-weight: 800;
+}
+.amv2-install-fab > span { font-size: 19px; line-height: 1; }
+.amv2-install-fab > b { font-size: 11px; white-space: nowrap; }
+.amv2-install-fab:hover { border-color: rgba(91,239,198,.78); transform: translateY(-1px); }
+.amv2-install-fab:focus-visible { outline: 2px solid #64e8c1; outline-offset: 2px; }
 
 .amv2-content {
   position: relative;
@@ -518,6 +553,8 @@
 }
 
 @media (max-width: 700px) {
+  .amv2-install-fab { right: 12px; bottom: 12px; min-height: 44px; padding: 0 12px; }
+  .amv2-install-fab > b { font-size: 10px; }
   .amv2-shell { display: block; overflow: visible; }
   .amv2-sidebar { position: sticky; z-index: 40; top: 0; width: 100%; height: 62px; display: grid; grid-template-columns: 52px minmax(0,1fr); padding: 6px 8px; overflow: visible; }
   .amv2-brand { min-height: 48px; border: 0; }
