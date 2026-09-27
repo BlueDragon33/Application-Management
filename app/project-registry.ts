@@ -122,7 +122,7 @@ export const projectRepositories: readonly ProjectRepositoryConfig[] = [
     defaultBranch: "main",
     group: "control",
     state: "developing",
-    summary: "Website-app/PWA local-first quản trị modem HYBRID Wi-Fi 5G NC03; v0.7.23 có runtime v3, real login local-only, session-expiry re-auth, AES-GCM credential vault và Write Readiness Lab read-only cho Long Life Charging. WRITE vẫn khóa cho tới HAR write + rollback + post-condition.",
+    summary: "Website-app/PWA local-first quản trị modem HYBRID Wi-Fi 5G NC03; v0.7.24 có runtime v4 + write-readiness v1 gate, real login local-only, session-expiry re-auth, AES-GCM credential vault và Write Readiness Lab read-only. WRITE vẫn khóa cho tới HAR write + rollback + post-condition.",
     managementHref: "/apps/nc03-modem",
   },
   {
