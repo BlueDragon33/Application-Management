@@ -27,8 +27,9 @@
 
   .amv2-topbar {
     padding: 10px 20px !important;
-    grid-template-columns: minmax(360px, 1fr) 180px 44px 184px minmax(205px, .52fr) !important;
-    gap: 12px !important;
+    grid-template-areas: "search filter access bell online account" !important;
+    grid-template-columns: minmax(180px, 1fr) minmax(130px, 170px) minmax(135px, 165px) 42px minmax(140px, 180px) minmax(190px, 210px) !important;
+    gap: 10px !important;
   }
 
   .amv2-search,
