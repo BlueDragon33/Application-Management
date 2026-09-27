@@ -11,8 +11,9 @@ const defaultAppsRoot = resolve(centralRoot, "..");
 const isWindows = process.platform === "win32";
 const npm = isWindows ? "npm.cmd" : "npm";
 const npx = isWindows ? "npx.cmd" : "npx";
-const REQUIRED_NC03_RUNTIME_PROTOCOL = "nc03-local-runtime/v3";
+const REQUIRED_NC03_RUNTIME_PROTOCOL = "nc03-local-runtime/v4";
 const REQUIRED_NC03_AUTH_LOGIN_PROTOCOL = "nc03-auth-login/v1";
+const REQUIRED_NC03_WRITE_READINESS_PROTOCOL = "nc03-write-readiness/v1";
 
 function commandSpec(command, args) {
   if (!isWindows || !/\.cmd$/i.test(command)) return { file: command, args };
@@ -262,9 +263,10 @@ async function verifyNc03AuthRuntime(origin) {
   const health = await healthResponse.json().catch(() => null);
   if (!healthResponse.ok
     || health?.runtimeProtocol !== REQUIRED_NC03_RUNTIME_PROTOCOL
-    || health?.authLoginProtocol !== REQUIRED_NC03_AUTH_LOGIN_PROTOCOL) {
+    || health?.authLoginProtocol !== REQUIRED_NC03_AUTH_LOGIN_PROTOCOL
+    || health?.writeReadinessProtocol !== REQUIRED_NC03_WRITE_READINESS_PROTOCOL) {
     throw new Error(
-      `NC03 AUTH runtime quá cũ · runtime=${health?.runtimeProtocol ?? "unknown"} · auth=${health?.authLoginProtocol ?? "missing"}. `
+      `NC03 runtime quá cũ · runtime=${health?.runtimeProtocol ?? "unknown"} · auth=${health?.authLoginProtocol ?? "missing"} · write=${health?.writeReadinessProtocol ?? "missing"}. `
       + "Hãy cập nhật repo NC03_Modem và dừng process 3010 cũ trước khi chạy lại.",
     );
   }
@@ -278,14 +280,17 @@ async function verifyNc03AuthRuntime(origin) {
   const contractOk = contractResponse.ok
     && contract?.capabilities?.authRealLogin === true
     && contract?.capabilities?.authSessionVerification === true
+    && contract?.capabilities?.writeReadinessLab === true
+    && contract?.capabilities?.writeReadinessRuntimeProtocol === true
     && contract?.endpoints?.authReadiness === "/api/nc03/auth-readiness"
     && contract?.endpoints?.login === "/api/nc03/login"
+    && contract?.endpoints?.writeReadiness === "/api/nc03/write-readiness"
     && contract?.boundary?.applicationManagementOwnsModemCredentials === false;
   if (!contractOk) {
-    throw new Error("NC03 contract chưa đạt AUTH runtime v3; hãy cập nhật NC03_Modem rồi restart.");
+    throw new Error("NC03 contract chưa đạt runtime v4 + WRITE readiness v1; hãy cập nhật NC03_Modem rồi restart.");
   }
 
-  console.log(`[local-system] NC03 AUTH runtime gate · ${health.runtimeProtocol} · ${health.authLoginProtocol}`);
+  console.log(`[local-system] NC03 runtime gate · ${health.runtimeProtocol} · ${health.authLoginProtocol} · ${health.writeReadinessProtocol}`);
 }
 
 async function verifyNc03ProbeCompatibility(origin) {
