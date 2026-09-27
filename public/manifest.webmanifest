@@ -27,5 +27,7 @@
       "type": "image/svg+xml",
       "purpose": "any"
     }
-  ]
+  ],
+  "id": "/",
+  "prefer_related_applications": false
 }
