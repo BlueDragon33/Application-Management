@@ -122,7 +122,7 @@ export const projectRepositories: readonly ProjectRepositoryConfig[] = [
     defaultBranch: "main",
     group: "control",
     state: "developing",
-    summary: "Website-app/PWA local-first quản trị modem HYBRID Wi-Fi 5G NC03; v0.7.15 có HAR Evidence Lab, AUTH Source Probe, login payload-origin tracing, redaction bí mật và sanitized evidence export. Read-path HAR2/live 10 giây/báo cáo A4 giữ nguyên; AUTH/write tiếp tục evidence-gated.",
+    summary: "Website-app/PWA local-first quản trị modem HYBRID Wi-Fi 5G NC03; v0.7.22 đã có runtime v3, real login local-only, session-expiry re-auth, AES-GCM credential vault, HAR Evidence Lab và live telemetry 10 giây. WRITE vẫn evidence-gated và fail-closed.",
     managementHref: "/apps/nc03-modem",
   },
   {
