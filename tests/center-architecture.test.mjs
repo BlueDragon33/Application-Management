@@ -58,6 +58,8 @@ test("NC03 route has a matching pending registry entry and no fake remote contro
   assert.match(block, /Real login local-only/);
   assert.match(block, /Session-expiry re-auth/);
   assert.match(block, /AES-GCM credential vault local/);
+  assert.match(block, /Write Readiness Lab read-only/);
+  assert.match(block, /Reversible Long Life Charging capture plan/);
   assert.match(block, /Báo cáo chẩn đoán A4/);
   assert.match(block, /Privacy-safe report allow-list/);
   assert.match(route, /getApplicationConfig\("nc03-modem"\)/);
