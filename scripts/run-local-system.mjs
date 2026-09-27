@@ -11,6 +11,8 @@ const defaultAppsRoot = resolve(centralRoot, "..");
 const isWindows = process.platform === "win32";
 const npm = isWindows ? "npm.cmd" : "npm";
 const npx = isWindows ? "npx.cmd" : "npx";
+const REQUIRED_NC03_RUNTIME_PROTOCOL = "nc03-local-runtime/v3";
+const REQUIRED_NC03_AUTH_LOGIN_PROTOCOL = "nc03-auth-login/v1";
 
 function commandSpec(command, args) {
   if (!isWindows || !/\.cmd$/i.test(command)) return { file: command, args };
@@ -249,6 +251,43 @@ async function waitForNc03Runtime(name, url, expectedVersion, timeoutMs = 45_000
   throw new Error(`${name} không vượt runtime identity/version gate: ${lastReason} · ${url}`);
 }
 
+async function verifyNc03AuthRuntime(origin) {
+  const healthUrl = `${origin}/_local/health`;
+  let healthResponse;
+  try {
+    healthResponse = await fetch(healthUrl, { cache:"no-store", redirect:"manual", signal:AbortSignal.timeout(5000) });
+  } catch {
+    throw new Error(`NC03 AUTH runtime gate không kết nối được: ${origin}`);
+  }
+  const health = await healthResponse.json().catch(() => null);
+  if (!healthResponse.ok
+    || health?.runtimeProtocol !== REQUIRED_NC03_RUNTIME_PROTOCOL
+    || health?.authLoginProtocol !== REQUIRED_NC03_AUTH_LOGIN_PROTOCOL) {
+    throw new Error(
+      `NC03 AUTH runtime quá cũ · runtime=${health?.runtimeProtocol ?? "unknown"} · auth=${health?.authLoginProtocol ?? "missing"}. `
+      + "Hãy cập nhật repo NC03_Modem và dừng process 3010 cũ trước khi chạy lại.",
+    );
+  }
+
+  const contractResponse = await fetch(`${origin}/api/application-management/contract`, {
+    cache:"no-store",
+    redirect:"manual",
+    signal:AbortSignal.timeout(5000),
+  });
+  const contract = await contractResponse.json().catch(() => null);
+  const contractOk = contractResponse.ok
+    && contract?.capabilities?.authRealLogin === true
+    && contract?.capabilities?.authSessionVerification === true
+    && contract?.endpoints?.authReadiness === "/api/nc03/auth-readiness"
+    && contract?.endpoints?.login === "/api/nc03/login"
+    && contract?.boundary?.applicationManagementOwnsModemCredentials === false;
+  if (!contractOk) {
+    throw new Error("NC03 contract chưa đạt AUTH runtime v3; hãy cập nhật NC03_Modem rồi restart.");
+  }
+
+  console.log(`[local-system] NC03 AUTH runtime gate · ${health.runtimeProtocol} · ${health.authLoginProtocol}`);
+}
+
 async function verifyNc03ProbeCompatibility(origin) {
   const url = new URL("/api/nc03/auth-source-probe", origin);
   url.searchParams.set("baseUrl", "http://192.168.0.1");
@@ -409,6 +448,7 @@ async function main() {
     waitForEndpoint("Bauman Hub + môn học", `${baumanRuntimeOrigin}/_local/health`),
     waitForNc03Runtime("NC03 Control Center", `${nc03Origin}/_local/health`, nc03SourceVersion),
   ]);
+  await verifyNc03AuthRuntime(nc03Origin);
   await verifyNc03ProbeCompatibility(nc03Origin);
 
   const centralEnv = {
