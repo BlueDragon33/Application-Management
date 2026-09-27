@@ -103,13 +103,16 @@ test("run-all blocks stale NC03 runtimes that still reject legacy AUTH probe GET
   assert.match(runAll, /await verifyNc03ProbeCompatibility\(\)/);
 });
 
-test("run-all rejects NC03 v2 even when the local package version still matches it", () => {
+test("run-all rejects stale NC03 runtimes even when the local package version still matches them", () => {
   const runAll = read("scripts/run-all.mjs");
-  assert.match(runAll, /REQUIRED_NC03_RUNTIME_PROTOCOL = "nc03-local-runtime\/v3"/);
+  assert.match(runAll, /REQUIRED_NC03_RUNTIME_PROTOCOL = "nc03-local-runtime\/v4"/);
   assert.match(runAll, /REQUIRED_NC03_AUTH_LOGIN_PROTOCOL = "nc03-auth-login\/v1"/);
+  assert.match(runAll, /REQUIRED_NC03_WRITE_READINESS_PROTOCOL = "nc03-write-readiness\/v1"/);
   assert.match(runAll, /verifyNc03AuthRuntime/);
   assert.match(runAll, /authRealLogin === true/);
   assert.match(runAll, /authSessionVerification === true/);
+  assert.match(runAll, /writeReadinessLab === true/);
+  assert.match(runAll, /writeReadinessRuntimeProtocol === true/);
   assert.match(runAll, /Hãy git pull repo NC03_Modem, dừng process 3010 cũ rồi chạy lại/);
   assert.match(runAll, /await verifyNc03AuthRuntime\(\)/);
 });
