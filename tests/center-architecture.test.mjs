@@ -49,7 +49,7 @@ test("NC03 route has a matching pending registry entry and no fake remote contro
   assert.ok(start >= 0, "NC03 registry entry must exist");
   assert.match(block, /contractState: "pending"/);
   assert.match(block, /BlueDragon33\/NC03_Modem/);
-  assert.match(block, /Không lưu hoặc proxy mật khẩu admin NC03/);
+  assert.match(block, /Application Management không lưu hoặc proxy mật khẩu admin NC03/);
   assert.match(block, /network resolver/);
   assert.match(block, /runtime protocol v3 \+ auth-login v1/);
   assert.match(block, /8\.00\.42/);
