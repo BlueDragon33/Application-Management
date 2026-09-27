@@ -141,6 +141,18 @@ function previewUnauthorized(request: Request) {
   );
 }
 
+function isPublicPwaAsset(request: Request, url: URL) {
+  if (request.method !== "GET" && request.method !== "HEAD") return false;
+  return new Set([
+    "/manifest.webmanifest",
+    "/sw.js",
+    "/icon-192.png",
+    "/icon-512.png",
+    "/favicon.svg",
+    "/offline.html",
+  ]).has(url.pathname);
+}
+
 function isCloudflareClientAsset(request: Request, url: URL) {
   if (request.method !== "GET" && request.method !== "HEAD") return false;
   if (url.pathname.startsWith("/assets/")) return true;
@@ -190,6 +202,13 @@ const worker = {
     const channel = env.APPLICATION_MANAGEMENT_DEPLOYMENT_CHANNEL;
     const isPreview = channel === "cloudflare-preview";
     const isProduction = channel === "cloudflare-production";
+
+    // PWA installability metadata contains no private application data and must
+    // be readable before login so Chromium can validate the manifest and
+    // service worker deterministically.
+    if ((isPreview || isProduction) && isPublicPwaAsset(request, url)) {
+      return env.ASSETS.fetch(request);
+    }
 
     if (isPreview) {
       if (!previewAccessConfigured(env.APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET)) return previewUnavailable();

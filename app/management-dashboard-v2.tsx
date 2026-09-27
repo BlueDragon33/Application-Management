@@ -299,6 +299,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   const [approvalGateEnabled, setApprovalGateEnabled] = useState(defaultApprovalGate);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   const [appInstalled, setAppInstalled] = useState(false);
+  const [installHelpOpen, setInstallHelpOpen] = useState(false);
 
   async function refreshOperations(silent = false) {
     if (!silent) setSyncing(true);
@@ -365,6 +366,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
     };
     const handleInstalled = () => {
       setInstallPrompt(null);
+      setInstallHelpOpen(false);
       setAppInstalled(true);
       setNotice("Application Management đã được cài như Web-App.");
     };
@@ -430,12 +432,17 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   }
 
   async function installWebApp() {
-    if (!installPrompt) return;
+    if (!installPrompt) {
+      setInstallHelpOpen(true);
+      return;
+    }
     try {
       await installPrompt.prompt();
       const choice = await installPrompt.userChoice;
       if (choice.outcome === "accepted") {
         setNotice("Đang hoàn tất cài đặt Application Management như Web-App…");
+      } else {
+        setInstallHelpOpen(true);
       }
     } finally {
       setInstallPrompt(null);
@@ -758,7 +765,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
         <button className="amv2-access-mode" data-enabled={approvalGateEnabled} onClick={() => changeApprovalGate(!approvalGateEnabled)} title="Bật/tắt kiểm duyệt quyền và thiết bị"><span>{approvalGateEnabled ? "🔒" : "⚡"}</span><div><small>Kiểm duyệt truy cập</small><strong>{approvalGateEnabled ? "BẬT" : "TẮT · Vào thẳng"}</strong></div></button>
         <button className="amv2-bell" aria-label={notificationCount ? `Mở Cảnh báo: ${notificationCount} thông báo` : "Mở Cảnh báo"} onClick={() => switchView("alerts")}>♧{notificationCount ? <b>{notificationCount}</b> : null}</button>
         <span className="amv2-online" data-standalone={!approvalGateEnabled}><i/><strong>{approvalGateEnabled ? "Hệ thống kết nối" : "Standalone · Local-first"}</strong><small>{syncing ? "Đang đồng bộ…" : approvalGateEnabled ? "Dữ liệu đã cập nhật" : "Internet chỉ cần khi lấy quyền/sync"}</small></span>
-        <details className="amv2-account"><summary><span>{initials(user.displayName)}</span><div><strong>{user.displayName}</strong><small>{approvalGateEnabled ? roleLabels[access.role] : "Standalone Owner"}</small></div><b>⌄</b></summary><div><small>{user.email}</small>{authMode === "cloudflare-production" ? <a href="/__account">Tài khoản & bảo mật</a> : <button onClick={() => setAccountSecurityOpen(true)}>Tài khoản & bảo mật</button>}{installPrompt ? <button onClick={() => void installWebApp()}>⇩ Cài Web-App</button> : appInstalled ? <span className="amv2-installed-note">✓ Đã cài Web-App</span> : null}<button onClick={() => switchView("settings")}>Cấu hình</button>{authMode === "cloudflare-production" ? <form method="post" action="/__logout"><button type="submit">Đăng xuất</button></form> : <a href="/signout-with-chatgpt?return_to=%2F">Đăng xuất</a>}</div></details>
+        <details className="amv2-account"><summary><span>{initials(user.displayName)}</span><div><strong>{user.displayName}</strong><small>{approvalGateEnabled ? roleLabels[access.role] : "Standalone Owner"}</small></div><b>⌄</b></summary><div><small>{user.email}</small>{authMode === "cloudflare-production" ? <a href="/__account">Tài khoản & bảo mật</a> : <button onClick={() => setAccountSecurityOpen(true)}>Tài khoản & bảo mật</button>}{appInstalled ? <span className="amv2-installed-note">✓ Đã cài Web-App</span> : <button onClick={() => void installWebApp()}>⇩ Cài Web-App</button>}<button onClick={() => switchView("settings")}>Cấu hình</button>{authMode === "cloudflare-production" ? <form method="post" action="/__logout"><button type="submit">Đăng xuất</button></form> : <a href="/signout-with-chatgpt?return_to=%2F">Đăng xuất</a>}</div></details>
       </header>
 
       <div className="amv2-content">
@@ -802,7 +809,20 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
         </div>
       </div>
     </section>
-    {installPrompt ? <button className="amv2-install-fab" onClick={() => void installWebApp()} aria-label="Cài Application Management như Web-App" title="Cài Web-App"><span aria-hidden="true">⇩</span><b>Cài Web-App</b></button> : null}
+    {!appInstalled ? <button className="amv2-install-fab" data-ready={Boolean(installPrompt)} onClick={() => void installWebApp()} aria-label="Cài Application Management như Web-App" title={installPrompt ? "Cài Web-App ngay" : "Hướng dẫn cài Web-App"}><span aria-hidden="true">⇩</span><b>Cài Web-App</b></button> : null}
+    {installHelpOpen ? <div className="amv2-install-scrim" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setInstallHelpOpen(false); }}>
+      <section className="amv2-install-dialog" role="dialog" aria-modal="true" aria-labelledby="install-webapp-title">
+        <header><div><small>WEB-APP</small><h2 id="install-webapp-title">Cài Application Management</h2></div><button type="button" aria-label="Đóng" onClick={() => setInstallHelpOpen(false)}>×</button></header>
+        <p>Chrome chưa phát hộp thoại cài tự động cho phiên này. Web-App vẫn có thể cài trực tiếp từ trình duyệt.</p>
+        <ol>
+          <li>Mở menu <strong>⋮</strong> ở góc trên bên phải Chrome.</li>
+          <li>Chọn <strong>Cài đặt Application Management</strong>, <strong>Cài ứng dụng</strong> hoặc mục tương đương trong <strong>Truyền, lưu và chia sẻ</strong>.</li>
+          <li>Xác nhận <strong>Cài đặt</strong>. Sau đó ứng dụng sẽ mở ở cửa sổ riêng như một app.</li>
+        </ol>
+        <small>Nếu Chrome chưa hiện lựa chọn cài, tải lại trang một lần sau khi đăng nhập; manifest và Service Worker sẽ được kiểm tra lại.</small>
+        <footer><button type="button" onClick={() => window.location.reload()}>↻ Tải lại để kiểm tra</button><button type="button" onClick={() => setInstallHelpOpen(false)}>Đóng</button></footer>
+      </section>
+    </div> : null}
   </main>;
 }
 
