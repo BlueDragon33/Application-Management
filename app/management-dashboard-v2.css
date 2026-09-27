@@ -136,14 +136,23 @@
 
 .amv2-topbar {
   display: grid;
-  grid-template-columns: minmax(280px,1fr) 174px 44px 180px minmax(190px,.58fr);
-  gap: 11px;
+  grid-template-areas: "search filter access bell online account";
+  grid-template-columns: minmax(180px,1fr) minmax(130px,170px) minmax(135px,165px) 42px minmax(140px,180px) minmax(190px,210px);
+  gap: 10px;
   align-items: center;
   padding: 10px 18px;
   border-bottom: 1px solid rgba(91, 211, 174, .18);
   background: rgba(5, 31, 24, .94);
   box-shadow: 0 8px 26px rgba(0,0,0,.12);
 }
+
+.amv2-topbar > * { min-width: 0; }
+.amv2-search { grid-area: search; }
+.amv2-filter { grid-area: filter; }
+.amv2-access-mode { grid-area: access; }
+.amv2-bell { grid-area: bell; }
+.amv2-online { grid-area: online; }
+.amv2-account { grid-area: account; justify-self: stretch; }
 
 .amv2-search,
 .amv2-filter {
@@ -487,7 +496,11 @@
   .amv2-sidebar nav span { font-size: 8px; text-align: center; }
   .amv2-sidebar nav b { position: absolute; margin: -28px 0 0 34px; }
   .amv2-sidebar footer { font-size: 0; text-align: center; }
-  .amv2-topbar { grid-template-columns: minmax(220px,1fr) 145px 40px 52px; }
+  .amv2-topbar {
+    grid-template-areas: "search filter access bell account";
+    grid-template-columns: minmax(120px,1fr) minmax(105px,130px) minmax(115px,140px) 40px 52px;
+    gap: 8px;
+  }
   .amv2-online { display: none; }
   .amv2-account summary { min-width: 50px; grid-template-columns: 42px; }
   .amv2-account summary div,
@@ -513,7 +526,12 @@
   .amv2-sidebar nav button { min-width: 76px; min-height: 46px; }
   .amv2-sidebar footer { display: none; }
   .amv2-workspace { height: auto; min-height: calc(100dvh - 62px); grid-template-rows: auto auto; overflow: visible; }
-  .amv2-topbar { grid-template-columns: minmax(0,1fr) 40px 46px; padding: 7px 9px; }
+  .amv2-topbar {
+    grid-template-areas: "search access bell account";
+    grid-template-columns: minmax(0,1fr) minmax(110px,132px) 40px 46px;
+    gap: 7px;
+    padding: 7px 9px;
+  }
   .amv2-filter,
   .amv2-online { display: none; }
   .amv2-search { height: 44px; }
