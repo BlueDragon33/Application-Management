@@ -173,14 +173,18 @@ test("NC03 startup gate verifies AUTH Source Probe compatibility before opening 
 });
 
 
-test("NC03 startup gate requires runtime v3 and real-login contract before manager launch", () => {
-  assert.match(launcher, /REQUIRED_NC03_RUNTIME_PROTOCOL = "nc03-local-runtime\/v3"/);
+test("NC03 startup gate requires runtime v4, real-login and write-readiness protocols before manager launch", () => {
+  assert.match(launcher, /REQUIRED_NC03_RUNTIME_PROTOCOL = "nc03-local-runtime\/v4"/);
   assert.match(launcher, /REQUIRED_NC03_AUTH_LOGIN_PROTOCOL = "nc03-auth-login\/v1"/);
+  assert.match(launcher, /REQUIRED_NC03_WRITE_READINESS_PROTOCOL = "nc03-write-readiness\/v1"/);
   assert.match(launcher, /async function verifyNc03AuthRuntime/);
   assert.match(launcher, /authRealLogin === true/);
   assert.match(launcher, /authSessionVerification === true/);
+  assert.match(launcher, /writeReadinessLab === true/);
+  assert.match(launcher, /writeReadinessRuntimeProtocol === true/);
   assert.match(launcher, /authReadiness === "\/api\/nc03\/auth-readiness"/);
   assert.match(launcher, /endpoints\?\.login === "\/api\/nc03\/login"/);
+  assert.match(launcher, /endpoints\?\.writeReadiness === "\/api\/nc03\/write-readiness"/);
   assert.match(launcher, /applicationManagementOwnsModemCredentials === false/);
   assert.match(launcher, /await verifyNc03AuthRuntime\(nc03Origin\)/);
 });
