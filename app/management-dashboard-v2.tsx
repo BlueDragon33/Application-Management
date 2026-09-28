@@ -159,7 +159,7 @@ function connectionFor(app: ApplicationConfig, summary?: OperationsSummary): Ope
 function connectionLabel(value: OperationsSummary["connection"], summary?: OperationsSummary) {
   if (summary?.managementMode === "local-first" && summary.contractConnected === true) return "Local-first · contract live";
   if (summary?.managementMode === "local-first" && summary.metadataVerified) return "Local-first · metadata đã xác minh";
-  if (summary?.managementMode === "metadata-only" && summary.metadataVerified) return "Metadata đã xác minh · chưa có runtime";
+  if (summary?.managementMode === "metadata-only" && summary.metadataVerified) return "Đã liên kết quản trị · metadata";
   const issueCode = summary?.issueCode;
   if (issueCode === "BOI_ECH_STALE_PUBLISH") return "Publish cũ · đã chặn";
   if (issueCode === "BOI_ECH_RUNTIME_IDENTITY_UNAVAILABLE") return "Chưa xác minh runtime";
@@ -203,7 +203,7 @@ function statusAxes(app: ApplicationConfig, summary?: OperationsSummary) {
   const runtime = localFirst
     ? { label: "Local-first", tone: "good" as const }
     : metadataOnly
-      ? { label: "Chưa có cloud", tone: "idle" as const }
+      ? { label: "Không yêu cầu", tone: "good" as const }
       : state === "unavailable"
         ? { label: "Mất kết nối", tone: "bad" as const }
         : runtimeLive
@@ -237,7 +237,7 @@ function StatusCell({ app, summary }: { app: ApplicationConfig; summary?: Operat
   const state = connectionFor(app, summary);
   const axes = statusAxes(app, summary);
   const title = summary?.note ?? app.contractNote;
-  const visualState = summary?.managementMode === "local-first" ? "connected" : state;
+  const visualState = summary?.managementMode === "local-first" || (summary?.managementMode === "metadata-only" && summary.metadataVerified) ? "connected" : state;
   return <div className="amv2-status-cell" title={title}>
     <b data-state={visualState}><i/>{connectionLabel(state, summary)}</b>
     <small aria-label="Chi tiết trạng thái kết nối">
