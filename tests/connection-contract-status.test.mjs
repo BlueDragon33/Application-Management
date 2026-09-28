@@ -23,7 +23,7 @@ test("live connectivity and Universal Contract readiness are independent dimensi
   assert.match(dashboard, /Contract live · chưa có quản trị/);
   assert.match(dashboard, /Chưa kết nối runtime/);
   assert.match(dashboard, /Local-first · metadata đã xác minh/);
-  assert.match(dashboard, /Metadata đã xác minh · chưa có runtime/);
+  assert.match(dashboard, /Đã liên kết quản trị · metadata/);
 });
 
 test("Boi connection faults are classified instead of all appearing as offline", () => {
@@ -82,7 +82,7 @@ test("application table renders runtime, contract and admin readiness as separat
   assert.match(dashboard, /summary\?\.contractConnected === true/);
   assert.match(dashboard, /summary\?\.remoteAdminReady === true/);
   assert.match(dashboard, /REPOSITORY_METADATA_ONLY/);
-  assert.match(dashboard, /summary\?\.metadataVerified/);
+  assert.match(dashboard, /summary\?\.metadataVerified/);\n  assert.match(dashboard, /managementMode === "metadata-only" && summary\.metadataVerified/);
   assert.match(dashboard, /Quản trị \{axes\.admin\.label\}/);
   assert.match(dashboard, /Không yêu cầu/);
 });
