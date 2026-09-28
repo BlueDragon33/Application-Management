@@ -6,6 +6,8 @@ function read(path) {
   return fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }
 
+const productionWorkflow = read(".github/workflows/deploy-application-management-production.yml");
+
 test("Blueprint OS is a managed metadata-only core app", () => {
   const registry = read("app/application-registry.ts");
   const start = registry.indexOf('id: "software-blueprint-hub"');
