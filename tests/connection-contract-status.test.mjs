@@ -82,7 +82,8 @@ test("application table renders runtime, contract and admin readiness as separat
   assert.match(dashboard, /summary\?\.contractConnected === true/);
   assert.match(dashboard, /summary\?\.remoteAdminReady === true/);
   assert.match(dashboard, /REPOSITORY_METADATA_ONLY/);
-  assert.match(dashboard, /summary\?\.metadataVerified/);\n  assert.match(dashboard, /managementMode === "metadata-only" && summary\.metadataVerified/);
+  assert.match(dashboard, /summary\?\.metadataVerified/);
+  assert.match(dashboard, /managementMode === "metadata-only" && summary\.metadataVerified/);
   assert.match(dashboard, /Quản trị \{axes\.admin\.label\}/);
   assert.match(dashboard, /Không yêu cầu/);
 });
