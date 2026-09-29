@@ -486,8 +486,8 @@ export default function ManagedAppsCatalogPage() {
 function connectionLabel(item: ProbeSummary | null | undefined) {
   if (!item) return "—";
   if (item.remoteAdminReady) return "Sẵn sàng quản trị";
-  if (item.managementMode === "local-first" && item.contractConnected) return item.runtimeConnected ? "Local-first · contract live" : "Local-first · contract đã xác minh";
-  if (item.managementMode === "metadata-only" && item.contractConnected) return "Đã nối contract · metadata";
+  if (item.managementMode === "local-first" && item.contractConnected) return item.runtimeConnected ? "Local-first · contract live" : "Local-first · metadata đã xác minh";
+  if (item.managementMode === "metadata-only" && item.metadataVerified) return "Metadata đã xác minh · chưa có runtime";
   if (item.contractConnected && item.runtimeConnected) return "Contract + runtime live · chỉ quan sát";
   if (item.contractConnected) return "Đã nối contract · chờ runtime/quản trị";
   if (item.connection === "pending") return "Chờ contract";

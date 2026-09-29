@@ -60,6 +60,9 @@ test("dashboard contract counter follows live operation snapshots and excludes i
 
 test("catalog status language distinguishes connected observe-only from real disconnects", () => {
   assert.match(catalog, /Sẵn sàng quản trị/);
+  assert.match(catalog, /return "Metadata đã xác minh · chưa có runtime"/);
+  assert.match(catalog, /return item\.runtimeConnected \? "Local-first · contract live" : "Local-first · metadata đã xác minh"/);
+  assert.doesNotMatch(catalog, /Đã nối contract · metadata/);
   assert.match(catalog, /Contract \+ runtime live · chỉ quan sát/);
   assert.match(catalog, /Đã nối contract · chờ runtime\/quản trị/);
   assert.match(catalog, /Chờ contract/);
@@ -81,6 +84,7 @@ test("repository metadata is contract-connected but never counts as live runtime
 test("existing client management routes survive dynamic catalog reconciliation", () => {
   assert.match(dashboard, /href: existing\?\.href \?\? dynamicApp\.href/);
   assert.match(dashboard, /summary\?\.managementMode === "metadata-only" && summary\.metadataVerified/);
+  assert.match(dashboard, /const contract = \(metadataOnly \|\| \(localFirst && !runtimeLive\)\) && summary\?\.metadataVerified/);
   assert.match(dashboard, /Local-first · metadata đã xác minh/);
   assert.doesNotMatch(dashboard, /Đã liên kết quản trị · metadata/);
 });
@@ -139,7 +143,7 @@ test("NC03 live local contract is distinct from repository-only metadata", () =>
 
 test("live local-first NC03 prioritizes real contract handshake over repository metadata", () => {
   assert.match(dashboard, /managementMode === "local-first" && summary\.contractConnected === true\) return "Local-first · contract live"/);
-  assert.match(dashboard, /const contract = summary\?\.contractConnected === true/);
+  assert.match(dashboard, /: summary\?\.contractConnected === true\s*\? \{ label: "Đã bắt tay"/);
   assert.match(dashboard, /\? \{ label: "Đã bắt tay", tone: "good" as const \}/);
   assert.match(dashboard, /\(summary\?\.contractConnected === true \|\| summary\?\.metadataVerified\)/);
 });
