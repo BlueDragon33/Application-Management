@@ -71,6 +71,7 @@ export type DynamicContractSnapshot = {
   manifest: UniversalContractManifest | null;
   credentialConfigured: boolean;
   contractConnected: boolean;
+  runtimeConnected: boolean;
   connection: "connected" | "warning" | "pending" | "unavailable";
   devices: UniversalContractDevice[];
   webHref: string | null;
@@ -609,6 +610,8 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
     const repositoryMetadataOnly = metadataOnlyRepositoryOrigin(row.origin);
     const managementMode = contractManagementMode(manifest, repositoryMetadataOnly, remoteAdminReady);
     const metadataVerified = repositoryMetadataOnly;
+    const contractConnected = true;
+    const runtimeConnected = !repositoryMetadataOnly && manifest.policy?.productionRuntimeReady !== false;
     const config = dynamicApplicationConfig({
       id: row.id,
       name: row.name,
@@ -617,7 +620,7 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
       origin: row.origin,
       publicUrl: row.public_url,
       repository: row.repository,
-      contractState: remoteAdminReady ? "connected" : repositoryMetadataOnly ? "pending" : "migrating",
+      contractState: remoteAdminReady ? "connected" : "migrating",
       contractNote: remoteAdminReady
         ? `${manifest.protocol ?? CONTRACT_SCHEMA} đã xác minh qua ${manifest.discoveredVia ?? row.contract_path}; capability được normalize động từ client.`
         : managementMode === "local-first"
@@ -634,8 +637,9 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
       config,
       manifest,
       credentialConfigured: Boolean(credential),
-      contractConnected: !repositoryMetadataOnly,
-      connection: remoteAdminReady ? "connected" : repositoryMetadataOnly ? "pending" : "warning",
+      contractConnected,
+      runtimeConnected,
+      connection: remoteAdminReady ? "connected" : "warning",
       devices,
       webHref: row.public_url || (!repositoryMetadataOnly && manifest.capabilities.webLaunch ? row.origin : null),
       remoteAdminReady,
@@ -662,6 +666,7 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
       manifest: null,
       credentialConfigured: Boolean(credential),
       contractConnected: false,
+      runtimeConnected: false,
       connection: "pending",
       devices: [],
       webHref: row.public_url,
