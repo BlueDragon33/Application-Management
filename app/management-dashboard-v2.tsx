@@ -197,20 +197,21 @@ function statusAxes(app: ApplicationConfig, summary?: OperationsSummary) {
   const state = connectionFor(app, summary);
   const localFirst = summary?.managementMode === "local-first";
   const metadataOnly = summary?.managementMode === "metadata-only";
-  const repositoryOnly = summary?.issueCode === "REPOSITORY_METADATA_ONLY";
-  const runtimeLive = !repositoryOnly && (state === "connected" || summary?.contractConnected === true);
+  const runtimeLive = summary?.runtimeConnected === true;
 
   const runtime = localFirst
-    ? { label: "Local-first", tone: "good" as const }
+    ? runtimeLive
+      ? { label: "Local-first · live", tone: "good" as const }
+      : { label: "Local-first", tone: "good" as const }
     : metadataOnly
-      ? { label: "Không yêu cầu", tone: "good" as const }
+      ? { label: "Chưa công bố", tone: "idle" as const }
       : state === "unavailable"
         ? { label: "Mất kết nối", tone: "bad" as const }
         : runtimeLive
           ? { label: "Live", tone: "good" as const }
-          : state === "warning"
-            ? { label: "Có cảnh báo", tone: "warn" as const }
-            : { label: "Chưa live", tone: "idle" as const };
+          : summary?.contractConnected === true
+            ? { label: "Chưa live", tone: "warn" as const }
+            : { label: "Chưa xác minh", tone: "idle" as const };
 
   const contract = summary?.contractConnected === true
     ? { label: "Đã bắt tay", tone: "good" as const }

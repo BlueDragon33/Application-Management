@@ -113,6 +113,7 @@ function probeSummary(probe: Awaited<ReturnType<typeof probeManagedCatalogEntry>
     connection: probe.connection,
     credentialConfigured: probe.credentialConfigured,
     contractConnected: probe.contractConnected,
+    runtimeConnected: probe.runtimeConnected,
     remoteAdminReady: probe.remoteAdminReady,
     managementMode: probe.managementMode,
     metadataVerified: probe.metadataVerified,
@@ -290,6 +291,9 @@ export async function POST(request: Request) {
         probes,
         totals: {
           connected: probes.filter((item) => item.connection === "connected").length,
+          contractConnected: probes.filter((item) => item.contractConnected === true).length,
+          runtimeConnected: probes.filter((item) => item.runtimeConnected === true).length,
+          remoteAdminReady: probes.filter((item) => item.remoteAdminReady === true).length,
           warning: probes.filter((item) => item.connection === "warning").length,
           pending: probes.filter((item) => item.connection === "pending" && item.managementMode !== "local-first" && item.managementMode !== "metadata-only").length,
           localFirst: probes.filter((item) => item.managementMode === "local-first").length,

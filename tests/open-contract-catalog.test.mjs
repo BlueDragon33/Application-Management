@@ -175,6 +175,9 @@ test("batch reprobe can recover pending contracts without deployment or source e
   assert.ok(catalogApi.includes('if (action === "probe-all")'));
   assert.ok(catalogApi.includes("probeManagedCatalogEntry(row)"));
   assert.ok(catalogApi.includes('item.connection === "connected"'));
+  assert.ok(catalogApi.includes("contractConnected: probes.filter"));
+  assert.ok(catalogApi.includes("runtimeConnected: probes.filter"));
+  assert.ok(catalogApi.includes("remoteAdminReady: probes.filter"));
   assert.ok(catalogApi.includes('item.connection === "warning"'));
   assert.ok(catalogApi.includes('item.connection === "pending"'));
   assert.ok(catalogApi.includes('item.connection === "unavailable"'));
@@ -223,13 +226,17 @@ test("origin-only discovery onboards new apps without Application Management sou
 
 test("contract handshake is distinct from remote-admin readiness and repository metadata", () => {
   assert.ok(contract.includes("contractConnected: boolean"));
-  assert.ok(contract.includes("contractConnected: !repositoryMetadataOnly"));
+  assert.ok(contract.includes("const contractConnected = true"));
+  assert.ok(contract.includes("const runtimeConnected = !repositoryMetadataOnly"));
+  assert.ok(contract.includes("runtimeConnected: boolean"));
   assert.ok(contract.includes("contractConnected: false"));
+  assert.ok(contract.includes("runtimeConnected: false"));
   assert.ok(contract.includes('issueCode: "REPOSITORY_METADATA_ONLY"'));
   assert.ok(contract.includes("contractManagementMode"));
   assert.ok(contract.includes('protocol.includes("local-first")'));
   assert.ok(contract.includes("metadataVerified"));
   assert.ok(catalogApi.includes("contractConnected: probe.contractConnected"));
+  assert.ok(catalogApi.includes("runtimeConnected: probe.runtimeConnected"));
   assert.ok(catalogUi.includes('label="Contract"'));
   assert.ok(operations.includes("snapshot.contractConnected"));
   assert.ok(operations.includes("Contract đã kết nối · Remote admin chưa sẵn sàng"));

@@ -63,6 +63,7 @@ type ClientSummary = {
   directWebAccess: boolean;
   remoteAdminReady?: boolean;
   contractConnected: boolean;
+  runtimeConnected: boolean;
   issueCode?: string;
   controlChannel: "universal" | "legacy-adapter" | "contract-observe" | "none";
   contractReadiness: "ready" | "partial" | "pending" | "not-enrolled" | "metadata";
@@ -584,6 +585,7 @@ function summary(
   contractConnected = false,
   managementMode: ClientSummary["managementMode"] = remoteAdminReady ? "remote-admin" : "observe-only",
   metadataVerified = false,
+  runtimeConnected = connection === "connected",
 ): ClientSummary {
   const connected = connection === "connected";
   const designedLocal = managementMode === "local-first" || managementMode === "metadata-only";
@@ -596,7 +598,7 @@ function summary(
     connection, onlineCount: hasOperationalData ? devices.filter((device) => device.active).length : null,
     pendingCount: hasOperationalData ? devices.filter((device) => device.status === "pending").length : null,
     attentionCount: hasOperationalData ? devices.filter((device) => device.attention !== "none").length : null,
-    note, directWebAccess: Boolean(webHref) && (connected || designedLocal), remoteAdminReady, contractConnected, issueCode,
+    note, directWebAccess: Boolean(webHref) && (connected || designedLocal), remoteAdminReady, contractConnected, runtimeConnected, issueCode,
     controlChannel, contractReadiness, managementMode, metadataVerified,
   };
 }
@@ -661,6 +663,7 @@ async function buildBootstrap(actor: ControlDeviceState) {
       snapshot.contractConnected,
       snapshot.managementMode,
       snapshot.metadataVerified,
+      snapshot.runtimeConnected,
     ));
     for (const device of dynamicDevices) {
       const item = workFromDevice(device);
