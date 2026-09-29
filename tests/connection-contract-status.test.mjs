@@ -13,7 +13,9 @@ test("live connectivity and Universal Contract readiness are independent dimensi
   assert.match(client, /managementMode\?: "remote-admin" \| "observe-only" \| "local-first" \| "metadata-only"/);
   assert.match(client, /metadataVerified\?: boolean/);
   assert.match(client, /contractConnected\?: boolean/);
+  assert.match(client, /runtimeConnected\?: boolean/);
   assert.match(operations, /contractConnected: boolean/);
+  assert.match(operations, /runtimeConnected: boolean/);
   assert.match(operations, /snapshot\.contractConnected/);
   assert.match(operations, /dynamic\?\.contractConnected \?\? false/);
   assert.match(operations, /"legacy-adapter"/);
@@ -58,19 +60,22 @@ test("dashboard contract counter follows live operation snapshots and excludes i
 
 test("catalog status language distinguishes connected observe-only from real disconnects", () => {
   assert.match(catalog, /Sẵn sàng quản trị/);
-  assert.match(catalog, /Đã nối contract · chỉ quan sát/);
+  assert.match(catalog, /Contract \+ runtime live · chỉ quan sát/);
+  assert.match(catalog, /Đã nối contract · chờ runtime\/quản trị/);
   assert.match(catalog, /Chờ contract/);
   assert.match(catalog, /Không khả dụng/);
   assert.match(catalog, /chưa bắt tay được Universal Contract/);
   assert.equal(catalog.includes("${warning} warning"), false);
 });
 
-test("repository metadata never counts as live runtime connectivity", () => {
+test("repository metadata is contract-connected but never counts as live runtime", () => {
+  const contract = fs.readFileSync(new URL("../app/open-contract.server.ts", import.meta.url), "utf8");
+  assert.match(contract, /const contractConnected = true/);
+  assert.match(contract, /const runtimeConnected = !repositoryMetadataOnly/);
+  assert.match(contract, /connection: remoteAdminReady \? "connected" : "warning"/);
   assert.match(operations, /REPOSITORY_METADATA_ONLY/);
-  assert.match(operations, /Chỉ có metadata repository · chưa kết nối runtime/);
-  assert.match(operations, /const designedLocal = snapshot\.managementMode === "local-first" \|\| snapshot\.managementMode === "metadata-only"/);
-  assert.match(operations, /!snapshot\.contractConnected && !designedLocal/);
-  assert.match(operations, /dynamic\.managementMode !== "local-first" && dynamic\.managementMode !== "metadata-only"/);
+  assert.match(operations, /snapshot\.runtimeConnected/);
+  assert.match(dashboard, /summary\?\.runtimeConnected === true/);
 });
 
 
@@ -80,6 +85,7 @@ test("application table renders runtime, contract and admin readiness as separat
   assert.match(dashboard, /Contract \{axes\.contract\.label\}/);
   assert.match(dashboard, /Quản trị \{axes\.admin\.label\}/);
   assert.match(dashboard, /summary\?\.contractConnected === true/);
+  assert.match(dashboard, /summary\?\.runtimeConnected === true/);
   assert.match(dashboard, /summary\?\.remoteAdminReady === true/);
   assert.match(dashboard, /REPOSITORY_METADATA_ONLY/);
   assert.match(dashboard, /summary\?\.metadataVerified/);
