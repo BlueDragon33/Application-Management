@@ -285,29 +285,53 @@ async function boiApi<T = ApiData>(bridge: BoiBridge, path: "/api/control/overvi
   if (!/^https:\/\/[a-z0-9.-]+$/i.test(bridge.baseUrl) || !bridge.token.startsWith("v1.")) {
     throw new ApiError("Vé kết nối Site Bơi ếch không hợp lệ.", {});
   }
-  const response = await fetch(`${bridge.baseUrl}${path}${init?.query ?? ""}`, {
+  const request = {
     method: init?.method ?? "GET",
     mode: "cors",
     credentials: "omit",
     cache: "no-store",
     headers: { authorization: `Bearer ${bridge.token}`, "content-type": "application/json" },
     body: init?.body ? JSON.stringify(init.body) : undefined,
+  } as const;
+  const proxy = () => fetch("/api/apps/boi-ech/browser-proxy", {
+    method: "POST", credentials: "same-origin", cache: "no-store",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ baseUrl: bridge.baseUrl, token: bridge.token, path, query: init?.query, method: request.method, body: init?.body }),
   });
+  // A failed cross-origin read can fall back safely. Writes use one path only to avoid duplicate commands.
+  let response: Response;
+  if (request.method === "POST" || boiDirectUnavailable) response = await proxy();
+  else {
+    try { response = await fetch(`${bridge.baseUrl}${path}${init?.query ?? ""}`, request); }
+    catch { boiDirectUnavailable = true; response = await proxy(); }
+  }
   const data = await response.json().catch(() => ({ error: "Phản hồi Site Bơi ếch không hợp lệ." })) as T & { error?: string };
   if (!response.ok) throw new ApiError(data.error ?? "Không thể kết nối Site Bơi ếch.", data as unknown as ApiData);
   return data as T;
 }
 
+let boiDirectUnavailable = false;
+
 async function boiBlob(bridge: BoiBridge, deviceId: string) {
   if (!/^https:\/\/[a-z0-9.-]+$/i.test(bridge.baseUrl) || !bridge.token.startsWith("v1.") || !/^[a-f0-9]{64}$/.test(deviceId)) {
     throw new Error("Thông tin xem ảnh chuyển khoản không hợp lệ.");
   }
-  const response = await fetch(`${bridge.baseUrl}/api/control/payment-proof?deviceId=${encodeURIComponent(deviceId)}`, {
+  const directRequest = () => fetch(`${bridge.baseUrl}/api/control/payment-proof?deviceId=${encodeURIComponent(deviceId)}`, {
     method: "GET",
     mode: "cors",
     credentials: "omit",
     cache: "no-store",
     headers: { authorization: `Bearer ${bridge.token}` },
+  });
+  const response = boiDirectUnavailable ? await fetch("/api/apps/boi-ech/browser-proxy", {
+    method: "POST", credentials: "same-origin", cache: "no-store", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ baseUrl: bridge.baseUrl, token: bridge.token, path: "/api/control/payment-proof", query: `?deviceId=${encodeURIComponent(deviceId)}` }),
+  }) : await directRequest().catch(async () => {
+    boiDirectUnavailable = true;
+    return fetch("/api/apps/boi-ech/browser-proxy", {
+      method: "POST", credentials: "same-origin", cache: "no-store", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ baseUrl: bridge.baseUrl, token: bridge.token, path: "/api/control/payment-proof", query: `?deviceId=${encodeURIComponent(deviceId)}` }),
+    });
   });
   if (!response.ok) {
     const data = await response.json().catch(() => ({ error: "Không thể đọc ảnh chuyển khoản." })) as { error?: string };
