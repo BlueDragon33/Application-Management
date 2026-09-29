@@ -118,7 +118,7 @@ test("keeps Boi Ech editing on the client and only review decisions in administr
   assert.doesNotMatch(client, /function ContentStudio/);
 });
 
-test("loads Boi Ech directly in the browser and keeps signed device polling bounded", async () => {
+test("loads Boi Ech through a bounded direct read with same-origin fallback and single-path writes", async () => {
   const dashboard = await source("app/api/dashboard/route.ts");
   const bridge = await source("app/boi-ech.server.ts");
   const client = await source(boiClientPath);
@@ -128,6 +128,8 @@ test("loads Boi Ech directly in the browser and keeps signed device polling boun
   assert.doesNotMatch(bridge, /\/api\/control\/(?:overview|content|ai|payment-proof)/);
   assert.match(client, /mode: "cors"/);
   assert.match(client, /credentials: "omit"/);
+  assert.match(client, /if \(request\.method === "POST" \|\| boiDirectUnavailable\) response = await proxy\(\)/);
+  assert.match(client, /catch \{ boiDirectUnavailable = true; response = await proxy\(\); \}/);
   assert.match(client, /60_000/);
   assert.doesNotMatch(client, /15_000/);
 });
