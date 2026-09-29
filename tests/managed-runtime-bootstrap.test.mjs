@@ -85,6 +85,16 @@ test("managed runtime smoke waits for Worker secret propagation instead of false
   assert.match(workflow, /did not converge within 60 seconds after secret installation/);
 });
 
+test("RU_LIFE smoke accepts only safe same-origin root redirects while keeping authenticated control strict", () => {
+  assert.match(workflow, /--dump-header \/tmp\/ru-life-home\.headers/);
+  assert.match(workflow, /HOME_CODE" == "307"/);
+  assert.match(workflow, /LOCATION=.*ru-life-home\.headers/);
+  assert.match(workflow, /RU_LIFE root redirected outside its own origin/);
+  assert.match(workflow, /CODE" == "200"/);
+  assert.match(workflow, /status\.application !== "ru-life"/);
+  assert.match(workflow, /status\.endpoints\?\.devices !== "\/api\/control\/devices"/);
+});
+
 test("PriceReport bootstrap deploys the real KT Control service and promotes it as fully live", () => {
   assert.match(workflow, /PriceReport KT Control Production bootstrap PASS/);
   assert.match(workflow, /PRICE_REPORT_CONTROL_ORIGIN=https:\/\/price-report-control-service\./);
