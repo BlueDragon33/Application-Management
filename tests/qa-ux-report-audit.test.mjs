@@ -16,7 +16,7 @@ test("bulk pending-device action is explicitly destructive instead of ambiguous"
 });
 
 test("notification badge counts dismissible work items and opens the matching alerts view", () => {
-  assert.match(dashboard, /const notificationCount = workItems\.length/);
+  assert.match(dashboard, /const notificationCount = offline \? 0 : workItems\.length/);
   assert.match(dashboard, /className="amv2-bell"[\s\S]*switchView\("alerts"\)/);
   assert.match(dashboard, /Mở Cảnh báo/);
 });
@@ -39,6 +39,12 @@ test("production account copy does not masquerade as ChatGPT Sites authenticatio
   assert.match(dashboard, /Production dùng tài khoản Application Management riêng/);
   assert.match(dashboard, /Tài khoản Production/);
   assert.match(dashboard, /authMode === "cloudflare-production"/);
+});
+
+test("standalone mode labels cached status as unverified instead of a live Production result", () => {
+  assert.match(dashboard, /Bản lưu cục bộ/);
+  assert.match(dashboard, /Chưa xác minh kết nối Production/);
+  assert.match(dashboard, /offline \? "—" : contractPending/);
 });
 
 test("audit is rendered as a readable management report with localized core actions", () => {

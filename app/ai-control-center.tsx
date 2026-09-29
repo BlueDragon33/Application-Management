@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { buildAiOperationsReport } from "./report-exports";
 
 type ControlRole = "viewer" | "reviewer" | "publisher" | "owner";
 type AiSettings = { enabled: boolean; tutorEnabled: boolean; adaptiveEnabled: boolean; contentAssistantEnabled: boolean; updatedBy: string | null; updatedAt: string | null };
@@ -88,13 +89,25 @@ export default function AiControlCenter({ role, api, onNotice }: { role: Control
     void run({ action: "set-device-ai", deviceId: learner.deviceId, enabled, reason }, enabled ? `Đã bật lại AI cho ${learner.learnerName || learner.deviceCode}.` : `Đã tắt AI cho ${learner.learnerName || learner.deviceCode}.`);
   }
 
-  function exportReport() {
+  function exportData() {
     if (!data) return;
     const report = { exportedAt: new Date().toISOString(), title: "Báo cáo vận hành AI · Bơi ếch", ...data };
     const url = URL.createObjectURL(new Blob([JSON.stringify(report, null, 2)], { type: "application/json" }));
     const link = document.createElement("a");
     link.href = url;
     link.download = `bao-cao-ai-boi-ech-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function exportReport() {
+    if (!data) return;
+    const generatedAt = new Date();
+    const report = buildAiOperationsReport({ generatedAt, metrics: data.metrics, learners: data.learners, engine: data.engine });
+    const url = URL.createObjectURL(new Blob([report], { type: "text/html;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `bao-cao-ai-boi-ech-${generatedAt.toLocaleDateString("sv-SE")}.html`;
     link.click();
     URL.revokeObjectURL(url);
   }
@@ -106,7 +119,7 @@ export default function AiControlCenter({ role, api, onNotice }: { role: Control
 
   return (
     <section className="ai-control-layout">
-      <section className="ai-control-hero"><div><span>Trung tâm điều hành AI</span><h2>Kiểm soát trợ giảng, lộ trình và chất lượng phản hồi</h2><p>Mọi phản hồi đều có phiên bản hệ thống, nguồn bài giảng và người đánh giá. Không dùng AI thị giác, camera, ảnh hoặc video học viên.</p><div><button className="button primary" onClick={() => void load()} disabled={busy}>Cập nhật dữ liệu AI</button><button className="button" onClick={exportReport}>Xuất báo cáo AI</button></div></div><aside><span>Động cơ đang chạy</span><strong>{data?.engine?.name}</strong><small>v{data?.engine?.version} · nội dung v{data?.engine?.sourceVersion}</small><i>{data?.engine?.externalProvider ? "Có nhà cung cấp ngoài" : "Chạy nội bộ · 0đ phí mô hình"}</i></aside></section>
+      <section className="ai-control-hero"><div><span>Trung tâm điều hành AI</span><h2>Kiểm soát trợ giảng, lộ trình và chất lượng phản hồi</h2><p>Mọi phản hồi đều có phiên bản hệ thống, nguồn bài giảng và người đánh giá. Không dùng AI thị giác, camera, ảnh hoặc video học viên.</p><div><button className="button primary" onClick={() => void load()} disabled={busy}>Cập nhật dữ liệu AI</button><button className="button" onClick={exportReport} disabled={!data}>Tải báo cáo A4</button><button className="button" onClick={exportData} disabled={!data}>Tải dữ liệu JSON</button></div></div><aside><span>Động cơ đang chạy</span><strong>{data?.engine?.name}</strong><small>v{data?.engine?.version} · nội dung v{data?.engine?.sourceVersion}</small><i>{data?.engine?.externalProvider ? "Có nhà cung cấp ngoài" : "Chạy nội bộ · 0đ phí mô hình"}</i></aside></section>
 
       <section className="ai-policy-banner"><i>✓</i><div><strong>Chính sách dữ liệu</strong><p>{data?.engine?.privacy}</p></div><span>AI thị giác: Tắt</span></section>
 

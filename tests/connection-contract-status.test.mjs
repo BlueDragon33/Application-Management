@@ -25,7 +25,7 @@ test("live connectivity and Universal Contract readiness are independent dimensi
   assert.match(dashboard, /Contract live · chưa có quản trị/);
   assert.match(dashboard, /Chưa kết nối runtime/);
   assert.match(dashboard, /Local-first · metadata đã xác minh/);
-  assert.match(dashboard, /Đã liên kết quản trị · metadata/);
+  assert.match(dashboard, /Metadata đã xác minh/);
 });
 
 test("Boi connection faults are classified instead of all appearing as offline", () => {
@@ -76,6 +76,13 @@ test("repository metadata is contract-connected but never counts as live runtime
   assert.match(operations, /REPOSITORY_METADATA_ONLY/);
   assert.match(operations, /snapshot\.runtimeConnected/);
   assert.match(dashboard, /summary\?\.runtimeConnected === true/);
+});
+
+test("existing client management routes survive dynamic catalog reconciliation", () => {
+  assert.match(dashboard, /href: existing\?\.href \?\? dynamicApp\.href/);
+  assert.match(dashboard, /summary\?\.managementMode === "metadata-only" && summary\.metadataVerified/);
+  assert.match(dashboard, /Local-first · metadata đã xác minh/);
+  assert.doesNotMatch(dashboard, /Đã liên kết quản trị · metadata/);
 });
 
 
