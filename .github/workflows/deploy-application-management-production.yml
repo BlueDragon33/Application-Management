@@ -361,8 +361,8 @@ jobs:
           if (!blueprint.metadataVerified || blueprint.managementMode !== "metadata-only") {
             throw new Error("Software Blueprint Hub must be enrolled as verified metadata-only management.");
           }
-          if (blueprint.contractConnected || blueprint.remoteAdminReady) {
-            throw new Error("Software Blueprint Hub repository metadata must not masquerade as live runtime or remote-admin readiness.");
+          if (!blueprint.contractConnected || blueprint.runtimeConnected || blueprint.remoteAdminReady) {
+            throw new Error("Software Blueprint Hub repository metadata must have a verified contract without live runtime or remote-admin readiness.");
           }
           console.log("POST_DEPLOY_CONTRACT_TOTALS=" + JSON.stringify(value.totals ?? {}));
           for (const item of value.probes) {
