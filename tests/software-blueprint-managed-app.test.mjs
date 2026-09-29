@@ -47,7 +47,8 @@ test("Production reconciliation enrolls Blueprint OS in Dynamic Catalog before p
   assert.match(productionWorkflow, /Software Blueprint Hub is missing from Production Dynamic Catalog reconciliation/);
   assert.match(productionWorkflow, /blueprint\.metadataVerified/);
   assert.match(productionWorkflow, /blueprint\.managementMode !== "metadata-only"/);
-  assert.match(productionWorkflow, /repository metadata must not masquerade as live runtime or remote-admin readiness/);
+  assert.match(productionWorkflow, /!blueprint\.contractConnected \|\| blueprint\.runtimeConnected \|\| blueprint\.remoteAdminReady/);
+  assert.match(productionWorkflow, /repository metadata must have a verified contract without live runtime or remote-admin readiness/);
   assert.ok(
     productionWorkflow.indexOf("Reconcile managed app catalog before Production probe")
       < productionWorkflow.indexOf("Probe managed app contracts after Production deploy"),
