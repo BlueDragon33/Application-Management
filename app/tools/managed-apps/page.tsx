@@ -25,6 +25,7 @@ type ProbeSummary = {
   connection?: string;
   credentialConfigured?: boolean;
   contractConnected?: boolean;
+  runtimeConnected?: boolean;
   remoteAdminReady?: boolean;
   managementMode?: "remote-admin" | "observe-only" | "local-first" | "metadata-only";
   metadataVerified?: boolean;
@@ -67,6 +68,9 @@ type CatalogResponse = {
     existing?: number;
     needsOrigin?: number;
     connected?: number;
+    contractConnected?: number;
+    runtimeConnected?: number;
+    remoteAdminReady?: number;
     warning?: number;
     pending?: number;
     localFirst?: number;
@@ -444,7 +448,8 @@ export default function ManagedAppsCatalogPage() {
         <h2 style={h2}>{probe.name ?? probe.id ?? "Contract"}</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 10 }}>
           <Stat label="Trạng thái" value={connectionLabel(probe)}/>
-          <Stat label="Contract" value={probe.metadataVerified ? "Metadata đã xác minh" : probe.contractConnected ? "Đã bắt tay" : "Chưa bắt tay"}/>
+          <Stat label="Contract" value={probe.contractConnected ? (probe.metadataVerified ? "Đã xác minh từ metadata" : "Đã bắt tay") : "Chưa bắt tay"}/>
+          <Stat label="Runtime" value={probe.managementMode === "local-first" ? (probe.runtimeConnected ? "Local-first · live" : "Local-first") : probe.runtimeConnected ? "Live" : "Chưa live"}/>
           <Stat label="Credential" value={probe.credentialConfigured ? "Đã cấu hình" : "Chưa cấu hình"}/>
           <Stat label="Remote admin" value={probe.managementMode === "local-first" || probe.managementMode === "metadata-only" ? "Không yêu cầu" : probe.remoteAdminReady ? "Sẵn sàng" : "Fail-closed"}/>
           <Stat label="Protocol" value={probe.protocol ?? "—"}/>
@@ -480,10 +485,11 @@ export default function ManagedAppsCatalogPage() {
 
 function connectionLabel(item: ProbeSummary | null | undefined) {
   if (!item) return "—";
-  if (item.managementMode === "local-first" && item.metadataVerified) return "Local-first · metadata đã xác minh";
-  if (item.managementMode === "metadata-only" && item.metadataVerified) return "Metadata đã xác minh · chưa có runtime";
   if (item.remoteAdminReady) return "Sẵn sàng quản trị";
-  if (item.contractConnected) return "Đã nối contract · chỉ quan sát";
+  if (item.managementMode === "local-first" && item.contractConnected) return item.runtimeConnected ? "Local-first · contract live" : "Local-first · contract đã xác minh";
+  if (item.managementMode === "metadata-only" && item.contractConnected) return "Đã nối contract · metadata";
+  if (item.contractConnected && item.runtimeConnected) return "Contract + runtime live · chỉ quan sát";
+  if (item.contractConnected) return "Đã nối contract · chờ runtime/quản trị";
   if (item.connection === "pending") return "Chờ contract";
   if (item.connection === "unavailable") return "Không khả dụng";
   if (item.connection === "warning") return "Cần cấu hình";
