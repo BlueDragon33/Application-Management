@@ -368,13 +368,23 @@ jobs:
           set -euo pipefail
           READY=0
           for attempt in {1..12}; do
-            HOME_CODE="$(curl --silent --show-error --output /tmp/ru-life-home.html --write-out '%{http_code}' --max-time 30 "$RU_LIFE_RUNTIME_ORIGIN/" || true)"
+            HOME_CODE="$(curl --silent --show-error --output /tmp/ru-life-home.html --dump-header /tmp/ru-life-home.headers --write-out '%{http_code}' --max-time 30 "$RU_LIFE_RUNTIME_ORIGIN/" || true)"
             CODE="$(curl --silent --show-error --output /tmp/ru-life-status.json --write-out '%{http_code}' --max-time 30 -H "Authorization: Bearer $RU_LIFE_BRIDGE_SECRET" "$RU_LIFE_RUNTIME_ORIGIN/api/control/status" || true)"
-            if [[ "$HOME_CODE" == "200" && "$CODE" == "200" ]]; then
+            HOME_READY=0
+            if [[ "$HOME_CODE" == "200" ]]; then
+              HOME_READY=1
+            elif [[ "$HOME_CODE" == "301" || "$HOME_CODE" == "302" || "$HOME_CODE" == "303" || "$HOME_CODE" == "307" || "$HOME_CODE" == "308" ]]; then
+              LOCATION="$(awk -F': *' 'tolower($1)=="location"{gsub("\r","",$2); print $2}' /tmp/ru-life-home.headers | tail -n1)"
+              case "$LOCATION" in
+                /*|"$RU_LIFE_RUNTIME_ORIGIN"/*) HOME_READY=1 ;;
+                *) echo "::error::RU_LIFE root redirected outside its own origin: $LOCATION"; exit 1 ;;
+              esac
+            fi
+            if [[ "$HOME_READY" == "1" && "$CODE" == "200" ]]; then
               READY=1
               break
             fi
-            if [[ "$HOME_CODE" != "200" && "$HOME_CODE" != "404" && "$HOME_CODE" != "000" ]]; then
+            if [[ "$HOME_CODE" != "200" && "$HOME_CODE" != "301" && "$HOME_CODE" != "302" && "$HOME_CODE" != "303" && "$HOME_CODE" != "307" && "$HOME_CODE" != "308" && "$HOME_CODE" != "404" && "$HOME_CODE" != "000" ]]; then
               echo "::error::Unexpected RU_LIFE runtime HTTP $HOME_CODE."
               exit 1
             fi
