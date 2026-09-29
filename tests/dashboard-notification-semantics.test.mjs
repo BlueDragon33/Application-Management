@@ -8,7 +8,7 @@ function source(path) {
 
 test("notification badges count dismissible work items instead of double-counting pending devices", () => {
   const ui = source("app/management-dashboard-v2.tsx");
-  assert.match(ui, /const notificationCount = workItems\.length/);
+  assert.match(ui, /const notificationCount = offline \? 0 : workItems\.length/);
   assert.match(ui, /const approvalCount = approvalDevices\.length/);
   assert.match(ui, /const highAlerts = workItems\.filter\(\(item\) => item\.priority === "high"\)\.length/);
   assert.doesNotMatch(ui, /pendingDevices\.length \+ workItems\.length/);

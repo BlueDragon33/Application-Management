@@ -4,7 +4,9 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import AiControlCenter, { type AiControlData } from "../../ai-control-center";
+import { csvCell } from "../../report-exports";
 
 type ControlRole = "viewer" | "reviewer" | "publisher" | "owner";
 type DeviceStatus = "pending" | "approved" | "blocked";
@@ -948,7 +950,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
       device.personalEditConfigured ? "Đang bật" : "Đang tắt",
       device.autoConfirmedAt ?? "",
     ]);
-    const escape = (value: unknown) => `"${String(value ?? "").replaceAll('"', '""')}"`;
+    const escape = csvCell;
     const header = ["STT", "Họ và tên", "Vai trò", "Mã số HV/Số hiệu SQ-QNCN", "Lớp/đơn vị", "SĐT", "Mã thiết bị", "Kết nối", "Thanh toán", "Tiến độ %", "Nắm vững %", "Bài đạt", "Giây học", "Tín hiệu cuối", "Hết hạn", "Sửa bản riêng", "Tự xác nhận lúc"];
     downloadReport(`bao-cao-thiet-bi-${new Date().toISOString().slice(0, 10)}.csv`, `\uFEFF${[header, ...rows].map((row) => row.map(escape).join(",")).join("\n")}`, "text/csv;charset=utf-8");
   }
@@ -1122,7 +1124,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
       } as React.CSSProperties}
     >
       <aside className="control-sidebar">
-        <a className="control-back-link" href="/"><span>←</span><div><small>SERVER</small><strong>Application Management</strong></div></a>
+        <Link className="control-back-link" href="/"><span>←</span><div><small>SERVER</small><strong>Application Management</strong></div></Link>
         <div className="control-brand"><div className="brand-seal">BE</div><div><span>CLIENT CẤP 1</span><strong>Quản trị Bơi ếch</strong></div></div>
         <nav aria-label="Quản trị Bơi ếch">
           <button className={tab === "overview" ? "active" : ""} onClick={() => setTab("overview")}><i>01</i><span><strong>Tổng quan</strong><small>Control & trạng thái</small></span></button>
