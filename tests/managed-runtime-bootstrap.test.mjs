@@ -89,6 +89,8 @@ test("RU_LIFE smoke accepts only safe same-origin root redirects while keeping a
   assert.match(workflow, /--dump-header \/tmp\/ru-life-home\.headers/);
   assert.match(workflow, /HOME_CODE" == "307"/);
   assert.match(workflow, /LOCATION=.*ru-life-home\.headers/);
+  assert.match(workflow, /substr\(\$0, index\(\$0,":"\)\+1\)/);
+  assert.doesNotMatch(workflow, /awk -F': \*'.*ru-life-home\.headers/);
   assert.match(workflow, /RU_LIFE root redirected outside its own origin/);
   assert.match(workflow, /CODE" == "200"/);
   assert.match(workflow, /status\.application !== "ru-life"/);
