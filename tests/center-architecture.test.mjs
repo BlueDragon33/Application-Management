@@ -121,7 +121,7 @@ test("dashboard v2 composition keeps every operational surface interactive", () 
   const dashboard = source("app/management-dashboard-v2.tsx");
   const css = source("app/management-dashboard-v2-final.css");
   for (const label of [
-    "Bảng điều phối quản trị ứng dụng",
+    "Bảng điều phối",
     "Tổng ứng dụng",
     "Thiết bị mới chờ duyệt",
     "Cảnh báo hôm nay",
