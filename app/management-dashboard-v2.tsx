@@ -777,7 +777,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
         <details className="amv2-account"><summary><span>{initials(user.displayName)}</span><div><strong>{user.displayName}</strong><small>{approvalGateEnabled ? roleLabels[access.role] : "Standalone Owner"}</small></div><b>⌄</b></summary><div><small>{user.email}</small>{authMode === "cloudflare-production" ? <a href="/__account">Tài khoản & bảo mật</a> : <button onClick={() => setAccountSecurityOpen(true)}>Tài khoản & bảo mật</button>}{appInstalled ? <span className="amv2-installed-note">✓ Đã cài Web-App</span> : <button onClick={() => void installWebApp()}>⇩ Cài Web-App</button>}<button onClick={() => switchView("settings")}>Cấu hình</button>{authMode === "cloudflare-production" ? <form method="post" action="/__logout"><button type="submit">Đăng xuất</button></form> : <a href="/signout-with-chatgpt?return_to=%2F">Đăng xuất</a>}</div></details>
       </header>
 
-      <div className="amv2-content">
+      <div className="amv2-content" data-view={view}>
         <header className="amv2-page-head" data-view={view}>
           <div className="amv2-page-title"><h1>{title.title}</h1>{title.subtitle ? <p>{title.subtitle}</p> : null}</div>
           <section className="amv2-notification-board" aria-label="Bảng thông báo">
