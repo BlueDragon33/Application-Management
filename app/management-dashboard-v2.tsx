@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { applicationRegistry, standardDeviceExperiences, type ApplicationConfig } from "./application-registry";
 import BoiAccessView from "./boi-access-view";
 import AutomaticDevicePolicies, { type AutomationSelection } from "./automatic-device-policies";
@@ -104,8 +104,8 @@ const navItems: Array<{ view: View; label: string; icon: string }> = [
 
 const viewTitles: Record<View, { title: string; subtitle: string }> = {
   overview: {
-    title: "Bảng điều phối quản trị ứng dụng",
-    subtitle: "Kiểm soát tập trung các ứng dụng, thiết bị, người dùng, phê duyệt và điều phối hệ thống.",
+    title: "Bảng điều phối",
+    subtitle: "",
   },
   approvals: { title: "Hộp việc", subtitle: "Các yêu cầu và sự kiện cần xử lý được gom về một hàng đợi thống nhất." },
   applications: { title: "Ứng dụng", subtitle: "Quản trị client và mở đúng website sử dụng của từng ứng dụng." },
@@ -295,6 +295,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [syncError, setSyncError] = useState("");
+  const notificationListRef = useRef<HTMLDivElement>(null);
   const [clock, setClock] = useState<Date | null>(null);
   const [webMenu, setWebMenu] = useState(false);
   const [autoPolicyOpen, setAutoPolicyOpen] = useState(false);
@@ -419,10 +420,8 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   }, [approvalGateEnabled]);
 
   useEffect(() => {
-    if (!notice) return;
-    const timer = window.setTimeout(() => setNotice(""), 5_500);
-    return () => window.clearTimeout(timer);
-  }, [notice]);
+    if (notificationListRef.current) notificationListRef.current.scrollTop = 0;
+  }, [notice, syncError]);
 
   useEffect(() => {
     try {
@@ -779,10 +778,19 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       </header>
 
       <div className="amv2-content">
-        <header className="amv2-page-head"><div><h1>{title.title}</h1><p>{title.subtitle}</p></div>{view === "overview" ? <section className="amv2-clock"><span>▣</span><div><small>{clock ? new Intl.DateTimeFormat("vi-VN", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }).format(clock) : ""}</small><strong>{clock ? new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(clock) : ""}</strong></div><i/><div><small>Hệ thống</small><strong>{offline ? "Chưa xác minh online" : unavailableCount ? "Cần kiểm tra" : "Hoạt động ổn định"}</strong></div></section> : <button className="amv2-sync" disabled={syncing} onClick={() => void refreshOperations()}>{syncing ? "Đang đồng bộ…" : "↻ Đồng bộ"}</button>}</header>
-        {offline ? <div className="amv2-warning" role="status"><strong>Chưa xác minh kết nối Production.</strong> Dữ liệu đang hiển thị là bản lưu cục bộ; bật Kiểm duyệt truy cập để đọc trạng thái và thiết bị trực tiếp.</div> : null}
-        {syncError ? <div className="amv2-warning"><strong>Cảnh báo đồng bộ:</strong> {syncError}</div> : null}
-        {notice ? <div className="amv2-notice" role="status" aria-live="polite"><span>{notice}</span><button type="button" aria-label="Đóng thông báo" onClick={() => setNotice("")}>×</button></div> : null}
+        <header className="amv2-page-head">
+          <div><h1>{title.title}</h1>{title.subtitle ? <p>{title.subtitle}</p> : null}</div>
+          <section className="amv2-notification-board" aria-label="Bảng thông báo">
+            <h2>Thông báo</h2>
+            <div ref={notificationListRef} className="amv2-notification-list" role="status" aria-live="polite" aria-atomic="true" tabIndex={0}>
+              {notice ? <div className="amv2-notice"><span>{notice}</span><button type="button" aria-label="Đóng thông báo" onClick={() => setNotice("")}>×</button></div> : null}
+              {syncError ? <p className="amv2-warning"><strong>Cảnh báo đồng bộ:</strong> {syncError}</p> : null}
+              {offline ? <p className="amv2-warning"><strong>Chưa xác minh kết nối Production.</strong> Dữ liệu đang hiển thị là bản lưu cục bộ; bật Kiểm duyệt truy cập để đọc trạng thái và thiết bị trực tiếp.</p> : null}
+              {!offline && !syncError && !notice ? <p className="amv2-notification-empty">{syncing ? "Đang đồng bộ dữ liệu…" : "Không có thông báo mới."}</p> : null}
+            </div>
+          </section>
+          {view === "overview" ? <section className="amv2-clock"><span>▣</span><div><small>{clock ? new Intl.DateTimeFormat("vi-VN", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }).format(clock) : ""}</small><strong>{clock ? new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(clock) : ""}</strong></div><i/><div><small>Hệ thống</small><strong>{offline ? "Chưa xác minh online" : unavailableCount ? "Cần kiểm tra" : "Hoạt động ổn định"}</strong></div></section> : <button className="amv2-sync" disabled={syncing} onClick={() => void refreshOperations()}>{syncing ? "Đang đồng bộ…" : "↻ Đồng bộ"}</button>}
+        </header>
 
         <div className="amv2-stage" data-view={view}>
           {view === "overview" ? <Overview

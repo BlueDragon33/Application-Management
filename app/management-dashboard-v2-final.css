@@ -289,3 +289,68 @@
   animation: none !important;
   transform: none !important;
 }
+
+/* Notifications occupy the header's own space instead of covering the page. */
+.amv2-page-head {
+  display: grid;
+  grid-template-columns: auto minmax(220px, 1fr) auto;
+  gap: 16px;
+}
+.amv2-page-head > div { max-width: 340px; max-height: 100%; overflow: auto; }
+.amv2-page-head h1 { line-height: 1.15 !important; }
+.amv2-page-head .amv2-clock {
+  min-width: 280px !important;
+  grid-template-columns: 24px minmax(90px, 1fr) 1px minmax(88px, .8fr);
+  gap: 8px;
+}
+.amv2-notification-board {
+  min-width: 0;
+  height: 74px;
+  padding: 7px 12px;
+  border: 1px solid rgba(110, 206, 171, .24);
+  border-radius: 10px;
+  background: #07120f;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 3px;
+}
+.amv2-notification-board h2 {
+  margin: 0;
+  color: #eef8f4;
+  font-size: 14px;
+  line-height: 1.3;
+}
+.amv2-notification-list {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #50786a transparent;
+}
+.amv2-notification-list:focus-visible { outline: 2px solid #67d9b5; outline-offset: -2px; }
+.amv2-notification-board .amv2-warning,
+.amv2-notification-board .amv2-notice,
+.amv2-notification-board .amv2-notification-empty {
+  margin: 0;
+  color: #c6d9d1;
+  font-size: max(14px, var(--amv2-body-user));
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.amv2-notification-board .amv2-warning { color: #f3d0ae; }
+.amv2-notification-board .amv2-notice { color: #b9f2df; }
+.amv2-shell[data-font-scale] .amv2-notification-board p {
+  font-size: max(14px, var(--amv2-body-user)) !important;
+}
+.amv2-notification-list > * + * { border-top: 1px solid rgba(255,255,255,.1); padding-top: 5px; margin-top: 5px; }
+@media (max-width: 1199px) {
+  .amv2-page-head { grid-template-columns: minmax(0, .8fr) minmax(220px, 1.2fr); }
+  .amv2-page-head .amv2-clock { display: none; }
+  .amv2-page-head > .amv2-sync { grid-column: 2; justify-self: end; }
+}
+@media (max-width: 700px) {
+  .amv2-page-head { grid-template-columns: minmax(0, 1fr); gap: 10px; padding-bottom: 12px; }
+  .amv2-page-head > div { max-width: none; }
+  .amv2-notification-board { width: 100%; height: 110px; }
+  .amv2-page-head > .amv2-sync { grid-column: 1; }
+}

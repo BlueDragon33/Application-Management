@@ -56,8 +56,8 @@ test("clear-all notifications only dismisses central work items and preserves cl
 });
 
 
-test("dashboard notices auto-dismiss and remain manually dismissible", () => {
-  assert.match(dashboard, /window\.setTimeout\(\(\) => setNotice\(""\), 5_500\)/);
+test("dashboard notices remain in the inline board until manually dismissed", () => {
+  assert.doesNotMatch(dashboard, /window\.setTimeout\(\(\) => setNotice\(""\), 5_500\)/);
   assert.match(dashboard, /aria-label="Đóng thông báo"/);
   assert.match(dashboard, /role="status"/);
   assert.match(dashboard, /aria-live="polite"/);
