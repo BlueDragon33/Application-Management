@@ -32,6 +32,7 @@ export type ApplicationConfig = {
   shortName: string;
   href: string;
   publicUrl?: string;
+  contractSource?: "repository";
   localUrl?: string;
   initials: string;
   iconPath?: string;
@@ -68,11 +69,12 @@ const baumanChildren: readonly SubClientConfig[] = [
 
 export const applicationRegistry: readonly ApplicationConfig[] = [
   {
-    id: "software-blueprint-hub", name: "Software Blueprint Hub", shortName: "Blueprint OS", href: "/apps/software-blueprint-hub",
+    id: "software-blueprint-hub", name: "Software Blueprint Hub", shortName: "Blueprint OS", href: "/apps/software-blueprint-hub", publicUrl: "https://software-blueprint-hub.vercel.app/",
+    contractSource: "repository",
     initials: "BP", category: "Kỹ thuật", tier: "client", status: "warning", contractState: "migrating",
     repository: "BlueDragon33/Software-Blueprint-Hub",
     scope: "Core Engineering Compass / “kim chỉ nam” của toàn hệ sinh thái. Blueprint OS tổ chức hệ thống theo kiến trúc 20 tầng: Constitution → Contract/Schema → Persistence → Blueprint Engine → Project Lifecycle → Planning → Quality → Prompt → UX → Knowledge → App-Manage Contract → Compass → Self-audit → Bootstrap Factory → Pattern Governance → Resilience → Secure Integrations → Bounded AI → Ecosystem Dogfooding → Acceptance Gate. Application Management chỉ quan sát lifecycle/readiness metadata; canonical engineering state vẫn thuộc Blueprint OS.",
-    contractNote: "Blueprint OS đã PASS Phase 8 và đang ở Phase 9 Compass Construction / Storey 20. P9-001–P9-018 COMPLETE; P9-019 Human Professional Review đang ACTIVE với exact review candidate và human-signoff-required là blocker duy nhất của phase gate. P9-020 chưa được phép bắt đầu. Contract application-management.contract/v1 vẫn metadata-only: không Remote Admin, không Device Gate, không Quality Gate authority và không Production release authority.",
+    contractNote: "Blueprint OS đã PASS P9-019 và P9-020 và được phát hành tại Website riêng. Contract application-management.contract/v1 hiện chỉ xác minh metadata từ repository; liên kết Website không cấp Remote Admin, Device Gate, Quality Gate authority hoặc Production release authority cho Application Management.",
     devicePolicy: "Không có device registry riêng cho metadata integration. UI Blueprint OS vẫn phải responsive desktop/tablet/phone; mọi identity/authority canonical do Blueprint OS sở hữu, không kế thừa quyền từ Application Management.",
     deviceExperiences: standardDeviceExperiences,
     capabilities: ["20 tầng Compass Construction", "Constitution & authority", "Contract/schema foundation", "Canonical persistence", "Blueprint resolver & Project Profile", "Roadmap · Work Package · dependency", "Quality Gate & evidence", "Prompt Projection", "Knowledge & Reference Case", "Source-of-truth self-audit", "Project bootstrap factory", "Pattern promotion governance", "Canonical backup integrity", "Restore preview safety", "Incident diagnostics", "Provider/plugin boundary", "Bounded AI proposals", "Portfolio & evidence graph", "Security & lifecycle", "Adaptive UX & capacity proof", "Ecosystem dogfood", "Human professional review", "Release & Lessons"],

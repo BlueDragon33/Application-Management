@@ -626,7 +626,7 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
         : managementMode === "local-first"
           ? `Đã xác minh metadata ${manifest.protocol ?? "contract"} từ repository. Ứng dụng chủ đích local-first; không yêu cầu Remote Admin cloud.`
           : managementMode === "metadata-only"
-            ? `Đã xác minh metadata ${manifest.protocol ?? "contract"} từ repository. Runtime Production chưa được công bố; Trung tâm không tạo cảnh báo kết nối giả.`
+            ? `Đã xác minh metadata ${manifest.protocol ?? "contract"} từ repository. ${row.public_url ? "Website được mở độc lập;" : "Runtime Production chưa được công bố;"} Trung tâm không suy diễn quyền quản trị từ xa.`
             : credential
               ? `Đã phát hiện ${manifest.protocol ?? "contract"} qua ${manifest.discoveredVia ?? row.contract_path}, nhưng client chưa công bố đủ device-control endpoint.`
               : `Đã phát hiện ${manifest.protocol ?? "contract"} qua ${manifest.discoveredVia ?? row.contract_path}; chưa có credential quản trị nên chỉ ở chế độ quan sát.`,
