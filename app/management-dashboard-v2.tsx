@@ -778,8 +778,8 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       </header>
 
       <div className="amv2-content">
-        <header className="amv2-page-head">
-          <div><h1>{title.title}</h1>{title.subtitle ? <p>{title.subtitle}</p> : null}</div>
+        <header className="amv2-page-head" data-view={view}>
+          <div className="amv2-page-title"><h1>{title.title}</h1>{title.subtitle ? <p>{title.subtitle}</p> : null}</div>
           <section className="amv2-notification-board" aria-label="Bảng thông báo">
             <h2>Thông báo</h2>
             <div ref={notificationListRef} className="amv2-notification-list" role="status" aria-live="polite" aria-atomic="true" tabIndex={0}>
@@ -789,7 +789,9 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
               {!offline && !syncError && !notice ? <p className="amv2-notification-empty">{syncing ? "Đang đồng bộ dữ liệu…" : "Không có thông báo mới."}</p> : null}
             </div>
           </section>
-          {view === "overview" ? <section className="amv2-clock"><span>▣</span><div><small>{clock ? new Intl.DateTimeFormat("vi-VN", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }).format(clock) : ""}</small><strong>{clock ? new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(clock) : ""}</strong></div><i/><div><small>Hệ thống</small><strong>{offline ? "Chưa xác minh online" : unavailableCount ? "Cần kiểm tra" : "Hoạt động ổn định"}</strong></div></section> : <button className="amv2-sync" disabled={syncing} onClick={() => void refreshOperations()}>{syncing ? "Đang đồng bộ…" : "↻ Đồng bộ"}</button>}
+          <div className="amv2-page-tools">
+            {view === "overview" ? <section className="amv2-clock"><span>▣</span><div><small>{clock ? new Intl.DateTimeFormat("vi-VN", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }).format(clock) : ""}</small><strong>{clock ? new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(clock) : ""}</strong></div><i/><div><small>Hệ thống</small><strong>{offline ? "Chưa xác minh online" : unavailableCount ? "Cần kiểm tra" : "Hoạt động ổn định"}</strong></div></section> : <button className="amv2-sync" disabled={syncing} onClick={() => void refreshOperations()}>{syncing ? "Đang đồng bộ…" : "↻ Đồng bộ"}</button>}
+          </div>
         </header>
 
         <div className="amv2-stage" data-view={view}>

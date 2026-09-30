@@ -293,10 +293,18 @@
 /* Notifications occupy the header's own space instead of covering the page. */
 .amv2-page-head {
   display: grid;
-  grid-template-columns: auto minmax(220px, 1fr) auto;
+  grid-template-columns: minmax(220px, 340px) minmax(220px, 1fr) 280px;
+  grid-template-areas: "title notifications tools";
   gap: 16px;
 }
-.amv2-page-head > div { max-width: 340px; max-height: 100%; overflow: auto; }
+.amv2-page-head > .amv2-page-title { grid-area: title; min-width: 0; max-height: 100%; overflow: auto; }
+.amv2-page-head > .amv2-page-tools {
+  grid-area: tools;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
 .amv2-page-head h1 { line-height: 1.15 !important; }
 .amv2-page-head .amv2-clock {
   min-width: 280px !important;
@@ -304,6 +312,7 @@
   gap: 8px;
 }
 .amv2-notification-board {
+  grid-area: notifications;
   min-width: 0;
   height: 74px;
   padding: 7px 12px;
@@ -344,13 +353,18 @@
 }
 .amv2-notification-list > * + * { border-top: 1px solid rgba(255,255,255,.1); padding-top: 5px; margin-top: 5px; }
 @media (max-width: 1199px) {
-  .amv2-page-head { grid-template-columns: minmax(0, .8fr) minmax(220px, 1.2fr); }
+  .amv2-page-head {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "title tools" "notifications notifications";
+    gap: 10px 16px;
+    padding-bottom: 12px;
+  }
   .amv2-page-head .amv2-clock { display: none; }
-  .amv2-page-head > .amv2-sync { grid-column: 2; justify-self: end; }
+  .amv2-page-head > .amv2-page-title { max-height: none; overflow: visible; }
+  .amv2-notification-board { height: 90px; }
 }
 @media (max-width: 700px) {
-  .amv2-page-head { grid-template-columns: minmax(0, 1fr); gap: 10px; padding-bottom: 12px; }
-  .amv2-page-head > div { max-width: none; }
+  .amv2-page-head { gap: 10px; }
+  .amv2-page-tools .amv2-sync { padding: 0 10px; }
   .amv2-notification-board { width: 100%; height: 110px; }
-  .amv2-page-head > .amv2-sync { grid-column: 1; }
 }
