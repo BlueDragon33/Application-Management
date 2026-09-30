@@ -368,3 +368,27 @@
   .amv2-page-tools .amv2-sync { padding: 0 10px; }
   .amv2-notification-board { width: 100%; height: 110px; }
 }
+
+/* Detail tabs size the heading to its text; Overview keeps its compact row. */
+.amv2-content[data-view]:not([data-view="overview"]) {
+  grid-template-rows: auto minmax(0, 1fr) !important;
+}
+.amv2-page-head[data-view]:not([data-view="overview"]) {
+  height: auto !important;
+  min-height: 84px !important;
+}
+.amv2-page-head[data-view]:not([data-view="overview"]) > .amv2-page-title {
+  max-height: none;
+  overflow: visible;
+}
+.amv2-page-head[data-view]:not([data-view="overview"]) .amv2-page-title h1,
+.amv2-page-head[data-view]:not([data-view="overview"]) .amv2-page-title p {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+@media (min-width: 1200px) {
+  .amv2-page-head[data-view]:not([data-view="overview"]) {
+    grid-template-columns: minmax(0, 1fr) minmax(260px, .85fr) auto;
+    padding: 4px 0;
+  }
+}
