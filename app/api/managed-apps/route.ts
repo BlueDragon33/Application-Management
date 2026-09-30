@@ -39,6 +39,9 @@ type CatalogCandidate = {
 };
 
 async function transportCatalogCandidate(application: (typeof applicationRegistry)[number]): Promise<CatalogCandidate> {
+  if (application.contractSource === "repository") {
+    return { origin: "", credential: "", source: "missing-origin", contractPath: "/api/application-management/contract" };
+  }
   const spec = listClientNetworkSpecs().find((item) =>
     item.endpointKind === "control" && item.applicationId === application.id,
   );
@@ -80,6 +83,7 @@ async function repositoryCatalogCandidate(application: (typeof applicationRegist
 }
 
 async function legacyCatalogCandidate(application: (typeof applicationRegistry)[number]): Promise<CatalogCandidate> {
+  if (application.contractSource === "repository") return repositoryCatalogCandidate(application);
   const transport = await transportCatalogCandidate(application);
   if (transport.origin) return transport;
   return repositoryCatalogCandidate(application);
@@ -215,6 +219,22 @@ export async function POST(request: Request) {
         // when a real HTTPS transport later appears, promote that row to the
         // live origin without requiring source edits or deleting catalog data.
         if (repositoryBootstrapRow(current, application.repository)) {
+          if (application.contractSource === "repository" && application.publicUrl && !current.public_url) {
+            const id = await upsertManagedCatalog({
+              id: application.id,
+              name: application.name,
+              shortName: application.shortName,
+              category: application.category,
+              origin: current.origin,
+              publicUrl: application.publicUrl,
+              repository: application.repository,
+              contractPath: current.contract_path,
+              credential: "",
+            }, actor);
+            const updated = (await listManagedCatalog()).find((item) => item.id === id);
+            existing.push({ id, source: "repository-bootstrap-website-updated", probe: updated ? probeSummary(await probeManagedCatalogEntry(updated)) : null });
+            continue;
+          }
           const liveCandidate = await transportCatalogCandidate(application);
           if (liveCandidate.origin && liveCandidate.origin !== current.origin) {
             const id = await upsertManagedCatalog({

@@ -263,14 +263,14 @@ test("public GitHub repository manifests can classify apps without pretending re
 });
 
 
-test("repository bootstrap metadata never masquerades as a Website or live control origin", () => {
+test("repository bootstrap metadata never masquerades as a live control origin", () => {
   assert.ok(contract.includes("metadataOnlyRepositoryOrigin"));
   assert.ok(contract.includes('hostname.toLowerCase() === "raw.githubusercontent.com"'));
   assert.ok(contract.includes("!repositoryMetadataOnly && manifest.capabilities.webLaunch"));
   assert.ok(contract.includes("managementMode"));
   assert.ok(contract.includes("metadataVerified"));
   assert.ok(contract.includes("không yêu cầu Remote Admin cloud"));
-  assert.ok(contract.includes("không tạo cảnh báo kết nối giả"));
+  assert.ok(contract.includes("Trung tâm không suy diễn quyền quản trị từ xa"));
 });
 
 

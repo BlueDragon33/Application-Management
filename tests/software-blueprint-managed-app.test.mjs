@@ -22,8 +22,18 @@ test("Blueprint OS is a managed metadata-only core app", () => {
   assert.match(block, /Không mutate canonical Blueprint\/Constitution/);
   assert.match(block, /Không PASS Quality Gate/);
   assert.match(block, /Không authorize Production release/);
-  assert.doesNotMatch(block, /publicUrl:/);
+  assert.match(block, /publicUrl: "https:\/\/software-blueprint-hub\.vercel\.app\/"/);
+  assert.match(block, /contractSource: "repository"/);
+  assert.match(block, /PASS P9-019 và P9-020/);
   assert.doesNotMatch(block, /localUrl:/);
+});
+
+test("Blueprint OS launch does not turn its repository metadata into a live control origin", () => {
+  const catalog = read("app/api/managed-apps/route.ts");
+  assert.match(catalog, /application\.contractSource === "repository"/);
+  assert.match(catalog, /repositoryCatalogCandidate\(application\)/);
+  assert.match(catalog, /repository-bootstrap-website-updated/);
+  assert.match(catalog, /publicUrl: application\.publicUrl \?\? ""/);
 });
 
 test("Blueprint OS management page uses the generic truthful workspace", () => {
