@@ -22,6 +22,9 @@ jobs:
       APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID: ${{ secrets.APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID }}
       APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET: ${{ secrets.APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET }}
       MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY: ${{ secrets.MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+      TINYFISH_API_KEY: ${{ secrets.TINYFISH_API_KEY }}
       APPLICATION_MANAGEMENT_PREVIEW_ORIGIN: ${{ vars.APPLICATION_MANAGEMENT_PREVIEW_ORIGIN }}
       APPLICATION_MANAGEMENT_ACCESS_MODE: standalone
       CONTROL_OWNER_EMAILS: owner@example.com
@@ -126,6 +129,20 @@ jobs:
             unset GENERATED_KEY
             echo "Managed app credential encryption key created once as a Worker secret."
           fi
+
+      - name: Install Deploy & Ops provider secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          for key in VERCEL_TOKEN NEON_API_KEY TINYFISH_API_KEY; do
+            value="${!key:-}"
+            if [[ -n "$value" ]]; then
+              printf '%s' "$value" | npx wrangler secret put "$key" --config wrangler.cloudflare.jsonc
+              echo "$key installed as protected Worker secret."
+            else
+              echo "$key not supplied by GitHub environment; existing Worker secret, if any, is left unchanged."
+            fi
+          done
 
       - name: Restore exact Preview artifact after secret versions
         if: steps.config.outputs.ready == 'true'
