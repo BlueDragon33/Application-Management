@@ -335,7 +335,7 @@ export default function StudyPlanTool({ user }: { user: { displayName: string; e
       <Stat value={program.credits} label={t.credits} sub={t.totalHours} />
       <Stat value={4} label={t.semesters} sub="30 + 30 + 30 + 30" />
       <Stat value={62} label={t.teachingWeeks} sub="17 + 17 + 17 + 11" />
-      <Stat value="≈50" label={t.avgLoad} sub={t.hoursWeek} />
+      <Stat value="≈51" label={t.avgLoad} sub={t.hoursWeek} />
     </section>
 
     <section className={styles.controls}>
