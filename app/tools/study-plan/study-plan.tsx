@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import styles from "./study-plan.module.css";
 import {
   courses,
@@ -74,6 +74,14 @@ const copy = {
     practice: "Thực tập",
     elective: "Tự chọn",
     core: "Môn học",
+    prepRoadmap: "Lộ trình chuẩn bị trước môn",
+    progress: "Tiến độ chuẩn bị",
+    done: "Đã nắm",
+    markDone: "Đánh dấu đã nắm",
+    savedLocal: "Tiến độ chỉ lưu trên trình duyệt của thiết bị này.",
+    preStudy: "Lộ trình chuẩn bị trước khi vào học",
+    preStudySub: "Thứ tự nền tảng để giảm tải mạnh cho học kỳ 1 và các môn AI phía sau.",
+    resetProgress: "Đặt lại tiến độ",
   },
   en: {
     back: "← Management Center",
@@ -133,6 +141,14 @@ const copy = {
     practice: "Practice",
     elective: "Elective",
     core: "Course",
+    prepRoadmap: "Pre-course preparation roadmap",
+    progress: "Preparation progress",
+    done: "Ready",
+    markDone: "Mark as ready",
+    savedLocal: "Progress is stored only in this browser on this device.",
+    preStudy: "Pre-study roadmap",
+    preStudySub: "Foundation order designed to reduce the load in semester 1 and later AI courses.",
+    resetProgress: "Reset progress",
   },
 } as const;
 
@@ -178,6 +194,149 @@ const semesterInsights = {
     },
   },
 } as const;
+
+type PrepItem = { vi: string; en: string };
+
+const preparationGroups = {
+  language: [
+    { vi: "Từ vựng học thuật và thuật ngữ chuyên ngành", en: "Academic vocabulary and technical terminology" },
+    { vi: "Nghe bài giảng và ghi chú ý chính", en: "Lecture listening and structured note-taking" },
+    { vi: "Đọc tài liệu kỹ thuật, paper và đề bài", en: "Read technical texts, papers and assignments" },
+    { vi: "Trình bày ngắn và hỏi–đáp học thuật", en: "Short presentations and academic Q&A" },
+  ],
+  research: [
+    { vi: "Cách tìm và đọc paper theo câu hỏi nghiên cứu", en: "Find and read papers around a research question" },
+    { vi: "Ghi nguồn, trích dẫn và quản lý tài liệu", en: "Source tracking, citation and literature management" },
+    { vi: "Đặt giả thuyết, biến đo và tiêu chí đánh giá", en: "Define hypotheses, measured variables and evaluation criteria" },
+    { vi: "Ghi nhật ký thí nghiệm và viết báo cáo ngắn", en: "Keep experiment logs and write concise reports" },
+  ],
+  systems: [
+    { vi: "Đại số tuyến tính: vector, ma trận, hệ phương trình", en: "Linear algebra: vectors, matrices and linear systems" },
+    { vi: "Toán kỹ thuật và mô hình đầu vào–đầu ra", en: "Engineering mathematics and input–output models" },
+    { vi: "Mô hình trạng thái và tư duy hệ thống", en: "State-space models and systems thinking" },
+    { vi: "Xác suất cơ bản cho độ tin cậy và đánh giá hệ thống", en: "Basic probability for reliability and system evaluation" },
+  ],
+  data: [
+    { vi: "Python cơ bản và thao tác dữ liệu", en: "Python fundamentals and data manipulation" },
+    { vi: "NumPy/Pandas và làm sạch dữ liệu", en: "NumPy/Pandas and data cleaning" },
+    { vi: "Đại số tuyến tính cho dữ liệu nhiều chiều", en: "Linear algebra for high-dimensional data" },
+    { vi: "Xác suất thống kê, correlation và đánh giá mô hình", en: "Probability/statistics, correlation and model evaluation" },
+  ],
+  programming: [
+    { vi: "Python hoặc ngôn ngữ chính: biến, hàm, module, file", en: "Primary language basics: variables, functions, modules and files" },
+    { vi: "OOP: class, object, encapsulation, inheritance, polymorphism", en: "OOP: classes, objects, encapsulation, inheritance and polymorphism" },
+    { vi: "Git/GitHub, branch, commit và review thay đổi", en: "Git/GitHub, branches, commits and change review" },
+    { vi: "UML, interface, testing và tổ chức project", en: "UML, interfaces, testing and project structure" },
+  ],
+  database: [
+    { vi: "SQL: SELECT, JOIN, GROUP BY và subquery", en: "SQL: SELECT, JOIN, GROUP BY and subqueries" },
+    { vi: "Thiết kế bảng, khóa và normalization", en: "Table design, keys and normalization" },
+    { vi: "Index, transaction và query plan", en: "Indexes, transactions and query plans" },
+    { vi: "NoSQL/document/graph và luồng dữ liệu cho ML", en: "NoSQL/document/graph models and ML data flows" },
+  ],
+  ai: [
+    { vi: "Python + NumPy/Pandas đủ để tự viết pipeline dữ liệu", en: "Python + NumPy/Pandas sufficient for a data pipeline" },
+    { vi: "Đại số tuyến tính, xác suất và đạo hàm/gradient", en: "Linear algebra, probability and derivatives/gradients" },
+    { vi: "Regression, classification, clustering và train/test", en: "Regression, classification, clustering and train/test workflow" },
+    { vi: "Metric, overfitting và cách so sánh mô hình", en: "Metrics, overfitting and model comparison" },
+  ],
+  operations: [
+    { vi: "Linux command line và cấu trúc file", en: "Linux command line and filesystem basics" },
+    { vi: "Log, cấu hình, process và network cơ bản", en: "Logs, configuration, processes and basic networking" },
+    { vi: "Git, issue/task và làm việc theo milestone", en: "Git, issue/task tracking and milestone-based work" },
+    { vi: "Troubleshooting và viết báo cáo vận hành", en: "Troubleshooting and operational reporting" },
+  ],
+  pedagogy: [
+    { vi: "Chia nội dung thành mục tiêu → ví dụ → bài tập", en: "Structure content as objective → example → exercise" },
+    { vi: "Slide ngắn, rõ và ít chữ", en: "Short, clear and low-text slides" },
+    { vi: "Giải thích một khái niệm bằng nhiều mức độ", en: "Explain one concept at multiple levels" },
+    { vi: "Nhận phản hồi và điều chỉnh cách trình bày", en: "Use feedback to improve presentation" },
+  ],
+  hmi: [
+    { vi: "Nguyên tắc HMI/UI và hierarchy thông tin", en: "HMI/UI principles and information hierarchy" },
+    { vi: "Usability, accessibility và tải nhận thức", en: "Usability, accessibility and cognitive load" },
+    { vi: "Biểu đồ, dashboard và cách hiển thị trạng thái", en: "Charts, dashboards and state visualization" },
+    { vi: "Đánh giá giao diện bằng tình huống sử dụng", en: "Evaluate interfaces through usage scenarios" },
+  ],
+  security: [
+    { vi: "Network cơ bản và mô hình client/server", en: "Basic networking and client/server models" },
+    { vi: "Authentication, authorization và session", en: "Authentication, authorization and sessions" },
+    { vi: "Threat model, dữ liệu nhạy cảm và nguyên tắc least privilege", en: "Threat modeling, sensitive data and least privilege" },
+    { vi: "Log/audit và xử lý sự cố bảo mật cơ bản", en: "Logging/audit and basic security incident handling" },
+  ],
+  logic: [
+    { vi: "Logic mệnh đề và logic vị từ cơ bản", en: "Basic propositional and predicate logic" },
+    { vi: "Biểu diễn tri thức bằng rule/graph", en: "Knowledge representation with rules/graphs" },
+    { vi: "Suy diễn, dependency và chuỗi luật", en: "Inference, dependencies and rule chains" },
+    { vi: "So sánh AI logic với ML/neural để hiểu đúng vai trò", en: "Contrast logical AI with ML/neural methods" },
+  ],
+  thesis: [
+    { vi: "Chốt câu hỏi nghiên cứu, phạm vi và đóng góp", en: "Lock the research question, scope and contribution" },
+    { vi: "Dataset, baseline, metric và kế hoạch thí nghiệm", en: "Dataset, baseline, metrics and experiment plan" },
+    { vi: "Code tái lập, quản lý phiên bản và lưu bằng chứng", en: "Reproducible code, versioning and evidence tracking" },
+    { vi: "Viết luận văn, slide, demo và luyện phản biện", en: "Thesis writing, slides, demo and defense practice" },
+  ],
+  entrepreneurship: [
+    { vi: "Xác định người dùng và vấn đề cần giải quyết", en: "Identify users and the problem to solve" },
+    { vi: "Mô tả giá trị của sản phẩm/giải pháp", en: "Describe the value proposition" },
+    { vi: "Chi phí, nguồn lực và mô hình doanh thu cơ bản", en: "Basic cost, resources and revenue model" },
+    { vi: "Pitch ngắn bằng dữ liệu và ví dụ", en: "Build a short evidence-based pitch" },
+  ],
+  elective: [
+    { vi: "Xác định nhánh tự chọn sẽ học", en: "Choose the elective branch" },
+    { vi: "Ôn nền tảng gần nhất với nhánh đã chọn", en: "Review the closest foundation for that branch" },
+    { vi: "Làm một mini-project nhỏ trước khi vào môn", en: "Build a small mini-project before the course" },
+    { vi: "Ghi lại thuật ngữ Nga–Anh–Việt quan trọng", en: "Record key Russian–English–Vietnamese terminology" },
+  ],
+} as const;
+
+const preparationGroupByCourse: Record<string, keyof typeof preparationGroups> = {
+  "foreign-1": "language",
+  "foreign-2": "language",
+  methodology: "research",
+  "nir-1": "research",
+  "nir-2": "research",
+  "nir-3": "research",
+  "nir-4": "research",
+  "nir-data": "research",
+  "analytical-models": "systems",
+  reliability: "systems",
+  lifecycle: "systems",
+  multivariate: "data",
+  "time-series": "data",
+  "business-ai": "data",
+  oop: "programming",
+  "software-1": "programming",
+  "software-2": "programming",
+  "db-optimization": "database",
+  postrelational: "database",
+  ml: "ai",
+  neural: "ai",
+  "project-practice": "operations",
+  "operations-practice": "operations",
+  "pedagogy-1": "pedagogy",
+  "pedagogy-2": "pedagogy",
+  ergonomics: "hmi",
+  "elective-1": "security",
+  mivar: "logic",
+  "elective-2": "elective",
+  prediploma: "thesis",
+  thesis: "thesis",
+  entrepreneurship: "entrepreneurship",
+};
+
+const foundationRoadmap: readonly PrepItem[] = [
+  { vi: "Python cơ bản → OOP", en: "Python fundamentals → OOP" },
+  { vi: "SQL → Database quan hệ → Index/Query", en: "SQL → Relational databases → Indexes/queries" },
+  { vi: "Đại số tuyến tính → Xác suất thống kê", en: "Linear algebra → Probability & statistics" },
+  { vi: "NumPy/Pandas → xử lý dữ liệu", en: "NumPy/Pandas → data processing" },
+  { vi: "Git + Linux + testing cơ bản", en: "Git + Linux + basic testing" },
+  { vi: "Machine Learning cơ bản sau khi nền trên đã chắc", en: "Basic machine learning after the foundations above are solid" },
+];
+
+function preparationSteps(course: Course): readonly PrepItem[] {
+  return preparationGroups[preparationGroupByCourse[course.id] ?? "research"];
+}
 
 const assessmentLabels: Record<Assessment, { vi: string; en: string }> = {
   credit: { vi: "Zachyot", en: "Credit / pass" },
@@ -244,7 +403,12 @@ function CourseRow({ course, lang, selected, onSelect }: {
   </button>;
 }
 
-function DetailPanel({ course, lang }: { course: Course | null; lang: Language }) {
+function DetailPanel({ course, lang, completed, toggleStep }: {
+  course: Course | null;
+  lang: Language;
+  completed: Record<string, boolean>;
+  toggleStep: (key: string) => void;
+}) {
   const t = copy[lang];
   if (!course) {
     return <aside className={styles.detailPanel}>
@@ -272,6 +436,23 @@ function DetailPanel({ course, lang }: { course: Course | null; lang: Language }
     {course.officialNote ? <div className={styles.officialNote}><strong>{t.officialData}</strong><p>{course.officialNote[lang]}</p></div> : null}
     <div className={styles.analysisBlock}><h3>{t.learning}</h3><p>{course.analysis[lang]}</p></div>
     <div className={styles.analysisBlock}><h3>{t.prepare}</h3><p>{course.prepare[lang]}</p></div>
+    <div className={styles.prepRoadmap}>
+      <div className={styles.prepRoadmapHeader}>
+        <div><h3>{t.prepRoadmap}</h3><small>{t.savedLocal}</small></div>
+        <strong>{preparationSteps(course).filter((_, index) => completed[`${course.id}:${index}`]).length}/{preparationSteps(course).length}</strong>
+      </div>
+      <div className={styles.prepSteps}>
+        {preparationSteps(course).map((step, index) => {
+          const key = `${course.id}:${index}`;
+          const done = Boolean(completed[key]);
+          return <button key={key} type="button" data-done={done} onClick={() => toggleStep(key)}>
+            <span>{done ? "✓" : index + 1}</span>
+            <p>{step[lang]}</p>
+            <small>{done ? t.done : t.markDone}</small>
+          </button>;
+        })}
+      </div>
+    </div>
     <div className={styles.analysisBlock}><h3>{t.outcome}</h3><p>{course.outcome[lang]}</p></div>
     <p className={styles.analysisDisclaimer}>{t.analysisNote}</p>
   </aside>;
@@ -284,6 +465,31 @@ export default function StudyPlanTool({ user }: { user: { displayName: string; e
   const [year, setYear] = useState<1 | 2>(1);
   const [week, setWeek] = useState(1);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>("multivariate");
+  const [completed, setCompleted] = useState<Record<string, boolean>>({});
+  const [progressLoaded, setProgressLoaded] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem("application-management:study-plan-progress:v1");
+      if (raw) setCompleted(JSON.parse(raw) as Record<string, boolean>);
+    } catch {
+      // Invalid local progress must never block the study-plan tool.
+    } finally {
+      setProgressLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!progressLoaded) return;
+    try {
+      window.localStorage.setItem("application-management:study-plan-progress:v1", JSON.stringify(completed));
+    } catch {
+      // Local progress is optional and the tool remains fully usable without storage.
+    }
+  }, [completed, progressLoaded]);
+
+  const toggleStep = (key: string) => setCompleted((current) => ({ ...current, [key]: !current[key] }));
+  const resetProgress = () => setCompleted({});
 
   const t = copy[lang];
   const meta = semesterMeta[semester];
@@ -455,7 +661,7 @@ export default function StudyPlanTool({ user }: { user: { displayName: string; e
         </> : null}
       </div>
 
-      <DetailPanel course={selectedCourse} lang={lang} />
+      <DetailPanel course={selectedCourse} lang={lang} completed={completed} toggleStep={toggleStep} />
     </section>
 
     <section className={styles.overall}>
@@ -468,6 +674,21 @@ export default function StudyPlanTool({ user }: { user: { displayName: string; e
             <div><strong>{t.semester} {sem}</strong><p>{semesterInsights[sem][lang].focus}</p></div>
           </article>;
         })}
+      </div>
+      <div className={styles.foundation}>
+        <div className={styles.foundationHeader}>
+          <div><span>{t.preStudy}</span><p>{t.preStudySub}</p></div>
+          <button type="button" onClick={resetProgress}>{t.resetProgress}</button>
+        </div>
+        <div className={styles.foundationGrid}>
+          {foundationRoadmap.map((item, index) => {
+            const key = `foundation:${index}`;
+            const done = Boolean(completed[key]);
+            return <button type="button" key={key} data-done={done} onClick={() => toggleStep(key)}>
+              <b>{done ? "✓" : index + 1}</b><span>{item[lang]}</span>
+            </button>;
+          })}
+        </div>
       </div>
       <p className={styles.sourceDisclaimer}>{t.derived} {t.analysisNote}</p>
     </section>
