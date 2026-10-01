@@ -96,6 +96,13 @@ const systemTools: readonly SystemTool[] = [
     category: "Tool",
     note: "Thêm ứng dụng mới theo phân loại và Universal Contract mà không sửa code Trung tâm.",
   },
+  {
+    id: "tool-deploy-ops",
+    name: "Deploy & Ops",
+    href: "/tools/deploy-ops",
+    category: "Tool",
+    note: "Điều phối Vercel · Neon · TinyFish theo evidence; kiểm tra Safe Publish và khóa secret khỏi cấu hình.",
+  },
 ];
 const validViews: readonly View[] = ["overview", "approvals", "applications", "devices", "access", "alerts", "audit", "settings"];
 
@@ -148,6 +155,7 @@ function appGlyph(appId: string) {
   if (appId === "tool-study-plan") return "▤";
   if (appId === "tool-secret-generator") return "⌘";
   if (appId === "tool-managed-apps") return "⊕";
+  if (appId === "tool-deploy-ops") return "⇧";
   return "◆";
 }
 
