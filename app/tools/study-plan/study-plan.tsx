@@ -91,6 +91,17 @@ const copy = {
     noModuleNote: "Hệ thống Bauman hiện chưa có module học riêng phù hợp cho môn này nên không tạo nút mở giả.",
     autoRegistry: "Tự đồng bộ từ subject-manifest.json",
     registryUnavailable: "Không đọc được registry Bauman lúc này; các nút module tạm ẩn để tránh dẫn sai.",
+    coverageTitle: "Độ phủ học liệu",
+    coverageSubtitle: "Theo các mục học phần đang hiển thị trong kế hoạch 4 học kỳ.",
+    coveredCourses: "Đã có module",
+    missingCourses: "Chưa có module",
+    moduleCount: "Module đang nối",
+    coverageRate: "Độ phủ",
+    coverageBySemester: "Độ phủ theo học kỳ",
+    missingList: "Các học phần còn thiếu module",
+    openCourseAnalysis: "Mở phân tích",
+    coverageUnknown: "Chưa xác định do registry Bauman đang không khả dụng.",
+    allCovered: "Tất cả học phần đã có module liên quan.",
   },
   en: {
     back: "← Management Center",
@@ -166,6 +177,17 @@ const copy = {
     noModuleNote: "The Bauman system does not currently have a suitable dedicated learning module for this course, so no fake launch button is shown.",
     autoRegistry: "Auto-synced from subject-manifest.json",
     registryUnavailable: "The Bauman registry is temporarily unavailable; module launch buttons are hidden to avoid incorrect links.",
+    coverageTitle: "Learning coverage",
+    coverageSubtitle: "Measured against the course entries currently shown across the four-semester plan.",
+    coveredCourses: "Module available",
+    missingCourses: "No module yet",
+    moduleCount: "Connected modules",
+    coverageRate: "Coverage",
+    coverageBySemester: "Coverage by semester",
+    missingList: "Course entries still missing a module",
+    openCourseAnalysis: "Open analysis",
+    coverageUnknown: "Coverage cannot be calculated while the Bauman registry is unavailable.",
+    allCovered: "All course entries have a related learning module.",
   },
 } as const;
 
@@ -550,6 +572,37 @@ export default function StudyPlanTool({
     return semesterCourses(semester);
   }, [mode, semester, year]);
 
+  const moduleCoverage = useMemo(() => {
+    const coveredIds = new Set(baumanModules.flatMap((module) => module.courseIds));
+    const covered = courses.filter((course) => coveredIds.has(course.id));
+    const missing = courses.filter((course) => !coveredIds.has(course.id));
+    const bySemester = ([1, 2, 3, 4] as const).map((semesterNumber) => {
+      const semesterItems = courses.filter((course) => course.semester === semesterNumber);
+      const coveredCount = semesterItems.filter((course) => coveredIds.has(course.id)).length;
+      return {
+        semester: semesterNumber,
+        total: semesterItems.length,
+        covered: coveredCount,
+      };
+    });
+    return {
+      covered,
+      missing,
+      bySemester,
+      percent: courses.length > 0 ? Math.round((covered.length / courses.length) * 100) : 0,
+    };
+  }, [baumanModules]);
+
+  const openCoverageCourse = (course: Course) => {
+    setSemester(course.semester);
+    setYear(course.semester <= 2 ? 1 : 2);
+    setMode("semester");
+    setSelectedCourseId(course.id);
+    window.requestAnimationFrame(() => {
+      document.getElementById("study-plan-content")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
+
   const selectSemester = (next: 1 | 2 | 3 | 4) => {
     setSemester(next);
     setWeek(1);
@@ -616,7 +669,7 @@ export default function StudyPlanTool({
       </label>}
     </section>
 
-    <section className={styles.contentGrid}>
+    <section className={styles.contentGrid} id="study-plan-content">
       <div className={styles.mainPanel}>
         {mode === "week" ? <>
           <div className={styles.sectionHeading}>
@@ -732,6 +785,59 @@ export default function StudyPlanTool({
             <div><strong>{t.semester} {sem}</strong><p>{semesterInsights[sem][lang].focus}</p></div>
           </article>;
         })}
+      </div>
+      <div className={styles.coverage}>
+        <div className={styles.coverageHeader}>
+          <div>
+            <span>{t.coverageTitle}</span>
+            <p>{t.coverageSubtitle}</p>
+          </div>
+          <div className={styles.coverageRegistry} data-live={baumanRegistryStatus === "live"}>
+            <i />
+            {baumanRegistryStatus === "live" ? t.autoRegistry : t.registryUnavailable}
+          </div>
+        </div>
+
+        {baumanRegistryStatus === "live" ? <>
+          <div className={styles.coverageStats}>
+            <article>
+              <small>{t.coverageRate}</small>
+              <strong>{moduleCoverage.percent}%</strong>
+              <div className={styles.coverageBar}><span style={{ width: `${moduleCoverage.percent}%` }} /></div>
+            </article>
+            <article><small>{t.coveredCourses}</small><strong>{moduleCoverage.covered.length}/{courses.length}</strong></article>
+            <article><small>{t.missingCourses}</small><strong>{moduleCoverage.missing.length}</strong></article>
+            <article><small>{t.moduleCount}</small><strong>{baumanModules.length}</strong></article>
+          </div>
+
+          <div className={styles.semesterCoverage}>
+            <h3>{t.coverageBySemester}</h3>
+            <div>
+              {moduleCoverage.bySemester.map((item) => {
+                const pct = item.total > 0 ? Math.round((item.covered / item.total) * 100) : 0;
+                return <article key={item.semester}>
+                  <header><strong>{t.semester} {item.semester}</strong><span>{item.covered}/{item.total}</span></header>
+                  <div><span style={{ width: `${pct}%` }} /></div>
+                  <small>{pct}%</small>
+                </article>;
+              })}
+            </div>
+          </div>
+
+          <div className={styles.missingCourses}>
+            <h3>{t.missingList}</h3>
+            {moduleCoverage.missing.length === 0
+              ? <p className={styles.allCovered}>{t.allCovered}</p>
+              : <div>
+                  {moduleCoverage.missing.map((course) => <button key={course.id} type="button" onClick={() => openCoverageCourse(course)}>
+                    <span>{t.semester} {course.semester}</span>
+                    <strong>{course.title[lang]}</strong>
+                    <small>{course.ru}</small>
+                    <em>{t.openCourseAnalysis} →</em>
+                  </button>)}
+                </div>}
+          </div>
+        </> : <p className={styles.coverageUnknown}>{t.coverageUnknown}</p>}
       </div>
       <div className={styles.foundation}>
         <div className={styles.foundationHeader}>
