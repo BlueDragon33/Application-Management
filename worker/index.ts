@@ -57,6 +57,8 @@ async function databaseReady(env: Env) {
     await env.DB.prepare("SELECT device_id FROM control_devices LIMIT 1").first();
     await env.DB.prepare("SELECT email FROM control_members LIMIT 1").first();
     await env.DB.prepare("SELECT id FROM control_audit_log LIMIT 1").first();
+    await env.DB.prepare("SELECT app_id FROM deploy_ops_targets LIMIT 1").first();
+    await env.DB.prepare("SELECT id FROM deploy_ops_runs LIMIT 1").first();
     return true;
   } catch {
     return false;
