@@ -140,7 +140,7 @@ export const courses: readonly Course[] = [
     credits: 3,
     hours: 108,
     contactHours: 0,
-    assessment: "none",
+    assessment: "graded-credit",
     kind: "research",
     analysis: { vi: "Bắt đầu tích lũy hướng nghiên cứu ngay từ học kỳ đầu, không chờ đến năm cuối.", en: "Starts the research track in the first semester rather than waiting until the final year." },
     prepare: { vi: "Tập đọc paper, ghi chú nguồn, đặt câu hỏi nghiên cứu và lưu nhật ký thực nghiệm.", en: "Practice reading papers, recording sources, framing questions and keeping experiment notes." },
