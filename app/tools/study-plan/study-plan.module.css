@@ -738,12 +738,172 @@
 .sourceDisclaimer{
   margin:16px 0 0;
 }
+.prepRoadmap{
+  margin:0 20px 12px;
+  padding:14px;
+  border:1px solid #dfe7f7;
+  border-radius:12px;
+  background:#f8faff;
+}
+.prepRoadmapHeader{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:10px;
+}
+.prepRoadmapHeader h3{
+  margin:0;
+  color:#234fae;
+  font-size:13px;
+}
+.prepRoadmapHeader small{
+  display:block;
+  margin-top:3px;
+  color:#8a95a8;
+  font-size:10px;
+  line-height:1.35;
+}
+.prepRoadmapHeader>strong{
+  min-width:42px;
+  height:28px;
+  display:grid;
+  place-items:center;
+  border-radius:999px;
+  background:#e4ecff;
+  color:#2857c7;
+  font-size:12px;
+}
+.prepSteps{
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+}
+.prepSteps button{
+  width:100%;
+  border:1px solid #e3e8f1;
+  background:#fff;
+  border-radius:9px;
+  padding:9px 10px;
+  display:grid;
+  grid-template-columns:26px minmax(0,1fr) auto;
+  align-items:center;
+  gap:9px;
+  text-align:left;
+  color:inherit;
+  cursor:pointer;
+}
+.prepSteps button:hover{
+  border-color:#b8c9f2;
+}
+.prepSteps button>span{
+  width:24px;
+  height:24px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  background:#edf2ff;
+  color:#2f66e8;
+  font-weight:800;
+  font-size:11px;
+}
+.prepSteps button p{
+  margin:0;
+  color:#465675;
+  font-size:12px;
+  line-height:1.35;
+}
+.prepSteps button small{
+  color:#8792a5;
+  font-size:10px;
+  white-space:nowrap;
+}
+.prepSteps button[data-done="true"]{
+  background:#eef9f4;
+  border-color:#cce9dc;
+}
+.prepSteps button[data-done="true"]>span{
+  background:#42a87d;
+  color:#fff;
+}
+.prepSteps button[data-done="true"] p{
+  color:#48715f;
+}
+.foundation{
+  margin-top:18px;
+  padding-top:18px;
+  border-top:1px solid #edf0f4;
+}
+.foundationHeader{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+  margin-bottom:12px;
+}
+.foundationHeader span{
+  display:block;
+  color:#244fae;
+  font-weight:800;
+}
+.foundationHeader p{
+  margin:4px 0 0;
+  color:#738096;
+  font-size:12px;
+}
+.foundationHeader button{
+  border:1px solid #dce3ef;
+  background:#fff;
+  color:#68758d;
+  border-radius:9px;
+  padding:8px 10px;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.foundationGrid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:9px;
+}
+.foundationGrid button{
+  border:1px solid #e4e9f1;
+  background:#fbfcfe;
+  border-radius:10px;
+  min-height:64px;
+  padding:10px 12px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  text-align:left;
+  color:#4f5d75;
+  cursor:pointer;
+}
+.foundationGrid button b{
+  width:28px;
+  height:28px;
+  flex:0 0 auto;
+  border-radius:9px;
+  display:grid;
+  place-items:center;
+  background:#e8efff;
+  color:#2f66e8;
+}
+.foundationGrid button[data-done="true"]{
+  border-color:#cce8db;
+  background:#eef9f4;
+  color:#48715f;
+}
+.foundationGrid button[data-done="true"] b{
+  background:#42a87d;
+  color:#fff;
+}
 @media(max-width:1100px){
   .hero{grid-template-columns:1fr}
   .stats{grid-template-columns:repeat(2,1fr)}
   .contentGrid{grid-template-columns:1fr}
   .detailPanel{position:static}
   .overallGrid{grid-template-columns:repeat(2,1fr)}
+  .foundationGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:760px){
   .topbar{padding:0 14px;height:60px}
@@ -777,4 +937,9 @@
   .yearSemesters{grid-template-columns:1fr}
   .overall{margin-left:14px;margin-right:14px}
   .overallGrid{grid-template-columns:1fr}
+  .foundationGrid{grid-template-columns:1fr}
+  .foundationHeader{flex-direction:column}
+  .foundationHeader button{width:100%}
+  .prepSteps button{grid-template-columns:26px minmax(0,1fr)}
+  .prepSteps button small{grid-column:2;white-space:normal}
 }
