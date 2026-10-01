@@ -31,6 +31,9 @@ jobs:
       BAUMAN_APP_ORIGIN: ${{ vars.BAUMAN_RUNTIME_PRODUCTION_ORIGIN }}
       GROWUP_BASE_URL: ${{ vars.GROWUP_PRODUCTION_ORIGIN }}
       APPLICATION_MANAGEMENT_ACCESS_MODE: standalone
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+      TINYFISH_API_KEY: ${{ secrets.TINYFISH_API_KEY }}
 
     steps:
       - uses: actions/checkout@v4
@@ -72,6 +75,21 @@ jobs:
         env:
           CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH: wrangler.production.jsonc
         run: npm run build
+
+      - name: Install Deploy & Ops provider secrets
+        if: steps.ready.outputs.deploy == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          for key in VERCEL_TOKEN NEON_API_KEY TINYFISH_API_KEY; do
+            value="${!key:-}"
+            if [[ -n "$value" ]]; then
+              printf '%s' "$value" | npx wrangler secret put "$key" --config wrangler.production.jsonc
+              echo "$key installed as protected Worker secret."
+            else
+              echo "$key not supplied; existing Worker secret, if any, is left unchanged."
+            fi
+          done
 
       - name: Deploy current main to live Worker
         if: steps.ready.outputs.deploy == 'true'
