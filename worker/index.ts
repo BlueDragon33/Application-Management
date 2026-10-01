@@ -219,8 +219,10 @@ const worker = {
     // re-verifies the run against TinyFish's authenticated API before accepting
     // any result as release evidence.
     if (publicTinyFishWebhook) {
-      const response = await handler.fetch(request, env, ctx);
-      return freshDynamicResponse(response, isPreview || isProduction);
+      return freshDynamicResponse(
+        await handler.fetch(request, env, ctx),
+        isPreview || isProduction,
+      );
     }
 
     // PWA installability metadata contains no private application data and must
