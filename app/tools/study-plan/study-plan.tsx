@@ -434,9 +434,7 @@ function DetailPanel({ course, lang, completed, toggleStep, baumanModules, bauma
 }) {
   const t = copy[lang];
   if (!course) {
-    const relatedModule = baumanModuleFor(course, baumanModules);
-
-  return <aside className={styles.detailPanel}>
+    return <aside className={styles.detailPanel}>
       <div className={styles.emptyDetail}>
         <span>◎</span>
         <strong>{t.analysis}</strong>
@@ -444,6 +442,8 @@ function DetailPanel({ course, lang, completed, toggleStep, baumanModules, bauma
       </div>
     </aside>;
   }
+
+  const relatedModule = baumanModuleFor(course, baumanModules);
 
   return <aside className={styles.detailPanel}>
     <div className={styles.detailHeader}>
