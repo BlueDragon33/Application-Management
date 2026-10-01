@@ -62,3 +62,41 @@ export const managedAppCatalog = sqliteTable("managed_app_catalog", {
   index("managed_app_catalog_category_idx").on(table.category),
   index("managed_app_catalog_enabled_idx").on(table.enabled),
 ]);
+
+
+export const deployOpsTargets = sqliteTable("deploy_ops_targets", {
+  appId: text("app_id").primaryKey(),
+  repository: text("repository").notNull(),
+  vercelEnabled: integer("vercel_enabled").notNull().default(0),
+  vercelProjectId: text("vercel_project_id"),
+  vercelTeamId: text("vercel_team_id"),
+  neonEnabled: integer("neon_enabled").notNull().default(0),
+  neonProjectId: text("neon_project_id"),
+  neonBranch: text("neon_branch"),
+  tinyfishEnabled: integer("tinyfish_enabled").notNull().default(0),
+  tinyfishTargetUrl: text("tinyfish_target_url"),
+  tinyfishGoal: text("tinyfish_goal"),
+  createdBy: text("created_by").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("deploy_ops_targets_updated_idx").on(table.updatedAt),
+]);
+
+export const deployOpsRuns = sqliteTable("deploy_ops_runs", {
+  id: text("id").primaryKey(),
+  appId: text("app_id").notNull(),
+  sourceSha: text("source_sha").notNull(),
+  tinyfishRunId: text("tinyfish_run_id").unique(),
+  tinyfishStatus: text("tinyfish_status"),
+  tinyfishResultJson: text("tinyfish_result_json"),
+  callbackNonceHash: text("callback_nonce_hash"),
+  status: text("status").notNull().default("pending"),
+  detailJson: text("detail_json").notNull().default("{}"),
+  createdBy: text("created_by").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  publishedAt: text("published_at"),
+}, (table) => [
+  index("deploy_ops_runs_app_sha_idx").on(table.appId, table.sourceSha, table.createdAt),
+]);
