@@ -738,6 +738,94 @@
 .sourceDisclaimer{
   margin:16px 0 0;
 }
+.moduleBridge{
+  margin:0 20px 12px;
+  padding:13px 14px;
+  border:1px solid #dce6f7;
+  border-radius:12px;
+  background:linear-gradient(180deg,#fbfdff,#f6f9ff);
+}
+.moduleBridgeHead{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.moduleBridgeHead>div{
+  min-width:0;
+}
+.moduleBridgeHead small{
+  display:block;
+  color:#7d8aa1;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  font-weight:800;
+}
+.moduleBridgeHead strong{
+  display:block;
+  margin-top:3px;
+  color:#253c69;
+  font-size:13px;
+}
+.moduleBridgeHead>span{
+  width:26px;
+  height:26px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  background:#f0f2f6;
+  color:#9ba4b3;
+}
+.moduleBridgeHead>span[data-ready="true"]{
+  background:#e8f7f0;
+  color:#2f9b70;
+}
+.moduleBridgeBody{
+  margin-top:10px;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  gap:12px;
+  padding-top:10px;
+  border-top:1px solid #e6ebf3;
+}
+.moduleBridgeBody b{
+  color:#2456be;
+  font-size:13px;
+}
+.moduleBridgeBody p,.moduleMissing{
+  margin:4px 0 0;
+  color:#778399;
+  font-size:10px;
+  line-height:1.45;
+}
+.moduleBridgeBody a{
+  min-height:36px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:0 12px;
+  border-radius:9px;
+  background:#2f66e8;
+  color:#fff;
+  text-decoration:none;
+  font-weight:800;
+  font-size:11px;
+  white-space:nowrap;
+}
+.moduleBridgeBody a:hover{
+  background:#2557c9;
+}
+.moduleBridgeBody>span{
+  color:#8d96a5;
+  font-size:11px;
+}
+.moduleMissing{
+  padding-top:9px;
+  border-top:1px solid #e9edf3;
+  margin-top:9px;
+}
 .prepRoadmap{
   margin:0 20px 12px;
   padding:14px;
@@ -942,4 +1030,6 @@
   .foundationHeader button{width:100%}
   .prepSteps button{grid-template-columns:26px minmax(0,1fr)}
   .prepSteps button small{grid-column:2;white-space:normal}
+  .moduleBridgeBody{grid-template-columns:1fr}
+  .moduleBridgeBody a{width:100%}
 }
