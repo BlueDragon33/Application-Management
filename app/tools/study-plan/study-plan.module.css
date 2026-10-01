@@ -924,6 +924,199 @@
 .prepSteps button[data-done="true"] p{
   color:#48715f;
 }
+.coverage{
+  margin-top:18px;
+  padding-top:18px;
+  border-top:1px solid #edf0f4;
+}
+.coverageHeader{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+  margin-bottom:12px;
+}
+.coverageHeader>div:first-child>span{
+  display:block;
+  color:#244fae;
+  font-weight:800;
+}
+.coverageHeader>div:first-child>p{
+  margin:4px 0 0;
+  color:#738096;
+  font-size:12px;
+}
+.coverageRegistry{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  padding:7px 9px;
+  border-radius:999px;
+  background:#f2f4f7;
+  color:#7c8798;
+  font-size:10px;
+  white-space:nowrap;
+}
+.coverageRegistry i{
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:#a2abb8;
+}
+.coverageRegistry[data-live="true"]{
+  background:#eaf8f1;
+  color:#347b60;
+}
+.coverageRegistry[data-live="true"] i{
+  background:#3eaa7b;
+}
+.coverageStats{
+  display:grid;
+  grid-template-columns:1.4fr repeat(3,1fr);
+  gap:10px;
+}
+.coverageStats article{
+  min-height:92px;
+  border:1px solid #e6eaf1;
+  background:#fbfcfe;
+  border-radius:12px;
+  padding:13px;
+  display:flex;
+  flex-direction:column;
+}
+.coverageStats small{
+  color:#8490a4;
+  font-size:11px;
+}
+.coverageStats strong{
+  margin-top:6px;
+  color:#243b68;
+  font-size:24px;
+}
+.coverageBar{
+  height:7px;
+  margin-top:auto;
+  background:#e9edf5;
+  border-radius:999px;
+  overflow:hidden;
+}
+.coverageBar span{
+  display:block;
+  height:100%;
+  background:#3f73e6;
+  border-radius:999px;
+}
+.semesterCoverage{
+  margin-top:14px;
+}
+.semesterCoverage h3,.missingCourses h3{
+  margin:0 0 9px;
+  font-size:13px;
+  color:#334665;
+}
+.semesterCoverage>div{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:8px;
+}
+.semesterCoverage article{
+  border:1px solid #e8ecf2;
+  border-radius:10px;
+  padding:10px;
+}
+.semesterCoverage header{
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  color:#526079;
+  font-size:11px;
+}
+.semesterCoverage article>div{
+  height:6px;
+  margin:8px 0 5px;
+  background:#edf0f5;
+  border-radius:999px;
+  overflow:hidden;
+}
+.semesterCoverage article>div span{
+  display:block;
+  height:100%;
+  background:#55a984;
+  border-radius:999px;
+}
+.semesterCoverage article>small{
+  color:#8c96a6;
+}
+.missingCourses{
+  margin-top:14px;
+}
+.missingCourses>div{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+}
+.missingCourses button{
+  border:1px solid #e8e3d8;
+  background:#fffdfa;
+  border-radius:10px;
+  padding:10px 11px;
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  gap:4px 9px;
+  align-items:center;
+  text-align:left;
+  color:inherit;
+  cursor:pointer;
+}
+.missingCourses button:hover{
+  border-color:#e2c98f;
+  background:#fffaf0;
+}
+.missingCourses button>span{
+  grid-row:1 / span 2;
+  align-self:start;
+  padding:4px 6px;
+  border-radius:7px;
+  background:#fff2d7;
+  color:#9c6d1f;
+  font-size:9px;
+  font-weight:800;
+  white-space:nowrap;
+}
+.missingCourses button>strong{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  font-size:12px;
+  color:#4c5669;
+}
+.missingCourses button>small{
+  grid-column:2;
+  color:#929aaa;
+  overflow:hidden;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+}
+.missingCourses button>em{
+  grid-column:3;
+  grid-row:1 / span 2;
+  color:#2f66e8;
+  font-size:10px;
+  font-style:normal;
+  white-space:nowrap;
+}
+.coverageUnknown,.allCovered{
+  margin:0;
+  padding:12px;
+  border-radius:10px;
+  background:#f7f8fa;
+  color:#7e899b;
+  font-size:12px;
+}
+.allCovered{
+  background:#eef9f4;
+  color:#47745f;
+}
 .foundation{
   margin-top:18px;
   padding-top:18px;
@@ -999,6 +1192,8 @@
   .detailPanel{position:static}
   .overallGrid{grid-template-columns:repeat(2,1fr)}
   .foundationGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .coverageStats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .semesterCoverage>div{grid-template-columns:repeat(2,1fr)}
 }
 @media(max-width:760px){
   .topbar{padding:0 14px;height:60px}
@@ -1039,4 +1234,11 @@
   .prepSteps button small{grid-column:2;white-space:normal}
   .moduleBridgeBody{grid-template-columns:1fr}
   .moduleBridgeBody a{width:100%}
+  .coverageHeader{flex-direction:column}
+  .coverageRegistry{white-space:normal}
+  .coverageStats{grid-template-columns:1fr 1fr}
+  .semesterCoverage>div{grid-template-columns:1fr 1fr}
+  .missingCourses>div{grid-template-columns:1fr}
+  .missingCourses button{grid-template-columns:auto minmax(0,1fr)}
+  .missingCourses button>em{grid-column:2;grid-row:auto}
 }
