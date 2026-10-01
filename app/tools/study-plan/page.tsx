@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { requireChatGPTUser } from "../../chatgpt-auth";
 import StudyPlanTool from "./study-plan";
+import { loadBaumanStudyModules } from "./bauman-module-registry";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,15 @@ export const metadata: Metadata = {
 };
 
 export default async function StudyPlanPage() {
-  const user = await requireChatGPTUser("/tools/study-plan");
-  return <StudyPlanTool user={{ displayName: user.displayName, email: user.email }} />;
+  const [user, baumanRegistry] = await Promise.all([
+    requireChatGPTUser("/tools/study-plan"),
+    loadBaumanStudyModules(),
+  ]);
+  return (
+    <StudyPlanTool
+      user={{ displayName: user.displayName, email: user.email }}
+      baumanModules={baumanRegistry.modules}
+      baumanRegistryStatus={baumanRegistry.status}
+    />
+  );
 }

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { applicationRegistry } from "../../application-registry";
+import type { BaumanRegistryStatus, BaumanStudyModule } from "./bauman-module-registry";
 import styles from "./study-plan.module.css";
 import {
   courses,
@@ -89,6 +89,8 @@ const copy = {
     openModule: "Mở module học",
     moduleNote: "Liên kết này mở học liệu hiện có trong Bauman Hub; đây là module liên quan, không thay thế syllabus chính thức của môn.",
     noModuleNote: "Hệ thống Bauman hiện chưa có module học riêng phù hợp cho môn này nên không tạo nút mở giả.",
+    autoRegistry: "Tự đồng bộ từ subject-manifest.json",
+    registryUnavailable: "Không đọc được registry Bauman lúc này; các nút module tạm ẩn để tránh dẫn sai.",
   },
   en: {
     back: "← Management Center",
@@ -162,6 +164,8 @@ const copy = {
     openModule: "Open learning module",
     moduleNote: "This opens the closest existing Bauman learning module; it is related material, not a replacement for the official course syllabus.",
     noModuleNote: "The Bauman system does not currently have a suitable dedicated learning module for this course, so no fake launch button is shown.",
+    autoRegistry: "Auto-synced from subject-manifest.json",
+    registryUnavailable: "The Bauman registry is temporarily unavailable; module launch buttons are hidden to avoid incorrect links.",
   },
 } as const;
 
@@ -351,52 +355,8 @@ function preparationSteps(course: Course): readonly PrepItem[] {
   return preparationGroups[preparationGroupByCourse[course.id] ?? "research"];
 }
 
-type BaumanModuleId = "math" | "programming" | "ai" | "signal" | "systems" | "research";
-
-const baumanModules: Record<BaumanModuleId, { vi: string; en: string; path: string }> = {
-  math: { vi: "Toán Bauman", en: "Bauman Mathematics", path: "subjects/math/" },
-  programming: { vi: "Lập trình · Python, CSDL & Kỹ nghệ phần mềm", en: "Programming · Python, Databases & Software Engineering", path: "subjects/programming/" },
-  ai: { vi: "AI · Machine Learning & Neural Systems", en: "AI · Machine Learning & Neural Systems", path: "subjects/ai/" },
-  signal: { vi: "Tín hiệu · Time Series, Telemetry & Cảm biến", en: "Signals · Time Series, Telemetry & Sensors", path: "subjects/signal/" },
-  systems: { vi: "Hệ thống · ASOIU & Độ tin cậy", en: "Systems · AIPCS & Reliability", path: "subjects/systems/" },
-  research: { vi: "Nghiên cứu · NIR & Luận văn VKR", en: "Research · NIR & Thesis VKR", path: "subjects/research/" },
-};
-
-const baumanModuleByCourse: Partial<Record<string, BaumanModuleId>> = {
-  methodology: "research",
-  "analytical-models": "systems",
-  multivariate: "math",
-  oop: "programming",
-  "db-optimization": "programming",
-  "software-1": "programming",
-  "nir-1": "research",
-  ml: "ai",
-  reliability: "systems",
-  postrelational: "programming",
-  neural: "ai",
-  "software-2": "programming",
-  "nir-2": "research",
-  "time-series": "signal",
-  "business-ai": "ai",
-  "is-management": "systems",
-  "nir-data": "research",
-  "nir-3": "research",
-  lifecycle: "systems",
-  prediploma: "research",
-  "nir-4": "research",
-  thesis: "research",
-};
-
-const baumanRuntime = applicationRegistry.find((app) => app.id === "bauman-master-ai")?.publicUrl?.replace(/\/+$/, "") ?? "";
-
-function baumanModuleFor(course: Course) {
-  const id = baumanModuleByCourse[course.id];
-  if (!id) return null;
-  const module = baumanModules[id];
-  return {
-    ...module,
-    href: baumanRuntime ? `${baumanRuntime}/${module.path}` : "",
-  };
+function baumanModuleFor(course: Course, modules: readonly BaumanStudyModule[]) {
+  return modules.find((module) => module.courseIds.includes(course.id)) ?? null;
 }
 
 const assessmentLabels: Record<Assessment, { vi: string; en: string }> = {
@@ -464,11 +424,13 @@ function CourseRow({ course, lang, selected, onSelect }: {
   </button>;
 }
 
-function DetailPanel({ course, lang, completed, toggleStep }: {
+function DetailPanel({ course, lang, completed, toggleStep, baumanModules, baumanRegistryStatus }: {
   course: Course | null;
   lang: Language;
   completed: Record<string, boolean>;
   toggleStep: (key: string) => void;
+  baumanModules: readonly BaumanStudyModule[];
+  baumanRegistryStatus: BaumanRegistryStatus;
 }) {
   const t = copy[lang];
   if (!course) {
@@ -480,6 +442,8 @@ function DetailPanel({ course, lang, completed, toggleStep }: {
       </div>
     </aside>;
   }
+
+  const relatedModule = baumanModuleFor(course, baumanModules);
 
   return <aside className={styles.detailPanel}>
     <div className={styles.detailHeader}>
@@ -499,13 +463,21 @@ function DetailPanel({ course, lang, completed, toggleStep }: {
     <div className={styles.analysisBlock}><h3>{t.prepare}</h3><p>{course.prepare[lang]}</p></div>
     <div className={styles.moduleBridge}>
       <div className={styles.moduleBridgeHead}>
-        <div><small>{t.baumanLearning}</small><strong>{baumanModuleFor(course) ? t.relatedModule : t.noModule}</strong></div>
-        <span data-ready={Boolean(baumanModuleFor(course))}>{baumanModuleFor(course) ? "●" : "○"}</span>
+        <div>
+          <small>{t.baumanLearning}</small>
+          <strong>{baumanRegistryStatus === "live" ? (relatedModule ? t.relatedModule : t.noModule) : t.noModule}</strong>
+          <em>{t.autoRegistry}</em>
+        </div>
+        <span data-ready={Boolean(relatedModule) && baumanRegistryStatus === "live"}>{relatedModule && baumanRegistryStatus === "live" ? "●" : "○"}</span>
       </div>
-      {baumanModuleFor(course) ? <div className={styles.moduleBridgeBody}>
-        <div><b>{baumanModuleFor(course)![lang]}</b><p>{t.moduleNote}</p></div>
-        {baumanModuleFor(course)!.href ? <a href={baumanModuleFor(course)!.href} target="_blank" rel="noreferrer">{t.openModule} ↗</a> : <span>{t.noModule}</span>}
-      </div> : <p className={styles.moduleMissing}>{t.noModuleNote}</p>}
+      {baumanRegistryStatus !== "live"
+        ? <p className={styles.moduleMissing}>{t.registryUnavailable}</p>
+        : relatedModule
+          ? <div className={styles.moduleBridgeBody}>
+              <div><b>{lang === "vi" ? relatedModule.labelVi : relatedModule.labelEn}</b><p>{t.moduleNote}</p></div>
+              {relatedModule.href ? <a href={relatedModule.href} target="_blank" rel="noreferrer">{t.openModule} ↗</a> : <span>{t.noModule}</span>}
+            </div>
+          : <p className={styles.moduleMissing}>{t.noModuleNote}</p>}
     </div>
     <div className={styles.prepRoadmap}>
       <div className={styles.prepRoadmapHeader}>
@@ -529,7 +501,15 @@ function DetailPanel({ course, lang, completed, toggleStep }: {
   </aside>;
 }
 
-export default function StudyPlanTool({ user }: { user: { displayName: string; email: string } }) {
+export default function StudyPlanTool({
+  user,
+  baumanModules,
+  baumanRegistryStatus,
+}: {
+  user: { displayName: string; email: string };
+  baumanModules: BaumanStudyModule[];
+  baumanRegistryStatus: BaumanRegistryStatus;
+}) {
   const [lang, setLang] = useState<Language>("vi");
   const [mode, setMode] = useState<ViewMode>("semester");
   const [semester, setSemester] = useState<1 | 2 | 3 | 4>(1);
@@ -732,7 +712,14 @@ export default function StudyPlanTool({ user }: { user: { displayName: string; e
         </> : null}
       </div>
 
-      <DetailPanel course={selectedCourse} lang={lang} completed={completed} toggleStep={toggleStep} />
+      <DetailPanel
+        course={selectedCourse}
+        lang={lang}
+        completed={completed}
+        toggleStep={toggleStep}
+        baumanModules={baumanModules}
+        baumanRegistryStatus={baumanRegistryStatus}
+      />
     </section>
 
     <section className={styles.overall}>

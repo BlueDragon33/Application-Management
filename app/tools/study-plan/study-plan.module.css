@@ -768,6 +768,13 @@
   color:#253c69;
   font-size:13px;
 }
+.moduleBridgeHead em{
+  display:block;
+  margin-top:3px;
+  color:#7f8ca4;
+  font-size:9px;
+  font-style:normal;
+}
 .moduleBridgeHead>span{
   width:26px;
   height:26px;
