@@ -76,6 +76,13 @@ function standaloneCenter(user: { displayName: string; email: string }): CenterB
 }
 const systemTools: readonly SystemTool[] = [
   {
+    id: "tool-study-plan",
+    name: "Phân tích lịch học Bauman",
+    href: "/tools/study-plan",
+    category: "Tool",
+    note: "Phân tích kế hoạch 09.04.01/11 theo tuần, tháng, học kỳ và năm; chuyển đổi giao diện Việt/Anh.",
+  },
+  {
     id: "tool-secret-generator",
     name: "Tạo Key / Secret",
     href: "/tools/secret-generator",
@@ -138,6 +145,7 @@ function appFor(apps: readonly ApplicationConfig[], appId: string) {
 }
 
 function appGlyph(appId: string) {
+  if (appId === "tool-study-plan") return "▤";
   if (appId === "tool-secret-generator") return "⌘";
   if (appId === "tool-managed-apps") return "⊕";
   return "◆";
