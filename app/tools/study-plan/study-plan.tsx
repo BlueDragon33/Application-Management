@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { applicationRegistry } from "../../application-registry";
 import styles from "./study-plan.module.css";
 import {
   courses,
@@ -82,6 +83,12 @@ const copy = {
     preStudy: "Lộ trình chuẩn bị trước khi vào học",
     preStudySub: "Thứ tự nền tảng để giảm tải mạnh cho học kỳ 1 và các môn AI phía sau.",
     resetProgress: "Đặt lại tiến độ",
+    baumanLearning: "Học liệu Bauman liên quan",
+    relatedModule: "Có module liên quan",
+    noModule: "Chưa có module riêng",
+    openModule: "Mở module học",
+    moduleNote: "Liên kết này mở học liệu hiện có trong Bauman Hub; đây là module liên quan, không thay thế syllabus chính thức của môn.",
+    noModuleNote: "Hệ thống Bauman hiện chưa có module học riêng phù hợp cho môn này nên không tạo nút mở giả.",
   },
   en: {
     back: "← Management Center",
@@ -149,6 +156,12 @@ const copy = {
     preStudy: "Pre-study roadmap",
     preStudySub: "Foundation order designed to reduce the load in semester 1 and later AI courses.",
     resetProgress: "Reset progress",
+    baumanLearning: "Related Bauman learning module",
+    relatedModule: "Related module available",
+    noModule: "No dedicated module yet",
+    openModule: "Open learning module",
+    moduleNote: "This opens the closest existing Bauman learning module; it is related material, not a replacement for the official course syllabus.",
+    noModuleNote: "The Bauman system does not currently have a suitable dedicated learning module for this course, so no fake launch button is shown.",
   },
 } as const;
 
@@ -338,6 +351,54 @@ function preparationSteps(course: Course): readonly PrepItem[] {
   return preparationGroups[preparationGroupByCourse[course.id] ?? "research"];
 }
 
+type BaumanModuleId = "math" | "programming" | "ai" | "signal" | "systems" | "research";
+
+const baumanModules: Record<BaumanModuleId, { vi: string; en: string; path: string }> = {
+  math: { vi: "Toán Bauman", en: "Bauman Mathematics", path: "subjects/math/" },
+  programming: { vi: "Lập trình · Python, CSDL & Kỹ nghệ phần mềm", en: "Programming · Python, Databases & Software Engineering", path: "subjects/programming/" },
+  ai: { vi: "AI · Machine Learning & Neural Systems", en: "AI · Machine Learning & Neural Systems", path: "subjects/ai/" },
+  signal: { vi: "Tín hiệu · Time Series, Telemetry & Cảm biến", en: "Signals · Time Series, Telemetry & Sensors", path: "subjects/signal/" },
+  systems: { vi: "Hệ thống · ASOIU & Độ tin cậy", en: "Systems · AIPCS & Reliability", path: "subjects/systems/" },
+  research: { vi: "Nghiên cứu · NIR & Luận văn VKR", en: "Research · NIR & Thesis VKR", path: "subjects/research/" },
+};
+
+const baumanModuleByCourse: Partial<Record<string, BaumanModuleId>> = {
+  methodology: "research",
+  "analytical-models": "systems",
+  multivariate: "math",
+  oop: "programming",
+  "db-optimization": "programming",
+  "software-1": "programming",
+  "nir-1": "research",
+  ml: "ai",
+  reliability: "systems",
+  postrelational: "programming",
+  neural: "ai",
+  "software-2": "programming",
+  "nir-2": "research",
+  "time-series": "signal",
+  "business-ai": "ai",
+  "is-management": "systems",
+  "nir-data": "research",
+  "nir-3": "research",
+  lifecycle: "systems",
+  prediploma: "research",
+  "nir-4": "research",
+  thesis: "research",
+};
+
+const baumanRuntime = applicationRegistry.find((app) => app.id === "bauman-master-ai")?.publicUrl?.replace(/\/+$/, "") ?? "";
+
+function baumanModuleFor(course: Course) {
+  const id = baumanModuleByCourse[course.id];
+  if (!id) return null;
+  const module = baumanModules[id];
+  return {
+    ...module,
+    href: baumanRuntime ? `${baumanRuntime}/${module.path}` : "",
+  };
+}
+
 const assessmentLabels: Record<Assessment, { vi: string; en: string }> = {
   credit: { vi: "Zachyot", en: "Credit / pass" },
   exam: { vi: "Thi", en: "Exam" },
@@ -436,6 +497,16 @@ function DetailPanel({ course, lang, completed, toggleStep }: {
     {course.officialNote ? <div className={styles.officialNote}><strong>{t.officialData}</strong><p>{course.officialNote[lang]}</p></div> : null}
     <div className={styles.analysisBlock}><h3>{t.learning}</h3><p>{course.analysis[lang]}</p></div>
     <div className={styles.analysisBlock}><h3>{t.prepare}</h3><p>{course.prepare[lang]}</p></div>
+    <div className={styles.moduleBridge}>
+      <div className={styles.moduleBridgeHead}>
+        <div><small>{t.baumanLearning}</small><strong>{baumanModuleFor(course) ? t.relatedModule : t.noModule}</strong></div>
+        <span data-ready={Boolean(baumanModuleFor(course))}>{baumanModuleFor(course) ? "●" : "○"}</span>
+      </div>
+      {baumanModuleFor(course) ? <div className={styles.moduleBridgeBody}>
+        <div><b>{baumanModuleFor(course)![lang]}</b><p>{t.moduleNote}</p></div>
+        {baumanModuleFor(course)!.href ? <a href={baumanModuleFor(course)!.href} target="_blank" rel="noreferrer">{t.openModule} ↗</a> : <span>{t.noModule}</span>}
+      </div> : <p className={styles.moduleMissing}>{t.noModuleNote}</p>}
+    </div>
     <div className={styles.prepRoadmap}>
       <div className={styles.prepRoadmapHeader}>
         <div><h3>{t.prepRoadmap}</h3><small>{t.savedLocal}</small></div>
