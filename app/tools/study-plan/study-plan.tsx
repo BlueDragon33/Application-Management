@@ -94,6 +94,7 @@ const copy = {
     noModuleNote: "Hệ thống Bauman hiện chưa có module học riêng phù hợp cho môn này nên không tạo nút mở giả.",
     autoRegistry: "Tự đồng bộ từ subject-manifest.json",
     registryUnavailable: "Không đọc được registry Bauman lúc này; các nút module tạm ẩn để tránh dẫn sai.",
+    directOpenBlocked: "Contract Bauman không cho Application Management mở trực tiếp learning runtime. Hãy mở module từ Bauman Hub.",
     coverageTitle: "Độ phủ học liệu",
     coverageSubtitle: "Theo các mục học phần đang hiển thị trong kế hoạch 4 học kỳ.",
     coveredCourses: "Đã có module",
@@ -193,6 +194,7 @@ const copy = {
     noModuleNote: "The Bauman system does not currently have a suitable dedicated learning module for this course, so no fake launch button is shown.",
     autoRegistry: "Auto-synced from subject-manifest.json",
     registryUnavailable: "The Bauman registry is temporarily unavailable; module launch buttons are hidden to avoid incorrect links.",
+    directOpenBlocked: "The Bauman contract does not allow Application Management to open the learning runtime directly. Open the module from Bauman Hub.",
     coverageTitle: "Learning coverage",
     coverageSubtitle: "Measured against the course entries currently shown across the four-semester plan.",
     coveredCourses: "Module available",
@@ -505,13 +507,14 @@ function CourseRow({ course, lang, selected, onSelect }: {
   </button>;
 }
 
-function DetailPanel({ course, lang, completed, toggleStep, baumanModules, baumanRegistryStatus }: {
+function DetailPanel({ course, lang, completed, toggleStep, baumanModules, baumanRegistryStatus, mayOpenLearningRuntimeDirectly }: {
   course: Course | null;
   lang: Language;
   completed: Record<string, boolean>;
   toggleStep: (key: string) => void;
   baumanModules: readonly BaumanStudyModule[];
   baumanRegistryStatus: BaumanRegistryStatus;
+  mayOpenLearningRuntimeDirectly: boolean;
 }) {
   const t = copy[lang];
   if (!course) {
@@ -565,7 +568,9 @@ function DetailPanel({ course, lang, completed, toggleStep, baumanModules, bauma
         : relatedModule
           ? <div className={styles.moduleBridgeBody}>
               <div><b>{lang === "vi" ? relatedModule.labelVi : relatedModule.labelEn}</b><p>{t.moduleNote}</p></div>
-              {relatedModule.href ? <a href={relatedModule.href} target="_blank" rel="noreferrer">{t.openModule} ↗</a> : <span>{t.noModule}</span>}
+              {mayOpenLearningRuntimeDirectly && relatedModule.href
+                ? <a href={relatedModule.href} target="_blank" rel="noreferrer">{t.openModule} ↗</a>
+                : <span>{t.directOpenBlocked}</span>}
             </div>
           : <p className={styles.moduleMissing}>{t.noModuleNote}</p>}
     </div>
@@ -755,10 +760,12 @@ export default function StudyPlanTool({
   user,
   baumanModules,
   baumanRegistryStatus,
+  mayOpenLearningRuntimeDirectly,
 }: {
   user: { displayName: string; email: string };
   baumanModules: BaumanStudyModule[];
   baumanRegistryStatus: BaumanRegistryStatus;
+  mayOpenLearningRuntimeDirectly: boolean;
 }) {
   const [lang, setLang] = useState<Language>("vi");
   const [mode, setMode] = useState<ViewMode>("semester");
@@ -1037,6 +1044,7 @@ export default function StudyPlanTool({
         toggleStep={toggleStep}
         baumanModules={baumanModules}
         baumanRegistryStatus={baumanRegistryStatus}
+        mayOpenLearningRuntimeDirectly={mayOpenLearningRuntimeDirectly}
       />
     </section>
 
