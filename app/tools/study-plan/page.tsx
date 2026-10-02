@@ -20,6 +20,7 @@ export default async function StudyPlanPage() {
       user={{ displayName: user.displayName, email: user.email }}
       baumanModules={baumanRegistry.modules}
       baumanRegistryStatus={baumanRegistry.status}
+      mayOpenLearningRuntimeDirectly={baumanRegistry.mayOpenLearningRuntimeDirectly}
     />
   );
 }
