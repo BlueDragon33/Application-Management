@@ -48,6 +48,17 @@ type ClientDevice = {
   registryInstanceId?: string | null;
 };
 
+type ClientSubclient = {
+  id: string;
+  name: string;
+  initials: string;
+  kind: "subject-site" | "module" | "workflow";
+  repository: string | null;
+  sourcePath: string | null;
+  state: "independent" | "module" | "workflow";
+  controlState: string | null;
+};
+
 type ClientSummary = {
   appId: string;
   appName: string;
@@ -71,6 +82,8 @@ type ClientSummary = {
   metadataVerified: boolean;
   webAccessPolicy?: "allow" | "deny" | "unknown";
   contentReviewReady?: boolean;
+  subclients?: ClientSubclient[];
+  subclientInventoryLive?: boolean;
 };
 
 type WorkItem = {
@@ -122,6 +135,43 @@ function managementMode(value: unknown, fallback: ClientSummary["managementMode"
 
 function normalizedStatus(value: unknown): ClientDevice["status"] {
   return value === "pending" || value === "approved" || value === "blocked" ? value : "unknown";
+}
+
+function subclientInitials(name: string, id: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const derived = parts.slice(0, 2).map((part) => part[0]?.toUpperCase() ?? "").join("");
+  return (derived || id.slice(0, 3).toUpperCase()).slice(0, 4);
+}
+
+function baumanSubclient(value: unknown): ClientSubclient | null {
+  const row = record(value);
+  const id = text(row.id).trim();
+  const name = text(row.name).trim();
+  const kind = row.kind === "subject-site" || row.kind === "module" || row.kind === "workflow" ? row.kind : null;
+  const state = row.state === "independent" || row.state === "module" || row.state === "workflow" ? row.state : null;
+  if (!/^[a-z0-9][a-z0-9-]*$/i.test(id) || !name || !kind || !state) return null;
+  const repository = text(row.repository).trim() || null;
+  const sourcePath = text(row.sourcePath).trim() || null;
+  return {
+    id,
+    name,
+    initials: subclientInitials(name, id),
+    kind,
+    repository,
+    sourcePath,
+    state,
+    controlState: text(row.controlState).trim() || null,
+  };
+}
+
+function baumanSubclients(data: UnknownRecord) {
+  if (!Array.isArray(data.subclients)) return [] as ClientSubclient[];
+  const unique = new Map<string, ClientSubclient>();
+  for (const raw of data.subclients) {
+    const item = baumanSubclient(raw);
+    if (item) unique.set(item.id, item);
+  }
+  return [...unique.values()];
 }
 
 function validCommandId(value: string) {
@@ -414,7 +464,15 @@ async function loadBauman(actor: ControlDeviceState) {
   const contentReviewReady = bool(capabilities.contentReviewApi)
     && text(endpoints.contentReviews) === "/api/control/content-reviews"
     && text(endpoints.contentReviewCommands) === "/api/control/content-review-commands";
-  const data = await bridgeReadJson(bridge, devicesPath);
+  const subclientsPath = text(endpoints.subclients);
+  const [data, subclientData] = await Promise.all([
+    bridgeReadJson(bridge, devicesPath),
+    subclientsPath === "/api/control/subclients"
+      ? bridgeReadJson(bridge, subclientsPath)
+      : Promise.resolve({} as UnknownRecord),
+  ]);
+  const subclients = baumanSubclients(subclientData);
+  const subclientInventoryLive = subclientsPath === "/api/control/subclients" && subclients.length > 0;
   const devices = rows(data).map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
     typeKey: "deviceType",
     userKeys: ["displayName", "label", "platform", "browser"],
@@ -433,6 +491,8 @@ async function loadBauman(actor: ControlDeviceState) {
     hasOperationalData: true,
     webAccessPolicy: directRuntimeOpenAllowed ? "allow" as const : "deny" as const,
     contentReviewReady,
+    subclients,
+    subclientInventoryLive,
     controlNote: directRuntimeOpenAllowed
       ? "Bauman cho phép Application Management mở learning runtime trực tiếp."
       : "Bauman policy chặn mở learning runtime trực tiếp từ Application Management.",
@@ -836,6 +896,8 @@ async function buildBootstrap(actor: ControlDeviceState) {
     );
     if ("webAccessPolicy" in result.value) currentSummary.webAccessPolicy = result.value.webAccessPolicy;
     if ("contentReviewReady" in result.value) currentSummary.contentReviewReady = Boolean(result.value.contentReviewReady);
+    if ("subclients" in result.value && Array.isArray(result.value.subclients)) currentSummary.subclients = result.value.subclients;
+    if ("subclientInventoryLive" in result.value) currentSummary.subclientInventoryLive = Boolean(result.value.subclientInventoryLive);
     summaries.push(currentSummary);
     for (const device of result.value.devices) {
       const item = workFromDevice(device);
