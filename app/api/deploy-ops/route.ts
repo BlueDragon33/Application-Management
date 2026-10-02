@@ -3,6 +3,8 @@ import { removeDeployOpsCredential, saveDeployOpsCredential } from "../../deploy
 import {
   deployOpsProviderConfiguration,
   deployOpsRecentRuns,
+  discoverDeployOpsResources,
+  discoverNeonBranches,
   listDeployOpsTargets,
   probeDeployOps,
   readDeployOpsTarget,
@@ -56,6 +58,15 @@ export async function POST(request: Request) {
       return json({ ok: true, credential, providers: await deployOpsProviderConfiguration() });
     }
 
+    if (action === "discover-resources") {
+      const discovery = await discoverDeployOpsResources(text(payload.appId));
+      return json({ ok: true, discovery, providers: await deployOpsProviderConfiguration() });
+    }
+
+    if (action === "discover-neon-branches") {
+      const branches = await discoverNeonBranches(payload.projectId);
+      return json({ ok: true, branches });
+    }
 
     const appId = text(payload.appId);
     const sourceSha = text(payload.sourceSha).toLowerCase();
@@ -123,6 +134,8 @@ export async function POST(request: Request) {
       "INVALID_PROVIDER_CREDENTIAL",
       "CREDENTIAL_ENCRYPTION_KEY_MISSING",
       "INVALID_CREDENTIAL_ENCRYPTION_KEY",
+      "INVALID_NEON_PROJECT_ID",
+      "NEON_CREDENTIAL_MISSING",
     ]);
     return json({
       error: known.has(message) ? message : "Không thể hoàn tất thao tác Deploy & Ops.",
