@@ -208,7 +208,7 @@ function webActionLabel(summary: OperationsSummary | undefined, hasWeb: boolean,
 
 function webAccessAvailable(app: ApplicationConfig, summary: OperationsSummary | undefined, localRuntime: boolean) {
   if (summary?.webAccessPolicy === "deny") return false;
-  return webAccessAvailable(app, summary, localRuntime);
+  return Boolean(summary?.webHref || app.publicUrl || (localRuntime && app.localUrl));
 }
 
 function intentionalNonRemoteMode(summary?: OperationsSummary) {
