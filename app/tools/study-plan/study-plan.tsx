@@ -6,6 +6,7 @@ import type { BaumanRegistryStatus, BaumanStudyModule } from "./bauman-module-re
 import styles from "./study-plan.module.css";
 import {
   courses,
+  preBaumanRoadmap,
   program,
   readinessByCourse,
   semesterCourses,
@@ -599,6 +600,161 @@ function DetailPanel({ course, lang, completed, toggleStep, baumanModules, bauma
   </aside>;
 }
 
+
+const preStudyCopy = {
+  vi: {
+    eyebrow: "KẾ HOẠCH BÙ NỀN CÁ NHÂN",
+    title: "12 tuần trước Bauman",
+    subtitle: "Gom các khoảng trống 🔴/🟡 thành 7 giai đoạn nền tảng để tránh học trùng và ưu tiên đúng thứ tự phụ thuộc.",
+    progress: "Tiến độ toàn lộ trình",
+    coverage: "Phủ môn cần chuẩn bị",
+    workload: "Tải dự kiến",
+    week: "Tuần",
+    hoursWeek: "giờ/tuần",
+    tasks: "Việc phải hoàn thành",
+    impact: "Môn được hỗ trợ",
+    checkpoint: "Mốc đạt",
+    done: "Hoàn thành",
+    open: "Mở môn",
+  },
+  en: {
+    eyebrow: "PERSONAL FOUNDATION PLAN",
+    title: "12 weeks before Bauman",
+    subtitle: "Consolidates 🔴/🟡 gaps into seven foundation phases to avoid duplicated study and respect prerequisite order.",
+    progress: "Roadmap progress",
+    coverage: "Courses covered",
+    workload: "Planned load",
+    week: "Week",
+    hoursWeek: "hours/week",
+    tasks: "Tasks to complete",
+    impact: "Supported courses",
+    checkpoint: "Checkpoint",
+    done: "Complete",
+    open: "Open course",
+  },
+} as const;
+
+function PreStudyRoadmap({
+  lang,
+  completed,
+  toggleStep,
+  onOpenCourse,
+}: {
+  lang: Language;
+  completed: Record<string, boolean>;
+  toggleStep: (key: string) => void;
+  onOpenCourse: (course: Course) => void;
+}) {
+  const t = preStudyCopy[lang];
+  const totalTasks = preBaumanRoadmap.reduce((sum, phase) => sum + phase.tasks.length, 0);
+  const doneTasks = preBaumanRoadmap.reduce(
+    (sum, phase) => sum + phase.tasks.filter((_, index) => completed[`prebauman:${phase.id}:${index}`]).length,
+    0,
+  );
+  const percent = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
+  const targetIds = new Set(preBaumanRoadmap.flatMap((phase) => phase.targetCourseIds));
+  const nonGreenCourses = courses.filter((course) => readinessByCourse[course.id].level !== "green");
+  const coveredNonGreen = nonGreenCourses.filter((course) => targetIds.has(course.id)).length;
+  const averageHours = Math.round(
+    preBaumanRoadmap.reduce((sum, phase) => {
+      const weekCount = phase.weeks[1] - phase.weeks[0] + 1;
+      return sum + phase.hoursPerWeek * weekCount;
+    }, 0) / 12,
+  );
+
+  return <section className={styles.preBaumanRoadmap} id="pre-bauman-roadmap">
+    <header className={styles.preBaumanHeader}>
+      <div>
+        <span>{t.eyebrow}</span>
+        <h2>{t.title}</h2>
+        <p>{t.subtitle}</p>
+      </div>
+      <div className={styles.preBaumanSummary}>
+        <article>
+          <small>{t.progress}</small>
+          <strong>{percent}%</strong>
+          <span>{doneTasks}/{totalTasks}</span>
+        </article>
+        <article>
+          <small>{t.coverage}</small>
+          <strong>{coveredNonGreen}/{nonGreenCourses.length}</strong>
+          <span>🟡 + 🔴</span>
+        </article>
+        <article>
+          <small>{t.workload}</small>
+          <strong>≈{averageHours}</strong>
+          <span>{t.hoursWeek}</span>
+        </article>
+      </div>
+    </header>
+
+    <div className={styles.preBaumanOverallBar} aria-label={t.progress}>
+      <span style={{ width: `${percent}%` }} />
+    </div>
+
+    <div className={styles.preBaumanPhases}>
+      {preBaumanRoadmap.map((phase, phaseIndex) => {
+        const phaseDone = phase.tasks.filter((_, index) => completed[`prebauman:${phase.id}:${index}`]).length;
+        const phasePercent = Math.round((phaseDone / phase.tasks.length) * 100);
+        const impactedCourses = phase.targetCourseIds
+          .map((id) => courses.find((course) => course.id === id))
+          .filter((course): course is Course => Boolean(course));
+
+        return <article key={phase.id} className={styles.preBaumanPhase} data-complete={phaseDone === phase.tasks.length}>
+          <header>
+            <div className={styles.phaseNumber}>{phaseIndex + 1}</div>
+            <div>
+              <small>{t.week} {phase.weeks[0]}{phase.weeks[1] !== phase.weeks[0] ? `–${phase.weeks[1]}` : ""} · {phase.hoursPerWeek} {t.hoursWeek}</small>
+              <h3>{phase.title[lang]}</h3>
+            </div>
+            <strong>{phasePercent}%</strong>
+          </header>
+
+          <div className={styles.phaseBar}><span style={{ width: `${phasePercent}%` }} /></div>
+          <p className={styles.phaseFocus}>{phase.focus[lang]}</p>
+          <p className={styles.phaseWhy}>{phase.why[lang]}</p>
+
+          <section className={styles.phaseTasks}>
+            <h4>{t.tasks}</h4>
+            {phase.tasks.map((task, index) => {
+              const key = `prebauman:${phase.id}:${index}`;
+              const done = Boolean(completed[key]);
+              return <button type="button" key={key} data-done={done} onClick={() => toggleStep(key)}>
+                <b>{done ? "✓" : index + 1}</b>
+                <span>{task[lang]}</span>
+                <small>{done ? t.done : "○"}</small>
+              </button>;
+            })}
+          </section>
+
+          <div className={styles.phaseCheckpoint}>
+            <small>{t.checkpoint}</small>
+            <p>{phase.checkpoint[lang]}</p>
+          </div>
+
+          <div className={styles.phaseImpact}>
+            <small>{t.impact}</small>
+            <div>
+              {impactedCourses.map((course) => {
+                const readiness = readinessByCourse[course.id];
+                return <button
+                  type="button"
+                  key={course.id}
+                  data-level={readiness.level}
+                  onClick={() => onOpenCourse(course)}
+                  title={`${t.open}: ${course.title[lang]}`}
+                >
+                  {readiness.level === "red" ? "🔴" : readiness.level === "yellow" ? "🟡" : "🟢"} {course.title[lang]}
+                </button>;
+              })}
+            </div>
+          </div>
+        </article>;
+      })}
+    </div>
+  </section>;
+}
+
 export default function StudyPlanTool({
   user,
   baumanModules,
@@ -752,6 +908,13 @@ export default function StudyPlanTool({
         {(["green", "yellow", "red"] as ReadinessLevel[]).map((level) => <span key={level} data-level={level}>{readinessLabels[level][lang]}</span>)}
       </div>
     </section>
+
+    <PreStudyRoadmap
+      lang={lang}
+      completed={completed}
+      toggleStep={toggleStep}
+      onOpenCourse={openCoverageCourse}
+    />
 
     <section className={styles.controls}>
       <div className={styles.modeGroup}>
