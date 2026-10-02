@@ -31,6 +31,7 @@ jobs:
       BAUMAN_APP_ORIGIN: ${{ vars.BAUMAN_RUNTIME_PRODUCTION_ORIGIN }}
       GROWUP_BASE_URL: ${{ vars.GROWUP_PRODUCTION_ORIGIN }}
       APPLICATION_MANAGEMENT_ACCESS_MODE: standalone
+      MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY: ${{ secrets.MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
       TINYFISH_API_KEY: ${{ secrets.TINYFISH_API_KEY }}
@@ -75,6 +76,27 @@ jobs:
         env:
           CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH: wrangler.production.jsonc
         run: npm run build
+
+      - name: Ensure provider Vault encryption key
+        if: steps.ready.outputs.deploy == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY:-}" ]]; then
+            if [[ ! "$MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY" =~ ^[A-Za-z0-9_-]{43}$ ]]; then
+              echo '::error::MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY must be a 32-byte URL-safe base64 key.'
+              exit 1
+            fi
+            printf '%s' "$MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY" | npx wrangler secret put MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY --config wrangler.production.jsonc
+            echo 'Provider Vault encryption key installed from protected environment secret.'
+          elif npx wrangler secret list --config wrangler.production.jsonc 2>/dev/null | grep -q 'MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY'; then
+            echo 'Provider Vault encryption key already exists; keeping the current key.'
+          else
+            GENERATED_KEY="$(node --input-type=module -e "import crypto from 'node:crypto'; process.stdout.write(crypto.randomBytes(32).toString('base64url'))")"
+            printf '%s' "$GENERATED_KEY" | npx wrangler secret put MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY --config wrangler.production.jsonc
+            unset GENERATED_KEY
+            echo 'Provider Vault encryption key created once as a Worker secret.'
+          fi
 
       - name: Install Deploy & Ops provider secrets
         if: steps.ready.outputs.deploy == 'true'
