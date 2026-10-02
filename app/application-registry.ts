@@ -2,7 +2,7 @@ export type ApplicationStatus = "online" | "warning" | "planned";
 export type ApplicationCategory = "Học tập" | "Y tế" | "Nga" | "Học thuật" | "Gia đình" | "Kế toán" | "Kỹ thuật";
 export type AdminContractState = "connected" | "migrating" | "pending";
 export type DeviceClass = "desktop" | "tablet" | "phone";
-export type SubClientState = "independent" | "module" | "planned";
+export type SubClientState = "independent" | "module" | "workflow" | "planned";
 
 export type DeviceExperience = {
   id: DeviceClass;
@@ -18,7 +18,7 @@ export type SubClientConfig = {
   id: string;
   name: string;
   initials: string;
-  kind: "subject-site" | "module";
+  kind: "subject-site" | "module" | "workflow";
   repository?: string;
   sourcePath?: string;
   state: SubClientState;
@@ -58,14 +58,21 @@ export const standardDeviceExperiences: readonly DeviceExperience[] = [
 
 const baumanChildren: readonly SubClientConfig[] = [
   { id: "math", name: "Toán Bauman", initials: "MATH", kind: "subject-site", repository: "BlueDragon33/Math_Bauman", state: "independent", contractState: "pending", note: "Đã có repo độc lập. Bauman Hub là client cha; contract quản trị sub-client vẫn phải được công bố trước khi Trung tâm điều khiển." },
-  { id: "programming", name: "Lập trình", initials: "DEV", kind: "module", sourcePath: "subjects/programming", state: "module", contractState: "pending", note: "Hiện nằm trong cây subjects của Bauman; có thể tách thành site môn học độc lập khi ổn định runtime và contract." },
-  { id: "ai", name: "AI", initials: "AI", kind: "module", sourcePath: "subjects/ai", state: "module", contractState: "pending", note: "Client con logic trong Bauman; chưa được coi là site độc lập cho tới khi có runtime/repo/contract riêng." },
-  { id: "signal", name: "Tín hiệu", initials: "SIG", kind: "module", sourcePath: "subjects/signal", state: "module", contractState: "pending", note: "Đang là module môn học của Bauman và được biểu diễn như sub-client logic, không phải client cấp 1 của Trung tâm." },
-  { id: "systems", name: "Hệ thống", initials: "SYS", kind: "module", sourcePath: "subjects/systems", state: "module", contractState: "pending", note: "Thuộc Bauman Hub; mọi quản trị đi qua contract của client cha cho tới khi được tách độc lập." },
-  { id: "foundation", name: "Nền tảng", initials: "FND", kind: "module", sourcePath: "subjects/foundation", state: "module", contractState: "pending", note: "Thuộc cây môn học Bauman; Trung tâm chỉ nhìn cấu trúc, không sở hữu runtime hoặc dữ liệu môn học." },
-  { id: "research", name: "Nghiên cứu", initials: "R&D", kind: "module", sourcePath: "subjects/research", state: "module", contractState: "pending", note: "Sub-client logic của Bauman; tách repo/site sau khi kiến trúc môn học ổn định." },
-  { id: "russian", name: "Tiếng Nga", initials: "RU", kind: "module", sourcePath: "subjects/russian", state: "module", contractState: "pending", note: "Nằm trong Bauman Hub, không đồng nhất với client Hòa nhập Nga ở cấp 1." },
-];
+  { id: "programming", name: "Lập trình", initials: "DEV", kind: "module", sourcePath: "subjects/programming", state: "module", contractState: "pending", note: "Module môn học thuộc Bauman Hub." },
+  { id: "ai", name: "AI", initials: "AI", kind: "module", sourcePath: "subjects/ai", state: "module", contractState: "pending", note: "Module môn học thuộc Bauman Hub." },
+  { id: "signal", name: "Tín hiệu", initials: "SIG", kind: "module", sourcePath: "subjects/signal", state: "module", contractState: "pending", note: "Module môn học thuộc Bauman Hub." },
+  { id: "systems", name: "Hệ thống", initials: "SYS", kind: "module", sourcePath: "subjects/systems", state: "module", contractState: "pending", note: "Module môn học thuộc Bauman Hub." },
+  { id: "foundation", name: "Nền tảng", initials: "FND", kind: "module", sourcePath: "subjects/foundation", state: "module", contractState: "pending", note: "Module nền tảng thuộc Bauman Hub." },
+  { id: "entrepreneurship", name: "Cơ sở khởi nghiệp", initials: "ENT", kind: "module", sourcePath: "subjects/entrepreneurship", state: "module", contractState: "pending", note: "Module hỗ trợ HK2, được discovery qua manifest." },
+  { id: "ergonomics", name: "Công thái học · HMI", initials: "HMI", kind: "module", sourcePath: "subjects/ergonomics", state: "module", contractState: "pending", note: "Module hỗ trợ HK3, được discovery qua manifest." },
+  { id: "mivar", name: "Mivar Logical AI", initials: "MIV", kind: "module", sourcePath: "subjects/mivar", state: "module", contractState: "pending", note: "Module hỗ trợ HK4, được discovery qua manifest." },
+  { id: "research", name: "Nghiên cứu", initials: "R&D", kind: "module", sourcePath: "subjects/research", state: "module", contractState: "pending", note: "Module NIR/VKR thuộc Bauman Hub." },
+  { id: "russian", name: "Tiếng Nga", initials: "RU", kind: "module", sourcePath: "subjects/russian", state: "module", contractState: "pending", note: "Module Tiếng Nga riêng; không đồng nhất với học phần «Иностранный язык»." },
+  { id: "foreign-language", name: "Ngoại ngữ học thuật", initials: "FL", kind: "module", sourcePath: "subjects/foreign-language", state: "module", contractState: "pending", note: "Module trung tính cho «Иностранный язык», không tự giả định ngôn ngữ." },
+  { id: "security-elective", name: "Tự chọn 1 · Security", initials: "SEC", kind: "module", sourcePath: "subjects/security-elective", state: "module", contractState: "pending", note: "Module trung tính cho hai lựa chọn Bảo vệ thông tin / An toàn thông tin." },
+  { id: "specialization-elective", name: "Tự chọn 2 · Big Data/Multimedia", initials: "EL2", kind: "module", sourcePath: "subjects/specialization-elective", state: "module", contractState: "pending", note: "Module trung tính cho hai lựa chọn Big Data / Multimedia." },
+  { id: "practice-workflow", name: "Workflow thực tập", initials: "PR", kind: "workflow", sourcePath: "subjects/practice-workflow", state: "workflow", contractState: "pending", note: "Workflow checklist/nhật ký/minh chứng cho các slot thực tập và sư phạm; không giả lập thành môn lý thuyết." },
+]
 
 export const applicationRegistry: readonly ApplicationConfig[] = [
   {
