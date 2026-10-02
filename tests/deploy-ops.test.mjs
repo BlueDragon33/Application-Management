@@ -5,12 +5,14 @@ import test from "node:test";
 const page = fs.readFileSync("app/tools/deploy-ops/page.tsx", "utf8");
 const source = fs.readFileSync("app/tools/deploy-ops/deploy-ops.tsx", "utf8");
 const server = fs.readFileSync("app/deploy-ops.server.ts", "utf8");
+const credentials = fs.readFileSync("app/deploy-ops-credentials.server.ts", "utf8");
 const route = fs.readFileSync("app/api/deploy-ops/route.ts", "utf8");
 const webhook = fs.readFileSync("app/api/deploy-ops/tinyfish-webhook/route.ts", "utf8");
 const css = fs.readFileSync("app/tools/deploy-ops/deploy-ops.module.css", "utf8");
 const dashboard = fs.readFileSync("app/management-dashboard-v2.tsx", "utf8");
 const worker = fs.readFileSync("worker/index.ts", "utf8");
 const migration = fs.readFileSync("drizzle/0006_deploy_ops.sql", "utf8");
+const credentialMigration = fs.readFileSync("drizzle/0007_deploy_ops_credentials.sql", "utf8");
 const adminClient = fs.readFileSync("app/admin-device-client.ts", "utf8");
 
 test("Deploy & Ops is an authenticated canonical Tool", () => {
@@ -22,17 +24,27 @@ test("Deploy & Ops is an authenticated canonical Tool", () => {
   assert.match(adminClient, /"\/api\/deploy-ops"/);
 });
 
-test("provider credentials stay server-side", () => {
+test("provider credentials stay server-side and support Worker-or-encrypted-Vault resolution", () => {
   assert.doesNotMatch(source, /VERCEL_TOKEN|NEON_API_KEY|TINYFISH_API_KEY/);
   assert.doesNotMatch(source, /fetch\s*\(/);
-  assert.match(server, /secret\(env, "VERCEL_TOKEN"\)/);
-  assert.match(server, /secret\(env, "NEON_API_KEY"\)/);
-  assert.match(server, /secret\(env, "TINYFISH_API_KEY"\)/);
+  assert.match(credentials, /MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY/);
+  assert.match(credentials, /AES-GCM/);
+  assert.match(credentials, /ENV_BY_PROVIDER/);
+  assert.match(credentials, /source: "worker"/);
+  assert.match(credentials, /source: value \? "vault"/);
+  assert.match(credentials, /credential_ciphertext/);
+  assert.match(credentials, /credential_iv/);
+  assert.match(route, /save-provider-credential/);
+  assert.match(route, /remove-provider-credential/);
   assert.match(route, /verifyControlProof/);
   assert.match(route, /actor\.role !== "owner"/);
+  assert.match(source, /type="password"/);
+  assert.match(source, /không trả plaintext về trình duyệt/);
 });
 
 test("live Vercel and Neon probes are SHA and branch based", () => {
+  assert.match(server, /loadDeployOpsCredential\("vercel"\)/);
+  assert.match(server, /loadDeployOpsCredential\("neon"\)/);
   assert.match(server, /\/v7\/deployments/);
   assert.match(server, /sha: sourceSha/);
   assert.match(server, /state: "READY"/);
@@ -41,6 +53,7 @@ test("live Vercel and Neon probes are SHA and branch based", () => {
 });
 
 test("TinyFish evidence is verified rather than trusted from webhook", () => {
+  assert.match(server, /loadDeployOpsCredential\("tinyfish"\)/);
   assert.match(server, /\/v1\/automation\/run-async/);
   assert.match(server, /\/v1\/runs\/\$\{encodeURIComponent\(runId\)\}/);
   assert.match(server, /Never trust the webhook body as release evidence/);
@@ -61,15 +74,21 @@ test("Safe Publish re-probes and promotes the exact Vercel deployment", () => {
   assert.match(source, /window\.confirm/);
 });
 
-test("Deploy & Ops state is persisted in D1 with audit-friendly run history", () => {
+test("Deploy & Ops state and provider Vault are persisted in D1", () => {
   assert.match(migration, /CREATE TABLE IF NOT EXISTS `deploy_ops_targets`/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS `deploy_ops_runs`/);
   assert.match(migration, /callback_nonce_hash/);
+  assert.match(credentialMigration, /CREATE TABLE IF NOT EXISTS `deploy_ops_credentials`/);
+  assert.match(credentialMigration, /credential_ciphertext/);
+  assert.match(credentialMigration, /credential_iv/);
   assert.match(server, /INSERT INTO deploy_ops_runs/);
-  assert.match(server, /INSERT INTO control_audit_log/);
+  assert.match(credentials, /deploy_ops_credential_saved/);
+  assert.match(credentials, /deploy_ops_credential_removed/);
+  assert.match(worker, /SELECT provider FROM deploy_ops_credentials/);
 });
 
 test("Deploy & Ops UI is responsive", () => {
+  assert.match(css, /\.vaultGrid/);
   assert.match(css, /@media \(max-width: 980px\)/);
   assert.match(css, /@media \(max-width: 700px\)/);
 });
