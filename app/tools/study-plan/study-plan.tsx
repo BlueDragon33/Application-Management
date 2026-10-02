@@ -504,9 +504,9 @@ function CourseRow({ course, lang, selected, onSelect }: {
     <div className={styles.courseName}>
       <strong>{course.title[lang]}</strong>
       <small>{course.ru}</small>
+      <span className={styles.readinessBadge} data-level={readiness.level}>{readinessLabels[readiness.level][lang]}</span>
     </div>
     <span className={styles.kindBadge} data-kind={kindTone(course)}>{kindLabel(course, lang)}</span>
-    <span className={styles.readinessBadge} data-level={readiness.level}>{readinessLabels[readiness.level][lang]}</span>
     <b>{course.credits} {lang === "vi" ? "TC" : "cr"}</b>
     <span>{assessmentLabels[course.assessment][lang]}</span>
     <em>{t.select} →</em>
