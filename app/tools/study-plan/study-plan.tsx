@@ -411,15 +411,6 @@ const preparationGroupByCourse: Record<string, keyof typeof preparationGroups> =
   entrepreneurship: "entrepreneurship",
 };
 
-const foundationRoadmap: readonly PrepItem[] = [
-  { vi: "Python cơ bản → OOP", en: "Python fundamentals → OOP" },
-  { vi: "SQL → Database quan hệ → Index/Query", en: "SQL → Relational databases → Indexes/queries" },
-  { vi: "Đại số tuyến tính → Xác suất thống kê", en: "Linear algebra → Probability & statistics" },
-  { vi: "NumPy/Pandas → xử lý dữ liệu", en: "NumPy/Pandas → data processing" },
-  { vi: "Git + Linux + testing cơ bản", en: "Git + Linux + basic testing" },
-  { vi: "Machine Learning cơ bản sau khi nền trên đã chắc", en: "Basic machine learning after the foundations above are solid" },
-];
-
 function preparationSteps(course: Course): readonly PrepItem[] {
   return preparationGroups[preparationGroupByCourse[course.id] ?? "research"];
 }
@@ -616,6 +607,7 @@ const preStudyCopy = {
     checkpoint: "Mốc đạt",
     done: "Hoàn thành",
     open: "Mở môn",
+    reset: "Đặt lại tiến độ",
   },
   en: {
     eyebrow: "PERSONAL FOUNDATION PLAN",
@@ -631,6 +623,7 @@ const preStudyCopy = {
     checkpoint: "Checkpoint",
     done: "Complete",
     open: "Open course",
+    reset: "Reset progress",
   },
 } as const;
 
@@ -639,11 +632,13 @@ function PreStudyRoadmap({
   completed,
   toggleStep,
   onOpenCourse,
+  onReset,
 }: {
   lang: Language;
   completed: Record<string, boolean>;
   toggleStep: (key: string) => void;
   onOpenCourse: (course: Course) => void;
+  onReset: () => void;
 }) {
   const t = preStudyCopy[lang];
   const totalTasks = preBaumanRoadmap.reduce((sum, phase) => sum + phase.tasks.length, 0);
@@ -685,6 +680,7 @@ function PreStudyRoadmap({
           <strong>≈{averageHours}</strong>
           <span>{t.hoursWeek}</span>
         </article>
+        <button type="button" className={styles.preBaumanReset} onClick={onReset}>{t.reset}</button>
       </div>
     </header>
 
@@ -914,6 +910,7 @@ export default function StudyPlanTool({
       completed={completed}
       toggleStep={toggleStep}
       onOpenCourse={openCoverageCourse}
+      onReset={resetProgress}
     />
 
     <section className={styles.controls}>
@@ -1156,21 +1153,6 @@ export default function StudyPlanTool({
             </div> : null}
           </div> : null}
         </> : <p className={styles.coverageUnknown}>{t.coverageUnknown}</p>}
-      </div>
-      <div className={styles.foundation}>
-        <div className={styles.foundationHeader}>
-          <div><span>{t.preStudy}</span><p>{t.preStudySub}</p></div>
-          <button type="button" onClick={resetProgress}>{t.resetProgress}</button>
-        </div>
-        <div className={styles.foundationGrid}>
-          {foundationRoadmap.map((item, index) => {
-            const key = `foundation:${index}`;
-            const done = Boolean(completed[key]);
-            return <button type="button" key={key} data-done={done} onClick={() => toggleStep(key)}>
-              <b>{done ? "✓" : index + 1}</b><span>{item[lang]}</span>
-            </button>;
-          })}
-        </div>
       </div>
       <p className={styles.sourceDisclaimer}>{t.derived} {t.analysisNote}</p>
     </section>
