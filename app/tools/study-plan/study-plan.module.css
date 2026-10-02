@@ -1564,8 +1564,8 @@
   font-size:11px;
   line-height:1.4;
 }
-.courseRow{
-  grid-template-columns:14px minmax(220px,1.7fr) auto auto 70px minmax(105px,.8fr) auto;
+.courseName .readinessBadge{
+  margin-top:6px;
 }
 @media (max-width: 980px){
   .readinessLegend{
@@ -1574,12 +1574,5 @@
   }
   .readinessLegendItems{
     justify-content:flex-start;
-  }
-  .courseRow{
-    grid-template-columns:14px minmax(0,1fr) auto;
-  }
-  .courseRow .readinessBadge{
-    grid-column:2;
-    justify-self:start;
   }
 }
