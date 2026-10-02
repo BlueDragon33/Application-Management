@@ -42,6 +42,21 @@ test("provider credentials stay server-side and support Worker-or-encrypted-Vaul
   assert.match(source, /không trả plaintext về trình duyệt/);
 });
 
+
+test("Auto Discover lists Vercel and Neon resources without exposing credentials", () => {
+  assert.match(server, /discoverDeployOpsResources/);
+  assert.match(server, /\/v10\/projects\?limit=100/);
+  assert.match(server, /NEON_API_ORIGIN\}\/projects\?limit=100/);
+  assert.match(server, /discoverNeonBranches/);
+  assert.match(server, /\/projects\/\$\{encodeURIComponent\(projectId\)\}\/branches/);
+  assert.match(server, /vercelRegistrySuggestion/);
+  assert.match(route, /action === "discover-resources"/);
+  assert.match(route, /action === "discover-neon-branches"/);
+  assert.match(source, /Auto Discover Vercel \+ Neon/);
+  assert.match(source, /Không tự ghi mapping · Owner chọn rồi lưu/);
+  assert.doesNotMatch(source, /credential\.value/);
+});
+
 test("live Vercel and Neon probes are SHA and branch based", () => {
   assert.match(server, /loadDeployOpsCredential\("vercel"\)/);
   assert.match(server, /loadDeployOpsCredential\("neon"\)/);
@@ -89,6 +104,8 @@ test("Deploy & Ops state and provider Vault are persisted in D1", () => {
 
 test("Deploy & Ops UI is responsive", () => {
   assert.match(css, /\.vaultGrid/);
+  assert.match(css, /\.discoveryGrid/);
+  assert.match(css, /\.branchPicker/);
   assert.match(css, /@media \(max-width: 980px\)/);
   assert.match(css, /@media \(max-width: 700px\)/);
 });
