@@ -165,6 +165,101 @@
   color: #e6b8aa;
 }
 
+
+.discovery {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid #285746;
+  border-radius: 13px;
+  background: #081b15;
+}
+.discovery > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+.discovery > header small { color: #67d5b4; font-weight: 900; letter-spacing: .07em; }
+.discovery > header h3 { margin: 3px 0 0; font-size: 18px; }
+.discovery > header > span { color: #86a99c; font-size: 11px; text-align: right; }
+.suggestion {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 12px;
+  border: 1px solid #396f5b;
+  background: #102b22;
+  border-radius: 10px;
+  margin-bottom: 12px;
+}
+.suggestion div { display: grid; gap: 3px; min-width: 0; }
+.suggestion span { color: #b5d1c7; font-size: 12px; overflow-wrap: anywhere; }
+.suggestion em { color: #7fa99a; font-size: 11px; font-style: normal; }
+.suggestion button,
+.resourceRow button,
+.branchPicker button {
+  border: 1px solid #39745f;
+  background: #174a39;
+  color: #ecfaf5;
+  border-radius: 9px;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-weight: 800;
+  font-size: 11px;
+}
+.discoveryGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.discoveryGrid > div {
+  min-width: 0;
+  border: 1px solid #1d4236;
+  border-radius: 11px;
+  padding: 12px;
+  background: #071712;
+}
+.discoveryGrid h4 { margin: 0 0 9px; font-size: 13px; color: #cce5dc; }
+.resourceRow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 0;
+  border-top: 1px solid #17362c;
+}
+.resourceRow:first-of-type { border-top: 0; }
+.resourceRow div { min-width: 0; display: grid; gap: 2px; }
+.resourceRow strong { font-size: 12px; overflow-wrap: anywhere; }
+.resourceRow span { color: #9ebfb3; font-size: 11px; overflow-wrap: anywhere; }
+.resourceRow em { color: #71998b; font-size: 10px; font-style: normal; line-height: 1.35; }
+.resourceRow button { flex: 0 0 auto; }
+.resourceRow button:disabled { opacity: .45; cursor: not-allowed; }
+.discoveryEmpty,
+.discoveryError {
+  margin: 8px 0 0;
+  padding: 9px 10px;
+  border-radius: 9px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.discoveryEmpty { background: #111f1b; color: #8ca89e; }
+.discoveryError { background: #331b16; color: #f0b8aa; border: 1px solid #693b31; }
+.branchPicker {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #21493b;
+}
+.branchPicker > strong { display: block; margin-bottom: 8px; color: #cbe6dc; font-size: 12px; }
+.branchPicker > div { display: flex; gap: 7px; flex-wrap: wrap; }
+.branchPicker button[data-selected="true"] {
+  border-color: #72d5b4;
+  background: #20694f;
+}
+.branchPicker button small { display: block; margin-top: 2px; color: #9dcbbb; font-weight: 500; }
+
 .providers { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; margin-top: 16px; }
 .provider { padding: 15px; opacity: .7; }
 .provider[data-enabled="true"] { border-color: #3b7a65; opacity: 1; }
@@ -279,7 +374,7 @@
 .empty { padding: 16px; color: #7fa296; text-align: center; }
 
 @media (max-width: 980px) {
-  .providerStrip, .providers, .vaultGrid { grid-template-columns: 1fr; }
+  .providerStrip, .providers, .vaultGrid, .discoveryGrid { grid-template-columns: 1fr; }
 }
 @media (max-width: 700px) {
   .shell { padding: 14px; }
@@ -289,4 +384,6 @@
   .runRow { grid-template-columns: 1fr 1fr; }
   .providerStrip article { grid-template-columns: auto 1fr; }
   .providerStrip b { grid-column: 2; text-align: left; }
+  .discovery > header, .suggestion { display: grid; }
+  .discovery > header > span { text-align: left; }
 }
