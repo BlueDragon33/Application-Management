@@ -102,6 +102,19 @@ const copy = {
     openCourseAnalysis: "Mở phân tích",
     coverageUnknown: "Chưa xác định do registry Bauman đang không khả dụng.",
     allCovered: "Tất cả học phần đã có module liên quan.",
+    gapPlanTitle: "Phân loại phần còn thiếu",
+    gapPlanSub: "Không tạo module hàng loạt. Mỗi học phần thiếu được phân theo loại hành động phù hợp.",
+    createModule: "Cần tạo module riêng",
+    existingMaterial: "Chỉ dùng/liên kết học liệu hiện có",
+    practiceNoModule: "Thực tập không cần module độc lập",
+    decisionRequired: "Chờ xác nhận trước khi tạo/liên kết",
+    createModuleNote: "Có nội dung học thuật riêng, nên có module chuyên biệt.",
+    existingMaterialNote: "Không cần tạo mới nếu học liệu hiện có đã đủ gần và đúng mục tiêu.",
+    practiceNoModuleNote: "Nên quản lý bằng checklist, nhiệm vụ, nhật ký và minh chứng thực tập thay vì tạo môn học riêng.",
+    decisionRequiredNote: "Tên môn hoặc nhánh tự chọn chưa đủ để xác định đúng học liệu; cần chốt trước để tránh xây sai.",
+    nextBuildOrder: "Thứ tự tạo module mới theo học kỳ",
+    noItems: "Hiện không có học phần nào trong nhóm này.",
+    missingHandled: "Đã có phương án xử lý",
   },
   en: {
     back: "← Management Center",
@@ -188,8 +201,39 @@ const copy = {
     openCourseAnalysis: "Open analysis",
     coverageUnknown: "Coverage cannot be calculated while the Bauman registry is unavailable.",
     allCovered: "All course entries have a related learning module.",
+    gapPlanTitle: "Gap classification",
+    gapPlanSub: "Do not create modules in bulk. Each uncovered course is classified by the action it actually needs.",
+    createModule: "Create a dedicated module",
+    existingMaterial: "Use/link existing material only",
+    practiceNoModule: "Practice: no standalone module",
+    decisionRequired: "Needs confirmation before linking/building",
+    createModuleNote: "The course has distinct academic content and benefits from a dedicated module.",
+    existingMaterialNote: "No new module is needed when existing material already matches the learning goal.",
+    practiceNoModuleNote: "Manage with checklists, tasks, logs and evidence rather than a standalone course module.",
+    decisionRequiredNote: "The course label or elective branch is not specific enough yet; confirm it first to avoid building the wrong thing.",
+    nextBuildOrder: "New-module build order by semester",
+    noItems: "No current course entries in this group.",
+    missingHandled: "Gap has an action plan",
   },
 } as const;
+
+type GapAction = "create" | "existing" | "practice" | "confirm";
+
+const gapActionByCourse: Partial<Record<string, GapAction>> = {
+  "foreign-1": "confirm",
+  "foreign-2": "confirm",
+  entrepreneurship: "create",
+  "project-practice": "practice",
+  "operations-practice": "practice",
+  "pedagogy-1": "practice",
+  ergonomics: "create",
+  "elective-1": "confirm",
+  "pedagogy-2": "practice",
+  mivar: "create",
+  "elective-2": "confirm",
+};
+
+const gapActionOrder: readonly GapAction[] = ["create", "existing", "practice", "confirm"];
 
 const semesterInsights = {
   1: {
@@ -593,6 +637,25 @@ export default function StudyPlanTool({
     };
   }, [baumanModules]);
 
+  const gapPlan = useMemo(() => {
+    const missingIds = new Set(moduleCoverage.missing.map((course) => course.id));
+    const groups = Object.fromEntries(
+      gapActionOrder.map((action) => [action, [] as Course[]]),
+    ) as Record<GapAction, Course[]>;
+
+    for (const course of courses) {
+      if (!missingIds.has(course.id)) continue;
+      const action = gapActionByCourse[course.id] ?? "confirm";
+      groups[action].push(course);
+    }
+
+    for (const action of gapActionOrder) {
+      groups[action].sort((a, b) => a.semester - b.semester || a.id.localeCompare(b.id));
+    }
+
+    return groups;
+  }, [moduleCoverage.missing]);
+
   const openCoverageCourse = (course: Course) => {
     setSemester(course.semester);
     setYear(course.semester <= 2 ? 1 : 2);
@@ -837,6 +900,56 @@ export default function StudyPlanTool({
                   </button>)}
                 </div>}
           </div>
+
+          {moduleCoverage.missing.length > 0 ? <div className={styles.gapPlan}>
+            <div className={styles.gapPlanHeader}>
+              <div><h3>{t.gapPlanTitle}</h3><p>{t.gapPlanSub}</p></div>
+              <span>{moduleCoverage.missing.length} · {t.missingHandled}</span>
+            </div>
+
+            <div className={styles.gapGroups}>
+              {gapActionOrder.map((action) => {
+                const label =
+                  action === "create" ? t.createModule :
+                  action === "existing" ? t.existingMaterial :
+                  action === "practice" ? t.practiceNoModule :
+                  t.decisionRequired;
+                const note =
+                  action === "create" ? t.createModuleNote :
+                  action === "existing" ? t.existingMaterialNote :
+                  action === "practice" ? t.practiceNoModuleNote :
+                  t.decisionRequiredNote;
+                const items = gapPlan[action];
+
+                return <section key={action} data-action={action}>
+                  <header>
+                    <div><strong>{label}</strong><p>{note}</p></div>
+                    <b>{items.length}</b>
+                  </header>
+                  {items.length === 0
+                    ? <p className={styles.gapEmpty}>{t.noItems}</p>
+                    : <div className={styles.gapItems}>
+                        {items.map((course) => <button key={course.id} type="button" onClick={() => openCoverageCourse(course)}>
+                          <span>{t.semester} {course.semester}</span>
+                          <div><strong>{course.title[lang]}</strong><small>{course.ru}</small></div>
+                          <em>→</em>
+                        </button>)}
+                      </div>}
+                </section>;
+              })}
+            </div>
+
+            {gapPlan.create.length > 0 ? <div className={styles.buildOrder}>
+              <strong>{t.nextBuildOrder}</strong>
+              <div>
+                {gapPlan.create.map((course, index) => <button type="button" key={course.id} onClick={() => openCoverageCourse(course)}>
+                  <b>{index + 1}</b>
+                  <span>{course.title[lang]}</span>
+                  <small>{t.semester} {course.semester}</small>
+                </button>)}
+              </div>
+            </div> : null}
+          </div> : null}
         </> : <p className={styles.coverageUnknown}>{t.coverageUnknown}</p>}
       </div>
       <div className={styles.foundation}>
