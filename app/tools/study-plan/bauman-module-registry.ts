@@ -17,6 +17,9 @@ type BaumanContract = {
     id?: string;
     sourcePath?: string;
   }>;
+  policy?: {
+    applicationManagementMayOpenLearningRuntimeDirectly?: boolean;
+  };
 };
 
 type SubjectManifest = {
@@ -68,6 +71,7 @@ async function fetchJson<T>(url: string): Promise<T> {
 export async function loadBaumanStudyModules(): Promise<{
   status: BaumanRegistryStatus;
   modules: BaumanStudyModule[];
+  mayOpenLearningRuntimeDirectly: boolean;
 }> {
   try {
     const contract = await fetchJson<BaumanContract>(
@@ -83,10 +87,12 @@ export async function loadBaumanStudyModules(): Promise<{
     );
 
     if (ids.length === 0) {
-      return { status: "unavailable", modules: [] };
+      return { status: "unavailable", modules: [], mayOpenLearningRuntimeDirectly: false };
     }
 
-    const runtimeOrigin = cleanRuntimeOrigin();
+    const mayOpenLearningRuntimeDirectly =
+      contract.policy?.applicationManagementMayOpenLearningRuntimeDirectly === true;
+    const runtimeOrigin = mayOpenLearningRuntimeDirectly ? cleanRuntimeOrigin() : "";
     const results = await Promise.allSettled(
       ids.map(async (id) => {
         const manifest = await fetchJson<SubjectManifest>(
@@ -131,8 +137,9 @@ export async function loadBaumanStudyModules(): Promise<{
     return {
       status: modules.length > 0 ? "live" : "unavailable",
       modules,
+      mayOpenLearningRuntimeDirectly,
     };
   } catch {
-    return { status: "unavailable", modules: [] };
+    return { status: "unavailable", modules: [], mayOpenLearningRuntimeDirectly: false };
   }
 }
