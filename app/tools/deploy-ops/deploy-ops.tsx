@@ -6,7 +6,16 @@ import { deployOpsAction } from "../../admin-device-client";
 import { projectRepositories } from "../../project-registry";
 import styles from "./deploy-ops.module.css";
 
-type Providers = { vercel: boolean; neon: boolean; tinyfish: boolean };
+type ProviderKey = "vercel" | "neon" | "tinyfish";
+type ProviderSource = "worker" | "vault" | "missing";
+type ProviderState = { configured: boolean; source: ProviderSource; fingerprint: string };
+type Providers = {
+  vercel: boolean;
+  neon: boolean;
+  tinyfish: boolean;
+  encryptionReady: boolean;
+  sources: Record<ProviderKey, ProviderState>;
+};
 
 type Target = {
   appId: string;
@@ -72,6 +81,26 @@ type ApiResult = {
   deploymentUrl?: string;
 };
 
+const emptySources: Record<ProviderKey, ProviderState> = {
+  vercel: { configured: false, source: "missing", fingerprint: "" },
+  neon: { configured: false, source: "missing", fingerprint: "" },
+  tinyfish: { configured: false, source: "missing", fingerprint: "" },
+};
+
+const emptyProviders: Providers = {
+  vercel: false,
+  neon: false,
+  tinyfish: false,
+  encryptionReady: false,
+  sources: emptySources,
+};
+
+const providerMeta: Array<{ id: ProviderKey; label: string; role: string; placeholder: string }> = [
+  { id: "vercel", label: "Vercel", role: "Deploy / Promote", placeholder: "Vercel access token" },
+  { id: "neon", label: "Neon", role: "PostgreSQL / Branch", placeholder: "Neon API key" },
+  { id: "tinyfish", label: "TinyFish", role: "Browser test", placeholder: "TinyFish API key" },
+];
+
 const defaultGoal = "Kiểm tra website tải được và các chức năng chính có thể sử dụng bình thường. Không thay đổi dữ liệu phá hủy.";
 
 function defaultTarget(appId = "application-management"): Target {
@@ -100,8 +129,15 @@ function resultSummary(value: Record<string, unknown> | null) {
   return typeof value.summary === "string" ? value.summary : "";
 }
 
+function sourceLabel(state: ProviderState) {
+  if (state.source === "worker") return "Worker secret";
+  if (state.source === "vault") return state.fingerprint ? `Vault · ${state.fingerprint}` : "Vault mã hóa";
+  return "Chưa cấu hình";
+}
+
 export default function DeployOpsTool({ user }: { user: { displayName: string; email: string } }) {
-  const [providers, setProviders] = useState<Providers>({ vercel: false, neon: false, tinyfish: false });
+  const [providers, setProviders] = useState<Providers>(emptyProviders);
+  const [credentialDrafts, setCredentialDrafts] = useState<Record<ProviderKey, string>>({ vercel: "", neon: "", tinyfish: "" });
   const [targets, setTargets] = useState<Target[]>([]);
   const [target, setTarget] = useState<Target>(() => defaultTarget());
   const [sourceSha, setSourceSha] = useState("");
@@ -116,7 +152,7 @@ export default function DeployOpsTool({ user }: { user: { displayName: string; e
     setMessage("");
     try {
       const data = await deployOpsAction({ action: "bootstrap" }) as ApiResult;
-      setProviders(data.providers ?? { vercel: false, neon: false, tinyfish: false });
+      setProviders(data.providers ?? emptyProviders);
       const nextTargets = data.targets ?? [];
       setTargets(nextTargets);
       const saved = nextTargets.find((item) => item.appId === target.appId);
@@ -151,6 +187,53 @@ export default function DeployOpsTool({ user }: { user: { displayName: string; e
     setProductionAuthority(false);
   }
 
+  async function saveCredential(provider: ProviderKey) {
+    const credential = credentialDrafts[provider].trim();
+    if (!credential) {
+      setMessage(`Hãy nhập credential ${providerMeta.find((item) => item.id === provider)?.label ?? provider}.`);
+      return;
+    }
+    setBusy(`credential-${provider}`);
+    setMessage("");
+    try {
+      const data = await deployOpsAction({
+        action: "save-provider-credential",
+        provider,
+        credential,
+      }) as ApiResult;
+      if (!data.ok || !data.providers) throw new Error(data.error ?? "Không lưu được credential.");
+      setProviders(data.providers);
+      setCredentialDrafts((current) => ({ ...current, [provider]: "" }));
+      setProbe(null);
+      setMessage(`Đã mã hóa và lưu credential ${providerMeta.find((item) => item.id === provider)?.label ?? provider} vào Vault D1.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Không lưu được credential.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function removeCredential(provider: ProviderKey) {
+    if (providers.sources[provider].source !== "vault") return;
+    if (!window.confirm(`Xóa credential ${providerMeta.find((item) => item.id === provider)?.label ?? provider} khỏi Vault D1?`)) return;
+    setBusy(`credential-remove-${provider}`);
+    setMessage("");
+    try {
+      const data = await deployOpsAction({
+        action: "remove-provider-credential",
+        provider,
+      }) as ApiResult;
+      if (!data.ok || !data.providers) throw new Error(data.error ?? "Không xóa được credential.");
+      setProviders(data.providers);
+      setProbe(null);
+      setMessage("Đã xóa credential khỏi Vault D1.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Không xóa được credential.");
+    } finally {
+      setBusy("");
+    }
+  }
+
   async function saveTarget() {
     setBusy("save");
     setMessage("");
@@ -163,7 +246,7 @@ export default function DeployOpsTool({ user }: { user: { displayName: string; e
         const rest = current.filter((item) => item.appId !== data.target?.appId);
         return [...rest, data.target as Target].sort((a, b) => a.appId.localeCompare(b.appId));
       });
-      setMessage("Đã lưu cấu hình vào D1. Secret vẫn chỉ nằm trong Worker.");
+      setMessage("Đã lưu mapping vào D1. Credential được quản lý riêng trong Provider Vault.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Không lưu được cấu hình.");
     } finally {
@@ -178,6 +261,7 @@ export default function DeployOpsTool({ user }: { user: { displayName: string; e
       const data = await deployOpsAction({ action: "probe", appId: target.appId, sourceSha }) as ApiResult;
       if (!data.probe) throw new Error(data.error ?? "Không đọc được trạng thái provider.");
       setProbe(data.probe);
+      setProviders(data.probe.providers);
       setMessage(data.probe.ready ? "Tất cả gate live đang PASS." : "Còn gate live chưa PASS.");
       await loadRuns();
     } catch (error) {
@@ -216,7 +300,10 @@ export default function DeployOpsTool({ user }: { user: { displayName: string; e
     setMessage("");
     try {
       const data = await deployOpsAction({ action: "refresh-tinyfish", appId: target.appId, sourceSha }) as ApiResult;
-      if (data.probe) setProbe(data.probe);
+      if (data.probe) {
+        setProbe(data.probe);
+        setProviders(data.probe.providers);
+      }
       setMessage(data.probe?.tinyfish.message ?? "Đã làm mới TinyFish.");
       await loadRuns();
     } catch (error) {
@@ -242,7 +329,10 @@ export default function DeployOpsTool({ user }: { user: { displayName: string; e
         productionAuthority: true,
       }) as ApiResult;
       if (!data.promoted) throw new Error(data.error ?? "Production chưa được promote.");
-      if (data.probe) setProbe(data.probe);
+      if (data.probe) {
+        setProbe(data.probe);
+        setProviders(data.probe.providers);
+      }
       setMessage(`Đã promote deployment ${data.deploymentId ?? ""} lên Production.`);
       setProductionAuthority(false);
       await loadRuns();
@@ -255,11 +345,6 @@ export default function DeployOpsTool({ user }: { user: { displayName: string; e
   }
 
   const shaValid = /^[0-9a-f]{40}$/i.test(sourceSha);
-  const providerRows: Array<{ id: keyof Providers; label: string; role: string }> = [
-    { id: "vercel", label: "Vercel", role: "Deploy / Promote" },
-    { id: "neon", label: "Neon", role: "PostgreSQL / Branch" },
-    { id: "tinyfish", label: "TinyFish", role: "Browser test" },
-  ];
 
   return <main className={styles.shell}>
     <div className={styles.wrap}>
@@ -273,11 +358,66 @@ export default function DeployOpsTool({ user }: { user: { displayName: string; e
       </header>
 
       <section className={styles.providerStrip}>
-        {providerRows.map((item) => <article key={item.id} data-ready={providers[item.id]}>
-          <i>{providers[item.id] ? "✓" : "!"}</i>
-          <div><strong>{item.label}</strong><span>{item.role}</span></div>
-          <b>{providers[item.id] ? "Secret sẵn sàng" : "Chưa cấu hình secret"}</b>
-        </article>)}
+        {providerMeta.map((item) => {
+          const state = providers.sources[item.id];
+          return <article key={item.id} data-ready={providers[item.id]}>
+            <i>{providers[item.id] ? "✓" : "!"}</i>
+            <div><strong>{item.label}</strong><span>{item.role}</span></div>
+            <b>{sourceLabel(state)}</b>
+          </article>;
+        })}
+      </section>
+
+      <section className={styles.panel}>
+        <div className={styles.panelTitle}>
+          <div><small>00 · PROVIDER VAULT</small><h2>Credential mã hóa</h2></div>
+          <b data-ready={providers.encryptionReady}>{providers.encryptionReady ? "AES-GCM READY" : "ENCRYPTION BLOCKED"}</b>
+        </div>
+        <p className={styles.projectNote}>
+          Worker secret luôn được ưu tiên. Nếu chưa có Worker secret, Owner có thể nhập token tại đây; backend mã hóa AES-GCM trước khi ghi D1 và không trả plaintext về trình duyệt.
+        </p>
+        <div className={styles.vaultGrid}>
+          {providerMeta.map((item) => {
+            const state = providers.sources[item.id];
+            const workerOwned = state.source === "worker";
+            return <article className={styles.vaultCard} key={item.id} data-ready={state.configured}>
+              <header>
+                <div>
+                  <small>{item.role}</small>
+                  <h3>{item.label}</h3>
+                </div>
+                <b>{sourceLabel(state)}</b>
+              </header>
+              <label>
+                <span>{workerOwned ? "Worker secret đang có hiệu lực" : state.source === "vault" ? "Thay credential Vault" : "Nhập credential"}</span>
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  spellCheck={false}
+                  disabled={workerOwned || !providers.encryptionReady || Boolean(busy)}
+                  value={credentialDrafts[item.id]}
+                  onChange={(event) => setCredentialDrafts((current) => ({ ...current, [item.id]: event.target.value }))}
+                  placeholder={workerOwned ? "Được quản lý ngoài ứng dụng" : item.placeholder}
+                />
+              </label>
+              <div className={styles.vaultActions}>
+                <button
+                  disabled={workerOwned || !providers.encryptionReady || Boolean(busy) || !credentialDrafts[item.id].trim()}
+                  onClick={() => void saveCredential(item.id)}
+                >
+                  {busy === `credential-${item.id}` ? "Đang mã hóa…" : state.source === "vault" ? "Thay token" : "Lưu vào Vault"}
+                </button>
+                <button
+                  className={styles.dangerGhost}
+                  disabled={state.source !== "vault" || Boolean(busy)}
+                  onClick={() => void removeCredential(item.id)}
+                >
+                  {busy === `credential-remove-${item.id}` ? "Đang xóa…" : "Xóa Vault"}
+                </button>
+              </div>
+            </article>;
+          })}
+        </div>
       </section>
 
       <section className={styles.panel}>
@@ -404,7 +544,7 @@ function ProviderCard({
 }) {
   return <section className={styles.provider} data-enabled={enabled}>
     <header>
-      <div><small>{configured ? "API secret sẵn sàng" : "Thiếu Worker secret"}</small><h3>{title}</h3></div>
+      <div><small>{configured ? "Credential sẵn sàng" : "Thiếu credential"}</small><h3>{title}</h3></div>
       <label className={styles.switch}><input type="checkbox" checked={enabled} onChange={(event) => onToggle(event.target.checked)}/><span>{enabled ? "Dùng" : "Tắt"}</span></label>
     </header>
     <div className={styles.providerBody}>{children}</div>
