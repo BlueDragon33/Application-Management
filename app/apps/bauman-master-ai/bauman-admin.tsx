@@ -10,6 +10,7 @@ import {
   type OperationsBootstrap,
   type OperationsDevice,
   type OperationsSummary,
+  type OperationsSubclient,
 } from "../../admin-device-client";
 import type { ApplicationConfig } from "../../application-registry";
 import styles from "../../application-admin.module.css";
@@ -85,20 +86,31 @@ export default function BaumanAdmin({ application, user }: { application: Applic
   const approved = devices.filter((device) => device.status === "approved").length;
   const blocked = devices.filter((device) => device.status === "blocked").length;
   const liveConnected = summary?.connection === "connected";
-  const children = application.childClients ?? [];
+  const fallbackChildren = useMemo<OperationsSubclient[]>(() => (application.childClients ?? []).map((child) => ({
+    id: child.id,
+    name: child.name,
+    initials: child.initials,
+    kind: child.kind,
+    repository: child.repository ?? null,
+    sourcePath: child.sourcePath ?? null,
+    state: child.state === "planned" ? "module" : child.state,
+    controlState: child.contractState,
+  })), [application.childClients]);
+  const liveInventory = summary?.subclientInventoryLive === true && Boolean(summary.subclients?.length);
+  const children = liveInventory ? summary?.subclients ?? [] : fallbackChildren;
   const independent = children.filter((item) => item.state === "independent").length;
   const modules = children.filter((item) => item.state === "module").length;
   const workflows = children.filter((item) => item.state === "workflow").length;
 
   const readiness = useMemo<Readiness[]>(() => [
     { label: "Runtime Bauman", state: "available", note: "Runtime học tập và Device Contract đã có trong Bauman main; production vẫn phải xác minh origin/deploy riêng." },
-    { label: "Inventory sub-client", state: "available", note: "Math_Bauman + các module môn học vẫn thuộc topology của Bauman Hub." },
+    { label: "Inventory sub-client", state: liveInventory ? "available" : "implemented", note: liveInventory ? `Đang đọc trực tiếp ${children.length} sub-client từ Bauman Control.` : "Chưa đọc được inventory live; đang dùng registry tĩnh làm fallback và không suy diễn trạng thái production." },
     { label: "Device registry BM-", state: liveConnected ? "available" : "implemented", note: liveConnected ? "Registry BM- đang phản hồi qua control-plane." : "Backend BM- đã triển khai nhưng runtime hiện tại chưa xác nhận kết nối live." },
     { label: "P-256 device gateway", state: liveConnected ? "available" : "implemented", note: liveConnected ? "Gateway thiết bị đang được đọc qua Bauman Control." : "Challenge/session P-256 đã triển khai và đã qua local E2E; chưa suy diễn production từ CI." },
     { label: "Duyệt / Khóa / Mở khóa / Quyền sửa", state: liveConnected ? "available" : "implemented", note: "Mutation đi qua commandId + expectedStatus và capability live. Quyền truy cập tách riêng quyền sửa; khóa giữ registry và thu hồi phiên." },
     { label: "Audit API", state: liveConnected ? "available" : "implemented", note: "Audit thuộc Bauman; Trung tâm không sao chép registry sang database khác." },
     { label: "Content review API", state: summary?.contentReviewReady ? "available" : "implemented", note: summary?.contentReviewReady ? "Content review metadata API đang phản hồi live; nội dung học vẫn thuộc Bauman và không được sao chép vào control-plane." : "Backend content review metadata đã triển khai; chưa coi là live nếu D1/migration chưa phản hồi capability." },
-  ], [liveConnected, summary?.contentReviewReady]);
+  ], [children.length, liveConnected, liveInventory, summary?.contentReviewReady]);
   const ready = readiness.filter((item) => item.state === "available").length;
 
   const title = useMemo(() => view === "devices"
@@ -198,7 +210,7 @@ export default function BaumanAdmin({ application, user }: { application: Applic
         })}</div> : <div className={baumanStyles.deviceAdminEmpty}><strong>{liveConnected ? "Chưa có thiết bị Bauman trong registry." : "Chưa đọc được registry Bauman."}</strong><p>{liveConnected ? "Mở runtime Bauman trên thiết bị mới để Device Gate đăng ký mã BM-, sau đó yêu cầu sẽ xuất hiện tại đây." : "Kiểm tra Bauman Control URL, secret, D1 binding và BAUMAN_APP_ORIGIN. Trung tâm không tạo dữ liệu thiết bị giả."}</p></div>}
       </section> : null}
 
-      {view === "subclients" ? <section className={styles.clientPanel}><div className={styles.panelHeader}><div><span>SUB-CLIENT INVENTORY</span><h2>Cấu trúc học tập dưới Bauman</h2></div><p>Inventory quản trị; không điều hướng người quản trị sang runtime học tập thay cho chức năng quản trị.</p></div><div className={styles.subClientList}>{children.map((child) => <article key={child.id}><span className={styles.subClientMark}>{child.initials}</span><div><strong>{child.name}</strong><small>{child.repository ?? child.sourcePath ?? "Chưa gán nguồn"}</small></div><div><span>Loại</span><strong>{child.kind === "subject-site" ? "Site môn học" : child.kind === "workflow" ? "Workflow" : "Module"}</strong></div><div><span>Trạng thái</span><strong>{child.state === "independent" ? "Độc lập" : child.state === "workflow" ? "Workflow trong Bauman" : "Trong Bauman"}</strong></div><div><span>Admin contract</span><strong>{child.state === "independent" ? "Cần contract riêng" : "Qua Bauman Hub"}</strong></div></article>)}</div></section> : null}
+      {view === "subclients" ? <section className={styles.clientPanel}><div className={styles.panelHeader}><div><span>SUB-CLIENT INVENTORY · {liveInventory ? "LIVE" : "FALLBACK"}</span><h2>Cấu trúc học tập dưới Bauman</h2></div><p>{liveInventory ? "Inventory đang đọc trực tiếp từ Bauman Control; Application Management không duy trì topology song song khi endpoint live khả dụng." : "Chưa đọc được inventory live; tạm dùng registry tĩnh và không suy diễn trạng thái production."}</p></div><div className={styles.subClientList}>{children.map((child) => <article key={child.id}><span className={styles.subClientMark}>{child.initials}</span><div><strong>{child.name}</strong><small>{child.repository ?? child.sourcePath ?? "Chưa gán nguồn"}</small></div><div><span>Loại</span><strong>{child.kind === "subject-site" ? "Site môn học" : child.kind === "workflow" ? "Workflow" : "Module"}</strong></div><div><span>Trạng thái</span><strong>{child.state === "independent" ? "Độc lập" : child.state === "workflow" ? "Workflow trong Bauman" : "Trong Bauman"}</strong></div><div><span>Admin contract</span><strong>{child.state === "independent" ? "Cần contract riêng" : "Qua Bauman Hub"}</strong></div></article>)}</div></section> : null}
 
       {view === "contract" ? <section className={styles.clientPanel}><div className={styles.panelHeader}><div><span>READINESS GATE</span><h2>Contract quản trị có kiểm chứng</h2></div><p>Màu xanh = đang sẵn sàng trong snapshot hiện tại; vàng = source/backend đã triển khai nhưng chưa được coi là production live; xám = chưa có backend.</p></div><div className={styles.capabilityList}>{readiness.map((item, index) => <article key={item.label}><span>{String(index+1).padStart(2,"0")}</span><div><strong>{item.label}</strong><small>{item.note}</small></div><i data-contract={item.state === "available" ? "connected" : item.state === "implemented" ? "migrating" : "pending"}/></article>)}</div><div className={styles.guardrailBlock}><span>GATE</span><p>• BM registry, session và audit thuộc Bauman.</p><p>• Khóa thiết bị giữ registry và thu hồi session, không xóa mù.</p><p>• Sync/Cập nhật chỉ đọc; mutation chỉ xảy ra khi bấm Duyệt, Khóa, Mở khóa hoặc đổi quyền sửa.</p><p>• Không đánh dấu production hoàn tất chỉ vì GitHub CI xanh.</p><p>• Content review chỉ xử lý metadata/review state; learning content vẫn thuộc Bauman.</p><p>• Learning runtime không được mở trực tiếp từ Application Management khi policy Bauman đang chặn.</p></div></section> : null}
     </section>
