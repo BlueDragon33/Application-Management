@@ -1,5 +1,6 @@
 import { getControlDatabase, type ControlDeviceState } from "./control-device.server";
 import { projectRepositories } from "./project-registry";
+import { deployOpsCredentialStatus, loadDeployOpsCredential } from "./deploy-ops-credentials.server";
 
 const PROVIDER_TIMEOUT_MS = 12_000;
 const TINYFISH_AGENT_ORIGIN = "https://agent.tinyfish.ai";
@@ -45,6 +46,12 @@ type ProviderConfiguration = {
   vercel: boolean;
   neon: boolean;
   tinyfish: boolean;
+  encryptionReady: boolean;
+  sources: {
+    vercel: { configured: boolean; source: "worker" | "vault" | "missing"; fingerprint: string };
+    neon: { configured: boolean; source: "worker" | "vault" | "missing"; fingerprint: string };
+    tinyfish: { configured: boolean; source: "worker" | "vault" | "missing"; fingerprint: string };
+  };
 };
 
 type VercelProbe = {
@@ -134,25 +141,14 @@ function publicHttpsUrl(value: unknown) {
   }
 }
 
-async function runtimeEnv() {
-  try {
-    const workers = await import("cloudflare:workers");
-    return workers.env as unknown as Record<string, unknown>;
-  } catch {
-    return process.env as unknown as Record<string, unknown>;
-  }
-}
-
-function secret(env: Record<string, unknown>, name: string) {
-  return typeof env[name] === "string" ? String(env[name]).trim() : "";
-}
-
 export async function deployOpsProviderConfiguration(): Promise<ProviderConfiguration> {
-  const env = await runtimeEnv();
+  const status = await deployOpsCredentialStatus();
   return {
-    vercel: Boolean(secret(env, "VERCEL_TOKEN")),
-    neon: Boolean(secret(env, "NEON_API_KEY")),
-    tinyfish: Boolean(secret(env, "TINYFISH_API_KEY")),
+    vercel: status.providers.vercel.configured,
+    neon: status.providers.neon.configured,
+    tinyfish: status.providers.tinyfish.configured,
+    encryptionReady: status.encryptionReady,
+    sources: status.providers,
   };
 }
 
@@ -315,10 +311,10 @@ async function probeVercel(row: DeployOpsTargetRow, sourceSha: string): Promise<
   if (row.vercel_enabled !== 1) {
     return { enabled: false, configured: true, ready: true, deploymentId: null, deploymentUrl: null, state: null, target: null, message: "Không dùng Vercel cho app này." };
   }
-  const env = await runtimeEnv();
-  const token = secret(env, "VERCEL_TOKEN");
+  const credential = await loadDeployOpsCredential("vercel");
+  const token = credential.value;
   if (!token) {
-    return { enabled: true, configured: false, ready: false, deploymentId: null, deploymentUrl: null, state: null, target: null, message: "Worker chưa có VERCEL_TOKEN." };
+    return { enabled: true, configured: false, ready: false, deploymentId: null, deploymentUrl: null, state: null, target: null, message: "Chưa cấu hình credential Vercel." };
   }
   const projectId = row.vercel_project_id ?? "";
   const params = new URLSearchParams({ projectId, sha: sourceSha, state: "READY", limit: "10" });
@@ -355,10 +351,10 @@ async function probeNeon(row: DeployOpsTargetRow): Promise<NeonProbe> {
   if (row.neon_enabled !== 1) {
     return { enabled: false, configured: true, ready: true, projectId: null, branchId: null, branchName: null, message: "Không dùng Neon cho app này." };
   }
-  const env = await runtimeEnv();
-  const token = secret(env, "NEON_API_KEY");
+  const credential = await loadDeployOpsCredential("neon");
+  const token = credential.value;
   if (!token) {
-    return { enabled: true, configured: false, ready: false, projectId: row.neon_project_id, branchId: null, branchName: null, message: "Worker chưa có NEON_API_KEY." };
+    return { enabled: true, configured: false, ready: false, projectId: row.neon_project_id, branchId: null, branchName: null, message: "Chưa cấu hình credential Neon." };
   }
   const projectId = row.neon_project_id ?? "";
   const wantedBranch = row.neon_branch ?? "";
@@ -406,10 +402,10 @@ function parseTinyFishResult(value: unknown): UnknownRecord | null {
 }
 
 async function verifyTinyFishRun(runId: string): Promise<TinyFishProbe> {
-  const env = await runtimeEnv();
-  const token = secret(env, "TINYFISH_API_KEY");
+  const credential = await loadDeployOpsCredential("tinyfish");
+  const token = credential.value;
   if (!token) {
-    return { enabled: true, configured: false, ready: false, runId, status: null, result: null, message: "Worker chưa có TINYFISH_API_KEY." };
+    return { enabled: true, configured: false, ready: false, runId, status: null, result: null, message: "Chưa cấu hình credential TinyFish." };
   }
   try {
     const data = await providerJson(
@@ -449,9 +445,9 @@ async function tinyFishGate(row: DeployOpsTargetRow, sourceSha: string): Promise
   if (row.tinyfish_enabled !== 1) {
     return { enabled: false, configured: true, ready: true, runId: null, status: null, result: null, message: "Không dùng TinyFish cho app này." };
   }
-  const env = await runtimeEnv();
-  if (!secret(env, "TINYFISH_API_KEY")) {
-    return { enabled: true, configured: false, ready: false, runId: null, status: null, result: null, message: "Worker chưa có TINYFISH_API_KEY." };
+  const credential = await loadDeployOpsCredential("tinyfish");
+  if (!credential.value) {
+    return { enabled: true, configured: false, ready: false, runId: null, status: null, result: null, message: "Chưa cấu hình credential TinyFish." };
   }
   const run = await latestRun(row.app_id, sourceSha);
   if (!run?.tinyfish_run_id) {
@@ -517,8 +513,8 @@ export async function startTinyFishBrowserTest(
   if (!validAppId(appId) || !validSha(sourceSha)) throw new Error("INVALID_TEST_TARGET");
   const row = await readDeployOpsTarget(appId);
   if (!row || row.tinyfish_enabled !== 1) throw new Error("TINYFISH_NOT_ENABLED");
-  const env = await runtimeEnv();
-  const token = secret(env, "TINYFISH_API_KEY");
+  const credential = await loadDeployOpsCredential("tinyfish");
+  const token = credential.value;
   if (!token) throw new Error("TINYFISH_API_KEY_MISSING");
   const targetUrl = publicHttpsUrl(row.tinyfish_target_url);
   if (!targetUrl) throw new Error("INVALID_TINYFISH_TARGET");
@@ -632,8 +628,8 @@ export async function acceptTinyFishWebhook(localRunId: string, nonce: string, p
 }
 
 async function promoteVercel(row: DeployOpsTargetRow, deploymentId: string) {
-  const env = await runtimeEnv();
-  const token = secret(env, "VERCEL_TOKEN");
+  const credential = await loadDeployOpsCredential("vercel");
+  const token = credential.value;
   if (!token) throw new Error("VERCEL_TOKEN_MISSING");
   const projectId = row.vercel_project_id ?? "";
   const params = new URLSearchParams();

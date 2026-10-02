@@ -81,6 +81,90 @@
 .shaField em { color: #85a99d; font-size: 12px; font-style: normal; }
 .projectNote { margin: 13px 0 0; color: #9ebdb2; line-height: 1.5; font-size: 13px; }
 
+
+.vaultGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+.vaultCard {
+  border: 1px solid #5d4037;
+  background: #211713;
+  border-radius: 13px;
+  padding: 14px;
+}
+.vaultCard[data-ready="true"] {
+  border-color: #2f6d59;
+  background: #0d281f;
+}
+.vaultCard > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+.vaultCard h3 { margin: 2px 0 0; font-size: 17px; }
+.vaultCard header small { color: #86aa9d; }
+.vaultCard header b {
+  border-radius: 999px;
+  padding: 5px 8px;
+  background: #3b2a24;
+  color: #d8bbb0;
+  font-size: 10px;
+  text-align: right;
+}
+.vaultCard[data-ready="true"] header b {
+  background: #173d30;
+  color: #a2ead1;
+}
+.vaultCard label {
+  display: grid;
+  gap: 7px;
+}
+.vaultCard label > span {
+  color: #cfe3dc;
+  font-size: 12px;
+  font-weight: 700;
+}
+.vaultCard input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #2b5d4e;
+  background: #071914;
+  color: #effcf8;
+  border-radius: 10px;
+  padding: 11px 12px;
+  outline: none;
+}
+.vaultCard input:focus {
+  border-color: #63d2b1;
+  box-shadow: 0 0 0 3px rgba(99,210,177,.11);
+}
+.vaultCard input:disabled { opacity: .45; cursor: not-allowed; }
+.vaultActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.vaultActions button {
+  flex: 1;
+  border: 1px solid #3c725e;
+  background: #1b5b46;
+  color: #effbf7;
+  border-radius: 9px;
+  padding: 9px 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.vaultActions button:disabled { opacity: .42; cursor: not-allowed; }
+.vaultActions .dangerGhost {
+  background: transparent;
+  border-color: #6d4a3f;
+  color: #e6b8aa;
+}
+
 .providers { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; margin-top: 16px; }
 .provider { padding: 15px; opacity: .7; }
 .provider[data-enabled="true"] { border-color: #3b7a65; opacity: 1; }
@@ -195,7 +279,7 @@
 .empty { padding: 16px; color: #7fa296; text-align: center; }
 
 @media (max-width: 980px) {
-  .providerStrip, .providers { grid-template-columns: 1fr; }
+  .providerStrip, .providers, .vaultGrid { grid-template-columns: 1fr; }
 }
 @media (max-width: 700px) {
   .shell { padding: 14px; }

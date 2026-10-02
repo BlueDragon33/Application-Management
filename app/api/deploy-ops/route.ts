@@ -1,4 +1,5 @@
 import { ControlAccessError, verifyControlProof } from "../../control-device.server";
+import { removeDeployOpsCredential, saveDeployOpsCredential } from "../../deploy-ops-credentials.server";
 import {
   deployOpsProviderConfiguration,
   deployOpsRecentRuns,
@@ -45,6 +46,16 @@ export async function POST(request: Request) {
       const target = await saveDeployOpsTarget(payload, actor);
       return json({ ok: true, target, providers: await deployOpsProviderConfiguration() });
     }
+    if (action === "save-provider-credential") {
+      const credential = await saveDeployOpsCredential(payload.provider, payload.credential, actor);
+      return json({ ok: true, credential, providers: await deployOpsProviderConfiguration() });
+    }
+
+    if (action === "remove-provider-credential") {
+      const credential = await removeDeployOpsCredential(payload.provider, actor);
+      return json({ ok: true, credential, providers: await deployOpsProviderConfiguration() });
+    }
+
 
     const appId = text(payload.appId);
     const sourceSha = text(payload.sourceSha).toLowerCase();
@@ -108,6 +119,10 @@ export async function POST(request: Request) {
       "PRODUCTION_AUTHORITY_REQUIRED",
       "INVALID_SAFE_PUBLISH_TARGET",
       "NO_VERCEL_PUBLISH_PROVIDER",
+      "INVALID_PROVIDER",
+      "INVALID_PROVIDER_CREDENTIAL",
+      "CREDENTIAL_ENCRYPTION_KEY_MISSING",
+      "INVALID_CREDENTIAL_ENCRYPTION_KEY",
     ]);
     return json({
       error: known.has(message) ? message : "Không thể hoàn tất thao tác Deploy & Ops.",

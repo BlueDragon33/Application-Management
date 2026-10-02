@@ -100,3 +100,16 @@ export const deployOpsRuns = sqliteTable("deploy_ops_runs", {
 }, (table) => [
   index("deploy_ops_runs_app_sha_idx").on(table.appId, table.sourceSha, table.createdAt),
 ]);
+
+
+export const deployOpsCredentials = sqliteTable("deploy_ops_credentials", {
+  provider: text("provider").primaryKey(),
+  credentialCiphertext: text("credential_ciphertext").notNull(),
+  credentialIv: text("credential_iv").notNull(),
+  fingerprint: text("fingerprint").notNull(),
+  createdBy: text("created_by").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("deploy_ops_credentials_updated_idx").on(table.updatedAt),
+]);
