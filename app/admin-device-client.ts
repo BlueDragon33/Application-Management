@@ -143,6 +143,8 @@ export type OperationsSummary = {
   contractReadiness?: "ready" | "partial" | "pending" | "not-enrolled" | "metadata";
   managementMode?: "remote-admin" | "observe-only" | "local-first" | "metadata-only";
   metadataVerified?: boolean;
+  webAccessPolicy?: "allow" | "deny" | "unknown";
+  contentReviewReady?: boolean;
 };
 
 export type OperationsSettings = {
