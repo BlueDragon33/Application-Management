@@ -685,6 +685,128 @@ export const readinessByCourse: Readonly<Record<string, CourseReadiness>> = {
   },
 };
 
+export type PreStudyPhase = {
+  id: string;
+  weeks: readonly [number, number];
+  hoursPerWeek: number;
+  title: LocalizedText;
+  focus: LocalizedText;
+  why: LocalizedText;
+  tasks: readonly LocalizedText[];
+  checkpoint: LocalizedText;
+  targetCourseIds: readonly string[];
+};
+
+export const preBaumanRoadmap: readonly PreStudyPhase[] = [
+  {
+    id: "python-oop",
+    weeks: [1, 2],
+    hoursPerWeek: 10,
+    title: { vi: "Python nền tảng + OOP", en: "Python foundations + OOP" },
+    focus: { vi: "Biến, hàm, module, file, exception → class/object, composition, inheritance, interface và Git.", en: "Variables, functions, modules, files and exceptions → classes/objects, composition, inheritance, interfaces and Git." },
+    why: { vi: "Đây là nút thắt lớn nhất trước HK1: OOP, phân tích dữ liệu, ML và phần lớn coursework đều phụ thuộc vào nền lập trình chắc.", en: "This is the main pre-semester bottleneck: OOP, data analysis, ML and most coursework depend on a solid programming foundation." },
+    tasks: [
+      { vi: "Viết 10–15 bài Python ngắn về hàm, collection, file và exception.", en: "Complete 10–15 short Python exercises on functions, collections, files and exceptions." },
+      { vi: "Xây mini-project OOP có class, composition, inheritance và interface rõ ràng.", en: "Build an OOP mini-project with clear classes, composition, inheritance and interfaces." },
+      { vi: "Dùng Git branch/commit/merge và viết test cơ bản cho project.", en: "Use Git branches/commits/merges and add basic tests to the project." },
+    ],
+    checkpoint: { vi: "Tự thiết kế được một project Python OOP nhỏ, chạy test và quản lý bằng Git mà không cần mẫu có sẵn.", en: "Independently design a small Python OOP project, run tests and manage it with Git without a template." },
+    targetCourseIds: ["oop", "software-1", "software-2", "multivariate", "ml", "neural", "business-ai", "nir-data"],
+  },
+  {
+    id: "sql-database",
+    weeks: [3, 4],
+    hoursPerWeek: 9,
+    title: { vi: "SQL + Database", en: "SQL + databases" },
+    focus: { vi: "SELECT/JOIN/GROUP BY/subquery → PK/FK, normalization, index, transaction và query plan.", en: "SELECT/JOIN/GROUP BY/subqueries → PK/FK, normalization, indexes, transactions and query plans." },
+    why: { vi: "IU-5 có Database Optimization ngay HK1 và Post-relational Database ở HK2; học NoSQL trước SQL sẽ tạo lỗ hổng nền.", en: "IU-5 has Database Optimization in semester 1 and Post-relational Databases in semester 2; learning NoSQL before SQL would leave a foundation gap." },
+    tasks: [
+      { vi: "Tạo schema 5–7 bảng có PK/FK và dữ liệu mẫu.", en: "Create a 5–7 table schema with PK/FK relationships and sample data." },
+      { vi: "Viết truy vấn JOIN, GROUP BY, subquery và window function cơ bản.", en: "Write JOIN, GROUP BY, subquery and basic window-function queries." },
+      { vi: "So sánh query trước/sau index bằng EXPLAIN và ghi nhận kết quả.", en: "Compare queries before/after indexing with EXPLAIN and record the results." },
+    ],
+    checkpoint: { vi: "Thiết kế được database quan hệ, giải thích vì sao dùng index và đọc được query plan cơ bản.", en: "Design a relational database, explain indexing choices and read a basic query plan." },
+    targetCourseIds: ["db-optimization", "postrelational", "elective-2"],
+  },
+  {
+    id: "data-statistics",
+    weeks: [5, 6],
+    hoursPerWeek: 10,
+    title: { vi: "NumPy/Pandas + Xác suất thống kê", en: "NumPy/Pandas + probability & statistics" },
+    focus: { vi: "Vector/ma trận, DataFrame, làm sạch dữ liệu, phân phối, kỳ vọng, phương sai, covariance, correlation và PCA trực giác.", en: "Vectors/matrices, DataFrames, cleaning, distributions, expectation, variance, covariance, correlation and intuitive PCA." },
+    why: { vi: "Đây là nền trực tiếp cho Multivariate Data, Reliability, Time Series, ML, Neural Network và NIR dữ liệu.", en: "This directly supports Multivariate Data, Reliability, Time Series, ML, Neural Networks and data-oriented research." },
+    tasks: [
+      { vi: "Làm sạch một dataset thực bằng Pandas và mô tả chất lượng dữ liệu.", en: "Clean a real dataset with Pandas and describe its data quality." },
+      { vi: "Tự tính mean/variance/covariance/correlation rồi kiểm tra bằng thư viện.", en: "Compute mean/variance/covariance/correlation manually and verify with a library." },
+      { vi: "Thực hiện PCA đơn giản và giải thích ý nghĩa của giảm chiều.", en: "Run a simple PCA and explain what dimensionality reduction means." },
+    ],
+    checkpoint: { vi: "Có notebook hoàn chỉnh: dữ liệu thô → làm sạch → EDA → correlation/PCA → kết luận.", en: "Produce a complete notebook: raw data → cleaning → EDA → correlation/PCA → conclusions." },
+    targetCourseIds: ["multivariate", "ml", "reliability", "neural", "time-series", "business-ai", "nir-data"],
+  },
+  {
+    id: "ml-core",
+    weeks: [7, 8],
+    hoursPerWeek: 10,
+    title: { vi: "Machine Learning nền tảng", en: "Machine-learning foundations" },
+    focus: { vi: "Regression, classification, clustering, train/validation/test, metric, overfitting và feature engineering cơ bản.", en: "Regression, classification, clustering, train/validation/test splits, metrics, overfitting and basic feature engineering." },
+    why: { vi: "Không cần học deep learning sớm; mục tiêu là hiểu đúng pipeline ML để sang HK2 không bị ngợp.", en: "There is no need to start deep learning early; the goal is to understand the ML pipeline well enough to enter semester 2 without overload." },
+    tasks: [
+      { vi: "Huấn luyện ít nhất 2 mô hình regression/classification và so sánh metric.", en: "Train at least two regression/classification models and compare metrics." },
+      { vi: "Thử một bài clustering, chuẩn hóa dữ liệu và giải thích kết quả.", en: "Try one clustering task, standardize the data and explain the result." },
+      { vi: "Ghi rõ leakage, overfitting và cách chia train/validation/test trong báo cáo.", en: "Document leakage, overfitting and train/validation/test splitting in a short report." },
+    ],
+    checkpoint: { vi: "Tự xây được pipeline dữ liệu → train → evaluate → compare mà không phụ thuộc notebook mẫu.", en: "Independently build a data → train → evaluate → compare pipeline without relying on a template notebook." },
+    targetCourseIds: ["ml", "neural", "business-ai", "nir-data", "time-series"],
+  },
+  {
+    id: "linux-systems",
+    weeks: [9, 9],
+    hoursPerWeek: 8,
+    title: { vi: "Linux + OS/Network + Security cơ bản", en: "Linux + OS/network + basic security" },
+    focus: { vi: "CLI, filesystem, process, permissions, log, client/server, TCP/IP cơ bản, authentication/authorization và troubleshooting.", en: "CLI, filesystem, processes, permissions, logs, client/server basics, TCP/IP, authentication/authorization and troubleshooting." },
+    why: { vi: "Phần này không phải lõi AI nhưng là nền vận hành cho thực tập hệ thống, security và software engineering.", en: "This is not the AI core, but it is operational groundwork for system practice, security and software engineering." },
+    tasks: [
+      { vi: "Dùng CLI thao tác file/process/log và viết một shell script ngắn.", en: "Use the CLI for files/processes/logs and write a short shell script." },
+      { vi: "Chạy một service local, kiểm tra port/process/log khi xảy ra lỗi.", en: "Run a local service and inspect ports/processes/logs when it fails." },
+      { vi: "Mô tả authentication, authorization, session và least privilege bằng ví dụ.", en: "Explain authentication, authorization, sessions and least privilege with examples." },
+    ],
+    checkpoint: { vi: "Tự chẩn đoán được một lỗi service đơn giản bằng process/port/log và giải thích luồng client-server.", en: "Diagnose a simple service failure using process/port/log information and explain the client-server flow." },
+    targetCourseIds: ["operations-practice", "elective-1", "software-1", "software-2", "is-management", "lifecycle", "elective-2"],
+  },
+  {
+    id: "research-language",
+    weeks: [10, 11],
+    hoursPerWeek: 8,
+    title: { vi: "Research + tiếng Nga/Anh học thuật", en: "Research + academic Russian/English" },
+    focus: { vi: "Đọc paper, câu hỏi nghiên cứu, baseline, metric, citation, research log; song song luyện thuật ngữ và nghe–đọc kỹ thuật.", en: "Paper reading, research questions, baselines, metrics, citation and research logs; in parallel, practice technical terminology and listening/reading." },
+    why: { vi: "NIR xuất hiện xuyên cả 4 học kỳ; nếu research workflow hình thành sớm thì luận văn và coursework về sau nhẹ hơn rất nhiều.", en: "Research work appears across all four semesters; building the workflow early substantially reduces later thesis and coursework load." },
+    tasks: [
+      { vi: "Đọc 3 paper gần một chủ đề, ghi problem/method/data/metric/result.", en: "Read three papers on one topic and record problem/method/data/metric/result." },
+      { vi: "Viết 1 trang research proposal có câu hỏi, baseline và tiêu chí đánh giá.", en: "Write a one-page research proposal with a question, baseline and evaluation criteria." },
+      { vi: "Tạo glossary Nga–Anh–Việt khoảng 100 thuật ngữ liên quan IU-5.", en: "Create a Russian–English–Vietnamese glossary of about 100 IU-5 terms." },
+      { vi: "Mỗi tuần nghe ít nhất 2 nội dung kỹ thuật ngắn và ghi lại ý chính.", en: "Each week, listen to at least two short technical items and summarize the main points." },
+    ],
+    checkpoint: { vi: "Có proposal 1 trang + research log + glossary kỹ thuật để dùng tiếp khi sang Bauman.", en: "Have a one-page proposal, a research log and a technical glossary ready to continue at Bauman." },
+    targetCourseIds: ["foreign-1", "foreign-2", "methodology", "nir-1", "nir-2", "nir-3", "nir-4", "nir-data", "pedagogy-1", "pedagogy-2", "prediploma", "thesis"],
+  },
+  {
+    id: "integration-project",
+    weeks: [12, 12],
+    hoursPerWeek: 12,
+    title: { vi: "Project tích hợp trước Bauman", en: "Pre-Bauman integration project" },
+    focus: { vi: "Dữ liệu cảm biến/hệ thống tự động → PostgreSQL → Python/Pandas → phân tích/ML → kiến trúc OOP → Git/test → báo cáo ngắn.", en: "Sensor/automation data → PostgreSQL → Python/Pandas → analysis/ML → OOP architecture → Git/tests → short report." },
+    why: { vi: "Một project tích hợp giúp nối phần bạn đã mạnh về Control/Automation với các khoảng trống CS/Data, thay vì học rời rạc.", en: "One integrated project connects the existing Control/Automation strength with CS/Data gaps instead of treating them as isolated topics." },
+    tasks: [
+      { vi: "Chọn dataset cảm biến hoặc hệ điều khiển có time-series.", en: "Choose a sensor or control-system dataset with time-series data." },
+      { vi: "Lưu dữ liệu vào PostgreSQL, xây lớp truy cập dữ liệu và pipeline xử lý.", en: "Store the data in PostgreSQL and build a data-access layer plus processing pipeline." },
+      { vi: "Huấn luyện baseline ML, đánh giá metric và trực quan hóa kết quả.", en: "Train an ML baseline, evaluate metrics and visualize the results." },
+      { vi: "Viết README + báo cáo 2–4 trang: problem, architecture, data, method, result, limitation.", en: "Write a README plus a 2–4 page report covering problem, architecture, data, method, result and limitations." },
+    ],
+    checkpoint: { vi: "Có một repo hoàn chỉnh có thể dùng làm bài khởi động cho NIR/portfolio khi sang Nga.", en: "Finish a complete repository that can serve as a starting point for research/portfolio work in Russia." },
+    targetCourseIds: ["entrepreneurship", "ergonomics", "is-management", "mivar", "lifecycle", "elective-2", "business-ai", "prediploma", "thesis"],
+  },
+];
+
 export const program = {
   code: "09.04.01/11",
   universityRu: "МГТУ им. Н.Э. Баумана",
