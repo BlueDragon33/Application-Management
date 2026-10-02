@@ -122,6 +122,17 @@ export type ManagedApplicationDescriptor = {
   guardrails: string[];
 };
 
+export type OperationsSubclient = {
+  id: string;
+  name: string;
+  initials: string;
+  kind: "subject-site" | "module" | "workflow";
+  repository: string | null;
+  sourcePath: string | null;
+  state: "independent" | "module" | "workflow";
+  controlState: string | null;
+};
+
 export type OperationsSummary = {
   appId: string;
   appName: string;
@@ -145,6 +156,8 @@ export type OperationsSummary = {
   metadataVerified?: boolean;
   webAccessPolicy?: "allow" | "deny" | "unknown";
   contentReviewReady?: boolean;
+  subclients?: OperationsSubclient[];
+  subclientInventoryLive?: boolean;
 };
 
 export type OperationsSettings = {
