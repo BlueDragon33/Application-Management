@@ -1117,6 +1117,201 @@
   background:#eef9f4;
   color:#47745f;
 }
+.gapPlan{
+  margin-top:16px;
+  padding-top:16px;
+  border-top:1px solid #edf0f4;
+}
+.gapPlanHeader{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:14px;
+  margin-bottom:12px;
+}
+.gapPlanHeader h3{
+  margin:0;
+  color:#334665;
+  font-size:14px;
+}
+.gapPlanHeader p{
+  margin:4px 0 0;
+  color:#7b8799;
+  font-size:11px;
+  line-height:1.45;
+}
+.gapPlanHeader>span{
+  flex:0 0 auto;
+  padding:6px 9px;
+  border-radius:999px;
+  background:#eef3ff;
+  color:#365fb8;
+  font-size:10px;
+  font-weight:800;
+}
+.gapGroups{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+}
+.gapGroups>section{
+  border:1px solid #e5e9f0;
+  border-radius:12px;
+  padding:12px;
+  background:#fbfcfe;
+}
+.gapGroups>section[data-action="create"]{
+  background:#fff9f3;
+  border-color:#f0dfc9;
+}
+.gapGroups>section[data-action="practice"]{
+  background:#f3fbf7;
+  border-color:#d7eadf;
+}
+.gapGroups>section[data-action="confirm"]{
+  background:#fffbea;
+  border-color:#eee3b7;
+}
+.gapGroups>section[data-action="existing"]{
+  background:#f5f8ff;
+  border-color:#dbe4f6;
+}
+.gapGroups section>header{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:flex-start;
+}
+.gapGroups section>header strong{
+  color:#334866;
+  font-size:12px;
+}
+.gapGroups section>header p{
+  margin:4px 0 0;
+  color:#7b8798;
+  font-size:10px;
+  line-height:1.4;
+}
+.gapGroups section>header>b{
+  min-width:28px;
+  height:28px;
+  display:grid;
+  place-items:center;
+  border-radius:999px;
+  background:#fff;
+  border:1px solid #e2e6ed;
+  color:#53617a;
+  font-size:11px;
+}
+.gapItems{
+  margin-top:10px;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+.gapItems button{
+  width:100%;
+  border:1px solid #e6eaf1;
+  background:#fff;
+  border-radius:9px;
+  padding:8px 9px;
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  gap:8px;
+  align-items:center;
+  text-align:left;
+  color:inherit;
+  cursor:pointer;
+}
+.gapItems button:hover{
+  border-color:#b9c9ed;
+}
+.gapItems button>span{
+  padding:3px 6px;
+  border-radius:6px;
+  background:#f1f4f8;
+  color:#6e7a8f;
+  font-size:9px;
+  font-weight:800;
+  white-space:nowrap;
+}
+.gapItems button>div{
+  min-width:0;
+}
+.gapItems button strong{
+  display:block;
+  color:#4b586f;
+  font-size:11px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.gapItems button small{
+  display:block;
+  color:#929bab;
+  font-size:9px;
+  overflow:hidden;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+}
+.gapItems button em{
+  color:#2f66e8;
+  font-style:normal;
+}
+.gapEmpty{
+  margin:10px 0 0;
+  color:#98a1b0;
+  font-size:10px;
+}
+.buildOrder{
+  margin-top:12px;
+  border:1px solid #e4e9f1;
+  border-radius:11px;
+  padding:12px;
+  background:#fff;
+}
+.buildOrder>strong{
+  display:block;
+  color:#334665;
+  font-size:12px;
+  margin-bottom:8px;
+}
+.buildOrder>div{
+  display:flex;
+  gap:7px;
+  flex-wrap:wrap;
+}
+.buildOrder button{
+  border:1px solid #e2e7ef;
+  background:#f9fbfe;
+  border-radius:9px;
+  padding:7px 9px;
+  display:grid;
+  grid-template-columns:22px auto;
+  gap:2px 7px;
+  align-items:center;
+  text-align:left;
+  color:#4f5b70;
+  cursor:pointer;
+}
+.buildOrder button b{
+  grid-row:1 / span 2;
+  width:22px;
+  height:22px;
+  display:grid;
+  place-items:center;
+  border-radius:7px;
+  background:#eaf1ff;
+  color:#2f66e8;
+  font-size:10px;
+}
+.buildOrder button span{
+  font-size:10px;
+  font-weight:800;
+}
+.buildOrder button small{
+  font-size:9px;
+  color:#8e97a6;
+}
 .foundation{
   margin-top:18px;
   padding-top:18px;
@@ -1194,6 +1389,7 @@
   .foundationGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .coverageStats{grid-template-columns:repeat(2,minmax(0,1fr))}
   .semesterCoverage>div{grid-template-columns:repeat(2,1fr)}
+  .gapGroups{grid-template-columns:1fr}
 }
 @media(max-width:760px){
   .topbar{padding:0 14px;height:60px}
@@ -1241,4 +1437,8 @@
   .missingCourses>div{grid-template-columns:1fr}
   .missingCourses button{grid-template-columns:auto minmax(0,1fr)}
   .missingCourses button>em{grid-column:2;grid-row:auto}
+  .gapPlanHeader{flex-direction:column}
+  .gapPlanHeader>span{white-space:normal}
+  .gapGroups{grid-template-columns:1fr}
+  .buildOrder>div{display:grid;grid-template-columns:1fr}
 }
