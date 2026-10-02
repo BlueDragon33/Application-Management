@@ -89,6 +89,8 @@ test("NC03 is reachable from Application Management through the authenticated lo
   assert.match(launcher, /resolveClientOrigin\("nc03-runtime"\)/);
   assert.match(launcher, /Response\.redirect\(`\$\{resolved\.baseUrl\}\/`, 307\)/);
   assert.doesNotMatch(launcher, /"nc03-modem"[^\n]+127\.0\.0\.1:3010/);
+  assert.match(dashboard, /function webAccessAvailable/);
+  assert.match(dashboard, /summary\?\.webAccessPolicy === "deny"/);
   assert.match(dashboard, /localRuntime && app\.localUrl/);
   assert.match(workspace, /Mở Website ↗/);
 });

@@ -69,6 +69,8 @@ type ClientSummary = {
   contractReadiness: "ready" | "partial" | "pending" | "not-enrolled" | "metadata";
   managementMode: "remote-admin" | "observe-only" | "local-first" | "metadata-only";
   metadataVerified: boolean;
+  webAccessPolicy?: "allow" | "deny" | "unknown";
+  contentReviewReady?: boolean;
 };
 
 type WorkItem = {
@@ -396,6 +398,7 @@ async function loadBauman(actor: ControlDeviceState) {
   const status = await bridgeReadJson(bridge, "/api/control/status");
   const endpoints = record(status.endpoints);
   const capabilities = record(status.capabilities);
+  const policy = record(status.policy);
   const devicesPath = text(endpoints.devices);
   if (devicesPath !== "/api/control/devices" || !bool(capabilities.deviceRegistry)) {
     throw new Error("Bauman device registry chưa sẵn sàng trên runtime hiện tại.");
@@ -407,6 +410,10 @@ async function loadBauman(actor: ControlDeviceState) {
   const canApproveBlock = commandContractReady && bool(capabilities.deviceApproval);
   const canUnblock = commandContractReady && bool(capabilities.deviceUnblock);
   const canEditPermission = commandContractReady && bool(capabilities.deviceEditPermission);
+  const directRuntimeOpenAllowed = bool(policy.applicationManagementMayOpenLearningRuntimeDirectly);
+  const contentReviewReady = bool(capabilities.contentReviewApi)
+    && text(endpoints.contentReviews) === "/api/control/content-reviews"
+    && text(endpoints.contentReviewCommands) === "/api/control/content-review-commands";
   const data = await bridgeReadJson(bridge, devicesPath);
   const devices = rows(data).map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
     typeKey: "deviceType",
@@ -418,7 +425,18 @@ async function loadBauman(actor: ControlDeviceState) {
     approvalRequiresRegistrationComplete: false,
     defaultType: "desktop",
   }));
-  return { config, devices, webHref: bridge.runtimeBaseUrl, managedWebLaunch: false, hasOperationalData: true };
+  return {
+    config,
+    devices,
+    webHref: directRuntimeOpenAllowed ? bridge.runtimeBaseUrl : null,
+    managedWebLaunch: false,
+    hasOperationalData: true,
+    webAccessPolicy: directRuntimeOpenAllowed ? "allow" as const : "deny" as const,
+    contentReviewReady,
+    controlNote: directRuntimeOpenAllowed
+      ? "Bauman cho phép Application Management mở learning runtime trực tiếp."
+      : "Bauman policy chặn mở learning runtime trực tiếp từ Application Management.",
+  };
 }
 
 async function loadGrowUp(actor: ControlDeviceState) {
@@ -788,7 +806,7 @@ async function buildBootstrap(actor: ControlDeviceState) {
       ? `${legacyNote} Adapter legacy đang làm fallback trong khi Universal Contract chuyển đổi: ${dynamic.note}`
       : legacyNote;
 
-    summaries.push(summary(
+    const currentSummary = summary(
       config,
       result.value.devices,
       "connected",
@@ -815,7 +833,10 @@ async function buildBootstrap(actor: ControlDeviceState) {
           ? "remote-admin"
           : dynamic?.managementMode ?? (result.id === "growup-mychildren" ? "local-first" : "observe-only"),
       "metadataVerified" in result.value ? Boolean(result.value.metadataVerified) : dynamic?.metadataVerified ?? false,
-    ));
+    );
+    if ("webAccessPolicy" in result.value) currentSummary.webAccessPolicy = result.value.webAccessPolicy;
+    if ("contentReviewReady" in result.value) currentSummary.contentReviewReady = Boolean(result.value.contentReviewReady);
+    summaries.push(currentSummary);
     for (const device of result.value.devices) {
       const item = workFromDevice(device);
       if (item) workItems.push(item);

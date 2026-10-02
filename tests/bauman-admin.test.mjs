@@ -50,7 +50,7 @@ test("Bauman device mutations are owner-only idempotent compare-and-set commands
   assert.match(operations, /operation: operation === "approve" \? "approve" : "block"/);
 });
 
-test("Bauman website access resolves the learning runtime instead of the control service", () => {
+test("Bauman web access targets only the learning runtime and remains policy-gated", () => {
   const operations = source("app/api/operations/route.ts");
   const bridge = source("app/bauman.server.ts");
   const registry = source("app/application-registry.ts");
@@ -58,8 +58,9 @@ test("Bauman website access resolves the learning runtime instead of the control
   assert.match(bridge, /resolveClientBridge\("bauman-master-ai"\)/);
   assert.match(bridge, /resolveClientOrigin\("bauman-runtime"\)/);
   assert.match(bridge, /runtimeBaseUrl/);
-  assert.match(operations, /webHref: bridge\.runtimeBaseUrl/);
-  assert.doesNotMatch(operations, /loadBauman[\s\S]{0,2500}webHref: bridge\.baseUrl/);
+  assert.match(operations, /applicationManagementMayOpenLearningRuntimeDirectly/);
+  assert.match(operations, /webHref: directRuntimeOpenAllowed \? bridge\.runtimeBaseUrl : null/);
+  assert.doesNotMatch(operations, /loadBauman[\s\S]{0,3500}webHref: bridge\.baseUrl/);
   assert.match(registry, /Nút Website phải mở runtime học Bauman, không mở Control Service/);
   assert.match(registry, /contractState: "migrating"/);
 });
@@ -87,6 +88,7 @@ test("Bauman readiness distinguishes implemented source from production-live cap
   assert.match(admin, /type ReadinessState = "available" \| "implemented" \| "missing"/);
   assert.match(admin, /chưa suy diễn production từ CI/);
   assert.match(admin, /Không đánh dấu production hoàn tất chỉ vì GitHub CI xanh/);
+  assert.match(admin, /summary\?\.contentReviewReady \? "available" : "implemented"/);
 });
 
 test("Bauman device admin styles cover status, action and responsive layouts", () => {
