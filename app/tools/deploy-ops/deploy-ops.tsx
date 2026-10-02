@@ -66,6 +66,30 @@ type Run = {
   publishedAt: string | null;
 };
 
+type Discovery = {
+  appId: string;
+  repository: string;
+  registrySuggestion: { projectIdOrSlug: string; productionUrl: string; reason: string } | null;
+  vercel: {
+    configured: boolean;
+    error: string | null;
+    candidates: Array<{ id: string; name: string; teamId: string; gitRepository: string; score: number; reasons: string[] }>;
+  };
+  neon: {
+    configured: boolean;
+    error: string | null;
+    candidates: Array<{ id: string; name: string; regionId: string; score: number; reasons: string[] }>;
+  };
+};
+
+type NeonBranch = {
+  id: string;
+  name: string;
+  primary: boolean;
+  currentState: string;
+  createdAt: string;
+};
+
 type ApiResult = {
   ok?: boolean;
   error?: string;
@@ -79,6 +103,8 @@ type ApiResult = {
   promoted?: boolean;
   deploymentId?: string;
   deploymentUrl?: string;
+  discovery?: Discovery;
+  branches?: NeonBranch[];
 };
 
 const emptySources: Record<ProviderKey, ProviderState> = {
@@ -140,6 +166,8 @@ export default function DeployOpsTool({ user }: { user: { displayName: string; e
   const [credentialDrafts, setCredentialDrafts] = useState<Record<ProviderKey, string>>({ vercel: "", neon: "", tinyfish: "" });
   const [targets, setTargets] = useState<Target[]>([]);
   const [target, setTarget] = useState<Target>(() => defaultTarget());
+  const [discovery, setDiscovery] = useState<Discovery | null>(null);
+  const [neonBranches, setNeonBranches] = useState<NeonBranch[]>([]);
   const [sourceSha, setSourceSha] = useState("");
   const [probe, setProbe] = useState<Probe | null>(null);
   const [runs, setRuns] = useState<Run[]>([]);
@@ -176,6 +204,8 @@ export default function DeployOpsTool({ user }: { user: { displayName: string; e
     setTarget(saved ?? defaultTarget(appId));
     setProbe(null);
     setRuns([]);
+    setDiscovery(null);
+    setNeonBranches([]);
     setSourceSha("");
     setProductionAuthority(false);
     setMessage("");
@@ -232,6 +262,61 @@ export default function DeployOpsTool({ user }: { user: { displayName: string; e
     } finally {
       setBusy("");
     }
+  }
+
+  async function discoverResources() {
+    setBusy("discover");
+    setMessage("");
+    try {
+      const data = await deployOpsAction({ action: "discover-resources", appId: target.appId }) as ApiResult;
+      if (!data.discovery) throw new Error(data.error ?? "Không dò được provider resource.");
+      setDiscovery(data.discovery);
+      if (data.providers) setProviders(data.providers);
+      const vercelCount = data.discovery.vercel.candidates.length;
+      const neonCount = data.discovery.neon.candidates.length;
+      setMessage(`Đã dò: ${vercelCount} Vercel project · ${neonCount} Neon project. Chọn đúng resource rồi lưu mapping.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Không dò được provider resource.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function discoverBranches(projectId: string) {
+    setBusy("discover-branches");
+    setMessage("");
+    try {
+      const data = await deployOpsAction({ action: "discover-neon-branches", projectId }) as ApiResult;
+      const branches = data.branches ?? [];
+      setNeonBranches(branches);
+      setMessage(branches.length ? `Đã tìm thấy ${branches.length} Neon branch.` : "Neon project này chưa trả branch nào.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Không đọc được Neon branch.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  function useVercelCandidate(candidate: Discovery["vercel"]["candidates"][number]) {
+    patch({
+      vercelEnabled: true,
+      vercelProjectId: candidate.id || candidate.name,
+      vercelTeamId: candidate.teamId,
+    });
+    setMessage(`Đã chọn Vercel project ${candidate.name}. Hãy lưu mapping sau khi kiểm tra.`);
+  }
+
+  function useVercelSuggestion() {
+    const suggestion = discovery?.registrySuggestion;
+    if (!suggestion) return;
+    patch({ vercelEnabled: true, vercelProjectId: suggestion.projectIdOrSlug });
+    setMessage(`Đã điền Vercel slug ${suggestion.projectIdOrSlug} từ Application Registry. Cần probe API trước Safe Publish.`);
+  }
+
+  async function useNeonCandidate(candidate: Discovery["neon"]["candidates"][number]) {
+    patch({ neonEnabled: true, neonProjectId: candidate.id, neonBranch: "" });
+    setNeonBranches([]);
+    await discoverBranches(candidate.id);
   }
 
   async function saveTarget() {
@@ -459,8 +544,70 @@ export default function DeployOpsTool({ user }: { user: { displayName: string; e
 
         <div className={styles.actions}>
           <button className={styles.primary} disabled={Boolean(busy)} onClick={() => void saveTarget()}>{busy === "save" ? "Đang lưu…" : "Lưu mapping vào D1"}</button>
+          <button disabled={Boolean(busy)} onClick={() => void discoverResources()}>{busy === "discover" ? "Đang dò…" : "Auto Discover Vercel + Neon"}</button>
           <button disabled={Boolean(busy)} onClick={() => void bootstrap()}>{busy === "bootstrap" ? "Đang đọc…" : "Đọc lại cấu hình"}</button>
         </div>
+
+        {discovery ? <section className={styles.discovery}>
+          <header>
+            <div><small>AUTO DISCOVERY</small><h3>Resource tìm thấy</h3></div>
+            <span>Không tự ghi mapping · Owner chọn rồi lưu</span>
+          </header>
+
+          {discovery.registrySuggestion ? <article className={styles.suggestion}>
+            <div>
+              <strong>Vercel gợi ý từ Application Registry</strong>
+              <span>{discovery.registrySuggestion.projectIdOrSlug} · {discovery.registrySuggestion.productionUrl}</span>
+              <em>{discovery.registrySuggestion.reason}</em>
+            </div>
+            <button onClick={useVercelSuggestion}>Dùng gợi ý</button>
+          </article> : null}
+
+          <div className={styles.discoveryGrid}>
+            <div>
+              <h4>Vercel projects</h4>
+              {!discovery.vercel.configured ? <p className={styles.discoveryEmpty}>Chưa có Vercel credential trong Worker/Vault.</p> : null}
+              {discovery.vercel.error ? <p className={styles.discoveryError}>{discovery.vercel.error}</p> : null}
+              {discovery.vercel.candidates.map((candidate) => <article className={styles.resourceRow} key={candidate.id}>
+                <div>
+                  <strong>{candidate.name}</strong>
+                  <span>{candidate.id}{candidate.teamId ? ` · ${candidate.teamId}` : ""}</span>
+                  <em>{candidate.reasons.length ? candidate.reasons.join(" · ") : "Không có match mạnh; cần kiểm tra thủ công."}</em>
+                </div>
+                <button onClick={() => useVercelCandidate(candidate)}>Chọn</button>
+              </article>)}
+              {discovery.vercel.configured && !discovery.vercel.error && !discovery.vercel.candidates.length ? <p className={styles.discoveryEmpty}>API Vercel không trả project nào.</p> : null}
+            </div>
+
+            <div>
+              <h4>Neon projects</h4>
+              {!discovery.neon.configured ? <p className={styles.discoveryEmpty}>Chưa có Neon credential trong Worker/Vault.</p> : null}
+              {discovery.neon.error ? <p className={styles.discoveryError}>{discovery.neon.error}</p> : null}
+              {discovery.neon.candidates.map((candidate) => <article className={styles.resourceRow} key={candidate.id}>
+                <div>
+                  <strong>{candidate.name}</strong>
+                  <span>{candidate.id}{candidate.regionId ? ` · ${candidate.regionId}` : ""}</span>
+                  <em>{candidate.reasons.length ? candidate.reasons.join(" · ") : "Không có match mạnh; cần kiểm tra thủ công."}</em>
+                </div>
+                <button disabled={Boolean(busy)} onClick={() => void useNeonCandidate(candidate)}>Chọn + dò branch</button>
+              </article>)}
+              {discovery.neon.configured && !discovery.neon.error && !discovery.neon.candidates.length ? <p className={styles.discoveryEmpty}>API Neon không trả project nào.</p> : null}
+            </div>
+          </div>
+
+          {target.neonProjectId && neonBranches.length ? <div className={styles.branchPicker}>
+            <strong>Branch của {target.neonProjectId}</strong>
+            <div>
+              {neonBranches.map((branch) => <button
+                key={branch.id}
+                data-selected={target.neonBranch === branch.id || target.neonBranch === branch.name}
+                onClick={() => patch({ neonEnabled: true, neonBranch: branch.id })}
+              >
+                {branch.name}{branch.primary ? " · PRIMARY" : ""} <small>{branch.id}</small>
+              </button>)}
+            </div>
+          </div> : null}
+        </section> : null}
       </section>
 
       <section className={styles.panel}>
