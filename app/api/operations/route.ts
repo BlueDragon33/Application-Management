@@ -465,12 +465,10 @@ async function loadBauman(actor: ControlDeviceState) {
     && text(endpoints.contentReviews) === "/api/control/content-reviews"
     && text(endpoints.contentReviewCommands) === "/api/control/content-review-commands";
   const subclientsPath = text(endpoints.subclients);
-  const [data, subclientData] = await Promise.all([
-    bridgeReadJson(bridge, devicesPath),
-    subclientsPath === "/api/control/subclients"
-      ? bridgeReadJson(bridge, subclientsPath)
-      : Promise.resolve({} as UnknownRecord),
-  ]);
+  const data = await bridgeReadJson(bridge, devicesPath);
+  const subclientData = subclientsPath === "/api/control/subclients"
+    ? await bridgeReadJson(bridge, subclientsPath)
+    : {} as UnknownRecord;
   const subclients = baumanSubclients(subclientData);
   const subclientInventoryLive = subclientsPath === "/api/control/subclients" && subclients.length > 0;
   const devices = rows(data).map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
