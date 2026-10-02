@@ -1442,3 +1442,137 @@
   .gapGroups{grid-template-columns:1fr}
   .buildOrder>div{display:grid;grid-template-columns:1fr}
 }
+
+
+/* Personalized IU-5 readiness layer */
+.readinessLegend{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  padding:13px 15px;
+  margin:0 0 14px;
+  border:1px solid #e5e9f0;
+  border-radius:14px;
+  background:#fbfcfe;
+}
+.readinessLegend>div:first-child{
+  min-width:0;
+}
+.readinessLegend strong{
+  display:block;
+  color:#334665;
+  font-size:13px;
+}
+.readinessLegend p{
+  margin:4px 0 0;
+  color:#7d899b;
+  font-size:11px;
+  line-height:1.45;
+}
+.readinessLegendItems{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  gap:7px;
+}
+.readinessLegendItems span,
+.readinessBadge{
+  display:inline-flex;
+  align-items:center;
+  width:max-content;
+  padding:5px 8px;
+  border-radius:999px;
+  font-size:10px;
+  font-weight:800;
+  white-space:nowrap;
+  border:1px solid transparent;
+}
+.readinessLegendItems span[data-level="green"],
+.readinessBadge[data-level="green"]{
+  background:#eef9f4;
+  color:#34765d;
+  border-color:#cce9dc;
+}
+.readinessLegendItems span[data-level="yellow"],
+.readinessBadge[data-level="yellow"]{
+  background:#fff8e8;
+  color:#91671c;
+  border-color:#ead9a9;
+}
+.readinessLegendItems span[data-level="red"],
+.readinessBadge[data-level="red"]{
+  background:#fff1f1;
+  color:#a44c4c;
+  border-color:#edcccc;
+}
+.readinessCard{
+  margin:12px 0;
+  padding:12px;
+  border-radius:12px;
+  border:1px solid #e2e7ef;
+  background:#fbfcfe;
+}
+.readinessCard[data-level="green"]{
+  background:#f3fbf7;
+  border-color:#d3e9dd;
+}
+.readinessCard[data-level="yellow"]{
+  background:#fffbef;
+  border-color:#eee0b9;
+}
+.readinessCard[data-level="red"]{
+  background:#fff5f5;
+  border-color:#efd5d5;
+}
+.readinessCardHead{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.readinessCardHead small{
+  color:#768397;
+  font-size:10px;
+  font-weight:700;
+}
+.readinessCardHead strong{
+  font-size:11px;
+  color:#334665;
+}
+.readinessCard>p{
+  margin:9px 0 10px;
+  color:#53627b;
+  font-size:12px;
+  line-height:1.5;
+}
+.readinessPriority{
+  display:grid;
+  grid-template-columns:auto 1fr;
+  gap:8px;
+  align-items:start;
+  padding-top:9px;
+  border-top:1px solid rgba(90,105,130,.12);
+}
+.readinessPriority span{
+  color:#7b8799;
+  font-size:10px;
+  white-space:nowrap;
+}
+.readinessPriority b{
+  color:#334665;
+  font-size:11px;
+  line-height:1.4;
+}
+.courseName .readinessBadge{
+  margin-top:6px;
+}
+@media (max-width: 980px){
+  .readinessLegend{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+  .readinessLegendItems{
+    justify-content:flex-start;
+  }
+}

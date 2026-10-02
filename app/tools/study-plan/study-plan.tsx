@@ -7,12 +7,14 @@ import styles from "./study-plan.module.css";
 import {
   courses,
   program,
+  readinessByCourse,
   semesterCourses,
   semesterMeta,
   yearCourses,
   type Assessment,
   type Course,
   type Language,
+  type ReadinessLevel,
   type ViewMode,
 } from "./study-plan-data";
 
@@ -425,6 +427,25 @@ function baumanModuleFor(course: Course, modules: readonly BaumanStudyModule[]) 
   return modules.find((module) => module.courseIds.includes(course.id)) ?? null;
 }
 
+const readinessLabels: Record<ReadinessLevel, { vi: string; en: string }> = {
+  green: { vi: "🟢 Đã có nền", en: "🟢 Existing foundation" },
+  yellow: { vi: "🟡 Cần ôn/bổ sung", en: "🟡 Review / reinforce" },
+  red: { vi: "🔴 Chưa có nền đủ", en: "🔴 Foundation gap" },
+};
+
+const readinessLegend = {
+  vi: {
+    title: "Mức nền cá nhân",
+    note: "Đánh dấu theo nền Điều khiển & Tự động hóa hiện có và các khoảng cần bù trước khi vào IU-5. Đây không phải điểm số của môn.",
+    priority: "Ưu tiên bù",
+  },
+  en: {
+    title: "Personal readiness",
+    note: "Tagged from the existing Control & Automation foundation and identified preparation gaps before IU-5. This is not a course grade.",
+    priority: "Priority",
+  },
+} as const;
+
 const assessmentLabels: Record<Assessment, { vi: string; en: string }> = {
   credit: { vi: "Zachyot", en: "Credit / pass" },
   exam: { vi: "Thi", en: "Exam" },
@@ -477,11 +498,13 @@ function CourseRow({ course, lang, selected, onSelect }: {
   onSelect: () => void;
 }) {
   const t = copy[lang];
+  const readiness = readinessByCourse[course.id];
   return <button type="button" className={styles.courseRow} data-selected={selected} onClick={onSelect}>
     <span className={styles.kindDot} data-kind={kindTone(course)} />
     <div className={styles.courseName}>
       <strong>{course.title[lang]}</strong>
       <small>{course.ru}</small>
+      <span className={styles.readinessBadge} data-level={readiness.level}>{readinessLabels[readiness.level][lang]}</span>
     </div>
     <span className={styles.kindBadge} data-kind={kindTone(course)}>{kindLabel(course, lang)}</span>
     <b>{course.credits} {lang === "vi" ? "TC" : "cr"}</b>
@@ -510,6 +533,7 @@ function DetailPanel({ course, lang, completed, toggleStep, baumanModules, bauma
   }
 
   const relatedModule = baumanModuleFor(course, baumanModules);
+  const readiness = readinessByCourse[course.id];
 
   return <aside className={styles.detailPanel}>
     <div className={styles.detailHeader}>
@@ -525,6 +549,14 @@ function DetailPanel({ course, lang, completed, toggleStep, baumanModules, bauma
     </div>
     <div className={styles.assessmentLine}><span>{t.assessment}</span><strong>{assessmentLabels[course.assessment][lang]}</strong></div>
     {course.officialNote ? <div className={styles.officialNote}><strong>{t.officialData}</strong><p>{course.officialNote[lang]}</p></div> : null}
+    <div className={styles.readinessCard} data-level={readiness.level}>
+      <div className={styles.readinessCardHead}>
+        <small>{readinessLegend[lang].title}</small>
+        <strong>{readinessLabels[readiness.level][lang]}</strong>
+      </div>
+      <p>{readiness.reason[lang]}</p>
+      <div className={styles.readinessPriority}><span>{readinessLegend[lang].priority}</span><b>{readiness.priority[lang]}</b></div>
+    </div>
     <div className={styles.analysisBlock}><h3>{t.learning}</h3><p>{course.analysis[lang]}</p></div>
     <div className={styles.analysisBlock}><h3>{t.prepare}</h3><p>{course.prepare[lang]}</p></div>
     <div className={styles.moduleBridge}>
@@ -709,6 +741,16 @@ export default function StudyPlanTool({
       <Stat value={4} label={t.semesters} sub="30 + 30 + 30 + 30" />
       <Stat value={62} label={t.teachingWeeks} sub="17 + 17 + 17 + 11" />
       <Stat value="≈51" label={t.avgLoad} sub={t.hoursWeek} />
+    </section>
+
+    <section className={styles.readinessLegend}>
+      <div>
+        <strong>{readinessLegend[lang].title}</strong>
+        <p>{readinessLegend[lang].note}</p>
+      </div>
+      <div className={styles.readinessLegendItems}>
+        {(["green", "yellow", "red"] as ReadinessLevel[]).map((level) => <span key={level} data-level={level}>{readinessLabels[level][lang]}</span>)}
+      </div>
     </section>
 
     <section className={styles.controls}>

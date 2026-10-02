@@ -509,6 +509,182 @@ export const courses: readonly Course[] = [
   },
 ] as const;
 
+export type ReadinessLevel = "green" | "yellow" | "red";
+
+export type CourseReadiness = {
+  level: ReadinessLevel;
+  reason: LocalizedText;
+  priority: LocalizedText;
+};
+
+export const readinessByCourse: Readonly<Record<string, CourseReadiness>> = {
+  "foreign-1": {
+    level: "yellow",
+    reason: { vi: "Đang xây nền ngoại ngữ học thuật; chưa nên xem là đã sẵn sàng cho nghe–đọc chuyên ngành ở tốc độ lớp học.", en: "Academic-language foundations are in progress; technical listening and reading are not yet fully classroom-ready." },
+    priority: { vi: "Ưu tiên nghe bài giảng, thuật ngữ kỹ thuật và đọc đề/paper.", en: "Prioritize lecture listening, technical terminology and reading assignments/papers." },
+  },
+  methodology: {
+    level: "yellow",
+    reason: { vi: "Có tư duy kỹ thuật nhưng phương pháp nghiên cứu, trích dẫn và thiết kế thực nghiệm cần hệ thống hóa.", en: "Engineering reasoning is present, but research methodology, citation and experimental design need formalization." },
+    priority: { vi: "Luyện đọc paper, đặt câu hỏi nghiên cứu, metric và nhật ký thí nghiệm.", en: "Practice paper reading, research questions, metrics and experiment logs." },
+  },
+  "analytical-models": {
+    level: "green",
+    reason: { vi: "Nền Điều khiển & Tự động hóa, toán kỹ thuật, mô hình hệ thống và tư duy trạng thái là lợi thế trực tiếp.", en: "Control & Automation, engineering mathematics, system modeling and state-space thinking provide a direct foundation." },
+    priority: { vi: "Ôn đại số tuyến tính, phương trình vi phân và state-space bằng Python.", en: "Refresh linear algebra, differential equations and state-space modeling in Python." },
+  },
+  multivariate: {
+    level: "red",
+    reason: { vi: "Khoảng trống chính nằm ở Python/NumPy/Pandas và xác suất–thống kê cho dữ liệu nhiều chiều.", en: "The main gaps are Python/NumPy/Pandas and probability/statistics for multivariate data." },
+    priority: { vi: "Python → NumPy/Pandas → xác suất thống kê → PCA/correlation.", en: "Python → NumPy/Pandas → probability/statistics → PCA/correlation." },
+  },
+  oop: {
+    level: "red",
+    reason: { vi: "Đã có nền lập trình kỹ thuật nhưng chưa học OOP và thiết kế phần mềm bài bản.", en: "There is technical programming experience, but formal OOP and software design foundations are missing." },
+    priority: { vi: "Python OOP, class/interface, SOLID cơ bản, UML và testing.", en: "Python OOP, classes/interfaces, basic SOLID, UML and testing." },
+  },
+  "db-optimization": {
+    level: "red",
+    reason: { vi: "Database/SQL là khoảng trống nền tảng đã xác định.", en: "Database/SQL is an identified foundational gap." },
+    priority: { vi: "SQL → mô hình quan hệ → JOIN/index → transaction/query plan.", en: "SQL → relational modeling → JOIN/indexes → transactions/query plans." },
+  },
+  "software-1": {
+    level: "yellow",
+    reason: { vi: "Đã làm việc với dự án phần mềm và Git, nhưng nền software engineering học thuật chưa đồng đều.", en: "There is practical project and Git experience, but formal software-engineering foundations are uneven." },
+    priority: { vi: "Chuẩn hóa Git flow, testing, requirement, kiến trúc và tài liệu kỹ thuật.", en: "Standardize Git flow, testing, requirements, architecture and technical documentation." },
+  },
+  "nir-1": {
+    level: "yellow",
+    reason: { vi: "Có tư duy kỹ thuật nhưng cần chuyển sang quy trình nghiên cứu có câu hỏi, baseline, metric và bằng chứng.", en: "Technical reasoning is present, but it needs to be converted into a research workflow with questions, baselines, metrics and evidence." },
+    priority: { vi: "Bắt đầu kho paper, research log và mini-experiment tái lập.", en: "Start a paper library, research log and reproducible mini-experiments." },
+  },
+  "foreign-2": {
+    level: "yellow",
+    reason: { vi: "Là phần tiếp nối của ngoại ngữ học thuật, phụ thuộc trực tiếp vào tiến độ học kỳ 1.", en: "This continues academic-language development and depends directly on semester-1 progress." },
+    priority: { vi: "Duy trì nghe–đọc kỹ thuật và trình bày ngắn hằng tuần.", en: "Maintain weekly technical listening/reading and short presentations." },
+  },
+  entrepreneurship: {
+    level: "yellow",
+    reason: { vi: "Không phải khoảng trống kỹ thuật lớn nhưng cần làm quen mô hình sản phẩm, người dùng và thương mại hóa.", en: "This is not a major technical gap, but product, user and commercialization thinking need practice." },
+    priority: { vi: "Value proposition, user problem, cost/resource và pitch ngắn.", en: "Value proposition, user problem, cost/resources and concise pitching." },
+  },
+  ml: {
+    level: "red",
+    reason: { vi: "Machine Learning phụ thuộc trực tiếp vào Python, dữ liệu, đại số tuyến tính và xác suất–thống kê đang cần bù.", en: "Machine learning depends directly on Python, data handling, linear algebra and probability/statistics that still need reinforcement." },
+    priority: { vi: "Hoàn tất nền dữ liệu rồi học regression/classification, train-test, metric và overfitting.", en: "Finish the data foundation, then learn regression/classification, train-test workflow, metrics and overfitting." },
+  },
+  reliability: {
+    level: "yellow",
+    reason: { vi: "Tư duy hệ thống và điều khiển là lợi thế, nhưng xác suất độ tin cậy chưa phải nền mạnh hiện tại.", en: "Systems/control thinking is an advantage, but reliability probability is not yet a strong foundation." },
+    priority: { vi: "Xác suất cơ bản, reliability block diagram, MTBF/availability.", en: "Basic probability, reliability block diagrams, MTBF/availability." },
+  },
+  postrelational: {
+    level: "red",
+    reason: { vi: "NoSQL/graph/document chỉ nên học sau khi SQL và database quan hệ đã chắc.", en: "NoSQL/graph/document databases should follow a solid relational SQL foundation." },
+    priority: { vi: "SQL vững trước, sau đó document/graph/key-value và consistency.", en: "Master SQL first, then document/graph/key-value models and consistency." },
+  },
+  neural: {
+    level: "red",
+    reason: { vi: "Neural networks cần ML, Python và toán gradient mà hiện chưa phải vùng nền chính.", en: "Neural networks require ML, Python and gradient-based mathematics that are not yet core strengths." },
+    priority: { vi: "ML cơ bản → calculus/gradient → PyTorch hoặc framework tương đương.", en: "Basic ML → calculus/gradients → PyTorch or an equivalent framework." },
+  },
+  "software-2": {
+    level: "yellow",
+    reason: { vi: "Có kinh nghiệm dự án thực tế, nhưng cần củng cố quy trình software engineering để làm coursework bài bản.", en: "Practical project experience exists, but software-engineering process needs reinforcement for structured coursework." },
+    priority: { vi: "Testing, architecture, CI, documentation và bàn giao sản phẩm.", en: "Testing, architecture, CI, documentation and product delivery." },
+  },
+  "project-practice": {
+    level: "green",
+    reason: { vi: "Nền kỹ thuật và kinh nghiệm triển khai dự án giúp thích nghi tốt với thực tập theo milestone và sản phẩm đầu ra.", en: "Engineering and project-delivery experience provide a strong base for milestone-driven project practice." },
+    priority: { vi: "Chuẩn hóa task, Git, báo cáo tiến độ và minh chứng kỹ thuật.", en: "Standardize task tracking, Git, progress reports and technical evidence." },
+  },
+  "operations-practice": {
+    level: "yellow",
+    reason: { vi: "Tư duy vận hành hệ thống có nền, nhưng Linux/OS/network vẫn là khoảng cần bù.", en: "System-operation thinking has a base, but Linux/OS/networking remain gaps." },
+    priority: { vi: "Linux CLI, process, log, network và troubleshooting.", en: "Linux CLI, processes, logs, networking and troubleshooting." },
+  },
+  "pedagogy-1": {
+    level: "yellow",
+    reason: { vi: "Có khả năng trình bày nội dung nhưng vẫn cần thích nghi với chuẩn trình bày học thuật kỹ thuật ở bậc cao học.", en: "Presentation ability exists, but graduate-level technical academic instruction still needs adaptation." },
+    priority: { vi: "Slide ngắn, giải thích theo cấu trúc và phản hồi người học.", en: "Concise slides, structured explanation and learner feedback." },
+  },
+  "nir-2": {
+    level: "yellow",
+    reason: { vi: "Có thể theo được nếu NIR học kỳ 1 đã hình thành research log và quy trình thí nghiệm.", en: "This becomes manageable if semester-1 research work establishes a research log and experimental workflow." },
+    priority: { vi: "Đưa mini-experiment thành baseline có metric và so sánh.", en: "Turn mini-experiments into baselines with metrics and comparisons." },
+  },
+  "time-series": {
+    level: "yellow",
+    reason: { vi: "Nền tín hiệu/điều khiển giúp hiểu dữ liệu theo thời gian, nhưng thống kê và Python cần củng cố.", en: "Signals/control foundations help with temporal data, but statistics and Python need reinforcement." },
+    priority: { vi: "Statistics + Python + decomposition/forecasting + anomaly detection.", en: "Statistics + Python + decomposition/forecasting + anomaly detection." },
+  },
+  "business-ai": {
+    level: "red",
+    reason: { vi: "Cần ML/data stack vững trước khi chuyển sang phân tích và hỗ trợ quyết định kinh doanh.", en: "A solid ML/data stack is needed before moving into business analytics and decision support." },
+    priority: { vi: "ML, feature engineering, visualization và diễn giải kết quả.", en: "ML, feature engineering, visualization and result interpretation." },
+  },
+  "is-management": {
+    level: "yellow",
+    reason: { vi: "Có kinh nghiệm dự án và hệ thống, nhưng quản lý yêu cầu/kiến trúc/chất lượng cần học theo chuẩn formal.", en: "Project and systems experience exists, but requirements/architecture/quality management need formal study." },
+    priority: { vi: "Requirements, architecture decision, risk, milestone và quality gate.", en: "Requirements, architecture decisions, risk, milestones and quality gates." },
+  },
+  "nir-data": {
+    level: "red",
+    reason: { vi: "Môn này kết hợp nghiên cứu với xử lý dữ liệu; cả data stack và research methodology đều phải đủ chắc.", en: "This combines research with data processing, so both the data stack and research methodology must be solid." },
+    priority: { vi: "Python/Pandas + statistics + experiment design + reproducibility.", en: "Python/Pandas + statistics + experimental design + reproducibility." },
+  },
+  ergonomics: {
+    level: "yellow",
+    reason: { vi: "HMI/SCADA và tư duy hệ thống tạo nền liên quan, nhưng human factors/usability cần học bổ sung.", en: "HMI/SCADA and systems thinking are relevant foundations, but human factors/usability need additional study." },
+    priority: { vi: "HMI/UI, usability, accessibility, cognitive load và evaluation.", en: "HMI/UI, usability, accessibility, cognitive load and evaluation." },
+  },
+  "elective-1": {
+    level: "red",
+    reason: { vi: "Security/network không phải nền chính hiện tại và còn phụ thuộc Linux/OS/network.", en: "Security/networking are not current core strengths and depend on Linux/OS/network foundations." },
+    priority: { vi: "Network → authentication/authorization → threat model → logging/audit.", en: "Networking → authentication/authorization → threat modeling → logging/audit." },
+  },
+  "pedagogy-2": {
+    level: "yellow",
+    reason: { vi: "Có thể tiếp nối tốt sau phần 1 nhưng vẫn cần chuẩn hóa kỹ năng truyền đạt học thuật kỹ thuật.", en: "This should progress well after part 1, while technical academic communication still needs standardization." },
+    priority: { vi: "Dạy thử ngắn, nhận feedback và cải thiện cách giải thích.", en: "Short teaching practice, feedback and explanation refinement." },
+  },
+  "nir-3": {
+    level: "yellow",
+    reason: { vi: "Khả năng thực hiện phụ thuộc vào việc đã bù xong data/ML và duy trì NIR liên tục từ năm 1.", en: "Readiness depends on closing data/ML gaps and maintaining continuous research work from year 1." },
+    priority: { vi: "Chốt đề tài, dataset, baseline, metric và kế hoạch thí nghiệm.", en: "Lock topic, dataset, baseline, metrics and experiment plan." },
+  },
+  mivar: {
+    level: "red",
+    reason: { vi: "AI logic/Mivar là mảng mới, khác đáng kể với nền điều khiển và automation đã có.", en: "Logical AI/Mivar is a new area and differs substantially from the existing control/automation background." },
+    priority: { vi: "Logic mệnh đề/vị từ, knowledge graph, rule-based inference.", en: "Propositional/predicate logic, knowledge graphs and rule-based inference." },
+  },
+  lifecycle: {
+    level: "yellow",
+    reason: { vi: "Tư duy hệ thống kỹ thuật là lợi thế, nhưng lifecycle/process/configuration management cần chuẩn hóa.", en: "Technical-systems thinking is an advantage, but lifecycle/process/configuration management need formalization." },
+    priority: { vi: "Systems engineering, lifecycle, configuration management và verification.", en: "Systems engineering, lifecycle, configuration management and verification." },
+  },
+  "elective-2": {
+    level: "red",
+    reason: { vi: "Cả Big Data lẫn Multimedia đều cần nền software/data chuyên sâu hơn trước khi chọn nhánh.", en: "Both Big Data and Multimedia require deeper software/data foundations before specialization." },
+    priority: { vi: "Nếu Big Data: database/distributed data; nếu Multimedia: software + media processing.", en: "For Big Data: databases/distributed data; for Multimedia: software + media processing." },
+  },
+  prediploma: {
+    level: "yellow",
+    reason: { vi: "Có nền kỹ thuật để làm sản phẩm, nhưng chất lượng phụ thuộc vào research workflow và khả năng tái lập đã tích lũy.", en: "There is an engineering base for building a product, but quality depends on the accumulated research workflow and reproducibility." },
+    priority: { vi: "Repo sạch, experiment reproducible, kết quả và cấu trúc luận văn.", en: "Clean repository, reproducible experiments, results and thesis structure." },
+  },
+  "nir-4": {
+    level: "yellow",
+    reason: { vi: "Đây là giai đoạn hoàn thiện; mức sẵn sàng phụ thuộc vào tiến độ NIR 1–3.", en: "This is the final research stage; readiness depends on progress through NIR 1–3." },
+    priority: { vi: "Metric cuối, ablation/so sánh, biểu đồ và diễn giải.", en: "Final metrics, ablations/comparisons, figures and interpretation." },
+  },
+  thesis: {
+    level: "yellow",
+    reason: { vi: "Nền kỹ thuật hỗ trợ phần triển khai, còn viết học thuật, phản biện và bảo vệ cần chuẩn bị xuyên suốt.", en: "The engineering background supports implementation, while academic writing, defense and critique require continuous preparation." },
+    priority: { vi: "Viết theo chương từ sớm, lưu bằng chứng, luyện slide/demo và phản biện.", en: "Write chapters early, preserve evidence, and practice slides/demo and defense Q&A." },
+  },
+};
+
 export const program = {
   code: "09.04.01/11",
   universityRu: "МГТУ им. Н.Э. Баумана",
