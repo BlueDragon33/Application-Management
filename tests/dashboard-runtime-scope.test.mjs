@@ -24,13 +24,13 @@ test("localRuntime is explicitly threaded into child views that use it", () => {
 });
 
 test("runtime URL fallbacks stay guarded by the explicit localRuntime prop", () => {
-  const overviewStart = dashboard.indexOf("function Overview(");
-  const applicationsStart = dashboard.indexOf("function ApplicationsView(");
-  const devicesStart = dashboard.indexOf("function DevicesView(", applicationsStart);
-  assert.ok(overviewStart >= 0 && applicationsStart > overviewStart && devicesStart > applicationsStart);
+  const helperStart = dashboard.indexOf("function webAccessAvailable(");
+  const helperEnd = dashboard.indexOf("function intentionalNonRemoteMode(", helperStart);
+  assert.ok(helperStart >= 0 && helperEnd > helperStart);
 
-  const overview = dashboard.slice(overviewStart, applicationsStart);
-  const applications = dashboard.slice(applicationsStart, devicesStart);
-  assert.match(overview, /localRuntime && app\.localUrl/);
-  assert.match(applications, /localRuntime && app\.localUrl/);
+  const helper = dashboard.slice(helperStart, helperEnd);
+  assert.match(helper, /summary\?\.webAccessPolicy === "deny"/);
+  assert.match(helper, /localRuntime && app\.localUrl/);
+
+  assert.match(dashboard, /const hasWeb = webAccessAvailable\(app, summary, localRuntime\)/);
 });
