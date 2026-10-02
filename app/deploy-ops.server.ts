@@ -1,5 +1,6 @@
 import { getControlDatabase, type ControlDeviceState } from "./control-device.server";
 import { projectRepositories } from "./project-registry";
+import { getApplicationConfig } from "./application-registry";
 import { deployOpsCredentialStatus, loadDeployOpsCredential } from "./deploy-ops-credentials.server";
 
 const PROVIDER_TIMEOUT_MS = 12_000;
@@ -238,6 +239,196 @@ export async function readDeployOpsTarget(appId: string) {
   return await database.prepare(
     "SELECT * FROM deploy_ops_targets WHERE app_id = ? LIMIT 1",
   ).bind(appId).first<DeployOpsTargetRow>();
+}
+
+
+type DiscoveryCandidate = {
+  id: string;
+  name: string;
+  score: number;
+  reasons: string[];
+};
+
+function normalizedName(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function repositoryName(repository: string) {
+  return repository.split("/").pop() ?? repository;
+}
+
+function vercelRegistrySuggestion(appId: string) {
+  const app = getApplicationConfig(appId);
+  if (!app?.publicUrl) return null;
+  try {
+    const url = new URL(app.publicUrl);
+    if (!url.hostname.endsWith(".vercel.app")) return null;
+    const slug = url.hostname.slice(0, -".vercel.app".length);
+    if (!slug) return null;
+    return {
+      projectIdOrSlug: slug,
+      productionUrl: url.origin,
+      reason: "Suy ra từ publicUrl canonical trong Application Registry; vẫn phải probe API trước khi publish.",
+    };
+  } catch {
+    return null;
+  }
+}
+
+function vercelCandidate(project: UnknownRecord, appId: string, repository: string) {
+  const id = text(project.id);
+  const name = text(project.name);
+  if (!id || !name) return null;
+  const reasons: string[] = [];
+  let score = 0;
+  const repoBase = repositoryName(repository);
+  const normalizedRepo = normalizedName(repoBase);
+  const normalizedApp = normalizedName(appId);
+  const normalizedProject = normalizedName(name);
+  const link = record(project.link);
+  const gitRepo = text(link.repo) || text(link.repoName) || text(project.repo);
+  if (gitRepo && normalizedName(gitRepo) === normalizedRepo) {
+    score += 120;
+    reasons.push("Git repository khớp");
+  }
+  if (normalizedProject === normalizedRepo) {
+    score += 90;
+    reasons.push("Tên project khớp repository");
+  }
+  if (normalizedProject === normalizedApp) {
+    score += 80;
+    reasons.push("Tên project khớp app ID");
+  }
+  const suggestion = vercelRegistrySuggestion(appId);
+  if (suggestion && normalizedName(suggestion.projectIdOrSlug) === normalizedProject) {
+    score += 110;
+    reasons.push("Khớp publicUrl canonical");
+  }
+  return {
+    id,
+    name,
+    teamId: text(project.accountId) || text(project.teamId),
+    gitRepository: gitRepo,
+    score,
+    reasons,
+  };
+}
+
+function neonCandidate(project: UnknownRecord, appId: string, repository: string) {
+  const id = text(project.id);
+  const name = text(project.name);
+  if (!id || !name) return null;
+  const reasons: string[] = [];
+  let score = 0;
+  const normalizedRepo = normalizedName(repositoryName(repository));
+  const normalizedApp = normalizedName(appId);
+  const normalizedProject = normalizedName(name);
+  if (normalizedProject === normalizedRepo) {
+    score += 90;
+    reasons.push("Tên project khớp repository");
+  }
+  if (normalizedProject === normalizedApp) {
+    score += 80;
+    reasons.push("Tên project khớp app ID");
+  }
+  if (normalizedProject.includes(normalizedApp) || normalizedApp.includes(normalizedProject)) {
+    score += 25;
+    reasons.push("Tên project gần app ID");
+  }
+  return {
+    id,
+    name,
+    regionId: text(project.region_id) || text(project.regionId),
+    score,
+    reasons,
+  };
+}
+
+export async function discoverDeployOpsResources(appId: string) {
+  if (!validAppId(appId)) throw new Error("INVALID_APP_ID");
+  const project = projectRepositories.find((item) => item.id === appId);
+  if (!project) throw new Error("INVALID_APP_ID");
+  const repository = project.repository;
+  const [vercelCredential, neonCredential] = await Promise.all([
+    loadDeployOpsCredential("vercel"),
+    loadDeployOpsCredential("neon"),
+  ]);
+
+  const result: {
+    appId: string;
+    repository: string;
+    registrySuggestion: ReturnType<typeof vercelRegistrySuggestion>;
+    vercel: { configured: boolean; candidates: Array<DiscoveryCandidate & { teamId: string; gitRepository: string }>; error: string | null };
+    neon: { configured: boolean; candidates: Array<DiscoveryCandidate & { regionId: string }>; error: string | null };
+  } = {
+    appId,
+    repository,
+    registrySuggestion: vercelRegistrySuggestion(appId),
+    vercel: { configured: Boolean(vercelCredential.value), candidates: [], error: null },
+    neon: { configured: Boolean(neonCredential.value), candidates: [], error: null },
+  };
+
+  if (vercelCredential.value) {
+    try {
+      const data = await providerJson(
+        "Vercel discovery",
+        `${VERCEL_API_ORIGIN}/v10/projects?limit=100`,
+        { headers: { authorization: `Bearer ${vercelCredential.value}` } },
+      );
+      const projects = Array.isArray(data.projects) ? data.projects.map(record) : [];
+      result.vercel.candidates = projects
+        .map((item) => vercelCandidate(item, appId, repository))
+        .filter((item): item is NonNullable<ReturnType<typeof vercelCandidate>> => Boolean(item))
+        .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+        .slice(0, 25);
+    } catch (error) {
+      result.vercel.error = error instanceof Error ? error.message : "Vercel discovery failed.";
+    }
+  }
+
+  if (neonCredential.value) {
+    try {
+      const data = await providerJson(
+        "Neon discovery",
+        `${NEON_API_ORIGIN}/projects?limit=100`,
+        { headers: { authorization: `Bearer ${neonCredential.value}` } },
+      );
+      const projects = Array.isArray(data.projects) ? data.projects.map(record) : [];
+      result.neon.candidates = projects
+        .map((item) => neonCandidate(item, appId, repository))
+        .filter((item): item is NonNullable<ReturnType<typeof neonCandidate>> => Boolean(item))
+        .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+        .slice(0, 25);
+    } catch (error) {
+      result.neon.error = error instanceof Error ? error.message : "Neon discovery failed.";
+    }
+  }
+
+  return result;
+}
+
+export async function discoverNeonBranches(projectIdValue: unknown) {
+  const projectId = text(projectIdValue);
+  if (!/^[a-z0-9-]{1,60}$/i.test(projectId)) throw new Error("INVALID_NEON_PROJECT_ID");
+  const credential = await loadDeployOpsCredential("neon");
+  if (!credential.value) throw new Error("NEON_CREDENTIAL_MISSING");
+
+  const data = await providerJson(
+    "Neon branch discovery",
+    `${NEON_API_ORIGIN}/projects/${encodeURIComponent(projectId)}/branches`,
+    { headers: { authorization: `Bearer ${credential.value}` } },
+  );
+  const branches = Array.isArray(data.branches) ? data.branches.map(record) : [];
+  return branches
+    .map((branch) => ({
+      id: text(branch.id),
+      name: text(branch.name),
+      primary: branch.primary === true,
+      currentState: text(branch.current_state) || text(branch.currentState),
+      createdAt: text(branch.created_at) || text(branch.createdAt),
+    }))
+    .filter((branch) => branch.id && branch.name)
+    .sort((a, b) => Number(b.primary) - Number(a.primary) || Number(b.name === "main") - Number(a.name === "main") || a.name.localeCompare(b.name));
 }
 
 export async function saveDeployOpsTarget(payload: UnknownRecord, actor: ControlDeviceState) {
