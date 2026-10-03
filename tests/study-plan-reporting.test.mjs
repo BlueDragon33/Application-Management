@@ -89,9 +89,9 @@ test("skills direction covers every displayed curriculum entry exactly once", ()
   const ui = source("app/tools/study-plan/study-plan.tsx");
 
   const courseBlock = data.slice(data.indexOf("export const courses"), data.indexOf("export const readinessByCourse"));
-  const courseIds = [...courseBlock.matchAll(/\\bid:\\s*"([^"]+)"/g)].map((match) => match[1]);
+  const courseIds = [...courseBlock.matchAll(/\bid:\s*"([^"]+)"/g)].map((match) => match[1]);
   const clusterBlock = ui.slice(ui.indexOf("const skillClusterDefinitions"), ui.indexOf("type GapAction"));
-  const clusterIds = [...clusterBlock.matchAll(/courseIds:\\s*\\[([^\\]]*)\\]/g)]
+  const clusterIds = [...clusterBlock.matchAll(/courseIds:\s*\[([^\]]*)\]/g)]
     .flatMap((match) => [...match[1].matchAll(/"([^"]+)"/g)].map((item) => item[1]));
 
   assert.equal(courseIds.length, 33);
