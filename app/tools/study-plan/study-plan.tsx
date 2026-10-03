@@ -73,6 +73,13 @@ const copy = {
     programStructure: "Cấu trúc chương trình",
     programAnalysis: "Phân tích tổng thể",
     totalHours: "4.320 giờ học thuật",
+    exportPdf: "Xuất PDF",
+    workloadTitle: "Phân tích tải học theo học kỳ",
+    workloadSubtitle: "So sánh tổng giờ học chính thức, giờ tiếp xúc và khối lượng tự học/nhiệm vụ.",
+    workloadTotal: "Tổng giờ",
+    workloadContact: "Tiếp xúc",
+    workloadSelf: "Tự học / nhiệm vụ",
+    printNote: "Bản PDF dùng dữ liệu chương trình hiện đang hiển thị; phần tuần/tháng vẫn là phân bổ quy đổi, không phải thời khóa biểu ngày–tiết.",
     thesis: "Luận văn",
     research: "Nghiên cứu",
     practice: "Thực tập",
@@ -176,6 +183,13 @@ const copy = {
     programStructure: "Program structure",
     programAnalysis: "Overall analysis",
     totalHours: "4,320 academic hours",
+    exportPdf: "Export PDF",
+    workloadTitle: "Semester workload analysis",
+    workloadSubtitle: "Compare official total hours, contact time and self-study/task load.",
+    workloadTotal: "Total hours",
+    workloadContact: "Contact",
+    workloadSelf: "Self-study / tasks",
+    printNote: "The PDF uses the curriculum data currently shown; week/month values remain derived planning views, not a day-by-day university timetable.",
     thesis: "Thesis",
     research: "Research",
     practice: "Practice",
@@ -805,6 +819,7 @@ export default function StudyPlanTool({
 
   const toggleStep = (key: string) => setCompleted((current) => ({ ...current, [key]: !current[key] }));
   const resetProgress = () => setCompleted({});
+  const printStudyPlan = () => window.print();
 
   const t = copy[lang];
   const meta = semesterMeta[semester];
@@ -834,6 +849,18 @@ export default function StudyPlanTool({
       percent: courses.length > 0 ? Math.round((covered.length / courses.length) * 100) : 0,
     };
   }, [baumanModules]);
+
+  const workloadBySemester = useMemo(() => ([1, 2, 3, 4] as const).map((semesterNumber) => {
+    const items = semesterCourses(semesterNumber);
+    const totalHours = items.reduce((sum, course) => sum + course.hours, 0);
+    const contactHours = items.reduce((sum, course) => sum + course.contactHours, 0);
+    return {
+      semester: semesterNumber,
+      totalHours,
+      contactHours,
+      selfStudyHours: Math.max(0, totalHours - contactHours),
+    };
+  }), []);
 
   const gapPlan = useMemo(() => {
     const missingIds = new Set(moduleCoverage.missing.map((course) => course.id));
@@ -884,6 +911,7 @@ export default function StudyPlanTool({
         <button type="button" data-active={lang === "vi"} onClick={() => setLang("vi")}>VI</button>
         <button type="button" data-active={lang === "en"} onClick={() => setLang("en")}>EN</button>
       </div>
+      <button type="button" className={styles.printButton} onClick={printStudyPlan}>{t.exportPdf}</button>
       <div className={styles.user}><span>{user.displayName.slice(0, 1).toUpperCase()}</span><div><strong>{user.displayName}</strong><small>{user.email}</small></div></div>
     </header>
 
@@ -1066,6 +1094,37 @@ export default function StudyPlanTool({
           </article>;
         })}
       </div>
+      <section className={styles.workloadAnalysis} aria-labelledby="study-plan-workload-title">
+        <div className={styles.workloadHeading}>
+          <div>
+            <span id="study-plan-workload-title">{t.workloadTitle}</span>
+            <p>{t.workloadSubtitle}</p>
+          </div>
+          <strong>{program.hours.toLocaleString(lang === "vi" ? "vi-VN" : "en-US")} h</strong>
+        </div>
+        <div className={styles.workloadGrid}>
+          {workloadBySemester.map((item) => {
+            const contactPct = item.totalHours > 0 ? (item.contactHours / item.totalHours) * 100 : 0;
+            const selfPct = Math.max(0, 100 - contactPct);
+            return <article key={item.semester}>
+              <header>
+                <div><span>{t.semester} {item.semester}</span><strong>{item.totalHours} h</strong></div>
+                <small>{semesterMeta[item.semester].credits} {lang === "vi" ? "tín chỉ" : "credits"}</small>
+              </header>
+              <div className={styles.workloadBar} aria-label={`${t.semester} ${item.semester}: ${item.contactHours}h ${t.workloadContact}, ${item.selfStudyHours}h ${t.workloadSelf}`}>
+                <span className={styles.workloadContactBar} style={{ width: `${contactPct}%` }} />
+                <span className={styles.workloadSelfBar} style={{ width: `${selfPct}%` }} />
+              </div>
+              <div className={styles.workloadLegend}>
+                <p><i data-kind="contact" /><span>{t.workloadContact}</span><b>{item.contactHours} h</b></p>
+                <p><i data-kind="self" /><span>{t.workloadSelf}</span><b>{item.selfStudyHours} h</b></p>
+              </div>
+            </article>;
+          })}
+        </div>
+        <p className={styles.printNote}>{t.printNote}</p>
+      </section>
+
       <div className={styles.coverage}>
         <div className={styles.coverageHeader}>
           <div>

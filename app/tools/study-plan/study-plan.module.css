@@ -1824,3 +1824,201 @@
     grid-column:2;
   }
 }
+
+
+.printButton{
+  border:1px solid #d9e2f3;
+  background:#fff;
+  color:#244da8;
+  font-weight:800;
+  border-radius:10px;
+  padding:9px 13px;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.printButton:hover{
+  background:#f3f7ff;
+  border-color:#afc2ec;
+}
+.workloadAnalysis{
+  margin:18px 0 22px;
+  padding:20px;
+  background:#f8faff;
+  border:1px solid #e2e8f4;
+  border-radius:16px;
+}
+.workloadHeading{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:18px;
+  margin-bottom:15px;
+}
+.workloadHeading span{
+  display:block;
+  color:#234fb3;
+  font-weight:900;
+  font-size:13px;
+}
+.workloadHeading p{
+  margin:5px 0 0;
+  color:#68778f;
+  font-size:12px;
+  line-height:1.45;
+}
+.workloadHeading>strong{
+  color:#173d9f;
+  font-size:20px;
+  white-space:nowrap;
+}
+.workloadGrid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+}
+.workloadGrid article{
+  background:#fff;
+  border:1px solid #e4e9f2;
+  border-radius:13px;
+  padding:13px;
+}
+.workloadGrid header{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
+}
+.workloadGrid header div{
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+}
+.workloadGrid header span{
+  color:#66758d;
+  font-size:11px;
+  font-weight:800;
+}
+.workloadGrid header strong{
+  color:#1d2b45;
+  font-size:18px;
+}
+.workloadGrid header small{
+  color:#8390a4;
+  font-size:10px;
+  text-align:right;
+}
+.workloadBar{
+  height:11px;
+  margin:12px 0 10px;
+  display:flex;
+  overflow:hidden;
+  background:#edf1f7;
+  border-radius:999px;
+}
+.workloadBar>span{
+  display:block;
+  height:100%;
+}
+.workloadContactBar{
+  background:#5683ee;
+}
+.workloadSelfBar{
+  background:#d99ab4;
+}
+.workloadLegend{
+  display:grid;
+  gap:6px;
+}
+.workloadLegend p{
+  margin:0;
+  display:grid;
+  grid-template-columns:8px minmax(0,1fr) auto;
+  align-items:center;
+  gap:6px;
+  color:#66758d;
+  font-size:10px;
+}
+.workloadLegend i{
+  width:7px;
+  height:7px;
+  border-radius:50%;
+}
+.workloadLegend i[data-kind="contact"]{
+  background:#5683ee;
+}
+.workloadLegend i[data-kind="self"]{
+  background:#d99ab4;
+}
+.workloadLegend b{
+  color:#2a3852;
+}
+.printNote{
+  margin:13px 0 0;
+  color:#7b8799;
+  font-size:10px;
+  line-height:1.45;
+}
+@media(max-width:900px){
+  .workloadGrid{
+    grid-template-columns:1fr 1fr;
+  }
+}
+@media(max-width:760px){
+  .printButton{
+    padding:8px 10px;
+    font-size:11px;
+  }
+  .user div{
+    display:none;
+  }
+  .workloadHeading{
+    flex-direction:column;
+  }
+  .workloadGrid{
+    grid-template-columns:1fr;
+  }
+}
+@media print{
+  @page{
+    size:A4;
+    margin:12mm;
+  }
+  .shell{
+    min-height:0;
+    background:#fff;
+  }
+  .topbar,
+  .controls,
+  .preBaumanRoadmap{
+    display:none !important;
+  }
+  .hero,
+  .stats,
+  .readinessLegend,
+  .contentGrid,
+  .overall{
+    max-width:none;
+    padding-left:0;
+    padding-right:0;
+  }
+  .hero,
+  .contentGrid{
+    grid-template-columns:1fr;
+  }
+  .hero>div,
+  .programCard,
+  .stat,
+  .mainPanel,
+  .detailPanel,
+  .overall,
+  .workloadAnalysis,
+  .coverage{
+    box-shadow:none !important;
+    break-inside:avoid;
+  }
+  .mainPanel button,
+  .detailPanel button,
+  .coverage button{
+    pointer-events:none;
+  }
+}
