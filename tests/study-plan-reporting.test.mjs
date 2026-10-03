@@ -49,3 +49,36 @@ test("study-plan derives the 120-credit structure from course kinds instead of h
   assert.match(css, /data-kind="research"/);
   assert.match(css, /\.creditStructureGrid\s*\{/);
 });
+
+
+test("study-plan final completion adds searchable course explorer and skills direction", () => {
+  const ui = source("app/tools/study-plan/study-plan.tsx");
+
+  assert.match(ui, /explorerTitle: "Danh sách & tra cứu môn học"/);
+  assert.match(ui, /type ExplorerSemester = "all" \| "1" \| "2" \| "3" \| "4"/);
+  assert.match(ui, /course\.ru,[\s\S]*course\.title\.vi,[\s\S]*course\.title\.en/);
+  assert.match(ui, /courseKindFilter === "all" \|\| course\.kind === courseKindFilter/);
+  assert.match(ui, /courseReadinessFilter === "all" \|\| readiness === courseReadinessFilter/);
+  assert.match(ui, /courseSort === "readiness"/);
+  assert.match(ui, /id="course-explorer"/);
+  assert.match(ui, /id="skills-direction"/);
+  assert.match(ui, /skillClusterDefinitions/);
+  assert.match(ui, /counts\.red > 0 \? "red" : counts\.yellow > 0 \? "yellow" : "green"/);
+  assert.match(ui, /readinessWeight\[readinessByCourse\[a\.id\]\.level\]/);
+});
+
+test("study-plan final UI exposes section tabs and responsive explorer/skills layout", () => {
+  const ui = source("app/tools/study-plan/study-plan.tsx");
+  const css = source("app/tools/study-plan/study-plan.module.css");
+
+  assert.match(ui, /className=\{styles\.studySections\}/);
+  assert.match(ui, /href="#study-plan-content"/);
+  assert.match(ui, /href="#course-explorer"/);
+  assert.match(ui, /href="#skills-direction"/);
+  assert.match(ui, /href="#program-analysis"/);
+  assert.match(ui, /href="#pre-bauman-roadmap"/);
+  assert.match(css, /\.studySections\s*\{/);
+  assert.match(css, /\.courseExplorerFilters\s*\{/);
+  assert.match(css, /\.skillGrid\s*\{/);
+  assert.match(css, /@media\(max-width:1100px\)/);
+});
