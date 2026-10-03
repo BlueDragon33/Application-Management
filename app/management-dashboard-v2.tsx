@@ -41,7 +41,7 @@ type SystemTool = {
 };
 
 type AppLauncherMode = "grid" | "list";
-type AppLauncherSort = "manual" | "name" | "category" | "status";
+type AppLauncherSort = "manual" | "name" | "category-auto" | "status";
 type AppLauncherPlacement = { top: number; left: number; side: "left" | "right" | "mobile" };
 type AppLauncherItem = {
   id: string;
@@ -69,6 +69,7 @@ const fontScaleStorageKey = "application-management:font-scale:v1";
 const approvalGateStorageKey = "application-management:approval-gate:v1";
 const launcherOrderStorageKey = "application-management:launcher-order:v1";
 const launcherCategoryStorageKey = "application-management:launcher-category-overrides:v1";
+const launcherSortStorageKey = "application-management:launcher-sort:v1";
 const fontScaleOptions: Array<{ id: FontScale; label: string; hint: string }> = [
   { id: "compact", label: "Gọn", hint: "Mức hiện tại · nhiều nội dung" },
   { id: "standard", label: "Chuẩn", hint: "Dễ đọc hơn" },
@@ -1155,6 +1156,18 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
     } catch {
       setCategoryOverrides({});
     }
+    try {
+      const storedSort = window.localStorage.getItem(launcherSortStorageKey);
+      if (storedSort === "category") {
+        // Migrate the former temporary category mode to the persistent automatic mode.
+        setSortMode("category-auto");
+        window.localStorage.setItem(launcherSortStorageKey, "category-auto");
+      } else if (storedSort === "manual" || storedSort === "name" || storedSort === "category-auto" || storedSort === "status") {
+        setSortMode(storedSort);
+      }
+    } catch {
+      // Keep the in-memory default when local storage is unavailable.
+    }
   }, []);
 
   const items = useMemo<AppLauncherItem[]>(() => {
@@ -1270,9 +1283,9 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
       // inside each group so the Overview and Applications surfaces agree.
       if (a.kind !== b.kind) return a.kind === "app" ? -1 : 1;
       if (sortMode === "manual") return (rank.get(a.id) ?? 9999) - (rank.get(b.id) ?? 9999);
-      if (sortMode === "category") {
-        const category = a.category.localeCompare(b.category, "vi");
-        return category || a.name.localeCompare(b.name, "vi");
+      if (sortMode === "category-auto") {
+        const category = a.category.localeCompare(b.category, "vi", { sensitivity: "base" });
+        return category || a.name.localeCompare(b.name, "vi", { sensitivity: "base" });
       }
       if (sortMode === "status") {
         const status = a.statusLabel.localeCompare(b.statusLabel, "vi");
@@ -1316,6 +1329,20 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
       window.localStorage.setItem(launcherOrderStorageKey, JSON.stringify(next));
     } catch {
       // Layout preference remains in memory when storage is unavailable.
+    }
+  }
+
+  function changeSortMode(next: AppLauncherSort) {
+    setSortMode(next);
+    if (next !== "manual") {
+      setEditMode(false);
+      setDraggingId(null);
+      longPressTriggeredRef.current = false;
+    }
+    try {
+      window.localStorage.setItem(launcherSortStorageKey, next);
+    } catch {
+      // Sorting preference remains in memory when storage is unavailable.
     }
   }
 
@@ -1402,7 +1429,7 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
       longPressTriggeredRef.current = true;
       cancelSingleClick();
       closePopover();
-      setSortMode("manual");
+      changeSortMode("manual");
       setEditMode(true);
       setDraggingId(item.id);
       try { card.setPointerCapture(pointerId); } catch {}
@@ -1574,10 +1601,10 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
         </div>
         <label className="amv2-launcher-sort">
           <span>Sắp xếp:</span>
-          <select value={sortMode} onChange={(event) => setSortMode(event.target.value as AppLauncherSort)}>
+          <select value={sortMode} onChange={(event) => changeSortMode(event.target.value as AppLauncherSort)}>
             <option value="manual">Thủ công</option>
+            <option value="category-auto">Tự động theo phân loại</option>
             <option value="name">Tên A → Z</option>
-            <option value="category">Phân loại</option>
             <option value="status">Trạng thái</option>
           </select>
         </label>
@@ -1590,7 +1617,9 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
         </div>
         {editMode
           ? <div className="amv2-launcher-editbar"><span>↕ Kéo icon để đổi vị trí · App và Tool giữ thành hai nhóm riêng</span><button type="button" onClick={() => { setEditMode(false); setDraggingId(null); longPressTriggeredRef.current = false; }}>Xong</button></div>
-          : <p className="amv2-launcher-help"><b>1 lần</b>: thông tin <i/> <b>2 lần</b>: mở <i/> <b>Giữ 3 giây</b>: sắp xếp</p>}
+          : sortMode === "category-auto"
+            ? <p className="amv2-launcher-help" data-auto-sort="true"><b>✓ Tự động theo phân loại</b><i/> sửa phân loại → icon tự chuyển nhóm</p>
+            : <p className="amv2-launcher-help"><b>1 lần</b>: thông tin <i/> <b>2 lần</b>: mở <i/> <b>Giữ 3 giây</b>: sắp xếp</p>}
       </div>
 
       {mode === "grid" ? <div className="amv2-launcher-grid-wrap">
