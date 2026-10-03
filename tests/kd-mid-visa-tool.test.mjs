@@ -5,6 +5,7 @@ import test from "node:test";
 const dashboard = fs.readFileSync("app/management-dashboard-v2.tsx", "utf8");
 const tool = fs.readFileSync("app/tools/kd-mid-visa/kd-mid-visa.tsx", "utf8");
 const page = fs.readFileSync("app/tools/kd-mid-visa/page.tsx", "utf8");
+const companion = fs.readFileSync("public/kd-mid-visa-companion.user.js", "utf8");
 
 test("KD-MID Visa is registered as an internal Tool", () => {
   assert.match(dashboard, /id: "tool-kd-mid-visa"/);
@@ -22,9 +23,30 @@ test("KD-MID Visa keeps applicant data local and exposes resume credentials", ()
   assert.match(tool, /localStorage/);
 });
 
-test("KD-MID Visa uses a bookmarklet bridge and never auto-submits the final form", () => {
+test("fixed address and work phone are enforced for every applicant", () => {
+  assert.match(tool, /ВЬЕТНАМ, Г\. ХАНОЙ, УЛИЦА НГИА ДО, ДОРОГА ХОАНГ КУОК ВЬЕТ, ДОМ Ш9/);
+  assert.match(tool, /\+842437555706/);
+  assert.match(tool, /personalAddress: fixedPermanentAddress/);
+  assert.match(tool, /workPhone: fixedWorkPhone/);
+  assert.match(tool, /Cố định cho mọi hồ sơ/);
+});
+
+test("Russian labels expose English and Vietnamese hover help", () => {
+  assert.match(tool, /const russianHints/);
+  assert.match(tool, /English:/);
+  assert.match(tool, /Tiếng Việt:/);
+  assert.match(companion, /addHoverHints/);
+  assert.match(companion, /Purpose of visit/);
+  assert.match(companion, /Mục đích chuyến đi/);
+});
+
+test("KD-MID Visa supports persistent companion automation and keeps a bookmarklet fallback", () => {
+  assert.match(tool, /buildAutomationUrl/);
+  assert.match(tool, /kd-mid-visa-companion\.user\.js/);
+  assert.match(tool, /Mở KD-MID & tự điền/);
+  assert.match(tool, /Tự bấm Далее/);
   assert.match(tool, /javascript:/);
-  assert.match(tool, /visa\.kdmid\.ru/);
-  assert.match(tool, /Kiểm tra trước Далее/);
-  assert.match(tool, /Bridge không tự gửi hồ sơ cuối cùng/);
+  assert.match(companion, /@match\s+https:\/\/visa\.kdmid\.ru\/\*/);
+  assert.match(companion, /maybeAutoAdvance/);
+  assert.match(companion, /Печать формата A4/);
 });
