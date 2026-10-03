@@ -156,6 +156,21 @@ function displayName(applicant: Applicant) {
   return [applicant.surname, applicant.givenNames].filter(Boolean).join(" ") || "Hồ sơ chưa đặt tên";
 }
 
+function applicantMissingFields(applicant: Applicant) {
+  const checks: Array<[string, string]> = [
+    ["surname", "Họ / Surname"],
+    ["givenNames", "Tên + đệm / Given & middle names"],
+    ["birthDate", "Ngày sinh"],
+    ["birthPlace", "Nơi sinh"],
+    ["passportNo", "Số hộ chiếu"],
+    ["passportIssue", "Ngày cấp hộ chiếu"],
+    ["passportExpiry", "Ngày hết hạn hộ chiếu"],
+    ["phone", "Điện thoại cá nhân"],
+    ["email", "Email cá nhân"],
+  ];
+  return checks.filter(([key]) => !String(applicant[key as keyof Applicant] ?? "").trim()).map(([, label]) => label);
+}
+
 function emitChange(el: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement) {
   el.dispatchEvent(new Event("input", { bubbles: true }));
   el.dispatchEvent(new Event("change", { bubbles: true }));
@@ -379,6 +394,12 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
   function openAutomaticKdmid() {
     if (!selected) {
       setNotice("Hãy tạo hoặc chọn một hồ sơ trước.");
+      setRoute("applicants");
+      return;
+    }
+    const missing = applicantMissingFields(selected);
+    if (missing.length) {
+      setNotice(`Chưa thể tự điền. Hồ sơ còn thiếu: ${missing.join(", ")}.`);
       setRoute("applicants");
       return;
     }
@@ -606,8 +627,8 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       <header><div><span>HỒ SƠ CÁ NHÂN</span><h2>{displayName(editing)}</h2></div><button onClick={() => setEditing(null)}>×</button></header>
       <div className={styles.modalBody}>
         <div className={styles.formGrid}>
-          <Field label="Фамилия · Surname"><TextInput value={editing.surname} onChange={(v) => setEditing({ ...editing, surname: v.toUpperCase() })} /></Field>
-          <Field label="Имя, другие имена · Given/Middle names"><TextInput value={editing.givenNames} onChange={(v) => setEditing({ ...editing, givenNames: v.toUpperCase() })} /></Field>
+          <Field label="Фамилия · Surname" hint="Họ đúng như hộ chiếu; không nhập tên vào ô này."><TextInput value={editing.surname} onChange={(v) => setEditing({ ...editing, surname: v.toUpperCase() })} /></Field>
+          <Field label="Имя, другие имена · Given/Middle names" hint="Tên + tên đệm đúng như hộ chiếu."><TextInput value={editing.givenNames} onChange={(v) => setEditing({ ...editing, givenNames: v.toUpperCase() })} /></Field>
           <Field label="Дата рождения · dd/mm/yyyy"><TextInput value={editing.birthDate} onChange={(v) => setEditing({ ...editing, birthDate: v })} placeholder="03/03/1991" /></Field>
           <Field label="Место рождения · Nơi sinh"><TextInput value={editing.birthPlace} onChange={(v) => setEditing({ ...editing, birthPlace: v })} /></Field>
           <Field label="Пол · Giới tính"><select value={editing.sex} onChange={(e) => setEditing({ ...editing, sex: e.target.value })}><option>МУЖСКОЙ</option><option>ЖЕНСКИЙ</option></select></Field>
