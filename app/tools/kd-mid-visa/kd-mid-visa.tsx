@@ -657,7 +657,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         <textarea readOnly value={bookmarklet} placeholder="Bấm “Tạo bookmarklet dự phòng” để tạo javascript:..." />
         <div className={styles.bridgeActions}><button onClick={async () => { if (!bookmarklet) return; await navigator.clipboard.writeText(bookmarklet); setNotice("Đã sao chép bookmarklet."); }} disabled={!bookmarklet}>Sao chép bookmarklet</button><button className={styles.secondary} onClick={openKdmid}>Mở KD-MID thủ công ↗</button></div>
       </div>
-      <div className={styles.warning}><strong>Kiểm tra trước khi chạy</strong><p>Ở phía trên phải hiện <strong>“✓ Companion 0.7.0 đang hoạt động”</strong>. Nếu vẫn ghi “Companion chưa được phát hiện”, hãy cài/cập nhật script rồi <strong>Ctrl+F5 App-Manager</strong>. Tool không giải CAPTCHA; sau khi bạn nhập CAPTCHA, Companion tiếp tục và PDF/barcode do chính <strong>visa.kdmid.ru</strong> tạo.</p></div>
+      <div className={styles.warning}><strong>Kiểm tra trước khi chạy</strong><p>Ở phía trên phải hiện <strong>“✓ Companion 0.7.0 đang hoạt động”</strong>. Nếu vẫn ghi “Companion chưa được phát hiện”, hãy cài/cập nhật script rồi <strong>Ctrl+F5 App-Manager</strong>. Tool không giải CAPTCHA; sau khi bạn nhập CAPTCHA, Companion tiếp tục và PDF/barcode do chính <strong>visa.kdmid.ru</strong> tạo. <strong>Barcode chỉ hợp lệ khi do KD-MID tạo.</strong></p></div>
     </section>;
   }
 
