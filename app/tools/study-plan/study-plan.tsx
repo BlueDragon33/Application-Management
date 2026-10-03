@@ -159,6 +159,13 @@ const copy = {
     navSkills: "Kỹ năng & định hướng",
     navAnalysis: "Phân tích chương trình",
     navPreparation: "Lộ trình chuẩn bị",
+    navScheduleSub: "Tuần · tháng · học kỳ · năm",
+    navCoursesSub: "Tìm và lọc 33 học phần",
+    navSkillsSub: "6 nhóm năng lực chính",
+    navAnalysisSub: "120 tín chỉ · 4.320 giờ",
+    navPreparationSub: "Kế hoạch chuẩn bị 12 tuần",
+    workspaceTitle: "Chọn khu vực làm việc",
+    workspaceHint: "Bấm một mục để mở đúng phần cần xem — không phải cuộn cả trang.",
     quickFind: "Tìm nhanh môn học",
     quickFindPlaceholder: "Gõ tên môn bằng Việt / English / Русский...",
     quickFindHint: "Enter để mở danh sách kết quả",
@@ -313,6 +320,13 @@ const copy = {
     navSkills: "Skills & direction",
     navAnalysis: "Program analysis",
     navPreparation: "Preparation roadmap",
+    navScheduleSub: "Week · month · semester · year",
+    navCoursesSub: "Search and filter 33 entries",
+    navSkillsSub: "6 core competency areas",
+    navAnalysisSub: "120 credits · 4,320 hours",
+    navPreparationSub: "12-week preparation plan",
+    workspaceTitle: "Choose a workspace",
+    workspaceHint: "Open only the section you need instead of scrolling through the full page.",
     quickFind: "Quick course search",
     quickFindPlaceholder: "Type a course in Vietnamese / English / Русский...",
     quickFindHint: "Press Enter to open the result list",
@@ -350,10 +364,20 @@ const programKindLabels = {
   },
 } as const;
 
+type WorkspaceSection = "schedule" | "courses" | "skills" | "analysis" | "roadmap";
+type StudyFontScale = "normal" | "large" | "xlarge";
 type ExplorerSemester = "all" | "1" | "2" | "3" | "4";
 type ExplorerKind = "all" | CourseKind;
 type ExplorerReadiness = "all" | ReadinessLevel;
 type ExplorerSort = "semester" | "credits" | "readiness";
+
+function WorkspaceIcon({ section }: { section: WorkspaceSection }) {
+  if (section === "schedule") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v3M17 3v3M4.5 8.5h15M6 5h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/><path d="M8 12h3v3H8zM13.5 12h2.5M13.5 15h2.5"/></svg>;
+  if (section === "courses") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h10a3 3 0 0 1 3 3V20H8a3 3 0 0 1-3-3V4.5Z"/><path d="M8 8h7M8 11h6M18 9.5h1.5a1.5 1.5 0 0 1 0 3H18"/></svg>;
+  if (section === "skills") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 14.1 8l4.9.6-3.6 3.4.9 4.8-4.3-2.4-4.3 2.4.9-4.8L5 8.6 9.9 8 12 3.5Z"/><path d="m8.5 19 3.5 1.5 3.5-1.5"/></svg>;
+  if (section === "analysis") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V9M10 19V5M15 19v-7M20 19V3"/><path d="M3.5 19.5h18"/></svg>;
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19c3-6 5-9 9-12l4-3 2 2-3 4c-3 4-6 6-12 9Z"/><path d="m11 13 3 3M6 17l-2 3 3-1"/></svg>;
+}
 
 const readinessWeight: Record<ReadinessLevel, number> = {
   red: 0,
@@ -952,6 +976,8 @@ export default function StudyPlanTool({
   const [year, setYear] = useState<1 | 2>(1);
   const [week, setWeek] = useState(1);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>("multivariate");
+  const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceSection>("schedule");
+  const [fontScale, setFontScale] = useState<StudyFontScale>("normal");
   const [courseQuery, setCourseQuery] = useState("");
   const [courseSemesterFilter, setCourseSemesterFilter] = useState<ExplorerSemester>("all");
   const [courseKindFilter, setCourseKindFilter] = useState<ExplorerKind>("all");
@@ -959,6 +985,23 @@ export default function StudyPlanTool({
   const [courseSort, setCourseSort] = useState<ExplorerSort>("semester");
   const [completed, setCompleted] = useState<Record<string, boolean>>({});
   const [progressLoaded, setProgressLoaded] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem("application-management:study-plan-font-scale:v1");
+      if (saved === "normal" || saved === "large" || saved === "xlarge") setFontScale(saved);
+    } catch {
+      // Font preference is device-local and optional.
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("application-management:study-plan-font-scale:v1", fontScale);
+    } catch {
+      // Font preference is device-local and optional.
+    }
+  }, [fontScale]);
 
   useEffect(() => {
     try {
@@ -985,6 +1028,13 @@ export default function StudyPlanTool({
   const printStudyPlan = () => window.print();
 
   const t = copy[lang];
+  const workspaceItems: Array<{ id: WorkspaceSection; label: string; sub: string; badge: string }> = [
+    { id: "schedule", label: t.navSchedule, sub: t.navScheduleSub, badge: "4 HK" },
+    { id: "courses", label: t.navCourses, sub: t.navCoursesSub, badge: String(courses.length) },
+    { id: "skills", label: t.navSkills, sub: t.navSkillsSub, badge: String(skillClusterDefinitions.length) },
+    { id: "analysis", label: t.navAnalysis, sub: t.navAnalysisSub, badge: String(program.credits) },
+    { id: "roadmap", label: t.navPreparation, sub: t.navPreparationSub, badge: "12" },
+  ];
   const meta = semesterMeta[semester];
   const selectedCourse = courses.find((course) => course.id === selectedCourseId) ?? null;
   const visibleCourses = useMemo(() => {
@@ -1105,6 +1155,7 @@ export default function StudyPlanTool({
   }, [moduleCoverage.missing]);
 
   const openCoverageCourse = (course: Course) => {
+    setActiveWorkspace("schedule");
     setSemester(course.semester);
     setYear(course.semester <= 2 ? 1 : 2);
     setMode("semester");
@@ -1128,6 +1179,7 @@ export default function StudyPlanTool({
   };
 
   const openCourseFromAnalysis = (course: Course) => {
+    setActiveWorkspace("schedule");
     setSemester(course.semester);
     setYear(course.semester <= 2 ? 1 : 2);
     setMode("semester");
@@ -1145,13 +1197,21 @@ export default function StudyPlanTool({
     setCourseSort("semester");
   };
 
-  const jumpToCourseExplorer = () => {
+  const switchWorkspace = (next: WorkspaceSection) => {
+    setActiveWorkspace(next);
     window.requestAnimationFrame(() => {
-      document.getElementById("course-explorer")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      document.getElementById("workspace-content")?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   };
 
-  return <main className={styles.shell} id="study-plan-top">
+  const jumpToCourseExplorer = () => {
+    setActiveWorkspace("courses");
+    window.requestAnimationFrame(() => {
+      document.getElementById("workspace-content")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
+
+  return <main className={styles.shell} id="study-plan-top" data-workspace={activeWorkspace} data-font-scale={fontScale}>
     <header className={styles.topbar}>
       <div className={styles.contextNav}>
         <Link href="/" className={styles.back}>{t.back}</Link>
@@ -1160,6 +1220,11 @@ export default function StudyPlanTool({
       <div className={styles.language} aria-label="Language">
         <button type="button" data-active={lang === "vi"} onClick={() => setLang("vi")}>VI</button>
         <button type="button" data-active={lang === "en"} onClick={() => setLang("en")}>EN</button>
+      </div>
+      <div className={styles.fontControl} aria-label={lang === "vi" ? "Cỡ chữ" : "Text size"}>
+        <button type="button" data-active={fontScale === "normal"} aria-label={lang === "vi" ? "Cỡ chữ chuẩn" : "Normal text size"} onClick={() => setFontScale("normal")}>A</button>
+        <button type="button" data-active={fontScale === "large"} aria-label={lang === "vi" ? "Cỡ chữ lớn" : "Large text size"} onClick={() => setFontScale("large")}>A+</button>
+        <button type="button" data-active={fontScale === "xlarge"} aria-label={lang === "vi" ? "Cỡ chữ rất lớn" : "Extra large text size"} onClick={() => setFontScale("xlarge")}>A++</button>
       </div>
       <button type="button" className={styles.printButton} onClick={printStudyPlan}>{t.exportPdf}</button>
       <div className={styles.user}><span>{user.displayName.slice(0, 1).toUpperCase()}</span><div><strong>{user.displayName}</strong><small>{user.email}</small></div></div>
@@ -1203,32 +1268,28 @@ export default function StudyPlanTool({
       <small className={styles.commandHint}>{t.quickFindHint}</small>
     </section>
 
-    <section className={styles.integrationBridge} aria-label={t.integrationTitle}>
-      <div className={styles.integrationLead}>
-        <span>{t.integrationTitle}</span>
-        <p>{t.integrationNote}</p>
-      </div>
-      <div className={styles.integrationFacts}>
-        <article><small>{t.integrationParent}</small><strong>Bauman Hub</strong><Link href="/apps/bauman-master-ai">{t.baumanAdmin} →</Link></article>
-        <article><small>{t.integrationRegistry}</small><strong data-live={baumanRegistryStatus === "live"}>{baumanRegistryStatus === "live" ? t.registryLive : t.registryFallback}</strong><span>{baumanModules.length} {lang === "vi" ? "nguồn nối" : "connected resources"}</span></article>
-        <article><small>{t.integrationCoverage}</small><strong>{moduleCoverage.covered.length}/{courses.length}</strong><span>{moduleCoverage.percent}%</span></article>
-      </div>
+    <section className={styles.workspaceLauncher} aria-labelledby="workspace-launcher-title">
+      <header>
+        <div>
+          <span id="workspace-launcher-title">{t.workspaceTitle}</span>
+          <p>{t.workspaceHint}</p>
+        </div>
+      </header>
+      <nav className={styles.studySections} aria-label={t.title}>
+        {workspaceItems.map((item) => <button
+          key={item.id}
+          type="button"
+          data-active={activeWorkspace === item.id}
+          aria-pressed={activeWorkspace === item.id}
+          onClick={() => switchWorkspace(item.id)}
+        >
+          <span className={styles.workspaceIcon}><WorkspaceIcon section={item.id}/></span>
+          <div><strong>{item.label}</strong><small>{item.sub}</small></div>
+          <b>{item.badge}</b>
+        </button>)}
+      </nav>
     </section>
-
-    <section className={styles.stats}>
-      <Stat value={program.credits} label={t.credits} sub={t.totalHours} />
-      <Stat value={4} label={t.semesters} sub="30 + 30 + 30 + 30" />
-      <Stat value={62} label={t.teachingWeeks} sub="17 + 17 + 17 + 11" />
-      <Stat value="≈51" label={t.avgLoad} sub={t.hoursWeek} />
-    </section>
-
-    <nav className={styles.studySections} aria-label={t.title}>
-      <a href="#study-plan-content">{t.navSchedule}</a>
-      <a href="#course-explorer">{t.navCourses}</a>
-      <a href="#skills-direction">{t.navSkills}</a>
-      <a href="#program-analysis">{t.navAnalysis}</a>
-      <a href="#pre-bauman-roadmap">{t.navPreparation}</a>
-    </nav>
+    <div id="workspace-content" className={styles.workspaceContentAnchor} aria-hidden="true" />
 
     <section className={styles.readinessLegend}>
       <div>
@@ -1462,6 +1523,25 @@ export default function StudyPlanTool({
           </div> : null}
         </article>)}
       </div>
+    </section>
+
+    <section className={styles.integrationBridge} aria-label={t.integrationTitle}>
+      <div className={styles.integrationLead}>
+        <span>{t.integrationTitle}</span>
+        <p>{t.integrationNote}</p>
+      </div>
+      <div className={styles.integrationFacts}>
+        <article><small>{t.integrationParent}</small><strong>Bauman Hub</strong><Link href="/apps/bauman-master-ai">{t.baumanAdmin} →</Link></article>
+        <article><small>{t.integrationRegistry}</small><strong data-live={baumanRegistryStatus === "live"}>{baumanRegistryStatus === "live" ? t.registryLive : t.registryFallback}</strong><span>{baumanModules.length} {lang === "vi" ? "nguồn nối" : "connected resources"}</span></article>
+        <article><small>{t.integrationCoverage}</small><strong>{moduleCoverage.covered.length}/{courses.length}</strong><span>{moduleCoverage.percent}%</span></article>
+      </div>
+    </section>
+
+    <section className={styles.stats}>
+      <Stat value={program.credits} label={t.credits} sub={t.totalHours} />
+      <Stat value={4} label={t.semesters} sub="30 + 30 + 30 + 30" />
+      <Stat value={62} label={t.teachingWeeks} sub="17 + 17 + 17 + 11" />
+      <Stat value="≈51" label={t.avgLoad} sub={t.hoursWeek} />
     </section>
 
     <section className={styles.overall} id="program-analysis">

@@ -3515,3 +3515,788 @@
     border-top:0;
   }
 }
+
+
+/* === App-style workspace navigation + readable ChatGPT-scale type === */
+@media screen {
+  .shell{
+    font-size:16px;
+    line-height:1.5;
+  }
+
+  .topbar{
+    min-height:64px;
+  }
+
+  .back,
+  .baumanAdminLink,
+  .printButton,
+  .language button{
+    font-size:14px;
+  }
+
+  .user strong{
+    font-size:14px;
+  }
+
+  .user small{
+    font-size:12px;
+  }
+
+  .hero{
+    padding-top:22px;
+    padding-bottom:12px;
+  }
+
+  .hero>div:first-child,
+  .programCard{
+    min-height:168px;
+  }
+
+  .hero h1{
+    font-size:clamp(34px,4vw,48px);
+  }
+
+  .hero p{
+    font-size:16px;
+  }
+
+  .hero>div:first-child small,
+  .programCard small{
+    font-size:13px;
+  }
+
+  .programCard strong{
+    font-size:20px;
+  }
+
+  .programCard span,
+  .programCard p{
+    font-size:14px;
+  }
+
+  .commandBar{
+    max-width:1280px;
+    grid-template-columns:1fr;
+    margin-bottom:16px;
+  }
+
+  .commandSearch{
+    min-height:62px;
+  }
+
+  .commandSearch input{
+    font-size:16px;
+  }
+
+  .commandSearch button{
+    min-height:46px;
+    padding:0 18px;
+    font-size:14px;
+  }
+
+  .commandShortcuts,
+  .commandHint{
+    display:none;
+  }
+
+  .workspaceLauncher{
+    max-width:1280px;
+    margin:0 auto 22px;
+    padding:0 24px;
+  }
+
+  .workspaceLauncher>header{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:18px;
+    margin-bottom:12px;
+  }
+
+  .workspaceLauncher>header span{
+    color:#1c2536;
+    font-size:17px;
+    font-weight:850;
+    letter-spacing:-.01em;
+  }
+
+  .workspaceLauncher>header p{
+    margin:4px 0 0;
+    color:#727d8f;
+    font-size:14px;
+    line-height:1.45;
+  }
+
+  .studySections{
+    position:static;
+    top:auto;
+    z-index:auto;
+    margin:0;
+    padding:0;
+    display:grid;
+    grid-template-columns:repeat(5,minmax(0,1fr));
+    gap:10px;
+    overflow:visible;
+    border:0;
+    background:transparent;
+    backdrop-filter:none;
+  }
+
+  .studySections button{
+    min-width:0;
+    min-height:116px;
+    padding:14px;
+    display:grid;
+    grid-template-columns:50px minmax(0,1fr);
+    grid-template-rows:auto auto;
+    align-items:center;
+    gap:8px 12px;
+    border:1px solid #e3e7ed;
+    border-radius:20px;
+    background:#fff;
+    color:#344054;
+    text-align:left;
+    cursor:pointer;
+    box-shadow:0 4px 16px rgba(24,34,52,.035);
+    transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease,background .16s ease;
+  }
+
+  .studySections button:hover{
+    transform:translateY(-2px);
+    border-color:#cfd7e5;
+    box-shadow:0 10px 26px rgba(24,34,52,.07);
+  }
+
+  .studySections button[data-active="true"]{
+    border-color:#aebcf7;
+    background:linear-gradient(145deg,#f8faff,#eef2ff);
+    box-shadow:0 10px 28px rgba(62,88,205,.11);
+  }
+
+  .workspaceIcon{
+    width:50px;
+    height:50px;
+    grid-row:1 / 3;
+    display:grid;
+    place-items:center;
+    border-radius:15px;
+    background:#f1f3f6;
+    color:#566275;
+  }
+
+  .studySections button[data-active="true"] .workspaceIcon{
+    background:#315eea;
+    color:#fff;
+    box-shadow:0 7px 18px rgba(49,94,234,.22);
+  }
+
+  .workspaceIcon svg{
+    width:25px;
+    height:25px;
+    fill:none;
+    stroke:currentColor;
+    stroke-width:1.7;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+  }
+
+  .studySections button>div{
+    min-width:0;
+    align-self:end;
+  }
+
+  .studySections button strong{
+    display:block;
+    overflow:hidden;
+    color:#1e293b;
+    font-size:16px;
+    font-weight:850;
+    line-height:1.25;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  .studySections button small{
+    display:block;
+    margin-top:4px;
+    overflow:hidden;
+    color:#7a8597;
+    font-size:13px;
+    line-height:1.3;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  .studySections button>b{
+    align-self:start;
+    justify-self:start;
+    padding:3px 7px;
+    border-radius:999px;
+    background:#f2f4f7;
+    color:#667085;
+    font-size:12px;
+    font-weight:800;
+  }
+
+  .studySections button[data-active="true"]>b{
+    background:#fff;
+    color:#315eea;
+  }
+
+  .workspaceContentAnchor{
+    height:1px;
+    max-width:1280px;
+    margin:0 auto;
+    scroll-margin-top:80px;
+  }
+
+  .shell[data-workspace] .integrationBridge,
+  .shell[data-workspace] .stats,
+  .shell[data-workspace] .readinessLegend,
+  .shell[data-workspace] .preBaumanRoadmap,
+  .shell[data-workspace] .controls,
+  .shell[data-workspace] .contentGrid,
+  .shell[data-workspace] .courseExplorer,
+  .shell[data-workspace] .skillsDirection,
+  .shell[data-workspace] .overall{
+    display:none;
+  }
+
+  .shell[data-workspace="schedule"] .readinessLegend{
+    display:flex;
+  }
+
+  .shell[data-workspace="schedule"] .controls{
+    display:flex;
+  }
+
+  .shell[data-workspace="schedule"] .contentGrid{
+    display:grid;
+  }
+
+  .shell[data-workspace="courses"] .readinessLegend,
+  .shell[data-workspace="skills"] .readinessLegend{
+    display:flex;
+  }
+
+  .shell[data-workspace="courses"] .courseExplorer{
+    display:block;
+  }
+
+  .shell[data-workspace="skills"] .skillsDirection{
+    display:block;
+  }
+
+  .shell[data-workspace="analysis"] .integrationBridge,
+  .shell[data-workspace="analysis"] .stats{
+    display:grid;
+  }
+
+  .shell[data-workspace="analysis"] .overall{
+    display:block;
+  }
+
+  .shell[data-workspace="roadmap"] .preBaumanRoadmap{
+    display:block;
+  }
+
+  .readinessLegend{
+    margin-top:0;
+  }
+
+  .readinessLegend strong{
+    font-size:15px;
+  }
+
+  .readinessLegend p{
+    font-size:14px;
+  }
+
+  .readinessLegendItems span{
+    font-size:13px;
+  }
+
+  .controls{
+    padding:14px 16px;
+  }
+
+  .modeGroup>span,
+  .selectLabel{
+    font-size:13px;
+  }
+
+  .modeGroup button,
+  .selectLabel select,
+  .sectionHeading select{
+    font-size:14px;
+  }
+
+  .sectionHeading span{
+    font-size:13px;
+  }
+
+  .sectionHeading h2{
+    font-size:22px;
+  }
+
+  .semesterMetrics,
+  .semesterMetrics span,
+  .semesterMetrics b{
+    font-size:13px;
+  }
+
+  .loadStrip small,
+  .monthNumbers small,
+  .officialGrid small,
+  .analysisBlock small,
+  .moduleBridge small{
+    font-size:13px;
+  }
+
+  .loadStrip strong,
+  .monthNumbers b{
+    font-size:18px;
+  }
+
+  .derivedNote,
+  .sourceDisclaimer,
+  .officialNote,
+  .analysisDisclaimer{
+    font-size:13px;
+    line-height:1.55;
+  }
+
+  .insight small{
+    font-size:13px;
+  }
+
+  .insight p{
+    font-size:14px;
+  }
+
+  .courseTableHeader{
+    font-size:13px;
+  }
+
+  .courseRow,
+  .weekCourseList button,
+  .monthCourses button,
+  .yearSemesters button{
+    font-size:14px;
+  }
+
+  .courseName strong,
+  .weekCourseList strong{
+    font-size:15px;
+  }
+
+  .courseName small,
+  .weekCourseList small{
+    font-size:13px;
+  }
+
+  .kindBadge,
+  .readinessBadge{
+    font-size:12px;
+  }
+
+  .detailHeader span,
+  .detailKind{
+    font-size:13px;
+  }
+
+  .detailHeader h2{
+    font-size:22px;
+  }
+
+  .detailHeader p,
+  .analysisBlock p,
+  .moduleBridge p,
+  .readinessCard p{
+    font-size:14px;
+  }
+
+  .officialGrid strong,
+  .assessmentLine,
+  .moduleBridge strong,
+  .readinessCard strong{
+    font-size:14px;
+  }
+
+  .courseExplorerHeader span,
+  .skillsHeader>div:first-child>span,
+  .creditStructureHeading span,
+  .workloadHeading span,
+  .coverageHeader span{
+    font-size:16px;
+  }
+
+  .courseExplorerHeader p,
+  .skillsHeader>div:first-child>p,
+  .creditStructureHeading p,
+  .workloadHeading p,
+  .coverageHeader p{
+    font-size:14px;
+  }
+
+  .courseExplorerHeader>strong{
+    font-size:13px;
+  }
+
+  .courseExplorerFilters select,
+  .courseExplorerFilters>button,
+  .courseSearch,
+  .courseSearch input{
+    font-size:14px;
+  }
+
+  .skillGrid h3{
+    font-size:17px;
+  }
+
+  .skillGrid>article>p{
+    font-size:14px;
+  }
+
+  .skillGrid>article>header span,
+  .skillReadinessCounts span,
+  .skillReadinessCounts small,
+  .skillPriority small,
+  .skillPriority button{
+    font-size:12px;
+  }
+
+  .skillPriority strong{
+    font-size:14px;
+  }
+
+  .overall>header>span{
+    font-size:14px;
+  }
+
+  .overall>header>h2{
+    font-size:23px;
+  }
+
+  .overallGrid strong,
+  .creditStructureGrid span,
+  .workloadGrid header span,
+  .coverageStats small,
+  .semesterCoverage h3,
+  .missingCourses h3,
+  .gapPlan h3{
+    font-size:14px;
+  }
+
+  .overallGrid p,
+  .creditStructureGrid small,
+  .workloadGrid header small,
+  .workloadLegend,
+  .semesterCoverage small,
+  .missingCourses,
+  .gapPlan p{
+    font-size:13px;
+  }
+
+  .preBaumanHeader h2{
+    font-size:22px;
+  }
+
+  .preBaumanHeader p,
+  .phaseWhy,
+  .phaseTasks,
+  .phaseCheckpoint,
+  .phaseImpact{
+    font-size:14px;
+  }
+
+  .preBaumanPhase h3,
+  .phaseFocus{
+    font-size:16px;
+  }
+}
+
+@media screen and (max-width:1050px){
+  .studySections{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+}
+
+@media screen and (max-width:760px){
+  .workspaceLauncher{
+    padding:0 12px;
+    margin-bottom:16px;
+  }
+
+  .workspaceLauncher>header p{
+    font-size:13px;
+  }
+
+  .studySections{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+  }
+
+  .studySections button{
+    min-height:104px;
+    grid-template-columns:44px minmax(0,1fr);
+    padding:12px;
+    border-radius:17px;
+  }
+
+  .workspaceIcon{
+    width:44px;
+    height:44px;
+    border-radius:13px;
+  }
+
+  .workspaceIcon svg{
+    width:22px;
+    height:22px;
+  }
+
+  .studySections button strong{
+    font-size:15px;
+  }
+
+  .studySections button small{
+    font-size:12px;
+  }
+
+  .commandSearch input{
+    font-size:15px;
+  }
+
+  .readinessLegend{
+    flex-direction:column;
+  }
+}
+
+@media screen and (max-width:430px){
+  .studySections{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .studySections button{
+    min-height:98px;
+    grid-template-columns:40px minmax(0,1fr);
+    gap:6px 9px;
+  }
+
+  .workspaceIcon{
+    width:40px;
+    height:40px;
+  }
+
+  .studySections button strong{
+    font-size:14px;
+  }
+
+  .studySections button small{
+    font-size:11.5px;
+  }
+}
+
+
+/* === User-controlled Study Plan typography === */
+@media screen {
+  .shell{
+    --fs-xs:12px;
+    --fs-sm:13px;
+    --fs-base:14px;
+    --fs-md:15px;
+    --fs-lg:16px;
+    --fs-xl:18px;
+    --fs-h2:22px;
+  }
+
+  .shell[data-font-scale="large"]{
+    --fs-xs:13px;
+    --fs-sm:14px;
+    --fs-base:15.5px;
+    --fs-md:16.5px;
+    --fs-lg:18px;
+    --fs-xl:20px;
+    --fs-h2:24px;
+  }
+
+  .shell[data-font-scale="xlarge"]{
+    --fs-xs:14px;
+    --fs-sm:15px;
+    --fs-base:17px;
+    --fs-md:18px;
+    --fs-lg:20px;
+    --fs-xl:22px;
+    --fs-h2:26px;
+  }
+
+  .fontControl{
+    display:flex;
+    align-items:center;
+    gap:2px;
+    padding:3px;
+    border:1px solid #e4e8ee;
+    border-radius:11px;
+    background:#f5f6f8;
+  }
+
+  .fontControl button{
+    min-width:34px;
+    min-height:30px;
+    padding:0 7px;
+    border:0;
+    border-radius:8px;
+    background:transparent;
+    color:#667085;
+    font-weight:850;
+    cursor:pointer;
+    font-size:12px;
+  }
+
+  .fontControl button[data-active="true"]{
+    background:#fff;
+    color:#1f3fb4;
+    box-shadow:0 1px 3px rgba(16,24,40,.09);
+  }
+
+  .back,
+  .baumanAdminLink,
+  .printButton,
+  .language button,
+  .commandSearch button,
+  .modeGroup button,
+  .selectLabel select,
+  .sectionHeading select,
+  .courseExplorerFilters select,
+  .courseExplorerFilters>button,
+  .courseSearch,
+  .courseSearch input,
+  .courseRow,
+  .weekCourseList button,
+  .monthCourses button,
+  .yearSemesters button{
+    font-size:var(--fs-base);
+  }
+
+  .user small,
+  .hero>div:first-child small,
+  .programCard small,
+  .studySections button small,
+  .loadStrip small,
+  .monthNumbers small,
+  .officialGrid small,
+  .analysisBlock small,
+  .moduleBridge small,
+  .courseName small,
+  .weekCourseList small,
+  .kindBadge,
+  .readinessBadge,
+  .detailHeader span,
+  .detailKind,
+  .skillGrid>article>header span,
+  .skillReadinessCounts span,
+  .skillReadinessCounts small,
+  .skillPriority small,
+  .skillPriority button,
+  .creditStructureGrid small,
+  .workloadGrid header small,
+  .semesterCoverage small,
+  .sourceDisclaimer,
+  .derivedNote,
+  .officialNote,
+  .analysisDisclaimer{
+    font-size:var(--fs-sm);
+  }
+
+  .user strong,
+  .programCard span,
+  .programCard p,
+  .workspaceLauncher>header p,
+  .readinessLegend p,
+  .readinessLegendItems span,
+  .modeGroup>span,
+  .selectLabel,
+  .sectionHeading span,
+  .semesterMetrics,
+  .semesterMetrics span,
+  .semesterMetrics b,
+  .insight small,
+  .insight p,
+  .courseTableHeader,
+  .detailHeader p,
+  .analysisBlock p,
+  .moduleBridge p,
+  .readinessCard p,
+  .officialGrid strong,
+  .assessmentLine,
+  .moduleBridge strong,
+  .readinessCard strong,
+  .courseExplorerHeader p,
+  .skillsHeader>div:first-child>p,
+  .creditStructureHeading p,
+  .workloadHeading p,
+  .coverageHeader p,
+  .skillGrid>article>p,
+  .skillPriority strong,
+  .overallGrid p,
+  .creditStructureGrid span,
+  .workloadGrid header span,
+  .workloadLegend,
+  .missingCourses,
+  .gapPlan p,
+  .preBaumanHeader p,
+  .phaseWhy,
+  .phaseTasks,
+  .phaseCheckpoint,
+  .phaseImpact{
+    font-size:var(--fs-base);
+  }
+
+  .workspaceLauncher>header span,
+  .studySections button strong,
+  .courseName strong,
+  .weekCourseList strong,
+  .readinessLegend strong,
+  .courseExplorerHeader span,
+  .skillsHeader>div:first-child>span,
+  .creditStructureHeading span,
+  .workloadHeading span,
+  .coverageHeader span,
+  .skillGrid h3,
+  .overallGrid strong,
+  .coverageStats small,
+  .semesterCoverage h3,
+  .missingCourses h3,
+  .gapPlan h3,
+  .preBaumanPhase h3,
+  .phaseFocus{
+    font-size:var(--fs-lg);
+  }
+
+  .programCard strong,
+  .loadStrip strong,
+  .monthNumbers b{
+    font-size:var(--fs-xl);
+  }
+
+  .sectionHeading h2,
+  .detailHeader h2,
+  .preBaumanHeader h2,
+  .overall>header>h2{
+    font-size:var(--fs-h2);
+  }
+
+  .commandSearch input,
+  .hero p{
+    font-size:var(--fs-lg);
+  }
+}
+
+@media screen and (max-width:760px){
+  .fontControl button{
+    min-width:28px;
+    padding:0 4px;
+    font-size:11px;
+  }
+}

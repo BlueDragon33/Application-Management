@@ -67,16 +67,15 @@ test("study-plan final completion adds searchable course explorer and skills dir
   assert.match(ui, /readinessWeight\[readinessByCourse\[a\.id\]\.level\]/);
 });
 
-test("study-plan final UI exposes section tabs and responsive explorer/skills layout", () => {
+test("study-plan final UI exposes selectable app-style sections and responsive explorer/skills layout", () => {
   const ui = source("app/tools/study-plan/study-plan.tsx");
   const css = source("app/tools/study-plan/study-plan.module.css");
 
   assert.match(ui, /className=\{styles\.studySections\}/);
-  assert.match(ui, /href="#study-plan-content"/);
-  assert.match(ui, /href="#course-explorer"/);
-  assert.match(ui, /href="#skills-direction"/);
-  assert.match(ui, /href="#program-analysis"/);
-  assert.match(ui, /href="#pre-bauman-roadmap"/);
+  for (const id of ["schedule", "courses", "skills", "analysis", "roadmap"]) {
+    assert.match(ui, new RegExp(`id: "${id}"`));
+  }
+  assert.match(ui, /switchWorkspace\(item\.id\)/);
   assert.match(css, /\.studySections\s*\{/);
   assert.match(css, /\.courseExplorerFilters\s*\{/);
   assert.match(css, /\.skillGrid\s*\{/);
