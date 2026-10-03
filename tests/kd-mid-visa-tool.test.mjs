@@ -4,8 +4,8 @@ import test from "node:test";
 
 const dashboard = fs.readFileSync("app/management-dashboard-v2.tsx", "utf8");
 const tool = fs.readFileSync("app/tools/kd-mid-visa/kd-mid-visa.tsx", "utf8");
+const pdf = fs.readFileSync("app/tools/kd-mid-visa/visa-pdf.ts", "utf8");
 const page = fs.readFileSync("app/tools/kd-mid-visa/page.tsx", "utf8");
-const companion = fs.readFileSync("public/kd-mid-visa-companion.user.js", "utf8");
 
 test("KD-MID Visa is registered as an internal Tool", () => {
   assert.match(dashboard, /id: "tool-kd-mid-visa"/);
@@ -28,48 +28,53 @@ test("fixed address and work phone are enforced for every applicant", () => {
   assert.match(tool, /\+842437555706/);
   assert.match(tool, /personalAddress: fixedPermanentAddress/);
   assert.match(tool, /workPhone: fixedWorkPhone/);
-  assert.match(tool, /Cố định cho mọi hồ sơ/);
+  assert.match(pdf, /FIXED_ADDRESS = "ВЬЕТНАМ, Г\. ХАНОЙ, УЛИЦА НГИА ДО, ДОРОГА ХОАНГ КУОК ВЬЕТ, ДОМ Ш9"/);
+  assert.match(pdf, /FIXED_WORK_PHONE = "\+842437555706"/);
 });
 
 test("Russian labels expose English and Vietnamese hover help", () => {
   assert.match(tool, /const russianHints/);
   assert.match(tool, /English:/);
   assert.match(tool, /Tiếng Việt:/);
-  assert.match(companion, /addHoverHints/);
-  assert.match(companion, /Purpose of visit/);
-  assert.match(companion, /Mục đích chuyến đi/);
 });
 
-test("KD-MID Visa supports persistent companion automation and keeps a bookmarklet fallback", () => {
-  assert.match(tool, /buildAutomationUrl/);
-  assert.match(tool, /#kdmid-bridge=/);
-  assert.match(tool, /postMessage\(\{ type: "KD_MID_PAYLOAD"/);
-  assert.match(tool, /KD_MID_ACK/);
-  assert.match(tool, /kd-mid-visa-companion\.user\.js/);
-  assert.match(tool, /Mở KD-MID & tự điền/);
-  assert.match(tool, /Tự bấm Далее/);
-  assert.match(tool, /javascript:/);
-  assert.match(companion, /@match\s+https:\/\/visa\.kdmid\.ru\/\*/);
-  assert.match(companion, /KD_MID_PAYLOAD/);
-  assert.match(companion, /KD_MID_ACK/);
-  assert.match(companion, /maybeAutoAdvance/);
-  assert.match(companion, /Печать формата A4/);
+test("PDF export offers the three Russian missions in Vietnam", () => {
+  assert.match(pdf, /ПОСОЛЬСТВО РФ ВО ВЬЕТНАМЕ/);
+  assert.match(pdf, /ГЕНКОНСУЛЬСТВО РФ В ДАНАНГЕ/);
+  assert.match(pdf, /ГЕНКОНСУЛЬСТВО РФ В ХОШИМИНЕ/);
+  assert.match(tool, /Xuất PDF visa/);
+  assert.match(tool, /Получатель анкеты/);
+  assert.match(tool, /visaConsulates\.map/);
 });
 
-test("KD-MID Visa blocks automation when required passport fields are incomplete", () => {
-  assert.match(tool, /function applicantMissingFields/);
-  assert.match(tool, /Ngày sinh/);
-  assert.match(tool, /Ngày cấp hộ chiếu/);
-  assert.match(tool, /Ngày hết hạn hộ chiếu/);
-  assert.match(tool, /Chưa thể tự điền\. Hồ sơ còn thiếu/);
+test("PDF generator reproduces the official two-page A4 structure", () => {
+  assert.match(pdf, /PAGE_W_PT = 595/);
+  assert.match(pdf, /PAGE_H_PT = 842/);
+  assert.match(pdf, /ПЕЧАТНАЯ ФОРМА ЭЛЕКТРОННОЙ ВИЗОВОЙ АНКЕТЫ/);
+  assert.match(pdf, /Страница 1 из 2/);
+  assert.match(pdf, /Страница 2 из 2/);
+  assert.match(pdf, /Фотография и подпись/);
+  assert.match(pdf, /Служебная информация \(формируется автоматически\)/);
+  assert.match(pdf, /buildImagePdf/);
+  assert.match(pdf, /generateVisaApplicationPdf/);
 });
 
+test("PDF export does not invent an official application ID", () => {
+  assert.match(pdf, /function applicationNumber/);
+  assert.match(pdf, /\/\^\\d\{6,12\}\$\//);
+  assert.match(tool, /Nếu chưa có, PDF vẫn được tạo nhưng để trống ID\/barcode/);
+});
 
-test("KD-MID connect page exposes a visible applicant selector", () => {
-  assert.match(tool, /Chọn hồ sơ sử dụng/);
+test("PDF export keeps optional Russia visit and insurance rows dynamic", () => {
+  assert.match(pdf, /visitExtra = visited \? 22\.2 : 0/);
+  assert.match(pdf, /insuranceExtra = insured \? 22\.2 : 0/);
+  assert.match(pdf, /Даты Вашей последней поездки в Россию/);
+  assert.match(pdf, /Название страховой компании и номер/);
+});
+
+test("PDF export page exposes an applicant selector", () => {
+  assert.match(tool, /HỒ SƠ ĐANG DÙNG/);
   assert.match(tool, /store\.applicants\.map/);
-  assert.match(tool, /value=\{selected\?\.id \?\? ""\}/);
-  assert.match(tool, /setStore\(\(current\) => \(\{ \.\.\.current, selectedId: event\.target\.value \}\)\)/);
-  assert.match(tool, /Đang dùng/);
-  assert.match(tool, /Sửa hồ sơ/);
+  assert.match(tool, /selectedId: event\.target\.value/);
+  assert.match(tool, /Sửa hồ sơ đang chọn/);
 });
