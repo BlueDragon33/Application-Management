@@ -46,6 +46,10 @@ type Applicant = {
   position: string;
   workPhone: string;
   passwordOverride: string;
+  routeCity: string;
+  hadFormerRussianCitizenship: boolean;
+  formerCitizenshipLostDate: string;
+  formerCitizenshipLossReason: string;
   visitedRussia: boolean;
   visitsCount: string;
   lastVisitFrom: string;
@@ -116,6 +120,10 @@ function emptyApplicant(): Applicant {
     position: "",
     workPhone: fixedWorkPhone,
     passwordOverride: "",
+    routeCity: "МОСКВА",
+    hadFormerRussianCitizenship: false,
+    formerCitizenshipLostDate: "",
+    formerCitizenshipLossReason: "",
     visitedRussia: false,
     visitsCount: "",
     lastVisitFrom: "",
@@ -135,7 +143,15 @@ function safeLoad(): Store {
     return {
       version: 1,
       common: { ...defaultCommon, ...(parsed.common ?? {}) },
-      applicants: Array.isArray(parsed.applicants) ? parsed.applicants.map((item) => ({ ...item, personalAddress: fixedPermanentAddress, workPhone: fixedWorkPhone })) : [],
+      applicants: Array.isArray(parsed.applicants) ? parsed.applicants.map((item) => ({
+        routeCity: "МОСКВА",
+        hadFormerRussianCitizenship: false,
+        formerCitizenshipLostDate: "",
+        formerCitizenshipLossReason: "",
+        ...item,
+        personalAddress: fixedPermanentAddress,
+        workPhone: fixedWorkPhone,
+      })) : [],
       records: Array.isArray(parsed.records) ? parsed.records : [],
       selectedId: typeof parsed.selectedId === "string" ? parsed.selectedId : "",
     };
@@ -491,6 +507,11 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       return;
     }
     const missing = applicantMissingFields(selected);
+    if (selected.hadFormerRussianCitizenship) {
+      if (!selected.formerCitizenshipLostDate.trim()) missing.push("Ngày mất quốc tịch Liên Xô/Nga");
+      if (!selected.formerCitizenshipLossReason.trim()) missing.push("Lý do mất quốc tịch Liên Xô/Nga");
+    }
+    if (!selected.routeCity.trim()) missing.push("Маршрут / Nơi đến tại Nga");
     if (selected.visitedRussia) {
       if (!selected.visitsCount.trim()) missing.push("Số lần đã đến Nga");
       if (!selected.lastVisitFrom.trim()) missing.push("Ngày bắt đầu chuyến Nga gần nhất");
@@ -586,7 +607,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         <Field label="ИНН"><TextInput value={c.tin} onChange={(v) => mutateCommon("tin", v)} /></Field>
         <Field label="Номер указания (телекса)"><TextInput value={c.telex} onChange={(v) => mutateCommon("telex", v)} /></Field>
         <Field label="Номер приглашения" hint="Để trống nếu giấy ghi НЕТ."><TextInput value={c.invitation} onChange={(v) => mutateCommon("invitation", v)} /></Field>
-        <Field label="Маршрут"><TextInput value={c.city} onChange={(v) => mutateCommon("city", v)} /></Field>
+        <Field label="Маршрут mặc định · Населенный пункт" hint="Hồ sơ cá nhân có thể ghi đè giá trị này."><TextInput value={c.city} onChange={(v) => mutateCommon("city", v)} /></Field>
         <Field label="Nơi nộp hồ sơ · Получатель анкеты" hint="Chọn đúng cơ quan tiếp nhận; giá trị tiếng Nga sẽ được in trên PDF."><select value={c.embassy} onChange={(event) => mutateCommon("embassy", event.target.value)}>{visaConsulates.map((item) => <option key={item.value} value={item.value}>{item.label} · {item.value}</option>)}</select></Field>
         <Field label="Nơi làm việc / học tập"><TextInput value={c.employer} onChange={(v) => mutateCommon("employer", v)} /></Field>
         <Field label="Địa chỉ cơ quan"><TextInput value={c.employerAddress} onChange={(v) => mutateCommon("employerAddress", v)} /></Field>
@@ -625,6 +646,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         <strong>Quy tắc xuất</strong>
         <p>Địa chỉ thường trú cố định: <code>{fixedPermanentAddress}</code>. Điện thoại cơ quan cố định: <code>{fixedWorkPhone}</code>. Nếu hồ sơ có lịch sử đến Nga hoặc bảo hiểm, trang 2 tự mở thêm các dòng tương ứng như mẫu có mục 16-17 mở rộng.</p>
         <p><strong>№ заявления (сайт)</strong> lấy từ trường Application ID nếu đã có. Nếu chưa có, PDF vẫn được tạo nhưng để trống ID/barcode thay vì tự bịa một mã chính thức.</p>
+        <p>Các trường đặc biệt đã hỗ trợ: <strong>Маршрут (населенные пункты)</strong> theo từng hồ sơ; và câu hỏi từng có quốc tịch Liên Xô/Nga. Khi chọn <strong>ДА</strong>, form mở thêm <strong>Когда?</strong> và <strong>В связи с чем?</strong>.</p>
       </div>
     </section>;
   }
@@ -708,6 +730,8 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
           <Field label="Дата рождения · dd/mm/yyyy"><TextInput value={editing.birthDate} onChange={(v) => setEditing({ ...editing, birthDate: v })} placeholder="03/03/1991" /></Field>
           <Field label="Место рождения · Nơi sinh"><TextInput value={editing.birthPlace} onChange={(v) => setEditing({ ...editing, birthPlace: v })} /></Field>
           <Field label="Пол · Giới tính"><select value={editing.sex} onChange={(e) => setEditing({ ...editing, sex: e.target.value })}><option>МУЖСКОЙ</option><option>ЖЕНСКИЙ</option></select></Field>
+          <Field label="Маршрут (населенные пункты) · Nơi đến tại Nga" hint={`Mặc định: ${store.common.city}`}><TextInput value={editing.routeCity || store.common.city} onChange={(v) => setEditing({ ...editing, routeCity: v.toUpperCase() })} /></Field>
+          <Field label="Если Вы имели гражданство СССР или России... · Đã từng có quốc tịch Liên Xô/Nga?"><select value={editing.hadFormerRussianCitizenship ? "ДА" : "НЕТ"} onChange={(e) => setEditing({ ...editing, hadFormerRussianCitizenship: e.target.value === "ДА" })}><option value="НЕТ">НЕТ · Không</option><option value="ДА">ДА · Có</option></select></Field>
           <Field label="Номер паспорта"><TextInput value={editing.passportNo} onChange={(v) => setEditing({ ...editing, passportNo: v.toUpperCase() })} /></Field>
           <Field label="Дата выдачи паспорта"><TextInput value={editing.passportIssue} onChange={(v) => setEditing({ ...editing, passportIssue: v })} placeholder="25/06/2025" /></Field>
           <Field label="Паспорт действителен до"><TextInput value={editing.passportExpiry} onChange={(v) => setEditing({ ...editing, passportExpiry: v })} placeholder="25/06/2035" /></Field>
@@ -719,6 +743,10 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
           <Field label="Password riêng" hint={`Để trống = dùng ${store.common.password}`}><TextInput value={editing.passwordOverride} onChange={(v) => setEditing({ ...editing, passwordOverride: v })} /></Field>
           <Field label="Application ID" hint="Bridge sẽ tự ghi khi nhận diện được."><TextInput value={editing.applicationId} onChange={(v) => setEditing({ ...editing, applicationId: v.replace(/\D/g, "") })} /></Field>
         </div>
+        {editing.hadFormerRussianCitizenship ? <div className={styles.formGrid}>
+          <Field label="Когда? · Mất quốc tịch khi nào?" hint="dd/mm/yyyy"><TextInput value={editing.formerCitizenshipLostDate} onChange={(v) => setEditing({ ...editing, formerCitizenshipLostDate: v })} placeholder="dd/mm/yyyy" /></Field>
+          <Field label="В связи с чем? · Lý do mất quốc tịch"><TextInput value={editing.formerCitizenshipLossReason} onChange={(v) => setEditing({ ...editing, formerCitizenshipLossReason: v })} /></Field>
+        </div> : null}
         <div className={styles.toggleRow}><label><input type="checkbox" checked={editing.visitedRussia} onChange={(e) => setEditing({ ...editing, visitedRussia: e.target.checked })} /> Đã từng đến Nga</label><label><input type="checkbox" checked={editing.hasInsurance} onChange={(e) => setEditing({ ...editing, hasInsurance: e.target.checked })} /> Có bảo hiểm hiệu lực tại Nga</label></div>
         {editing.visitedRussia ? <div className={styles.formGrid}><Field label="Số lần đến Nga"><TextInput value={editing.visitsCount} onChange={(v) => setEditing({ ...editing, visitsCount: v })} /></Field><Field label="Chuyến gần nhất · từ"><TextInput value={editing.lastVisitFrom} onChange={(v) => setEditing({ ...editing, lastVisitFrom: v })} /></Field><Field label="Chuyến gần nhất · đến"><TextInput value={editing.lastVisitTo} onChange={(v) => setEditing({ ...editing, lastVisitTo: v })} /></Field></div> : null}
         {editing.hasInsurance ? <div className={styles.formGrid}><Field label="Tên công ty / số policy"><TextInput value={editing.insurancePolicy} onChange={(v) => setEditing({ ...editing, insurancePolicy: v })} /></Field></div> : null}
