@@ -576,13 +576,23 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
     return <section className={styles.panel}>
       <header><div><span>KẾT NỐI KD-MID</span><h3>Tự động điền visa.kdmid.ru</h3></div><button onClick={() => void prepareBridge()} disabled={!selected}>Tạo bookmarklet dự phòng</button></header>
       <div className={styles.autoConnect}>
-        <div><span>KHUYÊN DÙNG</span><h4>Chế độ tự động liên tục bằng Companion Script</h4><p>Cài script một lần. Sau đó chỉ cần chọn hồ sơ trong App-Manager và bấm <strong>“Mở KD-MID & tự điền”</strong>. Script tự nhận dữ liệu từ URL hash, xóa hash ngay sau khi nhận, lưu tạm dữ liệu ở localStorage của visa.kdmid.ru và tự điền mỗi trang.</p></div>
-        <div className={styles.autoActions}><a className={styles.installLink} href="/kd-mid-visa-companion.user.js" target="_blank" rel="noreferrer">1. Cài Companion Script ↗</a><button onClick={openAutomaticKdmid} disabled={!selected}>2. Mở KD-MID & tự điền</button></div>
+        <div><span>KHUYÊN DÙNG</span><h4>Chế độ tự động liên tục bằng Companion Script</h4><p>Cài script một lần. Sau đó chọn đúng hồ sơ ngay tại đây rồi bấm <strong>“Mở KD-MID & tự điền”</strong>. Companion nhận dữ liệu từ App-Manager và tự điền từng trang.</p></div>
+        <div className={styles.autoActions}><a className={styles.installLink} href="/kd-mid-visa-companion.user.js" target="_blank" rel="noreferrer">1. Cài Companion Script ↗</a><button onClick={openAutomaticKdmid} disabled={!selected}>3. Mở KD-MID & tự điền</button></div>
+        <div className={styles.profileChooser}>
+          <div><span>BƯỚC 2</span><strong>Chọn hồ sơ sử dụng</strong><small>Danh sách lấy trực tiếp từ mục Hồ sơ cá nhân đã lưu trên máy này.</small></div>
+          {store.applicants.length ? <div className={styles.profileChooserControl}>
+            <select value={selected?.id ?? ""} onChange={(event) => setStore((current) => ({ ...current, selectedId: event.target.value }))}>
+              {store.applicants.map((item) => <option key={item.id} value={item.id}>{displayName(item)}{item.passportNo ? ` · ${item.passportNo}` : ""}</option>)}
+            </select>
+            {selected ? <button className={styles.secondary} onClick={() => setEditing({ ...selected })}>Sửa hồ sơ</button> : null}
+          </div> : <div className={styles.profileChooserEmpty}><span>Chưa có hồ sơ nào.</span><button onClick={() => { setEditing(emptyApplicant()); setRoute("applicants"); }}>+ Tạo hồ sơ</button></div>}
+          {selected ? <div className={styles.profileSummary}><span>Đang dùng</span><strong>{displayName(selected)}</strong><small>{selected.passportNo || "Chưa có số hộ chiếu"} · {selected.birthDate || "Chưa có ngày sinh"}</small></div> : null}
+        </div>
         <label className={styles.autoToggle}><input type="checkbox" checked={autoAdvance} onChange={(event) => setAutoAdvance(event.target.checked)} /><span><strong>Tự bấm Далее khi trang đã được điền</strong><small>Tắt mặc định. Khi bật, script chỉ tự chuyển các trang trung gian và dừng trước màn hình in/kiểm tra cuối hoặc khi gặp trang không nhận diện chắc chắn.</small></span></label>
       </div>
       <div className={styles.connectGrid}>
         <article><b>1</b><strong>Cài Companion một lần</strong><p>Mở “Cài Companion Script”. Tampermonkey/Violentmonkey phải hiện màn hình cài và sau đó script ở trạng thái <strong>Enabled</strong>. Nếu chỉ thấy trang đăng nhập App-Manager thì chưa cài được.</p></article>
-        <article><b>2</b><strong>Chọn hồ sơ</strong><p>{selected ? displayName(selected) : "Chưa chọn hồ sơ."} Các trường chung + cố định sẽ tự ghép vào hồ sơ.</p></article>
+        <article><b>2</b><strong>Chọn hồ sơ ngay phía trên</strong><p>{selected ? `Đang chọn: ${displayName(selected)}.` : "Chưa chọn hồ sơ."} Nếu có nhiều hồ sơ, mở danh sách và chọn đúng người trước khi chạy.</p></article>
         <article><b>3</b><strong>Bấm “Mở KD-MID & tự điền”</strong><p>App-Manager chỉ mở URL ngắn có mã bridge rồi truyền hồ sơ bằng postMessage. Nếu URL đứng im và còn <code>#kdmid-bridge=...</code>, Companion chưa chạy.</p></article>
         <article><b>4</b><strong>Rà soát cuối</strong><p>Tool dừng trước bước in/gửi cuối để bạn kiểm tra thông tin pháp lý trước khi hoàn tất.</p></article>
       </div>
