@@ -112,17 +112,6 @@ jobs:
             fi
           done
 
-      - name: Remove retired paid-browser Worker secret
-        if: steps.ready.outputs.deploy == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          if npx wrangler secret list --config wrangler.production.jsonc 2>/dev/null | grep -q 'TINYFISH_API_KEY'; then
-            printf 'y\n' | npx wrangler secret delete TINYFISH_API_KEY --config wrangler.production.jsonc
-            echo 'Retired paid-browser Worker secret removed.'
-          else
-            echo 'Retired paid-browser Worker secret already absent.'
-          fi
 
       - name: Deploy current main to live Worker
         if: steps.ready.outputs.deploy == 'true'
