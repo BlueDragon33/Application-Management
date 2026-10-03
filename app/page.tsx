@@ -6,6 +6,7 @@ import "./management-dashboard-v2-views.css";
 import "./management-dashboard-v2-final.css";
 import "./management-dashboard-v2-compact-tables.css";
 import "./management-dashboard-v2-typography.css";
+import "./management-app-launcher.css";
 import LocalQuickAccess from "./local-quick-access";
 
 export const dynamic = "force-dynamic";
