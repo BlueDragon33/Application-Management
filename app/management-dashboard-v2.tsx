@@ -1122,17 +1122,40 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
   const [mode, setMode] = useState<AppLauncherMode>("grid");
   const [launcherSearch, setLauncherSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [sortMode, setSortMode] = useState<AppLauncherSort>("name");
+  const [sortMode, setSortMode] = useState<AppLauncherSort>("manual");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [anchorElement, setAnchorElement] = useState<HTMLButtonElement | null>(null);
   const [popoverPlacement, setPopoverPlacement] = useState<AppLauncherPlacement>({ top: 12, left: 12, side: "right" });
   const [detailOpen, setDetailOpen] = useState(false);
+  const [categoryEditing, setCategoryEditing] = useState(false);
+  const [categoryDraft, setCategoryDraft] = useState("");
+  const [editMode, setEditMode] = useState(false);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [manualOrder, setManualOrder] = useState<string[]>([]);
+  const [categoryOverrides, setCategoryOverrides] = useState<Record<string, string>>({});
   const [scrollState, setScrollState] = useState({ up: false, down: false });
   const clickTimerRef = useRef<number | null>(null);
+  const longPressTimerRef = useRef<number | null>(null);
+  const longPressTriggeredRef = useRef(false);
   const openGuardRef = useRef<string | null>(null);
   const openGuardTimerRef = useRef<number | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    try {
+      const storedOrder = JSON.parse(window.localStorage.getItem(launcherOrderStorageKey) ?? "[]");
+      if (Array.isArray(storedOrder) && storedOrder.every((value) => typeof value === "string")) setManualOrder(storedOrder);
+    } catch {
+      setManualOrder([]);
+    }
+    try {
+      const storedCategories = JSON.parse(window.localStorage.getItem(launcherCategoryStorageKey) ?? "{}");
+      if (storedCategories && typeof storedCategories === "object" && !Array.isArray(storedCategories)) setCategoryOverrides(storedCategories as Record<string, string>);
+    } catch {
+      setCategoryOverrides({});
+    }
+  }, []);
 
   const items = useMemo<AppLauncherItem[]>(() => {
     const toolItems = tools.map((tool) => {
@@ -1192,7 +1215,7 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
         name: app.name,
         shortName: app.shortName,
         iconAppId: app.id,
-        category: app.category,
+        category: categoryOverrides[app.id] || app.category,
         description: app.scope,
         kind: "app" as const,
         href: canOpen ? summary?.webHref ?? app.publicUrl ?? (localRuntime ? app.localUrl : undefined) : undefined,
@@ -1208,8 +1231,8 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
       };
     });
 
-    return [...toolItems, ...appItems];
-  }, [apps, tools, summaryMap, devices, localRuntime, offline]);
+    return [...appItems, ...toolItems];
+  }, [apps, tools, summaryMap, devices, localRuntime, offline, categoryOverrides]);
 
   const categories = useMemo(() => {
     const present = new Set(items.map((item) => item.category));
