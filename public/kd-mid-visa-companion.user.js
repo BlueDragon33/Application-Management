@@ -57,12 +57,19 @@
     window.addEventListener("message", (event) => {
       if (event.origin !== location.origin) return;
       const data = event.data;
-      if (!data || data.type !== "KD_MID_STORE_PAYLOAD" || !data.payload || !data.nonce) return;
+      if (!data) return;
+
+      if (data.type === "KD_MID_PING") {
+        window.postMessage({ type: "KD_MID_COMPANION_READY", version: "0.7.0" }, location.origin);
+        return;
+      }
+
+      if (data.type !== "KD_MID_STORE_PAYLOAD" || !data.payload || !data.nonce) return;
 
       const okPayload = gmSet(SHARED_PAYLOAD_KEY, JSON.stringify(data.payload));
       const okSession = gmSet(SHARED_SESSION_KEY, String(data.nonce));
       if (okPayload && okSession) {
-        window.postMessage({ type: "KD_MID_STORE_ACK", nonce: String(data.nonce) }, location.origin);
+        window.postMessage({ type: "KD_MID_STORE_ACK", nonce: String(data.nonce), version: "0.7.0" }, location.origin);
       } else {
         window.postMessage({ type: "KD_MID_STORE_ERROR", nonce: String(data.nonce) }, location.origin);
       }
