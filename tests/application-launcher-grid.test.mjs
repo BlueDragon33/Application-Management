@@ -12,14 +12,17 @@ test("Applications view keeps launcher grid as the default mode", () => {
   assert.match(dashboard, /data-testid="app-launcher-list"/);
 });
 
-test("launcher cards stay intentionally compact and move detail into the popover", () => {
+test("launcher cards behave like phone app tiles and move detail into the popover", () => {
   const cardStart = dashboard.indexOf('className="amv2-launcher-card"');
   const cardEnd = dashboard.indexOf('!visibleItems.length', cardStart);
   const card = dashboard.slice(cardStart, cardEnd);
   assert.match(card, /<AppIcon appId=\{item\.iconAppId\}\/?>/);
   assert.match(card, /item\.shortName \?\? item\.name/);
-  assert.match(card, /item\.statusLabel/);
+  assert.match(card, /className="amv2-launcher-app-badge"/);
+  assert.match(card, /aria-label=\{item\.statusLabel\}/);
   assert.match(card, /item\.category/);
+  assert.doesNotMatch(card, /className="amv2-launcher-card-status"/);
+  assert.doesNotMatch(card, /•••/);
   assert.doesNotMatch(card, /item\.description/);
   assert.doesNotMatch(card, /item\.onlineCount/);
   assert.doesNotMatch(card, /item\.pendingCount/);
@@ -101,18 +104,31 @@ test("launcher scroll controls are visible overlays and grid owns vertical overf
   assert.match(css, /\.amv2-launcher-scroll-controls\s*\{[\s\S]*position:\s*absolute/);
 });
 
-test("responsive grid keeps 5/4/3/2/1 launcher columns", () => {
+test("responsive grid uses phone-app density across desktop tablet and phone", () => {
+  assert.match(css, /repeat\(6, minmax\(0, 1fr\)\)/);
   assert.match(css, /repeat\(5, minmax\(0, 1fr\)\)/);
   assert.match(css, /repeat\(4, minmax\(0, 1fr\)\)/);
   assert.match(css, /repeat\(3, minmax\(0, 1fr\)\)/);
   assert.match(css, /repeat\(2, minmax\(0, 1fr\)\)/);
-  assert.match(css, /@media \(max-width: 430px\)[\s\S]*grid-template-columns:\s*1fr/);
 });
 
-test("card typography remains readable without oversized cards", () => {
-  assert.match(css, /\.amv2-launcher-card\s*\{[\s\S]*min-height:\s*174px/);
-  assert.match(css, /\.amv2-launcher-card-copy > strong\s*\{[\s\S]*font-size:\s*15px/);
-  assert.match(css, /\.amv2-launcher-card-status\s*\{[\s\S]*font-size:\s*12\.5px/);
+test("phone-style tiles keep readable names, compact height and clear boundaries", () => {
+  assert.match(css, /\.amv2-launcher-card\s*\{[\s\S]*min-height:\s*148px/);
+  assert.match(css, /\.amv2-launcher-card\s*\{[\s\S]*border:\s*1px solid/);
+  assert.match(css, /\.amv2-launcher-card\s*\{[\s\S]*border-radius:\s*16px/);
+  assert.match(css, /\.amv2-launcher-card-copy > strong\s*\{[\s\S]*font-size:\s*14px/);
+  assert.match(css, /\.amv2-launcher-card \.amv2-app-icon\s*\{[\s\S]*width:\s*62px/);
+  assert.match(css, /\.amv2-launcher-app-badge\s*\{[\s\S]*width:\s*13px/);
+});
+
+test("tool icons use distinct app-like gradients instead of tiny placeholder glyph boxes", () => {
+  for (const tool of ["tool-study-plan", "tool-secret-generator", "tool-managed-apps", "tool-deploy-ops", "tool-kd-mid-visa"]) {
+    assert.ok(css.includes(`data-app="${tool}"`), `missing styled launcher icon for ${tool}`);
+  }
+  assert.match(dashboard, /tool-secret-generator"\) return "⚿"/);
+  assert.match(dashboard, /tool-managed-apps"\) return "◎"/);
+  assert.match(dashboard, /tool-deploy-ops"\) return "☁"/);
+  assert.match(dashboard, /tool-kd-mid-visa"\) return "✈"/);
 });
 
 test("launcher stylesheet remains the final launcher-specific visual layer", () => {
