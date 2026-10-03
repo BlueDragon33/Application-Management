@@ -159,6 +159,13 @@ const copy = {
     navSkills: "Kỹ năng & định hướng",
     navAnalysis: "Phân tích chương trình",
     navPreparation: "Lộ trình chuẩn bị",
+    quickFind: "Tìm nhanh môn học",
+    quickFindPlaceholder: "Gõ tên môn bằng Việt / English / Русский...",
+    quickFindHint: "Enter để mở danh sách kết quả",
+    quickExplore: "Khám phá",
+    quickRoadmap: "Lộ trình 12 tuần",
+    quickCoverage: "Độ phủ học liệu",
+    quickSkills: "Năng lực",
     baumanAdmin: "Bauman Admin",
     integrationTitle: "Liên kết Application Management ↔ Bauman Hub",
     integrationParent: "Ứng dụng cha",
@@ -306,6 +313,13 @@ const copy = {
     navSkills: "Skills & direction",
     navAnalysis: "Program analysis",
     navPreparation: "Preparation roadmap",
+    quickFind: "Quick course search",
+    quickFindPlaceholder: "Type a course in Vietnamese / English / Русский...",
+    quickFindHint: "Press Enter to open the result list",
+    quickExplore: "Explore",
+    quickRoadmap: "12-week roadmap",
+    quickCoverage: "Learning coverage",
+    quickSkills: "Skills",
     baumanAdmin: "Bauman Admin",
     integrationTitle: "Application Management ↔ Bauman Hub linkage",
     integrationParent: "Parent app",
@@ -1131,6 +1145,12 @@ export default function StudyPlanTool({
     setCourseSort("semester");
   };
 
+  const jumpToCourseExplorer = () => {
+    window.requestAnimationFrame(() => {
+      document.getElementById("course-explorer")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
+
   return <main className={styles.shell} id="study-plan-top">
     <header className={styles.topbar}>
       <div className={styles.contextNav}>
@@ -1158,6 +1178,29 @@ export default function StudyPlanTool({
         <p>{lang === "vi" ? program.trackVi : program.trackEn}</p>
         <small>{program.degree[lang]} · {program.duration[lang]} · {program.startYear}</small>
       </div>
+    </section>
+
+    <section className={styles.commandBar} aria-label={t.quickFind}>
+      <label className={styles.commandSearch}>
+        <span aria-hidden="true">⌕</span>
+        <input
+          type="search"
+          value={courseQuery}
+          onChange={(event) => setCourseQuery(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") jumpToCourseExplorer();
+          }}
+          placeholder={t.quickFindPlaceholder}
+          aria-label={t.quickFind}
+        />
+        <button type="button" onClick={jumpToCourseExplorer}>{t.quickExplore} →</button>
+      </label>
+      <div className={styles.commandShortcuts}>
+        <a href="#pre-bauman-roadmap"><span>12</span><small>{t.quickRoadmap}</small></a>
+        <a href="#learning-coverage"><span>{moduleCoverage.percent}%</span><small>{t.quickCoverage}</small></a>
+        <a href="#skills-direction"><span>{skillAnalysis.length}</span><small>{t.quickSkills}</small></a>
+      </div>
+      <small className={styles.commandHint}>{t.quickFindHint}</small>
     </section>
 
     <section className={styles.integrationBridge} aria-label={t.integrationTitle}>
@@ -1492,7 +1535,7 @@ export default function StudyPlanTool({
         <p className={styles.printNote}>{t.printNote}</p>
       </section>
 
-      <div className={styles.coverage}>
+      <div className={styles.coverage} id="learning-coverage">
         <div className={styles.coverageHeader}>
           <div>
             <span>{t.coverageTitle}</span>
