@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import styles from "./kd-mid-visa.module.css";
+import { downloadVisaPdf, generateVisaApplicationPdf, visaConsulates } from "./visa-pdf";
 
-type Route = "dashboard" | "applicants" | "common" | "records" | "connect" | "backup";
+type Route = "dashboard" | "applicants" | "common" | "records" | "pdf" | "backup" | "connect";
 type KeepMode = "full" | "record" | "none";
 
 type CommonData = {
@@ -310,6 +311,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
   const [keepPrompt, setKeepPrompt] = useState<ResumeRecord | null>(null);
   const [bookmarklet, setBookmarklet] = useState("");
   const [autoAdvance, setAutoAdvance] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
 
   useEffect(() => {
     const loaded = safeLoad();
@@ -482,6 +484,39 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
     URL.revokeObjectURL(url);
   }
 
+  async function exportSelectedPdf() {
+    if (!selected) {
+      setNotice("Hãy tạo hoặc chọn một hồ sơ trước khi xuất PDF.");
+      setRoute("applicants");
+      return;
+    }
+    const missing = applicantMissingFields(selected);
+    if (selected.visitedRussia) {
+      if (!selected.visitsCount.trim()) missing.push("Số lần đã đến Nga");
+      if (!selected.lastVisitFrom.trim()) missing.push("Ngày bắt đầu chuyến Nga gần nhất");
+      if (!selected.lastVisitTo.trim()) missing.push("Ngày kết thúc chuyến Nga gần nhất");
+    }
+    if (selected.hasInsurance && !selected.insurancePolicy.trim()) {
+      missing.push("Số hợp đồng bảo hiểm");
+    }
+    if (missing.length) {
+      setNotice(`Chưa thể xuất PDF. Hồ sơ còn thiếu: ${missing.join(", ")}.`);
+      setRoute("applicants");
+      return;
+    }
+
+    setPdfBusy(true);
+    try {
+      const result = await generateVisaApplicationPdf(selected, store.common);
+      downloadVisaPdf(result.blob, result.filename);
+      setNotice(`Đã tạo PDF ${result.filename} theo mẫu 2 trang KD-MID.`);
+    } catch (error) {
+      setNotice(error instanceof Error ? `Không tạo được PDF: ${error.message}` : "Không tạo được PDF.");
+    } finally {
+      setPdfBusy(false);
+    }
+  }
+
   function importBackup(file: File) {
     const reader = new FileReader();
     reader.onload = () => {
@@ -500,7 +535,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
     return <>
       <section className={styles.hero}>
         <div><span>TOOL · RUSSIA VISA</span><h2>Chuẩn bị hồ sơ KD-MID nhanh hơn, vẫn kiểm tra trước khi gửi.</h2><p>Form chính thức giữ tiếng Nga. Tool quản lý dữ liệu dùng chung, chỉ yêu cầu nhập phần khác nhau của từng người và tạo bridge tự điền cho visa.kdmid.ru.</p></div>
-        <div className={styles.heroActions}><button onClick={() => { setEditing(emptyApplicant()); setRoute("applicants"); }}>+ Hồ sơ mới</button><button className={styles.secondary} onClick={() => void prepareBridge()}>Chuẩn bị tự điền</button></div>
+        <div className={styles.heroActions}><button onClick={() => { setEditing(emptyApplicant()); setRoute("applicants"); }}>+ Hồ sơ mới</button><button className={styles.secondary} onClick={() => setRoute("pdf")}>Xuất PDF visa</button></div>
       </section>
       <section className={styles.metrics}>
         <article><span>Hồ sơ cá nhân</span><strong>{store.applicants.length}</strong><small>{completeCount} đã có Application ID</small></article>
@@ -513,8 +548,8 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         <div className={styles.steps}>
           <article><b>01</b><strong>Tạo hồ sơ</strong><p>Nhập họ tên, hộ chiếu, liên hệ, lịch sử Nga và bảo hiểm.</p></article>
           <article><b>02</b><strong>Dùng trường chung</strong><p>Study · visa học tập · single entry · Bộ · TIN · telex · Moscow.</p></article>
-          <article><b>03</b><strong>Tự điền KD-MID</strong><p>Mở trang chính thức và chạy bookmarklet bridge trên từng trang.</p></article>
-          <article><b>04</b><strong>Lưu hoặc xóa</strong><p>Khi hoàn tất: giữ đầy đủ, chỉ giữ bản ghi mở lại, hoặc không lưu.</p></article>
+          <article><b>03</b><strong>Chọn nơi nộp</strong><p>Hà Nội · Đà Nẵng · TP. Hồ Chí Minh; tên cơ quan được in đúng bằng tiếng Nga.</p></article>
+          <article><b>04</b><strong>Xuất PDF 2 trang</strong><p>Tạo trực tiếp PDF theo bố cục của hai mẫu KD-MID đã đối chiếu, không cần thao tác trên visa.kdmid.ru.</p></article>
         </div>
       </section>
     </>;
@@ -530,7 +565,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
           <button onClick={() => setEditing({ ...item })}>Sửa</button><button className={styles.danger} onClick={() => removeApplicant(item.id)}>Xóa</button>
         </article>)}
       </div>}
-      {selected ? <div className={styles.selectedBar}><span>Đang chọn</span><strong>{displayName(selected)}</strong><button onClick={() => void prepareBridge()}>Chuẩn bị tự điền</button></div> : null}
+      {selected ? <div className={styles.selectedBar}><span>Đang chọn</span><strong>{displayName(selected)}</strong><button onClick={() => setRoute("pdf")}>Xuất PDF</button></div> : null}
     </section>;
   }
 
@@ -552,13 +587,44 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         <Field label="Номер указания (телекса)"><TextInput value={c.telex} onChange={(v) => mutateCommon("telex", v)} /></Field>
         <Field label="Номер приглашения" hint="Để trống nếu giấy ghi НЕТ."><TextInput value={c.invitation} onChange={(v) => mutateCommon("invitation", v)} /></Field>
         <Field label="Маршрут"><TextInput value={c.city} onChange={(v) => mutateCommon("city", v)} /></Field>
-        <Field label="Nơi nộp hồ sơ"><TextInput value={c.embassy} onChange={(v) => mutateCommon("embassy", v)} /></Field>
+        <Field label="Nơi nộp hồ sơ · Получатель анкеты" hint="Chọn đúng cơ quan tiếp nhận; giá trị tiếng Nga sẽ được in trên PDF."><select value={c.embassy} onChange={(event) => mutateCommon("embassy", event.target.value)}>{visaConsulates.map((item) => <option key={item.value} value={item.value}>{item.label} · {item.value}</option>)}</select></Field>
         <Field label="Nơi làm việc / học tập"><TextInput value={c.employer} onChange={(v) => mutateCommon("employer", v)} /></Field>
         <Field label="Địa chỉ cơ quan"><TextInput value={c.employerAddress} onChange={(v) => mutateCommon("employerAddress", v)} /></Field>
         <Field label="Email cơ quan"><TextInput value={c.employerEmail} onChange={(v) => mutateCommon("employerEmail", v)} /></Field>
         <Field label="Chức danh mặc định"><TextInput value={c.defaultPosition} onChange={(v) => mutateCommon("defaultPosition", v)} /></Field>
         <Field label="Адрес вашего постоянного проживания · Địa chỉ thường trú" hint="Cố định cho mọi hồ sơ."><input value={fixedPermanentAddress} readOnly /></Field>
         <Field label="Рабочий телефон · Điện thoại cơ quan" hint="Cố định cho mọi hồ sơ."><input value={fixedWorkPhone} readOnly /></Field>
+      </div>
+    </section>;
+  }
+
+  function renderPdfExport() {
+    return <section className={styles.panel}>
+      <header><div><span>XUẤT PDF VISA</span><h3>Mẫu 2 trang theo KD-MID</h3></div><button onClick={() => void exportSelectedPdf()} disabled={!selected || pdfBusy}>{pdfBusy ? "Đang tạo PDF…" : "Tạo & tải PDF"}</button></header>
+      <div className={styles.pdfExportGrid}>
+        <article>
+          <span>HỒ SƠ ĐANG DÙNG</span>
+          <strong>{selected ? displayName(selected) : "Chưa chọn hồ sơ"}</strong>
+          <small>{selected ? `${selected.passportNo || "Chưa có hộ chiếu"} · ${selected.birthDate || "Chưa có ngày sinh"}` : "Tạo hoặc chọn hồ sơ trước."}</small>
+          <button className={styles.secondary} onClick={() => setRoute("applicants")}>{selected ? "Đổi / sửa hồ sơ" : "+ Tạo hồ sơ"}</button>
+        </article>
+        <article>
+          <span>CƠ QUAN TIẾP NHẬN</span>
+          <select value={store.common.embassy} onChange={(event) => mutateCommon("embassy", event.target.value)}>
+            {visaConsulates.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+          </select>
+          <small>{store.common.embassy}</small>
+        </article>
+        <article>
+          <span>ĐỊNH DẠNG</span>
+          <strong>A4 · 2 trang · tiếng Nga</strong>
+          <small>Bố cục, ô xám, khối ảnh/chữ ký, thông tin dịch vụ và số trang được dựng theo hai PDF mẫu.</small>
+        </article>
+      </div>
+      <div className={styles.pdfNotes}>
+        <strong>Quy tắc xuất</strong>
+        <p>Địa chỉ thường trú cố định: <code>{fixedPermanentAddress}</code>. Điện thoại cơ quan cố định: <code>{fixedWorkPhone}</code>. Nếu hồ sơ có lịch sử đến Nga hoặc bảo hiểm, trang 2 tự mở thêm các dòng tương ứng như mẫu có mục 16-17 mở rộng.</p>
+        <p><strong>№ заявления (сайт)</strong> lấy từ trường Application ID nếu đã có. Nếu chưa có, PDF vẫn được tạo nhưng để trống ID/barcode thay vì tự bịa một mã chính thức.</p>
       </div>
     </section>;
   }
@@ -621,16 +687,16 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       <Link href="/?view=applications" className={styles.back}>← Application Management</Link>
       <div className={styles.brand}><span>KV</span><div><strong>KD-MID Visa VN</strong><small>Form Nga · hướng dẫn Việt</small></div></div>
       <nav>
-        {([["dashboard","Tổng quan"],["applicants","Hồ sơ cá nhân"],["common","Trường dùng chung"],["records","Bản ghi mở lại"],["connect","Kết nối KD-MID"],["backup","Sao lưu dữ liệu"]] as Array<[Route,string]>).map(([id,label]) => <button key={id} data-active={route === id} onClick={() => setRoute(id)}>{label}</button>)}
+        {([["dashboard","Tổng quan"],["applicants","Hồ sơ cá nhân"],["common","Trường dùng chung"],["pdf","Xuất PDF visa"],["records","Bản ghi mở lại"],["backup","Sao lưu dữ liệu"]] as Array<[Route,string]>).map(([id,label]) => <button key={id} data-active={route === id} onClick={() => setRoute(id)}>{label}</button>)}
       </nav>
       <div className={styles.privacy}><strong>● Local-first</strong><small>Dữ liệu hồ sơ chỉ lưu trong trình duyệt này, trừ khi bạn tự xuất backup.</small></div>
       <div className={styles.user}><span>{user.displayName.slice(0,1).toUpperCase()}</span><div><strong>{user.displayName}</strong><small>{user.email}</small></div></div>
     </aside>
 
     <section className={styles.main}>
-      <header className={styles.topbar}><div><span>APPLICATION MANAGEMENT · TOOL</span><h1>{route === "dashboard" ? "Tổng quan" : route === "applicants" ? "Hồ sơ cá nhân" : route === "common" ? "Trường dùng chung" : route === "records" ? "Bản ghi mở lại" : route === "connect" ? "Kết nối KD-MID" : "Sao lưu dữ liệu"}</h1></div><div><button className={styles.secondary} onClick={() => void prepareBridge()}>Chuẩn bị tự điền</button><button onClick={() => setEditing(emptyApplicant())}>+ Hồ sơ mới</button></div></header>
+      <header className={styles.topbar}><div><span>APPLICATION MANAGEMENT · TOOL</span><h1>{route === "dashboard" ? "Tổng quan" : route === "applicants" ? "Hồ sơ cá nhân" : route === "common" ? "Trường dùng chung" : route === "pdf" ? "Xuất PDF visa" : route === "records" ? "Bản ghi mở lại" : "Sao lưu dữ liệu"}</h1></div><div><button className={styles.secondary} onClick={() => setRoute("pdf")}>Xuất PDF</button><button onClick={() => setEditing(emptyApplicant())}>+ Hồ sơ mới</button></div></header>
       {notice ? <div className={styles.notice}>{notice}<button onClick={() => setNotice("")}>×</button></div> : null}
-      <div className={styles.content}>{route === "dashboard" ? renderDashboard() : route === "applicants" ? renderApplicants() : route === "common" ? renderCommon() : route === "records" ? renderRecords() : route === "connect" ? renderConnect() : renderBackup()}</div>
+      <div className={styles.content}>{route === "dashboard" ? renderDashboard() : route === "applicants" ? renderApplicants() : route === "common" ? renderCommon() : route === "pdf" ? renderPdfExport() : route === "records" ? renderRecords() : renderBackup()}</div>
     </section>
 
     {editing ? <div className={styles.modalBackdrop} onMouseDown={(event) => { if (event.currentTarget === event.target) setEditing(null); }}><section className={styles.modal}>
