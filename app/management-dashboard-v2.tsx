@@ -1067,10 +1067,13 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [anchorElement, setAnchorElement] = useState<HTMLButtonElement | null>(null);
   const [popoverPlacement, setPopoverPlacement] = useState<AppLauncherPlacement>({ top: 12, left: 12, side: "right" });
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [scrollState, setScrollState] = useState({ up: false, down: false });
   const clickTimerRef = useRef<number | null>(null);
   const openGuardRef = useRef<string | null>(null);
   const openGuardTimerRef = useRef<number | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
 
   const items = useMemo<AppLauncherItem[]>(() => {
     const toolItems = tools.map((tool) => {
@@ -1100,7 +1103,7 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
         description: tool.note,
         kind: "tool" as const,
         href: tool.href,
-        manageHref: tool.manageHref,
+        manageHref: tool.manageHref ?? tool.href,
         parentAppId: tool.parentAppId,
         parentLabel: tool.parentLabel,
         connection,
@@ -1163,15 +1166,14 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
     const result = items.filter((item) => {
       if (categoryFilter !== "all" && item.category !== categoryFilter) return false;
       if (!query) return true;
-      const haystack = [
+      return [
         item.name,
         item.shortName ?? "",
         item.category,
         item.description,
         item.parentLabel ?? "",
         ...item.tags,
-      ].join(" ").toLocaleLowerCase("vi");
-      return haystack.includes(query);
+      ].join(" ").toLocaleLowerCase("vi").includes(query);
     });
 
     return [...result].sort((a, b) => {
@@ -1200,6 +1202,7 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
     cancelSingleClick();
     setSelectedId(null);
     setAnchorElement(null);
+    setDetailOpen(false);
   }
 
   async function openLauncherItem(item: AppLauncherItem) {
@@ -1222,6 +1225,7 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
     const anchor = event.currentTarget;
     cancelSingleClick();
     clickTimerRef.current = window.setTimeout(() => {
+      setDetailOpen(false);
       setSelectedId(item.id);
       setAnchorElement(anchor);
       clickTimerRef.current = null;
@@ -1232,9 +1236,30 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
     event.preventDefault();
     event.stopPropagation();
     cancelSingleClick();
-    setSelectedId(null);
-    setAnchorElement(null);
+    closePopover();
     void openLauncherItem(item);
+  }
+
+  function updateScrollState() {
+    const target = gridRef.current;
+    if (!target || mode !== "grid") {
+      setScrollState({ up: false, down: false });
+      return;
+    }
+    const maxScroll = Math.max(0, target.scrollHeight - target.clientHeight);
+    setScrollState({
+      up: target.scrollTop > 6,
+      down: maxScroll - target.scrollTop > 6,
+    });
+  }
+
+  function rollGrid(direction: -1 | 1) {
+    const target = gridRef.current;
+    if (!target) return;
+    target.scrollBy({
+      top: direction * Math.max(260, Math.round(target.clientHeight * .76)),
+      behavior: "smooth",
+    });
   }
 
   useEffect(() => {
@@ -1249,14 +1274,28 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
   }, [selectedId, visibleItems]);
 
   useEffect(() => {
+    const target = gridRef.current;
+    const frame = window.requestAnimationFrame(updateScrollState);
+    if (!target || mode !== "grid") return () => window.cancelAnimationFrame(frame);
+    const handle = () => updateScrollState();
+    target.addEventListener("scroll", handle, { passive: true });
+    window.addEventListener("resize", handle);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      target.removeEventListener("scroll", handle);
+      window.removeEventListener("resize", handle);
+    };
+  }, [mode, visibleItems.length]);
+
+  useEffect(() => {
     if (!selectedId || !anchorElement) return;
     const reposition = () => {
       const anchorRect = anchorElement.getBoundingClientRect();
       const popoverRect = popoverRef.current?.getBoundingClientRect();
       const margin = 12;
       const gap = 12;
-      const width = popoverRect?.width ?? Math.min(380, window.innerWidth - margin * 2);
-      const height = popoverRect?.height ?? 420;
+      const width = popoverRect?.width ?? Math.min(390, window.innerWidth - margin * 2);
+      const height = popoverRect?.height ?? 430;
 
       if (window.innerWidth <= 760) {
         setPopoverPlacement({
@@ -1286,7 +1325,7 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
       window.removeEventListener("resize", reposition);
       window.removeEventListener("scroll", reposition, true);
     };
-  }, [selectedId, anchorElement]);
+  }, [selectedId, anchorElement, detailOpen]);
 
   useEffect(() => {
     if (!selectedId) return;
@@ -1319,60 +1358,62 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
             aria-label="Tìm ứng dụng theo tên, loại, mô tả, ứng dụng cha hoặc capability"
           />
         </label>
-        <div className="amv2-launcher-sort">
-          <span>Sắp xếp</span>
+        <div className="amv2-launcher-mode" role="group" aria-label="Kiểu hiển thị ứng dụng">
+          <button type="button" data-active={mode === "grid"} onClick={() => setMode("grid")}>▦</button>
+          <button type="button" data-active={mode === "list"} onClick={() => setMode("list")}>☷</button>
+        </div>
+        <label className="amv2-launcher-sort">
+          <span>Sắp xếp:</span>
           <select value={sortMode} onChange={(event) => setSortMode(event.target.value as AppLauncherSort)}>
-            <option value="name">Tên A–Z</option>
+            <option value="name">Tên A → Z</option>
             <option value="category">Phân loại</option>
             <option value="status">Trạng thái</option>
           </select>
-        </div>
-        <div className="amv2-launcher-mode" role="group" aria-label="Kiểu hiển thị ứng dụng">
-          <button type="button" data-active={mode === "grid"} onClick={() => setMode("grid")}>▦ Grid</button>
-          <button type="button" data-active={mode === "list"} onClick={() => setMode("list")}>☷ List</button>
-        </div>
+        </label>
       </div>
 
-      <div className="amv2-launcher-chips" aria-label="Lọc theo phân loại">
-        <button type="button" data-active={categoryFilter === "all"} onClick={() => setCategoryFilter("all")}>Tất cả</button>
-        {categories.map((category) => <button type="button" key={category} data-active={categoryFilter === category} onClick={() => setCategoryFilter(category)}>{category}</button>)}
+      <div className="amv2-launcher-subbar">
+        <div className="amv2-launcher-chips" aria-label="Lọc theo phân loại">
+          <button type="button" data-active={categoryFilter === "all"} onClick={() => setCategoryFilter("all")}>Tất cả</button>
+          {categories.map((category) => <button type="button" key={category} data-active={categoryFilter === category} onClick={() => setCategoryFilter(category)}>{category}</button>)}
+        </div>
+        <p className="amv2-launcher-help"><b>Nhấn 1 lần</b>: xem thông tin <i/> <b>Nhấn 2 lần</b>: mở web/app</p>
       </div>
 
-      {mode === "grid" ? <div className="amv2-launcher-grid" data-testid="app-launcher-grid">
-        {visibleItems.map((item) => <button
-          type="button"
-          key={item.id}
-          className="amv2-launcher-card"
-          data-kind={item.kind}
-          data-parent-app={item.parentAppId ?? ""}
-          data-selected={selectedId === item.id}
-          aria-expanded={selectedId === item.id}
-          aria-controls={selectedId === item.id ? "amv2-app-launcher-popover" : undefined}
-          onClick={(event) => handleCardClick(event, item)}
-          onDoubleClick={(event) => handleCardDoubleClick(event, item)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && event.altKey) {
-              event.preventDefault();
-              cancelSingleClick();
-              closePopover();
-              void openLauncherItem(item);
-            }
-          }}
-          title="Nhấn một lần để xem thông tin · nhấn đúp để mở"
-        >
-          <span className="amv2-launcher-card-top"><AppIcon appId={item.iconAppId}/><i aria-hidden="true">•••</i></span>
-          <span className="amv2-launcher-card-copy">
-            <strong>{item.shortName ?? item.name}</strong>
-            <small>{item.description}</small>
-          </span>
-          <span className="amv2-launcher-card-status" data-state={item.connection}><i/>{item.statusLabel}</span>
-          <span className="amv2-launcher-card-foot">
-            <b>{item.parentLabel ? `${item.category} · ${item.parentLabel}` : item.category}</b>
-            {item.onlineCount !== null && item.onlineCount > 0 ? <em>{item.onlineCount} online</em> : null}
-            {item.pendingCount !== null && item.pendingCount > 0 ? <em>{item.pendingCount} chờ</em> : null}
-          </span>
-        </button>)}
-        {!visibleItems.length ? <div className="amv2-launcher-empty"><strong>Không tìm thấy ứng dụng hoặc Tool phù hợp.</strong><small>Thử đổi từ khóa hoặc phân loại.</small></div> : null}
+      {mode === "grid" ? <div className="amv2-launcher-grid-wrap">
+        <div ref={gridRef} className="amv2-launcher-grid" data-testid="app-launcher-grid">
+          {visibleItems.map((item) => <button
+            type="button"
+            key={item.id}
+            className="amv2-launcher-card"
+            data-kind={item.kind}
+            data-parent-app={item.parentAppId ?? ""}
+            data-selected={selectedId === item.id}
+            aria-expanded={selectedId === item.id}
+            aria-controls={selectedId === item.id ? "amv2-app-launcher-popover" : undefined}
+            onClick={(event) => handleCardClick(event, item)}
+            onDoubleClick={(event) => handleCardDoubleClick(event, item)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && event.altKey) {
+                event.preventDefault();
+                cancelSingleClick();
+                closePopover();
+                void openLauncherItem(item);
+              }
+            }}
+            title="Nhấn một lần để xem thông tin · nhấn đúp để mở"
+          >
+            <span className="amv2-launcher-card-top"><AppIcon appId={item.iconAppId}/><i aria-hidden="true">•••</i></span>
+            <span className="amv2-launcher-card-copy"><strong>{item.shortName ?? item.name}</strong></span>
+            <span className="amv2-launcher-card-status" data-state={item.connection}><i/>{item.statusLabel}</span>
+            <span className="amv2-launcher-card-foot"><b>{item.parentLabel ? `${item.category} · ${item.parentLabel}` : item.category}</b></span>
+          </button>)}
+          {!visibleItems.length ? <div className="amv2-launcher-empty"><strong>Không tìm thấy ứng dụng hoặc Tool phù hợp.</strong><small>Thử đổi từ khóa hoặc phân loại.</small></div> : null}
+        </div>
+        {scrollState.up || scrollState.down ? <div className="amv2-launcher-scroll-controls" aria-label="Cuộn danh sách ứng dụng">
+          <button type="button" disabled={!scrollState.up} aria-label="Cuộn lên" title="Cuộn lên" onClick={() => rollGrid(-1)}>⌃</button>
+          <button type="button" disabled={!scrollState.down} aria-label="Cuộn xuống" title="Cuộn xuống" onClick={() => rollGrid(1)}>⌄</button>
+        </div> : null}
       </div> : <div className="amv2-app-table full amv2-launcher-list" data-testid="app-launcher-list">
         <div className="amv2-app-head"><span>Ứng dụng</span><span>Nhóm nghiệp vụ</span><span>Việc chờ xử lý</span><span>Thiết bị online</span><span>Trạng thái</span><span>Website</span><span>Quản Trị</span></div>
         {visibleItems.map((item) => {
@@ -1400,32 +1441,32 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
         style={{ top: popoverPlacement.top, left: popoverPlacement.left }}
       >
         <header>
-          <div><AppIcon appId={selectedItem.iconAppId}/><span><small>{selectedItem.parentLabel ? `${selectedItem.category} · ${selectedItem.parentLabel}` : selectedItem.category}</small><strong>{selectedItem.name}</strong></span></div>
+          <div><AppIcon appId={selectedItem.iconAppId}/><span><strong>{selectedItem.name}</strong><small>{selectedItem.parentLabel ? `${selectedItem.category} · ${selectedItem.parentLabel}` : selectedItem.category}</small></span></div>
           <button type="button" aria-label="Đóng thông tin ứng dụng" onClick={closePopover}>×</button>
         </header>
 
         <div className="amv2-launcher-facts">
-          <p><span>Loại quản trị</span><strong>{selectedItem.kind === "tool" ? "Tool nội bộ" : "Client cấp 1"}</strong></p>
-          {selectedItem.parentLabel ? <p><span>Parent app</span><strong>{selectedItem.parentLabel}</strong></p> : null}
-          <p><span>Trạng thái</span><strong data-state={selectedItem.connection}>{selectedItem.statusLabel}</strong></p>
-          <p><span>Contract</span><strong>{selectedItem.contractLabel || "—"}</strong></p>
-          <p><span>Runtime</span><strong>{selectedItem.runtimeLabel || "—"}</strong></p>
+          <p><span>Trạng thái</span><strong data-state={selectedItem.connection}>● {selectedItem.statusLabel}</strong></p>
           <p><span>Online</span><strong>{selectedItem.onlineCount === null ? "—" : countText(selectedItem.onlineCount)}</strong></p>
           <p><span>Chờ xử lý</span><strong>{selectedItem.pendingCount === null ? "—" : countText(selectedItem.pendingCount)}</strong></p>
-          <p><span>Lần đồng bộ</span><strong>{lastUpdatedAt ? relativeTime(lastUpdatedAt) : "—"}</strong></p>
-          <p><span>Website/runtime</span><code title={selectedItem.href}>{selectedItem.href ?? "—"}</code></p>
-          <p><span>Quản trị</span><code title={selectedItem.manageHref}>{selectedItem.manageHref ?? "—"}</code></p>
+          <p><span>Loại</span><strong>{selectedItem.parentLabel ? `${selectedItem.category} · ${selectedItem.parentLabel}` : selectedItem.kind === "tool" ? "Tool" : selectedItem.category}</strong></p>
+          <p><span>Liên kết quản trị</span>{selectedItem.manageHref ? <Link href={selectedItem.manageHref}>{selectedItem.parentAppId ? "Bauman-Admin ↗" : "Quản trị ↗"}</Link> : <strong>—</strong>}</p>
         </div>
 
-        <details className="amv2-launcher-details">
-          <summary>Xem chi tiết</summary>
-          <p>{selectedItem.description || "Chưa có dữ liệu"}</p>
-          {selectedItem.tags.length ? <div>{selectedItem.tags.slice(0, 6).map((tag) => <span key={tag}>{tag}</span>)}</div> : null}
-        </details>
+        {detailOpen ? <div className="amv2-launcher-more">
+          {selectedItem.parentLabel ? <p><span>Parent app</span><strong>{selectedItem.parentLabel}</strong></p> : null}
+          <p><span>Contract</span><strong>{selectedItem.contractLabel || "—"}</strong></p>
+          <p><span>Runtime</span><strong>{selectedItem.runtimeLabel || "—"}</strong></p>
+          <p><span>Lần đồng bộ</span><strong>{lastUpdatedAt ? relativeTime(lastUpdatedAt) : "—"}</strong></p>
+          <p><span>Website/runtime</span><code title={selectedItem.href}>{selectedItem.href ?? "—"}</code></p>
+          <div className="amv2-launcher-description">{selectedItem.description || "Chưa có dữ liệu"}</div>
+          {selectedItem.tags.length ? <div className="amv2-launcher-tags">{selectedItem.tags.slice(0, 6).map((tag) => <span key={tag}>{tag}</span>)}</div> : null}
+        </div> : null}
 
         <footer>
-          <button type="button" className="primary" disabled={!selectedItem.canOpen || webBusy === selectedItem.id} onClick={() => { closePopover(); void openLauncherItem(selectedItem); }}>{webBusy === selectedItem.id ? "Đang mở…" : "Mở"}</button>
-          {selectedItem.manageHref ? <Link href={selectedItem.manageHref} onClick={closePopover}>{selectedItem.parentAppId ? "Bauman Admin" : "Quản trị"}</Link> : null}
+          <button type="button" className="primary" disabled={!selectedItem.canOpen || webBusy === selectedItem.id} onClick={() => { closePopover(); void openLauncherItem(selectedItem); }}>{webBusy === selectedItem.id ? "Đang mở…" : "↗ Mở"}</button>
+          {selectedItem.manageHref ? <Link href={selectedItem.manageHref} onClick={closePopover}>⚙ Quản trị</Link> : <button type="button" disabled>⚙ Quản trị</button>}
+          <button type="button" aria-expanded={detailOpen} onClick={() => setDetailOpen((current) => !current)}>ⓘ {detailOpen ? "Thu gọn" : "Xem chi tiết"}</button>
         </footer>
       </div> : null}
     </div>
