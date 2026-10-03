@@ -87,25 +87,28 @@ const copy = {
     preStudySub: "Thứ tự nền tảng để giảm tải mạnh cho học kỳ 1 và các môn AI phía sau.",
     resetProgress: "Đặt lại tiến độ",
     baumanLearning: "Học liệu Bauman liên quan",
-    relatedModule: "Có module liên quan",
-    noModule: "Chưa có module riêng",
-    openModule: "Mở module học",
-    moduleNote: "Liên kết này mở học liệu hiện có trong Bauman Hub; đây là module liên quan, không thay thế syllabus chính thức của môn.",
-    noModuleNote: "Hệ thống Bauman hiện chưa có module học riêng phù hợp cho môn này nên không tạo nút mở giả.",
+    relatedModule: "Có học liệu liên quan",
+    relatedWorkflow: "Có workflow thực hành liên quan",
+    noModule: "Chưa có học liệu riêng",
+    openModule: "Mở học liệu",
+    openWorkflow: "Mở workflow",
+    moduleNote: "Nguồn này là học liệu liên quan trong Bauman Hub, không thay thế syllabus chính thức của môn.",
+    workflowNote: "Nguồn này là workflow checklist/nhật ký/minh chứng cho thực tập, không giả lập thành môn lý thuyết độc lập.",
+    noModuleNote: "Hệ thống Bauman hiện chưa có học liệu hoặc workflow phù hợp cho mục này nên không tạo nút mở giả.",
     autoRegistry: "Tự đồng bộ từ subject-manifest.json",
     registryUnavailable: "Không đọc được registry Bauman lúc này; các nút module tạm ẩn để tránh dẫn sai.",
     directOpenBlocked: "Contract Bauman không cho Application Management mở trực tiếp learning runtime. Hãy mở module từ Bauman Hub.",
     coverageTitle: "Độ phủ học liệu",
     coverageSubtitle: "Theo các mục học phần đang hiển thị trong kế hoạch 4 học kỳ.",
-    coveredCourses: "Đã có module",
-    missingCourses: "Chưa có module",
-    moduleCount: "Module đang nối",
+    coveredCourses: "Đã có học liệu/workflow",
+    missingCourses: "Chưa có học liệu",
+    moduleCount: "Nguồn đang nối",
     coverageRate: "Độ phủ",
     coverageBySemester: "Độ phủ theo học kỳ",
-    missingList: "Các học phần còn thiếu module",
+    missingList: "Các học phần còn thiếu học liệu",
     openCourseAnalysis: "Mở phân tích",
     coverageUnknown: "Chưa xác định do registry Bauman đang không khả dụng.",
-    allCovered: "Tất cả học phần đã có module liên quan.",
+    allCovered: "Tất cả học phần đã có học liệu hoặc workflow liên quan.",
     gapPlanTitle: "Phân loại phần còn thiếu",
     gapPlanSub: "Không tạo module hàng loạt. Mỗi học phần thiếu được phân theo loại hành động phù hợp.",
     createModule: "Cần tạo module riêng",
@@ -187,25 +190,28 @@ const copy = {
     preStudySub: "Foundation order designed to reduce the load in semester 1 and later AI courses.",
     resetProgress: "Reset progress",
     baumanLearning: "Related Bauman learning module",
-    relatedModule: "Related module available",
-    noModule: "No dedicated module yet",
-    openModule: "Open learning module",
-    moduleNote: "This opens the closest existing Bauman learning module; it is related material, not a replacement for the official course syllabus.",
-    noModuleNote: "The Bauman system does not currently have a suitable dedicated learning module for this course, so no fake launch button is shown.",
+    relatedModule: "Related learning resource available",
+    relatedWorkflow: "Related practice workflow available",
+    noModule: "No dedicated learning resource yet",
+    openModule: "Open learning resource",
+    openWorkflow: "Open workflow",
+    moduleNote: "This is related Bauman learning material, not a replacement for the official course syllabus.",
+    workflowNote: "This is a checklist/log/evidence workflow for practice activity, not a standalone theory-course substitute.",
+    noModuleNote: "The Bauman system does not currently have a suitable learning resource or workflow for this entry, so no fake launch button is shown.",
     autoRegistry: "Auto-synced from subject-manifest.json",
     registryUnavailable: "The Bauman registry is temporarily unavailable; module launch buttons are hidden to avoid incorrect links.",
     directOpenBlocked: "The Bauman contract does not allow Application Management to open the learning runtime directly. Open the module from Bauman Hub.",
     coverageTitle: "Learning coverage",
     coverageSubtitle: "Measured against the course entries currently shown across the four-semester plan.",
-    coveredCourses: "Module available",
-    missingCourses: "No module yet",
-    moduleCount: "Connected modules",
+    coveredCourses: "Learning resource/workflow available",
+    missingCourses: "No learning resource yet",
+    moduleCount: "Connected resources",
     coverageRate: "Coverage",
     coverageBySemester: "Coverage by semester",
-    missingList: "Course entries still missing a module",
+    missingList: "Course entries still missing a learning resource",
     openCourseAnalysis: "Open analysis",
     coverageUnknown: "Coverage cannot be calculated while the Bauman registry is unavailable.",
-    allCovered: "All course entries have a related learning module.",
+    allCovered: "All course entries have related learning material or a practice workflow.",
     gapPlanTitle: "Gap classification",
     gapPlanSub: "Do not create modules in bulk. Each uncovered course is classified by the action it actually needs.",
     createModule: "Create a dedicated module",
@@ -528,6 +534,7 @@ function DetailPanel({ course, lang, completed, toggleStep, baumanModules, bauma
   }
 
   const relatedModule = baumanModuleFor(course, baumanModules);
+  const relatedIsWorkflow = relatedModule?.kind === "workflow";
   const readiness = readinessByCourse[course.id];
 
   return <aside className={styles.detailPanel}>
@@ -558,7 +565,7 @@ function DetailPanel({ course, lang, completed, toggleStep, baumanModules, bauma
       <div className={styles.moduleBridgeHead}>
         <div>
           <small>{t.baumanLearning}</small>
-          <strong>{baumanRegistryStatus === "live" ? (relatedModule ? t.relatedModule : t.noModule) : t.noModule}</strong>
+          <strong>{baumanRegistryStatus === "live" ? (relatedModule ? (relatedIsWorkflow ? t.relatedWorkflow : t.relatedModule) : t.noModule) : t.noModule}</strong>
           <em>{t.autoRegistry}</em>
         </div>
         <span data-ready={Boolean(relatedModule) && baumanRegistryStatus === "live"}>{relatedModule && baumanRegistryStatus === "live" ? "●" : "○"}</span>
@@ -567,9 +574,9 @@ function DetailPanel({ course, lang, completed, toggleStep, baumanModules, bauma
         ? <p className={styles.moduleMissing}>{t.registryUnavailable}</p>
         : relatedModule
           ? <div className={styles.moduleBridgeBody}>
-              <div><b>{lang === "vi" ? relatedModule.labelVi : relatedModule.labelEn}</b><p>{t.moduleNote}</p></div>
+              <div><b>{lang === "vi" ? relatedModule.labelVi : relatedModule.labelEn}</b><p>{relatedIsWorkflow ? t.workflowNote : t.moduleNote}</p></div>
               {mayOpenLearningRuntimeDirectly && relatedModule.href
-                ? <a href={relatedModule.href} target="_blank" rel="noreferrer">{t.openModule} ↗</a>
+                ? <a href={relatedModule.href} target="_blank" rel="noreferrer">{relatedIsWorkflow ? t.openWorkflow : t.openModule} ↗</a>
                 : <span>{t.directOpenBlocked}</span>}
             </div>
           : <p className={styles.moduleMissing}>{t.noModuleNote}</p>}
