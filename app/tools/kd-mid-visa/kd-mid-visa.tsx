@@ -178,9 +178,8 @@ function buildPayload(applicant: Applicant, common: CommonData, autoAdvance = fa
   };
 }
 
-function buildAutomationUrl(applicant: Applicant, common: CommonData, autoAdvance: boolean) {
-  const encoded = encodeURIComponent(JSON.stringify(buildPayload(applicant, common, autoAdvance)));
-  return `https://visa.kdmid.ru/#kdmid=${encoded}`;
+function buildAutomationUrl(nonce: string) {
+  return `https://visa.kdmid.ru/#kdmid-bridge=${encodeURIComponent(nonce)}`;
 }
 
 function buildBookmarklet(applicant: Applicant, common: CommonData) {
@@ -383,10 +382,41 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       setRoute("applicants");
       return;
     }
-    window.open(buildAutomationUrl(selected, store.common, autoAdvance), "kdmidVisa");
-    setNotice(autoAdvance
-      ? "Đã mở KD-MID ở chế độ tự điền + tự chuyển trang. Script sẽ dừng trước bước in/kiểm tra cuối."
-      : "Đã mở KD-MID ở chế độ tự điền liên tục. Mỗi trang được điền tự động; bạn bấm Далее sau khi kiểm tra.");
+    const nonce = crypto.randomUUID();
+    const payload = buildPayload(selected, store.common, autoAdvance);
+    const target = window.open(buildAutomationUrl(nonce), "kdmidVisa");
+    if (!target) {
+      setNotice("Trình duyệt đã chặn cửa sổ KD-MID. Hãy cho phép pop-up cho App-Manager rồi thử lại.");
+      return;
+    }
+
+    let attempts = 0;
+    let acknowledged = false;
+    const sendPayload = () => {
+      attempts += 1;
+      try {
+        target.postMessage({ type: "KD_MID_PAYLOAD", nonce, payload }, "https://visa.kdmid.ru");
+      } catch { /* Cửa sổ có thể đang chuyển trang; lần kế tiếp sẽ gửi lại. */ }
+      if (attempts >= 24 && !acknowledged) {
+        window.clearInterval(timer);
+        window.removeEventListener("message", onAck);
+        setNotice("KD-MID đã mở nhưng Companion chưa phản hồi. Hãy kiểm tra bước 1: userscript phải ở trạng thái Enabled/Đã bật.");
+      }
+    };
+    const onAck = (event: MessageEvent) => {
+      const data = event.data as { type?: string; nonce?: string };
+      if (event.origin !== "https://visa.kdmid.ru" || data?.type !== "KD_MID_ACK" || data.nonce !== nonce) return;
+      acknowledged = true;
+      window.clearInterval(timer);
+      window.removeEventListener("message", onAck);
+      setNotice(autoAdvance
+        ? "Companion đã kết nối. KD-MID sẽ tự điền và tự chuyển các trang nhận diện chắc chắn; dừng trước bước in/kiểm tra cuối."
+        : "Companion đã kết nối. KD-MID sẽ tự điền từng trang; bạn kiểm tra rồi bấm Далее.");
+    };
+    window.addEventListener("message", onAck);
+    const timer = window.setInterval(sendPayload, 650);
+    sendPayload();
+    setNotice("Đang chờ KD-MID Companion nhận hồ sơ… Nếu trang chỉ đứng im với #kdmid-bridge=…, Companion chưa được cài hoặc đang bị tắt.");
   }
 
   function saveManualRecord() {
@@ -530,9 +560,9 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         <label className={styles.autoToggle}><input type="checkbox" checked={autoAdvance} onChange={(event) => setAutoAdvance(event.target.checked)} /><span><strong>Tự bấm Далее khi trang đã được điền</strong><small>Tắt mặc định. Khi bật, script chỉ tự chuyển các trang trung gian và dừng trước màn hình in/kiểm tra cuối hoặc khi gặp trang không nhận diện chắc chắn.</small></span></label>
       </div>
       <div className={styles.connectGrid}>
-        <article><b>1</b><strong>Cài userscript một lần</strong><p>Cần Tampermonkey/Violentmonkey trên Chrome/Edge. Mở link Companion ở trên và bấm Install.</p></article>
+        <article><b>1</b><strong>Cài Companion một lần</strong><p>Mở “Cài Companion Script”. Tampermonkey/Violentmonkey phải hiện màn hình cài và sau đó script ở trạng thái <strong>Enabled</strong>. Nếu chỉ thấy trang đăng nhập App-Manager thì chưa cài được.</p></article>
         <article><b>2</b><strong>Chọn hồ sơ</strong><p>{selected ? displayName(selected) : "Chưa chọn hồ sơ."} Các trường chung + cố định sẽ tự ghép vào hồ sơ.</p></article>
-        <article><b>3</b><strong>Bấm “Mở KD-MID & tự điền”</strong><p>Không cần tạo bookmark và không cần bấm bookmark lại ở từng trang.</p></article>
+        <article><b>3</b><strong>Bấm “Mở KD-MID & tự điền”</strong><p>App-Manager chỉ mở URL ngắn có mã bridge rồi truyền hồ sơ bằng postMessage. Nếu URL đứng im và còn <code>#kdmid-bridge=...</code>, Companion chưa chạy.</p></article>
         <article><b>4</b><strong>Rà soát cuối</strong><p>Tool dừng trước bước in/gửi cuối để bạn kiểm tra thông tin pháp lý trước khi hoàn tất.</p></article>
       </div>
       <div className={styles.bridgeBox}>
@@ -540,7 +570,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         <textarea readOnly value={bookmarklet} placeholder="Bấm “Tạo bookmarklet dự phòng” để tạo javascript:..." />
         <div className={styles.bridgeActions}><button onClick={async () => { if (!bookmarklet) return; await navigator.clipboard.writeText(bookmarklet); setNotice("Đã sao chép bookmarklet."); }} disabled={!bookmarklet}>Sao chép bookmarklet</button><button className={styles.secondary} onClick={openKdmid}>Mở KD-MID thủ công ↗</button></div>
       </div>
-      <div className={styles.warning}><strong>Vì sao cần Companion Script?</strong><p>Web App không thể trực tiếp sửa DOM của visa.kdmid.ru do chính sách same-origin của trình duyệt. Companion chạy cục bộ ngay trên domain KD-MID nên có thể tự điền mọi trang mà không chuyển hồ sơ qua backend của App-Manager.</p></div>
+      <div className={styles.warning}><strong>Chẩn đoán nhanh</strong><p>Nếu bấm bước 2 mà chỉ mở <code>visa.kdmid.ru/#kdmid-bridge=...</code> rồi đứng im, nguyên nhân gần như chắc chắn là Companion chưa được cài/đang Disabled. Sau khi Companion chạy, đoạn <code>#kdmid-bridge=...</code> sẽ tự biến mất và góc dưới trang KD-MID sẽ hiện trạng thái tự điền.</p></div>
     </section>;
   }
 
