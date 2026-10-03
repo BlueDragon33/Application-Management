@@ -1,25 +1,31 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.6.0
-// @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru, dừng CAPTCHA để người dùng nhập, sau đó tự tiếp tục đến PDF A4.
+// @version      0.7.0
+// @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru từ App-Manager, dừng CAPTCHA để người dùng nhập rồi tiếp tục đến PDF A4.
+// @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
 // @run-at       document-idle
 // @updateURL    https://application-management.boiech-ai.workers.dev/kd-mid-visa-companion.user.js
 // @downloadURL  https://application-management.boiech-ai.workers.dev/kd-mid-visa-companion.user.js
-// @grant        none
+// @grant        GM_setValue
+// @grant        GM_getValue
+// @grant        GM_deleteValue
+// @grant        GM_addValueChangeListener
 // ==/UserScript==
 
 (() => {
   "use strict";
 
-  const DATA_KEY = "kd-mid-visa-vn:payload:v4";
-  const CLICK_KEY = "kd-mid-visa-vn:auto-click:v4";
-  const PRINT_KEY = "kd-mid-visa-vn:auto-print:v4";
-  const ID_KEY = "kd-mid-visa-vn:application-id:v4";
-  const HASH_PREFIX = "#kdmid-bridge=";
+  const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v7";
+  const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v7";
+  const SHARED_SESSION_KEY = "kd-mid-visa-vn:shared-session:v7";
+  const CLICK_KEY = "kd-mid-visa-vn:auto-click:v7";
+  const PRINT_KEY = "kd-mid-visa-vn:auto-print:v7";
   const RETRY_MS = 450;
-  const RETRY_LIMIT = 80;
+  const RETRY_LIMIT = 120;
+  const APP_HOST = "application-management.boiech-ai.workers.dev";
+  const KD_HOST = "visa.kdmid.ru";
 
   const norm = (v) => String(v || "").replace(/\s+/g, " ").trim().toUpperCase();
   const controls = (root = document) => [...root.querySelectorAll("input,select,textarea")];
@@ -28,21 +34,75 @@
     el.dispatchEvent(new Event("change", { bubbles: true }));
   };
 
-  function nonceFromHash() {
-    if (!location.hash.startsWith(HASH_PREFIX)) return "";
-    try { return decodeURIComponent(location.hash.slice(HASH_PREFIX.length)).trim(); }
-    catch { return ""; }
+  function gmSet(key, value) {
+    try { GM_setValue(key, value); return true; } catch (error) {
+      console.error("[KD-MID Visa VN] GM_setValue failed", error);
+      return false;
+    }
   }
 
-  function readPayload() {
+  function gmGet(key, fallback = "") {
+    try { return GM_getValue(key, fallback); } catch (error) {
+      console.error("[KD-MID Visa VN] GM_getValue failed", error);
+      return fallback;
+    }
+  }
+
+  function relayRecordToApp(record) {
+    if (!record || !record.applicationId) return;
+    window.postMessage({ type: "KD_MID_RECORD", ...record }, location.origin);
+  }
+
+  function runAppManagerBridge() {
+    window.addEventListener("message", (event) => {
+      if (event.origin !== location.origin) return;
+      const data = event.data;
+      if (!data) return;
+
+      if (data.type === "KD_MID_PING") {
+        window.postMessage({ type: "KD_MID_COMPANION_READY", version: "0.7.0" }, location.origin);
+        return;
+      }
+
+      if (data.type !== "KD_MID_STORE_PAYLOAD" || !data.payload || !data.nonce) return;
+
+      const okPayload = gmSet(SHARED_PAYLOAD_KEY, JSON.stringify(data.payload));
+      const okSession = gmSet(SHARED_SESSION_KEY, String(data.nonce));
+      if (okPayload && okSession) {
+        window.postMessage({ type: "KD_MID_STORE_ACK", nonce: String(data.nonce), version: "0.7.0" }, location.origin);
+      } else {
+        window.postMessage({ type: "KD_MID_STORE_ERROR", nonce: String(data.nonce) }, location.origin);
+      }
+    });
+
+    const existingRaw = gmGet(SHARED_RECORD_KEY, "");
+    if (existingRaw) {
+      try { relayRecordToApp(JSON.parse(existingRaw)); } catch {}
+    }
+
     try {
-      const raw = localStorage.getItem(DATA_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch { return null; }
+      GM_addValueChangeListener(SHARED_RECORD_KEY, (_name, _oldValue, newValue) => {
+        if (!newValue) return;
+        try { relayRecordToApp(JSON.parse(newValue)); } catch {}
+      });
+    } catch (error) {
+      console.warn("[KD-MID Visa VN] GM_addValueChangeListener unavailable", error);
+    }
+
+    window.postMessage({ type: "KD_MID_COMPANION_READY", version: "0.7.0" }, location.origin);
   }
 
-  function savePayload(payload) {
-    localStorage.setItem(DATA_KEY, JSON.stringify(payload));
+  if (location.hostname === APP_HOST) {
+    runAppManagerBridge();
+    return;
+  }
+
+  if (location.hostname !== KD_HOST) return;
+
+  function readSharedPayload() {
+    const raw = gmGet(SHARED_PAYLOAD_KEY, "");
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch { return null; }
   }
 
   function labelBlock(labels) {
@@ -155,15 +215,12 @@
     let recognized = 0;
     const mark = (ok) => { if (ok) recognized += 1; };
 
-    // Trang 1: Việt Nam + Russian + đã đọc.
     mark(setSelect(["Страна","Country"], ["ВЬЕТНАМ","VIETNAM"]));
     mark(setSelect(["Язык подсказок","Hints and help language"], ["РУССКИЙ","RUSSIAN"]));
     mark(setCheckbox(["Я прочитал эту информацию","I have read this information"], true));
 
-    // Trang 2: password. CAPTCHA tuyệt đối không tự giải.
     recognized += fillPassword(payload);
 
-    // Trang thông tin visa.
     mark(setSelect("Гражданство", payload.citizenship));
     mark(setYesNo("Если Вы имели гражданство СССР или России", Boolean(A.hadFormerRussianCitizenship)));
     if (A.hadFormerRussianCitizenship) {
@@ -177,7 +234,6 @@
     mark(setDate("Дата въезда в Россию", payload.entryDate));
     mark(setDate("Дата выезда из России", payload.exitDate));
 
-    // Trang thông tin cá nhân.
     mark(setText("Фамилия (согласно паспорту)", A.surname));
     mark(setText("Имя, другие имена, отчество", A.givenNames));
     mark(setYesNo("Есть ли у Вас другие когда-либо использовавшиеся имена", false));
@@ -186,12 +242,10 @@
     mark(setText("Место рождения", A.birthPlace));
     mark(setYesNo("Вы родились в России", false));
 
-    // Trang hộ chiếu.
     mark(setText("Номер паспорта", A.passportNo));
     mark(setDate("Дата выдачи", A.passportIssue));
     mark(setDate("Действителен до", A.passportExpiry));
 
-    // Trang thông tin chuyến đi.
     mark(setText("Наименование организации", payload.organization));
     mark(setText("Адрес", payload.organizationAddress));
     mark(setText("ИНН организации", payload.tin));
@@ -207,7 +261,6 @@
       mark(setDate("Дата выезда", A.lastVisitTo));
     }
 
-    // Trang liên hệ.
     mark(setYesNo("Имеете ли Вы адрес постоянного проживания", true));
     mark(setText("Адрес вашего постоянного проживания", payload.fixedPermanentAddress || A.personalAddress));
     mark(setText("Ваш личный телефон", A.phone));
@@ -221,7 +274,6 @@
     mark(setYesNo("Дети до 16 лет", false));
     mark(setYesNo("Имеете ли Вы в настоящее время родственников", false));
 
-    // Trang nơi nộp.
     mark(setSelect("Наименование учреждения", payload.embassy));
 
     return recognized;
@@ -272,22 +324,26 @@
     return "";
   }
 
-  function postApplicationId(payload, complete = false) {
-    const id = extractApplicationId() || localStorage.getItem(ID_KEY) || "";
+  function saveApplicationRecord(payload, complete = false) {
+    const previousRaw = gmGet(SHARED_RECORD_KEY, "");
+    let previous = null;
+    try { previous = previousRaw ? JSON.parse(previousRaw) : null; } catch {}
+
+    const id = extractApplicationId() || previous?.applicationId || "";
     if (!id) return "";
-    localStorage.setItem(ID_KEY, id);
+
     const A = payload.applicant || {};
-    if (window.opener) {
-      window.opener.postMessage({
-        type: "KD_MID_RECORD",
-        applicationId: id,
-        surname5: A.surname5 || "",
-        birthYear: A.birthYear || "",
-        password: A.password || payload.password || "",
-        applicantName: [A.surname, A.givenNames].filter(Boolean).join(" "),
-        complete,
-      }, "*");
-    }
+    const record = {
+      id,
+      applicationId: id,
+      surname5: A.surname5 || "",
+      birthYear: A.birthYear || "",
+      password: A.password || payload.password || "",
+      applicantName: [A.surname, A.givenNames].filter(Boolean).join(" "),
+      complete,
+      updatedAt: new Date().toISOString(),
+    };
+    gmSet(SHARED_RECORD_KEY, JSON.stringify(record));
     return id;
   }
 
@@ -301,7 +357,10 @@
   }
 
   function isCaptchaPage() {
-    return Boolean(document.querySelector('input[type="password"]') && (findCaptchaInput() || document.querySelector('img[src*="captcha" i],img[id*="captcha" i],img[class*="captcha" i]')));
+    const hasPassword = Boolean(document.querySelector('input[type="password"]'));
+    const body = norm(document.body.innerText || "");
+    const hasCaptchaImage = Boolean(document.querySelector('img[src*="captcha" i],img[id*="captcha" i],img[class*="captcha" i]'));
+    return hasPassword && (Boolean(findCaptchaInput()) || hasCaptchaImage || body.includes("КОД С КАРТИНКИ") || body.includes("CAPTCHA"));
   }
 
   function captchaReady() {
@@ -327,9 +386,12 @@
     const candidates = [...document.querySelectorAll("button,input[type=button],input[type=submit],a")];
     const button = candidates.find((el) => wants.includes(norm(el.textContent || el.value)));
     if (!button || button.disabled) return false;
+
     const sig = pageSignature() + ":" + wants.join(",");
-    if (sessionStorage.getItem(CLICK_KEY) === sig) return true;
-    sessionStorage.setItem(CLICK_KEY, sig);
+    const previousAt = Number(sessionStorage.getItem(CLICK_KEY + ":" + sig) || "0");
+    if (Date.now() - previousAt < 1800) return true;
+
+    sessionStorage.setItem(CLICK_KEY + ":" + sig, String(Date.now()));
     setTimeout(() => button.click(), delay);
     return true;
   }
@@ -338,11 +400,15 @@
     if (!payload?._automation?.autoPrint) return false;
     const body = document.body.innerText || "";
     if (!/Печать формата A4|Print A4/i.test(body)) return false;
+
     const key = pageSignature();
-    if (sessionStorage.getItem(PRINT_KEY) === key) return true;
-    sessionStorage.setItem(PRINT_KEY, key);
-    postApplicationId(payload, true);
+    const previousAt = Number(sessionStorage.getItem(PRINT_KEY + ":" + key) || "0");
+    if (Date.now() - previousAt < 5000) return true;
+
+    sessionStorage.setItem(PRINT_KEY + ":" + key, String(Date.now()));
+    saveApplicationRecord(payload, true);
     status("KD-MID Visa VN: hồ sơ hoàn tất. Đang yêu cầu KD-MID xuất PDF A4 chính thức…");
+
     const candidates = [...document.querySelectorAll("button,input[type=button],input[type=submit],a")];
     const printButton = candidates.find((el) => ["ПЕЧАТЬ ФОРМАТА A4","PRINT A4"].includes(norm(el.textContent || el.value)));
     if (!printButton || printButton.disabled) return false;
@@ -358,7 +424,7 @@
     const body = document.body.innerText || "";
     const id = extractApplicationId();
     if (id) {
-      postApplicationId(payload, false);
+      saveApplicationRecord(payload, false);
       status(`KD-MID Visa VN: đã ghi nhớ Application ID ${id}. Đang tiếp tục…`);
       return clickNamed(["ДАЛЕЕ","NEXT"], 650);
     }
@@ -375,7 +441,6 @@
 
     if (/ПЕЧАТНАЯ ФОРМА ЭЛЕКТРОННОЙ ВИЗОВОЙ АНКЕТЫ/i.test(body)) return false;
 
-    // Trang đầu và các trang dữ liệu.
     if (recognized > 0) {
       return clickNamed(["ЗАПОЛНИТЬ НОВУЮ АНКЕТУ","COMPLETE NEW APPLICATION","ДАЛЕЕ","NEXT"], 750);
     }
@@ -399,7 +464,7 @@
   function run(payload) {
     const recognized = fillPage(payload);
     addHints();
-    postApplicationId(payload, false);
+    saveApplicationRecord(payload, false);
     maybeAdvance(payload, recognized);
   }
 
@@ -415,44 +480,27 @@
     retryTimer = window.setInterval(tick, RETRY_MS);
   }
 
-  function acceptBridge(nonce) {
-    if (!nonce) return;
-    status("KD-MID Visa VN Companion: đang chờ hồ sơ từ App-Manager…", "wait");
-    if (window.opener) window.opener.postMessage({ type: "KD_MID_READY", nonce }, "*");
-    window.addEventListener("message", (event) => {
-      const data = event.data;
-      if (!data || data.type !== "KD_MID_PAYLOAD" || data.nonce !== nonce || !data.payload) return;
-      savePayload(data.payload);
-      localStorage.removeItem(ID_KEY);
-      history.replaceState(null, document.title, location.pathname + location.search);
-      if (window.opener) window.opener.postMessage({ type: "KD_MID_ACK", nonce }, "*");
-      startProgressiveRun(data.payload);
-    });
-  }
-
   addHints();
-  const nonce = nonceFromHash();
-  if (nonce) {
-    localStorage.removeItem(DATA_KEY);
-    acceptBridge(nonce);
+  const payload = readSharedPayload();
+  if (!payload) {
+    status("KD-MID Visa VN Companion v0.7 đang chạy nhưng chưa nhận được hồ sơ từ App-Manager. Quay lại App-Manager và bấm “Bắt đầu tự động đến PDF”.", "wait");
   } else {
-    const payload = readPayload();
-    if (payload) startProgressiveRun(payload);
+    status("KD-MID Visa VN Companion v0.7 đã nhận hồ sơ. Đang bắt đầu tự động…");
+    startProgressiveRun(payload);
   }
 
-  // CAPTCHA: người dùng nhập thủ công; sau đó Companion tiếp tục ngay.
   document.addEventListener("input", () => {
-    const payload = readPayload();
-    if (!payload || !isCaptchaPage()) return;
-    window.setTimeout(() => run(payload), 120);
+    const current = readSharedPayload();
+    if (!current || !isCaptchaPage()) return;
+    window.setTimeout(() => run(current), 120);
   }, true);
 
   const observer = new MutationObserver(() => {
-    const payload = readPayload();
+    const current = readSharedPayload();
     addHints();
-    if (!payload) return;
+    if (!current) return;
     window.clearTimeout(observer._kdmidTimer);
-    observer._kdmidTimer = window.setTimeout(() => run(payload), 180);
+    observer._kdmidTimer = window.setTimeout(() => run(current), 180);
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
 })();
