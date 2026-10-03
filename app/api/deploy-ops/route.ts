@@ -8,10 +8,8 @@ import {
   listDeployOpsTargets,
   probeDeployOps,
   readDeployOpsTarget,
-  refreshTinyFishBrowserTest,
   safePublishDeployOps,
   saveDeployOpsTarget,
-  startTinyFishBrowserTest,
 } from "../../deploy-ops.server";
 
 export const dynamic = "force-dynamic";
@@ -76,18 +74,6 @@ export async function POST(request: Request) {
       return json({ ok: true, probe });
     }
 
-    if (action === "start-tinyfish") {
-      const origin = new URL(request.url).origin;
-      const run = await startTinyFishBrowserTest(appId, sourceSha, origin, actor);
-      return json({ ok: true, run });
-    }
-
-    if (action === "refresh-tinyfish") {
-      const tinyfish = await refreshTinyFishBrowserTest(appId, sourceSha);
-      const probe = await probeDeployOps(appId, sourceSha);
-      return json({ ok: true, tinyfish, probe });
-    }
-
     if (action === "safe-publish") {
       try {
         const result = await safePublishDeployOps(appId, sourceSha, payload.productionAuthority === true, actor);
@@ -118,15 +104,9 @@ export async function POST(request: Request) {
       "VERCEL_PROJECT_REQUIRED",
       "INVALID_VERCEL_TEAM",
       "NEON_MAPPING_REQUIRED",
-      "TINYFISH_MAPPING_REQUIRED",
       "INVALID_DEPLOY_OPS_PROBE",
       "DEPLOY_OPS_TARGET_NOT_FOUND",
       "INVALID_TEST_TARGET",
-      "TINYFISH_NOT_ENABLED",
-      "TINYFISH_API_KEY_MISSING",
-      "INVALID_TINYFISH_TARGET",
-      "INVALID_CALLBACK_ORIGIN",
-      "TINYFISH_RUN_NOT_FOUND",
       "PRODUCTION_AUTHORITY_REQUIRED",
       "INVALID_SAFE_PUBLISH_TARGET",
       "NO_VERCEL_PUBLISH_PROVIDER",

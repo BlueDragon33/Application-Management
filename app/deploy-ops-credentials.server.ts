@@ -1,6 +1,6 @@
 import { getControlDatabase, type ControlDeviceState } from "./control-device.server";
 
-export type DeployOpsProvider = "vercel" | "neon" | "tinyfish";
+export type DeployOpsProvider = "vercel" | "neon";
 export type DeployOpsCredentialSource = "worker" | "vault" | "missing";
 
 type CredentialRow = {
@@ -16,7 +16,6 @@ type CredentialRow = {
 const ENV_BY_PROVIDER: Record<DeployOpsProvider, string> = {
   vercel: "VERCEL_TOKEN",
   neon: "NEON_API_KEY",
-  tinyfish: "TINYFISH_API_KEY",
 };
 
 function text(value: unknown) {
@@ -25,7 +24,7 @@ function text(value: unknown) {
 
 export function deployOpsProvider(value: unknown): DeployOpsProvider {
   const provider = text(value).toLowerCase();
-  if (provider === "vercel" || provider === "neon" || provider === "tinyfish") return provider;
+  if (provider === "vercel" || provider === "neon") return provider;
   throw new Error("INVALID_PROVIDER");
 }
 
@@ -152,7 +151,7 @@ export async function loadDeployOpsCredential(provider: DeployOpsProvider) {
 
 export async function deployOpsCredentialStatus() {
   const entries = await Promise.all(
-    (["vercel", "neon", "tinyfish"] as const).map(async (provider) => {
+    (["vercel", "neon"] as const).map(async (provider) => {
       const credential = await loadDeployOpsCredential(provider);
       return [provider, {
         configured: credential.configured,

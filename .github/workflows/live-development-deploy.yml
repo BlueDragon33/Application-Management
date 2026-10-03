@@ -34,7 +34,6 @@ jobs:
       MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY: ${{ secrets.MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
-      TINYFISH_API_KEY: ${{ secrets.TINYFISH_API_KEY }}
 
     steps:
       - uses: actions/checkout@v4
@@ -103,7 +102,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for key in VERCEL_TOKEN NEON_API_KEY TINYFISH_API_KEY; do
+          for key in VERCEL_TOKEN NEON_API_KEY; do
             value="${!key:-}"
             if [[ -n "$value" ]]; then
               printf '%s' "$value" | npx wrangler secret put "$key" --config wrangler.production.jsonc
@@ -112,6 +111,18 @@ jobs:
               echo "$key not supplied; existing Worker secret, if any, is left unchanged."
             fi
           done
+
+      - name: Remove retired paid-browser Worker secret
+        if: steps.ready.outputs.deploy == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if npx wrangler secret list --config wrangler.production.jsonc 2>/dev/null | grep -q 'TINYFISH_API_KEY'; then
+            printf 'y\n' | npx wrangler secret delete TINYFISH_API_KEY --config wrangler.production.jsonc
+            echo 'Retired paid-browser Worker secret removed.'
+          else
+            echo 'Retired paid-browser Worker secret already absent.'
+          fi
 
       - name: Deploy current main to live Worker
         if: steps.ready.outputs.deploy == 'true'

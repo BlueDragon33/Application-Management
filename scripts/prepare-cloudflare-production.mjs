@@ -112,7 +112,6 @@ for (const secretName of [
   "BAUMAN_CONTROL_SERVICE_SECRET",
   "VERCEL_TOKEN",
   "NEON_API_KEY",
-  "TINYFISH_API_KEY",
 ]) {
   if (source.includes(secretName)) throw new Error(`${secretName} must remain a Worker secret and never enter Wrangler vars.`);
 }

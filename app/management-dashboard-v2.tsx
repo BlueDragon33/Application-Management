@@ -132,7 +132,7 @@ const systemTools: readonly SystemTool[] = [
     name: "Deploy & Ops",
     href: "/tools/deploy-ops",
     category: "Tool",
-    note: "Điều phối Vercel · Neon · TinyFish theo evidence; kiểm tra Safe Publish và khóa secret khỏi cấu hình.",
+    note: "Điều phối Vercel · Neon theo evidence; kiểm tra Safe Publish và khóa secret khỏi cấu hình.",
   },
   {
     id: "tool-kd-mid-visa",

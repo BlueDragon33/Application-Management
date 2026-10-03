@@ -44,7 +44,6 @@ interface Env {
   APPLICATION_MANAGEMENT_BUILD_REVISION?: string;
   VERCEL_TOKEN?: string;
   NEON_API_KEY?: string;
-  TINYFISH_API_KEY?: string;
 }
 
 interface ExecutionContext {
@@ -113,7 +112,6 @@ async function deploymentStatus(env: Env) {
     deployOps: {
       vercelConfigured: configured(env.VERCEL_TOKEN),
       neonConfigured: configured(env.NEON_API_KEY),
-      tinyfishConfigured: configured(env.TINYFISH_API_KEY),
     },
     checkedAt: Date.now(),
   };
@@ -213,19 +211,6 @@ const worker = {
     const channel = env.APPLICATION_MANAGEMENT_DEPLOYMENT_CHANNEL;
     const isPreview = channel === "cloudflare-preview";
     const isProduction = channel === "cloudflare-production";
-    const publicTinyFishWebhook = request.method === "POST" && url.pathname === "/api/deploy-ops/tinyfish-webhook";
-
-    // TinyFish must be able to deliver an async terminal event without a browser
-    // login session. The route itself requires a high-entropy per-run nonce and
-    // re-verifies the run against TinyFish's authenticated API before accepting
-    // any result as release evidence.
-    if (publicTinyFishWebhook) {
-      return freshDynamicResponse(
-        await handler.fetch(request, env, ctx),
-        isPreview || isProduction,
-      );
-    }
-
     // PWA installability metadata contains no private application data and must
     // be readable before login so Chromium can validate the manifest and
     // service worker deterministically.
