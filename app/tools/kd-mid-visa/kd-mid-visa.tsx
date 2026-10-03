@@ -604,9 +604,9 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       <div className={styles.pdfExportGrid}>
         <article>
           <span>HỒ SƠ ĐANG DÙNG</span>
-          <strong>{selected ? displayName(selected) : "Chưa chọn hồ sơ"}</strong>
-          <small>{selected ? `${selected.passportNo || "Chưa có hộ chiếu"} · ${selected.birthDate || "Chưa có ngày sinh"}` : "Tạo hoặc chọn hồ sơ trước."}</small>
-          <button className={styles.secondary} onClick={() => setRoute("applicants")}>{selected ? "Đổi / sửa hồ sơ" : "+ Tạo hồ sơ"}</button>
+          {store.applicants.length ? <select value={selected?.id ?? ""} onChange={(event) => setStore((current) => ({ ...current, selectedId: event.target.value }))}>{store.applicants.map((item) => <option key={item.id} value={item.id}>{displayName(item)}{item.passportNo ? ` · ${item.passportNo}` : ""}</option>)}</select> : <strong>Chưa có hồ sơ</strong>}
+          <small>{selected ? `${selected.passportNo || "Chưa có hộ chiếu"} · ${selected.birthDate || "Chưa có ngày sinh"}` : "Tạo hồ sơ trước."}</small>
+          <button className={styles.secondary} onClick={() => selected ? setEditing({ ...selected }) : setEditing(emptyApplicant())}>{selected ? "Sửa hồ sơ đang chọn" : "+ Tạo hồ sơ"}</button>
         </article>
         <article>
           <span>CƠ QUAN TIẾP NHẬN</span>
