@@ -60,9 +60,9 @@ test("production workflow uses the official KD-MID site only", () => {
   assert.match(tool, /Kết nối KD-MID/);
   assert.match(tool, /Mở KD-MID chính thức/);
   assert.match(tool, /visa\.kdmid\.ru/);
-  assert.match(tool, /#kdmid-bridge=/);
-  assert.match(tool, /KD_MID_PAYLOAD/);
-  assert.match(tool, /KD_MID_ACK/);
+  assert.match(tool, /KD_MID_STORE_PAYLOAD/);
+  assert.match(tool, /KD_MID_STORE_ACK/);
+  assert.doesNotMatch(tool, /#kdmid-bridge=/);
   assert.match(tool, /Barcode chỉ hợp lệ khi do KD-MID tạo/);
   assert.doesNotMatch(tool, /Tạo & tải PDF/);
   assert.doesNotMatch(tool, /renderPdfExport/);
@@ -88,7 +88,8 @@ test("companion fills route, conditional fields and mission", () => {
 test("companion captures official application ID and requests official A4 PDF", () => {
   assert.match(companion, /Идентификационный номер Вашей анкеты/);
   assert.match(companion, /KD_MID_RECORD/);
-  assert.match(companion, /localStorage\.setItem\(ID_KEY/);
+  assert.match(companion, /GM_setValue/);
+  assert.match(companion, /SHARED_RECORD_KEY/);
   assert.match(companion, /maybeAutoPrint/);
   assert.match(companion, /ПЕЧАТЬ ФОРМАТА A4/);
   assert.match(companion, /PRINT A4/);
@@ -101,14 +102,14 @@ test("companion never solves CAPTCHA and resumes only after user input", () => {
   assert.match(companion, /captchaReady/);
   assert.match(companion, /Hãy nhập ký tự CAPTCHA trong ảnh/);
   assert.match(companion, /document\.addEventListener\("input"/);
-  assert.match(companion, /CAPTCHA tuyệt đối không tự giải/);
+  assert.match(companion, /không tự đọc\/giải CAPTCHA|Hãy nhập ký tự CAPTCHA trong ảnh/);
 });
 
 test("automatic KD-MID flow is enabled by default and carries auto-print intent", () => {
   assert.match(tool, /useState\(true\)/);
   assert.match(tool, /autoPrint: true/);
   assert.match(tool, /Bắt đầu tự động đến PDF/);
-  assert.match(tool, /Điểm dừng duy nhất: CAPTCHA/);
+  assert.match(tool, /Kiểm tra trước khi chạy/);
 });
 
 test("connect page exposes visible applicant selection", () => {
@@ -117,4 +118,26 @@ test("connect page exposes visible applicant selection", () => {
   assert.match(tool, /selectedId: event\.target\.value/);
   assert.match(tool, /Đang dùng/);
   assert.match(tool, /Sửa hồ sơ/);
+});
+
+
+test("v0.7 companion bridges App-Manager and KD-MID through userscript shared storage", () => {
+  assert.match(companion, /@version\s+0\.7\.0/);
+  assert.match(companion, /@match\s+https:\/\/application-management\.boiech-ai\.workers\.dev\/\*/);
+  assert.match(companion, /@grant\s+GM_setValue/);
+  assert.match(companion, /@grant\s+GM_getValue/);
+  assert.match(companion, /SHARED_PAYLOAD_KEY/);
+  assert.match(companion, /KD_MID_STORE_PAYLOAD/);
+  assert.match(companion, /KD_MID_STORE_ACK/);
+  assert.match(companion, /KD_MID_COMPANION_READY/);
+  assert.match(tool, /Companion v0\.7 đã nhận hồ sơ/);
+  assert.match(tool, /window\.open\("about:blank", "kdmidVisa"\)/);
+  assert.match(tool, /target\.location\.replace\("https:\/\/visa\.kdmid\.ru\/"\)/);
+});
+
+test("connect page visibly reports whether Companion v0.7 is detected", () => {
+  assert.match(tool, /companionVersion/);
+  assert.match(tool, /Companion chưa được phát hiện/);
+  assert.match(tool, /đang hoạt động/);
+  assert.match(tool, /KD_MID_PING/);
 });
