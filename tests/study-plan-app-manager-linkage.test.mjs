@@ -21,6 +21,7 @@ test("App Manager models Study Plan as a Bauman-owned internal tool", () => {
 test("Bauman management exposes a direct Study Plan bridge", () => {
   const admin = source("app/apps/bauman-master-ai/bauman-admin.tsx");
   const css = source("app/apps/bauman-master-ai/bauman-admin.module.css");
+  const registry = source("app/application-registry.ts");
 
   assert.match(admin, /href="\/tools\/study-plan"/);
   assert.match(admin, /STUDY PLAN BRIDGE · APPLICATION MANAGEMENT/);
@@ -28,6 +29,8 @@ test("Bauman management exposes a direct Study Plan bridge", () => {
   assert.match(admin, /Registry-aware/);
   assert.match(css, /\.studyPlanBridge\s*\{/);
   assert.match(css, /\.studyPlanFacts\s*\{/);
+  assert.match(registry, /"Study Plan 09\.04\.01\/11"/);
+  assert.match(registry, /Study Plan chỉ đọc contract\/manifest Bauman và fail-closed khi registry không khả dụng/);
 });
 
 test("Study Plan links back to both App Manager and Bauman Admin and surfaces registry coverage", () => {
