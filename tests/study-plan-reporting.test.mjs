@@ -82,3 +82,19 @@ test("study-plan final UI exposes section tabs and responsive explorer/skills la
   assert.match(css, /\.skillGrid\s*\{/);
   assert.match(css, /@media\(max-width:1100px\)/);
 });
+
+
+test("skills direction covers every displayed curriculum entry exactly once", () => {
+  const data = source("app/tools/study-plan/study-plan-data.ts");
+  const ui = source("app/tools/study-plan/study-plan.tsx");
+
+  const courseBlock = data.slice(data.indexOf("export const courses"), data.indexOf("export const readinessByCourse"));
+  const courseIds = [...courseBlock.matchAll(/\\bid:\\s*"([^"]+)"/g)].map((match) => match[1]);
+  const clusterBlock = ui.slice(ui.indexOf("const skillClusterDefinitions"), ui.indexOf("type GapAction"));
+  const clusterIds = [...clusterBlock.matchAll(/courseIds:\\s*\\[([^\\]]*)\\]/g)]
+    .flatMap((match) => [...match[1].matchAll(/"([^"]+)"/g)].map((item) => item[1]));
+
+  assert.equal(courseIds.length, 33);
+  assert.equal(clusterIds.length, 33);
+  assert.deepEqual([...new Set(clusterIds)].sort(), [...courseIds].sort());
+});
