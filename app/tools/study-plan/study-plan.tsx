@@ -14,6 +14,7 @@ import {
   yearCourses,
   type Assessment,
   type Course,
+  type CourseKind,
   type Language,
   type ReadinessLevel,
   type ViewMode,
@@ -73,6 +74,9 @@ const copy = {
     programStructure: "Cấu trúc chương trình",
     programAnalysis: "Phân tích tổng thể",
     totalHours: "4.320 giờ học thuật",
+    creditStructureTitle: "Cơ cấu 120 tín chỉ",
+    creditStructureSubtitle: "Tính trực tiếp từ loại học phần và số tín chỉ đang có trong kế hoạch đào tạo.",
+    structureItems: "mục",
     exportPdf: "Xuất PDF",
     workloadTitle: "Phân tích tải học theo học kỳ",
     workloadSubtitle: "So sánh tổng giờ học chính thức, giờ tiếp xúc và khối lượng tự học/nhiệm vụ.",
@@ -183,6 +187,9 @@ const copy = {
     programStructure: "Program structure",
     programAnalysis: "Overall analysis",
     totalHours: "4,320 academic hours",
+    creditStructureTitle: "120-credit structure",
+    creditStructureSubtitle: "Calculated directly from the course type and credits encoded in the curriculum.",
+    structureItems: "entries",
     exportPdf: "Export PDF",
     workloadTitle: "Semester workload analysis",
     workloadSubtitle: "Compare official total hours, contact time and self-study/task load.",
@@ -239,6 +246,25 @@ const copy = {
     nextBuildOrder: "New-module build order by semester",
     noItems: "No current course entries in this group.",
     missingHandled: "Gap has an action plan",
+  },
+} as const;
+
+const programKindOrder: readonly CourseKind[] = ["course", "research", "practice", "elective", "thesis"];
+
+const programKindLabels = {
+  vi: {
+    course: "Học phần",
+    research: "Nghiên cứu (NIR)",
+    practice: "Thực tập",
+    elective: "Tự chọn",
+    thesis: "Luận văn (VKR)",
+  },
+  en: {
+    course: "Courses",
+    research: "Research (NIR)",
+    practice: "Practice",
+    elective: "Electives",
+    thesis: "Thesis (VKR)",
   },
 } as const;
 
@@ -850,6 +876,19 @@ export default function StudyPlanTool({
     };
   }, [baumanModules]);
 
+  const creditStructure = useMemo(() => programKindOrder.map((kind) => {
+    const items = courses.filter((course) => course.kind === kind);
+    const credits = items.reduce((sum, course) => sum + course.credits, 0);
+    const hours = items.reduce((sum, course) => sum + course.hours, 0);
+    return {
+      kind,
+      count: items.length,
+      credits,
+      hours,
+      percent: program.credits > 0 ? (credits / program.credits) * 100 : 0,
+    };
+  }), []);
+
   const workloadBySemester = useMemo(() => ([1, 2, 3, 4] as const).map((semesterNumber) => {
     const items = semesterCourses(semesterNumber);
     const totalHours = items.reduce((sum, course) => sum + course.hours, 0);
@@ -1094,6 +1133,35 @@ export default function StudyPlanTool({
           </article>;
         })}
       </div>
+      <section className={styles.creditStructure} aria-labelledby="study-plan-credit-structure-title">
+        <div className={styles.creditStructureHeading}>
+          <div>
+            <span id="study-plan-credit-structure-title">{t.creditStructureTitle}</span>
+            <p>{t.creditStructureSubtitle}</p>
+          </div>
+          <strong>{program.credits} {t.credits.toLowerCase()}</strong>
+        </div>
+        <div className={styles.creditStack} aria-label={t.creditStructureTitle}>
+          {creditStructure.map((item) => <span
+            key={item.kind}
+            data-kind={item.kind}
+            style={{ width: `${item.percent}%` }}
+            title={`${programKindLabels[lang][item.kind]}: ${item.credits} ${t.credits.toLowerCase()}`}
+          />)}
+        </div>
+        <div className={styles.creditStructureGrid}>
+          {creditStructure.map((item) => <article key={item.kind} data-kind={item.kind}>
+            <i />
+            <div>
+              <span>{programKindLabels[lang][item.kind]}</span>
+              <small>{item.count} {t.structureItems} · {item.hours.toLocaleString(lang === "vi" ? "vi-VN" : "en-US")} h</small>
+            </div>
+            <strong>{item.credits}</strong>
+            <em>{item.percent.toFixed(1)}%</em>
+          </article>)}
+        </div>
+      </section>
+
       <section className={styles.workloadAnalysis} aria-labelledby="study-plan-workload-title">
         <div className={styles.workloadHeading}>
           <div>
