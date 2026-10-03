@@ -1268,25 +1268,6 @@ export default function StudyPlanTool({
       <small className={styles.commandHint}>{t.quickFindHint}</small>
     </section>
 
-    <section className={styles.integrationBridge} aria-label={t.integrationTitle}>
-      <div className={styles.integrationLead}>
-        <span>{t.integrationTitle}</span>
-        <p>{t.integrationNote}</p>
-      </div>
-      <div className={styles.integrationFacts}>
-        <article><small>{t.integrationParent}</small><strong>Bauman Hub</strong><Link href="/apps/bauman-master-ai">{t.baumanAdmin} →</Link></article>
-        <article><small>{t.integrationRegistry}</small><strong data-live={baumanRegistryStatus === "live"}>{baumanRegistryStatus === "live" ? t.registryLive : t.registryFallback}</strong><span>{baumanModules.length} {lang === "vi" ? "nguồn nối" : "connected resources"}</span></article>
-        <article><small>{t.integrationCoverage}</small><strong>{moduleCoverage.covered.length}/{courses.length}</strong><span>{moduleCoverage.percent}%</span></article>
-      </div>
-    </section>
-
-    <section className={styles.stats}>
-      <Stat value={program.credits} label={t.credits} sub={t.totalHours} />
-      <Stat value={4} label={t.semesters} sub="30 + 30 + 30 + 30" />
-      <Stat value={62} label={t.teachingWeeks} sub="17 + 17 + 17 + 11" />
-      <Stat value="≈51" label={t.avgLoad} sub={t.hoursWeek} />
-    </section>
-
     <section className={styles.workspaceLauncher} aria-labelledby="workspace-launcher-title">
       <header>
         <div>
@@ -1542,6 +1523,25 @@ export default function StudyPlanTool({
           </div> : null}
         </article>)}
       </div>
+    </section>
+
+    <section className={styles.integrationBridge} aria-label={t.integrationTitle}>
+      <div className={styles.integrationLead}>
+        <span>{t.integrationTitle}</span>
+        <p>{t.integrationNote}</p>
+      </div>
+      <div className={styles.integrationFacts}>
+        <article><small>{t.integrationParent}</small><strong>Bauman Hub</strong><Link href="/apps/bauman-master-ai">{t.baumanAdmin} →</Link></article>
+        <article><small>{t.integrationRegistry}</small><strong data-live={baumanRegistryStatus === "live"}>{baumanRegistryStatus === "live" ? t.registryLive : t.registryFallback}</strong><span>{baumanModules.length} {lang === "vi" ? "nguồn nối" : "connected resources"}</span></article>
+        <article><small>{t.integrationCoverage}</small><strong>{moduleCoverage.covered.length}/{courses.length}</strong><span>{moduleCoverage.percent}%</span></article>
+      </div>
+    </section>
+
+    <section className={styles.stats}>
+      <Stat value={program.credits} label={t.credits} sub={t.totalHours} />
+      <Stat value={4} label={t.semesters} sub="30 + 30 + 30 + 30" />
+      <Stat value={62} label={t.teachingWeeks} sub="17 + 17 + 17 + 11" />
+      <Stat value="≈51" label={t.avgLoad} sub={t.hoursWeek} />
     </section>
 
     <section className={styles.overall} id="program-analysis">
