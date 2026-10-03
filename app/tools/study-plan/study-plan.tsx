@@ -365,6 +365,7 @@ const programKindLabels = {
 } as const;
 
 type WorkspaceSection = "schedule" | "courses" | "skills" | "analysis" | "roadmap";
+type StudyFontScale = "normal" | "large" | "xlarge";
 type ExplorerSemester = "all" | "1" | "2" | "3" | "4";
 type ExplorerKind = "all" | CourseKind;
 type ExplorerReadiness = "all" | ReadinessLevel;
@@ -976,6 +977,7 @@ export default function StudyPlanTool({
   const [week, setWeek] = useState(1);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>("multivariate");
   const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceSection>("schedule");
+  const [fontScale, setFontScale] = useState<StudyFontScale>("normal");
   const [courseQuery, setCourseQuery] = useState("");
   const [courseSemesterFilter, setCourseSemesterFilter] = useState<ExplorerSemester>("all");
   const [courseKindFilter, setCourseKindFilter] = useState<ExplorerKind>("all");
@@ -983,6 +985,23 @@ export default function StudyPlanTool({
   const [courseSort, setCourseSort] = useState<ExplorerSort>("semester");
   const [completed, setCompleted] = useState<Record<string, boolean>>({});
   const [progressLoaded, setProgressLoaded] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem("application-management:study-plan-font-scale:v1");
+      if (saved === "normal" || saved === "large" || saved === "xlarge") setFontScale(saved);
+    } catch {
+      // Font preference is device-local and optional.
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("application-management:study-plan-font-scale:v1", fontScale);
+    } catch {
+      // Font preference is device-local and optional.
+    }
+  }, [fontScale]);
 
   useEffect(() => {
     try {
@@ -1192,7 +1211,7 @@ export default function StudyPlanTool({
     });
   };
 
-  return <main className={styles.shell} id="study-plan-top" data-workspace={activeWorkspace}>
+  return <main className={styles.shell} id="study-plan-top" data-workspace={activeWorkspace} data-font-scale={fontScale}>
     <header className={styles.topbar}>
       <div className={styles.contextNav}>
         <Link href="/" className={styles.back}>{t.back}</Link>
@@ -1201,6 +1220,11 @@ export default function StudyPlanTool({
       <div className={styles.language} aria-label="Language">
         <button type="button" data-active={lang === "vi"} onClick={() => setLang("vi")}>VI</button>
         <button type="button" data-active={lang === "en"} onClick={() => setLang("en")}>EN</button>
+      </div>
+      <div className={styles.fontControl} aria-label={lang === "vi" ? "Cỡ chữ" : "Text size"}>
+        <button type="button" data-active={fontScale === "normal"} aria-label={lang === "vi" ? "Cỡ chữ chuẩn" : "Normal text size"} onClick={() => setFontScale("normal")}>A</button>
+        <button type="button" data-active={fontScale === "large"} aria-label={lang === "vi" ? "Cỡ chữ lớn" : "Large text size"} onClick={() => setFontScale("large")}>A+</button>
+        <button type="button" data-active={fontScale === "xlarge"} aria-label={lang === "vi" ? "Cỡ chữ rất lớn" : "Extra large text size"} onClick={() => setFontScale("xlarge")}>A++</button>
       </div>
       <button type="button" className={styles.printButton} onClick={printStudyPlan}>{t.exportPdf}</button>
       <div className={styles.user}><span>{user.displayName.slice(0, 1).toUpperCase()}</span><div><strong>{user.displayName}</strong><small>{user.email}</small></div></div>
