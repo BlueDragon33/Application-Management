@@ -1009,6 +1009,13 @@ export default function StudyPlanTool({
   const printStudyPlan = () => window.print();
 
   const t = copy[lang];
+  const workspaceItems: Array<{ id: WorkspaceSection; label: string; sub: string; badge: string }> = [
+    { id: "schedule", label: t.navSchedule, sub: t.navScheduleSub, badge: "4 HK" },
+    { id: "courses", label: t.navCourses, sub: t.navCoursesSub, badge: String(courses.length) },
+    { id: "skills", label: t.navSkills, sub: t.navSkillsSub, badge: String(skillClusterDefinitions.length) },
+    { id: "analysis", label: t.navAnalysis, sub: t.navAnalysisSub, badge: String(program.credits) },
+    { id: "roadmap", label: t.navPreparation, sub: t.navPreparationSub, badge: "12" },
+  ];
   const meta = semesterMeta[semester];
   const selectedCourse = courses.find((course) => course.id === selectedCourseId) ?? null;
   const visibleCourses = useMemo(() => {
@@ -1129,6 +1136,7 @@ export default function StudyPlanTool({
   }, [moduleCoverage.missing]);
 
   const openCoverageCourse = (course: Course) => {
+    setActiveWorkspace("schedule");
     setSemester(course.semester);
     setYear(course.semester <= 2 ? 1 : 2);
     setMode("semester");
@@ -1152,6 +1160,7 @@ export default function StudyPlanTool({
   };
 
   const openCourseFromAnalysis = (course: Course) => {
+    setActiveWorkspace("schedule");
     setSemester(course.semester);
     setYear(course.semester <= 2 ? 1 : 2);
     setMode("semester");
@@ -1183,7 +1192,7 @@ export default function StudyPlanTool({
     });
   };
 
-  return <main className={styles.shell} id="study-plan-top">
+  return <main className={styles.shell} id="study-plan-top" data-workspace={activeWorkspace}>
     <header className={styles.topbar}>
       <div className={styles.contextNav}>
         <Link href="/" className={styles.back}>{t.back}</Link>
@@ -1254,13 +1263,28 @@ export default function StudyPlanTool({
       <Stat value="≈51" label={t.avgLoad} sub={t.hoursWeek} />
     </section>
 
-    <nav className={styles.studySections} aria-label={t.title}>
-      <a href="#study-plan-content">{t.navSchedule}</a>
-      <a href="#course-explorer">{t.navCourses}</a>
-      <a href="#skills-direction">{t.navSkills}</a>
-      <a href="#program-analysis">{t.navAnalysis}</a>
-      <a href="#pre-bauman-roadmap">{t.navPreparation}</a>
-    </nav>
+    <section className={styles.workspaceLauncher} aria-labelledby="workspace-launcher-title">
+      <header>
+        <div>
+          <span id="workspace-launcher-title">{t.workspaceTitle}</span>
+          <p>{t.workspaceHint}</p>
+        </div>
+      </header>
+      <nav className={styles.studySections} aria-label={t.title}>
+        {workspaceItems.map((item) => <button
+          key={item.id}
+          type="button"
+          data-active={activeWorkspace === item.id}
+          aria-pressed={activeWorkspace === item.id}
+          onClick={() => switchWorkspace(item.id)}
+        >
+          <span className={styles.workspaceIcon}><WorkspaceIcon section={item.id}/></span>
+          <div><strong>{item.label}</strong><small>{item.sub}</small></div>
+          <b>{item.badge}</b>
+        </button>)}
+      </nav>
+    </section>
+    <div id="workspace-content" className={styles.workspaceContentAnchor} aria-hidden="true" />
 
     <section className={styles.readinessLegend}>
       <div>
