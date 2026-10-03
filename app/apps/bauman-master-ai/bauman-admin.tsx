@@ -177,7 +177,7 @@ export default function BaumanAdmin({ application, user }: { application: Applic
     </aside>
 
     <section className={styles.workspaceMain}>
-      <header className={styles.workspaceTopbar}><div><span>{title.eyebrow}</span><h1>{title.title}</h1><p>{title.description}</p></div><div className={styles.topbarActions}><Link href="/">Hệ thống</Link><button onClick={() => void load()} disabled={busy || Boolean(actioning)}>{busy ? "Đang cập nhật…" : "Cập nhật"}</button></div></header>
+      <header className={styles.workspaceTopbar}><div><span>{title.eyebrow}</span><h1>{title.title}</h1><p>{title.description}</p></div><div className={styles.topbarActions}><Link href="/">Hệ thống</Link><Link href="/tools/study-plan">Kế hoạch học tập</Link><button onClick={() => void load()} disabled={busy || Boolean(actioning)}>{busy ? "Đang cập nhật…" : "Cập nhật"}</button></div></header>
       {error ? <div className={styles.workspaceError}>{error}</div> : null}
 
       {view === "overview" ? <>
@@ -186,6 +186,20 @@ export default function BaumanAdmin({ application, user }: { application: Applic
           <article><span>Thiết bị BM</span><strong>{devices.length}</strong><small>{pending} chờ · {approved} duyệt · {blocked} khóa</small></article>
           <article><span>Online</span><strong>{summary?.onlineCount ?? "—"}</strong><small>Đọc từ registry Bauman, không copy sang Trung tâm</small></article>
           <article><span>Sub-client</span><strong>{children.length}</strong><small>{independent} độc lập · {modules} module · {workflows} workflow</small></article>
+        </section>
+        <section className={baumanStyles.studyPlanBridge}>
+          <div>
+            <span>STUDY PLAN BRIDGE · APPLICATION MANAGEMENT</span>
+            <h2>Phân tích lịch học 09.04.01/11</h2>
+            <p>Study Plan là Tool nội bộ của Application Management nhưng dùng Bauman Hub làm ứng dụng cha: đọc contract/manifest để nối học phần với học liệu hoặc workflow, và fail-closed khi registry Bauman không khả dụng.</p>
+          </div>
+          <div className={baumanStyles.studyPlanFacts}>
+            <span><small>Chương trình</small><strong>09.04.01/11</strong></span>
+            <span><small>Khối lượng</small><strong>120 tín chỉ</strong></span>
+            <span><small>Chu kỳ</small><strong>4 học kỳ</strong></span>
+            <span><small>Liên kết</small><strong>Registry-aware</strong></span>
+          </div>
+          <Link href="/tools/study-plan">Mở Phân tích lịch học →</Link>
         </section>
         <section className={styles.clientPanel}><div className={styles.panelHeader}><div><span>CONTROL TOPOLOGY</span><h2>Một client cha → nhiều sub-client</h2></div><p>Application Management chỉ điều phối quyền và quản trị từ xa. Dữ liệu thiết bị, session và audit vẫn do Bauman Control sở hữu.</p></div><div className={styles.controlFlow}><div data-level="server"><small>LEVEL 0</small><strong>Application Management</strong><span>Policy · admin device · signed command</span></div><b>→</b><div data-level="client"><small>LEVEL 1</small><strong>Bauman Hub</strong><span>BM registry · P-256 · session · audit</span></div><b>→</b><div data-level="subclient"><small>LEVEL 2</small><strong>{children.length} sub-client</strong><span>Math + subject modules</span></div></div></section>
         <section className={styles.boundaryNotice}><span>✓</span><div><strong>Backend thiết bị Bauman đã được nối vào khu quản trị.</strong><p>Duyệt/Khóa dùng commandId + optimistic concurrency + read-back. {liveInventory ? `Topology đang đọc live ${children.length} sub-client từ Bauman Control.` : "Topology đang dùng fallback đã đồng bộ với contract."} {directRuntimeOpenAllowed ? "Policy hiện cho phép mở learning runtime trực tiếp." : "Policy hiện chặn mở learning runtime trực tiếp từ Application Management."}</p></div></section>
