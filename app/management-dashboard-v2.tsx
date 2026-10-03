@@ -40,6 +40,31 @@ type SystemTool = {
   manageHref?: string;
 };
 
+type AppLauncherMode = "grid" | "list";
+type AppLauncherSort = "name" | "category" | "status";
+type AppLauncherPlacement = { top: number; left: number; side: "left" | "right" | "mobile" };
+type AppLauncherItem = {
+  id: string;
+  name: string;
+  shortName?: string;
+  iconAppId: string;
+  category: string;
+  description: string;
+  kind: "app" | "tool";
+  href?: string;
+  manageHref?: string;
+  parentAppId?: string;
+  parentLabel?: string;
+  connection: OperationsSummary["connection"];
+  statusLabel: string;
+  contractLabel: string;
+  runtimeLabel: string;
+  onlineCount: number | null;
+  pendingCount: number | null;
+  tags: string[];
+  canOpen: boolean;
+};
+
 const fontScaleStorageKey = "application-management:font-scale:v1";
 const approvalGateStorageKey = "application-management:approval-gate:v1";
 const fontScaleOptions: Array<{ id: FontScale; label: string; hint: string }> = [
@@ -862,7 +887,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
             localRuntime={localRuntime}
           /> : null}
           {view === "approvals" ? <ApprovalView devices={filteredApprovalDevices} actionBusy={actionBusy} manageDevice={manageDevice}/> : null}
-          {view === "applications" ? <ApplicationsView apps={filteredApps} tools={filteredTools} summaryMap={summaryMap} devices={devices} webBusy={webBusy} launchWeb={launchWeb} localRuntime={localRuntime} offline={offline}/> : null}
+          {view === "applications" ? <ApplicationsView apps={filteredApps} tools={filteredTools} summaryMap={summaryMap} devices={devices} webBusy={webBusy} launchWeb={launchWeb} localRuntime={localRuntime} offline={offline} lastUpdatedAt={operations?.generatedAt}/> : null}
           {view === "devices" ? <DevicesView devices={filteredDevices} actionBusy={actionBusy} manageDevice={manageDevice} bulkRemovePendingDevices={bulkRemovePendingDevices} openAutomation={() => setAutoPolicyOpen(true)}/> : null}
           {view === "access" ? <BoiAccessView query={search}/> : null}
           {view === "alerts" ? <AlertsView apps={filteredApps} summaryMap={summaryMap} workItems={filteredWork} lastUpdated={lastUpdated} offline={offline}/> : null}
@@ -1024,8 +1049,387 @@ function ApprovalView({ devices, actionBusy, manageDevice }: { devices: Operatio
   return <section className="amv2-page-panel"><div className="amv2-view-table approval"><div className="head"><span>Ứng dụng</span><span>Loại yêu cầu</span><span>Thiết bị / người dùng</span><span>Trạng thái</span><span>Thao tác</span></div>{devices.map((device) => { const rowBusy = actionBusy === `${device.appId}:${device.deviceId}`; return <div className="row" key={`${device.appId}:${device.deviceId}`}><AppCell appId={device.appId} name={device.appName}/><span>{device.status === "pending" ? "Duyệt thiết bị" : "Xác minh môi trường"}</span><div><strong>{device.userLabel}</strong><small>{device.deviceCode}</small></div><b>{device.status === "pending" ? "Chờ duyệt" : "Cần xử lý"}</b><div>{device.canApprove ? <button disabled={rowBusy} onClick={() => void manageDevice(device, "approve")}>{device.appId === "boi-ech" ? "Phân quyền" : "Duyệt"}</button> : null}{device.canRemove ? <button data-danger="true" disabled={rowBusy} onClick={() => void manageDevice(device, "remove")}>{device.appId === "boi-ech" ? "Xóa" : "Khóa"}</button> : null}</div></div>; })}{!devices.length ? <div className="amv2-empty"><strong>Không có yêu cầu cần xử lý.</strong></div> : null}</div></section>;
 }
 
-function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb, localRuntime, offline }: { apps: ApplicationConfig[]; tools: SystemTool[]; summaryMap: Map<string, OperationsSummary>; devices: OperationsDevice[]; webBusy: string; launchWeb: (appId: string) => Promise<void>; localRuntime: boolean; offline: boolean }) {
-  return <section className="amv2-page-panel"><div className="amv2-app-table full"><div className="amv2-app-head"><span>Ứng dụng</span><span>Nhóm nghiệp vụ</span><span>Việc chờ xử lý</span><span>Thiết bị online</span><span>Trạng thái</span><span>Website</span><span>Quản Trị</span></div>{tools.map((tool) => <ToolRow key={tool.id} tool={tool} parentSummary={tool.parentAppId ? summaryMap.get(tool.parentAppId) : undefined} offline={offline}/>)}{apps.map((app) => { const summary = summaryMap.get(app.id); const counts = operationalCounts(app.id, summary, devices); const hasWeb = webAccessAvailable(app, summary, localRuntime); return <div className="amv2-app-row" key={app.id}><AppCell appId={app.id} name={app.shortName}/><span>{appGroup(app)}</span><strong title={counts.pending === null ? "Client chưa cung cấp dữ liệu thiết bị." : undefined}>{offline ? "—" : countText(counts.pending)}</strong><strong title={counts.online === null ? "Client chưa cung cấp dữ liệu online." : undefined}>{offline ? "—" : countText(counts.online)}</strong><StatusCell app={app} summary={summary} offline={offline}/><button className="amv2-web-action" disabled={!hasWeb || webBusy === app.id} onClick={() => void launchWeb(app.id)}>{webActionLabel(summary, hasWeb, webBusy === app.id)}</button><Link className="amv2-manage-action" href={app.href}>Quản trị</Link></div>; })}{!apps.length && !tools.length ? <div className="amv2-empty"><strong>Không tìm thấy ứng dụng hoặc Tool phù hợp.</strong></div> : null}</div></section>;
+function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb, localRuntime, offline, lastUpdatedAt }: {
+  apps: ApplicationConfig[];
+  tools: SystemTool[];
+  summaryMap: Map<string, OperationsSummary>;
+  devices: OperationsDevice[];
+  webBusy: string;
+  launchWeb: (appId: string) => Promise<void>;
+  localRuntime: boolean;
+  offline: boolean;
+  lastUpdatedAt?: string;
+}) {
+  const [mode, setMode] = useState<AppLauncherMode>("grid");
+  const [launcherSearch, setLauncherSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [sortMode, setSortMode] = useState<AppLauncherSort>("name");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [anchorElement, setAnchorElement] = useState<HTMLButtonElement | null>(null);
+  const [popoverPlacement, setPopoverPlacement] = useState<AppLauncherPlacement>({ top: 12, left: 12, side: "right" });
+  const clickTimerRef = useRef<number | null>(null);
+  const openGuardRef = useRef<string | null>(null);
+  const openGuardTimerRef = useRef<number | null>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  const items = useMemo<AppLauncherItem[]>(() => {
+    const toolItems = tools.map((tool) => {
+      const parentSummary = tool.parentAppId ? summaryMap.get(tool.parentAppId) : undefined;
+      const parentConnected = tool.parentAppId ? parentSummary?.connection === "connected" : true;
+      const connection: OperationsSummary["connection"] = offline
+        ? "pending"
+        : parentConnected ? "connected" : tool.parentAppId ? "warning" : "connected";
+      const statusLabel = offline
+        ? "Chưa xác minh"
+        : tool.parentAppId
+          ? parentConnected ? `${tool.parentLabel ?? "Ứng dụng cha"} · live` : `${tool.parentLabel ?? "Ứng dụng cha"} · fallback`
+          : "Sẵn sàng";
+      const runtimeLabel = offline
+        ? "—"
+        : parentSummary?.runtimeConnected === true
+          ? "Live"
+          : parentSummary?.runtimeConnected === false
+            ? "Chưa live"
+            : "—";
+      return {
+        id: tool.id,
+        name: tool.name,
+        shortName: tool.name,
+        iconAppId: tool.id,
+        category: tool.category,
+        description: tool.note,
+        kind: "tool" as const,
+        href: tool.href,
+        manageHref: tool.manageHref,
+        parentAppId: tool.parentAppId,
+        parentLabel: tool.parentLabel,
+        connection,
+        statusLabel,
+        contractLabel: offline ? "—" : parentSummary?.contractReadiness ?? "—",
+        runtimeLabel,
+        onlineCount: null,
+        pendingCount: null,
+        tags: tool.parentLabel ? [tool.parentLabel] : [],
+        canOpen: true,
+      };
+    });
+
+    const appItems = apps.map((app) => {
+      const summary = summaryMap.get(app.id);
+      const counts = operationalCounts(app.id, summary, devices);
+      const canOpen = webAccessAvailable(app, summary, localRuntime);
+      const runtimeLabel = offline
+        ? "—"
+        : summary?.runtimeConnected === true
+          ? "Live"
+          : summary?.runtimeConnected === false
+            ? "Chưa live"
+            : summary?.managementMode ?? "—";
+      return {
+        id: app.id,
+        name: app.name,
+        shortName: app.shortName,
+        iconAppId: app.id,
+        category: app.category,
+        description: app.scope,
+        kind: "app" as const,
+        href: canOpen ? summary?.webHref ?? app.publicUrl ?? (localRuntime ? app.localUrl : undefined) : undefined,
+        manageHref: app.href,
+        connection: offline ? "pending" : connectionFor(app, summary),
+        statusLabel: offline ? "Chưa xác minh" : connectionLabel(connectionFor(app, summary), summary),
+        contractLabel: offline ? "—" : summary?.contractReadiness ?? app.contractState,
+        runtimeLabel,
+        onlineCount: offline ? null : counts.online,
+        pendingCount: offline ? null : counts.pending,
+        tags: [...app.capabilities],
+        canOpen,
+      };
+    });
+
+    return [...toolItems, ...appItems];
+  }, [apps, tools, summaryMap, devices, localRuntime, offline]);
+
+  const categories = useMemo(() => {
+    const present = new Set(items.map((item) => item.category));
+    const preferred = ["Tool", "Học tập", "Kỹ thuật", "Hệ thống"];
+    return [
+      ...preferred.filter((category) => present.has(category)),
+      ...[...present].filter((category) => !preferred.includes(category)).sort((a, b) => a.localeCompare(b, "vi")),
+    ];
+  }, [items]);
+
+  const visibleItems = useMemo(() => {
+    const query = launcherSearch.trim().toLocaleLowerCase("vi");
+    const result = items.filter((item) => {
+      if (categoryFilter !== "all" && item.category !== categoryFilter) return false;
+      if (!query) return true;
+      const haystack = [
+        item.name,
+        item.shortName ?? "",
+        item.category,
+        item.description,
+        item.parentLabel ?? "",
+        ...item.tags,
+      ].join(" ").toLocaleLowerCase("vi");
+      return haystack.includes(query);
+    });
+
+    return [...result].sort((a, b) => {
+      if (sortMode === "category") {
+        const category = a.category.localeCompare(b.category, "vi");
+        return category || a.name.localeCompare(b.name, "vi");
+      }
+      if (sortMode === "status") {
+        const status = a.statusLabel.localeCompare(b.statusLabel, "vi");
+        return status || a.name.localeCompare(b.name, "vi");
+      }
+      return a.name.localeCompare(b.name, "vi");
+    });
+  }, [items, launcherSearch, categoryFilter, sortMode]);
+
+  const selectedItem = selectedId ? items.find((item) => item.id === selectedId) ?? null : null;
+
+  function cancelSingleClick() {
+    if (clickTimerRef.current !== null) {
+      window.clearTimeout(clickTimerRef.current);
+      clickTimerRef.current = null;
+    }
+  }
+
+  function closePopover() {
+    cancelSingleClick();
+    setSelectedId(null);
+    setAnchorElement(null);
+  }
+
+  async function openLauncherItem(item: AppLauncherItem) {
+    if (openGuardRef.current === item.id) return;
+    openGuardRef.current = item.id;
+    if (openGuardTimerRef.current !== null) window.clearTimeout(openGuardTimerRef.current);
+    openGuardTimerRef.current = window.setTimeout(() => {
+      openGuardRef.current = null;
+      openGuardTimerRef.current = null;
+    }, 650);
+
+    if (item.kind === "tool") {
+      if (item.href) window.location.assign(item.href);
+      return;
+    }
+    await launchWeb(item.id);
+  }
+
+  function handleCardClick(event: React.MouseEvent<HTMLButtonElement>, item: AppLauncherItem) {
+    const anchor = event.currentTarget;
+    cancelSingleClick();
+    clickTimerRef.current = window.setTimeout(() => {
+      setSelectedId(item.id);
+      setAnchorElement(anchor);
+      clickTimerRef.current = null;
+    }, 240);
+  }
+
+  function handleCardDoubleClick(event: React.MouseEvent<HTMLButtonElement>, item: AppLauncherItem) {
+    event.preventDefault();
+    event.stopPropagation();
+    cancelSingleClick();
+    setSelectedId(null);
+    setAnchorElement(null);
+    void openLauncherItem(item);
+  }
+
+  useEffect(() => {
+    return () => {
+      cancelSingleClick();
+      if (openGuardTimerRef.current !== null) window.clearTimeout(openGuardTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (selectedId && !visibleItems.some((item) => item.id === selectedId)) closePopover();
+  }, [selectedId, visibleItems]);
+
+  useEffect(() => {
+    if (!selectedId || !anchorElement) return;
+    const reposition = () => {
+      const anchorRect = anchorElement.getBoundingClientRect();
+      const popoverRect = popoverRef.current?.getBoundingClientRect();
+      const margin = 12;
+      const gap = 12;
+      const width = popoverRect?.width ?? Math.min(380, window.innerWidth - margin * 2);
+      const height = popoverRect?.height ?? 420;
+
+      if (window.innerWidth <= 760) {
+        setPopoverPlacement({
+          left: margin,
+          top: Math.max(margin, window.innerHeight - height - margin),
+          side: "mobile",
+        });
+        return;
+      }
+
+      let side: AppLauncherPlacement["side"] = "right";
+      let left = anchorRect.right + gap;
+      if (left + width > window.innerWidth - margin) {
+        side = "left";
+        left = anchorRect.left - width - gap;
+      }
+      left = Math.max(margin, Math.min(left, window.innerWidth - width - margin));
+      const top = Math.max(margin, Math.min(anchorRect.top, window.innerHeight - height - margin));
+      setPopoverPlacement({ left, top, side });
+    };
+
+    const frame = window.requestAnimationFrame(reposition);
+    window.addEventListener("resize", reposition);
+    window.addEventListener("scroll", reposition, true);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", reposition);
+      window.removeEventListener("scroll", reposition, true);
+    };
+  }, [selectedId, anchorElement]);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (popoverRef.current?.contains(target) || anchorElement?.contains(target)) return;
+      closePopover();
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closePopover();
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [selectedId, anchorElement]);
+
+  return <section className="amv2-page-panel amv2-launcher-panel">
+    <div className="amv2-launcher">
+      <div className="amv2-launcher-toolbar">
+        <label className="amv2-launcher-search">
+          <span aria-hidden="true">⌕</span>
+          <input
+            value={launcherSearch}
+            onChange={(event) => setLauncherSearch(event.target.value)}
+            placeholder="Tìm ứng dụng..."
+            aria-label="Tìm ứng dụng theo tên, loại, mô tả, ứng dụng cha hoặc capability"
+          />
+        </label>
+        <div className="amv2-launcher-sort">
+          <span>Sắp xếp</span>
+          <select value={sortMode} onChange={(event) => setSortMode(event.target.value as AppLauncherSort)}>
+            <option value="name">Tên A–Z</option>
+            <option value="category">Phân loại</option>
+            <option value="status">Trạng thái</option>
+          </select>
+        </div>
+        <div className="amv2-launcher-mode" role="group" aria-label="Kiểu hiển thị ứng dụng">
+          <button type="button" data-active={mode === "grid"} onClick={() => setMode("grid")}>▦ Grid</button>
+          <button type="button" data-active={mode === "list"} onClick={() => setMode("list")}>☷ List</button>
+        </div>
+      </div>
+
+      <div className="amv2-launcher-chips" aria-label="Lọc theo phân loại">
+        <button type="button" data-active={categoryFilter === "all"} onClick={() => setCategoryFilter("all")}>Tất cả</button>
+        {categories.map((category) => <button type="button" key={category} data-active={categoryFilter === category} onClick={() => setCategoryFilter(category)}>{category}</button>)}
+      </div>
+
+      {mode === "grid" ? <div className="amv2-launcher-grid" data-testid="app-launcher-grid">
+        {visibleItems.map((item) => <button
+          type="button"
+          key={item.id}
+          className="amv2-launcher-card"
+          data-kind={item.kind}
+          data-parent-app={item.parentAppId ?? ""}
+          data-selected={selectedId === item.id}
+          aria-expanded={selectedId === item.id}
+          aria-controls={selectedId === item.id ? "amv2-app-launcher-popover" : undefined}
+          onClick={(event) => handleCardClick(event, item)}
+          onDoubleClick={(event) => handleCardDoubleClick(event, item)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && event.altKey) {
+              event.preventDefault();
+              cancelSingleClick();
+              closePopover();
+              void openLauncherItem(item);
+            }
+          }}
+          title="Nhấn một lần để xem thông tin · nhấn đúp để mở"
+        >
+          <span className="amv2-launcher-card-top"><AppIcon appId={item.iconAppId}/><i aria-hidden="true">•••</i></span>
+          <span className="amv2-launcher-card-copy">
+            <strong>{item.shortName ?? item.name}</strong>
+            <small>{item.description}</small>
+          </span>
+          <span className="amv2-launcher-card-status" data-state={item.connection}><i/>{item.statusLabel}</span>
+          <span className="amv2-launcher-card-foot">
+            <b>{item.parentLabel ? `${item.category} · ${item.parentLabel}` : item.category}</b>
+            {item.onlineCount !== null && item.onlineCount > 0 ? <em>{item.onlineCount} online</em> : null}
+            {item.pendingCount !== null && item.pendingCount > 0 ? <em>{item.pendingCount} chờ</em> : null}
+          </span>
+        </button>)}
+        {!visibleItems.length ? <div className="amv2-launcher-empty"><strong>Không tìm thấy ứng dụng hoặc Tool phù hợp.</strong><small>Thử đổi từ khóa hoặc phân loại.</small></div> : null}
+      </div> : <div className="amv2-app-table full amv2-launcher-list" data-testid="app-launcher-list">
+        <div className="amv2-app-head"><span>Ứng dụng</span><span>Nhóm nghiệp vụ</span><span>Việc chờ xử lý</span><span>Thiết bị online</span><span>Trạng thái</span><span>Website</span><span>Quản Trị</span></div>
+        {visibleItems.map((item) => {
+          if (item.kind === "tool") {
+            const tool = tools.find((candidate) => candidate.id === item.id);
+            return tool ? <ToolRow key={tool.id} tool={tool} parentSummary={tool.parentAppId ? summaryMap.get(tool.parentAppId) : undefined} offline={offline}/> : null;
+          }
+          const app = apps.find((candidate) => candidate.id === item.id);
+          if (!app) return null;
+          const summary = summaryMap.get(app.id);
+          const counts = operationalCounts(app.id, summary, devices);
+          const hasWeb = webAccessAvailable(app, summary, localRuntime);
+          return <div className="amv2-app-row" key={app.id}><AppCell appId={app.id} name={app.shortName}/><span>{appGroup(app)}</span><strong title={counts.pending === null ? "Client chưa cung cấp dữ liệu thiết bị." : undefined}>{offline ? "—" : countText(counts.pending)}</strong><strong title={counts.online === null ? "Client chưa cung cấp dữ liệu online." : undefined}>{offline ? "—" : countText(counts.online)}</strong><StatusCell app={app} summary={summary} offline={offline}/><button className="amv2-web-action" disabled={!hasWeb || webBusy === app.id} onClick={() => void launchWeb(app.id)}>{webActionLabel(summary, hasWeb, webBusy === app.id)}</button><Link className="amv2-manage-action" href={app.href}>Quản trị</Link></div>;
+        })}
+        {!visibleItems.length ? <div className="amv2-empty"><strong>Không tìm thấy ứng dụng hoặc Tool phù hợp.</strong></div> : null}
+      </div>}
+
+      {selectedItem ? <div
+        ref={popoverRef}
+        id="amv2-app-launcher-popover"
+        className="amv2-launcher-popover"
+        role="dialog"
+        aria-label={`Thông tin ${selectedItem.name}`}
+        data-side={popoverPlacement.side}
+        style={{ top: popoverPlacement.top, left: popoverPlacement.left }}
+      >
+        <header>
+          <div><AppIcon appId={selectedItem.iconAppId}/><span><small>{selectedItem.parentLabel ? `${selectedItem.category} · ${selectedItem.parentLabel}` : selectedItem.category}</small><strong>{selectedItem.name}</strong></span></div>
+          <button type="button" aria-label="Đóng thông tin ứng dụng" onClick={closePopover}>×</button>
+        </header>
+
+        <div className="amv2-launcher-facts">
+          <p><span>Loại quản trị</span><strong>{selectedItem.kind === "tool" ? "Tool nội bộ" : "Client cấp 1"}</strong></p>
+          {selectedItem.parentLabel ? <p><span>Parent app</span><strong>{selectedItem.parentLabel}</strong></p> : null}
+          <p><span>Trạng thái</span><strong data-state={selectedItem.connection}>{selectedItem.statusLabel}</strong></p>
+          <p><span>Contract</span><strong>{selectedItem.contractLabel || "—"}</strong></p>
+          <p><span>Runtime</span><strong>{selectedItem.runtimeLabel || "—"}</strong></p>
+          <p><span>Online</span><strong>{selectedItem.onlineCount === null ? "—" : countText(selectedItem.onlineCount)}</strong></p>
+          <p><span>Chờ xử lý</span><strong>{selectedItem.pendingCount === null ? "—" : countText(selectedItem.pendingCount)}</strong></p>
+          <p><span>Lần đồng bộ</span><strong>{lastUpdatedAt ? relativeTime(lastUpdatedAt) : "—"}</strong></p>
+          <p><span>Website/runtime</span><code title={selectedItem.href}>{selectedItem.href ?? "—"}</code></p>
+          <p><span>Quản trị</span><code title={selectedItem.manageHref}>{selectedItem.manageHref ?? "—"}</code></p>
+        </div>
+
+        <details className="amv2-launcher-details">
+          <summary>Xem chi tiết</summary>
+          <p>{selectedItem.description || "Chưa có dữ liệu"}</p>
+          {selectedItem.tags.length ? <div>{selectedItem.tags.slice(0, 6).map((tag) => <span key={tag}>{tag}</span>)}</div> : null}
+        </details>
+
+        <footer>
+          <button type="button" className="primary" disabled={!selectedItem.canOpen || webBusy === selectedItem.id} onClick={() => { closePopover(); void openLauncherItem(selectedItem); }}>{webBusy === selectedItem.id ? "Đang mở…" : "Mở"}</button>
+          {selectedItem.manageHref ? <Link href={selectedItem.manageHref} onClick={closePopover}>{selectedItem.parentAppId ? "Bauman Admin" : "Quản trị"}</Link> : null}
+        </footer>
+      </div> : null}
+    </div>
+  </section>;
 }
 
 function DevicesView({ devices, actionBusy, manageDevice, bulkRemovePendingDevices, openAutomation }: {
