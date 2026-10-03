@@ -41,7 +41,7 @@ type SystemTool = {
 };
 
 type AppLauncherMode = "grid" | "list";
-type AppLauncherSort = "name" | "category" | "status";
+type AppLauncherSort = "manual" | "name" | "category" | "status";
 type AppLauncherPlacement = { top: number; left: number; side: "left" | "right" | "mobile" };
 type AppLauncherItem = {
   id: string;
@@ -67,6 +67,8 @@ type AppLauncherItem = {
 
 const fontScaleStorageKey = "application-management:font-scale:v1";
 const approvalGateStorageKey = "application-management:approval-gate:v1";
+const launcherOrderStorageKey = "application-management:launcher-order:v1";
+const launcherCategoryStorageKey = "application-management:launcher-category-overrides:v1";
 const fontScaleOptions: Array<{ id: FontScale; label: string; hint: string }> = [
   { id: "compact", label: "Gọn", hint: "Mức hiện tại · nhiều nội dung" },
   { id: "standard", label: "Chuẩn", hint: "Dễ đọc hơn" },
