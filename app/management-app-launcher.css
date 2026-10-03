@@ -1,43 +1,45 @@
-/* Application launcher view: scoped to the Applications tab only.
-   Keeps the current App-Manager shell/theme and replaces only the app list interaction. */
+/* Compact application launcher.
+   Scope is intentionally limited to the Applications tab. */
 
 .amv2-launcher-panel {
   position: relative;
+  min-height: 0;
   overflow: hidden;
 }
 
 .amv2-launcher {
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 10px;
   color: #eaf6f1;
   font-size: 14px;
 }
 
 .amv2-launcher-toolbar {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) auto auto;
+  grid-template-columns: minmax(300px, 1fr) auto minmax(210px, auto);
   gap: 10px;
   align-items: center;
 }
 
 .amv2-launcher-search {
   min-width: 0;
-  min-height: 44px;
+  min-height: 46px;
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr);
   align-items: center;
   gap: 6px;
-  padding: 0 12px;
-  border: 1px solid rgba(87, 218, 177, .24);
-  border-radius: 10px;
-  background: rgba(3, 39, 30, .72);
+  padding: 0 13px;
+  border: 1px solid rgba(72, 220, 174, .24);
+  border-radius: 11px;
+  background: rgba(4, 52, 40, .76);
 }
 
 .amv2-launcher-search > span {
-  color: #74cbb0;
-  font-size: 18px;
+  color: #8ce7c9;
+  font-size: 20px;
 }
 
 .amv2-launcher-search input {
@@ -46,124 +48,170 @@
   border: 0;
   outline: 0;
   background: transparent;
-  color: #f2faf7;
+  color: #f3fbf8;
   font: inherit;
   font-size: 14px;
 }
 
-.amv2-launcher-search input::placeholder {
-  color: #86a89c;
-}
-
-.amv2-launcher-sort {
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 10px;
-  border: 1px solid rgba(255,255,255,.08);
-  border-radius: 10px;
-  background: rgba(4, 44, 34, .64);
-}
-
-.amv2-launcher-sort > span {
-  color: #8ca99f;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.amv2-launcher-sort select {
-  min-height: 32px;
-  border: 1px solid rgba(72, 210, 168, .22);
-  border-radius: 8px;
-  background: #0d4b3b;
-  color: #e9f6f1;
-  font-size: 13px;
-  padding: 0 28px 0 9px;
-}
+.amv2-launcher-search input::placeholder { color: #8ba99e; }
 
 .amv2-launcher-mode {
-  min-height: 44px;
+  min-height: 46px;
   display: flex;
   align-items: center;
   gap: 4px;
   padding: 4px;
   border: 1px solid rgba(255,255,255,.08);
-  border-radius: 10px;
-  background: rgba(4, 44, 34, .64);
+  border-radius: 11px;
+  background: rgba(4, 49, 38, .76);
 }
 
-.amv2-launcher-mode button,
-.amv2-launcher-chips button {
-  min-height: 34px;
+.amv2-launcher-mode button {
+  width: 46px;
+  height: 36px;
   border: 1px solid transparent;
   border-radius: 8px;
   background: transparent;
-  color: #a9c5bb;
+  color: #b5cbc3;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.amv2-launcher-mode button[data-active="true"] {
+  border-color: rgba(71, 231, 180, .3);
+  background: linear-gradient(145deg, #0c8b68, #087257);
+  color: #f5fffb;
+}
+
+.amv2-launcher-sort {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 10px 0 13px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 11px;
+  background: rgba(4, 49, 38, .76);
+  color: #c8ddd5;
+}
+
+.amv2-launcher-sort > span {
+  flex: 0 0 auto;
+  color: #9eb7ae;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.amv2-launcher-sort select {
+  min-width: 120px;
+  min-height: 34px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #eef8f4;
   font-size: 13px;
+  font-weight: 700;
+}
+
+.amv2-launcher-subbar {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.amv2-launcher-chips {
+  min-width: 0;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.amv2-launcher-chips::-webkit-scrollbar { display: none; }
+
+.amv2-launcher-chips button {
+  min-height: 30px;
+  flex: 0 0 auto;
+  padding: 0 10px;
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 999px;
+  background: rgba(255,255,255,.025);
+  color: #9fb9af;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
 }
 
-.amv2-launcher-mode button {
-  padding: 0 10px;
-}
-
-.amv2-launcher-mode button[data-active="true"],
 .amv2-launcher-chips button[data-active="true"] {
-  border-color: rgba(70, 224, 177, .38);
-  background: rgba(18, 112, 84, .78);
-  color: #f3fffb;
+  border-color: rgba(71, 225, 178, .3);
+  background: rgba(13, 111, 82, .68);
+  color: #edfbf6;
 }
 
-.amv2-launcher-chips {
-  display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  padding-bottom: 2px;
-  scrollbar-width: thin;
-}
-
-.amv2-launcher-chips button {
+.amv2-launcher-help {
   flex: 0 0 auto;
-  padding: 0 12px;
-  border-color: rgba(255,255,255,.07);
-  background: rgba(255,255,255,.025);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  padding: 7px 10px;
+  border: 1px solid rgba(250, 199, 83, .13);
+  border-radius: 9px;
+  background: rgba(91, 71, 20, .10);
+  color: #a9bdb6;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.amv2-launcher-help b { color: #e5c063; }
+.amv2-launcher-help i { width: 1px; height: 14px; background: rgba(255,255,255,.12); }
+
+.amv2-launcher-grid-wrap {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .amv2-launcher-grid {
+  height: 100%;
+  min-height: 0;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
+  grid-auto-rows: minmax(174px, auto);
+  gap: 12px;
   align-content: start;
-  min-height: 0;
-  overflow: auto;
-  padding: 2px 2px 12px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding: 2px 4px 12px 2px;
+  scroll-behavior: smooth;
   scrollbar-width: thin;
-  scrollbar-color: rgba(48,218,171,.58) transparent;
+  scrollbar-color: rgba(45, 211, 163, .48) transparent;
 }
 
 .amv2-launcher-card {
   min-width: 0;
-  min-height: 188px;
+  min-height: 174px;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
-  gap: 10px;
-  padding: 14px;
+  grid-template-rows: auto 1fr auto auto;
+  gap: 8px;
+  padding: 13px;
   border: 1px solid rgba(255,255,255,.08);
-  border-radius: 14px;
-  background: linear-gradient(145deg, rgba(12, 75, 58, .88), rgba(7, 51, 40, .95));
+  border-radius: 13px;
+  background: linear-gradient(145deg, rgba(8, 72, 55, .9), rgba(6, 52, 40, .96));
   color: #edf8f4;
-  text-align: left;
-  box-shadow: 0 8px 24px rgba(0,0,0,.08);
+  text-align: center;
+  box-shadow: 0 7px 18px rgba(0,0,0,.07);
   cursor: pointer;
-  transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+  transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
 }
 
 .amv2-launcher-card:hover {
   transform: translateY(-2px);
   border-color: rgba(84, 225, 181, .26);
-  box-shadow: 0 12px 28px rgba(0,0,0,.16);
+  box-shadow: 0 12px 26px rgba(0,0,0,.15);
 }
 
 .amv2-launcher-card:focus-visible {
@@ -172,28 +220,31 @@
 }
 
 .amv2-launcher-card[data-selected="true"] {
-  border-color: rgba(89, 236, 190, .72);
-  background: linear-gradient(145deg, rgba(15, 91, 69, .96), rgba(8, 59, 45, .98));
-  box-shadow: 0 0 0 1px rgba(74, 223, 178, .14), 0 10px 28px rgba(0,0,0,.18);
+  border-color: rgba(95, 242, 197, .9);
+  box-shadow: 0 0 0 1px rgba(92, 235, 192, .28), 0 0 22px rgba(54, 230, 177, .13);
 }
 
 .amv2-launcher-card-top {
+  position: relative;
+  min-height: 54px;
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
+  justify-content: center;
 }
 
 .amv2-launcher-card .amv2-app-icon {
-  width: 52px;
-  height: 52px;
-  flex: 0 0 52px;
-  border-radius: 13px;
+  width: 54px;
+  height: 54px;
+  flex: 0 0 54px;
+  border-radius: 14px;
   font-size: 16px;
 }
 
 .amv2-launcher-card-top > i {
-  color: #7fa398;
+  position: absolute;
+  top: -2px;
+  right: 0;
+  color: #8eaaa0;
   font-size: 13px;
   font-style: normal;
   letter-spacing: 1px;
@@ -202,26 +253,17 @@
 .amv2-launcher-card-copy {
   min-width: 0;
   display: grid;
-  align-content: start;
-  gap: 6px;
+  place-content: center;
 }
 
 .amv2-launcher-card-copy > strong {
-  overflow: hidden;
-  color: #f3faf7;
-  font-size: 16px;
-  font-weight: 760;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.amv2-launcher-card-copy > small {
   display: -webkit-box;
   overflow: hidden;
-  color: #9eb8ae;
-  font-size: 13px;
-  line-height: 1.42;
+  color: #f4fbf8;
+  font-size: 15px;
+  font-weight: 780;
+  line-height: 1.25;
+  text-align: center;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
@@ -230,10 +272,11 @@
   min-width: 0;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 7px;
   overflow: hidden;
-  color: #cfdfd9;
-  font-size: 13px;
+  color: #c7dad3;
+  font-size: 12.5px;
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -247,54 +290,40 @@
   background: #d8a842;
 }
 
-.amv2-launcher-card-status[data-state="connected"] {
-  color: #71dfbd;
-}
-
-.amv2-launcher-card-status[data-state="connected"] > i {
-  background: #28dca8;
-}
-
-.amv2-launcher-card-status[data-state="unavailable"] {
-  color: #f08b84;
-}
-
-.amv2-launcher-card-status[data-state="unavailable"] > i {
-  background: #ed665c;
-}
+.amv2-launcher-card-status[data-state="connected"] { color: #50dfb3; }
+.amv2-launcher-card-status[data-state="connected"] > i { background: #22dca6; }
+.amv2-launcher-card-status[data-state="unavailable"] { color: #ef8b83; }
+.amv2-launcher-card-status[data-state="unavailable"] > i { background: #ed665c; }
 
 .amv2-launcher-card-foot {
   min-width: 0;
   display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
+  justify-content: center;
 }
 
-.amv2-launcher-card-foot > b,
-.amv2-launcher-card-foot > em {
+.amv2-launcher-card-foot > b {
   max-width: 100%;
-  padding: 5px 7px;
+  padding: 5px 11px;
   overflow: hidden;
-  border: 1px solid rgba(255,255,255,.07);
+  border: 1px solid rgba(230, 184, 65, .45);
   border-radius: 999px;
-  background: rgba(255,255,255,.035);
-  color: #a9c5bb;
+  background: rgba(169, 122, 18, .18);
+  color: #e7c35f;
   font-size: 12px;
-  font-style: normal;
-  font-weight: 700;
-  line-height: 1.15;
+  font-weight: 760;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.amv2-launcher-card-foot > em {
-  color: #78ddbd;
+.amv2-launcher-card[data-kind="app"] .amv2-launcher-card-foot > b {
+  border-color: rgba(72, 218, 174, .32);
+  background: rgba(18, 112, 84, .26);
+  color: #a9ddd0;
 }
 
 .amv2-launcher-empty {
   grid-column: 1 / -1;
-  min-height: 180px;
+  min-height: 170px;
   display: grid;
   place-content: center;
   gap: 6px;
@@ -305,80 +334,87 @@
   text-align: center;
 }
 
-.amv2-launcher-empty small {
-  color: #829f95;
-  font-size: 13px;
+.amv2-launcher-empty small { color: #829f95; font-size: 13px; }
+
+.amv2-launcher-scroll-controls {
+  position: absolute;
+  z-index: 8;
+  right: 10px;
+  bottom: 10px;
+  display: grid;
+  gap: 6px;
+  padding: 5px;
+  border: 1px solid rgba(72, 225, 178, .22);
+  border-radius: 12px;
+  background: rgba(2, 34, 27, .84);
+  box-shadow: 0 10px 30px rgba(0,0,0,.26);
+  backdrop-filter: blur(8px);
+}
+
+.amv2-launcher-scroll-controls button {
+  width: 38px;
+  height: 34px;
+  border: 1px solid rgba(86, 225, 183, .22);
+  border-radius: 8px;
+  background: rgba(13, 112, 83, .78);
+  color: #ecfbf6;
+  font-size: 18px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.amv2-launcher-scroll-controls button:disabled {
+  opacity: .28;
+  cursor: default;
 }
 
 .amv2-launcher-list {
-  flex: 1 1 auto;
   min-height: 0;
+  overflow: auto;
 }
 
-.amv2-launcher-list .amv2-app-head {
-  font-size: 12px !important;
-}
-
-.amv2-launcher-list .amv2-app-row {
-  min-height: 68px !important;
-  font-size: 14px !important;
-}
-
+.amv2-launcher-list .amv2-app-head { font-size: 12px !important; }
+.amv2-launcher-list .amv2-app-row { min-height: 66px !important; font-size: 14px !important; }
 .amv2-launcher-list .amv2-status-cell > b,
 .amv2-launcher-list .amv2-web-action,
-.amv2-launcher-list .amv2-manage-action {
-  font-size: 13px !important;
-}
-
-.amv2-launcher-list .amv2-status-cell > small {
-  font-size: 11.5px !important;
-}
+.amv2-launcher-list .amv2-manage-action { font-size: 13px !important; }
+.amv2-launcher-list .amv2-status-cell > small { font-size: 11.5px !important; }
 
 .amv2-launcher-popover {
   position: fixed;
   z-index: 95;
-  width: min(380px, calc(100vw - 24px));
+  width: min(390px, calc(100vw - 24px));
   max-height: calc(100dvh - 24px);
   overflow: auto;
-  border: 1px solid rgba(83, 228, 181, .36);
+  border: 1px solid rgba(82, 231, 184, .46);
   border-radius: 14px;
-  background: linear-gradient(145deg, #0b4a3a, #072f26);
+  background: linear-gradient(145deg, #0b4939, #072d24);
   color: #eaf6f1;
-  box-shadow: 0 24px 70px rgba(0,0,0,.42);
+  box-shadow: 0 24px 70px rgba(0,0,0,.44);
 }
 
 .amv2-launcher-popover::before {
   content: "";
   position: absolute;
-  top: 28px;
-  width: 12px;
-  height: 12px;
-  border: solid rgba(83, 228, 181, .28);
+  top: 31px;
+  width: 13px;
+  height: 13px;
+  border: solid rgba(83, 228, 181, .34);
   background: #0a4435;
   transform: rotate(45deg);
 }
 
-.amv2-launcher-popover[data-side="right"]::before {
-  left: -7px;
-  border-width: 0 0 1px 1px;
-}
-
-.amv2-launcher-popover[data-side="left"]::before {
-  right: -7px;
-  border-width: 1px 1px 0 0;
-}
-
-.amv2-launcher-popover[data-side="mobile"]::before {
-  display: none;
-}
+.amv2-launcher-popover[data-side="right"]::before { left: -7px; border-width: 0 0 1px 1px; }
+.amv2-launcher-popover[data-side="left"]::before { right: -7px; border-width: 1px 1px 0 0; }
+.amv2-launcher-popover[data-side="mobile"]::before { display: none; }
 
 .amv2-launcher-popover > header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px;
-  border-bottom: 1px solid rgba(255,255,255,.08);
+  padding: 13px 14px 12px;
+  border-bottom: 1px solid rgba(255,255,255,.09);
 }
 
 .amv2-launcher-popover > header > div {
@@ -401,20 +437,20 @@
   gap: 3px;
 }
 
-.amv2-launcher-popover > header small {
+.amv2-launcher-popover > header strong {
   overflow: hidden;
-  color: #8fb0a5;
-  font-size: 12px;
-  font-weight: 700;
+  color: #f6fbf9;
+  font-size: 17px;
+  line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.amv2-launcher-popover > header strong {
+.amv2-launcher-popover > header small {
   overflow: hidden;
-  color: #f5fbf8;
-  font-size: 17px;
-  line-height: 1.2;
+  color: #e2bd57;
+  font-size: 12px;
+  font-weight: 730;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -425,22 +461,24 @@
   flex: 0 0 34px;
   border: 1px solid rgba(255,255,255,.1);
   border-radius: 8px;
-  background: rgba(255,255,255,.04);
-  color: #d9e9e3;
+  background: rgba(255,255,255,.035);
+  color: #dbeae5;
   font-size: 20px;
   cursor: pointer;
 }
 
-.amv2-launcher-facts {
+.amv2-launcher-facts,
+.amv2-launcher-more {
   display: grid;
   gap: 0;
-  padding: 8px 14px;
+  padding: 6px 14px;
 }
 
-.amv2-launcher-facts p {
+.amv2-launcher-facts p,
+.amv2-launcher-more p {
   min-width: 0;
   display: grid;
-  grid-template-columns: 112px minmax(0, 1fr);
+  grid-template-columns: 118px minmax(0, 1fr);
   gap: 10px;
   align-items: start;
   margin: 0;
@@ -448,197 +486,186 @@
   border-bottom: 1px solid rgba(255,255,255,.055);
 }
 
-.amv2-launcher-facts span {
-  color: #88a69b;
-  font-size: 12px;
+.amv2-launcher-facts span,
+.amv2-launcher-more span {
+  color: #94ada4;
+  font-size: 12.5px;
 }
 
 .amv2-launcher-facts strong,
-.amv2-launcher-facts code {
+.amv2-launcher-more strong,
+.amv2-launcher-more code,
+.amv2-launcher-facts a {
   min-width: 0;
   overflow: hidden;
-  color: #e8f4f0;
+  color: #edf7f3;
   font-size: 13px;
-  line-height: 1.35;
+  line-height: 1.4;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.amv2-launcher-facts strong[data-state="connected"] {
-  color: #73dfbe;
+.amv2-launcher-facts a {
+  color: #56ddc5;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
-.amv2-launcher-facts strong[data-state="unavailable"] {
-  color: #f08a82;
-}
-
-.amv2-launcher-facts code {
+.amv2-launcher-facts strong[data-state="connected"] { color: #55dfb7; }
+.amv2-launcher-facts strong[data-state="unavailable"] { color: #f08a82; }
+.amv2-launcher-more code {
   color: #9fdac7;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
-.amv2-launcher-details {
+.amv2-launcher-more {
   margin: 0 14px 12px;
+  padding: 5px 10px 10px;
   border: 1px solid rgba(255,255,255,.07);
   border-radius: 10px;
   background: rgba(255,255,255,.025);
 }
 
-.amv2-launcher-details summary {
-  padding: 10px 11px;
-  color: #cfe4dc;
-  font-size: 13px;
-  font-weight: 750;
-  cursor: pointer;
+.amv2-launcher-description {
+  margin-top: 9px;
+  color: #a9c0b7;
+  font-size: 12.5px;
+  line-height: 1.48;
 }
 
-.amv2-launcher-details > p {
-  margin: 0;
-  padding: 0 11px 10px;
-  color: #a8bfb6;
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.amv2-launcher-details > div {
+.amv2-launcher-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
-  padding: 0 11px 11px;
+  margin-top: 9px;
 }
 
-.amv2-launcher-details > div span {
-  padding: 4px 6px;
+.amv2-launcher-tags span {
+  padding: 4px 7px;
   border-radius: 999px;
-  background: rgba(61, 211, 166, .1);
-  color: #8dd8c1;
-  font-size: 12px;
+  background: rgba(54, 201, 157, .1);
+  color: #8ed8c2;
+  font-size: 11.5px;
 }
 
 .amv2-launcher-popover > footer {
-  display: flex;
-  gap: 8px;
-  padding: 12px 14px 14px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  padding: 11px 14px 13px;
   border-top: 1px solid rgba(255,255,255,.08);
 }
 
 .amv2-launcher-popover > footer > button,
 .amv2-launcher-popover > footer > a {
   min-height: 40px;
-  flex: 1 1 0;
   display: grid;
   place-items: center;
-  padding: 0 12px;
+  padding: 0 8px;
   border: 1px solid rgba(77, 218, 175, .28);
   border-radius: 9px;
-  background: rgba(15, 98, 74, .72);
+  background: rgba(15, 94, 72, .72);
   color: #eefaf6;
-  font-size: 14px;
+  font-size: 12.5px;
   font-weight: 750;
+  text-align: center;
   text-decoration: none;
   cursor: pointer;
 }
 
-.amv2-launcher-popover > footer > button.primary {
-  background: #117b5c;
+.amv2-launcher-popover > footer > .primary {
+  border-color: rgba(94, 239, 194, .58);
+  background: #0f8060;
+  box-shadow: 0 0 0 1px rgba(75, 225, 181, .08);
 }
 
 .amv2-launcher-popover > footer > button:disabled {
-  opacity: .46;
+  opacity: .42;
   cursor: not-allowed;
 }
 
 @media (min-width: 1500px) {
-  .amv2-launcher-grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
+  .amv2-launcher-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
 
 @media (min-width: 1200px) and (max-width: 1499px) {
-  .amv2-launcher-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
+  .amv2-launcher-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 @media (max-width: 1199px) {
-  .amv2-launcher-panel {
-    overflow: visible;
+  .amv2-launcher-toolbar {
+    grid-template-columns: minmax(0, 1fr) auto minmax(190px, auto);
+  }
+
+  .amv2-launcher-subbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .amv2-launcher-help { align-self: flex-end; }
+
+  .amv2-launcher-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 760px) {
+  .amv2-launcher-panel { overflow: visible; }
+
+  .amv2-launcher {
+    height: auto;
+    min-height: 0;
+    grid-template-rows: auto auto auto;
   }
 
   .amv2-launcher-toolbar {
     grid-template-columns: minmax(0, 1fr) auto;
   }
 
-  .amv2-launcher-search {
-    grid-column: 1 / -1;
-  }
-
-  .amv2-launcher-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    overflow: visible;
-  }
-}
-
-@media (max-width: 760px) {
-  .amv2-launcher {
-    font-size: 14px;
-  }
-
-  .amv2-launcher-toolbar {
-    grid-template-columns: 1fr;
-  }
-
-  .amv2-launcher-search,
-  .amv2-launcher-sort,
-  .amv2-launcher-mode {
-    width: 100%;
-  }
+  .amv2-launcher-search { grid-column: 1 / -1; }
 
   .amv2-launcher-sort {
+    min-width: 0;
     justify-content: space-between;
   }
 
-  .amv2-launcher-mode button {
-    flex: 1 1 0;
+  .amv2-launcher-subbar { gap: 8px; }
+  .amv2-launcher-help {
+    width: 100%;
+    justify-content: center;
+    white-space: normal;
+    text-align: center;
   }
 
+  .amv2-launcher-grid-wrap { min-height: min(66dvh, 620px); }
   .amv2-launcher-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
+    grid-auto-rows: minmax(162px, auto);
+    gap: 9px;
   }
 
   .amv2-launcher-card {
-    min-height: 176px;
-    padding: 12px;
+    min-height: 162px;
+    padding: 11px;
   }
 
   .amv2-launcher-card .amv2-app-icon {
-    width: 46px;
-    height: 46px;
-    flex-basis: 46px;
+    width: 48px;
+    height: 48px;
+    flex-basis: 48px;
   }
 
-  .amv2-launcher-card-copy > strong {
-    font-size: 15px;
-  }
+  .amv2-launcher-card-copy > strong { font-size: 14px; }
 
   .amv2-launcher-popover[data-side="mobile"] {
     width: calc(100vw - 24px);
-    max-height: min(72dvh, 620px);
+    max-height: min(74dvh, 640px);
     border-radius: 16px 16px 12px 12px;
   }
 }
 
 @media (max-width: 430px) {
-  .amv2-launcher-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .amv2-launcher-card {
-    min-height: 164px;
-  }
-
-  .amv2-launcher-facts p {
-    grid-template-columns: 96px minmax(0, 1fr);
-  }
+  .amv2-launcher-grid { grid-template-columns: 1fr; }
+  .amv2-launcher-grid-wrap { min-height: 64dvh; }
+  .amv2-launcher-facts p,
+  .amv2-launcher-more p { grid-template-columns: 104px minmax(0, 1fr); }
+  .amv2-launcher-popover > footer { grid-template-columns: 1fr; }
 }
