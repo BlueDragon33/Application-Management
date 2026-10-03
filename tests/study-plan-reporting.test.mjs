@@ -31,3 +31,21 @@ test("study-plan print stylesheet is A4-safe and hides interactive navigation", 
   assert.match(css, /\.workloadContactBar\s*\{/);
   assert.match(css, /\.workloadSelfBar\s*\{/);
 });
+
+
+test("study-plan derives the 120-credit structure from course kinds instead of hard-coded percentages", () => {
+  const ui = source("app/tools/study-plan/study-plan.tsx");
+
+  assert.match(ui, /programKindOrder: readonly CourseKind\[\] = \["course", "research", "practice", "elective", "thesis"\]/);
+  assert.match(ui, /courses\.filter\(\(course\) => course\.kind === kind\)/);
+  assert.match(ui, /items\.reduce\(\(sum, course\) => sum \+ course\.credits, 0\)/);
+  assert.match(ui, /items\.reduce\(\(sum, course\) => sum \+ course\.hours, 0\)/);
+  assert.match(ui, /credits \/ program\.credits/);
+  assert.match(ui, /creditStructureTitle: "Cơ cấu 120 tín chỉ"/);
+  assert.match(ui, /aria-labelledby="study-plan-credit-structure-title"/);
+
+  const css = source("app/tools/study-plan/study-plan.module.css");
+  assert.match(css, /\.creditStack\s*\{/);
+  assert.match(css, /data-kind="research"/);
+  assert.match(css, /\.creditStructureGrid\s*\{/);
+});
