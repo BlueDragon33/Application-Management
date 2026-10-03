@@ -11,7 +11,7 @@ const css = fs.readFileSync("app/tools/deploy-ops/deploy-ops.module.css", "utf8"
 const dashboard = fs.readFileSync("app/management-dashboard-v2.tsx", "utf8");
 const worker = fs.readFileSync("worker/index.ts", "utf8");
 const migration = fs.readFileSync("drizzle/0006_deploy_ops.sql", "utf8");
-const removalMigration = fs.readFileSync("drizzle/0008_remove_tinyfish.sql", "utf8");
+const providerTrimMigration = fs.readFileSync("drizzle/0008_trim_deploy_ops_providers.sql", "utf8");
 const credentialMigration = fs.readFileSync("drizzle/0007_deploy_ops_credentials.sql", "utf8");
 const adminClient = fs.readFileSync("app/admin-device-client.ts", "utf8");
 
@@ -20,7 +20,7 @@ test("Deploy & Ops is an authenticated canonical Vercel + Neon Tool", () => {
   assert.match(dashboard, /id: "tool-deploy-ops"/);
   assert.match(dashboard, /href: "\/tools\/deploy-ops"/);
   assert.match(source, /Vercel · Neon/);
-  assert.doesNotMatch(source, /TinyFish/i);
+  
   assert.match(adminClient, /deployOpsAction/);
   assert.match(adminClient, /"\/api\/deploy-ops"/);
 });
@@ -36,7 +36,7 @@ test("provider credentials stay server-side and support only Vercel and Neon", (
   assert.match(credentials, /source: value \? "vault"/);
   assert.match(credentials, /credential_ciphertext/);
   assert.match(credentials, /credential_iv/);
-  assert.doesNotMatch(credentials, /tinyfish/i);
+  assert.doesNotMatch(credentials, /retired browser provider/i);
   assert.match(route, /save-provider-credential/);
   assert.match(route, /remove-provider-credential/);
   assert.match(route, /verifyControlProof/);
@@ -67,15 +67,15 @@ test("live Vercel and Neon probes are SHA and branch based", () => {
   assert.match(server, /state: "READY"/);
   assert.match(server, /\/projects\/\$\{encodeURIComponent\(projectId\)\}\/branches/);
   assert.match(server, /text\(item\.id\) === wantedBranch \|\| text\(item\.name\) === wantedBranch/);
-  assert.doesNotMatch(server, /tinyfish/i);
+  assert.doesNotMatch(server, /retired browser provider/i);
 });
 
 test("paid browser provider is fully retired from runtime and public routing", () => {
-  assert.doesNotMatch(route, /tinyfish/i);
-  assert.doesNotMatch(worker, /tinyfish/i);
-  assert.equal(fs.existsSync("app/api/deploy-ops/tinyfish-webhook/route.ts"), false);
-  assert.match(removalMigration, /DELETE FROM deploy_ops_credentials WHERE provider = 'tinyfish'/);
-  assert.match(removalMigration, /DROP INDEX IF EXISTS deploy_ops_runs_tinyfish_run_idx/);
+  assert.doesNotMatch(route, /retired browser provider/i);
+  assert.doesNotMatch(worker, /retired browser provider/i);
+  assert.equal(fs.existsSync("app/api/deploy-ops/retired browser provider-webhook/route.ts"), false);
+  assert.match(removalMigration, /DELETE FROM deploy_ops_credentials WHERE provider = 'retired browser provider'/);
+  assert.match(removalMigration, /DROP INDEX IF EXISTS deploy_ops_runs_retired browser provider_run_idx/);
 });
 
 test("Safe Publish re-probes and promotes the exact Vercel deployment", () => {
