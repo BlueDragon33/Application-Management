@@ -120,8 +120,8 @@ export const applicationRegistry: readonly ApplicationConfig[] = [
     contractNote: "Bauman Control, registry BM-, P-256 Device Gate, session/revoke, audit và idempotent device commands đã được triển khai và đã qua local E2E. Khu quản trị thiết bị thật đã nối vào Application Management; giữ trạng thái migrating cho tới khi origin runtime + Control Service production được deploy và handshake live được xác minh.",
     devicePolicy: "Standalone Development: không bắt duyệt thiết bị để mở app. Managed/Release Mode mới bật lại registry BM-, P-256, session và audit.",
     deviceExperiences: standardDeviceExperiences, childClients: baumanChildren,
-    capabilities: ["Lộ trình & môn học", "Sub-client môn học", "Thiết bị BM-", "Duyệt/khóa truy cập", "P-256 Device Gate", "Session & thu hồi", "Audit Bauman", "Theo dõi trạng thái"],
-    guardrails: ["Nút Website phải mở runtime học Bauman, không mở Control Service", "Không dùng hàng đợi Bơi ếch", "Sub-client thuộc Bauman không tự trở thành client cấp 1", "Không đánh dấu production connected chỉ vì CI xanh"],
+    capabilities: ["Lộ trình & môn học", "Study Plan 09.04.01/11", "Sub-client môn học", "Thiết bị BM-", "Duyệt/khóa truy cập", "P-256 Device Gate", "Session & thu hồi", "Audit Bauman", "Theo dõi trạng thái"],
+    guardrails: ["Study Plan chỉ đọc contract/manifest Bauman và fail-closed khi registry không khả dụng", "Nút Website phải mở runtime học Bauman, không mở Control Service", "Không dùng hàng đợi Bơi ếch", "Sub-client thuộc Bauman không tự trở thành client cấp 1", "Không đánh dấu production connected chỉ vì CI xanh"],
   },
   {
     id: "price-report-tunggiabao", name: "PriceReport Tùng Gia Bảo", shortName: "Báo giá Tùng Gia Bảo",
