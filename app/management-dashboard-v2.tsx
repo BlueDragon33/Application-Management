@@ -191,10 +191,10 @@ function appFor(apps: readonly ApplicationConfig[], appId: string) {
 
 function appGlyph(appId: string) {
   if (appId === "tool-study-plan") return "▤";
-  if (appId === "tool-secret-generator") return "⌘";
-  if (appId === "tool-managed-apps") return "⊕";
-  if (appId === "tool-deploy-ops") return "⇧";
-  if (appId === "tool-kd-mid-visa") return "KV";
+  if (appId === "tool-secret-generator") return "⚿";
+  if (appId === "tool-managed-apps") return "◎";
+  if (appId === "tool-deploy-ops") return "☁";
+  if (appId === "tool-kd-mid-visa") return "✈";
   return "◆";
 }
 
@@ -1403,9 +1403,11 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
             }}
             title="Nhấn một lần để xem thông tin · nhấn đúp để mở"
           >
-            <span className="amv2-launcher-card-top"><AppIcon appId={item.iconAppId}/><i aria-hidden="true">•••</i></span>
+            <span className="amv2-launcher-card-top">
+              <AppIcon appId={item.iconAppId}/>
+              <i className="amv2-launcher-app-badge" data-state={item.connection} aria-label={item.statusLabel} title={item.statusLabel}/>
+            </span>
             <span className="amv2-launcher-card-copy"><strong>{item.shortName ?? item.name}</strong></span>
-            <span className="amv2-launcher-card-status" data-state={item.connection}><i/>{item.statusLabel}</span>
             <span className="amv2-launcher-card-foot"><b>{item.parentLabel ? `${item.category} · ${item.parentLabel}` : item.category}</b></span>
           </button>)}
           {!visibleItems.length ? <div className="amv2-launcher-empty"><strong>Không tìm thấy ứng dụng hoặc Tool phù hợp.</strong><small>Thử đổi từ khóa hoặc phân loại.</small></div> : null}
