@@ -1474,6 +1474,7 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
   useEffect(() => {
     return () => {
       cancelSingleClick();
+      clearLongPressTimer();
       if (openGuardTimerRef.current !== null) window.clearTimeout(openGuardTimerRef.current);
     };
   }, []);
@@ -1574,6 +1575,7 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
         <label className="amv2-launcher-sort">
           <span>Sắp xếp:</span>
           <select value={sortMode} onChange={(event) => setSortMode(event.target.value as AppLauncherSort)}>
+            <option value="manual">Thủ công</option>
             <option value="name">Tên A → Z</option>
             <option value="category">Phân loại</option>
             <option value="status">Trạng thái</option>
@@ -1586,20 +1588,29 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
           <button type="button" data-active={categoryFilter === "all"} onClick={() => setCategoryFilter("all")}>Tất cả</button>
           {categories.map((category) => <button type="button" key={category} data-active={categoryFilter === category} onClick={() => setCategoryFilter(category)}>{category}</button>)}
         </div>
-        <p className="amv2-launcher-help"><b>Nhấn 1 lần</b>: xem thông tin <i/> <b>Nhấn 2 lần</b>: mở web/app</p>
+        {editMode
+          ? <div className="amv2-launcher-editbar"><span>↕ Kéo icon để đổi vị trí · App và Tool giữ thành hai nhóm riêng</span><button type="button" onClick={() => { setEditMode(false); setDraggingId(null); longPressTriggeredRef.current = false; }}>Xong</button></div>
+          : <p className="amv2-launcher-help"><b>1 lần</b>: thông tin <i/> <b>2 lần</b>: mở <i/> <b>Giữ 3 giây</b>: sắp xếp</p>}
       </div>
 
       {mode === "grid" ? <div className="amv2-launcher-grid-wrap">
-        <div ref={gridRef} className="amv2-launcher-grid" data-testid="app-launcher-grid">
+        <div ref={gridRef} className="amv2-launcher-grid" data-testid="app-launcher-grid" data-editing={editMode}>
           {visibleItems.map((item) => <button
             type="button"
             key={item.id}
             className="amv2-launcher-card"
             data-kind={item.kind}
             data-parent-app={item.parentAppId ?? ""}
+            data-launcher-id={item.id}
             data-selected={selectedId === item.id}
+            data-dragging={draggingId === item.id}
             aria-expanded={selectedId === item.id}
             aria-controls={selectedId === item.id ? "amv2-app-launcher-popover" : undefined}
+            onPointerDown={(event) => handleCardPointerDown(event, item)}
+            onPointerMove={(event) => handleCardPointerMove(event, item)}
+            onPointerUp={handleCardPointerUp}
+            onPointerCancel={handleCardPointerCancel}
+            onContextMenu={(event) => event.preventDefault()}
             onClick={(event) => handleCardClick(event, item)}
             onDoubleClick={(event) => handleCardDoubleClick(event, item)}
             onKeyDown={(event) => {
@@ -1610,7 +1621,7 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
                 void openLauncherItem(item);
               }
             }}
-            title="Nhấn một lần để xem thông tin · nhấn đúp để mở"
+            title={editMode ? "Kéo để đổi vị trí" : "Nhấn 1 lần: thông tin · 2 lần: mở · giữ 3 giây: sắp xếp"}
           >
             <span className="amv2-launcher-card-top">
               <AppIcon appId={item.iconAppId}/>
@@ -1637,7 +1648,7 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
           const summary = summaryMap.get(app.id);
           const counts = operationalCounts(app.id, summary, devices);
           const hasWeb = webAccessAvailable(app, summary, localRuntime);
-          return <div className="amv2-app-row" key={app.id}><AppCell appId={app.id} name={app.shortName}/><span>{appGroup(app)}</span><strong title={counts.pending === null ? "Client chưa cung cấp dữ liệu thiết bị." : undefined}>{offline ? "—" : countText(counts.pending)}</strong><strong title={counts.online === null ? "Client chưa cung cấp dữ liệu online." : undefined}>{offline ? "—" : countText(counts.online)}</strong><StatusCell app={app} summary={summary} offline={offline}/><button className="amv2-web-action" disabled={!hasWeb || webBusy === app.id} onClick={() => void launchWeb(app.id)}>{webActionLabel(summary, hasWeb, webBusy === app.id)}</button><Link className="amv2-manage-action" href={app.href}>Quản trị</Link></div>;
+          return <div className="amv2-app-row" key={app.id}><AppCell appId={app.id} name={app.shortName}/><span>{item.category}</span><strong title={counts.pending === null ? "Client chưa cung cấp dữ liệu thiết bị." : undefined}>{offline ? "—" : countText(counts.pending)}</strong><strong title={counts.online === null ? "Client chưa cung cấp dữ liệu online." : undefined}>{offline ? "—" : countText(counts.online)}</strong><StatusCell app={app} summary={summary} offline={offline}/><button className="amv2-web-action" disabled={!hasWeb || webBusy === app.id} onClick={() => void launchWeb(app.id)}>{webActionLabel(summary, hasWeb, webBusy === app.id)}</button><Link className="amv2-manage-action" href={app.href}>Quản trị</Link></div>;
         })}
         {!visibleItems.length ? <div className="amv2-empty"><strong>Không tìm thấy ứng dụng hoặc Tool phù hợp.</strong></div> : null}
       </div>}
@@ -1660,7 +1671,26 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
           <p><span>Trạng thái</span><strong data-state={selectedItem.connection}>● {selectedItem.statusLabel}</strong></p>
           <p><span>Online</span><strong>{selectedItem.onlineCount === null ? "—" : countText(selectedItem.onlineCount)}</strong></p>
           <p><span>Chờ xử lý</span><strong>{selectedItem.pendingCount === null ? "—" : countText(selectedItem.pendingCount)}</strong></p>
-          <p><span>Loại</span><strong>{selectedItem.parentLabel ? `${selectedItem.category} · ${selectedItem.parentLabel}` : selectedItem.kind === "tool" ? "Tool" : selectedItem.category}</strong></p>
+          <p>
+            <span>Phân loại</span>
+            {selectedItem.kind === "app"
+              ? <button type="button" className="amv2-category-edit-trigger" onClick={() => { setCategoryDraft(selectedItem.category); setCategoryEditing((current) => !current); }}>{selectedItem.category} ✎</button>
+              : <strong>{selectedItem.parentLabel ? `Tool · ${selectedItem.parentLabel}` : "Tool"}</strong>}
+          </p>
+          {selectedItem.kind === "app" && categoryEditing ? <div className="amv2-category-editor">
+            <label htmlFor="amv2-category-input">Phân loại hiển thị</label>
+            <div>
+              <input id="amv2-category-input" list="amv2-category-options" value={categoryDraft} onChange={(event) => setCategoryDraft(event.target.value)} placeholder="Ví dụ: Học tập"/>
+              <datalist id="amv2-category-options">{editableCategories.map((category) => <option value={category} key={category}/>)}</datalist>
+              <button type="button" onClick={() => saveCategoryOverride(selectedItem, categoryDraft)}>Lưu</button>
+              <button type="button" onClick={() => {
+                const canonical = apps.find((app) => app.id === selectedItem.id)?.category ?? selectedItem.category;
+                setCategoryDraft(canonical);
+                saveCategoryOverride(selectedItem, canonical);
+              }}>Mặc định</button>
+            </div>
+            <small>Chỉ thay đổi cách phân loại/hiển thị trong App Manager, không đổi contract của client.</small>
+          </div> : null}
           <p><span>Liên kết quản trị</span>{selectedItem.manageHref ? <Link href={selectedItem.manageHref}>{selectedItem.parentAppId ? "Bauman-Admin ↗" : "Quản trị ↗"}</Link> : <strong>—</strong>}</p>
         </div>
 
