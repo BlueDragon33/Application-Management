@@ -63,3 +63,13 @@ test("KD-MID Visa blocks automation when required passport fields are incomplete
   assert.match(tool, /Ngày hết hạn hộ chiếu/);
   assert.match(tool, /Chưa thể tự điền\. Hồ sơ còn thiếu/);
 });
+
+
+test("KD-MID connect page exposes a visible applicant selector", () => {
+  assert.match(tool, /Chọn hồ sơ sử dụng/);
+  assert.match(tool, /store\.applicants\.map/);
+  assert.match(tool, /value=\{selected\?\.id \?\? ""\}/);
+  assert.match(tool, /setStore\(\(current\) => \(\{ \.\.\.current, selectedId: event\.target\.value \}\)\)/);
+  assert.match(tool, /Đang dùng/);
+  assert.match(tool, /Sửa hồ sơ/);
+});
