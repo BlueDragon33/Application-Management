@@ -214,6 +214,18 @@ function buildPayload(applicant: Applicant, common: CommonData, autoAdvance = fa
   };
 }
 
+function encodeAutomationPayload(payload: ReturnType<typeof buildPayload>) {
+  const bytes = new TextEncoder().encode(JSON.stringify(payload));
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return window.btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function buildDirectAutomationUrl(applicant: Applicant, common: CommonData, autoAdvance: boolean) {
+  const payload = buildPayload(applicant, common, autoAdvance);
+  return `https://visa.kdmid.ru/#kdmidv8=${encodeAutomationPayload(payload)}`;
+}
+
 function buildBookmarklet(applicant: Applicant, common: CommonData) {
   const payload = buildPayload(applicant, common);
   const encoded = encodeURIComponent(JSON.stringify(payload));
@@ -443,57 +455,13 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       return;
     }
 
-    const target = window.open("about:blank", "kdmidVisa");
+    const target = window.open(buildDirectAutomationUrl(selected, store.common, autoAdvance), "kdmidVisa");
     if (!target) {
-      setNotice("Trình duyệt đã chặn cửa sổ mới. Hãy cho phép pop-up cho App-Manager rồi thử lại.");
+      setNotice("Trình duyệt đã chặn cửa sổ KD-MID. Hãy cho phép pop-up cho App-Manager rồi thử lại.");
       return;
     }
 
-    const nonce = crypto.randomUUID();
-    const payload = buildPayload(selected, store.common, autoAdvance);
-    let finished = false;
-
-    const cleanup = () => {
-      window.removeEventListener("message", onBridgeMessage);
-      window.clearTimeout(timeout);
-    };
-
-    const onBridgeMessage = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return;
-      const data = event.data as { type?: string; nonce?: string; version?: string };
-      if (data?.nonce !== nonce) return;
-
-      if (data.type === "KD_MID_STORE_ERROR") {
-        finished = true;
-        cleanup();
-        try { target.close(); } catch {}
-        setNotice("Companion có chạy nhưng không lưu được hồ sơ vào vùng chia sẻ. Hãy cập nhật Companion v0.7 rồi thử lại.");
-        return;
-      }
-
-      if (data.type !== "KD_MID_STORE_ACK") return;
-
-      finished = true;
-      cleanup();
-      setCompanionVersion(String(data.version ?? "0.7.0"));
-      try {
-        target.location.replace("https://visa.kdmid.ru/");
-      } catch {
-        target.location.href = "https://visa.kdmid.ru/";
-      }
-      setNotice("Companion v0.7 đã nhận hồ sơ. Đang mở KD-MID; luồng sẽ tự chạy và chỉ dừng ở CAPTCHA để bạn nhập.");
-    };
-
-    window.addEventListener("message", onBridgeMessage);
-    const timeout = window.setTimeout(() => {
-      if (finished) return;
-      cleanup();
-      try { target.close(); } catch {}
-      setNotice("Companion chưa phản hồi trên chính App-Manager. Hãy bấm “Cài / cập nhật Companion v0.7”, bảo đảm Tampermonkey đang Enabled, rồi Ctrl+F5 trang này.");
-    }, 3500);
-
-    window.postMessage({ type: "KD_MID_STORE_PAYLOAD", nonce, payload }, window.location.origin);
-    setNotice("Đang chuyển hồ sơ sang Companion v0.7 trước khi mở KD-MID…");
+    setNotice("Đã mở thẳng KD-MID bằng Companion v0.8. Trang sẽ không tự đóng; nếu script hoạt động, hash truyền hồ sơ sẽ biến mất và luồng tự động bắt đầu.");
   }
 
   function saveManualRecord() {
