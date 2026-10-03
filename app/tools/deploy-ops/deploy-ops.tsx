@@ -6,13 +6,12 @@ import { deployOpsAction } from "../../admin-device-client";
 import { projectRepositories } from "../../project-registry";
 import styles from "./deploy-ops.module.css";
 
-type ProviderKey = "vercel" | "neon" | "tinyfish";
+type ProviderKey = "vercel" | "neon";
 type ProviderSource = "worker" | "vault" | "missing";
 type ProviderState = { configured: boolean; source: ProviderSource; fingerprint: string };
 type Providers = {
   vercel: boolean;
   neon: boolean;
-  tinyfish: boolean;
   encryptionReady: boolean;
   sources: Record<ProviderKey, ProviderState>;
 };
@@ -26,9 +25,6 @@ type Target = {
   neonEnabled: boolean;
   neonProjectId: string;
   neonBranch: string;
-  tinyfishEnabled: boolean;
-  tinyfishTargetUrl: string;
-  tinyfishGoal: string;
   updatedAt?: string;
 };
 
@@ -45,10 +41,6 @@ type Probe = {
     enabled: boolean; configured: boolean; ready: boolean; projectId: string | null;
     branchId: string | null; branchName: string | null; message: string;
   };
-  tinyfish: {
-    enabled: boolean; configured: boolean; ready: boolean; runId: string | null;
-    status: string | null; result: Record<string, unknown> | null; message: string;
-  };
   gates: Array<{ id: string; passed: boolean; detail: string }>;
 };
 
@@ -56,9 +48,6 @@ type Run = {
   id: string;
   appId: string;
   sourceSha: string;
-  tinyfishRunId: string | null;
-  tinyfishStatus: string | null;
-  tinyfishResult: Record<string, unknown> | null;
   status: string;
   createdBy: string;
   createdAt: string;
@@ -99,7 +88,6 @@ type ApiResult = {
   target?: Target;
   probe?: Probe;
   runs?: Run[];
-  run?: { localRunId?: string; runId?: string; status?: string };
   promoted?: boolean;
   deploymentId?: string;
   deploymentUrl?: string;
@@ -110,13 +98,11 @@ type ApiResult = {
 const emptySources: Record<ProviderKey, ProviderState> = {
   vercel: { configured: false, source: "missing", fingerprint: "" },
   neon: { configured: false, source: "missing", fingerprint: "" },
-  tinyfish: { configured: false, source: "missing", fingerprint: "" },
 };
 
 const emptyProviders: Providers = {
   vercel: false,
   neon: false,
-  tinyfish: false,
   encryptionReady: false,
   sources: emptySources,
 };
@@ -124,10 +110,7 @@ const emptyProviders: Providers = {
 const providerMeta: Array<{ id: ProviderKey; label: string; role: string; placeholder: string }> = [
   { id: "vercel", label: "Vercel", role: "Deploy / Promote", placeholder: "Vercel access token" },
   { id: "neon", label: "Neon", role: "PostgreSQL / Branch", placeholder: "Neon API key" },
-  { id: "tinyfish", label: "TinyFish", role: "Browser test", placeholder: "TinyFish API key" },
 ];
-
-const defaultGoal = "Kiểm tra website tải được và các chức năng chính có thể sử dụng bình thường. Không thay đổi dữ liệu phá hủy.";
 
 function defaultTarget(appId = "application-management"): Target {
   const project = projectRepositories.find((item) => item.id === appId) ?? projectRepositories[0];
@@ -140,19 +123,11 @@ function defaultTarget(appId = "application-management"): Target {
     neonEnabled: false,
     neonProjectId: "",
     neonBranch: "",
-    tinyfishEnabled: false,
-    tinyfishTargetUrl: "",
-    tinyfishGoal: defaultGoal,
   };
 }
 
 function shortSha(value: string) {
   return value ? value.slice(0, 12) : "—";
-}
-
-function resultSummary(value: Record<string, unknown> | null) {
-  if (!value) return "";
-  return typeof value.summary === "string" ? value.summary : "";
 }
 
 function sourceLabel(state: ProviderState) {
@@ -163,7 +138,7 @@ function sourceLabel(state: ProviderState) {
 
 export default function DeployOpsTool({ user }: { user: { displayName: string; email: string } }) {
   const [providers, setProviders] = useState<Providers>(emptyProviders);
-  const [credentialDrafts, setCredentialDrafts] = useState<Record<ProviderKey, string>>({ vercel: "", neon: "", tinyfish: "" });
+  const [credentialDrafts, setCredentialDrafts] = useState<Record<ProviderKey, string>>({ vercel: "", neon: "" });
   const [targets, setTargets] = useState<Target[]>([]);
   const [target, setTarget] = useState<Target>(() => defaultTarget());
   const [discovery, setDiscovery] = useState<Discovery | null>(null);
@@ -365,39 +340,6 @@ export default function DeployOpsTool({ user }: { user: { displayName: string; e
     }
   }
 
-  async function startTinyFish() {
-    setBusy("tinyfish-start");
-    setMessage("");
-    try {
-      const data = await deployOpsAction({ action: "start-tinyfish", appId: target.appId, sourceSha }) as ApiResult;
-      if (!data.run?.runId) throw new Error(data.error ?? "TinyFish chưa tạo được run.");
-      setMessage(`TinyFish đã chạy thật: ${data.run.runId}. Webhook sẽ cập nhật kết quả; có thể bấm Làm mới TinyFish.`);
-      await loadRuns();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Không khởi động được TinyFish.");
-    } finally {
-      setBusy("");
-    }
-  }
-
-  async function refreshTinyFish() {
-    setBusy("tinyfish-refresh");
-    setMessage("");
-    try {
-      const data = await deployOpsAction({ action: "refresh-tinyfish", appId: target.appId, sourceSha }) as ApiResult;
-      if (data.probe) {
-        setProbe(data.probe);
-        setProviders(data.probe.providers);
-      }
-      setMessage(data.probe?.tinyfish.message ?? "Đã làm mới TinyFish.");
-      await loadRuns();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Không làm mới được TinyFish.");
-    } finally {
-      setBusy("");
-    }
-  }
-
   async function safePublish() {
     if (!productionAuthority) {
       setMessage("Cần xác nhận Production release authority trước khi publish.");
@@ -436,8 +378,8 @@ export default function DeployOpsTool({ user }: { user: { displayName: string; e
       <header className={styles.header}>
         <div>
           <small>DEPLOY & OPS · LIVE CONTROL</small>
-          <h1>Vercel · Neon · TinyFish</h1>
-          <p>Đọc provider thật bằng API server-side, chạy browser test TinyFish thật và chỉ promote Vercel khi đúng SHA + toàn bộ gate PASS.</p>
+          <h1>Vercel · Neon</h1>
+          <p>Đọc Vercel và Neon bằng API server-side, kiểm tra đúng SHA/branch và chỉ promote Vercel khi toàn bộ gate bắt buộc PASS.</p>
         </div>
         <Link className={styles.back} href="/">← Trung tâm</Link>
       </header>
@@ -536,10 +478,7 @@ export default function DeployOpsTool({ user }: { user: { displayName: string; e
             <label><span>Branch ID hoặc tên</span><input disabled={!target.neonEnabled} value={target.neonBranch} onChange={(event) => patch({ neonBranch: event.target.value })} placeholder="main hoặc br-..."/></label>
           </ProviderCard>
 
-          <ProviderCard title="TinyFish" enabled={target.tinyfishEnabled} onToggle={(enabled) => patch({ tinyfishEnabled: enabled })} configured={providers.tinyfish}>
-            <label><span>URL browser test</span><input disabled={!target.tinyfishEnabled} value={target.tinyfishTargetUrl} onChange={(event) => patch({ tinyfishTargetUrl: event.target.value })} placeholder="https://preview.example.com"/></label>
-            <label><span>Mục tiêu kiểm thử</span><textarea disabled={!target.tinyfishEnabled} value={target.tinyfishGoal} onChange={(event) => patch({ tinyfishGoal: event.target.value })}/></label>
-          </ProviderCard>
+
         </div>
 
         <div className={styles.actions}>
@@ -622,28 +561,19 @@ export default function DeployOpsTool({ user }: { user: { displayName: string; e
         </label>
 
         <div className={styles.actions}>
-          <button disabled={Boolean(busy) || !shaValid} onClick={() => void liveProbe()}>{busy === "probe" ? "Đang probe…" : "Kiểm tra Vercel + Neon + TinyFish"}</button>
-          <button disabled={Boolean(busy) || !shaValid || !target.tinyfishEnabled} onClick={() => void startTinyFish()}>{busy === "tinyfish-start" ? "Đang khởi động…" : "Chạy TinyFish test thật"}</button>
-          <button disabled={Boolean(busy) || !shaValid || !target.tinyfishEnabled} onClick={() => void refreshTinyFish()}>{busy === "tinyfish-refresh" ? "Đang làm mới…" : "Làm mới TinyFish"}</button>
+          <button disabled={Boolean(busy) || !shaValid} onClick={() => void liveProbe()}>{busy === "probe" ? "Đang probe…" : "Kiểm tra Vercel + Neon"}</button>
         </div>
 
         {probe ? <div className={styles.gates}>
           <Gate label="Source SHA" passed={shaValid} detail={shaValid ? shortSha(sourceSha) : "Không hợp lệ"}/>
           <Gate label="Vercel" passed={probe.vercel.ready} detail={probe.vercel.message}/>
           <Gate label="Neon" passed={probe.neon.ready} detail={probe.neon.message}/>
-          <Gate label="TinyFish" passed={probe.tinyfish.ready} detail={probe.tinyfish.message}/>
         </div> : null}
 
         {probe?.vercel.deploymentUrl ? <div className={styles.evidence}>
           <strong>Vercel deployment</strong>
           <a href={probe.vercel.deploymentUrl} target="_blank" rel="noopener noreferrer">{probe.vercel.deploymentUrl}</a>
           <span>ID: {probe.vercel.deploymentId} · {probe.vercel.state} · {probe.vercel.target ?? "preview"}</span>
-        </div> : null}
-
-        {probe?.tinyfish.result ? <div className={styles.evidence}>
-          <strong>TinyFish result</strong>
-          <span>{resultSummary(probe.tinyfish.result) || "Đã có kết quả structured output."}</span>
-          <code>{JSON.stringify(probe.tinyfish.result, null, 2)}</code>
         </div> : null}
 
         <label className={styles.authority}>
@@ -660,12 +590,11 @@ export default function DeployOpsTool({ user }: { user: { displayName: string; e
       </section>
 
       <section className={styles.panel}>
-        <div className={styles.panelTitle}><div><small>03 · AUDIT</small><h2>TinyFish / release runs</h2></div><button onClick={() => void loadRuns()}>↻</button></div>
+        <div className={styles.panelTitle}><div><small>03 · AUDIT</small><h2>Lịch sử publish</h2></div><button onClick={() => void loadRuns()}>↻</button></div>
         <div className={styles.runTable}>
-          <div className={styles.runHead}><span>SHA</span><span>TinyFish</span><span>Trạng thái</span><span>Thời gian</span></div>
+          <div className={styles.runHead}><span>SHA</span><span>Trạng thái</span><span>Thời gian</span></div>
           {runs.map((run) => <div className={styles.runRow} key={run.id}>
             <code>{shortSha(run.sourceSha)}</code>
-            <span>{run.tinyfishStatus ?? "—"}</span>
             <b data-status={run.status}>{run.status}</b>
             <span>{new Date(run.updatedAt || run.createdAt).toLocaleString("vi-VN")}</span>
           </div>)}
