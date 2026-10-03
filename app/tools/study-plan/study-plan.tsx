@@ -154,6 +154,11 @@ const copy = {
     priorityNext: "Ưu tiên tiếp theo",
     openPriorityCourse: "Mở môn ưu tiên",
     skillCourses: "môn liên quan",
+    navSchedule: "Lịch học",
+    navCourses: "Môn học",
+    navSkills: "Kỹ năng & định hướng",
+    navAnalysis: "Phân tích chương trình",
+    navPreparation: "Lộ trình chuẩn bị",
   },
   en: {
     back: "← Management Center",
@@ -288,6 +293,11 @@ const copy = {
     priorityNext: "Next priority",
     openPriorityCourse: "Open priority course",
     skillCourses: "related courses",
+    navSchedule: "Schedule",
+    navCourses: "Courses",
+    navSkills: "Skills & direction",
+    navAnalysis: "Program analysis",
+    navPreparation: "Preparation roadmap",
   },
 } as const;
 
@@ -1105,7 +1115,7 @@ export default function StudyPlanTool({
     setCourseSort("semester");
   };
 
-  return <main className={styles.shell}>
+  return <main className={styles.shell} id="study-plan-top">
     <header className={styles.topbar}>
       <Link href="/" className={styles.back}>{t.back}</Link>
       <div className={styles.language} aria-label="Language">
@@ -1137,6 +1147,14 @@ export default function StudyPlanTool({
       <Stat value={62} label={t.teachingWeeks} sub="17 + 17 + 17 + 11" />
       <Stat value="≈51" label={t.avgLoad} sub={t.hoursWeek} />
     </section>
+
+    <nav className={styles.studySections} aria-label={t.title}>
+      <a href="#study-plan-content">{t.navSchedule}</a>
+      <a href="#course-explorer">{t.navCourses}</a>
+      <a href="#skills-direction">{t.navSkills}</a>
+      <a href="#program-analysis">{t.navAnalysis}</a>
+      <a href="#pre-bauman-roadmap">{t.navPreparation}</a>
+    </nav>
 
     <section className={styles.readinessLegend}>
       <div>
