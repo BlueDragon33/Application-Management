@@ -14,7 +14,7 @@
 
 .providerStrip {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0,1fr));
+  grid-template-columns: repeat(2, minmax(0,1fr));
   gap: 10px;
   margin-bottom: 16px;
 }
@@ -84,7 +84,7 @@
 
 .vaultGrid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   margin-top: 14px;
 }
@@ -361,7 +361,7 @@
 .runTable { border: 1px solid #20483b; border-radius: 12px; overflow: hidden; }
 .runHead, .runRow {
   display: grid;
-  grid-template-columns: 1.1fr .8fr .7fr 1.2fr;
+  grid-template-columns: 1.1fr .7fr 1.2fr;
   gap: 10px;
   align-items: center;
   padding: 10px 12px;
