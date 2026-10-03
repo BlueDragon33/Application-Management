@@ -4097,3 +4097,209 @@
     font-size:11.5px;
   }
 }
+
+
+/* === User-controlled Study Plan typography === */
+@media screen {
+  .shell{
+    --fs-xs:12px;
+    --fs-sm:13px;
+    --fs-base:14px;
+    --fs-md:15px;
+    --fs-lg:16px;
+    --fs-xl:18px;
+    --fs-h2:22px;
+  }
+
+  .shell[data-font-scale="large"]{
+    --fs-xs:13px;
+    --fs-sm:14px;
+    --fs-base:15.5px;
+    --fs-md:16.5px;
+    --fs-lg:18px;
+    --fs-xl:20px;
+    --fs-h2:24px;
+  }
+
+  .shell[data-font-scale="xlarge"]{
+    --fs-xs:14px;
+    --fs-sm:15px;
+    --fs-base:17px;
+    --fs-md:18px;
+    --fs-lg:20px;
+    --fs-xl:22px;
+    --fs-h2:26px;
+  }
+
+  .fontControl{
+    display:flex;
+    align-items:center;
+    gap:2px;
+    padding:3px;
+    border:1px solid #e4e8ee;
+    border-radius:11px;
+    background:#f5f6f8;
+  }
+
+  .fontControl button{
+    min-width:34px;
+    min-height:30px;
+    padding:0 7px;
+    border:0;
+    border-radius:8px;
+    background:transparent;
+    color:#667085;
+    font-weight:850;
+    cursor:pointer;
+    font-size:12px;
+  }
+
+  .fontControl button[data-active="true"]{
+    background:#fff;
+    color:#1f3fb4;
+    box-shadow:0 1px 3px rgba(16,24,40,.09);
+  }
+
+  .back,
+  .baumanAdminLink,
+  .printButton,
+  .language button,
+  .commandSearch button,
+  .modeGroup button,
+  .selectLabel select,
+  .sectionHeading select,
+  .courseExplorerFilters select,
+  .courseExplorerFilters>button,
+  .courseSearch,
+  .courseSearch input,
+  .courseRow,
+  .weekCourseList button,
+  .monthCourses button,
+  .yearSemesters button{
+    font-size:var(--fs-base);
+  }
+
+  .user small,
+  .hero>div:first-child small,
+  .programCard small,
+  .studySections button small,
+  .loadStrip small,
+  .monthNumbers small,
+  .officialGrid small,
+  .analysisBlock small,
+  .moduleBridge small,
+  .courseName small,
+  .weekCourseList small,
+  .kindBadge,
+  .readinessBadge,
+  .detailHeader span,
+  .detailKind,
+  .skillGrid>article>header span,
+  .skillReadinessCounts span,
+  .skillReadinessCounts small,
+  .skillPriority small,
+  .skillPriority button,
+  .creditStructureGrid small,
+  .workloadGrid header small,
+  .semesterCoverage small,
+  .sourceDisclaimer,
+  .derivedNote,
+  .officialNote,
+  .analysisDisclaimer{
+    font-size:var(--fs-sm);
+  }
+
+  .user strong,
+  .programCard span,
+  .programCard p,
+  .workspaceLauncher>header p,
+  .readinessLegend p,
+  .readinessLegendItems span,
+  .modeGroup>span,
+  .selectLabel,
+  .sectionHeading span,
+  .semesterMetrics,
+  .semesterMetrics span,
+  .semesterMetrics b,
+  .insight small,
+  .insight p,
+  .courseTableHeader,
+  .detailHeader p,
+  .analysisBlock p,
+  .moduleBridge p,
+  .readinessCard p,
+  .officialGrid strong,
+  .assessmentLine,
+  .moduleBridge strong,
+  .readinessCard strong,
+  .courseExplorerHeader p,
+  .skillsHeader>div:first-child>p,
+  .creditStructureHeading p,
+  .workloadHeading p,
+  .coverageHeader p,
+  .skillGrid>article>p,
+  .skillPriority strong,
+  .overallGrid p,
+  .creditStructureGrid span,
+  .workloadGrid header span,
+  .workloadLegend,
+  .missingCourses,
+  .gapPlan p,
+  .preBaumanHeader p,
+  .phaseWhy,
+  .phaseTasks,
+  .phaseCheckpoint,
+  .phaseImpact{
+    font-size:var(--fs-base);
+  }
+
+  .workspaceLauncher>header span,
+  .studySections button strong,
+  .courseName strong,
+  .weekCourseList strong,
+  .readinessLegend strong,
+  .courseExplorerHeader span,
+  .skillsHeader>div:first-child>span,
+  .creditStructureHeading span,
+  .workloadHeading span,
+  .coverageHeader span,
+  .skillGrid h3,
+  .overallGrid strong,
+  .coverageStats small,
+  .semesterCoverage h3,
+  .missingCourses h3,
+  .gapPlan h3,
+  .preBaumanPhase h3,
+  .phaseFocus{
+    font-size:var(--fs-lg);
+  }
+
+  .programCard strong,
+  .loadStrip strong,
+  .monthNumbers b{
+    font-size:var(--fs-xl);
+  }
+
+  .sectionHeading h2,
+  .detailHeader h2,
+  .preBaumanHeader h2,
+  .overall>header>h2{
+    font-size:var(--fs-h2);
+  }
+
+  .commandSearch input,
+  .hero p{
+    font-size:var(--fs-lg);
+  }
+}
+
+@media screen and (max-width:760px){
+  .fontControl button{
+    min-width:30px;
+    padding:0 5px;
+  }
+
+  .fontControl button:last-child{
+    display:none;
+  }
+}
