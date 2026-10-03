@@ -6,6 +6,7 @@ const dashboard = fs.readFileSync("app/management-dashboard-v2.tsx", "utf8");
 const tool = fs.readFileSync("app/tools/kd-mid-visa/kd-mid-visa.tsx", "utf8");
 const pdf = fs.readFileSync("app/tools/kd-mid-visa/visa-pdf.ts", "utf8");
 const page = fs.readFileSync("app/tools/kd-mid-visa/page.tsx", "utf8");
+const companion = fs.readFileSync("public/kd-mid-visa-companion.user.js", "utf8");
 
 test("KD-MID Visa is registered as an internal Tool", () => {
   assert.match(dashboard, /id: "tool-kd-mid-visa"/);
@@ -98,4 +99,29 @@ test("PDF prints route override and former citizenship details when applicable",
   assert.match(pdf, /formerCitizenshipLostDate/);
   assert.match(pdf, /formerCitizenshipLossReason/);
   assert.match(pdf, /ДА,/);
+});
+
+
+test("production workflow uses the official KD-MID site and companion bridge", () => {
+  assert.match(tool, /Kết nối KD-MID/);
+  assert.match(tool, /Mở KD-MID chính thức/);
+  assert.match(tool, /visa\.kdmid\.ru/);
+  assert.match(tool, /#kdmid-bridge=/);
+  assert.match(tool, /KD_MID_PAYLOAD/);
+  assert.match(tool, /KD_MID_ACK/);
+  assert.match(tool, /Barcode chỉ hợp lệ khi do KD-MID tạo/);
+  assert.match(companion, /@match\s+https:\/\/visa\.kdmid\.ru\/\*/);
+  assert.match(companion, /ВЬЕТНАМ/);
+  assert.match(companion, /РУССКИЙ/);
+  assert.match(companion, /Я прочитал эту информацию/);
+  assert.match(companion, /ЗАПОЛНИТЬ НОВУЮ АНКЕТУ/);
+  assert.match(companion, /Печать формата A4/);
+});
+
+test("companion fills per-applicant route and former citizenship fields", () => {
+  assert.match(companion, /A\.routeCity \|\| payload\.city/);
+  assert.match(companion, /A\.hadFormerRussianCitizenship/);
+  assert.match(companion, /formerCitizenshipLostDate/);
+  assert.match(companion, /formerCitizenshipLossReason/);
+  assert.match(companion, /Наименование учреждения/);
 });
