@@ -49,3 +49,52 @@ test("study-plan derives the 120-credit structure from course kinds instead of h
   assert.match(css, /data-kind="research"/);
   assert.match(css, /\.creditStructureGrid\s*\{/);
 });
+
+
+test("study-plan final completion adds searchable course explorer and skills direction", () => {
+  const ui = source("app/tools/study-plan/study-plan.tsx");
+
+  assert.match(ui, /explorerTitle: "Danh sách & tra cứu môn học"/);
+  assert.match(ui, /type ExplorerSemester = "all" \| "1" \| "2" \| "3" \| "4"/);
+  assert.match(ui, /course\.ru,[\s\S]*course\.title\.vi,[\s\S]*course\.title\.en/);
+  assert.match(ui, /courseKindFilter === "all" \|\| course\.kind === courseKindFilter/);
+  assert.match(ui, /courseReadinessFilter === "all" \|\| readiness === courseReadinessFilter/);
+  assert.match(ui, /courseSort === "readiness"/);
+  assert.match(ui, /id="course-explorer"/);
+  assert.match(ui, /id="skills-direction"/);
+  assert.match(ui, /skillClusterDefinitions/);
+  assert.match(ui, /counts\.red > 0 \? "red" : counts\.yellow > 0 \? "yellow" : "green"/);
+  assert.match(ui, /readinessWeight\[readinessByCourse\[a\.id\]\.level\]/);
+});
+
+test("study-plan final UI exposes section tabs and responsive explorer/skills layout", () => {
+  const ui = source("app/tools/study-plan/study-plan.tsx");
+  const css = source("app/tools/study-plan/study-plan.module.css");
+
+  assert.match(ui, /className=\{styles\.studySections\}/);
+  assert.match(ui, /href="#study-plan-content"/);
+  assert.match(ui, /href="#course-explorer"/);
+  assert.match(ui, /href="#skills-direction"/);
+  assert.match(ui, /href="#program-analysis"/);
+  assert.match(ui, /href="#pre-bauman-roadmap"/);
+  assert.match(css, /\.studySections\s*\{/);
+  assert.match(css, /\.courseExplorerFilters\s*\{/);
+  assert.match(css, /\.skillGrid\s*\{/);
+  assert.match(css, /@media\(max-width:1100px\)/);
+});
+
+
+test("skills direction covers every displayed curriculum entry exactly once", () => {
+  const data = source("app/tools/study-plan/study-plan-data.ts");
+  const ui = source("app/tools/study-plan/study-plan.tsx");
+
+  const courseBlock = data.slice(data.indexOf("export const courses"), data.indexOf("export const readinessByCourse"));
+  const courseIds = [...courseBlock.matchAll(/\bid:\s*"([^"]+)"/g)].map((match) => match[1]);
+  const clusterBlock = ui.slice(ui.indexOf("const skillClusterDefinitions"), ui.indexOf("type GapAction"));
+  const clusterIds = [...clusterBlock.matchAll(/courseIds:\s*\[([^\]]*)\]/g)]
+    .flatMap((match) => [...match[1].matchAll(/"([^"]+)"/g)].map((item) => item[1]));
+
+  assert.equal(courseIds.length, 33);
+  assert.equal(clusterIds.length, 33);
+  assert.deepEqual([...new Set(clusterIds)].sort(), [...courseIds].sort());
+});
