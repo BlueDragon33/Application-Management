@@ -159,6 +159,14 @@ const copy = {
     navSkills: "Kỹ năng & định hướng",
     navAnalysis: "Phân tích chương trình",
     navPreparation: "Lộ trình chuẩn bị",
+    baumanAdmin: "Bauman Admin",
+    integrationTitle: "Liên kết Application Management ↔ Bauman Hub",
+    integrationParent: "Ứng dụng cha",
+    integrationRegistry: "Registry học liệu",
+    integrationCoverage: "Độ phủ chương trình",
+    registryLive: "Live · tự đồng bộ manifest",
+    registryFallback: "Không khả dụng · fail-closed",
+    integrationNote: "Study Plan là Tool nội bộ của App-Manager; Bauman Hub là nguồn contract/manifest để nối từng học phần với học liệu hoặc workflow.",
   },
   en: {
     back: "← Management Center",
@@ -298,6 +306,14 @@ const copy = {
     navSkills: "Skills & direction",
     navAnalysis: "Program analysis",
     navPreparation: "Preparation roadmap",
+    baumanAdmin: "Bauman Admin",
+    integrationTitle: "Application Management ↔ Bauman Hub linkage",
+    integrationParent: "Parent app",
+    integrationRegistry: "Learning registry",
+    integrationCoverage: "Curriculum coverage",
+    registryLive: "Live · manifest-synced",
+    registryFallback: "Unavailable · fail-closed",
+    integrationNote: "Study Plan is an internal App-Manager tool; Bauman Hub supplies the contract/manifests that map each curriculum entry to learning material or a workflow.",
   },
 } as const;
 
@@ -1117,7 +1133,10 @@ export default function StudyPlanTool({
 
   return <main className={styles.shell} id="study-plan-top">
     <header className={styles.topbar}>
-      <Link href="/" className={styles.back}>{t.back}</Link>
+      <div className={styles.contextNav}>
+        <Link href="/" className={styles.back}>{t.back}</Link>
+        <Link href="/apps/bauman-master-ai" className={styles.baumanAdminLink}>{t.baumanAdmin}</Link>
+      </div>
       <div className={styles.language} aria-label="Language">
         <button type="button" data-active={lang === "vi"} onClick={() => setLang("vi")}>VI</button>
         <button type="button" data-active={lang === "en"} onClick={() => setLang("en")}>EN</button>
@@ -1138,6 +1157,18 @@ export default function StudyPlanTool({
         <span>{program.universityRu}</span>
         <p>{lang === "vi" ? program.trackVi : program.trackEn}</p>
         <small>{program.degree[lang]} · {program.duration[lang]} · {program.startYear}</small>
+      </div>
+    </section>
+
+    <section className={styles.integrationBridge} aria-label={t.integrationTitle}>
+      <div className={styles.integrationLead}>
+        <span>{t.integrationTitle}</span>
+        <p>{t.integrationNote}</p>
+      </div>
+      <div className={styles.integrationFacts}>
+        <article><small>{t.integrationParent}</small><strong>Bauman Hub</strong><Link href="/apps/bauman-master-ai">{t.baumanAdmin} →</Link></article>
+        <article><small>{t.integrationRegistry}</small><strong data-live={baumanRegistryStatus === "live"}>{baumanRegistryStatus === "live" ? t.registryLive : t.registryFallback}</strong><span>{baumanModules.length} {lang === "vi" ? "nguồn nối" : "connected resources"}</span></article>
+        <article><small>{t.integrationCoverage}</small><strong>{moduleCoverage.covered.length}/{courses.length}</strong><span>{moduleCoverage.percent}%</span></article>
       </div>
     </section>
 
