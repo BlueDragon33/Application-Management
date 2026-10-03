@@ -1,10 +1,12 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.2.0
+// @version      0.3.0
 // @description  Tự điền visa.kdmid.ru từ KD-MID Visa VN Tool, thêm tooltip Anh/Việt và tùy chọn tự chuyển trang.
 // @match        https://visa.kdmid.ru/*
 // @run-at       document-idle
+// @updateURL    https://application-management.boiech-ai.workers.dev/kd-mid-visa-companion.user.js
+// @downloadURL  https://application-management.boiech-ai.workers.dev/kd-mid-visa-companion.user.js
 // @grant        none
 // ==/UserScript==
 
@@ -13,7 +15,7 @@
 
   const DATA_KEY = "kd-mid-visa-vn:payload:v2";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v2";
-  const HASH_PREFIX = "#kdmid=";
+  const HASH_PREFIX = "#kdmid-bridge=";
 
   const hints = [
     ["Гражданство", "Citizenship", "Quốc tịch"],
@@ -81,16 +83,34 @@
   };
   const allControls = (root = document) => [...root.querySelectorAll("input,select,textarea")];
 
-  function takePayloadFromHash() {
-    if (!location.hash.startsWith(HASH_PREFIX)) return;
+  function bridgeNonceFromHash() {
+    if (!location.hash.startsWith(HASH_PREFIX)) return "";
     try {
-      const raw = decodeURIComponent(location.hash.slice(HASH_PREFIX.length));
-      JSON.parse(raw);
-      localStorage.setItem(DATA_KEY, raw);
-      history.replaceState(null, document.title, location.pathname + location.search);
-    } catch (error) {
-      console.warn("[KD-MID Visa VN] Payload không hợp lệ.", error);
+      return decodeURIComponent(location.hash.slice(HASH_PREFIX.length)).trim();
+    } catch {
+      return "";
     }
+  }
+
+  function acceptBridgePayload(nonce) {
+    if (!nonce) return;
+    if (window.opener) {
+      window.opener.postMessage({ type: "KD_MID_READY", nonce }, "*");
+    }
+    window.addEventListener("message", (event) => {
+      const data = event.data;
+      if (!data || data.type !== "KD_MID_PAYLOAD" || data.nonce !== nonce || !data.payload) return;
+      try {
+        const raw = JSON.stringify(data.payload);
+        JSON.parse(raw);
+        localStorage.setItem(DATA_KEY, raw);
+        history.replaceState(null, document.title, location.pathname + location.search);
+        if (window.opener) window.opener.postMessage({ type: "KD_MID_ACK", nonce }, "*");
+        run(data.payload);
+      } catch (error) {
+        console.warn("[KD-MID Visa VN] Payload bridge không hợp lệ.", error);
+      }
+    });
   }
 
   function readPayload() {
@@ -314,6 +334,15 @@
     setTimeout(() => next.click(), 900);
   }
 
+  function showWaitingStatus() {
+    document.getElementById("kd-mid-vn-status")?.remove();
+    const box = document.createElement("div");
+    box.id = "kd-mid-vn-status";
+    box.style.cssText = "position:fixed;right:14px;bottom:14px;z-index:2147483647;max-width:360px;padding:10px 12px;border:1px solid #b7791f;border-radius:10px;background:#fffbeb;color:#744210;box-shadow:0 8px 30px rgba(0,0,0,.22);font:600 12px/1.45 Arial";
+    box.textContent = "KD-MID Visa VN Companion: đang chờ hồ sơ từ App-Manager…";
+    document.body.appendChild(box);
+  }
+
   function showStatus(changed, payload) {
     document.getElementById("kd-mid-vn-status")?.remove();
     const box = document.createElement("div");
@@ -326,27 +355,33 @@
     setTimeout(() => box.remove(), 6500);
   }
 
-  takePayloadFromHash();
-  const payload = readPayload();
-  addHoverHints();
-
-  if (!payload) return;
-
-  const run = () => {
+  function run(payload) {
     const changed = fillPage(payload);
     addVietnameseNotes();
     addHoverHints();
     postResumeRecord(payload);
     showStatus(changed, payload);
     maybeAutoAdvance(payload, changed);
-  };
+  }
 
-  run();
+  const bridgeNonce = bridgeNonceFromHash();
+  addHoverHints();
+
+  if (bridgeNonce) {
+    localStorage.removeItem(DATA_KEY);
+    showWaitingStatus();
+    acceptBridgePayload(bridgeNonce);
+  } else {
+    const payload = readPayload();
+    if (payload) run(payload);
+  }
+
   const observer = new MutationObserver(() => {
-    clearTimeout(observer._timer);
-    observer._timer = setTimeout(() => {
+    window.clearTimeout(observer._kdmidTimer);
+    observer._kdmidTimer = window.setTimeout(() => {
       addHoverHints();
-      postResumeRecord(payload);
+      const payload = readPayload();
+      if (payload) postResumeRecord(payload);
     }, 250);
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
