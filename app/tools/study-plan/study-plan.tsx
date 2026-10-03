@@ -1097,7 +1097,7 @@ export default function StudyPlanTool({
       <section className={styles.workloadAnalysis} aria-labelledby="study-plan-workload-title">
         <div className={styles.workloadHeading}>
           <div>
-            <span>{t.workloadTitle}</span>
+            <span id="study-plan-workload-title">{t.workloadTitle}</span>
             <p>{t.workloadSubtitle}</p>
           </div>
           <strong>{program.hours.toLocaleString(lang === "vi" ? "vi-VN" : "en-US")} h</strong>
