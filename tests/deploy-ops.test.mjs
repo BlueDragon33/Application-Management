@@ -20,7 +20,6 @@ test("Deploy & Ops is an authenticated canonical Vercel + Neon Tool", () => {
   assert.match(dashboard, /id: "tool-deploy-ops"/);
   assert.match(dashboard, /href: "\/tools\/deploy-ops"/);
   assert.match(source, /Vercel · Neon/);
-  
   assert.match(adminClient, /deployOpsAction/);
   assert.match(adminClient, /"\/api\/deploy-ops"/);
 });
@@ -36,7 +35,6 @@ test("provider credentials stay server-side and support only Vercel and Neon", (
   assert.match(credentials, /source: value \? "vault"/);
   assert.match(credentials, /credential_ciphertext/);
   assert.match(credentials, /credential_iv/);
-  assert.doesNotMatch(credentials, /retired browser provider/i);
   assert.match(route, /save-provider-credential/);
   assert.match(route, /remove-provider-credential/);
   assert.match(route, /verifyControlProof/);
@@ -67,15 +65,17 @@ test("live Vercel and Neon probes are SHA and branch based", () => {
   assert.match(server, /state: "READY"/);
   assert.match(server, /\/projects\/\$\{encodeURIComponent\(projectId\)\}\/branches/);
   assert.match(server, /text\(item\.id\) === wantedBranch \|\| text\(item\.name\) === wantedBranch/);
-  assert.doesNotMatch(server, /retired browser provider/i);
 });
 
-test("paid browser provider is fully retired from runtime and public routing", () => {
-  assert.doesNotMatch(route, /retired browser provider/i);
-  assert.doesNotMatch(worker, /retired browser provider/i);
-  assert.equal(fs.existsSync("app/api/deploy-ops/retired browser provider-webhook/route.ts"), false);
-  assert.match(removalMigration, /DELETE FROM deploy_ops_credentials WHERE provider = 'retired browser provider'/);
-  assert.match(removalMigration, /DROP INDEX IF EXISTS deploy_ops_runs_retired browser provider_run_idx/);
+test("retired third-party browser provider is absent from active runtime", () => {
+  assert.deepEqual(
+    source.match(/type ProviderKey = ([^;]+);/)?.[1],
+    '"vercel" | "neon"',
+  );
+  assert.doesNotMatch(route, /start-[a-z-]+browser|refresh-[a-z-]+browser/i);
+  assert.match(providerTrimMigration, /DELETE FROM deploy_ops_credentials WHERE provider NOT IN \('vercel', 'neon'\)/);
+  assert.match(providerTrimMigration, /CREATE TABLE `deploy_ops_targets_next`/);
+  assert.match(providerTrimMigration, /CREATE TABLE `deploy_ops_runs_next`/);
 });
 
 test("Safe Publish re-probes and promotes the exact Vercel deployment", () => {
