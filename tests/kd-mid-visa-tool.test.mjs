@@ -60,9 +60,9 @@ test("production workflow uses the official KD-MID site only", () => {
   assert.match(tool, /Kết nối KD-MID/);
   assert.match(tool, /Mở KD-MID chính thức/);
   assert.match(tool, /visa\.kdmid\.ru/);
-  assert.match(tool, /KD_MID_STORE_PAYLOAD/);
-  assert.match(tool, /KD_MID_STORE_ACK/);
-  assert.doesNotMatch(tool, /#kdmid-bridge=/);
+  assert.match(tool, /buildDirectAutomationUrl/);
+  assert.match(tool, /#kdmidv8=/);
+  assert.doesNotMatch(tool, /window\.open\("about:blank", "kdmidVisa"\)/);
   assert.match(tool, /Barcode chỉ hợp lệ khi do KD-MID tạo/);
   assert.doesNotMatch(tool, /Tạo & tải PDF/);
   assert.doesNotMatch(tool, /renderPdfExport/);
@@ -121,21 +121,18 @@ test("connect page exposes visible applicant selection", () => {
 });
 
 
-test("v0.7 companion bridges App-Manager and KD-MID through userscript shared storage", () => {
-  assert.match(companion, /@version\s+0\.7\.0/);
-  assert.match(companion, /@match\s+https:\/\/application-management\.boiech-ai\.workers\.dev\/\*/);
-  assert.match(companion, /@grant\s+GM_setValue/);
-  assert.match(companion, /@grant\s+GM_getValue/);
-  assert.match(companion, /SHARED_PAYLOAD_KEY/);
-  assert.match(companion, /KD_MID_STORE_PAYLOAD/);
-  assert.match(companion, /KD_MID_STORE_ACK/);
-  assert.match(companion, /KD_MID_COMPANION_READY/);
-  assert.match(tool, /Companion v0\.7 đã nhận hồ sơ/);
-  assert.match(tool, /window\.open\("about:blank", "kdmidVisa"\)/);
-  assert.match(tool, /target\.location\.replace\("https:\/\/visa\.kdmid\.ru\/"\)/);
+test("v0.8 opens KD-MID directly and transfers payload through a self-clearing hash", () => {
+  assert.match(companion, /@version\s+0\.8\.0/);
+  assert.match(companion, /HASH_PREFIX = "#kdmidv8="/);
+  assert.match(companion, /readPayloadFromHash/);
+  assert.match(companion, /history\.replaceState/);
+  assert.match(tool, /encodeAutomationPayload/);
+  assert.match(tool, /buildDirectAutomationUrl/);
+  assert.match(tool, /window\.open\(buildDirectAutomationUrl/);
+  assert.match(tool, /Trang sẽ không tự đóng/);
 });
 
-test("connect page visibly reports whether Companion v0.7 is detected", () => {
+test("connect page still reports Companion status when the App-Manager side is available", () => {
   assert.match(tool, /companionVersion/);
   assert.match(tool, /Companion chưa được phát hiện/);
   assert.match(tool, /đang hoạt động/);

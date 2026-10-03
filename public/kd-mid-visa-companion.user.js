@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.7.0
+// @version      0.8.0
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru từ App-Manager, dừng CAPTCHA để người dùng nhập rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,15 +17,16 @@
 (() => {
   "use strict";
 
-  const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v7";
-  const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v7";
-  const SHARED_SESSION_KEY = "kd-mid-visa-vn:shared-session:v7";
-  const CLICK_KEY = "kd-mid-visa-vn:auto-click:v7";
-  const PRINT_KEY = "kd-mid-visa-vn:auto-print:v7";
+  const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v8";
+  const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v8";
+  const SHARED_SESSION_KEY = "kd-mid-visa-vn:shared-session:v8";
+  const CLICK_KEY = "kd-mid-visa-vn:auto-click:v8";
+  const PRINT_KEY = "kd-mid-visa-vn:auto-print:v8";
   const RETRY_MS = 450;
   const RETRY_LIMIT = 120;
   const APP_HOST = "application-management.boiech-ai.workers.dev";
   const KD_HOST = "visa.kdmid.ru";
+  const HASH_PREFIX = "#kdmidv8=";
 
   const norm = (v) => String(v || "").replace(/\s+/g, " ").trim().toUpperCase();
   const controls = (root = document) => [...root.querySelectorAll("input,select,textarea")];
@@ -103,6 +104,23 @@
     const raw = gmGet(SHARED_PAYLOAD_KEY, "");
     if (!raw) return null;
     try { return JSON.parse(raw); } catch { return null; }
+  }
+
+  function readPayloadFromHash() {
+    if (!location.hash.startsWith(HASH_PREFIX)) return null;
+    try {
+      let encoded = location.hash.slice(HASH_PREFIX.length).replace(/-/g, "+").replace(/_/g, "/");
+      while (encoded.length % 4) encoded += "=";
+      const binary = atob(encoded);
+      const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+      const payload = JSON.parse(new TextDecoder().decode(bytes));
+      gmSet(SHARED_PAYLOAD_KEY, JSON.stringify(payload));
+      history.replaceState(null, document.title, location.pathname + location.search);
+      return payload;
+    } catch (error) {
+      console.error("[KD-MID Visa VN] Không đọc được payload v0.8 từ URL hash", error);
+      return null;
+    }
   }
 
   function labelBlock(labels) {
