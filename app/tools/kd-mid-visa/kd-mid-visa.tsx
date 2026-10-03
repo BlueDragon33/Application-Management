@@ -202,7 +202,7 @@ function buildPayload(applicant: Applicant, common: CommonData, autoAdvance = fa
     ...common,
     fixedPermanentAddress,
     fixedWorkPhone,
-    _automation: { autoAdvance },
+    _automation: { autoAdvance, autoPrint: true },
     applicant: {
       ...applicant,
       personalAddress: fixedPermanentAddress,
@@ -331,7 +331,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
   const [editing, setEditing] = useState<Applicant | null>(null);
   const [keepPrompt, setKeepPrompt] = useState<ResumeRecord | null>(null);
   const [bookmarklet, setBookmarklet] = useState("");
-  const [autoAdvance, setAutoAdvance] = useState(false);
+  const [autoAdvance, setAutoAdvance] = useState(true);
 
   useEffect(() => {
     const loaded = safeLoad();
@@ -464,8 +464,8 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       window.clearInterval(timer);
       window.removeEventListener("message", onAck);
       setNotice(autoAdvance
-        ? "Companion đã kết nối. KD-MID sẽ tự điền và tự chuyển các trang nhận diện chắc chắn; dừng trước bước in/kiểm tra cuối."
-        : "Companion đã kết nối. KD-MID sẽ tự điền từng trang; bạn kiểm tra rồi bấm Далее.");
+        ? "Companion đã kết nối. KD-MID sẽ tự chạy các bước, dừng ở CAPTCHA để bạn nhập ký tự, sau đó tiếp tục đến PDF A4 chính thức."
+        : "Companion đã kết nối. Auto-next đang tắt; Tool chỉ tự điền dữ liệu trên từng trang.");
     };
     window.addEventListener("message", onAck);
     const timer = window.setInterval(sendPayload, 650);
@@ -609,8 +609,8 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
     return <section className={styles.panel}>
       <header><div><span>KẾT NỐI KD-MID</span><h3>Tự động điền visa.kdmid.ru</h3></div><button onClick={() => void prepareBridge()} disabled={!selected}>Tạo bookmarklet dự phòng</button></header>
       <div className={styles.autoConnect}>
-        <div><span>KHUYÊN DÙNG</span><h4>Làm hồ sơ trực tiếp trên visa.kdmid.ru</h4><p>Cài Companion một lần. Sau đó chọn hồ sơ và bấm <strong>“Mở KD-MID & tự điền”</strong>. Trang đầu tự chọn <strong>Việt Nam</strong>, ngôn ngữ <strong>tiếng Nga</strong>, tích đã đọc; các trang sau điền dữ liệu thật để KD-MID cấp Application ID và barcode chính thức.</p></div>
-        <div className={styles.autoActions}><a className={styles.installLink} href="/kd-mid-visa-companion.user.js" target="_blank" rel="noreferrer">1. Cài Companion Script ↗</a><button onClick={openAutomaticKdmid} disabled={!selected}>3. Mở KD-MID & tự điền</button></div>
+        <div><span>KHUYÊN DÙNG</span><h4>Tự động từ trang đầu đến PDF A4 chính thức</h4><p>Companion tự chọn <strong>Việt Nam</strong> + <strong>Русский</strong> + tích <strong>“Я прочитал эту информацию”</strong>, tự mở hồ sơ mới, điền mật khẩu mặc định và <strong>dừng ở CAPTCHA để bạn tự nhập ký tự trong ảnh</strong>. Sau khi bạn nhập CAPTCHA, Companion tiếp tục tự động, ghi nhớ Application ID, điền các trang còn lại và cuối cùng bấm <strong>Печать формата A4</strong>.</p></div>
+        <div className={styles.autoActions}><a className={styles.installLink} href="/kd-mid-visa-companion.user.js" target="_blank" rel="noreferrer">1. Cài / cập nhật Companion v0.6 ↗</a><button onClick={openAutomaticKdmid} disabled={!selected}>3. Bắt đầu tự động đến PDF</button></div>
         <div className={styles.profileChooser}>
           <div><span>BƯỚC 2</span><strong>Chọn hồ sơ sử dụng</strong><small>Danh sách lấy trực tiếp từ mục Hồ sơ cá nhân đã lưu trên máy này.</small></div>
           {store.applicants.length ? <div className={styles.profileChooserControl}>
@@ -621,20 +621,20 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
           </div> : <div className={styles.profileChooserEmpty}><span>Chưa có hồ sơ nào.</span><button onClick={() => { setEditing(emptyApplicant()); setRoute("applicants"); }}>+ Tạo hồ sơ</button></div>}
           {selected ? <div className={styles.profileSummary}><span>Đang dùng</span><strong>{displayName(selected)}</strong><small>{selected.passportNo || "Chưa có số hộ chiếu"} · {selected.birthDate || "Chưa có ngày sinh"}</small></div> : null}
         </div>
-        <label className={styles.autoToggle}><input type="checkbox" checked={autoAdvance} onChange={(event) => setAutoAdvance(event.target.checked)} /><span><strong>Tự bấm Далее khi trang đã được điền</strong><small>Tắt mặc định. Khi bật, script chỉ tự chuyển các trang trung gian và dừng trước màn hình in/kiểm tra cuối hoặc khi gặp trang không nhận diện chắc chắn.</small></span></label>
+        <label className={styles.autoToggle}><input type="checkbox" checked={autoAdvance} onChange={(event) => setAutoAdvance(event.target.checked)} /><span><strong>Tự động toàn bộ sau CAPTCHA</strong><small>Bật mặc định. Companion không giải CAPTCHA: Tool điền password rồi chờ bạn nhập ký tự trong ảnh. Khi CAPTCHA đã được nhập, Tool tự tiếp tục các trang và yêu cầu KD-MID xuất PDF A4 chính thức.</small></span></label>
       </div>
       <div className={styles.connectGrid}>
-        <article><b>1</b><strong>Cài Companion một lần</strong><p>Mở “Cài Companion Script”. Tampermonkey/Violentmonkey phải hiện màn hình cài và sau đó script ở trạng thái <strong>Enabled</strong>. Nếu chỉ thấy trang đăng nhập App-Manager thì chưa cài được.</p></article>
+        <article><b>1</b><strong>Cài Companion v0.6</strong><p>Tampermonkey/Violentmonkey phải báo script <strong>Enabled</strong>. Nếu đã cài bản cũ, mở lại nút cài để cập nhật lên v0.6.</p></article>
         <article><b>2</b><strong>Chọn hồ sơ ngay phía trên</strong><p>{selected ? `Đang chọn: ${displayName(selected)}.` : "Chưa chọn hồ sơ."} Nếu có nhiều hồ sơ, mở danh sách và chọn đúng người trước khi chạy.</p></article>
-        <article><b>3</b><strong>Mở KD-MID & tự điền</strong><p>Companion điền trực tiếp trên trang chính thức. Nếu bật auto-next, nó tự bấm <strong>Заполнить новую анкету / Далее</strong> ở các bước nhận diện chắc chắn.</p></article>
-        <article><b>4</b><strong>In A4 từ KD-MID</strong><p>Companion dừng ở màn hình in. Bấm <strong>Печать формата A4</strong> trên KD-MID để nhận PDF có ID + barcode chính thức.</p></article>
+        <article><b>3</b><strong>Chỉ nhập CAPTCHA</strong><p>Trang password được điền tự động. Khi ảnh CAPTCHA xuất hiện, bạn chỉ cần gõ đúng ký tự trong ảnh; Companion tự phát hiện và bấm tiếp.</p></article>
+        <article><b>4</b><strong>Tự chạy đến PDF</strong><p>Companion ghi nhớ <strong>Application ID</strong>, điền các trang visa/personal/passport/visit/contact/submission và tự bấm <strong>Печать формата A4</strong>. PDF + barcode do chính KD-MID tạo.</p></article>
       </div>
       <div className={styles.bridgeBox}>
         <div><strong>Phương án dự phòng: Bookmarklet</strong><small>Dùng khi không muốn cài userscript. Cần bấm bookmarklet trên từng trang KD-MID.</small></div>
         <textarea readOnly value={bookmarklet} placeholder="Bấm “Tạo bookmarklet dự phòng” để tạo javascript:..." />
         <div className={styles.bridgeActions}><button onClick={async () => { if (!bookmarklet) return; await navigator.clipboard.writeText(bookmarklet); setNotice("Đã sao chép bookmarklet."); }} disabled={!bookmarklet}>Sao chép bookmarklet</button><button className={styles.secondary} onClick={openKdmid}>Mở KD-MID thủ công ↗</button></div>
       </div>
-      <div className={styles.warning}><strong>Quan trọng về barcode</strong><p>Barcode chỉ hợp lệ khi do KD-MID tạo từ hồ sơ điện tử thật. Tool này chỉ hỗ trợ nhập dữ liệu trên trang chính thức và lưu Application ID; không tự sinh barcode/PDF thay KD-MID. Nếu URL còn <code>#kdmid-bridge=...</code> và đứng im, hãy kiểm tra Companion đang Enabled.</p></div>
+      <div className={styles.warning}><strong>Điểm dừng duy nhất: CAPTCHA</strong><p>Tool <strong>không tự đọc/giải CAPTCHA</strong>. Đây là bước bạn phải nhập tay. Sau đó Companion tự tiếp tục và chỉ dùng PDF/barcode do <strong>visa.kdmid.ru</strong> tạo. Nếu URL còn <code>#kdmid-bridge=...</code> và đứng im, hãy kiểm tra Companion v0.6 đang Enabled.</p></div>
     </section>;
   }
 

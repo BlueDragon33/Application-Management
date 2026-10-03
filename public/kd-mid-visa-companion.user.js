@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.5.0
-// @description  Tự điền hồ sơ chính thức trên visa.kdmid.ru từ KD-MID Visa VN Tool.
+// @version      0.6.0
+// @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru, dừng CAPTCHA để người dùng nhập, sau đó tự tiếp tục đến PDF A4.
 // @match        https://visa.kdmid.ru/*
 // @run-at       document-idle
 // @updateURL    https://application-management.boiech-ai.workers.dev/kd-mid-visa-companion.user.js
@@ -13,9 +13,13 @@
 (() => {
   "use strict";
 
-  const DATA_KEY = "kd-mid-visa-vn:payload:v3";
-  const CLICK_KEY = "kd-mid-visa-vn:auto-click:v3";
+  const DATA_KEY = "kd-mid-visa-vn:payload:v4";
+  const CLICK_KEY = "kd-mid-visa-vn:auto-click:v4";
+  const PRINT_KEY = "kd-mid-visa-vn:auto-print:v4";
+  const ID_KEY = "kd-mid-visa-vn:application-id:v4";
   const HASH_PREFIX = "#kdmid-bridge=";
+  const RETRY_MS = 450;
+  const RETRY_LIMIT = 80;
 
   const norm = (v) => String(v || "").replace(/\s+/g, " ").trim().toUpperCase();
   const controls = (root = document) => [...root.querySelectorAll("input,select,textarea")];
@@ -42,13 +46,13 @@
   }
 
   function labelBlock(labels) {
-    const needles = (Array.isArray(labels) ? labels : [labels]).map(norm);
+    const needles = (Array.isArray(labels) ? labels : [labels]).map(norm).filter(Boolean);
     const nodes = [...document.querySelectorAll("label,td,th,div,span,p,b,strong")];
     for (const node of nodes) {
       const text = norm(node.textContent);
-      if (!needles.some((needle) => needle && text.includes(needle))) continue;
+      if (!needles.some((needle) => text.includes(needle))) continue;
       let current = node;
-      for (let depth = 0; depth < 6 && current; depth += 1, current = current.parentElement) {
+      for (let depth = 0; depth < 7 && current; depth += 1, current = current.parentElement) {
         if (controls(current).length) return current;
       }
     }
@@ -68,11 +72,14 @@
       item.type !== "button" &&
       item.type !== "submit" &&
       item.type !== "checkbox" &&
-      item.type !== "radio"
+      item.type !== "radio" &&
+      item.type !== "password"
     );
     if (!el) return false;
-    el.value = value;
-    fire(el);
+    if (String(el.value) !== String(value)) {
+      el.value = value;
+      fire(el);
+    }
     return true;
   }
 
@@ -81,10 +88,12 @@
     if (!el) return false;
     const wants = (Array.isArray(values) ? values : [values]).map(norm);
     const option = [...el.options].find((o) => wants.includes(norm(o.textContent))) ||
-      [...el.options].find((o) => wants.some((want) => norm(o.textContent).includes(want)));
+      [...el.options].find((o) => wants.some((want) => want && norm(o.textContent).includes(want)));
     if (!option) return false;
-    el.value = option.value;
-    fire(el);
+    if (el.value !== option.value) {
+      el.value = option.value;
+      fire(el);
+    }
     return true;
   }
 
@@ -114,11 +123,14 @@
       if (!el) return;
       if (el.tagName === "SELECT") {
         const option = [...el.options].find((o) => norm(o.textContent) === norm(part) || String(o.value) === String(part));
-        if (option) el.value = option.value;
-      } else {
+        if (option && el.value !== option.value) {
+          el.value = option.value;
+          fire(el);
+        }
+      } else if (String(el.value) !== String(part)) {
         el.value = part;
+        fire(el);
       }
-      fire(el);
     });
     return true;
   }
@@ -126,32 +138,32 @@
   function fillPassword(payload) {
     const password = payload?.applicant?.password || payload?.password;
     if (!password) return 0;
-    const passwordInputs = [...document.querySelectorAll('input[type="password"]')];
-    let changed = 0;
-    passwordInputs.forEach((el) => {
+    const inputs = [...document.querySelectorAll('input[type="password"]')];
+    let recognized = 0;
+    inputs.forEach((el) => {
+      recognized += 1;
       if (el.value !== password) {
         el.value = password;
         fire(el);
-        changed += 1;
       }
     });
-    return changed;
+    return recognized;
   }
 
   function fillPage(payload) {
     const A = payload.applicant || {};
-    let changed = 0;
-    const mark = (ok) => { if (ok) changed += 1; };
+    let recognized = 0;
+    const mark = (ok) => { if (ok) recognized += 1; };
 
-    // Trang mở đầu chính thức.
+    // Trang 1: Việt Nam + Russian + đã đọc.
     mark(setSelect(["Страна","Country"], ["ВЬЕТНАМ","VIETNAM"]));
     mark(setSelect(["Язык подсказок","Hints and help language"], ["РУССКИЙ","RUSSIAN"]));
     mark(setCheckbox(["Я прочитал эту информацию","I have read this information"], true));
 
-    // Mật khẩu ở bước tạo hồ sơ (nếu trang hiện các ô password).
-    changed += fillPassword(payload);
+    // Trang 2: password. CAPTCHA tuyệt đối không tự giải.
+    recognized += fillPassword(payload);
 
-    // Trang mục đích / quốc tịch.
+    // Trang thông tin visa.
     mark(setSelect("Гражданство", payload.citizenship));
     mark(setYesNo("Если Вы имели гражданство СССР или России", Boolean(A.hadFormerRussianCitizenship)));
     if (A.hadFormerRussianCitizenship) {
@@ -165,7 +177,7 @@
     mark(setDate("Дата въезда в Россию", payload.entryDate));
     mark(setDate("Дата выезда из России", payload.exitDate));
 
-    // Thông tin cá nhân.
+    // Trang thông tin cá nhân.
     mark(setText("Фамилия (согласно паспорту)", A.surname));
     mark(setText("Имя, другие имена, отчество", A.givenNames));
     mark(setYesNo("Есть ли у Вас другие когда-либо использовавшиеся имена", false));
@@ -174,20 +186,18 @@
     mark(setText("Место рождения", A.birthPlace));
     mark(setYesNo("Вы родились в России", false));
 
-    // Hộ chiếu.
+    // Trang hộ chiếu.
     mark(setText("Номер паспорта", A.passportNo));
     mark(setDate("Дата выдачи", A.passportIssue));
     mark(setDate("Действителен до", A.passportExpiry));
 
-    // Cơ quan mời + route.
+    // Trang thông tin chuyến đi.
     mark(setText("Наименование организации", payload.organization));
     mark(setText("Адрес", payload.organizationAddress));
     mark(setText("ИНН организации", payload.tin));
     mark(setText("Номер указания (телекса)", payload.telex));
     if (payload.invitation) mark(setText("Номер приглашения", payload.invitation));
     mark(setText("Населенный пункт", A.routeCity || payload.city));
-
-    // Bảo hiểm + lịch sử Nga.
     mark(setYesNo("Имеете ли Вы документ о медицинском страховании", Boolean(A.hasInsurance)));
     if (A.hasInsurance) mark(setText(["Название страховой компании и номер полиса","номер страхового документа"], A.insurancePolicy));
     mark(setYesNo("Были ли Вы когда-нибудь в России", Boolean(A.visitedRussia)));
@@ -197,7 +207,7 @@
       mark(setDate("Дата выезда", A.lastVisitTo));
     }
 
-    // Địa chỉ / cơ quan.
+    // Trang liên hệ.
     mark(setYesNo("Имеете ли Вы адрес постоянного проживания", true));
     mark(setText("Адрес вашего постоянного проживания", payload.fixedPermanentAddress || A.personalAddress));
     mark(setText("Ваш личный телефон", A.phone));
@@ -211,10 +221,10 @@
     mark(setYesNo("Дети до 16 лет", false));
     mark(setYesNo("Имеете ли Вы в настоящее время родственников", false));
 
-    // Nơi nộp.
+    // Trang nơi nộp.
     mark(setSelect("Наименование учреждения", payload.embassy));
 
-    return changed;
+    return recognized;
   }
 
   function addHints() {
@@ -247,27 +257,63 @@
     }
   }
 
-  function captureApplicationId(payload) {
-    const text = document.body.innerText || "";
-    const match = text.match(/(?:Номер анкеты|№ заявления \(сайт\)|Application number)[^0-9]{0,50}(\d{6,12})/i);
-    if (!match || !window.opener) return;
-    const A = payload.applicant || {};
-    window.opener.postMessage({
-      type: "KD_MID_RECORD",
-      applicationId: match[1],
-      surname5: A.surname5 || "",
-      birthYear: A.birthYear || "",
-      password: A.password || payload.password || "",
-      applicantName: [A.surname, A.givenNames].filter(Boolean).join(" "),
-      complete: /Печать формата A4|Печать формата Letter|Print A4/i.test(text),
-    }, "*");
+  function extractApplicationId() {
+    const body = document.body.innerText || "";
+    const patterns = [
+      /Идентификационный номер Вашей анкеты\s*:?\s*(\d{6,12})/i,
+      /Номер анкеты\s*:?\s*(\d{6,12})/i,
+      /№ заявления \(сайт\)[^0-9]{0,50}(\d{6,12})/i,
+      /Application (?:ID|number)[^0-9]{0,50}(\d{6,12})/i,
+    ];
+    for (const pattern of patterns) {
+      const match = body.match(pattern);
+      if (match) return match[1];
+    }
+    return "";
   }
 
-  function signature() {
-    const text = [...document.querySelectorAll("label,td,th,h1,h2,h3,button,input[type=submit]")]
+  function postApplicationId(payload, complete = false) {
+    const id = extractApplicationId() || localStorage.getItem(ID_KEY) || "";
+    if (!id) return "";
+    localStorage.setItem(ID_KEY, id);
+    const A = payload.applicant || {};
+    if (window.opener) {
+      window.opener.postMessage({
+        type: "KD_MID_RECORD",
+        applicationId: id,
+        surname5: A.surname5 || "",
+        birthYear: A.birthYear || "",
+        password: A.password || payload.password || "",
+        applicantName: [A.surname, A.givenNames].filter(Boolean).join(" "),
+        complete,
+      }, "*");
+    }
+    return id;
+  }
+
+  function findCaptchaInput() {
+    const direct = document.querySelector('input[name*="captcha" i],input[id*="captcha" i],input[name*="code" i],input[id*="code" i]');
+    if (direct && direct.type !== "hidden") return direct;
+    const image = document.querySelector('img[src*="captcha" i],img[id*="captcha" i],img[class*="captcha" i]');
+    if (!image) return null;
+    const container = image.closest("form,table,div,td") || document;
+    return [...container.querySelectorAll('input[type="text"],input:not([type])')].find((el) => !el.disabled) || null;
+  }
+
+  function isCaptchaPage() {
+    return Boolean(document.querySelector('input[type="password"]') && (findCaptchaInput() || document.querySelector('img[src*="captcha" i],img[id*="captcha" i],img[class*="captcha" i]')));
+  }
+
+  function captchaReady() {
+    const input = findCaptchaInput();
+    return Boolean(input && String(input.value || "").trim().length >= 3);
+  }
+
+  function pageSignature() {
+    const text = [...document.querySelectorAll("label,td,th,h1,h2,h3,button,input[type=submit],input[type=button]")]
       .map((node) => norm(node.textContent || node.value))
       .join("|")
-      .slice(0, 8000);
+      .slice(0, 10000);
     let hash = 2166136261;
     for (let i = 0; i < text.length; i += 1) {
       hash ^= text.charCodeAt(i);
@@ -276,22 +322,64 @@
     return location.pathname + location.search + ":" + String(hash >>> 0);
   }
 
-  function maybeAdvance(payload, changed) {
-    if (!payload?._automation?.autoAdvance || changed < 1) return;
-    const body = document.body.innerText || "";
-    if (/Печать формата A4|Печать формата Letter|ПЕЧАТНАЯ ФОРМА ЭЛЕКТРОННОЙ ВИЗОВОЙ АНКЕТЫ|Print A4/i.test(body)) return;
-    if (document.querySelector('input[type="captcha"], img[src*="captcha" i], [class*="captcha" i]')) return;
-
-    const sig = signature();
-    if (sessionStorage.getItem(CLICK_KEY) === sig) return;
-
-    const buttons = [...document.querySelectorAll("button,input[type=button],input[type=submit],a")];
-    const wanted = ["ДАЛЕЕ","NEXT","ЗАПОЛНИТЬ НОВУЮ АНКЕТУ","COMPLETE NEW APPLICATION"];
-    const next = buttons.find((el) => wanted.includes(norm(el.textContent || el.value)));
-    if (!next || next.disabled) return;
-
+  function clickNamed(labels, delay = 700) {
+    const wants = labels.map(norm);
+    const candidates = [...document.querySelectorAll("button,input[type=button],input[type=submit],a")];
+    const button = candidates.find((el) => wants.includes(norm(el.textContent || el.value)));
+    if (!button || button.disabled) return false;
+    const sig = pageSignature() + ":" + wants.join(",");
+    if (sessionStorage.getItem(CLICK_KEY) === sig) return true;
     sessionStorage.setItem(CLICK_KEY, sig);
-    setTimeout(() => next.click(), 900);
+    setTimeout(() => button.click(), delay);
+    return true;
+  }
+
+  function maybeAutoPrint(payload) {
+    if (!payload?._automation?.autoPrint) return false;
+    const body = document.body.innerText || "";
+    if (!/Печать формата A4|Print A4/i.test(body)) return false;
+    const key = pageSignature();
+    if (sessionStorage.getItem(PRINT_KEY) === key) return true;
+    sessionStorage.setItem(PRINT_KEY, key);
+    postApplicationId(payload, true);
+    status("KD-MID Visa VN: hồ sơ hoàn tất. Đang yêu cầu KD-MID xuất PDF A4 chính thức…");
+    const candidates = [...document.querySelectorAll("button,input[type=button],input[type=submit],a")];
+    const printButton = candidates.find((el) => ["ПЕЧАТЬ ФОРМАТА A4","PRINT A4"].includes(norm(el.textContent || el.value)));
+    if (!printButton || printButton.disabled) return false;
+    setTimeout(() => printButton.click(), 900);
+    return true;
+  }
+
+  function maybeAdvance(payload, recognized) {
+    if (!payload?._automation?.autoAdvance) return false;
+
+    if (maybeAutoPrint(payload)) return true;
+
+    const body = document.body.innerText || "";
+    const id = extractApplicationId();
+    if (id) {
+      postApplicationId(payload, false);
+      status(`KD-MID Visa VN: đã ghi nhớ Application ID ${id}. Đang tiếp tục…`);
+      return clickNamed(["ДАЛЕЕ","NEXT"], 650);
+    }
+
+    if (isCaptchaPage()) {
+      fillPassword(payload);
+      if (!captchaReady()) {
+        status("KD-MID Visa VN: đã điền mật khẩu. Hãy nhập ký tự CAPTCHA trong ảnh; sau khi nhập xong Tool sẽ tự tiếp tục.", "wait");
+        return false;
+      }
+      status("KD-MID Visa VN: CAPTCHA đã được bạn nhập. Đang tiếp tục…");
+      return clickNamed(["ДАЛЕЕ","NEXT","ПРОДОЛЖИТЬ","CONTINUE","ОТПРАВИТЬ","SUBMIT"], 450);
+    }
+
+    if (/ПЕЧАТНАЯ ФОРМА ЭЛЕКТРОННОЙ ВИЗОВОЙ АНКЕТЫ/i.test(body)) return false;
+
+    // Trang đầu và các trang dữ liệu.
+    if (recognized > 0) {
+      return clickNamed(["ЗАПОЛНИТЬ НОВУЮ АНКЕТУ","COMPLETE NEW APPLICATION","ДАЛЕЕ","NEXT"], 750);
+    }
+    return false;
   }
 
   function status(message, tone = "ok") {
@@ -301,19 +389,30 @@
     const colors = tone === "wait"
       ? ["#b7791f","#fffbeb","#744210"]
       : ["#2f855a","#ecfdf5","#14532d"];
-    box.style.cssText = `position:fixed;right:14px;bottom:14px;z-index:2147483647;max-width:390px;padding:10px 12px;border:1px solid ${colors[0]};border-radius:10px;background:${colors[1]};color:${colors[2]};box-shadow:0 8px 30px rgba(0,0,0,.22);font:600 12px/1.45 Arial`;
+    box.style.cssText = `position:fixed;right:14px;bottom:14px;z-index:2147483647;max-width:430px;padding:10px 12px;border:1px solid ${colors[0]};border-radius:10px;background:${colors[1]};color:${colors[2]};box-shadow:0 8px 30px rgba(0,0,0,.22);font:600 12px/1.45 Arial`;
     box.textContent = message;
     document.body.appendChild(box);
   }
 
+  let retryCount = 0;
+  let retryTimer = 0;
   function run(payload) {
-    const changed = fillPage(payload);
+    const recognized = fillPage(payload);
     addHints();
-    captureApplicationId(payload);
-    status(changed
-      ? `KD-MID Visa VN: đã tự điền ${changed} nhóm trường. ${payload?._automation?.autoAdvance ? "Auto-next đang bật." : "Hãy kiểm tra rồi bấm Далее."}`
-      : "KD-MID Visa VN: trang này chưa có trường nhận diện để tự điền.");
-    maybeAdvance(payload, changed);
+    postApplicationId(payload, false);
+    maybeAdvance(payload, recognized);
+  }
+
+  function startProgressiveRun(payload) {
+    window.clearInterval(retryTimer);
+    retryCount = 0;
+    const tick = () => {
+      retryCount += 1;
+      run(payload);
+      if (retryCount >= RETRY_LIMIT) window.clearInterval(retryTimer);
+    };
+    tick();
+    retryTimer = window.setInterval(tick, RETRY_MS);
   }
 
   function acceptBridge(nonce) {
@@ -324,9 +423,10 @@
       const data = event.data;
       if (!data || data.type !== "KD_MID_PAYLOAD" || data.nonce !== nonce || !data.payload) return;
       savePayload(data.payload);
+      localStorage.removeItem(ID_KEY);
       history.replaceState(null, document.title, location.pathname + location.search);
       if (window.opener) window.opener.postMessage({ type: "KD_MID_ACK", nonce }, "*");
-      run(data.payload);
+      startProgressiveRun(data.payload);
     });
   }
 
@@ -337,16 +437,22 @@
     acceptBridge(nonce);
   } else {
     const payload = readPayload();
-    if (payload) run(payload);
+    if (payload) startProgressiveRun(payload);
   }
 
+  // CAPTCHA: người dùng nhập thủ công; sau đó Companion tiếp tục ngay.
+  document.addEventListener("input", () => {
+    const payload = readPayload();
+    if (!payload || !isCaptchaPage()) return;
+    window.setTimeout(() => run(payload), 120);
+  }, true);
+
   const observer = new MutationObserver(() => {
-    clearTimeout(observer._kdmidTimer);
-    observer._kdmidTimer = setTimeout(() => {
-      addHints();
-      const payload = readPayload();
-      if (payload) captureApplicationId(payload);
-    }, 250);
+    const payload = readPayload();
+    addHints();
+    if (!payload) return;
+    window.clearTimeout(observer._kdmidTimer);
+    observer._kdmidTimer = window.setTimeout(() => run(payload), 180);
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
 })();

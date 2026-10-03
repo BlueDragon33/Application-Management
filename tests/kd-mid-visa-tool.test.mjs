@@ -85,12 +85,30 @@ test("companion fills route, conditional fields and mission", () => {
   assert.match(companion, /Наименование учреждения/);
 });
 
-test("companion captures official application ID and stops before print", () => {
+test("companion captures official application ID and requests official A4 PDF", () => {
+  assert.match(companion, /Идентификационный номер Вашей анкеты/);
   assert.match(companion, /KD_MID_RECORD/);
-  assert.match(companion, /Application number/);
-  assert.match(companion, /Печать формата A4/);
-  assert.match(companion, /Print A4/);
-  assert.match(companion, /return;/);
+  assert.match(companion, /localStorage\.setItem\(ID_KEY/);
+  assert.match(companion, /maybeAutoPrint/);
+  assert.match(companion, /ПЕЧАТЬ ФОРМАТА A4/);
+  assert.match(companion, /PRINT A4/);
+  assert.match(companion, /printButton\.click/);
+});
+
+test("companion never solves CAPTCHA and resumes only after user input", () => {
+  assert.match(companion, /findCaptchaInput/);
+  assert.match(companion, /isCaptchaPage/);
+  assert.match(companion, /captchaReady/);
+  assert.match(companion, /Hãy nhập ký tự CAPTCHA trong ảnh/);
+  assert.match(companion, /document\.addEventListener\("input"/);
+  assert.match(companion, /CAPTCHA tuyệt đối không tự giải/);
+});
+
+test("automatic KD-MID flow is enabled by default and carries auto-print intent", () => {
+  assert.match(tool, /useState\(true\)/);
+  assert.match(tool, /autoPrint: true/);
+  assert.match(tool, /Bắt đầu tự động đến PDF/);
+  assert.match(tool, /Điểm dừng duy nhất: CAPTCHA/);
 });
 
 test("connect page exposes visible applicant selection", () => {
