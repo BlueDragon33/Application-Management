@@ -3,9 +3,13 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import styles from "./kd-mid-visa.module.css";
-import { downloadVisaPdf, generateVisaApplicationPdf, visaConsulates } from "./visa-pdf";
+const visaConsulates = [
+  { value: "ПОСОЛЬСТВО РФ ВО ВЬЕТНАМЕ", label: "Đại sứ quán Liên bang Nga tại Hà Nội" },
+  { value: "ГЕНКОНСУЛЬСТВО РФ В ДАНАНГЕ", label: "Tổng Lãnh sự quán Liên bang Nga tại Đà Nẵng" },
+  { value: "ГЕНКОНСУЛЬСТВО РФ В ХОШИМИНЕ", label: "Tổng Lãnh sự quán Liên bang Nga tại TP. Hồ Chí Minh" },
+] as const;
 
-type Route = "dashboard" | "applicants" | "common" | "records" | "pdf" | "backup" | "connect";
+type Route = "dashboard" | "applicants" | "common" | "records" | "backup" | "connect";
 type KeepMode = "full" | "record" | "none";
 
 type CommonData = {
@@ -328,7 +332,6 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
   const [keepPrompt, setKeepPrompt] = useState<ResumeRecord | null>(null);
   const [bookmarklet, setBookmarklet] = useState("");
   const [autoAdvance, setAutoAdvance] = useState(false);
-  const [pdfBusy, setPdfBusy] = useState(false);
 
   useEffect(() => {
     const loaded = safeLoad();
@@ -512,44 +515,6 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
     URL.revokeObjectURL(url);
   }
 
-  async function exportSelectedPdf() {
-    if (!selected) {
-      setNotice("Hãy tạo hoặc chọn một hồ sơ trước khi xuất PDF.");
-      setRoute("applicants");
-      return;
-    }
-    const missing = applicantMissingFields(selected);
-    if (selected.hadFormerRussianCitizenship) {
-      if (!selected.formerCitizenshipLostDate.trim()) missing.push("Ngày mất quốc tịch Liên Xô/Nga");
-      if (!selected.formerCitizenshipLossReason.trim()) missing.push("Lý do mất quốc tịch Liên Xô/Nga");
-    }
-    if (!selected.routeCity.trim()) missing.push("Маршрут / Nơi đến tại Nga");
-    if (selected.visitedRussia) {
-      if (!selected.visitsCount.trim()) missing.push("Số lần đã đến Nga");
-      if (!selected.lastVisitFrom.trim()) missing.push("Ngày bắt đầu chuyến Nga gần nhất");
-      if (!selected.lastVisitTo.trim()) missing.push("Ngày kết thúc chuyến Nga gần nhất");
-    }
-    if (selected.hasInsurance && !selected.insurancePolicy.trim()) {
-      missing.push("Số hợp đồng bảo hiểm");
-    }
-    if (missing.length) {
-      setNotice(`Chưa thể xuất PDF. Hồ sơ còn thiếu: ${missing.join(", ")}.`);
-      setRoute("applicants");
-      return;
-    }
-
-    setPdfBusy(true);
-    try {
-      const result = await generateVisaApplicationPdf(selected, store.common);
-      downloadVisaPdf(result.blob, result.filename);
-      setNotice(`Đã tạo PDF ${result.filename} theo mẫu 2 trang KD-MID.`);
-    } catch (error) {
-      setNotice(error instanceof Error ? `Không tạo được PDF: ${error.message}` : "Không tạo được PDF.");
-    } finally {
-      setPdfBusy(false);
-    }
-  }
-
   function importBackup(file: File) {
     const reader = new FileReader();
     reader.onload = () => {
@@ -627,38 +592,6 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         <Field label="Chức danh mặc định"><TextInput value={c.defaultPosition} onChange={(v) => mutateCommon("defaultPosition", v)} /></Field>
         <Field label="Адрес вашего постоянного проживания · Địa chỉ thường trú" hint="Cố định cho mọi hồ sơ."><input value={fixedPermanentAddress} readOnly /></Field>
         <Field label="Рабочий телефон · Điện thoại cơ quan" hint="Cố định cho mọi hồ sơ."><input value={fixedWorkPhone} readOnly /></Field>
-      </div>
-    </section>;
-  }
-
-  function renderPdfExport() {
-    return <section className={styles.panel}>
-      <header><div><span>XUẤT PDF VISA</span><h3>Mẫu 2 trang theo KD-MID</h3></div><button onClick={() => void exportSelectedPdf()} disabled={!selected || pdfBusy}>{pdfBusy ? "Đang tạo PDF…" : "Tạo & tải PDF"}</button></header>
-      <div className={styles.pdfExportGrid}>
-        <article>
-          <span>HỒ SƠ ĐANG DÙNG</span>
-          {store.applicants.length ? <select value={selected?.id ?? ""} onChange={(event) => setStore((current) => ({ ...current, selectedId: event.target.value }))}>{store.applicants.map((item) => <option key={item.id} value={item.id}>{displayName(item)}{item.passportNo ? ` · ${item.passportNo}` : ""}</option>)}</select> : <strong>Chưa có hồ sơ</strong>}
-          <small>{selected ? `${selected.passportNo || "Chưa có hộ chiếu"} · ${selected.birthDate || "Chưa có ngày sinh"}` : "Tạo hồ sơ trước."}</small>
-          <button className={styles.secondary} onClick={() => selected ? setEditing({ ...selected }) : setEditing(emptyApplicant())}>{selected ? "Sửa hồ sơ đang chọn" : "+ Tạo hồ sơ"}</button>
-        </article>
-        <article>
-          <span>CƠ QUAN TIẾP NHẬN</span>
-          <select value={store.common.embassy} onChange={(event) => mutateCommon("embassy", event.target.value)}>
-            {visaConsulates.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-          </select>
-          <small>{store.common.embassy}</small>
-        </article>
-        <article>
-          <span>ĐỊNH DẠNG</span>
-          <strong>A4 · 2 trang · tiếng Nga</strong>
-          <small>Bố cục, ô xám, khối ảnh/chữ ký, thông tin dịch vụ và số trang được dựng theo hai PDF mẫu.</small>
-        </article>
-      </div>
-      <div className={styles.pdfNotes}>
-        <strong>Quy tắc xuất</strong>
-        <p>Địa chỉ thường trú cố định: <code>{fixedPermanentAddress}</code>. Điện thoại cơ quan cố định: <code>{fixedWorkPhone}</code>. Nếu hồ sơ có lịch sử đến Nga hoặc bảo hiểm, trang 2 tự mở thêm các dòng tương ứng như mẫu có mục 16-17 mở rộng.</p>
-        <p><strong>№ заявления (сайт)</strong> lấy từ trường Application ID nếu đã có. Nếu chưa có, PDF vẫn được tạo nhưng để trống ID/barcode thay vì tự bịa một mã chính thức.</p>
-        <p>Các trường đặc biệt đã hỗ trợ: <strong>Маршрут (населенные пункты)</strong> theo từng hồ sơ; và câu hỏi từng có quốc tịch Liên Xô/Nga. Khi chọn <strong>ДА</strong>, form mở thêm <strong>Когда?</strong> và <strong>В связи с чем?</strong>.</p>
       </div>
     </section>;
   }
