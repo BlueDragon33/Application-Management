@@ -109,6 +109,13 @@ const systemTools: readonly SystemTool[] = [
     category: "Tool",
     note: "Điều phối Vercel · Neon · TinyFish theo evidence; kiểm tra Safe Publish và khóa secret khỏi cấu hình.",
   },
+  {
+    id: "tool-kd-mid-visa",
+    name: "KD-MID Visa VN",
+    href: "/tools/kd-mid-visa",
+    category: "Tool",
+    note: "Chuẩn bị hồ sơ visa Nga với form tiếng Nga, hướng dẫn tiếng Việt, trường dùng chung, bookmarklet tự điền và bản ghi mở lại hồ sơ.",
+  },
 ];
 const validViews: readonly View[] = ["overview", "approvals", "applications", "devices", "access", "alerts", "audit", "settings"];
 
@@ -162,6 +169,7 @@ function appGlyph(appId: string) {
   if (appId === "tool-secret-generator") return "⌘";
   if (appId === "tool-managed-apps") return "⊕";
   if (appId === "tool-deploy-ops") return "⇧";
+  if (appId === "tool-kd-mid-visa") return "KV";
   return "◆";
 }
 
