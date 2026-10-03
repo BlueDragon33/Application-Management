@@ -78,3 +78,24 @@ test("PDF export page exposes an applicant selector", () => {
   assert.match(tool, /selectedId: event\.target\.value/);
   assert.match(tool, /Sửa hồ sơ đang chọn/);
 });
+
+
+test("KD-MID applicant form supports per-applicant route and former USSR/Russia citizenship", () => {
+  assert.match(tool, /routeCity: string/);
+  assert.match(tool, /hadFormerRussianCitizenship: boolean/);
+  assert.match(tool, /formerCitizenshipLostDate: string/);
+  assert.match(tool, /formerCitizenshipLossReason: string/);
+  assert.match(tool, /Маршрут \(населенные пункты\)/);
+  assert.match(tool, /Когда\?/);
+  assert.match(tool, /В связи с чем\?/);
+  assert.match(tool, /НЕТ · Không/);
+  assert.match(tool, /ДА · Có/);
+});
+
+test("PDF prints route override and former citizenship details when applicable", () => {
+  assert.match(pdf, /applicant\.routeCity\.trim\(\) \|\| common\.city/);
+  assert.match(pdf, /applicant\.hadFormerRussianCitizenship/);
+  assert.match(pdf, /formerCitizenshipLostDate/);
+  assert.match(pdf, /formerCitizenshipLossReason/);
+  assert.match(pdf, /ДА,/);
+});
