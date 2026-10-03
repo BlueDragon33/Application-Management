@@ -39,7 +39,26 @@ test("Applications launcher defaults to manual app-first ordering", () => {
   assert.match(dashboard, /return \[\.\.\.appItems, \.\.\.toolItems\]/);
   assert.match(dashboard, /if \(a\.kind !== b\.kind\) return a\.kind === "app" \? -1 : 1/);
   assert.match(dashboard, /<option value="manual">Thủ công<\/option>/);
-  assert.match(dashboard, /<option value="category">Phân loại<\/option>/);
+  assert.match(dashboard, /<option value="category-auto">Tự động theo phân loại<\/option>/);
+});
+
+test("automatic category sorting persists and reacts to category edits", () => {
+  assert.match(dashboard, /type AppLauncherSort = "manual" \| "name" \| "category-auto" \| "status"/);
+  assert.match(dashboard, /launcherSortStorageKey/);
+  assert.match(dashboard, /sortMode === "category-auto"/);
+  assert.match(dashboard, /a\.category\.localeCompare\(b\.category, "vi", \{ sensitivity: "base" \}\)/);
+  assert.match(dashboard, /window\.localStorage\.setItem\(launcherSortStorageKey, next\)/);
+  assert.match(dashboard, /storedSort === "category"/);
+  assert.match(dashboard, /setSortMode\("category-auto"\)/);
+  assert.match(dashboard, /sửa phân loại → icon tự chuyển nhóm/);
+  assert.match(css, /data-auto-sort="true"/);
+});
+
+test("long press explicitly returns launcher to persistent manual sorting", () => {
+  const start = dashboard.indexOf("function handleCardPointerDown");
+  const end = dashboard.indexOf("function handleCardPointerMove", start);
+  const block = dashboard.slice(start, end);
+  assert.match(block, /changeSortMode\("manual"\)/);
 });
 
 test("Holding an icon for 3 seconds enables pointer reorder and persists manual order", () => {
