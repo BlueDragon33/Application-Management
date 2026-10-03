@@ -2,6 +2,7 @@ import { applicationRegistry } from "../../application-registry";
 
 export type BaumanStudyModule = {
   id: string;
+  kind: "subject-site" | "module" | "workflow";
   labelVi: string;
   labelEn: string;
   courseIds: string[];
@@ -15,6 +16,7 @@ export type BaumanRegistryStatus = "live" | "unavailable";
 type BaumanContract = {
   subclients?: Array<{
     id?: string;
+    kind?: string;
     sourcePath?: string;
   }>;
   policy?: {
@@ -78,15 +80,17 @@ export async function loadBaumanStudyModules(): Promise<{
       `${repositoryBase}/control/application-management.contract.json`,
     );
 
-    const ids = Array.from(
-      new Set(
+    const clients = Array.from(
+      new Map(
         (contract.subclients ?? [])
-          .map((client) => client.id)
-          .filter(safeSubjectId),
-      ),
+          .filter((client) => safeSubjectId(client.id))
+          .map((client) => [client.id as string, client] as const),
+      ).values(),
+    ).filter((client) =>
+      client.kind === "subject-site" || client.kind === "module" || client.kind === "workflow",
     );
 
-    if (ids.length === 0) {
+    if (clients.length === 0) {
       return { status: "unavailable", modules: [], mayOpenLearningRuntimeDirectly: false };
     }
 
@@ -94,7 +98,8 @@ export async function loadBaumanStudyModules(): Promise<{
       contract.policy?.applicationManagementMayOpenLearningRuntimeDirectly === true;
     const runtimeOrigin = mayOpenLearningRuntimeDirectly ? cleanRuntimeOrigin() : "";
     const results = await Promise.allSettled(
-      ids.map(async (id) => {
+      clients.map(async (client) => {
+        const id = client.id as string;
         const manifest = await fetchJson<SubjectManifest>(
           `${repositoryBase}/subjects/${id}/subject-manifest.json`,
         );
@@ -118,6 +123,7 @@ export async function loadBaumanStudyModules(): Promise<{
         const sourcePath = normalizeRuntimePath(id, studyPlan.runtimePath);
         return {
           id,
+          kind: client.kind as "subject-site" | "module" | "workflow",
           labelVi: studyPlan.labelVi || manifest.title || id,
           labelEn: studyPlan.labelEn || manifest.title || id,
           courseIds,
