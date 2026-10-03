@@ -181,11 +181,13 @@
     const element = blockControls(label).find((item) => item.type === "checkbox");
     if (!element) return false;
     if (element.checked !== checked) {
-      element.checked = checked;
-      fire(element);
-      element.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      element.click();
+      if (element.checked !== checked) {
+        element.checked = checked;
+        fire(element);
+      }
     }
-    return true;
+    return element.checked === checked;
   }
 
   function setDate(label, value) {
