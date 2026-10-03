@@ -41,7 +41,7 @@ type SystemTool = {
 };
 
 type AppLauncherMode = "grid" | "list";
-type AppLauncherSort = "name" | "category" | "status";
+type AppLauncherSort = "manual" | "name" | "category" | "status";
 type AppLauncherPlacement = { top: number; left: number; side: "left" | "right" | "mobile" };
 type AppLauncherItem = {
   id: string;
@@ -67,6 +67,8 @@ type AppLauncherItem = {
 
 const fontScaleStorageKey = "application-management:font-scale:v1";
 const approvalGateStorageKey = "application-management:approval-gate:v1";
+const launcherOrderStorageKey = "application-management:launcher-order:v1";
+const launcherCategoryStorageKey = "application-management:launcher-category-overrides:v1";
 const fontScaleOptions: Array<{ id: FontScale; label: string; hint: string }> = [
   { id: "compact", label: "Gọn", hint: "Mức hiện tại · nhiều nội dung" },
   { id: "standard", label: "Chuẩn", hint: "Dễ đọc hơn" },
@@ -1023,6 +1025,37 @@ function Overview({ apps, tools, summaryMap, devices, pendingDevices, approvalDe
     ...workItems.filter((item) => item.kind === "connection").map((item) => ({ key: `work:${item.id}`, appId: item.appId, appName: item.appName, type: "Kết nối", content: item.title, at: item.occurredAt, priority: item.priority === "high" ? "Cao" : item.priority === "normal" ? "Vừa" : "Thông tin", status: item.priority === "high" ? "Cần xử lý" : "Theo dõi" })),
   ].slice(0, 4);
 
+  const overviewItems = [
+    ...apps.map((app) => {
+      const summary = summaryMap.get(app.id);
+      const counts = operationalCounts(app.id, summary, devices);
+      const connection = offline ? "pending" as const : connectionFor(app, summary);
+      return {
+        id: app.id,
+        name: app.shortName,
+        iconAppId: app.id,
+        kind: "app" as const,
+        online: offline ? null : counts.online,
+        connection,
+        status: offline ? "Chưa xác minh" : connectionLabel(connection, summary),
+      };
+    }),
+    ...tools.map((tool) => {
+      const parentSummary = tool.parentAppId ? summaryMap.get(tool.parentAppId) : undefined;
+      const connected = tool.parentAppId ? parentSummary?.connection === "connected" : true;
+      const connection: OperationsSummary["connection"] = offline ? "pending" : connected ? "connected" : tool.parentAppId ? "warning" : "connected";
+      return {
+        id: tool.id,
+        name: tool.name,
+        iconAppId: tool.id,
+        kind: "tool" as const,
+        online: null,
+        connection,
+        status: offline ? "Chưa xác minh" : tool.parentAppId ? connected ? `${tool.parentLabel ?? "Ứng dụng cha"} · live` : `${tool.parentLabel ?? "Ứng dụng cha"} · fallback` : "Sẵn sàng",
+      };
+    }),
+  ];
+
   return <>
     <section className="amv2-metrics">
       <button data-tone="teal" onClick={() => switchView("applications")}><i>◇</i><div><small>Tổng ứng dụng</small><strong>{apps.length + tools.length}</strong><em>Ứng dụng & Tool đang quản lý</em></div><b>›</b></button>
@@ -1038,7 +1071,33 @@ function Overview({ apps, tools, summaryMap, devices, pendingDevices, approvalDe
 
       <section className="amv2-panel amv2-quick-panel"><header><h2>⚡ Thao tác nhanh</h2></header><div className="amv2-quick-grid"><button onClick={() => switchView("applications")}>◇<span>Quản trị ứng dụng</span></button><button data-active={webMenu} onClick={() => setWebMenu((current) => !current)}>◎<span>Truy cập web</span></button><button onClick={() => switchView("devices")}>▣<span>Duyệt thiết bị</span></button><button onClick={() => switchView("approvals")}>⬡<span>Yêu cầu chờ duyệt</span></button><button data-danger="true" disabled={Boolean(actionBusy)} onClick={() => void clearNotifications()}>⌫<span>{actionBusy === "clear" ? "Đang xóa…" : "Xóa hết thông báo"}</span></button><button disabled={Boolean(actionBusy)} onClick={() => void enableAutoApproval()}>⚙<span>{actionBusy === "auto" ? "Đang lưu…" : "Duyệt tự động"}</span></button><button disabled={syncing} onClick={() => void refreshOperations()}>↻<span>{syncing ? "Đang đồng bộ…" : "Đồng bộ dữ liệu"}</span></button><button onClick={() => switchView("settings")}>▦<span>Giao diện</span></button><button onClick={() => switchView("audit")}>▤<span>Xem nhật ký</span></button></div>{webMenu ? <div className="amv2-web-menu">{apps.map((app) => { const summary = summaryMap.get(app.id); const hasWeb = webAccessAvailable(app, summary, localRuntime); return <button key={app.id} disabled={!hasWeb || webBusy === app.id} onClick={() => void launchWeb(app.id)}><span className="amv2-web-menu-app"><AppIcon appId={app.id}/><span>{app.shortName}</span></span><b>{webBusy === app.id ? "Đang mở…" : hasWeb ? "Mở ↗" : webActionLabel(summary, false)}</b></button>; })}</div> : null}</section>
 
-      <section className="amv2-panel amv2-apps-panel"><PanelTitle icon="◇" title="Ứng dụng đang quản lý" onClick={() => switchView("applications")}/><div className="amv2-app-table"><div className="amv2-app-head"><span>Ứng dụng</span><span>Nhóm nghiệp vụ</span><span>Việc chờ xử lý</span><span>Thiết bị online</span><span>Trạng thái</span><span>Website</span><span>Quản Trị</span></div>{tools.map((tool) => <ToolRow key={tool.id} tool={tool} parentSummary={tool.parentAppId ? summaryMap.get(tool.parentAppId) : undefined} offline={offline}/>)}{apps.map((app) => { const summary = summaryMap.get(app.id); const counts = operationalCounts(app.id, summary, devices); const hasWeb = webAccessAvailable(app, summary, localRuntime); return <div className="amv2-app-row" key={app.id}><AppCell appId={app.id} name={app.shortName}/><span>{appGroup(app)}</span><strong title={counts.pending === null ? "Client chưa cung cấp dữ liệu thiết bị." : undefined}>{offline ? "—" : countText(counts.pending)}</strong><strong title={counts.online === null ? "Client chưa cung cấp dữ liệu online." : undefined}>{offline ? "—" : countText(counts.online)}</strong><StatusCell app={app} summary={summary} offline={offline}/><button className="amv2-web-action" disabled={!hasWeb || webBusy === app.id} onClick={() => void launchWeb(app.id)}>{webActionLabel(summary, hasWeb, webBusy === app.id)}</button><Link className="amv2-manage-action" href={app.href}>Quản trị</Link></div>; })}{!apps.length && !tools.length ? <div className="amv2-empty compact"><strong>Không tìm thấy ứng dụng hoặc Tool phù hợp.</strong></div> : null}</div></section>
+      <section
+        className="amv2-panel amv2-apps-panel amv2-overview-apps-launcher"
+        role="button"
+        tabIndex={0}
+        aria-label="Mở tab Ứng dụng"
+        onClick={() => switchView("applications")}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            switchView("applications");
+          }
+        }}
+      >
+        <header className="amv2-overview-apps-title">
+          <div><span>◇</span><h2>Ứng dụng đang quản lý</h2></div>
+          <span>Xem tất cả →</span>
+        </header>
+        <div className="amv2-overview-app-screen">
+          {overviewItems.map((item) => <div className="amv2-overview-app-tile" data-kind={item.kind} key={item.id}>
+            <span className="amv2-overview-app-icon"><AppIcon appId={item.iconAppId}/></span>
+            <strong title={item.name}>{item.name}</strong>
+            <small><b>Online</b><em>{item.online === null ? "—" : item.online}</em></small>
+            <small data-state={item.connection}><i/>{item.status}</small>
+          </div>)}
+          {!overviewItems.length ? <div className="amv2-empty compact"><strong>Không có ứng dụng hoặc Tool phù hợp.</strong></div> : null}
+        </div>
+      </section>
 
       <section className="amv2-panel amv2-devices-panel"><PanelTitle icon="▣" title="Thiết bị mới theo ứng dụng" count={pendingDevices.length} onClick={() => switchView("devices")}/><div className="amv2-device-table"><div className="amv2-device-head"><span>Ứng dụng</span><span>Thiết bị</span><span>Người dùng</span><span>Thời gian</span><span>Thao tác</span></div>{pendingDevices.slice(0, 4).map((device) => { const rowBusy = actionBusy === `${device.appId}:${device.deviceId}`; return <div className="amv2-device-row" key={`${device.appId}:${device.deviceId}`}><AppCell appId={device.appId} name={device.appName}/><span>{deviceKind(device)}</span><span title={device.userLabel}>{device.userLabel}</span><span>{relativeTime(device.createdAt)}</span><div>{device.canApprove ? <button disabled={rowBusy} onClick={() => void manageDevice(device, "approve")}>{device.appId === "boi-ech" ? "Phân quyền" : "Duyệt"}</button> : null}{device.canRemove ? <button data-danger="true" disabled={rowBusy} onClick={() => void manageDevice(device, "remove")}>{device.appId === "boi-ech" ? "Xóa" : "Khóa"}</button> : null}</div></div>; })}{!pendingDevices.length ? <div className="amv2-empty compact"><strong>Không có thiết bị chờ duyệt.</strong></div> : null}</div></section>
     </section>
@@ -1063,17 +1122,40 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
   const [mode, setMode] = useState<AppLauncherMode>("grid");
   const [launcherSearch, setLauncherSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [sortMode, setSortMode] = useState<AppLauncherSort>("name");
+  const [sortMode, setSortMode] = useState<AppLauncherSort>("manual");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [anchorElement, setAnchorElement] = useState<HTMLButtonElement | null>(null);
   const [popoverPlacement, setPopoverPlacement] = useState<AppLauncherPlacement>({ top: 12, left: 12, side: "right" });
   const [detailOpen, setDetailOpen] = useState(false);
+  const [categoryEditing, setCategoryEditing] = useState(false);
+  const [categoryDraft, setCategoryDraft] = useState("");
+  const [editMode, setEditMode] = useState(false);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [manualOrder, setManualOrder] = useState<string[]>([]);
+  const [categoryOverrides, setCategoryOverrides] = useState<Record<string, string>>({});
   const [scrollState, setScrollState] = useState({ up: false, down: false });
   const clickTimerRef = useRef<number | null>(null);
+  const longPressTimerRef = useRef<number | null>(null);
+  const longPressTriggeredRef = useRef(false);
   const openGuardRef = useRef<string | null>(null);
   const openGuardTimerRef = useRef<number | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    try {
+      const storedOrder = JSON.parse(window.localStorage.getItem(launcherOrderStorageKey) ?? "[]");
+      if (Array.isArray(storedOrder) && storedOrder.every((value) => typeof value === "string")) setManualOrder(storedOrder);
+    } catch {
+      setManualOrder([]);
+    }
+    try {
+      const storedCategories = JSON.parse(window.localStorage.getItem(launcherCategoryStorageKey) ?? "{}");
+      if (storedCategories && typeof storedCategories === "object" && !Array.isArray(storedCategories)) setCategoryOverrides(storedCategories as Record<string, string>);
+    } catch {
+      setCategoryOverrides({});
+    }
+  }, []);
 
   const items = useMemo<AppLauncherItem[]>(() => {
     const toolItems = tools.map((tool) => {
@@ -1133,7 +1215,7 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
         name: app.name,
         shortName: app.shortName,
         iconAppId: app.id,
-        category: app.category,
+        category: categoryOverrides[app.id] || app.category,
         description: app.scope,
         kind: "app" as const,
         href: canOpen ? summary?.webHref ?? app.publicUrl ?? (localRuntime ? app.localUrl : undefined) : undefined,
@@ -1149,8 +1231,8 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
       };
     });
 
-    return [...toolItems, ...appItems];
-  }, [apps, tools, summaryMap, devices, localRuntime, offline]);
+    return [...appItems, ...toolItems];
+  }, [apps, tools, summaryMap, devices, localRuntime, offline, categoryOverrides]);
 
   const categories = useMemo(() => {
     const present = new Set(items.map((item) => item.category));
@@ -1176,7 +1258,18 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
       ].join(" ").toLocaleLowerCase("vi").includes(query);
     });
 
+    const defaultOrder = items.map((item) => item.id);
+    const effectiveOrder = [
+      ...manualOrder.filter((id) => defaultOrder.includes(id)),
+      ...defaultOrder.filter((id) => !manualOrder.includes(id)),
+    ];
+    const rank = new Map(effectiveOrder.map((id, index) => [id, index]));
+
     return [...result].sort((a, b) => {
+      // Application clients always stay above Tools. Manual movement is scoped
+      // inside each group so the Overview and Applications surfaces agree.
+      if (a.kind !== b.kind) return a.kind === "app" ? -1 : 1;
+      if (sortMode === "manual") return (rank.get(a.id) ?? 9999) - (rank.get(b.id) ?? 9999);
       if (sortMode === "category") {
         const category = a.category.localeCompare(b.category, "vi");
         return category || a.name.localeCompare(b.name, "vi");
@@ -1187,9 +1280,13 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
       }
       return a.name.localeCompare(b.name, "vi");
     });
-  }, [items, launcherSearch, categoryFilter, sortMode]);
+  }, [items, launcherSearch, categoryFilter, sortMode, manualOrder]);
 
   const selectedItem = selectedId ? items.find((item) => item.id === selectedId) ?? null : null;
+  const editableCategories = useMemo(
+    () => [...new Set([...staticApps.map((app) => app.category), ...Object.values(categoryOverrides)])].filter(Boolean).sort((a, b) => a.localeCompare(b, "vi")),
+    [categoryOverrides],
+  );
 
   function cancelSingleClick() {
     if (clickTimerRef.current !== null) {
@@ -1198,11 +1295,46 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
     }
   }
 
+  function clearLongPressTimer() {
+    if (longPressTimerRef.current !== null) {
+      window.clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }
+
   function closePopover() {
     cancelSingleClick();
     setSelectedId(null);
     setAnchorElement(null);
     setDetailOpen(false);
+    setCategoryEditing(false);
+  }
+
+  function persistManualOrder(next: string[]) {
+    setManualOrder(next);
+    try {
+      window.localStorage.setItem(launcherOrderStorageKey, JSON.stringify(next));
+    } catch {
+      // Layout preference remains in memory when storage is unavailable.
+    }
+  }
+
+  function saveCategoryOverride(item: AppLauncherItem, nextValue: string) {
+    if (item.kind !== "app") return;
+    const canonical = apps.find((app) => app.id === item.id)?.category ?? "";
+    const nextCategory = nextValue.trim();
+    setCategoryOverrides((current) => {
+      const updated = { ...current };
+      if (!nextCategory || nextCategory === canonical) delete updated[item.id];
+      else updated[item.id] = nextCategory;
+      try {
+        window.localStorage.setItem(launcherCategoryStorageKey, JSON.stringify(updated));
+      } catch {
+        // Category preference remains in memory when storage is unavailable.
+      }
+      return updated;
+    });
+    setCategoryEditing(false);
   }
 
   async function openLauncherItem(item: AppLauncherItem) {
@@ -1222,10 +1354,17 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
   }
 
   function handleCardClick(event: React.MouseEvent<HTMLButtonElement>, item: AppLauncherItem) {
+    if (editMode || longPressTriggeredRef.current) {
+      event.preventDefault();
+      longPressTriggeredRef.current = false;
+      return;
+    }
     const anchor = event.currentTarget;
     cancelSingleClick();
     clickTimerRef.current = window.setTimeout(() => {
       setDetailOpen(false);
+      setCategoryEditing(false);
+      setCategoryDraft(item.category);
       setSelectedId(item.id);
       setAnchorElement(anchor);
       clickTimerRef.current = null;
@@ -1235,9 +1374,79 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
   function handleCardDoubleClick(event: React.MouseEvent<HTMLButtonElement>, item: AppLauncherItem) {
     event.preventDefault();
     event.stopPropagation();
+    if (editMode || longPressTriggeredRef.current) {
+      longPressTriggeredRef.current = false;
+      return;
+    }
     cancelSingleClick();
     closePopover();
     void openLauncherItem(item);
+  }
+
+  function handleCardPointerDown(event: React.PointerEvent<HTMLButtonElement>, item: AppLauncherItem) {
+    if (mode !== "grid") return;
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    clearLongPressTimer();
+    longPressTriggeredRef.current = false;
+
+    if (editMode) {
+      event.preventDefault();
+      setDraggingId(item.id);
+      try { event.currentTarget.setPointerCapture(event.pointerId); } catch {}
+      return;
+    }
+
+    const card = event.currentTarget;
+    const pointerId = event.pointerId;
+    longPressTimerRef.current = window.setTimeout(() => {
+      longPressTriggeredRef.current = true;
+      cancelSingleClick();
+      closePopover();
+      setSortMode("manual");
+      setEditMode(true);
+      setDraggingId(item.id);
+      try { card.setPointerCapture(pointerId); } catch {}
+      longPressTimerRef.current = null;
+    }, 3000);
+  }
+
+  function handleCardPointerMove(event: React.PointerEvent<HTMLButtonElement>, item: AppLauncherItem) {
+    if (!editMode || draggingId !== item.id) return;
+    event.preventDefault();
+    const hit = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
+    const targetCard = hit?.closest<HTMLElement>("[data-launcher-id]");
+    const targetId = targetCard?.dataset.launcherId;
+    if (!targetId || targetId === item.id) return;
+    const targetItem = items.find((candidate) => candidate.id === targetId);
+    if (!targetItem || targetItem.kind !== item.kind) return;
+
+    const base = [
+      ...manualOrder.filter((id) => items.some((candidate) => candidate.id === id)),
+      ...items.map((candidate) => candidate.id).filter((id) => !manualOrder.includes(id)),
+    ];
+    const from = base.indexOf(item.id);
+    const to = base.indexOf(targetId);
+    if (from < 0 || to < 0 || from === to) return;
+    const next = [...base];
+    next.splice(from, 1);
+    next.splice(to, 0, item.id);
+    persistManualOrder(next);
+  }
+
+  function handleCardPointerUp(event: React.PointerEvent<HTMLButtonElement>) {
+    clearLongPressTimer();
+    if (draggingId) {
+      try { event.currentTarget.releasePointerCapture(event.pointerId); } catch {}
+      setDraggingId(null);
+    }
+  }
+
+  function handleCardPointerCancel(event: React.PointerEvent<HTMLButtonElement>) {
+    clearLongPressTimer();
+    if (draggingId) {
+      try { event.currentTarget.releasePointerCapture(event.pointerId); } catch {}
+      setDraggingId(null);
+    }
   }
 
   function updateScrollState() {
@@ -1265,6 +1474,7 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
   useEffect(() => {
     return () => {
       cancelSingleClick();
+      clearLongPressTimer();
       if (openGuardTimerRef.current !== null) window.clearTimeout(openGuardTimerRef.current);
     };
   }, []);
@@ -1365,6 +1575,7 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
         <label className="amv2-launcher-sort">
           <span>Sắp xếp:</span>
           <select value={sortMode} onChange={(event) => setSortMode(event.target.value as AppLauncherSort)}>
+            <option value="manual">Thủ công</option>
             <option value="name">Tên A → Z</option>
             <option value="category">Phân loại</option>
             <option value="status">Trạng thái</option>
@@ -1377,20 +1588,29 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
           <button type="button" data-active={categoryFilter === "all"} onClick={() => setCategoryFilter("all")}>Tất cả</button>
           {categories.map((category) => <button type="button" key={category} data-active={categoryFilter === category} onClick={() => setCategoryFilter(category)}>{category}</button>)}
         </div>
-        <p className="amv2-launcher-help"><b>Nhấn 1 lần</b>: xem thông tin <i/> <b>Nhấn 2 lần</b>: mở web/app</p>
+        {editMode
+          ? <div className="amv2-launcher-editbar"><span>↕ Kéo icon để đổi vị trí · App và Tool giữ thành hai nhóm riêng</span><button type="button" onClick={() => { setEditMode(false); setDraggingId(null); longPressTriggeredRef.current = false; }}>Xong</button></div>
+          : <p className="amv2-launcher-help"><b>1 lần</b>: thông tin <i/> <b>2 lần</b>: mở <i/> <b>Giữ 3 giây</b>: sắp xếp</p>}
       </div>
 
       {mode === "grid" ? <div className="amv2-launcher-grid-wrap">
-        <div ref={gridRef} className="amv2-launcher-grid" data-testid="app-launcher-grid">
+        <div ref={gridRef} className="amv2-launcher-grid" data-testid="app-launcher-grid" data-editing={editMode}>
           {visibleItems.map((item) => <button
             type="button"
             key={item.id}
             className="amv2-launcher-card"
             data-kind={item.kind}
             data-parent-app={item.parentAppId ?? ""}
+            data-launcher-id={item.id}
             data-selected={selectedId === item.id}
+            data-dragging={draggingId === item.id}
             aria-expanded={selectedId === item.id}
             aria-controls={selectedId === item.id ? "amv2-app-launcher-popover" : undefined}
+            onPointerDown={(event) => handleCardPointerDown(event, item)}
+            onPointerMove={(event) => handleCardPointerMove(event, item)}
+            onPointerUp={handleCardPointerUp}
+            onPointerCancel={handleCardPointerCancel}
+            onContextMenu={(event) => event.preventDefault()}
             onClick={(event) => handleCardClick(event, item)}
             onDoubleClick={(event) => handleCardDoubleClick(event, item)}
             onKeyDown={(event) => {
@@ -1401,7 +1621,7 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
                 void openLauncherItem(item);
               }
             }}
-            title="Nhấn một lần để xem thông tin · nhấn đúp để mở"
+            title={editMode ? "Kéo để đổi vị trí" : "Nhấn 1 lần: thông tin · 2 lần: mở · giữ 3 giây: sắp xếp"}
           >
             <span className="amv2-launcher-card-top">
               <AppIcon appId={item.iconAppId}/>
@@ -1428,7 +1648,7 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
           const summary = summaryMap.get(app.id);
           const counts = operationalCounts(app.id, summary, devices);
           const hasWeb = webAccessAvailable(app, summary, localRuntime);
-          return <div className="amv2-app-row" key={app.id}><AppCell appId={app.id} name={app.shortName}/><span>{appGroup(app)}</span><strong title={counts.pending === null ? "Client chưa cung cấp dữ liệu thiết bị." : undefined}>{offline ? "—" : countText(counts.pending)}</strong><strong title={counts.online === null ? "Client chưa cung cấp dữ liệu online." : undefined}>{offline ? "—" : countText(counts.online)}</strong><StatusCell app={app} summary={summary} offline={offline}/><button className="amv2-web-action" disabled={!hasWeb || webBusy === app.id} onClick={() => void launchWeb(app.id)}>{webActionLabel(summary, hasWeb, webBusy === app.id)}</button><Link className="amv2-manage-action" href={app.href}>Quản trị</Link></div>;
+          return <div className="amv2-app-row" key={app.id}><AppCell appId={app.id} name={app.shortName}/><span>{item.category}</span><strong title={counts.pending === null ? "Client chưa cung cấp dữ liệu thiết bị." : undefined}>{offline ? "—" : countText(counts.pending)}</strong><strong title={counts.online === null ? "Client chưa cung cấp dữ liệu online." : undefined}>{offline ? "—" : countText(counts.online)}</strong><StatusCell app={app} summary={summary} offline={offline}/><button className="amv2-web-action" disabled={!hasWeb || webBusy === app.id} onClick={() => void launchWeb(app.id)}>{webActionLabel(summary, hasWeb, webBusy === app.id)}</button><Link className="amv2-manage-action" href={app.href}>Quản trị</Link></div>;
         })}
         {!visibleItems.length ? <div className="amv2-empty"><strong>Không tìm thấy ứng dụng hoặc Tool phù hợp.</strong></div> : null}
       </div>}
@@ -1451,7 +1671,26 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
           <p><span>Trạng thái</span><strong data-state={selectedItem.connection}>● {selectedItem.statusLabel}</strong></p>
           <p><span>Online</span><strong>{selectedItem.onlineCount === null ? "—" : countText(selectedItem.onlineCount)}</strong></p>
           <p><span>Chờ xử lý</span><strong>{selectedItem.pendingCount === null ? "—" : countText(selectedItem.pendingCount)}</strong></p>
-          <p><span>Loại</span><strong>{selectedItem.parentLabel ? `${selectedItem.category} · ${selectedItem.parentLabel}` : selectedItem.kind === "tool" ? "Tool" : selectedItem.category}</strong></p>
+          <p>
+            <span>Phân loại</span>
+            {selectedItem.kind === "app"
+              ? <button type="button" className="amv2-category-edit-trigger" onClick={() => { setCategoryDraft(selectedItem.category); setCategoryEditing((current) => !current); }}>{selectedItem.category} ✎</button>
+              : <strong>{selectedItem.parentLabel ? `Tool · ${selectedItem.parentLabel}` : "Tool"}</strong>}
+          </p>
+          {selectedItem.kind === "app" && categoryEditing ? <div className="amv2-category-editor">
+            <label htmlFor="amv2-category-input">Phân loại hiển thị</label>
+            <div>
+              <input id="amv2-category-input" list="amv2-category-options" value={categoryDraft} onChange={(event) => setCategoryDraft(event.target.value)} placeholder="Ví dụ: Học tập"/>
+              <datalist id="amv2-category-options">{editableCategories.map((category) => <option value={category} key={category}/>)}</datalist>
+              <button type="button" onClick={() => saveCategoryOverride(selectedItem, categoryDraft)}>Lưu</button>
+              <button type="button" onClick={() => {
+                const canonical = apps.find((app) => app.id === selectedItem.id)?.category ?? selectedItem.category;
+                setCategoryDraft(canonical);
+                saveCategoryOverride(selectedItem, canonical);
+              }}>Mặc định</button>
+            </div>
+            <small>Chỉ thay đổi cách phân loại/hiển thị trong App Manager, không đổi contract của client.</small>
+          </div> : null}
           <p><span>Liên kết quản trị</span>{selectedItem.manageHref ? <Link href={selectedItem.manageHref}>{selectedItem.parentAppId ? "Bauman-Admin ↗" : "Quản trị ↗"}</Link> : <strong>—</strong>}</p>
         </div>
 

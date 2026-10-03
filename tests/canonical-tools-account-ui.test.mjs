@@ -10,8 +10,9 @@ test("canonical Applications view exposes Secret Generator as a Tool", () => {
   assert.match(dashboard, /href: "\/tools\/secret-generator"/);
   assert.match(dashboard, /category: "Tool"/);
   assert.match(dashboard, /function ToolRow/);
-  assert.match(dashboard, /tools\.map\(\(tool\) => <ToolRow/);
-  assert.match(dashboard, /Tool · \{tool\.name\}/);
+  assert.match(dashboard, /const toolItems = tools\.map/);
+  assert.match(dashboard, /kind: "tool" as const/);
+  assert.match(dashboard, /return \[\.\.\.appItems, \.\.\.toolItems\]/);
   assert.match(dashboard, /Ứng dụng & Tool/);
 });
 
