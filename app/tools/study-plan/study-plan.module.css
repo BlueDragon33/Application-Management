@@ -1840,6 +1840,34 @@
   background:#f3f7ff;
   border-color:#afc2ec;
 }
+.studySections{
+  max-width:1440px;
+  margin:0 auto 16px;
+  padding:0 28px;
+  display:flex;
+  gap:8px;
+  overflow-x:auto;
+  scrollbar-width:thin;
+}
+.studySections a{
+  flex:0 0 auto;
+  text-decoration:none;
+  color:#52617a;
+  background:#fff;
+  border:1px solid #e2e7ef;
+  border-radius:999px;
+  padding:8px 12px;
+  font-size:11px;
+  font-weight:850;
+  white-space:nowrap;
+}
+.studySections a:hover,
+.studySections a:focus-visible{
+  color:#2858c4;
+  border-color:#a8bdf0;
+  background:#f4f7ff;
+  outline:none;
+}
 .courseExplorer,
 .skillsDirection{
   max-width:1440px;
@@ -2316,6 +2344,10 @@
   }
 }
 @media(max-width:760px){
+  .studySections{
+    padding-left:14px;
+    padding-right:14px;
+  }
   .courseExplorer,
   .skillsDirection{
     margin-left:14px;
@@ -2366,6 +2398,7 @@
     background:#fff;
   }
   .topbar,
+  .studySections,
   .controls,
   .preBaumanRoadmap{
     display:none !important;
