@@ -143,6 +143,17 @@ jobs:
             fi
           done
 
+      - name: Remove retired paid-browser Worker secret
+        shell: bash
+        run: |
+          set -euo pipefail
+          if npx wrangler secret list --config wrangler.cloudflare.jsonc 2>/dev/null | grep -q 'TINYFISH_API_KEY'; then
+            printf 'y\n' | npx wrangler secret delete TINYFISH_API_KEY --config wrangler.cloudflare.jsonc
+            echo 'Retired paid-browser Worker secret removed.'
+          else
+            echo 'Retired paid-browser Worker secret already absent.'
+          fi
+
       - name: Restore exact Preview artifact after secret versions
         if: steps.config.outputs.ready == 'true'
         run: npx wrangler deploy
