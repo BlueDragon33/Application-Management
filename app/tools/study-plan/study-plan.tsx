@@ -133,6 +133,27 @@ const copy = {
     nextBuildOrder: "Thứ tự tạo module mới theo học kỳ",
     noItems: "Hiện không có học phần nào trong nhóm này.",
     missingHandled: "Đã có phương án xử lý",
+    explorerTitle: "Danh sách & tra cứu môn học",
+    explorerSubtitle: "Tìm nhanh theo tên Việt/Anh/Nga, học kỳ, loại học phần và mức nền cá nhân.",
+    searchCourses: "Tìm tên môn học...",
+    allSemesters: "Tất cả học kỳ",
+    allKinds: "Tất cả loại",
+    allReadiness: "Tất cả mức nền",
+    sortBy: "Sắp xếp",
+    sortSemester: "Theo học kỳ",
+    sortCredits: "Tín chỉ cao → thấp",
+    sortReadiness: "Ưu tiên cần bù",
+    results: "kết quả",
+    noResults: "Không có học phần phù hợp bộ lọc.",
+    clearFilters: "Xóa bộ lọc",
+    skillsTitle: "Kỹ năng & định hướng",
+    skillsSubtitle: "Gom các học phần thành nhóm năng lực và tự động xác định khu vực mạnh, cần ôn và khoảng trống nền.",
+    skillStrong: "Nhóm đã có nền",
+    skillReview: "Nhóm cần củng cố",
+    skillGap: "Nhóm cần ưu tiên bù",
+    priorityNext: "Ưu tiên tiếp theo",
+    openPriorityCourse: "Mở môn ưu tiên",
+    skillCourses: "môn liên quan",
   },
   en: {
     back: "← Management Center",
@@ -246,6 +267,27 @@ const copy = {
     nextBuildOrder: "New-module build order by semester",
     noItems: "No current course entries in this group.",
     missingHandled: "Gap has an action plan",
+    explorerTitle: "Course list & search",
+    explorerSubtitle: "Search by Vietnamese/English/Russian title, semester, course type and personal readiness.",
+    searchCourses: "Search courses...",
+    allSemesters: "All semesters",
+    allKinds: "All types",
+    allReadiness: "All readiness levels",
+    sortBy: "Sort",
+    sortSemester: "By semester",
+    sortCredits: "Credits high → low",
+    sortReadiness: "Foundation-gap priority",
+    results: "results",
+    noResults: "No courses match the current filters.",
+    clearFilters: "Clear filters",
+    skillsTitle: "Skills & direction",
+    skillsSubtitle: "Groups the curriculum into competency areas and derives strengths, review needs and foundation gaps.",
+    skillStrong: "Strong foundation groups",
+    skillReview: "Groups to reinforce",
+    skillGap: "Priority foundation gaps",
+    priorityNext: "Next priority",
+    openPriorityCourse: "Open priority course",
+    skillCourses: "related courses",
   },
 } as const;
 
@@ -267,6 +309,56 @@ const programKindLabels = {
     thesis: "Thesis (VKR)",
   },
 } as const;
+
+type ExplorerSemester = "all" | "1" | "2" | "3" | "4";
+type ExplorerKind = "all" | CourseKind;
+type ExplorerReadiness = "all" | ReadinessLevel;
+type ExplorerSort = "semester" | "credits" | "readiness";
+
+const readinessWeight: Record<ReadinessLevel, number> = {
+  red: 0,
+  yellow: 1,
+  green: 2,
+};
+
+const skillClusterDefinitions = [
+  {
+    id: "software",
+    label: { vi: "Lập trình & kỹ nghệ phần mềm", en: "Programming & software engineering" },
+    direction: { vi: "Ưu tiên Python/OOP, Git, testing và kiến trúc module.", en: "Prioritize Python/OOP, Git, testing and modular architecture." },
+    courseIds: ["oop", "software-1", "software-2"],
+  },
+  {
+    id: "data",
+    label: { vi: "Dữ liệu & cơ sở dữ liệu", en: "Data & databases" },
+    direction: { vi: "Ưu tiên SQL, NumPy/Pandas, thống kê và pipeline dữ liệu.", en: "Prioritize SQL, NumPy/Pandas, statistics and data pipelines." },
+    courseIds: ["multivariate", "db-optimization", "postrelational", "time-series", "nir-data"],
+  },
+  {
+    id: "ai",
+    label: { vi: "AI & hệ thống thông minh", en: "AI & intelligent systems" },
+    direction: { vi: "Đi từ ML nền tảng → neural → AI ứng dụng → reasoning logic.", en: "Progress from ML foundations → neural systems → applied AI → logical reasoning." },
+    courseIds: ["ml", "neural", "business-ai", "mivar"],
+  },
+  {
+    id: "systems",
+    label: { vi: "Hệ thống, độ tin cậy & vòng đời", en: "Systems, reliability & lifecycle" },
+    direction: { vi: "Tận dụng nền Điều khiển/Tự động hóa để nối sang ASOIU, reliability và lifecycle.", en: "Leverage Control/Automation foundations for AIPCS, reliability and lifecycle." },
+    courseIds: ["analytical-models", "reliability", "is-management", "lifecycle", "operations-practice"],
+  },
+  {
+    id: "research",
+    label: { vi: "Nghiên cứu & giao tiếp học thuật", en: "Research & academic communication" },
+    direction: { vi: "Xây research workflow, thuật ngữ Nga/Anh, viết và bảo vệ kết quả từ sớm.", en: "Build research workflow, Russian/English terminology, writing and defense skills early." },
+    courseIds: ["foreign-1", "foreign-2", "methodology", "nir-1", "nir-2", "nir-3", "nir-4", "prediploma", "thesis"],
+  },
+  {
+    id: "human-project",
+    label: { vi: "HMI, bảo mật & triển khai dự án", en: "HMI, security & project delivery" },
+    direction: { vi: "Bổ sung HMI/usability, security, thực tập và tư duy sản phẩm để hoàn thiện hệ thống thật.", en: "Add HMI/usability, security, practice and product thinking for real-system delivery." },
+    courseIds: ["entrepreneurship", "project-practice", "pedagogy-1", "pedagogy-2", "ergonomics", "elective-1", "elective-2"],
+  },
+] as const;
 
 type GapAction = "create" | "existing" | "practice" | "confirm";
 
@@ -820,6 +912,11 @@ export default function StudyPlanTool({
   const [year, setYear] = useState<1 | 2>(1);
   const [week, setWeek] = useState(1);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>("multivariate");
+  const [courseQuery, setCourseQuery] = useState("");
+  const [courseSemesterFilter, setCourseSemesterFilter] = useState<ExplorerSemester>("all");
+  const [courseKindFilter, setCourseKindFilter] = useState<ExplorerKind>("all");
+  const [courseReadinessFilter, setCourseReadinessFilter] = useState<ExplorerReadiness>("all");
+  const [courseSort, setCourseSort] = useState<ExplorerSort>("semester");
   const [completed, setCompleted] = useState<Record<string, boolean>>({});
   const [progressLoaded, setProgressLoaded] = useState(false);
 
@@ -875,6 +972,53 @@ export default function StudyPlanTool({
       percent: courses.length > 0 ? Math.round((covered.length / courses.length) * 100) : 0,
     };
   }, [baumanModules]);
+
+  const explorerCourses = useMemo(() => {
+    const normalizedQuery = courseQuery.trim().toLocaleLowerCase();
+    const filtered = courses.filter((course) => {
+      const readiness = readinessByCourse[course.id].level;
+      const matchesQuery = !normalizedQuery || [
+        course.ru,
+        course.title.vi,
+        course.title.en,
+      ].some((value) => value.toLocaleLowerCase().includes(normalizedQuery));
+      const matchesSemester = courseSemesterFilter === "all" || String(course.semester) === courseSemesterFilter;
+      const matchesKind = courseKindFilter === "all" || course.kind === courseKindFilter;
+      const matchesReadiness = courseReadinessFilter === "all" || readiness === courseReadinessFilter;
+      return matchesQuery && matchesSemester && matchesKind && matchesReadiness;
+    });
+    return [...filtered].sort((a, b) => {
+      if (courseSort === "credits") return b.credits - a.credits || a.semester - b.semester;
+      if (courseSort === "readiness") {
+        const readinessDelta = readinessWeight[readinessByCourse[a.id].level] - readinessWeight[readinessByCourse[b.id].level];
+        return readinessDelta || a.semester - b.semester || a.id.localeCompare(b.id);
+      }
+      return a.semester - b.semester || a.id.localeCompare(b.id);
+    });
+  }, [courseKindFilter, courseQuery, courseReadinessFilter, courseSemesterFilter, courseSort]);
+
+  const skillAnalysis = useMemo(() => skillClusterDefinitions.map((cluster) => {
+    const clusterCourses = cluster.courseIds
+      .map((id) => courses.find((course) => course.id === id))
+      .filter((course): course is Course => Boolean(course));
+    const counts = clusterCourses.reduce((acc, course) => {
+      acc[readinessByCourse[course.id].level] += 1;
+      return acc;
+    }, { green: 0, yellow: 0, red: 0 } as Record<ReadinessLevel, number>);
+    const priorityCourse = [...clusterCourses].sort((a, b) =>
+      readinessWeight[readinessByCourse[a.id].level] - readinessWeight[readinessByCourse[b.id].level] ||
+      a.semester - b.semester ||
+      b.credits - a.credits
+    )[0] ?? null;
+    const level: ReadinessLevel = counts.red > 0 ? "red" : counts.yellow > 0 ? "yellow" : "green";
+    return { ...cluster, clusterCourses, counts, priorityCourse, level };
+  }), []);
+
+  const skillSummary = useMemo(() => ({
+    green: skillAnalysis.filter((cluster) => cluster.level === "green").length,
+    yellow: skillAnalysis.filter((cluster) => cluster.level === "yellow").length,
+    red: skillAnalysis.filter((cluster) => cluster.level === "red").length,
+  }), [skillAnalysis]);
 
   const creditStructure = useMemo(() => programKindOrder.map((kind) => {
     const items = courses.filter((course) => course.kind === kind);
@@ -941,6 +1085,24 @@ export default function StudyPlanTool({
     setYear(next);
     const first = yearCourses(next)[0];
     if (first) setSelectedCourseId(first.id);
+  };
+
+  const openCourseFromAnalysis = (course: Course) => {
+    setSemester(course.semester);
+    setYear(course.semester <= 2 ? 1 : 2);
+    setMode("semester");
+    setSelectedCourseId(course.id);
+    window.requestAnimationFrame(() => {
+      document.getElementById("study-plan-content")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
+
+  const clearCourseFilters = () => {
+    setCourseQuery("");
+    setCourseSemesterFilter("all");
+    setCourseKindFilter("all");
+    setCourseReadinessFilter("all");
+    setCourseSort("semester");
   };
 
   return <main className={styles.shell}>
@@ -1122,7 +1284,95 @@ export default function StudyPlanTool({
       />
     </section>
 
-    <section className={styles.overall}>
+    <section className={styles.courseExplorer} id="course-explorer" aria-labelledby="course-explorer-title">
+      <header className={styles.courseExplorerHeader}>
+        <div>
+          <span id="course-explorer-title">{t.explorerTitle}</span>
+          <p>{t.explorerSubtitle}</p>
+        </div>
+        <strong>{explorerCourses.length}/{courses.length} {t.results}</strong>
+      </header>
+      <div className={styles.courseExplorerFilters}>
+        <label className={styles.courseSearch}>
+          <span>⌕</span>
+          <input
+            type="search"
+            value={courseQuery}
+            onChange={(event) => setCourseQuery(event.target.value)}
+            placeholder={t.searchCourses}
+            aria-label={t.searchCourses}
+          />
+        </label>
+        <select value={courseSemesterFilter} onChange={(event) => setCourseSemesterFilter(event.target.value as ExplorerSemester)} aria-label={t.allSemesters}>
+          <option value="all">{t.allSemesters}</option>
+          {[1, 2, 3, 4].map((value) => <option key={value} value={String(value)}>{t.semester} {value}</option>)}
+        </select>
+        <select value={courseKindFilter} onChange={(event) => setCourseKindFilter(event.target.value as ExplorerKind)} aria-label={t.allKinds}>
+          <option value="all">{t.allKinds}</option>
+          {programKindOrder.map((kind) => <option key={kind} value={kind}>{programKindLabels[lang][kind]}</option>)}
+        </select>
+        <select value={courseReadinessFilter} onChange={(event) => setCourseReadinessFilter(event.target.value as ExplorerReadiness)} aria-label={t.allReadiness}>
+          <option value="all">{t.allReadiness}</option>
+          {(["green", "yellow", "red"] as ReadinessLevel[]).map((level) => <option key={level} value={level}>{readinessLabels[level][lang]}</option>)}
+        </select>
+        <select value={courseSort} onChange={(event) => setCourseSort(event.target.value as ExplorerSort)} aria-label={t.sortBy}>
+          <option value="semester">{t.sortSemester}</option>
+          <option value="credits">{t.sortCredits}</option>
+          <option value="readiness">{t.sortReadiness}</option>
+        </select>
+        <button type="button" onClick={clearCourseFilters}>{t.clearFilters}</button>
+      </div>
+      <div className={styles.courseExplorerResults}>
+        {explorerCourses.length === 0
+          ? <p className={styles.courseExplorerEmpty}>{t.noResults}</p>
+          : explorerCourses.map((course) => <CourseRow
+              key={course.id}
+              course={course}
+              lang={lang}
+              selected={selectedCourseId === course.id}
+              onSelect={() => openCourseFromAnalysis(course)}
+            />)}
+      </div>
+    </section>
+
+    <section className={styles.skillsDirection} id="skills-direction" aria-labelledby="skills-direction-title">
+      <header className={styles.skillsHeader}>
+        <div>
+          <span id="skills-direction-title">{t.skillsTitle}</span>
+          <p>{t.skillsSubtitle}</p>
+        </div>
+        <div className={styles.skillSummary}>
+          <span data-level="green">🟢 {skillSummary.green} · {t.skillStrong}</span>
+          <span data-level="yellow">🟡 {skillSummary.yellow} · {t.skillReview}</span>
+          <span data-level="red">🔴 {skillSummary.red} · {t.skillGap}</span>
+        </div>
+      </header>
+      <div className={styles.skillGrid}>
+        {skillAnalysis.map((cluster) => <article key={cluster.id} data-level={cluster.level}>
+          <header>
+            <div>
+              <span>{readinessLabels[cluster.level][lang]}</span>
+              <h3>{cluster.label[lang]}</h3>
+            </div>
+            <strong>{cluster.clusterCourses.length}</strong>
+          </header>
+          <p>{cluster.direction[lang]}</p>
+          <div className={styles.skillReadinessCounts}>
+            <span data-level="green">🟢 {cluster.counts.green}</span>
+            <span data-level="yellow">🟡 {cluster.counts.yellow}</span>
+            <span data-level="red">🔴 {cluster.counts.red}</span>
+            <small>{t.skillCourses}</small>
+          </div>
+          {cluster.priorityCourse ? <div className={styles.skillPriority}>
+            <small>{t.priorityNext}</small>
+            <strong>{cluster.priorityCourse.title[lang]}</strong>
+            <button type="button" onClick={() => openCourseFromAnalysis(cluster.priorityCourse as Course)}>{t.openPriorityCourse} →</button>
+          </div> : null}
+        </article>)}
+      </div>
+    </section>
+
+    <section className={styles.overall} id="program-analysis">
       <header><span>{t.programAnalysis}</span><h2>{t.programStructure}</h2></header>
       <div className={styles.overallGrid}>
         {[1, 2, 3, 4].map((value) => {
