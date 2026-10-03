@@ -31,3 +31,13 @@ test("static asset routing is Cloudflare-channel scoped and does not replace loc
   assert.ok(worker.includes("(isPreview || isProduction) && isCloudflareClientAsset(request, url)"));
   assert.equal(worker.includes("if (isCloudflareClientAsset(request, url)) {\n      return env.ASSETS.fetch(request);"), false);
 });
+
+
+test("KD-MID companion userscript is a public install asset", () => {
+  assert.ok(worker.includes('"/kd-mid-visa-companion.user.js"'));
+  const fetchStart = worker.indexOf("async fetch(request: Request");
+  const runtime = worker.slice(fetchStart);
+  const publicPwaRoute = runtime.indexOf("isPublicPwaAsset(request, url)");
+  const productionGate = runtime.indexOf("await productionIdentity(request, env)");
+  assert.ok(publicPwaRoute >= 0 && publicPwaRoute < productionGate, "Companion installer must be served before production login gate.");
+});

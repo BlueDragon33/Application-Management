@@ -159,6 +159,7 @@ function isPublicPwaAsset(request: Request, url: URL) {
     "/icon-512.png",
     "/favicon.svg",
     "/offline.html",
+    "/kd-mid-visa-companion.user.js",
   ]).has(url.pathname);
 }
 

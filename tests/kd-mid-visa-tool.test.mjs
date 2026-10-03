@@ -42,11 +42,24 @@ test("Russian labels expose English and Vietnamese hover help", () => {
 
 test("KD-MID Visa supports persistent companion automation and keeps a bookmarklet fallback", () => {
   assert.match(tool, /buildAutomationUrl/);
+  assert.match(tool, /#kdmid-bridge=/);
+  assert.match(tool, /postMessage\(\{ type: "KD_MID_PAYLOAD"/);
+  assert.match(tool, /KD_MID_ACK/);
   assert.match(tool, /kd-mid-visa-companion\.user\.js/);
   assert.match(tool, /Mở KD-MID & tự điền/);
   assert.match(tool, /Tự bấm Далее/);
   assert.match(tool, /javascript:/);
   assert.match(companion, /@match\s+https:\/\/visa\.kdmid\.ru\/\*/);
+  assert.match(companion, /KD_MID_PAYLOAD/);
+  assert.match(companion, /KD_MID_ACK/);
   assert.match(companion, /maybeAutoAdvance/);
   assert.match(companion, /Печать формата A4/);
+});
+
+test("KD-MID Visa blocks automation when required passport fields are incomplete", () => {
+  assert.match(tool, /function applicantMissingFields/);
+  assert.match(tool, /Ngày sinh/);
+  assert.match(tool, /Ngày cấp hộ chiếu/);
+  assert.match(tool, /Ngày hết hạn hộ chiếu/);
+  assert.match(tool, /Chưa thể tự điền\. Hồ sơ còn thiếu/);
 });
