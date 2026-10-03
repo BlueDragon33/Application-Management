@@ -10,6 +10,10 @@ export type VisaPdfApplicant = {
   phone: string;
   email: string;
   position: string;
+  routeCity: string;
+  hadFormerRussianCitizenship: boolean;
+  formerCitizenshipLostDate: string;
+  formerCitizenshipLossReason: string;
   visitedRussia: boolean;
   visitsCount: string;
   lastVisitFrom: string;
@@ -287,8 +291,12 @@ function drawPageOne(applicant: VisaPdfApplicant, common: VisaPdfCommon) {
   staticLines.forEach(([x, y, text]) => drawText(ctx, text, x, y));
 
   const invitation = common.invitation.trim() || "НЕТ";
+  drawText(ctx, common.citizenship || "ВЬЕТНАМ", 229.66, 49.66);
+  if (applicant.hadFormerRussianCitizenship) {
+    drawText(ctx, `ДА, ${applicant.formerCitizenshipLostDate}`, 229.66, 57.66, { size: 7.6, maxWidthPt: 340 });
+    drawText(ctx, applicant.formerCitizenshipLossReason, 229.66, 65.66, { size: 7.2, maxWidthPt: 340 });
+  }
   const values: Array<[number, number, string]> = [
-    [229.66, 49.66, common.citizenship || "ВЬЕТНАМ"],
     [229.66, 83.5, applicant.surname.toUpperCase()],
     [229.66, 101.34, applicant.givenNames.toUpperCase()],
     [229.66, 127.18, applicant.birthDate],
@@ -305,7 +313,7 @@ function drawPageOne(applicant: VisaPdfApplicant, common: VisaPdfCommon) {
     [229.66, 345.26, invitation],
     [229.66, 359.46, common.telex],
     [229.66, 373.66, common.organizationAddress],
-    [229.66, 391.5, common.city],
+    [229.66, 391.5, applicant.routeCity.trim() || common.city],
   ];
   values.forEach(([x, y, text]) => drawText(ctx, text, x, y));
 
