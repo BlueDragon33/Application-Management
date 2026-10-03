@@ -1258,7 +1258,18 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
       ].join(" ").toLocaleLowerCase("vi").includes(query);
     });
 
+    const defaultOrder = items.map((item) => item.id);
+    const effectiveOrder = [
+      ...manualOrder.filter((id) => defaultOrder.includes(id)),
+      ...defaultOrder.filter((id) => !manualOrder.includes(id)),
+    ];
+    const rank = new Map(effectiveOrder.map((id, index) => [id, index]));
+
     return [...result].sort((a, b) => {
+      // Application clients always stay above Tools. Manual movement is scoped
+      // inside each group so the Overview and Applications surfaces agree.
+      if (a.kind !== b.kind) return a.kind === "app" ? -1 : 1;
+      if (sortMode === "manual") return (rank.get(a.id) ?? 9999) - (rank.get(b.id) ?? 9999);
       if (sortMode === "category") {
         const category = a.category.localeCompare(b.category, "vi");
         return category || a.name.localeCompare(b.name, "vi");
@@ -1269,9 +1280,13 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
       }
       return a.name.localeCompare(b.name, "vi");
     });
-  }, [items, launcherSearch, categoryFilter, sortMode]);
+  }, [items, launcherSearch, categoryFilter, sortMode, manualOrder]);
 
   const selectedItem = selectedId ? items.find((item) => item.id === selectedId) ?? null : null;
+  const editableCategories = useMemo(
+    () => [...new Set([...staticApps.map((app) => app.category), ...Object.values(categoryOverrides)])].filter(Boolean).sort((a, b) => a.localeCompare(b, "vi")),
+    [categoryOverrides],
+  );
 
   function cancelSingleClick() {
     if (clickTimerRef.current !== null) {
@@ -1280,11 +1295,46 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
     }
   }
 
+  function clearLongPressTimer() {
+    if (longPressTimerRef.current !== null) {
+      window.clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }
+
   function closePopover() {
     cancelSingleClick();
     setSelectedId(null);
     setAnchorElement(null);
     setDetailOpen(false);
+    setCategoryEditing(false);
+  }
+
+  function persistManualOrder(next: string[]) {
+    setManualOrder(next);
+    try {
+      window.localStorage.setItem(launcherOrderStorageKey, JSON.stringify(next));
+    } catch {
+      // Layout preference remains in memory when storage is unavailable.
+    }
+  }
+
+  function saveCategoryOverride(item: AppLauncherItem, nextValue: string) {
+    if (item.kind !== "app") return;
+    const canonical = apps.find((app) => app.id === item.id)?.category ?? "";
+    const nextCategory = nextValue.trim();
+    setCategoryOverrides((current) => {
+      const updated = { ...current };
+      if (!nextCategory || nextCategory === canonical) delete updated[item.id];
+      else updated[item.id] = nextCategory;
+      try {
+        window.localStorage.setItem(launcherCategoryStorageKey, JSON.stringify(updated));
+      } catch {
+        // Category preference remains in memory when storage is unavailable.
+      }
+      return updated;
+    });
+    setCategoryEditing(false);
   }
 
   async function openLauncherItem(item: AppLauncherItem) {
@@ -1304,10 +1354,17 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
   }
 
   function handleCardClick(event: React.MouseEvent<HTMLButtonElement>, item: AppLauncherItem) {
+    if (editMode || longPressTriggeredRef.current) {
+      event.preventDefault();
+      longPressTriggeredRef.current = false;
+      return;
+    }
     const anchor = event.currentTarget;
     cancelSingleClick();
     clickTimerRef.current = window.setTimeout(() => {
       setDetailOpen(false);
+      setCategoryEditing(false);
+      setCategoryDraft(item.category);
       setSelectedId(item.id);
       setAnchorElement(anchor);
       clickTimerRef.current = null;
@@ -1317,9 +1374,79 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
   function handleCardDoubleClick(event: React.MouseEvent<HTMLButtonElement>, item: AppLauncherItem) {
     event.preventDefault();
     event.stopPropagation();
+    if (editMode || longPressTriggeredRef.current) {
+      longPressTriggeredRef.current = false;
+      return;
+    }
     cancelSingleClick();
     closePopover();
     void openLauncherItem(item);
+  }
+
+  function handleCardPointerDown(event: React.PointerEvent<HTMLButtonElement>, item: AppLauncherItem) {
+    if (mode !== "grid") return;
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    clearLongPressTimer();
+    longPressTriggeredRef.current = false;
+
+    if (editMode) {
+      event.preventDefault();
+      setDraggingId(item.id);
+      try { event.currentTarget.setPointerCapture(event.pointerId); } catch {}
+      return;
+    }
+
+    const card = event.currentTarget;
+    const pointerId = event.pointerId;
+    longPressTimerRef.current = window.setTimeout(() => {
+      longPressTriggeredRef.current = true;
+      cancelSingleClick();
+      closePopover();
+      setSortMode("manual");
+      setEditMode(true);
+      setDraggingId(item.id);
+      try { card.setPointerCapture(pointerId); } catch {}
+      longPressTimerRef.current = null;
+    }, 3000);
+  }
+
+  function handleCardPointerMove(event: React.PointerEvent<HTMLButtonElement>, item: AppLauncherItem) {
+    if (!editMode || draggingId !== item.id) return;
+    event.preventDefault();
+    const hit = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
+    const targetCard = hit?.closest<HTMLElement>("[data-launcher-id]");
+    const targetId = targetCard?.dataset.launcherId;
+    if (!targetId || targetId === item.id) return;
+    const targetItem = items.find((candidate) => candidate.id === targetId);
+    if (!targetItem || targetItem.kind !== item.kind) return;
+
+    const base = [
+      ...manualOrder.filter((id) => items.some((candidate) => candidate.id === id)),
+      ...items.map((candidate) => candidate.id).filter((id) => !manualOrder.includes(id)),
+    ];
+    const from = base.indexOf(item.id);
+    const to = base.indexOf(targetId);
+    if (from < 0 || to < 0 || from === to) return;
+    const next = [...base];
+    next.splice(from, 1);
+    next.splice(to, 0, item.id);
+    persistManualOrder(next);
+  }
+
+  function handleCardPointerUp(event: React.PointerEvent<HTMLButtonElement>) {
+    clearLongPressTimer();
+    if (draggingId) {
+      try { event.currentTarget.releasePointerCapture(event.pointerId); } catch {}
+      setDraggingId(null);
+    }
+  }
+
+  function handleCardPointerCancel(event: React.PointerEvent<HTMLButtonElement>) {
+    clearLongPressTimer();
+    if (draggingId) {
+      try { event.currentTarget.releasePointerCapture(event.pointerId); } catch {}
+      setDraggingId(null);
+    }
   }
 
   function updateScrollState() {
