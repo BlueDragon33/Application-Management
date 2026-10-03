@@ -73,6 +73,8 @@ type Store = {
 };
 
 const storageKey = "application-management:kd-mid-visa:v1";
+const fixedPermanentAddress = "ВЬЕТНАМ, Г. ХАНОЙ, УЛИЦА НГИА ДО, ДОРОГА ХОАНГ КУОК ВЬЕТ, ДОМ Ш9";
+const fixedWorkPhone = "+842437555706";
 
 const defaultCommon: CommonData = {
   password: "qllhs2025",
@@ -107,11 +109,11 @@ function emptyApplicant(): Applicant {
     passportNo: "",
     passportIssue: "",
     passportExpiry: "",
-    personalAddress: "",
+    personalAddress: fixedPermanentAddress,
     phone: "",
     email: "",
     position: "",
-    workPhone: "",
+    workPhone: fixedWorkPhone,
     passwordOverride: "",
     visitedRussia: false,
     visitsCount: "",
@@ -132,7 +134,7 @@ function safeLoad(): Store {
     return {
       version: 1,
       common: { ...defaultCommon, ...(parsed.common ?? {}) },
-      applicants: Array.isArray(parsed.applicants) ? parsed.applicants : [],
+      applicants: Array.isArray(parsed.applicants) ? parsed.applicants.map((item) => ({ ...item, personalAddress: fixedPermanentAddress, workPhone: fixedWorkPhone })) : [],
       records: Array.isArray(parsed.records) ? parsed.records : [],
       selectedId: typeof parsed.selectedId === "string" ? parsed.selectedId : "",
     };
@@ -159,16 +161,30 @@ function emitChange(el: HTMLInputElement | HTMLSelectElement | HTMLTextAreaEleme
   el.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
-function buildBookmarklet(applicant: Applicant, common: CommonData) {
-  const payload = {
+function buildPayload(applicant: Applicant, common: CommonData, autoAdvance = false) {
+  return {
     ...common,
+    fixedPermanentAddress,
+    fixedWorkPhone,
+    _automation: { autoAdvance },
     applicant: {
       ...applicant,
+      personalAddress: fixedPermanentAddress,
+      workPhone: fixedWorkPhone,
       password: applicant.passwordOverride || common.password,
       surname5: surname5(applicant.surname),
       birthYear: birthYear(applicant.birthDate),
     },
   };
+}
+
+function buildAutomationUrl(applicant: Applicant, common: CommonData, autoAdvance: boolean) {
+  const encoded = encodeURIComponent(JSON.stringify(buildPayload(applicant, common, autoAdvance)));
+  return `https://visa.kdmid.ru/#kdmid=${encoded}`;
+}
+
+function buildBookmarklet(applicant: Applicant, common: CommonData) {
+  const payload = buildPayload(applicant, common);
   const encoded = encodeURIComponent(JSON.stringify(payload));
   const code = `(()=>{const p=JSON.parse(decodeURIComponent("${encoded}"));const A=p.applicant;
 const norm=s=>(s||"").replace(/\\s+/g," ").trim().toUpperCase();
@@ -209,13 +225,13 @@ if(A.hasInsurance)setAnyText(["Название страховой компан�
 setYesNo("Были ли Вы когда-нибудь в России",A.visitedRussia);
 if(A.visitedRussia){setAnyText(["Сколько раз Вы были в России"],A.visitsCount);setDate("Дата въезда",A.lastVisitFrom);setDate("Дата выезда",A.lastVisitTo)}
 setYesNo("Имеете ли Вы адрес постоянного проживания",true);
-setAnyText(["Адрес вашего постоянного проживания"],A.personalAddress);
+setAnyText(["Адрес вашего постоянного проживания"],p.fixedPermanentAddress||A.personalAddress);
 setAnyText(["Ваш личный телефон"],A.phone);setAnyText(["Ваш личный E-mail"],A.email);
 setYesNo("Вы работаете",true);
 setAnyText(["Место работы (учебы)"],p.employer);
 setAnyText(["Должность"],A.position||p.defaultPosition);
 setAnyText(["Рабочий адрес"],p.employerAddress);
-setAnyText(["Рабочий телефон"],A.workPhone);
+setAnyText(["Рабочий телефон"],p.fixedWorkPhone||A.workPhone);
 setAnyText(["Рабочий E-mail"],p.employerEmail);
 setYesNo("Дети до 16 лет",false);setYesNo("Имеете ли Вы в настоящее время родственников",false);
 setAnySelect(["Наименование учреждения"],p.embassy);
@@ -227,8 +243,44 @@ alert("KD-MID Visa VN: đã điền các trường nhận diện được trên 
   return "javascript:" + code.replace(/\n+/g, " ");
 }
 
+const russianHints: Array<{ ru: string; en: string; vi: string }> = [
+  { ru: "Гражданство", en: "Citizenship", vi: "Quốc tịch" },
+  { ru: "Цель поездки", en: "Purpose of visit", vi: "Mục đích chuyến đi" },
+  { ru: "Категория и вид визы", en: "Visa category and type", vi: "Loại và diện visa" },
+  { ru: "Кратность визы", en: "Number of entries", vi: "Số lần nhập cảnh" },
+  { ru: "Фамилия", en: "Surname", vi: "Họ" },
+  { ru: "Имя, другие имена, отчество", en: "First name, middle names, patronymic", vi: "Tên, tên đệm, tên cha" },
+  { ru: "Дата рождения", en: "Date of birth", vi: "Ngày sinh" },
+  { ru: "Место рождения", en: "Place of birth", vi: "Nơi sinh" },
+  { ru: "Пол", en: "Sex", vi: "Giới tính" },
+  { ru: "Номер паспорта", en: "Passport number", vi: "Số hộ chiếu" },
+  { ru: "Дата выдачи паспорта", en: "Passport issue date", vi: "Ngày cấp hộ chiếu" },
+  { ru: "Паспорт действителен до", en: "Passport valid until", vi: "Hộ chiếu có giá trị đến" },
+  { ru: "Наименование организации", en: "Name of organization", vi: "Tên cơ quan/tổ chức" },
+  { ru: "Адрес организации", en: "Organization address", vi: "Địa chỉ tổ chức" },
+  { ru: "ИНН", en: "TIN / taxpayer ID", vi: "Mã số thuế tổ chức" },
+  { ru: "Номер указания (телекса)", en: "Directive (telex) number", vi: "Số chỉ thị/telex" },
+  { ru: "Номер приглашения", en: "Invitation number", vi: "Số giấy mời" },
+  { ru: "Маршрут", en: "Itinerary / route", vi: "Lộ trình / nơi đến" },
+  { ru: "Должность", en: "Position", vi: "Chức danh/vị trí" },
+  { ru: "МУЖСКОЙ", en: "Male", vi: "Nam" },
+  { ru: "ЖЕНСКИЙ", en: "Female", vi: "Nữ" },
+  { ru: "УЧЕБА", en: "Study", vi: "Học tập" },
+  { ru: "ОДНОКРАТНАЯ", en: "Single-entry", vi: "Nhập cảnh một lần" },
+  { ru: "ОБЫКНОВЕННАЯ УЧЕБНАЯ", en: "Common educational visa", vi: "Visa học tập thông thường" },
+  { ru: "МОСКВА", en: "Moscow", vi: "Moskva/Moscow" },
+  { ru: "ВЬЕТНАМ", en: "Vietnam", vi: "Việt Nam" },
+];
+
+function russianTooltip(label: string) {
+  const upper = label.toUpperCase();
+  const match = [...russianHints].sort((a, b) => b.ru.length - a.ru.length).find((item) => upper.includes(item.ru.toUpperCase()));
+  return match ? `English: ${match.en}\nTiếng Việt: ${match.vi}` : undefined;
+}
+
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
-  return <label className={styles.field}><span>{label}</span>{children}{hint ? <small>{hint}</small> : null}</label>;
+  const tooltip = russianTooltip(label);
+  return <label className={styles.field}><span className={tooltip ? styles.ruLabel : undefined} title={tooltip}>{label}{tooltip ? <i className={styles.helpDot}>?</i> : null}</span>{children}{hint ? <small>{hint}</small> : null}</label>;
 }
 
 function TextInput({ value, onChange, placeholder = "" }: { value: string; onChange: (value: string) => void; placeholder?: string }) {
@@ -243,6 +295,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
   const [editing, setEditing] = useState<Applicant | null>(null);
   const [keepPrompt, setKeepPrompt] = useState<ResumeRecord | null>(null);
   const [bookmarklet, setBookmarklet] = useState("");
+  const [autoAdvance, setAutoAdvance] = useState(false);
 
   useEffect(() => {
     const loaded = safeLoad();
@@ -290,7 +343,8 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
   function saveApplicant(next: Applicant) {
     setStore((current) => {
       const exists = current.applicants.some((item) => item.id === next.id);
-      const applicants = exists ? current.applicants.map((item) => item.id === next.id ? next : item) : [next, ...current.applicants];
+      const normalized = { ...next, personalAddress: fixedPermanentAddress, workPhone: fixedWorkPhone };
+      const applicants = exists ? current.applicants.map((item) => item.id === normalized.id ? normalized : item) : [normalized, ...current.applicants];
       return { ...current, applicants, selectedId: next.id };
     });
     setEditing(null);
@@ -321,6 +375,18 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
 
   function openKdmid() {
     window.open("https://visa.kdmid.ru/", "kdmidVisa");
+  }
+
+  function openAutomaticKdmid() {
+    if (!selected) {
+      setNotice("Hãy tạo hoặc chọn một hồ sơ trước.");
+      setRoute("applicants");
+      return;
+    }
+    window.open(buildAutomationUrl(selected, store.common, autoAdvance), "kdmidVisa");
+    setNotice(autoAdvance
+      ? "Đã mở KD-MID ở chế độ tự điền + tự chuyển trang. Script sẽ dừng trước bước in/kiểm tra cuối."
+      : "Đã mở KD-MID ở chế độ tự điền liên tục. Mỗi trang được điền tự động; bạn bấm Далее sau khi kiểm tra.");
   }
 
   function saveManualRecord() {
@@ -440,6 +506,8 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         <Field label="Địa chỉ cơ quan"><TextInput value={c.employerAddress} onChange={(v) => mutateCommon("employerAddress", v)} /></Field>
         <Field label="Email cơ quan"><TextInput value={c.employerEmail} onChange={(v) => mutateCommon("employerEmail", v)} /></Field>
         <Field label="Chức danh mặc định"><TextInput value={c.defaultPosition} onChange={(v) => mutateCommon("defaultPosition", v)} /></Field>
+        <Field label="Адрес вашего постоянного проживания · Địa chỉ thường trú" hint="Cố định cho mọi hồ sơ."><input value={fixedPermanentAddress} readOnly /></Field>
+        <Field label="Рабочий телефон · Điện thoại cơ quan" hint="Cố định cho mọi hồ sơ."><input value={fixedWorkPhone} readOnly /></Field>
       </div>
     </section>;
   }
@@ -455,19 +523,24 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
 
   function renderConnect() {
     return <section className={styles.panel}>
-      <header><div><span>KẾT NỐI KD-MID</span><h3>Bookmarklet bridge</h3></div><button onClick={() => void prepareBridge()} disabled={!selected}>Tạo lại bridge</button></header>
+      <header><div><span>KẾT NỐI KD-MID</span><h3>Tự động điền visa.kdmid.ru</h3></div><button onClick={() => void prepareBridge()} disabled={!selected}>Tạo bookmarklet dự phòng</button></header>
+      <div className={styles.autoConnect}>
+        <div><span>KHUYÊN DÙNG</span><h4>Chế độ tự động liên tục bằng Companion Script</h4><p>Cài script một lần. Sau đó chỉ cần chọn hồ sơ trong App-Manager và bấm <strong>“Mở KD-MID & tự điền”</strong>. Script tự nhận dữ liệu từ URL hash, xóa hash ngay sau khi nhận, lưu tạm dữ liệu ở localStorage của visa.kdmid.ru và tự điền mỗi trang.</p></div>
+        <div className={styles.autoActions}><a className={styles.installLink} href="/kd-mid-visa-companion.user.js" target="_blank" rel="noreferrer">1. Cài Companion Script ↗</a><button onClick={openAutomaticKdmid} disabled={!selected}>2. Mở KD-MID & tự điền</button></div>
+        <label className={styles.autoToggle}><input type="checkbox" checked={autoAdvance} onChange={(event) => setAutoAdvance(event.target.checked)} /><span><strong>Tự bấm Далее khi trang đã được điền</strong><small>Tắt mặc định. Khi bật, script chỉ tự chuyển các trang trung gian và dừng trước màn hình in/kiểm tra cuối hoặc khi gặp trang không nhận diện chắc chắn.</small></span></label>
+      </div>
       <div className={styles.connectGrid}>
-        <article><b>1</b><strong>Chọn hồ sơ</strong><p>{selected ? displayName(selected) : "Chưa chọn hồ sơ."}</p></article>
-        <article><b>2</b><strong>Tạo bookmark</strong><p>Tạo bookmark tên <code>KD-MID AutoFill VN</code> rồi dán đoạn JavaScript vào trường URL.</p></article>
-        <article><b>3</b><strong>Mở visa.kdmid.ru</strong><p>Trên mỗi trang form, bấm bookmark để tự điền các trường nhận diện được.</p></article>
-        <article><b>4</b><strong>Kiểm tra trước Далее</strong><p>Bridge không tự gửi hồ sơ cuối cùng; bạn vẫn kiểm tra dữ liệu trước khi tiếp tục.</p></article>
+        <article><b>1</b><strong>Cài userscript một lần</strong><p>Cần Tampermonkey/Violentmonkey trên Chrome/Edge. Mở link Companion ở trên và bấm Install.</p></article>
+        <article><b>2</b><strong>Chọn hồ sơ</strong><p>{selected ? displayName(selected) : "Chưa chọn hồ sơ."} Các trường chung + cố định sẽ tự ghép vào hồ sơ.</p></article>
+        <article><b>3</b><strong>Bấm “Mở KD-MID & tự điền”</strong><p>Không cần tạo bookmark và không cần bấm bookmark lại ở từng trang.</p></article>
+        <article><b>4</b><strong>Rà soát cuối</strong><p>Tool dừng trước bước in/gửi cuối để bạn kiểm tra thông tin pháp lý trước khi hoàn tất.</p></article>
       </div>
       <div className={styles.bridgeBox}>
-        <div><strong>Bookmarklet hiện tại</strong><small>{bookmarklet ? "Đã tạo cho hồ sơ đang chọn" : "Bấm “Tạo lại bridge” để tạo."}</small></div>
-        <textarea readOnly value={bookmarklet} placeholder="javascript:..." />
-        <div className={styles.bridgeActions}><button onClick={async () => { if (!bookmarklet) return; await navigator.clipboard.writeText(bookmarklet); setNotice("Đã sao chép bookmarklet."); }} disabled={!bookmarklet}>Sao chép</button><button className={styles.secondary} onClick={openKdmid}>Mở visa.kdmid.ru ↗</button></div>
+        <div><strong>Phương án dự phòng: Bookmarklet</strong><small>Dùng khi không muốn cài userscript. Cần bấm bookmarklet trên từng trang KD-MID.</small></div>
+        <textarea readOnly value={bookmarklet} placeholder="Bấm “Tạo bookmarklet dự phòng” để tạo javascript:..." />
+        <div className={styles.bridgeActions}><button onClick={async () => { if (!bookmarklet) return; await navigator.clipboard.writeText(bookmarklet); setNotice("Đã sao chép bookmarklet."); }} disabled={!bookmarklet}>Sao chép bookmarklet</button><button className={styles.secondary} onClick={openKdmid}>Mở KD-MID thủ công ↗</button></div>
       </div>
-      <div className={styles.warning}><strong>Giới hạn của Web App</strong><p>Trình duyệt không cho một domain sửa trực tiếp DOM của domain khác. Bookmarklet chạy ngay trên visa.kdmid.ru để vượt giới hạn same-origin mà không gửi dữ liệu qua máy chủ trung gian.</p></div>
+      <div className={styles.warning}><strong>Vì sao cần Companion Script?</strong><p>Web App không thể trực tiếp sửa DOM của visa.kdmid.ru do chính sách same-origin của trình duyệt. Companion chạy cục bộ ngay trên domain KD-MID nên có thể tự điền mọi trang mà không chuyển hồ sơ qua backend của App-Manager.</p></div>
     </section>;
   }
 
@@ -511,11 +584,11 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
           <Field label="Номер паспорта"><TextInput value={editing.passportNo} onChange={(v) => setEditing({ ...editing, passportNo: v.toUpperCase() })} /></Field>
           <Field label="Дата выдачи паспорта"><TextInput value={editing.passportIssue} onChange={(v) => setEditing({ ...editing, passportIssue: v })} placeholder="25/06/2025" /></Field>
           <Field label="Паспорт действителен до"><TextInput value={editing.passportExpiry} onChange={(v) => setEditing({ ...editing, passportExpiry: v })} placeholder="25/06/2035" /></Field>
-          <Field label="Địa chỉ thường trú"><TextInput value={editing.personalAddress} onChange={(v) => setEditing({ ...editing, personalAddress: v })} /></Field>
+          <Field label="Адрес вашего постоянного проживания · Địa chỉ thường trú" hint="Cố định cho mọi hồ sơ."><input value={fixedPermanentAddress} readOnly /></Field>
           <Field label="Điện thoại cá nhân"><TextInput value={editing.phone} onChange={(v) => setEditing({ ...editing, phone: v })} /></Field>
           <Field label="Email cá nhân"><TextInput value={editing.email} onChange={(v) => setEditing({ ...editing, email: v })} /></Field>
           <Field label="Должность · Chức danh" hint={`Mặc định: ${store.common.defaultPosition}`}><TextInput value={editing.position} onChange={(v) => setEditing({ ...editing, position: v })} /></Field>
-          <Field label="Điện thoại cơ quan"><TextInput value={editing.workPhone} onChange={(v) => setEditing({ ...editing, workPhone: v })} /></Field>
+          <Field label="Рабочий телефон · Điện thoại cơ quan" hint="Cố định cho mọi hồ sơ."><input value={fixedWorkPhone} readOnly /></Field>
           <Field label="Password riêng" hint={`Để trống = dùng ${store.common.password}`}><TextInput value={editing.passwordOverride} onChange={(v) => setEditing({ ...editing, passwordOverride: v })} /></Field>
           <Field label="Application ID" hint="Bridge sẽ tự ghi khi nhận diện được."><TextInput value={editing.applicationId} onChange={(v) => setEditing({ ...editing, applicationId: v.replace(/\D/g, "") })} /></Field>
         </div>
