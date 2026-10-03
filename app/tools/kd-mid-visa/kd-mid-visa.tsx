@@ -230,7 +230,8 @@ const setDate=(label,v)=>{if(!v)return false;const [d,m,y]=v.split("/");const c=
 const setAnyText=(labels,v)=>labels.some(l=>setText(l,v));
 const setAnySelect=(labels,v)=>labels.some(l=>setSelect(l,v));
 setAnySelect(["Гражданство"],p.citizenship);
-setYesNo("Если Вы имели гражданство СССР или России",false);
+setYesNo("Если Вы имели гражданство СССР или России",A.hadFormerRussianCitizenship);
+if(A.hadFormerRussianCitizenship){setDate("Когда",A.formerCitizenshipLostDate);setAnyText(["В связи с чем","В связи с чем?"],A.formerCitizenshipLossReason)};
 setAnySelect(["Цель поездки (раздел)"],p.purposeSection);
 setAnySelect(["Цель поездки"],p.purpose);
 setAnySelect(["Категория и вид визы"],p.visaType);
@@ -250,7 +251,7 @@ setAnyText(["Адрес"],p.organizationAddress);
 setAnyText(["ИНН организации"],p.tin);
 setAnyText(["Номер указания (телекса)"],p.telex);
 setAnyText(["Номер приглашения"],p.invitation);
-setAnyText(["Населенный пункт"],p.city);
+setAnyText(["Населенный пункт"],A.routeCity||p.city);
 setYesNo("Имеете ли Вы документ о медицинском страховании",A.hasInsurance);
 if(A.hasInsurance)setAnyText(["Название страховой компании и номер полиса","номер страхового документа"],A.insurancePolicy);
 setYesNo("Были ли Вы когда-нибудь в России",A.visitedRussia);
@@ -416,6 +417,17 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       return;
     }
     const missing = applicantMissingFields(selected);
+    if (!selected.routeCity.trim()) missing.push("Маршрут / Nơi đến tại Nga");
+    if (selected.hadFormerRussianCitizenship) {
+      if (!selected.formerCitizenshipLostDate.trim()) missing.push("Когда? / Ngày mất quốc tịch Liên Xô/Nga");
+      if (!selected.formerCitizenshipLossReason.trim()) missing.push("В связи с чем? / Lý do mất quốc tịch");
+    }
+    if (selected.visitedRussia) {
+      if (!selected.visitsCount.trim()) missing.push("Số lần đã đến Nga");
+      if (!selected.lastVisitFrom.trim()) missing.push("Ngày bắt đầu chuyến Nga gần nhất");
+      if (!selected.lastVisitTo.trim()) missing.push("Ngày kết thúc chuyến Nga gần nhất");
+    }
+    if (selected.hasInsurance && !selected.insurancePolicy.trim()) missing.push("Số hợp đồng bảo hiểm");
     if (missing.length) {
       setNotice(`Chưa thể tự điền. Hồ sơ còn thiếu: ${missing.join(", ")}.`);
       setRoute("applicants");
@@ -556,7 +568,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
     return <>
       <section className={styles.hero}>
         <div><span>TOOL · RUSSIA VISA</span><h2>Chuẩn bị hồ sơ KD-MID nhanh hơn, vẫn kiểm tra trước khi gửi.</h2><p>Form chính thức giữ tiếng Nga. Tool quản lý dữ liệu dùng chung, chỉ yêu cầu nhập phần khác nhau của từng người và tạo bridge tự điền cho visa.kdmid.ru.</p></div>
-        <div className={styles.heroActions}><button onClick={() => { setEditing(emptyApplicant()); setRoute("applicants"); }}>+ Hồ sơ mới</button><button className={styles.secondary} onClick={() => setRoute("pdf")}>Xuất PDF visa</button></div>
+        <div className={styles.heroActions}><button onClick={() => { setEditing(emptyApplicant()); setRoute("applicants"); }}>+ Hồ sơ mới</button><button className={styles.secondary} onClick={() => setRoute("connect")}>Mở KD-MID chính thức</button></div>
       </section>
       <section className={styles.metrics}>
         <article><span>Hồ sơ cá nhân</span><strong>{store.applicants.length}</strong><small>{completeCount} đã có Application ID</small></article>
@@ -569,8 +581,8 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         <div className={styles.steps}>
           <article><b>01</b><strong>Tạo hồ sơ</strong><p>Nhập họ tên, hộ chiếu, liên hệ, lịch sử Nga và bảo hiểm.</p></article>
           <article><b>02</b><strong>Dùng trường chung</strong><p>Study · visa học tập · single entry · Bộ · TIN · telex · Moscow.</p></article>
-          <article><b>03</b><strong>Chọn nơi nộp</strong><p>Hà Nội · Đà Nẵng · TP. Hồ Chí Minh; tên cơ quan được in đúng bằng tiếng Nga.</p></article>
-          <article><b>04</b><strong>Xuất PDF 2 trang</strong><p>Tạo trực tiếp PDF theo bố cục của hai mẫu KD-MID đã đối chiếu, không cần thao tác trên visa.kdmid.ru.</p></article>
+          <article><b>03</b><strong>Điền trên KD-MID chính thức</strong><p>Companion mở visa.kdmid.ru, mặc định Việt Nam + tiếng Nga và điền hồ sơ trên hệ thống thật.</p></article>
+          <article><b>04</b><strong>Lấy PDF chính thức</strong><p>Đến màn hình cuối, chính KD-MID tạo Application ID, barcode và bản in A4; Tool không tự chế mã.</p></article>
         </div>
       </section>
     </>;
@@ -586,7 +598,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
           <button onClick={() => setEditing({ ...item })}>Sửa</button><button className={styles.danger} onClick={() => removeApplicant(item.id)}>Xóa</button>
         </article>)}
       </div>}
-      {selected ? <div className={styles.selectedBar}><span>Đang chọn</span><strong>{displayName(selected)}</strong><button onClick={() => setRoute("pdf")}>Xuất PDF</button></div> : null}
+      {selected ? <div className={styles.selectedBar}><span>Đang chọn</span><strong>{displayName(selected)}</strong><button onClick={() => setRoute("connect")}>Điền trên KD-MID</button></div> : null}
     </section>;
   }
 
@@ -608,7 +620,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         <Field label="Номер указания (телекса)"><TextInput value={c.telex} onChange={(v) => mutateCommon("telex", v)} /></Field>
         <Field label="Номер приглашения" hint="Để trống nếu giấy ghi НЕТ."><TextInput value={c.invitation} onChange={(v) => mutateCommon("invitation", v)} /></Field>
         <Field label="Маршрут mặc định · Населенный пункт" hint="Hồ sơ cá nhân có thể ghi đè giá trị này."><TextInput value={c.city} onChange={(v) => mutateCommon("city", v)} /></Field>
-        <Field label="Nơi nộp hồ sơ · Получатель анкеты" hint="Chọn đúng cơ quan tiếp nhận; giá trị tiếng Nga sẽ được in trên PDF."><select value={c.embassy} onChange={(event) => mutateCommon("embassy", event.target.value)}>{visaConsulates.map((item) => <option key={item.value} value={item.value}>{item.label} · {item.value}</option>)}</select></Field>
+        <Field label="Nơi nộp hồ sơ · Получатель анкеты" hint="Chọn đúng cơ quan tiếp nhận; Tool sẽ điền lựa chọn này trên visa.kdmid.ru."><select value={c.embassy} onChange={(event) => mutateCommon("embassy", event.target.value)}>{visaConsulates.map((item) => <option key={item.value} value={item.value}>{item.label} · {item.value}</option>)}</select></Field>
         <Field label="Nơi làm việc / học tập"><TextInput value={c.employer} onChange={(v) => mutateCommon("employer", v)} /></Field>
         <Field label="Địa chỉ cơ quan"><TextInput value={c.employerAddress} onChange={(v) => mutateCommon("employerAddress", v)} /></Field>
         <Field label="Email cơ quan"><TextInput value={c.employerEmail} onChange={(v) => mutateCommon("employerEmail", v)} /></Field>
@@ -664,7 +676,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
     return <section className={styles.panel}>
       <header><div><span>KẾT NỐI KD-MID</span><h3>Tự động điền visa.kdmid.ru</h3></div><button onClick={() => void prepareBridge()} disabled={!selected}>Tạo bookmarklet dự phòng</button></header>
       <div className={styles.autoConnect}>
-        <div><span>KHUYÊN DÙNG</span><h4>Chế độ tự động liên tục bằng Companion Script</h4><p>Cài script một lần. Sau đó chọn đúng hồ sơ ngay tại đây rồi bấm <strong>“Mở KD-MID & tự điền”</strong>. Companion nhận dữ liệu từ App-Manager và tự điền từng trang.</p></div>
+        <div><span>KHUYÊN DÙNG</span><h4>Làm hồ sơ trực tiếp trên visa.kdmid.ru</h4><p>Cài Companion một lần. Sau đó chọn hồ sơ và bấm <strong>“Mở KD-MID & tự điền”</strong>. Trang đầu tự chọn <strong>Việt Nam</strong>, ngôn ngữ <strong>tiếng Nga</strong>, tích đã đọc; các trang sau điền dữ liệu thật để KD-MID cấp Application ID và barcode chính thức.</p></div>
         <div className={styles.autoActions}><a className={styles.installLink} href="/kd-mid-visa-companion.user.js" target="_blank" rel="noreferrer">1. Cài Companion Script ↗</a><button onClick={openAutomaticKdmid} disabled={!selected}>3. Mở KD-MID & tự điền</button></div>
         <div className={styles.profileChooser}>
           <div><span>BƯỚC 2</span><strong>Chọn hồ sơ sử dụng</strong><small>Danh sách lấy trực tiếp từ mục Hồ sơ cá nhân đã lưu trên máy này.</small></div>
@@ -681,15 +693,15 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       <div className={styles.connectGrid}>
         <article><b>1</b><strong>Cài Companion một lần</strong><p>Mở “Cài Companion Script”. Tampermonkey/Violentmonkey phải hiện màn hình cài và sau đó script ở trạng thái <strong>Enabled</strong>. Nếu chỉ thấy trang đăng nhập App-Manager thì chưa cài được.</p></article>
         <article><b>2</b><strong>Chọn hồ sơ ngay phía trên</strong><p>{selected ? `Đang chọn: ${displayName(selected)}.` : "Chưa chọn hồ sơ."} Nếu có nhiều hồ sơ, mở danh sách và chọn đúng người trước khi chạy.</p></article>
-        <article><b>3</b><strong>Bấm “Mở KD-MID & tự điền”</strong><p>App-Manager chỉ mở URL ngắn có mã bridge rồi truyền hồ sơ bằng postMessage. Nếu URL đứng im và còn <code>#kdmid-bridge=...</code>, Companion chưa chạy.</p></article>
-        <article><b>4</b><strong>Rà soát cuối</strong><p>Tool dừng trước bước in/gửi cuối để bạn kiểm tra thông tin pháp lý trước khi hoàn tất.</p></article>
+        <article><b>3</b><strong>Mở KD-MID & tự điền</strong><p>Companion điền trực tiếp trên trang chính thức. Nếu bật auto-next, nó tự bấm <strong>Заполнить новую анкету / Далее</strong> ở các bước nhận diện chắc chắn.</p></article>
+        <article><b>4</b><strong>In A4 từ KD-MID</strong><p>Companion dừng ở màn hình in. Bấm <strong>Печать формата A4</strong> trên KD-MID để nhận PDF có ID + barcode chính thức.</p></article>
       </div>
       <div className={styles.bridgeBox}>
         <div><strong>Phương án dự phòng: Bookmarklet</strong><small>Dùng khi không muốn cài userscript. Cần bấm bookmarklet trên từng trang KD-MID.</small></div>
         <textarea readOnly value={bookmarklet} placeholder="Bấm “Tạo bookmarklet dự phòng” để tạo javascript:..." />
         <div className={styles.bridgeActions}><button onClick={async () => { if (!bookmarklet) return; await navigator.clipboard.writeText(bookmarklet); setNotice("Đã sao chép bookmarklet."); }} disabled={!bookmarklet}>Sao chép bookmarklet</button><button className={styles.secondary} onClick={openKdmid}>Mở KD-MID thủ công ↗</button></div>
       </div>
-      <div className={styles.warning}><strong>Chẩn đoán nhanh</strong><p>Nếu bấm bước 2 mà chỉ mở <code>visa.kdmid.ru/#kdmid-bridge=...</code> rồi đứng im, nguyên nhân gần như chắc chắn là Companion chưa được cài/đang Disabled. Sau khi Companion chạy, đoạn <code>#kdmid-bridge=...</code> sẽ tự biến mất và góc dưới trang KD-MID sẽ hiện trạng thái tự điền.</p></div>
+      <div className={styles.warning}><strong>Quan trọng về barcode</strong><p>Barcode chỉ hợp lệ khi do KD-MID tạo từ hồ sơ điện tử thật. Tool này chỉ hỗ trợ nhập dữ liệu trên trang chính thức và lưu Application ID; không tự sinh barcode/PDF thay KD-MID. Nếu URL còn <code>#kdmid-bridge=...</code> và đứng im, hãy kiểm tra Companion đang Enabled.</p></div>
     </section>;
   }
 
@@ -709,16 +721,16 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       <Link href="/?view=applications" className={styles.back}>← Application Management</Link>
       <div className={styles.brand}><span>KV</span><div><strong>KD-MID Visa VN</strong><small>Form Nga · hướng dẫn Việt</small></div></div>
       <nav>
-        {([["dashboard","Tổng quan"],["applicants","Hồ sơ cá nhân"],["common","Trường dùng chung"],["pdf","Xuất PDF visa"],["records","Bản ghi mở lại"],["backup","Sao lưu dữ liệu"]] as Array<[Route,string]>).map(([id,label]) => <button key={id} data-active={route === id} onClick={() => setRoute(id)}>{label}</button>)}
+        {([["dashboard","Tổng quan"],["applicants","Hồ sơ cá nhân"],["common","Trường dùng chung"],["connect","Kết nối KD-MID"],["records","Bản ghi mở lại"],["backup","Sao lưu dữ liệu"]] as Array<[Route,string]>).map(([id,label]) => <button key={id} data-active={route === id} onClick={() => setRoute(id)}>{label}</button>)}
       </nav>
       <div className={styles.privacy}><strong>● Local-first</strong><small>Dữ liệu hồ sơ chỉ lưu trong trình duyệt này, trừ khi bạn tự xuất backup.</small></div>
       <div className={styles.user}><span>{user.displayName.slice(0,1).toUpperCase()}</span><div><strong>{user.displayName}</strong><small>{user.email}</small></div></div>
     </aside>
 
     <section className={styles.main}>
-      <header className={styles.topbar}><div><span>APPLICATION MANAGEMENT · TOOL</span><h1>{route === "dashboard" ? "Tổng quan" : route === "applicants" ? "Hồ sơ cá nhân" : route === "common" ? "Trường dùng chung" : route === "pdf" ? "Xuất PDF visa" : route === "records" ? "Bản ghi mở lại" : "Sao lưu dữ liệu"}</h1></div><div><button className={styles.secondary} onClick={() => setRoute("pdf")}>Xuất PDF</button><button onClick={() => setEditing(emptyApplicant())}>+ Hồ sơ mới</button></div></header>
+      <header className={styles.topbar}><div><span>APPLICATION MANAGEMENT · TOOL</span><h1>{route === "dashboard" ? "Tổng quan" : route === "applicants" ? "Hồ sơ cá nhân" : route === "common" ? "Trường dùng chung" : route === "connect" ? "Kết nối KD-MID" : route === "records" ? "Bản ghi mở lại" : "Sao lưu dữ liệu"}</h1></div><div><button className={styles.secondary} onClick={() => setRoute("connect")}>Mở KD-MID chính thức</button><button onClick={() => setEditing(emptyApplicant())}>+ Hồ sơ mới</button></div></header>
       {notice ? <div className={styles.notice}>{notice}<button onClick={() => setNotice("")}>×</button></div> : null}
-      <div className={styles.content}>{route === "dashboard" ? renderDashboard() : route === "applicants" ? renderApplicants() : route === "common" ? renderCommon() : route === "pdf" ? renderPdfExport() : route === "records" ? renderRecords() : renderBackup()}</div>
+      <div className={styles.content}>{route === "dashboard" ? renderDashboard() : route === "applicants" ? renderApplicants() : route === "common" ? renderCommon() : route === "connect" ? renderConnect() : route === "records" ? renderRecords() : renderBackup()}</div>
     </section>
 
     {editing ? <div className={styles.modalBackdrop} onMouseDown={(event) => { if (event.currentTarget === event.target) setEditing(null); }}><section className={styles.modal}>
