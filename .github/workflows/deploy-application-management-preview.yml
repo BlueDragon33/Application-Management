@@ -24,7 +24,6 @@ jobs:
       MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY: ${{ secrets.MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
-      TINYFISH_API_KEY: ${{ secrets.TINYFISH_API_KEY }}
       APPLICATION_MANAGEMENT_PREVIEW_ORIGIN: ${{ vars.APPLICATION_MANAGEMENT_PREVIEW_ORIGIN }}
       APPLICATION_MANAGEMENT_ACCESS_MODE: standalone
       CONTROL_OWNER_EMAILS: owner@example.com
@@ -134,7 +133,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for key in VERCEL_TOKEN NEON_API_KEY TINYFISH_API_KEY; do
+          for key in VERCEL_TOKEN NEON_API_KEY; do
             value="${!key:-}"
             if [[ -n "$value" ]]; then
               printf '%s' "$value" | npx wrangler secret put "$key" --config wrangler.cloudflare.jsonc
