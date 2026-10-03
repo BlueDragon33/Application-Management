@@ -17,7 +17,7 @@ test("overview matches the approved panel order", () => {
   assert.match(ui, /title="Hộp việc ưu tiên"/);
   assert.match(ui, /title="Cảnh báo nhanh"/);
   assert.match(ui, /Thao tác nhanh/);
-  assert.match(ui, /title="Ứng dụng đang quản lý"/);
+  assert.match(ui, />Ứng dụng đang quản lý<\/h2>/);
   assert.match(ui, /title="Thiết bị mới theo ứng dụng"/);
 });
 
