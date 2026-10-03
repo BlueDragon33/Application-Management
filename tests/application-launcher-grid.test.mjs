@@ -12,6 +12,55 @@ test("Applications view keeps launcher grid as the default mode", () => {
   assert.match(dashboard, /data-testid="app-launcher-list"/);
 });
 
+test("Overview managed-app box is one read-only screen that jumps to Applications", () => {
+  assert.match(dashboard, /className="amv2-panel amv2-apps-panel amv2-overview-apps-launcher"/);
+  assert.match(dashboard, /role="button"/);
+  assert.match(dashboard, /aria-label="Mở tab Ứng dụng"/);
+  assert.match(dashboard, /onClick=\{\(\) => switchView\("applications"\)\}/);
+  assert.match(dashboard, /className="amv2-overview-app-screen"/);
+  assert.match(dashboard, /<b>Online<\/b>/);
+  assert.match(dashboard, /item\.status/);
+});
+
+test("Overview orders application clients before Tools and contains no per-tile action buttons", () => {
+  const start = dashboard.indexOf("const overviewItems = [");
+  const end = dashboard.indexOf("return <>", start);
+  const model = dashboard.slice(start, end);
+  assert.ok(model.indexOf("...apps.map") < model.indexOf("...tools.map"));
+
+  const panelStart = dashboard.indexOf('className="amv2-panel amv2-apps-panel amv2-overview-apps-launcher"');
+  const panelEnd = dashboard.indexOf('className="amv2-panel amv2-devices-panel"', panelStart);
+  const panel = dashboard.slice(panelStart, panelEnd);
+  assert.doesNotMatch(panel, /amv2-web-action|amv2-manage-action|<button/);
+});
+
+test("Applications launcher defaults to manual app-first ordering", () => {
+  assert.match(dashboard, /useState<AppLauncherSort>\("manual"\)/);
+  assert.match(dashboard, /return \[\.\.\.appItems, \.\.\.toolItems\]/);
+  assert.match(dashboard, /if \(a\.kind !== b\.kind\) return a\.kind === "app" \? -1 : 1/);
+  assert.match(dashboard, /<option value="manual">Thủ công<\/option>/);
+  assert.match(dashboard, /<option value="category">Phân loại<\/option>/);
+});
+
+test("Holding an icon for 3 seconds enables pointer reorder and persists manual order", () => {
+  assert.match(dashboard, /window\.setTimeout\(\(\) => \{[\s\S]*setEditMode\(true\)[\s\S]*\}, 3000\)/);
+  assert.match(dashboard, /data-launcher-id=\{item\.id\}/);
+  assert.match(dashboard, /handleCardPointerMove/);
+  assert.match(dashboard, /document\.elementFromPoint/);
+  assert.match(dashboard, /launcherOrderStorageKey/);
+  assert.match(dashboard, /localStorage\.setItem\(launcherOrderStorageKey/);
+  assert.match(css, /\.amv2-launcher-grid\[data-editing="true"\]/);
+});
+
+test("App category can be edited as a display preference without mutating client contract", () => {
+  assert.match(dashboard, /launcherCategoryStorageKey/);
+  assert.match(dashboard, /categoryOverrides\[app\.id\] \|\| app\.category/);
+  assert.match(dashboard, /className="amv2-category-edit-trigger"/);
+  assert.match(dashboard, /Phân loại hiển thị/);
+  assert.match(dashboard, /saveCategoryOverride\(selectedItem, categoryDraft\)/);
+  assert.match(dashboard, /không đổi contract của client/);
+});
+
 test("launcher cards behave like phone app tiles and move detail into the popover", () => {
   const cardStart = dashboard.indexOf('className="amv2-launcher-card"');
   const cardEnd = dashboard.indexOf('!visibleItems.length', cardStart);
@@ -32,7 +81,7 @@ test("popover owns operational details and management link", () => {
   assert.match(dashboard, />Trạng thái<\/span>/);
   assert.match(dashboard, />Online<\/span>/);
   assert.match(dashboard, />Chờ xử lý<\/span>/);
-  assert.match(dashboard, />Loại<\/span>/);
+  assert.match(dashboard, />Phân loại<\/span>/);
   assert.match(dashboard, />Liên kết quản trị<\/span>/);
   assert.match(dashboard, /selectedItem\.manageHref \? <Link/);
 });
