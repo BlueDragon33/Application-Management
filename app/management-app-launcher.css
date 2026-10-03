@@ -999,3 +999,14 @@
     grid-column: 1 / -1;
   }
 }
+
+
+.amv2-launcher-help[data-auto-sort="true"] {
+  border-color: rgba(72, 225, 178, .24);
+  background: rgba(13, 111, 83, .16);
+  color: #b7d9ce;
+}
+
+.amv2-launcher-help[data-auto-sort="true"] b {
+  color: #5fe0b8;
+}
