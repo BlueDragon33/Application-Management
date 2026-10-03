@@ -35,7 +35,7 @@ test("popover owns operational details and management link", () => {
 });
 
 test("popover exposes compact Open Manage Details actions", () => {
-  assert.match(dashboard, />↗ Mở<\/button>/);
+  assert.match(dashboard, /webBusy === selectedItem\.id \? "Đang mở…" : "↗ Mở"/);
   assert.match(dashboard, />⚙ Quản trị<\/Link>/);
   assert.match(dashboard, /ⓘ \{detailOpen \? "Thu gọn" : "Xem chi tiết"\}/);
   assert.match(dashboard, /setDetailOpen\(\(current\) => !current\)/);
