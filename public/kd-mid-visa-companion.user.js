@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.3.0
+// @version      0.4.0
 // @description  Tự điền visa.kdmid.ru từ KD-MID Visa VN Tool, thêm tooltip Anh/Việt và tùy chọn tự chuyển trang.
 // @match        https://visa.kdmid.ru/*
 // @run-at       document-idle
@@ -16,8 +16,15 @@
   const DATA_KEY = "kd-mid-visa-vn:payload:v2";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v2";
   const HASH_PREFIX = "#kdmid-bridge=";
+  const DEFAULT_START_COUNTRY = "ВЬЕТНАМ";
+  const DEFAULT_HELP_LANGUAGE = "РУССКИЙ";
 
   const hints = [
+    ["Страна", "Country where you will apply for the Russian visa", "Nước nơi nộp hồ sơ xin visa Nga"],
+    ["Язык подсказок", "Hints and help language", "Ngôn ngữ hướng dẫn"],
+    ["Я прочитал эту информацию", "I have read this information", "Tôi đã đọc thông tin này"],
+    ["Заполнить новую анкету", "Fill in a new application", "Điền hồ sơ mới"],
+    ["Открыть ранее заполненную анкету", "Open a previously completed application", "Mở hồ sơ đã điền trước đó"],
     ["Гражданство", "Citizenship", "Quốc tịch"],
     ["Если Вы имели гражданство СССР или России", "If you previously had USSR or Russian citizenship", "Nếu trước đây từng có quốc tịch Liên Xô hoặc Nga"],
     ["Цель поездки (раздел)", "Purpose of visit (section)", "Mục đích chuyến đi (nhóm)"],
@@ -170,6 +177,17 @@
     return setSelect(label, value ? "ДА" : "НЕТ");
   }
 
+  function setCheckbox(label, checked = true) {
+    const element = blockControls(label).find((item) => item.type === "checkbox");
+    if (!element) return false;
+    if (element.checked !== checked) {
+      element.checked = checked;
+      fire(element);
+      element.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    }
+    return true;
+  }
+
   function setDate(label, value) {
     if (!value) return false;
     const parts = value.split("/");
@@ -197,6 +215,12 @@
     const select = (labels, value) => { if (labels.some((label) => setSelect(label, value))) changed += 1; };
     const yesNo = (label, value) => { if (setYesNo(label, value)) changed += 1; };
     const date = (label, value) => { if (setDate(label, value)) changed += 1; };
+    const checkbox = (label, value = true) => { if (setCheckbox(label, value)) changed += 1; };
+
+    // Trang đầu KD-MID: mặc định nộp tại Việt Nam, hướng dẫn tiếng Nga.
+    select(["Страна"], DEFAULT_START_COUNTRY);
+    select(["Язык подсказок"], DEFAULT_HELP_LANGUAGE);
+    checkbox("Я прочитал эту информацию", true);
 
     select(["Гражданство"], payload.citizenship);
     yesNo("Если Вы имели гражданство СССР или России", false);
@@ -327,7 +351,8 @@
     if (sessionStorage.getItem(CLICK_KEY) === signature) return;
 
     const controls = [...document.querySelectorAll("button,input[type=button],input[type=submit],a")];
-    const next = controls.find((element) => norm(element.textContent || element.value) === "ДАЛЕЕ");
+    const labels = ["ДАЛЕЕ", "ЗАПОЛНИТЬ НОВУЮ АНКЕТУ"];
+    const next = controls.find((element) => labels.includes(norm(element.textContent || element.value)));
     if (!next || next.disabled) return;
 
     sessionStorage.setItem(CLICK_KEY, signature);
