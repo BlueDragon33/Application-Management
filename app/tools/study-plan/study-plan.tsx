@@ -159,6 +159,13 @@ const copy = {
     navSkills: "Kỹ năng & định hướng",
     navAnalysis: "Phân tích chương trình",
     navPreparation: "Lộ trình chuẩn bị",
+    navScheduleSub: "Tuần · tháng · học kỳ · năm",
+    navCoursesSub: "Tìm và lọc 33 học phần",
+    navSkillsSub: "6 nhóm năng lực chính",
+    navAnalysisSub: "120 tín chỉ · 4.320 giờ",
+    navPreparationSub: "Kế hoạch chuẩn bị 12 tuần",
+    workspaceTitle: "Chọn khu vực làm việc",
+    workspaceHint: "Bấm một mục để mở đúng phần cần xem — không phải cuộn cả trang.",
     quickFind: "Tìm nhanh môn học",
     quickFindPlaceholder: "Gõ tên môn bằng Việt / English / Русский...",
     quickFindHint: "Enter để mở danh sách kết quả",
@@ -313,6 +320,13 @@ const copy = {
     navSkills: "Skills & direction",
     navAnalysis: "Program analysis",
     navPreparation: "Preparation roadmap",
+    navScheduleSub: "Week · month · semester · year",
+    navCoursesSub: "Search and filter 33 entries",
+    navSkillsSub: "6 core competency areas",
+    navAnalysisSub: "120 credits · 4,320 hours",
+    navPreparationSub: "12-week preparation plan",
+    workspaceTitle: "Choose a workspace",
+    workspaceHint: "Open only the section you need instead of scrolling through the full page.",
     quickFind: "Quick course search",
     quickFindPlaceholder: "Type a course in Vietnamese / English / Русский...",
     quickFindHint: "Press Enter to open the result list",
@@ -350,10 +364,19 @@ const programKindLabels = {
   },
 } as const;
 
+type WorkspaceSection = "schedule" | "courses" | "skills" | "analysis" | "roadmap";
 type ExplorerSemester = "all" | "1" | "2" | "3" | "4";
 type ExplorerKind = "all" | CourseKind;
 type ExplorerReadiness = "all" | ReadinessLevel;
 type ExplorerSort = "semester" | "credits" | "readiness";
+
+function WorkspaceIcon({ section }: { section: WorkspaceSection }) {
+  if (section === "schedule") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v3M17 3v3M4.5 8.5h15M6 5h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/><path d="M8 12h3v3H8zM13.5 12h2.5M13.5 15h2.5"/></svg>;
+  if (section === "courses") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h10a3 3 0 0 1 3 3V20H8a3 3 0 0 1-3-3V4.5Z"/><path d="M8 8h7M8 11h6M18 9.5h1.5a1.5 1.5 0 0 1 0 3H18"/></svg>;
+  if (section === "skills") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 14.1 8l4.9.6-3.6 3.4.9 4.8-4.3-2.4-4.3 2.4.9-4.8L5 8.6 9.9 8 12 3.5Z"/><path d="m8.5 19 3.5 1.5 3.5-1.5"/></svg>;
+  if (section === "analysis") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V9M10 19V5M15 19v-7M20 19V3"/><path d="M3.5 19.5h18"/></svg>;
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19c3-6 5-9 9-12l4-3 2 2-3 4c-3 4-6 6-12 9Z"/><path d="m11 13 3 3M6 17l-2 3 3-1"/></svg>;
+}
 
 const readinessWeight: Record<ReadinessLevel, number> = {
   red: 0,
@@ -952,6 +975,7 @@ export default function StudyPlanTool({
   const [year, setYear] = useState<1 | 2>(1);
   const [week, setWeek] = useState(1);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>("multivariate");
+  const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceSection>("schedule");
   const [courseQuery, setCourseQuery] = useState("");
   const [courseSemesterFilter, setCourseSemesterFilter] = useState<ExplorerSemester>("all");
   const [courseKindFilter, setCourseKindFilter] = useState<ExplorerKind>("all");
@@ -1145,9 +1169,17 @@ export default function StudyPlanTool({
     setCourseSort("semester");
   };
 
-  const jumpToCourseExplorer = () => {
+  const switchWorkspace = (next: WorkspaceSection) => {
+    setActiveWorkspace(next);
     window.requestAnimationFrame(() => {
-      document.getElementById("course-explorer")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      document.getElementById("workspace-content")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
+
+  const jumpToCourseExplorer = () => {
+    setActiveWorkspace("courses");
+    window.requestAnimationFrame(() => {
+      document.getElementById("workspace-content")?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   };
 
