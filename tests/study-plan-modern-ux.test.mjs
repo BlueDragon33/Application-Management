@@ -50,3 +50,20 @@ test("Study Plan raises reading size to ChatGPT-like accessible typography", () 
   assert.match(css, /@media screen and \(max-width:760px\)/);
   assert.match(css, /\.contentGrid\s*\{[\s\S]*grid-template-columns:1fr/);
 });
+
+
+test("Study Plan provides persistent A A+ A++ font controls", () => {
+  const ui = source("app/tools/study-plan/study-plan.tsx");
+  const css = source("app/tools/study-plan/study-plan.module.css");
+
+  assert.match(ui, /type StudyFontScale = "normal" \| "large" \| "xlarge"/);
+  assert.match(ui, /application-management:study-plan-font-scale:v1/);
+  assert.match(ui, /data-font-scale=\{fontScale\}/);
+  assert.match(ui, /className=\{styles\.fontControl\}/);
+  assert.match(ui, />A<\/button>/);
+  assert.match(ui, />A\+<\/button>/);
+  assert.match(ui, />A\+\+<\/button>/);
+  assert.match(css, /\.shell\[data-font-scale="large"\]/);
+  assert.match(css, /\.shell\[data-font-scale="xlarge"\]/);
+  assert.match(css, /--fs-base:17px/);
+});
