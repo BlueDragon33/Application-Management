@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.2
+// @version      0.9.3
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,7 +17,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.2";
+  const VERSION = "0.9.3";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
@@ -127,6 +127,105 @@
   function blockControls(labels) {
     const block = labelBlock(labels);
     return block ? controls(block) : [];
+  }
+
+  function labelCandidates(labels) {
+    const needles = (Array.isArray(labels) ? labels : [labels]).map(norm).filter(Boolean);
+    return [...document.querySelectorAll("label,td,th,div,span,p,b,strong")]
+      .map((node) => {
+        const text = norm(node.textContent);
+        const exact = needles.some((needle) => text === needle);
+        const contains = needles.some((needle) => text.includes(needle));
+        return { node, text, exact, contains };
+      })
+      .filter((item) => item.contains)
+      .sort((a, b) => Number(b.exact) - Number(a.exact) || a.text.length - b.text.length)
+      .map((item) => item.node);
+  }
+
+  function findSelectNearExactLabel(labels) {
+    for (const node of labelCandidates(labels)) {
+      let current = node;
+      for (let depth = 0; depth < 6 && current; depth += 1, current = current.parentElement) {
+        const selects = [...current.querySelectorAll("select")].filter(visible);
+        if (current.matches?.("select") && visible(current)) selects.unshift(current);
+        const unique = [...new Set(selects)];
+        if (unique.length === 1) return unique[0];
+      }
+    }
+    return null;
+  }
+
+  function selectedText(select) {
+    return norm(select?.options?.[select.selectedIndex]?.textContent || "");
+  }
+
+  function exactOption(select, values) {
+    if (!select) return null;
+    const wants = (Array.isArray(values) ? values : [values]).map(norm);
+    return [...select.options].find((option) => wants.includes(norm(option.textContent))) ||
+      [...select.options].find((option) => wants.includes(norm(option.value)));
+  }
+
+  function selectAlreadyHas(select, values) {
+    if (!select) return false;
+    const wants = (Array.isArray(values) ? values : [values]).map(norm);
+    return wants.includes(selectedText(select)) || wants.includes(norm(select.value));
+  }
+
+  function ensureSelectNearLabel(labels, values) {
+    const select = findSelectNearExactLabel(labels);
+    if (!select) return "missing";
+    if (select.disabled || select.options.length <= 1) return "waiting";
+    if (selectAlreadyHas(select, values)) return "ready";
+    const option = exactOption(select, values);
+    if (!option) return "waiting";
+    select.selectedIndex = option.index;
+    select.value = option.value;
+    fire(select);
+    return "changed";
+  }
+
+  function dateControlsNearLabel(labels) {
+    for (const node of labelCandidates(labels)) {
+      let current = node;
+      for (let depth = 0; depth < 6 && current; depth += 1, current = current.parentElement) {
+        const list = [...current.querySelectorAll("input,select")]
+          .filter((item) => visible(item) && item.type !== "hidden");
+        if (list.length >= 3 && list.length <= 5) return list.slice(0, 3);
+      }
+    }
+    return [];
+  }
+
+  function ensureDateNearLabel(labels, value) {
+    if (!value) return "ready";
+    const parts = value.split("/");
+    if (parts.length !== 3) return "missing";
+    const list = dateControlsNearLabel(labels);
+    if (list.length < 3) return "missing";
+
+    let changed = false;
+    parts.forEach((part, index) => {
+      const el = list[index];
+      if (!el) return;
+      if (el.tagName === "SELECT") {
+        const option = [...el.options].find((o) => String(o.value) === String(part)) ||
+          [...el.options].find((o) => norm(o.textContent) === norm(part));
+        if (option && (el.value !== option.value || el.selectedIndex !== option.index)) {
+          el.selectedIndex = option.index;
+          el.value = option.value;
+          fire(el);
+          changed = true;
+        }
+      } else if (String(el.value).replace(/^0+/, "") !== String(part).replace(/^0+/, "")) {
+        el.value = part;
+        fire(el);
+        changed = true;
+      }
+    });
+
+    return changed ? "changed" : "ready";
   }
 
   function setText(labels, value) {
@@ -293,25 +392,117 @@
     return recognized;
   }
 
+  function isVisaRequestPage() {
+    const body = norm(document.body.innerText || "");
+    return body.includes("ИНФОРМАЦИЯ О ЗАПРАШИВАЕМОЙ ВИЗЕ") &&
+      body.includes("ЦЕЛЬ ПОЕЗДКИ (РАЗДЕЛ)") &&
+      body.includes("КАТЕГОРИЯ И ВИД ВИЗЫ");
+  }
+
+  function fillVisaRequestPage(payload) {
+    if (!isVisaRequestPage()) return { handled: false, ready: false };
+    const A = payload.applicant || {};
+
+    let state = ensureSelectNearLabel("Гражданство", [payload.citizenship, "ВЬЕТНАМ"]);
+    if (state === "changed") {
+      status("KD-MID Visa VN: đã chọn Гражданство = ВЬЕТНАМ. Đang chờ KD-MID cập nhật…", "wait");
+      return { handled: true, ready: false };
+    }
+    if (state !== "ready") {
+      status("KD-MID Visa VN: đang chờ trường Гражданство…", "wait");
+      return { handled: true, ready: false };
+    }
+
+    const former = A.hadFormerRussianCitizenship ? ["ДА"] : ["НЕТ"];
+    state = ensureSelectNearLabel("Если Вы имели гражданство СССР или России", former);
+    if (state === "changed") {
+      status("KD-MID Visa VN: đã chọn quốc tịch Liên Xô/Nga = " + former[0] + ". Đang chờ cập nhật…", "wait");
+      return { handled: true, ready: false };
+    }
+    if (state !== "ready") {
+      status("KD-MID Visa VN: đang chờ trường quốc tịch Liên Xô/Nga…", "wait");
+      return { handled: true, ready: false };
+    }
+
+    if (A.hadFormerRussianCitizenship) {
+      const lostDateState = ensureDateNearLabel(["Когда?","Когда"], A.formerCitizenshipLostDate);
+      if (lostDateState === "changed") return { handled: true, ready: false };
+      setText(["В связи с чем?","В связи с чем"], A.formerCitizenshipLossReason);
+    }
+
+    state = ensureSelectNearLabel("Цель поездки (раздел)", [payload.purposeSection, "УЧЕБА"]);
+    if (state === "changed") {
+      status("KD-MID Visa VN: đã chọn Цель поездки (раздел) = УЧЕБА. Đang chờ danh sách mục đích…", "wait");
+      return { handled: true, ready: false };
+    }
+    if (state !== "ready") {
+      status("KD-MID Visa VN: đang chờ Цель поездки (раздел)…", "wait");
+      return { handled: true, ready: false };
+    }
+
+    state = ensureSelectNearLabel("Цель поездки", [payload.purpose, "УЧЕБА"]);
+    if (state === "changed") {
+      status("KD-MID Visa VN: đã chọn Цель поездки = УЧЕБА. Đang chờ loại visa…", "wait");
+      return { handled: true, ready: false };
+    }
+    if (state !== "ready") {
+      status("KD-MID Visa VN: đang chờ KD-MID nạp Цель поездки…", "wait");
+      return { handled: true, ready: false };
+    }
+
+    state = ensureSelectNearLabel("Категория и вид визы", [payload.visaType, "ОБЫКНОВЕННАЯ УЧЕБНАЯ"]);
+    if (state === "changed") {
+      status("KD-MID Visa VN: đã chọn ОБЫКНОВЕННАЯ УЧЕБНАЯ. Đang chờ trường tiếp theo…", "wait");
+      return { handled: true, ready: false };
+    }
+    if (state !== "ready") {
+      status("KD-MID Visa VN: đang chờ KD-MID nạp Категория и вид визы…", "wait");
+      return { handled: true, ready: false };
+    }
+
+    state = ensureSelectNearLabel("Кратность визы", [payload.entries, "ОДНОКРАТНАЯ"]);
+    if (state === "changed") {
+      status("KD-MID Visa VN: đã chọn Кратность визы = ОДНОКРАТНАЯ.", "wait");
+      return { handled: true, ready: false };
+    }
+    if (state !== "ready") {
+      status("KD-MID Visa VN: đang chờ Кратность визы…", "wait");
+      return { handled: true, ready: false };
+    }
+
+    const entryState = ensureDateNearLabel("Дата въезда в Россию", payload.entryDate);
+    if (entryState === "changed") {
+      status("KD-MID Visa VN: đã điền ngày vào Nga. Đang chờ ổn định…", "wait");
+      return { handled: true, ready: false };
+    }
+    if (entryState !== "ready") {
+      status("KD-MID Visa VN: đang chờ trường ngày vào Nga…", "wait");
+      return { handled: true, ready: false };
+    }
+
+    const exitState = ensureDateNearLabel("Дата выезда из России", payload.exitDate);
+    if (exitState === "changed") {
+      status("KD-MID Visa VN: đã điền ngày rời Nga. Đang kiểm tra trang…", "wait");
+      return { handled: true, ready: false };
+    }
+    if (exitState !== "ready") {
+      status("KD-MID Visa VN: đang chờ trường ngày rời Nga…", "wait");
+      return { handled: true, ready: false };
+    }
+
+    status("KD-MID Visa VN: trang visa đã đúng: ВЬЕТНАМ · НЕТ · УЧЕБА · УЧЕБА · ОБЫКНОВЕННАЯ УЧЕБНАЯ · ОДНОКРАТНАЯ.");
+    return { handled: true, ready: true };
+  }
+
   function fillPage(payload) {
+    const visaPage = fillVisaRequestPage(payload);
+    if (visaPage.handled) return visaPage.ready ? 1 : 0;
+
     const A = payload.applicant || {};
     let recognized = 0;
     const mark = (ok) => { if (ok) recognized += 1; };
 
     recognized += fillPassword(payload);
-
-    mark(setSelect("Гражданство", payload.citizenship));
-    mark(setYesNo("Если Вы имели гражданство СССР или России", Boolean(A.hadFormerRussianCitizenship)));
-    if (A.hadFormerRussianCitizenship) {
-      mark(setDate(["Когда?","Когда"], A.formerCitizenshipLostDate));
-      mark(setText(["В связи с чем?","В связи с чем"], A.formerCitizenshipLossReason));
-    }
-    mark(setSelect("Цель поездки (раздел)", payload.purposeSection));
-    mark(setSelect("Цель поездки", payload.purpose));
-    mark(setSelect("Категория и вид визы", payload.visaType));
-    mark(setSelect("Кратность визы", payload.entries));
-    mark(setDate("Дата въезда в Россию", payload.entryDate));
-    mark(setDate("Дата выезда из России", payload.exitDate));
 
     mark(setText("Фамилия (согласно паспорту)", A.surname));
     mark(setText("Имя, другие имена, отчество", A.givenNames));
@@ -542,6 +733,8 @@
 
     const body = document.body.innerText || "";
     if (/ПЕЧАТНАЯ ФОРМА ЭЛЕКТРОННОЙ ВИЗОВОЙ АНКЕТЫ/i.test(body)) return false;
+
+    if (isVisaRequestPage() && recognized < 1) return false;
 
     if (recognized > 0) {
       return clickNamed(["ЗАПОЛНИТЬ НОВУЮ АНКЕТУ","COMPLETE NEW APPLICATION","ДАЛЕЕ","NEXT"], 800);
