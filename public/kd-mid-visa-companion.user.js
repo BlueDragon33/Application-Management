@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.30
+// @version      0.9.31
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,7 +17,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.30";
+  const VERSION = "0.9.31";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
@@ -1491,19 +1491,89 @@
     return payload?._resumeRecord || {};
   }
 
+  function resumeActionButton(labels) {
+    const wants = (Array.isArray(labels) ? labels : [labels]).map(norm);
+    const candidates = [...document.querySelectorAll("button,input[type=button],input[type=submit],a")].filter(visible);
+    return candidates.find((el) => wants.includes(norm(el.textContent || el.value))) ||
+      candidates.find((el) => wants.some((want) => norm(el.textContent || el.value).includes(want))) ||
+      null;
+  }
+
+  function resumeControlNearLabel(labels, selector) {
+    const labelNodes = labelCandidates(labels).filter(visible);
+    const candidates = [...document.querySelectorAll(selector)].filter(visible);
+    let best = null;
+    for (const label of labelNodes) {
+      const lr = label.getBoundingClientRect();
+      for (const control of candidates) {
+        const cr = control.getBoundingClientRect();
+        const dy = cr.top - lr.bottom;
+        if (dy < -12 || dy > 180) continue;
+        const dx = Math.abs(cr.left - lr.left);
+        if (dx > 360) continue;
+        const score = Math.max(0, dy) * 10 + dx;
+        if (!best || score < best.score) best = { control, score };
+      }
+    }
+    return best?.control || null;
+  }
+
+  function resumeApplicationIdControl() {
+    const labeled = resumeControlNearLabel(
+      ["Номер анкеты","Введите номер анкеты, заполненной Вами ранее","Application number"],
+      'input:not([type="hidden"]):not([type="password"]):not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"])'
+    );
+    if (labeled) return labeled;
+
+    const restore = resumeActionButton(["ВОССТАНОВИТЬ АНКЕТУ","RESTORE APPLICATION"]);
+    const inputs = [...document.querySelectorAll(
+      'input:not([type="hidden"]):not([type="password"]):not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"])'
+    )].filter(visible);
+    if (!inputs.length) return null;
+    if (inputs.length === 1 || !restore) return inputs[0];
+
+    const br = restore.getBoundingClientRect();
+    return inputs
+      .map((input) => ({ input, rect: input.getBoundingClientRect() }))
+      .filter(({ rect }) => rect.top < br.top + 20)
+      .sort((a, b) => Math.abs(br.top - a.rect.bottom) - Math.abs(br.top - b.rect.bottom))[0]?.input || inputs[0];
+  }
+
+  function resumeCredentialControls() {
+    const allText = [...document.querySelectorAll(
+      'input:not([type="hidden"]):not([type="password"]):not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"])'
+    )].filter(visible).filter((el) => !el.readOnly);
+    const password = [...document.querySelectorAll('input[type="password"]')].filter(visible)[0] || null;
+
+    let surname = resumeControlNearLabel(
+      ["Первые 5 букв Вашей фамилии","Первые 5 букв фамилии","First 5 letters of your surname"],
+      'input:not([type="hidden"]):not([type="password"]):not([type="button"]):not([type="submit"])'
+    );
+    let year = resumeControlNearLabel(
+      ["Год рождения","Year of birth"],
+      'input:not([type="hidden"]):not([type="password"]):not([type="button"]):not([type="submit"])'
+    );
+
+    if (!surname || !year || surname === year) {
+      if (allText.length >= 2) {
+        const likely = allText.length >= 3 ? allText.slice(-2) : allText;
+        surname = surname || likely[0] || null;
+        year = year || likely[1] || null;
+      }
+    }
+    return { surname, year, password };
+  }
+
   function isResumeApplicationIdPage() {
-    const body = norm(document.body.innerText || "");
-    return body.includes("НОМЕР АНКЕТЫ") &&
-      body.includes("ВОССТАНОВИТЬ АНКЕТУ") &&
-      !body.includes("ПЕРВЫЕ 5 БУКВ ВАШЕЙ ФАМИЛИИ");
+    return Boolean(resumeActionButton(["ВОССТАНОВИТЬ АНКЕТУ","RESTORE APPLICATION"])) &&
+      Boolean(resumeApplicationIdControl()) &&
+      !Boolean(resumeActionButton(["ПРОСМОТР АНКЕТЫ","VIEW APPLICATION"]));
   }
 
   function isResumeCredentialsPage() {
-    const body = norm(document.body.innerText || "");
-    return body.includes("ПЕРВЫЕ 5 БУКВ ВАШЕЙ ФАМИЛИИ") &&
-      body.includes("ГОД РОЖДЕНИЯ") &&
-      body.includes("ПАРОЛЬ") &&
-      body.includes("ПРОСМОТР АНКЕТЫ");
+    const controls = resumeCredentialControls();
+    return Boolean(resumeActionButton(["ПРОСМОТР АНКЕТЫ","VIEW APPLICATION"])) &&
+      Boolean(controls.surname && controls.year && controls.password);
   }
 
   const resumeViewedKey = "kd-mid-vn:resume-viewed:v1";
@@ -1525,7 +1595,8 @@
     }
 
     if (isResumeApplicationIdPage()) {
-      const state = ensureTextAfterLabel(["Номер анкеты","Application number"], id);
+      const applicationIdInput = resumeApplicationIdControl();
+      const state = applicationIdInput ? writeTextControl(applicationIdInput, id) : "missing";
       if (state === "changed") {
         status(`KD-MID Visa VN: đã điền Application ID ${id}. Đang kiểm tra trước khi khôi phục…`, "wait");
         continueAutofill(payload, 160);
@@ -1545,8 +1616,9 @@
       const surname5 = String(record.surname5 || "").toUpperCase();
       const year = String(record.birthYear || "");
       const password = String(record.password || "");
+      const controls = resumeCredentialControls();
 
-      const surnameState = ensureTextAfterLabel(["Первые 5 букв Вашей фамилии","First 5 letters of your surname"], surname5);
+      const surnameState = controls.surname ? writeTextControl(controls.surname, surname5) : "missing";
       if (surnameState === "changed") { continueAutofill(payload, 120); return true; }
       if (surnameState !== "ready") {
         status("KD-MID Visa VN: đang điền 5 chữ cái đầu của họ…", "wait");
@@ -1554,7 +1626,7 @@
         return true;
       }
 
-      const yearState = ensureTextAfterLabel(["Год рождения","Year of birth"], year);
+      const yearState = controls.year ? writeTextControl(controls.year, year) : "missing";
       if (yearState === "changed") { continueAutofill(payload, 120); return true; }
       if (yearState !== "ready") {
         status("KD-MID Visa VN: đang điền năm sinh…", "wait");
@@ -1562,8 +1634,7 @@
         return true;
       }
 
-      const passwordInput = [...document.querySelectorAll('input[type="password"]')].filter(visible)[0] || null;
-      const passwordState = passwordInput ? writeTextControl(passwordInput, password) : "missing";
+      const passwordState = controls.password ? writeTextControl(controls.password, password) : "missing";
       if (passwordState === "changed") { continueAutofill(payload, 120); return true; }
       if (passwordState !== "ready") {
         status("KD-MID Visa VN: đang điền mật khẩu đã lưu…", "wait");
