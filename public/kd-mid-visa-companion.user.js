@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.0
+// @version      0.9.1
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,7 +17,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.0";
+  const VERSION = "0.9.1";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
@@ -162,6 +162,50 @@
     return true;
   }
 
+  function selectContainingOption(values) {
+    const wants = (Array.isArray(values) ? values : [values]).map(norm);
+    return [...document.querySelectorAll("select")].find((select) =>
+      [...select.options].some((option) => wants.some((want) => want && norm(option.textContent).includes(want)))
+    ) || null;
+  }
+
+  function setSelectByOption(values) {
+    const el = selectContainingOption(values);
+    if (!el) return false;
+    const wants = (Array.isArray(values) ? values : [values]).map(norm);
+    const option = [...el.options].find((o) => wants.includes(norm(o.textContent))) ||
+      [...el.options].find((o) => wants.some((want) => want && norm(o.textContent).includes(want)));
+    if (!option) return false;
+    if (el.value !== option.value) {
+      el.value = option.value;
+      fire(el);
+    }
+    return true;
+  }
+
+  function selectHasValue(select, values) {
+    if (!select) return false;
+    const selected = norm(select.options[select.selectedIndex]?.textContent || "");
+    const wants = (Array.isArray(values) ? values : [values]).map(norm);
+    return wants.some((want) => want && selected.includes(want));
+  }
+
+  function isLandingPage() {
+    return Boolean(selectContainingOption(["ВЬЕТНАМ","VIETNAM"])) &&
+      Boolean(selectContainingOption(["РУССКИЙ","RUSSIAN"])) &&
+      norm(document.body.innerText || "").includes("Я ПРОЧИТАЛ ЭТУ ИНФОРМАЦИЮ");
+  }
+
+  function landingPageReady() {
+    const country = selectContainingOption(["ВЬЕТНАМ","VIETNAM"]);
+    const language = selectContainingOption(["РУССКИЙ","RUSSIAN"]);
+    const checkbox = blockControls(["Я прочитал эту информацию","I have read this information"])
+      .find((item) => item.type === "checkbox");
+    return selectHasValue(country, ["ВЬЕТНАМ","VIETNAM"]) &&
+      selectHasValue(language, ["РУССКИЙ","RUSSIAN"]) &&
+      Boolean(checkbox?.checked);
+  }
+
   function setYesNo(labels, value) {
     return setSelect(labels, value ? ["ДА","YES"] : ["НЕТ","NO"]);
   }
@@ -220,8 +264,8 @@
     let recognized = 0;
     const mark = (ok) => { if (ok) recognized += 1; };
 
-    mark(setSelect(["Страна","Country"], ["ВЬЕТНАМ","VIETNAM"]));
-    mark(setSelect(["Язык подсказок","Hints and help language"], ["РУССКИЙ","RUSSIAN"]));
+    mark(setSelectByOption(["ВЬЕТНАМ","VIETNAM"]));
+    mark(setSelectByOption(["РУССКИЙ","RUSSIAN"]));
     mark(setCheckbox(["Я прочитал эту информацию","I have read this information"], true));
 
     recognized += fillPassword(payload);
@@ -435,6 +479,15 @@
     if (!payload?._automation?.autoAdvance) return false;
 
     if (maybeAutoPrint(payload)) return true;
+
+    if (isLandingPage()) {
+      if (!landingPageReady()) {
+        status("KD-MID Visa VN: đang hoàn tất trang đầu — Việt Nam + Russian + xác nhận đã đọc…", "wait");
+        return false;
+      }
+      status("KD-MID Visa VN: trang đầu đã đúng Việt Nam + Russian. Đang mở hồ sơ mới…");
+      return clickNamed(["ЗАПОЛНИТЬ НОВУЮ АНКЕТУ","COMPLETE NEW APPLICATION"], 700);
+    }
 
     // Trang password/CAPTCHA phải được xử lý TRƯỚC việc đọc số анкеты ở header.
     if (isPasswordCaptchaPage()) {
