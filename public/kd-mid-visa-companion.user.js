@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.22
+// @version      0.9.23
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,7 +17,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.22";
+  const VERSION = "0.9.23";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
@@ -749,9 +749,6 @@
 
     try { el.setSelectionRange(0, String(el.value || "").length); } catch {}
 
-    // Cốc Cốc/KD-MID accepts a real edit/paste path more reliably than synthetic
-    // key events. execCommand("insertText") mutates the focused input through the
-    // browser editing pipeline, closest to the user's successful manual paste.
     let inserted = false;
     try {
       inserted = Boolean(document.execCommand?.("insertText", false, text));
@@ -781,10 +778,93 @@
     } catch {
       el.dispatchEvent(new Event("input", { bubbles: true }));
     }
-    el.dispatchEvent(new Event("change", { bubbles: true }));
-    try { el.blur(); } catch {}
-    refreshAspNetValidators();
+
+    // IMPORTANT: keep focus and DO NOT fire change/blur yet.
+    // KD-MID opens a second autocomplete list after typing МОСКВА; the city
+    // becomes valid only after selecting МОСКВА from that list.
+    try { el.focus({ preventScroll: true }); } catch { try { el.focus(); } catch {} }
     return String(el.value || "").trim() === text;
+  }
+
+  function routeSuggestionNode(input, value = "МОСКВА") {
+    if (!input) return null;
+    const wanted = norm(value);
+    const ir = input.getBoundingClientRect();
+
+    const selectors = [
+      '[role="option"]',
+      'li.ui-menu-item',
+      '.ui-autocomplete li',
+      '[class*="autocomplete"] li',
+      '[class*="suggest"] li',
+      '[class*="dropdown"] li',
+      'li',
+      'a',
+      'div',
+      'span',
+    ].join(",");
+
+    const candidates = [...document.querySelectorAll(selectors)]
+      .filter((node) => visible(node))
+      .filter((node) => norm(node.textContent) === wanted)
+      .filter((node) => !node.contains(input) && node !== input)
+      .map((node) => {
+        const r = node.getBoundingClientRect();
+        const verticalGap = r.top - ir.bottom;
+        const horizontalOverlap = Math.min(r.right, ir.right) - Math.max(r.left, ir.left);
+        const nearBelow = verticalGap >= -12 && verticalGap <= 260;
+        const overlaps = horizontalOverlap > 0 || Math.abs(r.left - ir.left) < 180;
+        const roleBonus = node.getAttribute("role") === "option" ? -500 : 0;
+        const classBonus = /autocomplete|suggest|menu|dropdown/i.test(node.className || "") ? -250 : 0;
+        const leafBonus = node.children.length === 0 ? -40 : 0;
+        const score = Math.abs(verticalGap) * 10 + Math.abs(r.left - ir.left) + roleBonus + classBonus + leafBonus;
+        return { node, score, nearBelow, overlaps };
+      })
+      .filter((item) => item.nearBelow && item.overlaps)
+      .sort((a, b) => a.score - b.score);
+
+    return candidates[0]?.node || null;
+  }
+
+  function chooseRouteSuggestion(input, value = "МОСКВА") {
+    const node = routeSuggestionNode(input, value);
+    if (node) {
+      try {
+        node.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, view: window }));
+        node.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, view: window }));
+        node.click();
+      } catch {
+        try { node.click(); } catch {}
+      }
+      return true;
+    }
+
+    // Fallback for keyboard-driven autocomplete widgets.
+    try {
+      input.focus();
+      input.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "ArrowDown", code: "ArrowDown" }));
+      input.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: "ArrowDown", code: "ArrowDown" }));
+      input.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Enter", code: "Enter" }));
+      input.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: "Enter", code: "Enter" }));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function routeValidationErrorVisible(input) {
+    if (!input) return true;
+    let current = input.parentElement;
+    for (let depth = 0; depth < 8 && current; depth += 1, current = current.parentElement) {
+      const text = norm(current.innerText || current.textContent || "");
+      if (!text.includes("НАСЕЛЕННЫЙ ПУНКТ")) continue;
+      return (
+        text.includes("НЕДОПУСТИМО ПУСТОЕ ЗНАЧЕНИЕ") ||
+        text.includes("ЗНАЧЕНИЕ НЕ УДОВЛЕТВОРЯЕТ ШАБЛОНУ") ||
+        text.includes("ДОПУСТИМЫ ТОЛЬКО РУССКИЕ БУКВЕННЫЕ")
+      );
+    }
+    return false;
   }
 
   function isVisitInfoPage() {
@@ -848,13 +928,25 @@
     if (String(routeInput.value || "").trim() !== routeValue) {
       const typed = typeRouteCityValue(routeInput, routeValue);
       if (!typed) {
-        status("KD-MID Visa VN: đã khóa đúng ô Маршрут nhưng KD-MID chưa nhận МОСКВА; đang gõ lại ký tự Cyrillic.", "wait");
+        status("KD-MID Visa VN: chưa gõ được МОСКВА vào ô Маршрут; đang thử lại.", "wait");
         continueAutofill(payload, 240);
         return { handled: true, ready: false };
       }
 
-      status("KD-MID Visa VN: đã gõ МОСКВА trực tiếp vào ô Населенный пункт.", "wait");
-      continueAutofill(payload, 180);
+      status("KD-MID Visa VN: đã gõ МОСКВА. Đang chờ danh sách gợi ý của KD-MID để chọn МОСКВА lần 2…", "wait");
+      continueAutofill(payload, 320);
+      return { handled: true, ready: false };
+    }
+
+    if (routeValidationErrorVisible(routeInput)) {
+      const chosen = chooseRouteSuggestion(routeInput, routeValue);
+      status(
+        chosen
+          ? "KD-MID Visa VN: đang chọn МОСКВА trong danh sách gợi ý của KD-MID…"
+          : "KD-MID Visa VN: chưa thấy gợi ý МОСКВА; đang chờ danh sách xuất hiện…",
+        "wait"
+      );
+      continueAutofill(payload, 320);
       return { handled: true, ready: false };
     }
 
@@ -939,7 +1031,8 @@
     if (
       !finalRoute ||
       !routeCityControlLooksRight(finalRoute) ||
-      String(finalRoute.value).trim() !== "МОСКВА"
+      String(finalRoute.value).trim() !== "МОСКВА" ||
+      routeValidationErrorVisible(finalRoute)
     ) {
       status("KD-MID Visa VN: Маршрут chưa khớp payload; chưa được phép bấm Далее.", "wait");
       continueAutofill(payload, 180);
@@ -947,7 +1040,7 @@
     }
 
     refreshAspNetValidators();
-    status(`KD-MID Visa VN: trang thông tin chuyến đi OK. Ô hiển thị Населенный пункт = ${finalRoute.value}.`);
+    status(`KD-MID Visa VN: trang thông tin chuyến đi OK. Đã gõ và chọn gợi ý Населенный пункт = ${finalRoute.value}.`);
     return { handled: true, ready: true };
   }
 
