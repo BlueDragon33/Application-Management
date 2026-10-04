@@ -62,80 +62,24 @@ async function audit(actor: string, action: string, target: string, detail: Reco
 
 async function snapshot() {
   const database = await getControlDatabase();
-  const [links, submissions] = await Promise.all([
-    database.prepare(
-      `SELECT id,label,status,created_by,created_at,expires_at
-         FROM visa_intake_links ORDER BY created_at DESC LIMIT 50`,
-    ).all<{
-      id: string; label: string; status: string; created_by: string; created_at: string; expires_at: string | null;
-    }>(),
-    database.prepare(
-      `SELECT queue_no,id,link_id,status,applicant_name,passport_no,email,phone,payload_json,
-              validation_json,submitted_at,reviewed_by,reviewed_at,review_note,imported_applicant_id
-         FROM visa_intake_submissions
-        ORDER BY CASE status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 WHEN 'imported' THEN 2 ELSE 3 END,
-                 queue_no ASC LIMIT 300`,
-    ).all<{
-      queue_no: number;
-      id: string;
-      link_id: string;
-      status: string;
-      applicant_name: string;
-      passport_no: string;
-      email: string;
-      phone: string;
-      payload_json: string;
-      validation_json: string;
-      submitted_at: string;
-      reviewed_by: string | null;
-      reviewed_at: string | null;
-      review_note: string | null;
-      imported_applicant_id: string | null;
-    }>(),
+  const [links, submissions, results] = await Promise.all([
+    database.prepare(`SELECT id,label,status,created_by,created_at,expires_at FROM visa_intake_links ORDER BY created_at DESC LIMIT 100`).all<{ id:string; label:string; status:string; created_by:string; created_at:string; expires_at:string|null }>(),
+    database.prepare(`SELECT queue_no,id,link_id,status,applicant_name,passport_no,email,phone,payload_json,validation_json,submitted_at,reviewed_by,reviewed_at,review_note,imported_applicant_id FROM visa_intake_submissions ORDER BY CASE status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 WHEN 'imported' THEN 2 ELSE 3 END, queue_no ASC LIMIT 500`).all<{ queue_no:number; id:string; link_id:string; status:string; applicant_name:string; passport_no:string; email:string; phone:string; payload_json:string; validation_json:string; submitted_at:string; reviewed_by:string|null; reviewed_at:string|null; review_note:string|null; imported_applicant_id:string|null }>(),
+    database.prepare(`SELECT submission_id,link_id,file_name,file_size,uploaded_at FROM visa_intake_results ORDER BY uploaded_at DESC`).all<{ submission_id:string; link_id:string; file_name:string; file_size:number; uploaded_at:string }>(),
   ]);
-
+  const resultBySubmission=new Map(results.results.map((row)=>[row.submission_id,row]));
+  const submissionCount=new Map<string,number>(), resultCount=new Map<string,number>();
+  for(const row of submissions.results) submissionCount.set(row.link_id,(submissionCount.get(row.link_id)??0)+1);
+  for(const row of results.results) resultCount.set(row.link_id,(resultCount.get(row.link_id)??0)+1);
   return {
-    links: links.results.map((row) => ({
-      id: row.id,
-      label: row.label,
-      status: row.status,
-      createdBy: row.created_by,
-      createdAt: row.created_at,
-      expiresAt: row.expires_at,
-    })),
-    submissions: submissions.results.map((row) => {
-      let applicant: Record<string, unknown> = {};
-      let validation: Record<string, unknown> = {};
-      try { applicant = JSON.parse(row.payload_json) as Record<string, unknown>; } catch {}
-      try { validation = JSON.parse(row.validation_json) as Record<string, unknown>; } catch {}
-      return {
-        queueNo: row.queue_no,
-        id: row.id,
-        linkId: row.link_id,
-        status: row.status,
-        applicantName: row.applicant_name,
-        passportNo: row.passport_no,
-        email: row.email,
-        phone: row.phone,
-        applicant,
-        validation,
-        submittedAt: row.submitted_at,
-        reviewedBy: row.reviewed_by,
-        reviewedAt: row.reviewed_at,
-        reviewNote: row.review_note,
-        correctionFields: Array.isArray(validation.correctionFields)
-          ? validation.correctionFields.filter((value): value is string => typeof value === "string" && REVIEWABLE_FIELDS.has(value))
-          : [],
-        resubmittedFields: Array.isArray(validation.resubmittedFields)
-          ? validation.resubmittedFields.filter((value): value is string => typeof value === "string" && REVIEWABLE_FIELDS.has(value))
-          : [],
-        revision: typeof validation.revision === "number" ? validation.revision : 0,
-        importedApplicantId: row.imported_applicant_id,
-      };
+    links: links.results.map((row)=>({id:row.id,label:row.label,status:row.status,createdBy:row.created_by,createdAt:row.created_at,expiresAt:row.expires_at,publicPath:`/visa-intake?batch=${encodeURIComponent(row.id)}`,submissionCount:submissionCount.get(row.id)??0,resultCount:resultCount.get(row.id)??0})),
+    submissions: submissions.results.map((row)=>{
+      let applicant:Record<string,unknown>={},validation:Record<string,unknown>={};try{applicant=JSON.parse(row.payload_json)}catch{}try{validation=JSON.parse(row.validation_json)}catch{}
+      const result=resultBySubmission.get(row.id);
+      return {queueNo:row.queue_no,id:row.id,linkId:row.link_id,status:row.status,applicantName:row.applicant_name,passportNo:row.passport_no,email:row.email,phone:row.phone,applicant,validation,submittedAt:row.submitted_at,reviewedBy:row.reviewed_by,reviewedAt:row.reviewed_at,reviewNote:row.review_note,correctionFields:Array.isArray(validation.correctionFields)?validation.correctionFields.filter((value):value is string=>typeof value==="string"&&REVIEWABLE_FIELDS.has(value)):[],resubmittedFields:Array.isArray(validation.resubmittedFields)?validation.resubmittedFields.filter((value):value is string=>typeof value==="string"&&REVIEWABLE_FIELDS.has(value)):[],revision:typeof validation.revision==="number"?validation.revision:0,importedApplicantId:row.imported_applicant_id,result:result?{available:true,fileName:result.file_name,fileSize:result.file_size,uploadedAt:result.uploaded_at}:null};
     }),
   };
 }
-
 export async function GET() {
   try {
     await adminIdentity();
@@ -148,7 +92,14 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const actor = await adminIdentity();
-    const body = await request.json() as Record<string, unknown>;
+    const contentType = request.headers.get("content-type") ?? "";
+    let body: Record<string, unknown>;
+    if (contentType.includes("multipart/form-data")) {
+      const form = await request.formData();
+      body = Object.fromEntries(form.entries()) as Record<string, unknown>;
+    } else {
+      body = await request.json() as Record<string, unknown>;
+    }
     const action = text(body.action, 40);
     const database = await getControlDatabase();
 
@@ -176,7 +127,7 @@ export async function POST(request: Request) {
       return json({
         ok: true,
         token,
-        link: { id, label, status: "active" },
+        link: { id, label, status: "active", publicPath: `/visa-intake?batch=${encodeURIComponent(id)}` },
         ...(await snapshot()),
       }, 201);
     }
@@ -247,11 +198,28 @@ export async function POST(request: Request) {
       return json({ ok: true, ...(await snapshot()) });
     }
 
+    if (action === "send-result") {
+      const submissionId=text(body.submissionId,80), candidate=body.file;
+      if(!candidate||typeof candidate!=="object"||!("arrayBuffer" in candidate)||!("size" in candidate)) throw new ControlAccessError("Chưa chọn file PDF kết quả.",400,"RESULT_PDF_REQUIRED");
+      const pdf=candidate as File, fileName=text(pdf.name,180)||"ket-qua-visa.pdf", fileSize=Number(pdf.size||0);
+      if(fileSize<=0||fileSize>2_000_000) throw new ControlAccessError("PDF kết quả phải lớn hơn 0 và không vượt quá 2 MB.",400,"RESULT_PDF_TOO_LARGE");
+      if(pdf.type&&pdf.type!=="application/pdf"&&!fileName.toLowerCase().endsWith(".pdf")) throw new ControlAccessError("Chỉ chấp nhận file PDF.",400,"RESULT_PDF_TYPE");
+      const existing=await database.prepare("SELECT id,link_id,status FROM visa_intake_submissions WHERE id=? LIMIT 1").bind(submissionId).first<{id:string;link_id:string;status:string}>();
+      if(!existing) throw new ControlAccessError("Không tìm thấy hồ sơ nhận kết quả.",404,"SUBMISSION_NOT_FOUND");
+      if(!["approved","imported"].includes(existing.status)) throw new ControlAccessError("Chỉ gửi kết quả sau khi hồ sơ đã được tiếp nhận.",409,"SUBMISSION_NOT_ACCEPTED");
+      const buffer=await pdf.arrayBuffer();
+      if(new TextDecoder().decode(buffer.slice(0,5))!=="%PDF-") throw new ControlAccessError("File không có chữ ký PDF hợp lệ.",400,"RESULT_PDF_INVALID");
+      await database.prepare(`INSERT INTO visa_intake_results (id,submission_id,link_id,file_name,mime_type,file_size,pdf_blob,uploaded_by,uploaded_at) VALUES (?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP) ON CONFLICT(submission_id) DO UPDATE SET link_id=excluded.link_id,file_name=excluded.file_name,mime_type=excluded.mime_type,file_size=excluded.file_size,pdf_blob=excluded.pdf_blob,uploaded_by=excluded.uploaded_by,uploaded_at=CURRENT_TIMESTAMP`).bind(crypto.randomUUID(),submissionId,existing.link_id,fileName,"application/pdf",fileSize,buffer,actor.email).run();
+      await audit(actor.email,"visa_intake_result_sent",submissionId,{fileName,fileSize});
+      return json({ok:true,...(await snapshot())});
+    }
+
     if (action === "delete-submission") {
       if (!["publisher", "owner"].includes(actor.role)) {
         throw new ControlAccessError("Chỉ Publisher/Owner được xóa hồ sơ đã gửi.", 403, "PUBLISHER_REQUIRED");
       }
       const submissionId = text(body.submissionId, 80);
+      await database.prepare("DELETE FROM visa_intake_results WHERE submission_id=?").bind(submissionId).run();
       await database.prepare("DELETE FROM visa_intake_submissions WHERE id=?").bind(submissionId).run();
       await audit(actor.email, "visa_intake_deleted", submissionId);
       return json({ ok: true, ...(await snapshot()) });

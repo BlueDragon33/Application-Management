@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { blob, index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const controlMembers = sqliteTable("control_members", {
   email: text("email").primaryKey(),
@@ -140,4 +140,19 @@ export const visaIntakeSubmissions = sqliteTable("visa_intake_submissions", {
 }, (table) => [
   index("visa_intake_submissions_status_queue_idx").on(table.status, table.queueNo),
   index("visa_intake_submissions_link_queue_idx").on(table.linkId, table.queueNo),
+]);
+
+
+export const visaIntakeResults = sqliteTable("visa_intake_results", {
+  id: text("id").primaryKey(),
+  submissionId: text("submission_id").notNull().unique(),
+  linkId: text("link_id").notNull(),
+  fileName: text("file_name").notNull(),
+  mimeType: text("mime_type").notNull().default("application/pdf"),
+  fileSize: integer("file_size").notNull(),
+  pdfBlob: blob("pdf_blob").notNull(),
+  uploadedBy: text("uploaded_by").notNull(),
+  uploadedAt: text("uploaded_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("visa_intake_results_link_idx").on(table.linkId, table.uploadedAt),
 ]);

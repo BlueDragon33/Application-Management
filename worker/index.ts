@@ -62,6 +62,7 @@ async function databaseReady(env: Env) {
     await env.DB.prepare("SELECT provider FROM deploy_ops_credentials LIMIT 1").first();
     await env.DB.prepare("SELECT id FROM visa_intake_links LIMIT 1").first();
     await env.DB.prepare("SELECT id FROM visa_intake_submissions LIMIT 1").first();
+    await env.DB.prepare("SELECT id FROM visa_intake_results LIMIT 1").first();
     return true;
   } catch {
     return false;

@@ -65,96 +65,45 @@ function utcToday() {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 }
 
-async function linkByToken(token: string) {
-  if (!/^[A-Za-z0-9_-]{30,120}$/.test(token)) return null;
-  const database = await getControlDatabase();
-  const row = await database.prepare(
-    `SELECT id,label,status,defaults_json,expires_at
-       FROM visa_intake_links
-      WHERE token_hash=? AND status='active' LIMIT 1`,
-  ).bind(await sha256(token)).first<{
-    id: string;
-    label: string;
-    status: string;
-    defaults_json: string;
-    expires_at: string | null;
-  }>();
-  if (!row) return null;
-  if (row.expires_at && Date.parse(row.expires_at) <= Date.now()) return null;
-  let defaults: Record<string, unknown> = {};
-  try { defaults = JSON.parse(row.defaults_json) as Record<string, unknown>; } catch {}
-  return { ...row, defaults };
+function validBatchId(value:string){return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);}
+type IntakeAccessLink={id:string;label:string;status:string;defaults_json:string;expires_at:string|null};
+async function linkByAccess(token:string,batch:string){
+ const database=await getControlDatabase();let row:IntakeAccessLink|null=null;
+ if(validBatchId(batch)) row=await database.prepare("SELECT id,label,status,defaults_json,expires_at FROM visa_intake_links WHERE id=? LIMIT 1").bind(batch).first<IntakeAccessLink>();
+ else if(/^[A-Za-z0-9_-]{30,120}$/.test(token)) row=await database.prepare("SELECT id,label,status,defaults_json,expires_at FROM visa_intake_links WHERE token_hash=? LIMIT 1").bind(await sha256(token)).first<IntakeAccessLink>();
+ if(!row)return null;let defaults:Record<string,unknown>={};try{defaults=JSON.parse(row.defaults_json)}catch{}return {...row,defaults,expired:Boolean(row.expires_at&&Date.parse(row.expires_at)<=Date.now())};
 }
-
-export async function GET(request: Request) {
-  try {
-    const url = new URL(request.url);
-    const token = url.searchParams.get("token") ?? "";
-    const submissionId = text(url.searchParams.get("submissionId"), 80);
-    const link = await linkByToken(token);
-    if (!link) return json({ ok: false, error: "Link thu thập hồ sơ không hợp lệ." }, 404);
-
-    if (submissionId) {
-      const database = await getControlDatabase();
-      const row = await database.prepare(
-        `SELECT id,queue_no,link_id,status,applicant_name,validation_json,review_note,reviewed_at
-           FROM visa_intake_submissions WHERE id=? AND link_id=? LIMIT 1`,
-      ).bind(submissionId, link.id).first<{
-        id: string; queue_no: number; link_id: string; status: string; applicant_name: string;
-        validation_json: string; review_note: string | null; reviewed_at: string | null;
-      }>();
-      if (!row) return json({ ok: false, error: "Không tìm thấy hồ sơ đã gửi." }, 404);
-      let validation: Record<string, unknown> = {};
-      try { validation = JSON.parse(row.validation_json || "{}") as Record<string, unknown>; } catch {}
-      const correctionFields = Array.isArray(validation.correctionFields)
-        ? validation.correctionFields.filter((value): value is string => typeof value === "string")
-        : [];
-      const resubmittedFields = Array.isArray(validation.resubmittedFields)
-        ? validation.resubmittedFields.filter((value): value is string => typeof value === "string")
-        : [];
-      return json({
-        ok: true,
-        link: { id: link.id, label: link.label, status: link.status },
-        defaults: link.defaults,
-        submission: {
-          id: row.id,
-          queueNo: row.queue_no,
-          status: row.status,
-          applicantName: row.applicant_name,
-          reviewNote: row.review_note,
-          reviewedAt: row.reviewed_at,
-          correctionFields,
-          resubmittedFields,
-          revision: typeof validation.revision === "number" ? validation.revision : 0,
-        },
-      });
-    }
-
-    if (link.status !== "active") {
-      return json({ ok: false, error: "Link thu thập hồ sơ đã đóng." }, 404);
-    }
-    return json({
-      ok: true,
-      link: { id: link.id, label: link.label, status: link.status },
-      defaults: link.defaults,
-    });
-  } catch {
-    return json({ ok: false, error: "Không thể mở form thu thập lúc này." }, 503);
+function publicAccessQuery(token:string,batch:string){return validBatchId(batch)?`batch=${encodeURIComponent(batch)}`:`token=${encodeURIComponent(token)}`;}
+export async function GET(request:Request){
+ try{
+  const url=new URL(request.url),token=url.searchParams.get("token")??"",batch=url.searchParams.get("batch")??"",submissionId=text(url.searchParams.get("submissionId"),80),wantsResult=url.searchParams.get("result")==="1";
+  const link=await linkByAccess(token,batch);if(!link)return json({ok:false,error:"Link thu thập hồ sơ không hợp lệ."},404);
+  if(submissionId){
+   const database=await getControlDatabase();
+   const row=await database.prepare("SELECT id,queue_no,link_id,status,applicant_name,validation_json,review_note,reviewed_at FROM visa_intake_submissions WHERE id=? AND link_id=? LIMIT 1").bind(submissionId,link.id).first<{id:string;queue_no:number;link_id:string;status:string;applicant_name:string;validation_json:string;review_note:string|null;reviewed_at:string|null}>();
+   if(!row)return json({ok:false,error:"Không tìm thấy hồ sơ đã gửi."},404);
+   const result=await database.prepare("SELECT file_name,file_size,pdf_blob,uploaded_at FROM visa_intake_results WHERE submission_id=? AND link_id=? LIMIT 1").bind(submissionId,link.id).first<{file_name:string;file_size:number;pdf_blob:ArrayBuffer;uploaded_at:string}>();
+   if(wantsResult){if(!result)return json({ok:false,error:"Chưa có PDF kết quả."},404);const safeName=result.file_name.replace(/[\r\n"]/g,"_");return new Response(result.pdf_blob,{status:200,headers:{"content-type":"application/pdf","content-length":String(result.file_size),"content-disposition":`attachment; filename*=UTF-8''${encodeURIComponent(safeName)}`,"cache-control":"no-store, private","x-content-type-options":"nosniff"}});}
+   let validation:Record<string,unknown>={};try{validation=JSON.parse(row.validation_json||"{}")}catch{}
+   const correctionFields=Array.isArray(validation.correctionFields)?validation.correctionFields.filter((value):value is string=>typeof value==="string"):[],resubmittedFields=Array.isArray(validation.resubmittedFields)?validation.resubmittedFields.filter((value):value is string=>typeof value==="string"):[];
+   const accessQuery=publicAccessQuery(token,batch);
+   return json({ok:true,link:{id:link.id,label:link.label,status:link.status},defaults:link.defaults,submission:{id:row.id,queueNo:row.queue_no,status:row.status,applicantName:row.applicant_name,reviewNote:row.review_note,reviewedAt:row.reviewed_at,correctionFields,resubmittedFields,revision:typeof validation.revision==="number"?validation.revision:0,result:result?{available:true,fileName:result.file_name,fileSize:result.file_size,uploadedAt:result.uploaded_at,downloadUrl:`/api/kd-mid-visa-intake/public?${accessQuery}&submissionId=${encodeURIComponent(row.id)}&result=1`}:null}});
   }
+  if(link.status!=="active"||link.expired)return json({ok:false,error:"Đợt thu hồ sơ đã đóng. Người đã gửi hồ sơ vẫn có thể mở lại link trên đúng trình duyệt để xem trạng thái và nhận kết quả."},410);
+  return json({ok:true,link:{id:link.id,label:link.label,status:link.status},defaults:link.defaults});
+ }catch{return json({ok:false,error:"Không thể mở form thu thập lúc này."},503);}
 }
-
 export async function POST(request: Request) {
   try {
     const length = Number(request.headers.get("content-length") || "0");
     if (length > 80_000) return json({ ok: false, error: "Dữ liệu gửi lên quá lớn." }, 413);
     const body = await request.json() as Record<string, unknown>;
     const token = text(body.token, 120);
+    const batch = text(body.batch, 80);
     const submissionId = text(body.submissionId, 80);
-    const link = await linkByToken(token);
+    const link = await linkByAccess(token, batch);
     if (!link) return json({ ok: false, error: "Link thu thập hồ sơ không hợp lệ." }, 404);
-    if (!submissionId && link.status !== "active") {
-      return json({ ok: false, error: "Link thu thập hồ sơ đã đóng." }, 404);
-    }
+    if (!submissionId && (link.status !== "active" || link.expired)) return json({ ok: false, error: "Đợt thu hồ sơ đã đóng." }, 410);
 
     const source = (body.applicant && typeof body.applicant === "object" ? body.applicant : {}) as Record<string, unknown>;
     const applicant = {
