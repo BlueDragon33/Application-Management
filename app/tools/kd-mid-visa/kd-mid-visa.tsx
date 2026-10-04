@@ -98,6 +98,7 @@ type IntakeSubmission = {
   reviewedAt: string | null;
   reviewNote: string | null;
   correctionFields: string[];
+  resubmittedFields: string[];
   revision: number;
   importedApplicantId: string | null;
 };
@@ -1063,28 +1064,30 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       <div className={styles.intakeHeader}><strong>Hàng chờ xác minh</strong><span>{pending.length} hồ sơ đang chờ · sắp theo số tiếp nhận tăng dần</span></div>
       {!intakeSubmissions.length ? <div className={styles.empty}>Chưa có hồ sơ nào gửi qua Form.</div> : <div className={styles.intakeList}>
         {intakeSubmissions.map((item) => <details key={item.id} open={item.status === "pending"} data-status={item.status}>
-          <summary><b>#{item.queueNo}</b><div><strong>{item.applicantName}</strong><small>{item.passportNo} · {item.email} · {new Date(item.submittedAt).toLocaleString("vi-VN")}</small></div><span>{item.status === "pending" ? "Chờ xác minh" : item.status === "imported" ? "Đã lưu" : item.status === "approved" ? "Đã duyệt" : "Cần chỉnh sửa"}</span></summary>
+          <summary><b>#{item.queueNo}</b><div><strong>{item.applicantName}</strong><small>{item.passportNo} · {item.email} · {new Date(item.submittedAt).toLocaleString("vi-VN")}</small></div><span>{item.status === "pending" ? (item.revision > 0 ? "Đã sửa · chờ xác minh" : "Chờ xác minh") : item.status === "imported" ? "Đã lưu" : item.status === "approved" ? "Đã duyệt" : "Cần chỉnh sửa"}</span></summary>
           <div className={styles.intakeDetail}>
             <div className={styles.intakeFields}>
               {fieldLabels.map(([key,label]) => {
                 const raw = item.applicant[key];
-                if (raw === undefined || raw === null || raw === "") return null;
                 const selectedForReturn = (correctionSelections[item.id] ?? []).includes(key);
                 const wasReturned = item.correctionFields?.includes(key);
-                const display = typeof raw === "boolean" ? (raw ? "Có" : "Không") : String(raw);
+                const wasResubmitted = item.resubmittedFields?.includes(key);
+                if ((raw === undefined || raw === null || raw === "") && !selectedForReturn && !wasReturned && !wasResubmitted) return null;
+                const display = typeof raw === "boolean" ? (raw ? "Có" : "Không") : String(raw || "—");
                 return <button
                   type="button"
                   key={key}
                   className={styles.intakeField}
                   data-selected={selectedForReturn || (item.status === "rejected" && wasReturned)}
+                  data-resubmitted={item.status === "pending" && wasResubmitted && !selectedForReturn}
                   disabled={item.status !== "pending"}
                   onClick={() => toggleCorrectionField(item.id, key)}
-                  title={item.status === "pending" ? "Click để đánh dấu ô này cần sửa" : undefined}
-                ><span>{label}</span><strong>{display}</strong></button>;
+                  title={item.status === "pending" ? (wasResubmitted ? "Ô này đã được người gửi sửa. Click nếu vẫn sai để chuyển lại màu đỏ." : "Click để đánh dấu ô này cần sửa") : undefined}
+                ><span>{label}</span><strong>{display}</strong>{item.status === "pending" && wasResubmitted && !selectedForReturn ? <small>ĐÃ SỬA</small> : null}</button>;
               })}
             </div>
             {item.status === "pending" ? <div className={styles.intakeReviewBox}>
-              <small>Muốn trả hồ sơ: click trực tiếp vào từng ô sai phía trên. Ô được chọn sẽ chuyển đỏ.</small>
+              <small>{item.revision > 0 ? "Ô xanh = người gửi đã sửa. Nếu vẫn sai, click ô xanh để chuyển đỏ và trả lại; nếu đúng, bấm Xác minh & lưu hồ sơ." : "Muốn trả hồ sơ: click trực tiếp vào từng ô sai phía trên. Ô được chọn sẽ chuyển đỏ."}</small>
               <div className={styles.intakeActions}><button onClick={() => void verifyAndImport(item)}>✓ Xác minh & lưu hồ sơ</button><button className={styles.danger} disabled={!(correctionSelections[item.id]?.length)} onClick={() => void rejectIntake(item)}>Trả lại · {correctionSelections[item.id]?.length ?? 0} ô cần sửa</button></div>
             </div> : null}
             {item.status === "rejected" ? <div className={styles.returnedInfo}><strong>Đã trả về để sửa</strong><span>{item.reviewNote || "Không có ghi chú thêm."}</span><small>{item.correctionFields?.length ?? 0} ô đã được đánh dấu sai.</small></div> : null}

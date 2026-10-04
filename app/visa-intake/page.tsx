@@ -164,10 +164,11 @@ export default function VisaIntakePage() {
   const [linkLabel, setLinkLabel] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [statusChecking, setStatusChecking] = useState(false);
   const [error, setError] = useState("");
   const [missing, setMissing] = useState<string[]>([]);
   const [confirmed, setConfirmed] = useState(false);
-  const [receipt, setReceipt] = useState<{ id: string; queueNo: number | null; applicantName: string; status: string; reviewNote?: string | null; correctionFields?: string[] } | null>(null);
+  const [receipt, setReceipt] = useState<{ id: string; queueNo: number | null; applicantName: string; status: string; reviewNote?: string | null; correctionFields?: string[]; resubmittedFields?: string[]; revision?: number } | null>(null);
   const correctionFields = receipt?.status === "rejected" ? (receipt.correctionFields ?? []) : [];
 
   useEffect(() => {
@@ -219,22 +220,30 @@ export default function VisaIntakePage() {
     } catch {}
   }, [token, applicant, receipt]);
 
+  async function refreshSubmissionStatus(manual = false) {
+    if (!token || !receipt?.id) return;
+    if (manual) setStatusChecking(true);
+    try {
+      const response = await fetch(`/api/kd-mid-visa-intake/public?token=${encodeURIComponent(token)}&submissionId=${encodeURIComponent(receipt.id)}`, { cache: "no-store" });
+      const data = await response.json() as { ok?: boolean; error?: string; submission?: typeof receipt };
+      if (!response.ok || !data.ok || !data.submission) {
+        if (manual) setError(data.error || "Không cập nhật được trạng thái hồ sơ.");
+        return;
+      }
+      setReceipt((current) => current ? { ...current, ...data.submission } : data.submission ?? null);
+      document.title = data.submission.status === "rejected" ? "⚠ HỒ SƠ CẦN SỬA · Visa Nga" : "Form hồ sơ Visa Nga";
+    } catch {
+      if (manual) setError("Không cập nhật được trạng thái hồ sơ. Vui lòng thử lại.");
+    } finally {
+      if (manual) setStatusChecking(false);
+    }
+  }
+
   useEffect(() => {
     if (!token || !receipt?.id) return;
-    let cancelled = false;
-    const check = async () => {
-      try {
-        const response = await fetch(`/api/kd-mid-visa-intake/public?token=${encodeURIComponent(token)}&submissionId=${encodeURIComponent(receipt.id)}`, { cache: "no-store" });
-        const data = await response.json() as { ok?: boolean; submission?: typeof receipt };
-        if (!cancelled && response.ok && data.ok && data.submission) {
-          setReceipt((current) => current ? { ...current, ...data.submission } : data.submission ?? null);
-          if (data.submission.status === "rejected") document.title = "⚠ HỒ SƠ CẦN SỬA · Visa Nga";
-        }
-      } catch {}
-    };
-    void check();
-    const timer = window.setInterval(() => void check(), 15000);
-    return () => { cancelled = true; window.clearInterval(timer); };
+    void refreshSubmissionStatus(false);
+    const timer = window.setInterval(() => void refreshSubmissionStatus(false), 15000);
+    return () => window.clearInterval(timer);
   }, [token, receipt?.id]);
 
   const baseFields = useMemo(() => [
@@ -265,13 +274,13 @@ export default function VisaIntakePage() {
         ok?: boolean;
         error?: string;
         missing?: string[];
-        submission?: { id: string; queueNo: number | null; applicantName: string; status?: string };
+        submission?: { id: string; queueNo: number | null; applicantName: string; status?: string; correctionFields?: string[]; resubmittedFields?: string[]; revision?: number };
       };
       if (!response.ok || !data.ok || !data.submission) {
         setMissing(Array.isArray(data.missing) ? data.missing : []);
         throw new Error(data.error || "Chưa thể gửi hồ sơ.");
       }
-      setReceipt({ ...data.submission, status: data.submission.status ?? "pending", correctionFields: [] });
+      setReceipt({ ...data.submission, status: data.submission.status ?? "pending", correctionFields: data.submission.correctionFields ?? [] });
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Không thể gửi hồ sơ.");
@@ -288,7 +297,8 @@ export default function VisaIntakePage() {
       <h1>{receipt.applicantName}</h1>
       <p>Hồ sơ đã được chuyển vào hàng chờ xác minh. Người phụ trách sẽ kiểm tra trước khi lưu vào danh sách làm hồ sơ Visa.</p>
       <div className={styles.receipt}><small>Số thứ tự tiếp nhận</small><strong>#{receipt.queueNo ?? "—"}</strong></div>
-      <p className={styles.muted}>Bạn không cần gửi lại nếu chưa được yêu cầu chỉnh sửa.</p>
+      <p className={styles.muted}>{(receipt.revision ?? 0) > 0 ? "Bạn đã gửi lại nội dung đã sửa. Hãy chờ người phụ trách xác minh." : "Bạn không cần gửi lại nếu chưa được yêu cầu chỉnh sửa."}</p>
+      <button className={styles.statusRefresh} type="button" disabled={statusChecking} onClick={() => void refreshSubmissionStatus(true)}>{statusChecking ? "↻ Đang cập nhật…" : "↻ Cập nhật trạng thái"}</button>
     </section></main>;
   }
 
@@ -299,7 +309,7 @@ export default function VisaIntakePage() {
     </header>
 
     <form className={styles.form} onSubmit={submit}>
-      {receipt?.status === "rejected" ? <div className={styles.returnAlert}><strong>⚠ HỒ SƠ BỊ TRẢ VỀ · CẦN SỬA</strong><p>{receipt.reviewNote || "Hãy sửa các ô được đánh dấu đỏ rồi gửi lại."}</p><small>Giữ nguyên số tiếp nhận #{receipt.queueNo ?? "—"} · {correctionFields.length} ô cần sửa.</small></div> : null}
+      {receipt?.status === "rejected" ? <div className={styles.returnAlert}><strong>⚠ HỒ SƠ BỊ TRẢ VỀ · CẦN SỬA</strong><p>{receipt.reviewNote || "Hãy sửa các ô được đánh dấu đỏ rồi gửi lại."}</p><small>Giữ nguyên số tiếp nhận #{receipt.queueNo ?? "—"} · {correctionFields.length} ô cần sửa.</small><button className={styles.statusRefresh} type="button" disabled={statusChecking} onClick={() => void refreshSubmissionStatus(true)}>{statusChecking ? "↻ Đang cập nhật…" : "↻ Cập nhật trạng thái"}</button></div> : null}
       <datalist id="visa-day-options">{dayOptions.map((value) => <option key={value} value={value} />)}</datalist>
       <datalist id="visa-month-options">{monthOptions.map((value) => <option key={value} value={value} />)}</datalist>
       {linkLabel ? <div className={styles.batch}>Đợt thu hồ sơ: <strong>{linkLabel}</strong></div> : null}

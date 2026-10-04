@@ -57,6 +57,8 @@ test("public intake form is Vietnamese and covers required visa profile fields",
   assert.match(publicWorkerPage, /submissionId:receipt\?\.status==="rejected"/);
   assert.match(publicWorkerPage, /setInterval\(\(\)=>void checkStatus\(\),15000\)/);
   assert.match(publicWorkerPage, /data-correction/);
+  assert.match(publicWorkerPage, /↻ Cập nhật trạng thái/);
+  assert.match(publicWorkerPage, /checkStatus\(true\)/);
   assert.doesNotMatch(publicWorkerPage, /const formatDmy =/);
 });
 
@@ -88,6 +90,10 @@ test("admin inbox sorts by queue number and requires review before import", () =
   assert.match(adminApi, /SUBMISSION_NOT_APPROVED/);
   assert.match(adminApi, /CORRECTION_FIELD_REQUIRED/);
   assert.match(adminApi, /correctionFields/);
+  assert.match(adminApi, /resubmittedFields/);
+  assert.match(publicApi, /resubmittedFields/);
+  assert.match(tool, /data-resubmitted/);
+  assert.match(tool, /ĐÃ SỬA/);
   assert.match(tool, /Xác minh & lưu hồ sơ/);
   assert.match(tool, /intakeOrder: submission\.queueNo/);
   assert.match(tool, /left - right/);
@@ -111,4 +117,19 @@ test("intake link snapshots the current common work and embassy defaults", () =>
 
 test("applicant preferred embassy overrides common embassy in the KD-MID payload", () => {
   assert.match(tool, /embassy: applicant\.preferredEmbassy \|\| common\.embassy/);
+});
+
+
+test("resubmitted corrections are green for admin and can be clicked red again", () => {
+  assert.match(publicApi, /resubmittedFields = Array\.isArray\(previousValidation\.correctionFields\)/);
+  assert.match(tool, /wasResubmitted = item\.resubmittedFields\?\.includes\(key\)/);
+  assert.match(tool, /data-resubmitted=\{item\.status === "pending" && wasResubmitted && !selectedForReturn\}/);
+  assert.match(tool, /Ô xanh = người gửi đã sửa/);
+});
+
+test("sender can manually refresh the intake status without waiting for polling", () => {
+  assert.match(publicPage, /function refreshSubmissionStatus\(manual = false\)/);
+  assert.match(publicPage, /↻ Cập nhật trạng thái/);
+  assert.match(publicWorkerPage, /refreshWaiting/);
+  assert.match(publicWorkerPage, /refreshReturned/);
 });

@@ -126,6 +126,9 @@ async function snapshot() {
         correctionFields: Array.isArray(validation.correctionFields)
           ? validation.correctionFields.filter((value): value is string => typeof value === "string" && REVIEWABLE_FIELDS.has(value))
           : [],
+        resubmittedFields: Array.isArray(validation.resubmittedFields)
+          ? validation.resubmittedFields.filter((value): value is string => typeof value === "string" && REVIEWABLE_FIELDS.has(value))
+          : [],
         revision: typeof validation.revision === "number" ? validation.revision : 0,
         importedApplicantId: row.imported_applicant_id,
       };
@@ -212,6 +215,7 @@ export async function POST(request: Request) {
       validation = {
         ...validation,
         correctionFields: decision === "rejected" ? correctionFields : [],
+        resubmittedFields: decision === "rejected" ? [] : [],
         reviewedAt: new Date().toISOString(),
       };
       await database.prepare(

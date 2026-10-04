@@ -109,6 +109,9 @@ export async function GET(request: Request) {
       const correctionFields = Array.isArray(validation.correctionFields)
         ? validation.correctionFields.filter((value): value is string => typeof value === "string")
         : [];
+      const resubmittedFields = Array.isArray(validation.resubmittedFields)
+        ? validation.resubmittedFields.filter((value): value is string => typeof value === "string")
+        : [];
       return json({
         ok: true,
         link: { id: link.id, label: link.label, status: link.status },
@@ -121,6 +124,7 @@ export async function GET(request: Request) {
           reviewNote: row.review_note,
           reviewedAt: row.reviewed_at,
           correctionFields,
+          resubmittedFields,
           revision: typeof validation.revision === "number" ? validation.revision : 0,
         },
       });
@@ -259,7 +263,10 @@ export async function POST(request: Request) {
       let previousValidation: Record<string, unknown> = {};
       try { previousValidation = JSON.parse(existing.validation_json || "{}") as Record<string, unknown>; } catch {}
       const revision = (typeof previousValidation.revision === "number" ? previousValidation.revision : 0) + 1;
-      const validation = { complete: true, checkedAt: new Date().toISOString(), revision, correctionFields: [] };
+      const resubmittedFields = Array.isArray(previousValidation.correctionFields)
+        ? previousValidation.correctionFields.filter((value): value is string => typeof value === "string")
+        : [];
+      const validation = { complete: true, checkedAt: new Date().toISOString(), revision, correctionFields: [], resubmittedFields };
       await database.prepare(
         `UPDATE visa_intake_submissions
             SET status='pending', applicant_name=?, passport_no=?, email=?, phone=?, payload_json=?, validation_json=?,
@@ -271,12 +278,12 @@ export async function POST(request: Request) {
       ).run();
       return json({
         ok: true,
-        submission: { id: existing.id, queueNo: existing.queue_no, applicantName, status: "pending", revision },
+        submission: { id: existing.id, queueNo: existing.queue_no, applicantName, status: "pending", revision, correctionFields: [], resubmittedFields },
       });
     }
 
     const id = crypto.randomUUID();
-    const validation = { complete: true, checkedAt: new Date().toISOString(), revision: 0, correctionFields: [] };
+    const validation = { complete: true, checkedAt: new Date().toISOString(), revision: 0, correctionFields: [], resubmittedFields: [] };
     const result = await database.prepare(
       `INSERT INTO visa_intake_submissions
         (id,link_id,status,applicant_name,passport_no,email,phone,payload_json,validation_json)
@@ -300,6 +307,8 @@ export async function POST(request: Request) {
         applicantName,
         status: "pending",
         revision: 0,
+        correctionFields: [],
+        resubmittedFields: [],
       },
     }, 201);
   } catch {
