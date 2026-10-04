@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.12
+// @version      0.9.13
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,7 +17,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.12";
+  const VERSION = "0.9.13";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
@@ -55,6 +55,79 @@
     const descriptor = Object.getOwnPropertyDescriptor(proto, "value");
     if (descriptor?.set) descriptor.set.call(el, value);
     else el.value = value;
+  }
+
+  function activateControl(el) {
+    if (!el) return;
+    try { el.scrollIntoView({ block: "center", inline: "nearest" }); } catch {}
+    try {
+      el.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, view: window }));
+      el.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, view: window }));
+      el.click();
+    } catch {}
+    try { el.focus({ preventScroll: true }); } catch { try { el.focus(); } catch {} }
+  }
+
+  function writeTextControl(el, value) {
+    if (!el) return "missing";
+    if (value == null || value === "") return "ready";
+    if (String(el.value) === String(value)) return "ready";
+    activateControl(el);
+    setNativeControlValue(el, value);
+    fire(el);
+    if (String(el.value) !== String(value)) {
+      try { el.value = value; } catch {}
+      fire(el);
+    }
+    return String(el.value) === String(value) ? "changed" : "waiting";
+  }
+
+  function writeSelectControl(el, values) {
+    if (!el) return "missing";
+    if (el.disabled || el.options.length <= 1) return "waiting";
+    if (selectAlreadyHas(el, values)) return "ready";
+    const option = exactOption(el, values);
+    if (!option) return "waiting";
+    activateControl(el);
+    el.selectedIndex = option.index;
+    setNativeControlValue(el, option.value);
+    fire(el);
+    return selectAlreadyHas(el, values) ? "changed" : "waiting";
+  }
+
+  function writeDateControls(list, value) {
+    if (!value) return "ready";
+    const parts = value.split("/");
+    if (parts.length !== 3 || list.length < 3) return "missing";
+    let changed = false;
+    let unresolved = false;
+    parts.forEach((part, index) => {
+      const el = list[index];
+      if (!el) { unresolved = true; return; }
+      activateControl(el);
+      if (el.tagName === "SELECT") {
+        const option = findDateOption(el, part, index);
+        if (!option) { unresolved = true; return; }
+        if (el.selectedIndex !== option.index || el.value !== option.value) {
+          el.selectedIndex = option.index;
+          setNativeControlValue(el, option.value);
+          fire(el);
+          changed = true;
+        }
+      } else if (!dateControlMatches(el, part, index)) {
+        setNativeControlValue(el, part);
+        fire(el);
+        if (!dateControlMatches(el, part, index)) {
+          try { el.value = part; } catch {}
+          fire(el);
+        }
+        changed = true;
+      }
+    });
+    if (unresolved) return "waiting";
+    return parts.every((part, index) => dateControlMatches(list[index], part, index))
+      ? (changed ? "changed" : "ready")
+      : "waiting";
   }
 
   function refreshAspNetValidators() {
@@ -381,63 +454,54 @@
     if (value == null || value === "") return "ready";
     const el = firstFollowingControl(labels, 'input:not([type="hidden"]):not([type="button"]):not([type="submit"]),textarea');
     if (!el) return "missing";
-    if (String(el.value) === String(value)) return "ready";
-    setNativeControlValue(el, value);
-    fire(el);
-    return String(el.value) === String(value) ? "changed" : "waiting";
+    return writeTextControl(el, value);
   }
 
   function ensureSelectAfterLabel(labels, values) {
     const el = firstFollowingControl(labels, "select");
     if (!el) return "missing";
-    if (el.disabled || el.options.length <= 1) return "waiting";
-    if (selectAlreadyHas(el, values)) return "ready";
-    const option = exactOption(el, values);
-    if (!option) return "waiting";
-    try { el.focus({ preventScroll: true }); } catch { try { el.focus(); } catch {} }
-    el.selectedIndex = option.index;
-    setNativeControlValue(el, option.value);
-    fire(el);
-    return "changed";
+    return writeSelectControl(el, values);
   }
 
   function ensureDateAfterLabel(labels, value) {
-    if (!value) return "ready";
-    const parts = value.split("/");
-    if (parts.length !== 3) return "missing";
     const list = followingControls(labels, 'input:not([type="hidden"]),select', 3);
-    if (list.length < 3) return "missing";
-
-    let changed = false;
-    let unresolved = false;
-    parts.forEach((part, index) => {
-      const el = list[index];
-      if (!el) { unresolved = true; return; }
-      if (el.tagName === "SELECT") {
-        const option = findDateOption(el, part, index);
-        if (!option) { unresolved = true; return; }
-        if (el.value !== option.value || el.selectedIndex !== option.index) {
-          el.selectedIndex = option.index;
-          el.value = option.value;
-          fire(el);
-          changed = true;
-        }
-      } else if (!dateControlMatches(el, part, index)) {
-        setNativeControlValue(el, part);
-        fire(el);
-        changed = true;
-      }
-    });
-
-    if (unresolved) return "waiting";
-    if (!parts.every((part, index) => dateControlMatches(list[index], part, index))) return "waiting";
-    return changed ? "changed" : "ready";
+    return writeDateControls(list, value);
   }
 
   let fieldContinueTimer = 0;
   function continueAutofill(payload, delay = 140) {
     window.clearTimeout(fieldContinueTimer);
     fieldContinueTimer = window.setTimeout(() => run(payload), delay);
+  }
+
+  function personalPageControls() {
+    const texts = [...document.querySelectorAll('input[type="text"],input:not([type])')].filter(visible);
+    const selects = [...document.querySelectorAll("select")].filter(visible);
+    // Stable order on KD-MID Personal Information:
+    // text: surname, givenNames, day, year, birthPlace
+    // select: otherNames, sex, month, bornInRussia
+    return {
+      surname: texts[0] || null,
+      givenNames: texts[1] || null,
+      otherNames: selects[0] || null,
+      sex: selects[1] || null,
+      dob: [texts[2] || null, selects[2] || null, texts[3] || null],
+      birthPlace: texts[4] || null,
+      bornInRussia: selects[3] || null,
+    };
+  }
+
+  function passportPageControls() {
+    const texts = [...document.querySelectorAll('input[type="text"],input:not([type])')].filter(visible);
+    const selects = [...document.querySelectorAll("select")].filter(visible);
+    // Stable order on KD-MID Passport Information:
+    // text: passportNo, issueDay, issueYear, expiryDay, expiryYear
+    // select: issueMonth, expiryMonth
+    return {
+      passportNo: texts[0] || null,
+      issue: [texts[1] || null, selects[0] || null, texts[2] || null],
+      expiry: [texts[3] || null, selects[1] || null, texts[4] || null],
+    };
   }
 
   function isPersonalInfoPage() {
@@ -450,14 +514,15 @@
   function fillPersonalInfoPage(payload) {
     if (!isPersonalInfoPage()) return { handled: false, ready: false };
     const A = payload.applicant || {};
+    const C = personalPageControls();
     const steps = [
-      ["Фамилия", () => ensureTextAfterLabel("Фамилия (согласно паспорту)", A.surname)],
-      ["Имя", () => ensureTextAfterLabel("Имя, другие имена, отчество (согласно паспорту)", A.givenNames)],
-      ["Другие имена", () => ensureSelectAfterLabel("Есть ли у Вас другие когда-либо использовавшиеся имена", ["НЕТ","NO"])],
-      ["Пол", () => ensureSelectAfterLabel("Пол", [A.sex])],
-      ["Дата рождения", () => ensureDateAfterLabel("Дата рождения", A.birthDate)],
-      ["Место рождения", () => ensureTextAfterLabel("Место рождения", A.birthPlace)],
-      ["Родились в России", () => ensureSelectAfterLabel("Вы родились в России?", ["НЕТ","NO"])],
+      ["Фамилия", () => C.surname ? writeTextControl(C.surname, A.surname) : ensureTextAfterLabel("Фамилия (согласно паспорту)", A.surname)],
+      ["Имя", () => C.givenNames ? writeTextControl(C.givenNames, A.givenNames) : ensureTextAfterLabel("Имя, другие имена, отчество (согласно паспорту)", A.givenNames)],
+      ["Другие имена", () => C.otherNames ? writeSelectControl(C.otherNames, ["НЕТ","NO"]) : ensureSelectAfterLabel("Есть ли у Вас другие когда-либо использовавшиеся имена", ["НЕТ","NO"])],
+      ["Пол", () => C.sex ? writeSelectControl(C.sex, [A.sex]) : ensureSelectAfterLabel("Пол", [A.sex])],
+      ["Дата рождения", () => C.dob.every(Boolean) ? writeDateControls(C.dob, A.birthDate) : ensureDateAfterLabel("Дата рождения", A.birthDate)],
+      ["Место рождения", () => C.birthPlace ? writeTextControl(C.birthPlace, A.birthPlace) : ensureTextAfterLabel("Место рождения", A.birthPlace)],
+      ["Родились в России", () => C.bornInRussia ? writeSelectControl(C.bornInRussia, ["НЕТ","NO"]) : ensureSelectAfterLabel("Вы родились в России?", ["НЕТ","NO"])],
     ];
 
     for (const [label, fn] of steps) {
@@ -491,11 +556,12 @@
   function fillPassportInfoPage(payload) {
     if (!isPassportInfoPage()) return { handled: false, ready: false };
     const A = payload.applicant || {};
+    const C = passportPageControls();
 
     const steps = [
-      ["Номер паспорта", () => ensureTextAfterLabel("Номер паспорта", A.passportNo)],
-      ["Дата выдачи", () => ensureDateAfterLabel("Дата выдачи", A.passportIssue)],
-      ["Действителен до", () => ensureDateAfterLabel("Действителен до", A.passportExpiry)],
+      ["Номер паспорта", () => C.passportNo ? writeTextControl(C.passportNo, A.passportNo) : ensureTextAfterLabel("Номер паспорта", A.passportNo)],
+      ["Дата выдачи", () => C.issue.every(Boolean) ? writeDateControls(C.issue, A.passportIssue) : ensureDateAfterLabel("Дата выдачи", A.passportIssue)],
+      ["Действителен до", () => C.expiry.every(Boolean) ? writeDateControls(C.expiry, A.passportExpiry) : ensureDateAfterLabel("Действителен до", A.passportExpiry)],
     ];
 
     for (const [label, fn] of steps) {
@@ -663,11 +729,8 @@
       item.type !== "password"
     );
     if (!el) return false;
-    if (String(el.value) !== String(value)) {
-      setNativeControlValue(el, value);
-      fire(el);
-    }
-    return true;
+    const state = writeTextControl(el, value);
+    return state === "ready" || state === "changed";
   }
 
   function setSelect(labels, values) {
@@ -677,11 +740,8 @@
     const option = [...el.options].find((o) => wants.includes(norm(o.textContent))) ||
       [...el.options].find((o) => wants.some((want) => want && norm(o.textContent).includes(want)));
     if (!option) return false;
-    if (el.value !== option.value) {
-      el.value = option.value;
-      fire(el);
-    }
-    return true;
+    const state = writeSelectControl(el, [option.textContent, option.value]);
+    return state === "ready" || state === "changed";
   }
 
   function findSelectWithExactOption(values) {
