@@ -9,6 +9,7 @@ const adminApi = fs.readFileSync("app/api/kd-mid-visa-intake/admin/route.ts", "u
 const worker = fs.readFileSync("worker/index.ts", "utf8");
 const publicWorkerPage = fs.readFileSync("worker/visa-intake-public.ts", "utf8");
 const migration = fs.readFileSync("drizzle/0009_visa_intake.sql", "utf8");
+const resultMigration = fs.readFileSync("drizzle/0010_visa_intake_results.sql", "utf8");
 const schema = fs.readFileSync("db/schema.ts", "utf8");
 
 test("visa intake has isolated link and submission tables", () => {
@@ -18,6 +19,9 @@ test("visa intake has isolated link and submission tables", () => {
   assert.match(migration, /queue_no.*AUTOINCREMENT/);
   assert.match(schema, /export const visaIntakeLinks/);
   assert.match(schema, /export const visaIntakeSubmissions/);
+  assert.match(resultMigration, /CREATE TABLE IF NOT EXISTS `visa_intake_results`/);
+  assert.match(resultMigration, /pdf_blob/);
+  assert.match(schema, /export const visaIntakeResults/);
 });
 
 test("only public intake page and public intake API bypass Production admin login", () => {
@@ -132,4 +136,36 @@ test("sender can manually refresh the intake status without waiting for polling"
   assert.match(publicPage, /↻ Cập nhật trạng thái/);
   assert.match(publicWorkerPage, /refreshWaiting/);
   assert.match(publicWorkerPage, /refreshReturned/);
+});
+
+
+test("intake batches keep a recoverable stable public link after reset", () => {
+  assert.match(adminApi, /publicPath: `\/visa-intake\?batch=/);
+  assert.match(publicApi, /function validBatchId/);
+  assert.match(publicApi, /function linkByAccess/);
+  assert.match(publicApi, /WHERE id=\? LIMIT 1/);
+  assert.match(tool, /function intakePublicUrl/);
+  assert.match(tool, /item\.publicPath/);
+  assert.doesNotMatch(tool, /intakeLinks\.filter\(\(item\) => item\.status === "active"\)/);
+});
+
+test("accepted intake submissions can receive and download one PDF result", () => {
+  assert.match(adminApi, /action === "send-result"/);
+  assert.match(adminApi, /RESULT_PDF_TOO_LARGE/);
+  assert.match(adminApi, /"%PDF-"/);
+  assert.match(adminApi, /visa_intake_results/);
+  assert.match(publicApi, /wantsResult/);
+  assert.match(publicApi, /application\/pdf/);
+  assert.match(publicApi, /downloadUrl/);
+  assert.match(tool, /Gửi PDF kết quả/);
+  assert.match(publicPage, /ĐÃ TIẾP NHẬN HỒ SƠ/);
+  assert.match(publicPage, /Nhận kết quả/);
+  assert.match(publicWorkerPage, /ĐÃ TIẾP NHẬN HỒ SƠ/);
+  assert.match(publicWorkerPage, /Tải PDF kết quả/);
+});
+
+test("closed batches still allow an existing submission to check status and receive results", () => {
+  assert.match(publicApi, /if\(submissionId\)|if \(submissionId\)/);
+  assert.match(publicApi, /link\.status!==?"active"|link\.status !== "active"/);
+  assert.match(publicApi, /Người đã gửi hồ sơ vẫn có thể mở lại link/);
 });

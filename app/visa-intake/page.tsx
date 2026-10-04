@@ -159,6 +159,8 @@ function Field({ label, ru, hint, children, fieldKey, correctionFields = [] }: {
 
 export default function VisaIntakePage() {
   const [token, setToken] = useState("");
+  const [batch, setBatch] = useState("");
+  const [accessKey, setAccessKey] = useState("");
   const [applicant, setApplicant] = useState<ApplicantForm>(blank());
   const [permanentAddress, setPermanentAddress] = useState("");
   const [linkLabel, setLinkLabel] = useState("");
@@ -168,32 +170,28 @@ export default function VisaIntakePage() {
   const [error, setError] = useState("");
   const [missing, setMissing] = useState<string[]>([]);
   const [confirmed, setConfirmed] = useState(false);
-  const [receipt, setReceipt] = useState<{ id: string; queueNo: number | null; applicantName: string; status: string; reviewNote?: string | null; correctionFields?: string[]; resubmittedFields?: string[]; revision?: number } | null>(null);
+  const [receipt, setReceipt] = useState<{ id: string; queueNo: number | null; applicantName: string; status: string; reviewNote?: string | null; correctionFields?: string[]; resubmittedFields?: string[]; revision?: number; result?: { available: true; fileName: string; fileSize: number; uploadedAt: string; downloadUrl: string } | null } | null>(null);
   const correctionFields = receipt?.status === "rejected" ? (receipt.correctionFields ?? []) : [];
 
   useEffect(() => {
-    const value = new URLSearchParams(window.location.search).get("token") ?? "";
-    setToken(value);
+    const params = new URLSearchParams(window.location.search);
+    const tokenValue = params.get("token") ?? "";
+    const batchValue = params.get("batch") ?? "";
+    const key = batchValue ? `batch:${batchValue}` : tokenValue ? `token:${tokenValue}` : "";
+    setToken(tokenValue); setBatch(batchValue); setAccessKey(key);
     let saved: { applicant?: ApplicantForm; receipt?: typeof receipt } | null = null;
     try {
-      const raw = window.localStorage.getItem(`visa-intake:draft:${value}`);
+      const raw = key ? window.localStorage.getItem(`visa-intake:draft:${key}`) : null;
       saved = raw ? JSON.parse(raw) as { applicant?: ApplicantForm; receipt?: typeof receipt } : null;
       if (saved?.applicant) setApplicant({ ...blank(), ...saved.applicant });
       if (saved?.receipt) setReceipt(saved.receipt);
     } catch {}
-    if (!value) {
-      setError("Link form chưa có mã thu hồ sơ.");
-      setLoading(false);
-      return;
-    }
-    void fetch(`/api/kd-mid-visa-intake/public?token=${encodeURIComponent(value)}`, { cache: "no-store" })
+    if (!tokenValue && !batchValue) { setError("Link form chưa có mã thu hồ sơ."); setLoading(false); return; }
+    const access = batchValue ? `batch=${encodeURIComponent(batchValue)}` : `token=${encodeURIComponent(tokenValue)}`;
+    const receiptPart = saved?.receipt?.id ? `&submissionId=${encodeURIComponent(saved.receipt.id)}` : "";
+    void fetch(`/api/kd-mid-visa-intake/public?${access}${receiptPart}`, { cache: "no-store" })
       .then(async (response) => {
-        const data = await response.json() as {
-          ok?: boolean;
-          error?: string;
-          link?: { label?: string };
-          defaults?: Record<string, unknown>;
-        };
+        const data = await response.json() as { ok?: boolean; error?: string; link?: { label?: string }; defaults?: Record<string, unknown>; submission?: typeof receipt };
         if (!response.ok || !data.ok) throw new Error(data.error || "Link không hợp lệ.");
         const defaults = data.defaults ?? {};
         setLinkLabel(String(data.link?.label ?? ""));
@@ -208,30 +206,29 @@ export default function VisaIntakePage() {
           workEmail: current.workEmail || String(defaults.workEmail ?? "").toLowerCase(),
           preferredEmbassy: String(defaults.preferredEmbassy ?? current.preferredEmbassy),
         }));
+        if (data.submission) setReceipt((current) => current ? { ...current, ...data.submission } : data.submission ?? null);
       })
       .catch((reason) => setError(reason instanceof Error ? reason.message : "Không thể mở form."))
       .finally(() => setLoading(false));
   }, []);
-
   useEffect(() => {
-    if (!token) return;
-    try {
-      window.localStorage.setItem(`visa-intake:draft:${token}`, JSON.stringify({ applicant, receipt }));
-    } catch {}
-  }, [token, applicant, receipt]);
+    if (!accessKey) return;
+    try { window.localStorage.setItem(`visa-intake:draft:${accessKey}`, JSON.stringify({ applicant, receipt })); } catch {}
+  }, [accessKey, applicant, receipt]);
 
   async function refreshSubmissionStatus(manual = false) {
-    if (!token || !receipt?.id) return;
+    if ((!token && !batch) || !receipt?.id) return;
     if (manual) setStatusChecking(true);
     try {
-      const response = await fetch(`/api/kd-mid-visa-intake/public?token=${encodeURIComponent(token)}&submissionId=${encodeURIComponent(receipt.id)}`, { cache: "no-store" });
+      const access = batch ? `batch=${encodeURIComponent(batch)}` : `token=${encodeURIComponent(token)}`;
+      const response = await fetch(`/api/kd-mid-visa-intake/public?${access}&submissionId=${encodeURIComponent(receipt.id)}`, { cache: "no-store" });
       const data = await response.json() as { ok?: boolean; error?: string; submission?: typeof receipt };
       if (!response.ok || !data.ok || !data.submission) {
         if (manual) setError(data.error || "Không cập nhật được trạng thái hồ sơ.");
         return;
       }
       setReceipt((current) => current ? { ...current, ...data.submission } : data.submission ?? null);
-      document.title = data.submission.status === "rejected" ? "⚠ HỒ SƠ CẦN SỬA · Visa Nga" : "Form hồ sơ Visa Nga";
+      document.title = data.submission.status === "rejected" ? "⚠ HỒ SƠ CẦN SỬA · Visa Nga" : data.submission.result?.available ? "📄 ĐÃ CÓ KẾT QUẢ · Visa Nga" : ["approved", "imported"].includes(data.submission.status) ? "✓ ĐÃ TIẾP NHẬN HỒ SƠ · Visa Nga" : "Form hồ sơ Visa Nga";
     } catch {
       if (manual) setError("Không cập nhật được trạng thái hồ sơ. Vui lòng thử lại.");
     } finally {
@@ -244,7 +241,7 @@ export default function VisaIntakePage() {
     void refreshSubmissionStatus(false);
     const timer = window.setInterval(() => void refreshSubmissionStatus(false), 15000);
     return () => window.clearInterval(timer);
-  }, [token, receipt?.id]);
+  }, [token, batch, receipt?.id]);
 
   const baseFields = useMemo(() => [
     applicant.surname, applicant.givenNames, applicant.birthDate, applicant.birthPlace,
@@ -268,13 +265,13 @@ export default function VisaIntakePage() {
       const response = await fetch("/api/kd-mid-visa-intake/public", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ token, applicant, confirmedAccurate: confirmed, submissionId: receipt?.status === "rejected" ? receipt.id : undefined }),
+        body: JSON.stringify({ token, batch, applicant, confirmedAccurate: confirmed, submissionId: receipt?.status === "rejected" ? receipt.id : undefined }),
       });
       const data = await response.json() as {
         ok?: boolean;
         error?: string;
         missing?: string[];
-        submission?: { id: string; queueNo: number | null; applicantName: string; status?: string; correctionFields?: string[]; resubmittedFields?: string[]; revision?: number };
+        submission?: { id: string; queueNo: number | null; applicantName: string; status?: string; correctionFields?: string[]; resubmittedFields?: string[]; revision?: number; result?: { available: true; fileName: string; fileSize: number; uploadedAt: string; downloadUrl: string } | null };
       };
       if (!response.ok || !data.ok || !data.submission) {
         setMissing(Array.isArray(data.missing) ? data.missing : []);
@@ -292,16 +289,20 @@ export default function VisaIntakePage() {
   if (loading) return <main className={styles.page}><section className={styles.card}><h1>Đang mở form hồ sơ Visa Nga…</h1></section></main>;
 
   if (receipt && receipt.status !== "rejected") {
+    const accepted = ["approved", "imported"].includes(receipt.status);
     return <main className={styles.page}><section className={styles.successCard}>
-      <span>ĐÃ GỬI HỒ SƠ</span>
+      <span>{accepted ? "ĐÃ TIẾP NHẬN HỒ SƠ" : "ĐÃ GỬI HỒ SƠ"}</span>
       <h1>{receipt.applicantName}</h1>
-      <p>Hồ sơ đã được chuyển vào hàng chờ xác minh. Người phụ trách sẽ kiểm tra trước khi lưu vào danh sách làm hồ sơ Visa.</p>
+      <p>{accepted ? "Hồ sơ của bạn đã được người phụ trách xác minh và tiếp nhận." : "Hồ sơ đã được chuyển vào hàng chờ xác minh. Người phụ trách sẽ kiểm tra trước khi tiếp nhận."}</p>
       <div className={styles.receipt}><small>Số thứ tự tiếp nhận</small><strong>#{receipt.queueNo ?? "—"}</strong></div>
-      <p className={styles.muted}>{(receipt.revision ?? 0) > 0 ? "Bạn đã gửi lại nội dung đã sửa. Hãy chờ người phụ trách xác minh." : "Bạn không cần gửi lại nếu chưa được yêu cầu chỉnh sửa."}</p>
+      <div className={styles.resultBox}>
+        <strong>Nhận kết quả</strong>
+        {receipt.result?.available ? <><p>Đã có PDF kết quả: <b>{receipt.result.fileName}</b></p><a href={receipt.result.downloadUrl}>Tải PDF kết quả</a></> : <p>{accepted ? "Hồ sơ đã được tiếp nhận. PDF kết quả sẽ xuất hiện tại đây khi người phụ trách gửi." : "Sau khi hồ sơ được tiếp nhận, kết quả PDF sẽ được gửi tại đây."}</p>}
+      </div>
+      <p className={styles.muted}>{accepted ? "Bạn có thể giữ link này để cập nhật trạng thái và nhận kết quả." : (receipt.revision ?? 0) > 0 ? "Bạn đã gửi lại nội dung đã sửa. Hãy chờ người phụ trách xác minh." : "Bạn không cần gửi lại nếu chưa được yêu cầu chỉnh sửa."}</p>
       <button className={styles.statusRefresh} type="button" disabled={statusChecking} onClick={() => void refreshSubmissionStatus(true)}>{statusChecking ? "↻ Đang cập nhật…" : "↻ Cập nhật trạng thái"}</button>
     </section></main>;
   }
-
   return <main className={styles.page}>
     <header className={styles.hero}>
       <div><span>FORM THU THẬP HỒ SƠ VISA NGA</span><h1>Điền thông tin cá nhân để chuẩn bị hồ sơ KD-MID</h1><p>Hướng dẫn hoàn toàn bằng tiếng Việt. Hãy nhập đúng theo hộ chiếu và kiểm tra kỹ trước khi gửi.</p></div>
