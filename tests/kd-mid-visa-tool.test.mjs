@@ -14,10 +14,10 @@ test("KD-MID Visa is registered as an internal Tool", () => {
   assert.match(page, /requireChatGPTUser\("\/tools\/kd-mid-visa"\)/);
 });
 
-test("Companion v0.9.7 is active in script and UI", () => {
-  assert.match(companion, /@version\s+0\.9\.7/);
-  assert.match(companion, /const VERSION = "0\.9\.7"/);
-  assert.match(tool, /Companion v0\.9\.7/);
+test("Companion v0.9.8 is active in script and UI", () => {
+  assert.match(companion, /@version\s+0\.9\.8/);
+  assert.match(companion, /const VERSION = "0\.9\.8"/);
+  assert.match(tool, /Companion v0\.9\.8/);
 });
 
 test("landing page still selects Vietnam and Russian before continuing", () => {
@@ -112,4 +112,24 @@ test("three Vietnam missions remain available", () => {
   assert.match(tool, /ПОСОЛЬСТВО РФ ВО ВЬЕТНАМЕ/);
   assert.match(tool, /ГЕНКОНСУЛЬСТВО РФ В ДАНАНГЕ/);
   assert.match(tool, /ГЕНКОНСУЛЬСТВО РФ В ХОШИМИНЕ/);
+});
+
+
+test("v0.9.8 treats the explicit launch hash as authoritative", () => {
+  assert.match(companion, /const hashPayload = readPayloadFromHash\(\)/);
+  assert.match(companion, /let currentPayload = hashPayload \|\| readSharedPayload\(\)/);
+  assert.match(companion, /function payloadRevision/);
+  assert.match(companion, /nextRevision < currentRevision/);
+});
+
+test("v0.9.8 opens every automation run in a fresh KD-MID tab", () => {
+  assert.match(tool, /window\.open\([^\n]+, "_blank"\)/);
+  assert.match(tool, /mở tab KD-MID mới/);
+});
+
+test("v0.9.8 exposes exact payload identity and refreshes ASP.NET validation", () => {
+  assert.match(companion, /function payloadIdentity/);
+  assert.match(companion, /function refreshAspNetValidators/);
+  assert.match(companion, /ValidatorValidate/);
+  assert.match(companion, /trang cá nhân đã đồng bộ đúng payload/);
 });
