@@ -59,6 +59,8 @@ async function databaseReady(env: Env) {
     await env.DB.prepare("SELECT app_id FROM deploy_ops_targets LIMIT 1").first();
     await env.DB.prepare("SELECT id FROM deploy_ops_runs LIMIT 1").first();
     await env.DB.prepare("SELECT provider FROM deploy_ops_credentials LIMIT 1").first();
+    await env.DB.prepare("SELECT id FROM visa_intake_links LIMIT 1").first();
+    await env.DB.prepare("SELECT id FROM visa_intake_submissions LIMIT 1").first();
     return true;
   } catch {
     return false;
@@ -163,6 +165,14 @@ function isPublicPwaAsset(request: Request, url: URL) {
   ]).has(url.pathname);
 }
 
+function isPublicVisaIntakeRequest(request: Request, url: URL) {
+  if (request.method === "GET" || request.method === "HEAD") {
+    if (url.pathname === "/visa-intake") return true;
+    if (url.pathname === "/api/kd-mid-visa-intake/public") return true;
+  }
+  return request.method === "POST" && url.pathname === "/api/kd-mid-visa-intake/public";
+}
+
 function isCloudflareClientAsset(request: Request, url: URL) {
   if (request.method !== "GET" && request.method !== "HEAD") return false;
   if (url.pathname.startsWith("/assets/")) return true;
@@ -219,6 +229,15 @@ const worker = {
       return env.ASSETS.fetch(request);
     }
 
+    // Public visa-intake is intentionally shareable without an admin session.
+    // Static client assets contain no private records and must also load before auth.
+    if ((isPreview || isProduction) && isCloudflareClientAsset(request, url)) {
+      return env.ASSETS.fetch(request);
+    }
+    if (isProduction && isPublicVisaIntakeRequest(request, url)) {
+      return freshDynamicResponse(await handler.fetch(request, env, ctx), true);
+    }
+
     if (isPreview) {
       if (!previewAccessConfigured(env.APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET)) return previewUnavailable();
       if (url.pathname === previewLoginPath()) return handlePreviewLogin(request, env.APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET);
@@ -256,10 +275,6 @@ const worker = {
 
     if (isProduction && request.method === "GET" && url.pathname === "/__repair-cache") {
       return repairBrowserCache(env);
-    }
-
-    if ((isPreview || isProduction) && isCloudflareClientAsset(request, url)) {
-      return env.ASSETS.fetch(request);
     }
 
     if (isPreview) {
