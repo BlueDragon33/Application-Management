@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.13
+// @version      0.9.14
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,7 +17,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.13";
+  const VERSION = "0.9.14";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
@@ -99,35 +99,56 @@
     if (!value) return "ready";
     const parts = value.split("/");
     if (parts.length !== 3 || list.length < 3) return "missing";
+
+    const dayEl = list[0];
+    const monthEl = list[1];
+    const yearEl = list[2];
+    if (!dayEl || !monthEl || !yearEl) return "missing";
+
+    // KD-MID's month dropdown can trigger an ASP.NET postback.
+    // Select the month FIRST and stop this tick immediately. After the page
+    // settles/reloads, the next tick fills day and year. Otherwise KD-MID can
+    // wipe day/year that were written in the same tick.
+    if (monthEl.tagName === "SELECT" && !dateControlMatches(monthEl, parts[1], 1)) {
+      const option = findDateOption(monthEl, parts[1], 1);
+      if (!option) return "waiting";
+      activateControl(monthEl);
+      monthEl.selectedIndex = option.index;
+      setNativeControlValue(monthEl, option.value);
+      fire(monthEl);
+      return dateControlMatches(monthEl, parts[1], 1) ? "changed" : "waiting";
+    }
+
     let changed = false;
-    let unresolved = false;
-    parts.forEach((part, index) => {
-      const el = list[index];
-      if (!el) { unresolved = true; return; }
-      activateControl(el);
-      if (el.tagName === "SELECT") {
-        const option = findDateOption(el, part, index);
-        if (!option) { unresolved = true; return; }
-        if (el.selectedIndex !== option.index || el.value !== option.value) {
-          el.selectedIndex = option.index;
-          setNativeControlValue(el, option.value);
-          fire(el);
-          changed = true;
-        }
-      } else if (!dateControlMatches(el, part, index)) {
-        setNativeControlValue(el, part);
-        fire(el);
-        if (!dateControlMatches(el, part, index)) {
-          try { el.value = part; } catch {}
-          fire(el);
-        }
-        changed = true;
+
+    if (!dateControlMatches(dayEl, parts[0], 0)) {
+      activateControl(dayEl);
+      setNativeControlValue(dayEl, parts[0]);
+      fire(dayEl);
+      if (!dateControlMatches(dayEl, parts[0], 0)) {
+        try { dayEl.value = parts[0]; } catch {}
+        fire(dayEl);
       }
-    });
-    if (unresolved) return "waiting";
-    return parts.every((part, index) => dateControlMatches(list[index], part, index))
-      ? (changed ? "changed" : "ready")
-      : "waiting";
+      changed = true;
+    }
+
+    if (!dateControlMatches(yearEl, parts[2], 2)) {
+      activateControl(yearEl);
+      setNativeControlValue(yearEl, parts[2]);
+      fire(yearEl);
+      if (!dateControlMatches(yearEl, parts[2], 2)) {
+        try { yearEl.value = parts[2]; } catch {}
+        fire(yearEl);
+      }
+      changed = true;
+    }
+
+    const ready =
+      dateControlMatches(dayEl, parts[0], 0) &&
+      dateControlMatches(monthEl, parts[1], 1) &&
+      dateControlMatches(yearEl, parts[2], 2);
+
+    return ready ? (changed ? "changed" : "ready") : "waiting";
   }
 
   function refreshAspNetValidators() {
