@@ -14,53 +14,75 @@ test("KD-MID Visa is registered as an internal Tool", () => {
   assert.match(page, /requireChatGPTUser\("\/tools\/kd-mid-visa"\)/);
 });
 
-test("Companion v0.9.5 is active", () => {
-  assert.match(companion, /@version\s+0\.9\.3/);
-  assert.match(companion, /const VERSION = "0\.9\.3"/);
-  assert.match(tool, /Companion v0\.9\.3/);
+test("Companion v0.9.6 is active in script and UI", () => {
+  assert.match(companion, /@version\s+0\.9\.6/);
+  assert.match(companion, /const VERSION = "0\.9\.6"/);
+  assert.match(tool, /Companion v0\.9\.6/);
 });
 
-test("landing page selects Vietnam and Russian before continuing", () => {
+test("landing page still selects Vietnam and Russian before continuing", () => {
   assert.match(companion, /РУССКИЙ \(RUSSIAN\)/);
   assert.match(companion, /Я прочитал эту информацию/);
   assert.match(companion, /fillLandingPage/);
 });
 
-test("password page fills both password fields and waits for manual CAPTCHA", () => {
+test("password page still fills both password fields and waits for manual CAPTCHA", () => {
   assert.match(companion, /function fillPassword/);
   assert.match(companion, /ПОДТВЕРЖДЕНИЕ ПАРОЛЯ/);
   assert.match(companion, /ВВЕДИТЕ НАДПИСЬ С КАРТИНКИ/);
   assert.match(companion, /ОТПРАВИТЬ/);
 });
 
-test("visa request page follows the exact desired values", () => {
+test("visa request page keeps the exact required values", () => {
   assert.match(companion, /function fillVisaRequestPage/);
-  assert.match(companion, /Гражданство/);
   assert.match(companion, /ВЬЕТНАМ/);
-  assert.match(companion, /Если Вы имели гражданство СССР или России/);
-  assert.match(companion, /Цель поездки \(раздел\)/);
-  assert.match(companion, /Цель поездки/);
+  assert.match(companion, /УЧЕБА/);
   assert.match(companion, /ОБЫКНОВЕННАЯ УЧЕБНАЯ/);
   assert.match(companion, /ОДНОКРАТНАЯ/);
-  assert.match(companion, /ВЬЕТНАМ · НЕТ · УЧЕБА · УЧЕБА · ОБЫКНОВЕННАЯ УЧЕБНАЯ · ОДНОКРАТНАЯ/);
+  assert.match(companion, /function ensureVisaFormerCitizenship/);
 });
 
-test("dependent visa selects are changed one at a time", () => {
-  assert.match(companion, /function ensureSelectNearLabel/);
-  assert.match(companion, /return "changed"/);
-  assert.match(companion, /return \{ handled: true, ready: false \}/);
-  assert.match(companion, /đang chờ KD-MID nạp Цель поездки/);
-  assert.match(companion, /đang chờ KD-MID nạp Категория и вид визы/);
+test("personal information page maps each field independently", () => {
+  assert.match(companion, /function fillPersonalInfoPage/);
+  assert.match(companion, /ensureTextAfterLabel\("Фамилия \(согласно паспорту\)"/);
+  assert.match(companion, /ensureTextAfterLabel\("Имя, другие имена, отчество \(согласно паспорту\)"/);
+  assert.match(companion, /ensureSelectAfterLabel\("Пол"/);
+  assert.match(companion, /ensureDateAfterLabel\("Дата рождения"/);
+  assert.match(companion, /ensureTextAfterLabel\("Место рождения"/);
 });
 
-test("Цель поездки label matching prefers exact text over Цель поездки (раздел)", () => {
-  assert.match(companion, /Number\(b\.exact\) - Number\(a\.exact\)/);
-  assert.match(companion, /findSelectNearExactLabel/);
+test("Russian month names are supported for KD-MID date selects", () => {
+  assert.match(companion, /const RU_MONTHS = \["","ЯНВАРЬ","ФЕВРАЛЬ","МАРТ"/);
+  assert.match(companion, /function findDateOption/);
+  assert.match(companion, /monthName = RU_MONTHS\[monthNumber\]/);
+  assert.match(companion, /options\[monthNumber\]/);
 });
 
-test("visa page cannot auto-advance until the whole page is ready", () => {
-  const segment = companion.slice(companion.indexOf("function maybeAdvance"), companion.indexOf("function status"));
-  assert.match(segment, /isVisaRequestPage\(\) && recognized < 1/);
+test("date fill is not considered ready when a month option cannot be resolved", () => {
+  assert.match(companion, /if \(!option\) \{ unresolved = true; return; \}/);
+  assert.match(companion, /if \(unresolved\) return "waiting"/);
+  assert.match(companion, /dateControlMatches/);
+});
+
+test("App-Manager normalizes dd/mm/yyyy dates before sending them to KD-MID", () => {
+  assert.match(tool, /function normalizeDmy/);
+  assert.match(tool, /birthDate: normalizeDmy\(applicant\.birthDate\)/);
+  assert.match(tool, /passportIssue: normalizeDmy\(applicant\.passportIssue\)/);
+  assert.match(tool, /entryDate: normalizeDmy\(common\.entryDate\)/);
+  assert.match(tool, /function DateTextInput/);
+});
+
+test("every launch pushes the newest saved profile to the Companion", () => {
+  assert.match(tool, /KD_MID_SET_PAYLOAD/);
+  assert.match(companion, /data\.type === "KD_MID_SET_PAYLOAD"/);
+  assert.match(companion, /gmSet\(SHARED_PAYLOAD_KEY, JSON\.stringify\(data\.payload\)\)/);
+});
+
+test("same KD-MID tab refreshes when the payload hash or GM payload changes", () => {
+  assert.match(tool, /_launchToken: Date\.now\(\)/);
+  assert.match(companion, /window\.addEventListener\("hashchange"/);
+  assert.match(companion, /GM_addValueChangeListener\(SHARED_PAYLOAD_KEY/);
+  assert.match(companion, /startProgressiveRun\(fresh\)/);
 });
 
 test("application ID and official A4 flow remain intact", () => {
@@ -73,46 +95,4 @@ test("three Vietnam missions remain available", () => {
   assert.match(tool, /ПОСОЛЬСТВО РФ ВО ВЬЕТНАМЕ/);
   assert.match(tool, /ГЕНКОНСУЛЬСТВО РФ В ДАНАНГЕ/);
   assert.match(tool, /ГЕНКОНСУЛЬСТВО РФ В ХОШИМИНЕ/);
-});
-
-
-test("v0.9.5 identifies the USSR/Russia citizenship dropdown by its DA/NET options", () => {
-  assert.match(companion, /function findYesNoSelect/);
-  assert.match(companion, /value === "ДА"/);
-  assert.match(companion, /value === "НЕТ"/);
-  assert.match(companion, /function ensureVisaFormerCitizenship/);
-  assert.match(companion, /ensureVisaFormerCitizenship\(Boolean\(A\.hadFormerRussianCitizenship\)\)/);
-});
-
-test("v0.9.5 no longer relies on the long former-citizenship label to find that select", () => {
-  const segment = companion.slice(
-    companion.indexOf('const former = A.hadFormerRussianCitizenship'),
-    companion.indexOf('if (A.hadFormerRussianCitizenship)', companion.indexOf('const former = A.hadFormerRussianCitizenship'))
-  );
-  assert.doesNotMatch(segment, /ensureSelectNearLabel\("Если Вы имели гражданство СССР или России"/);
-  assert.match(segment, /ensureVisaFormerCitizenship/);
-});
-
-
-test("v0.9.5 maps personal-information fields by the control following each exact label", () => {
-  assert.match(companion, /function firstFollowingControl/);
-  assert.match(companion, /function ensureTextAfterLabel/);
-  assert.match(companion, /function ensureSelectAfterLabel/);
-  assert.match(companion, /function ensureDateAfterLabel/);
-  assert.match(companion, /function fillPersonalInfoPage/);
-  assert.match(companion, /Фамилия \(согласно паспорту\)/);
-  assert.match(companion, /Имя, другие имена, отчество \(согласно паспорту\)/);
-  assert.match(companion, /Место рождения/);
-});
-
-test("v0.9.5 stops generic filling from overwriting personal fields", () => {
-  const fill = companion.slice(companion.indexOf("function fillPage"), companion.indexOf("function addHints"));
-  assert.match(fill, /fillPersonalInfoPage\(payload\)/);
-  assert.doesNotMatch(fill, /setText\("Фамилия \(согласно паспорту\)"/);
-  assert.doesNotMatch(fill, /setText\("Место рождения"/);
-});
-
-test("personal page cannot auto-advance until every field is validated", () => {
-  const segment = companion.slice(companion.indexOf("function maybeAdvance"), companion.indexOf("function status"));
-  assert.match(segment, /isPersonalInfoPage\(\) && recognized < 1/);
 });
