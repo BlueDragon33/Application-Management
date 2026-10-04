@@ -26,7 +26,21 @@ test("device view keeps direct app administration separate from registry mutatio
   assert.match(dashboard, /function DevicesView/);
   assert.match(dashboard, /<Link href=\{device\.href\}>Quản trị<\/Link>/);
   assert.match(dashboard, /device\.canApprove/);
-  assert.match(dashboard, /device\.canRemove/);
+  assert.match(dashboard, /device\.canRemove && device\.status === "pending"/);
+});
+
+test("approved and blocked devices cannot be removed from the central dashboard", () => {
+  const manageStart = dashboard.indexOf("async function manageDevice");
+  const manageEnd = dashboard.indexOf("async function bulkRemovePendingDevices", manageStart);
+  const manageBlock = dashboard.slice(manageStart, manageEnd);
+  assert.match(manageBlock, /operation === "remove" && device\.status !== "pending"/);
+  assert.match(manageBlock, /hãy vào Quản trị của/);
+
+  const viewStart = dashboard.indexOf("function DevicesView");
+  const viewEnd = dashboard.indexOf("function AlertsView", viewStart);
+  const viewBlock = dashboard.slice(viewStart, viewEnd);
+  assert.match(viewBlock, /device\.canRemove && device\.status === "pending"/);
+  assert.match(viewBlock, /Thiết bị đã duyệt\/đã khóa phải vào Quản trị của từng app/);
 });
 
 test("full device tab uses the complete filtered device set while overview stays compact", () => {
