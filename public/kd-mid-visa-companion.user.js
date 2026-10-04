@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.23
+// @version      0.9.24
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,7 +17,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.23";
+  const VERSION = "0.9.24";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
@@ -694,46 +694,52 @@
       .filter((el) => norm(el.textContent || el.value || "") === "УДАЛИТЬ");
   }
 
+  function routeCityLabels() {
+    return [...document.querySelectorAll("label,td,th,div,span,p,b,strong")]
+      .filter(visible)
+      .filter((el) => norm(el.textContent) === "НАСЕЛЕННЫЙ ПУНКТ");
+  }
+
   function routeCityControl() {
-    // Strongest anchor on this page: the route card always has its own
-    // "Удалить" button. Walk UP from that button until we find the smallest
-    // ancestor that also contains "Населенный пункт" and at least one visible
-    // text input. This avoids duplicated help text and outer-table ambiguity.
+    // Use the geometry that is actually visible to the user:
+    // exact "Населенный пункт" label -> text input -> "Удалить" button.
+    // The real route input is physically BETWEEN that label and that button.
+    const labels = routeCityLabels();
+    const deletes = routeDeleteButtons();
+    const inputs = [...document.querySelectorAll(
+      'input:not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"])'
+    )].filter(visible);
+
     const candidates = [];
+    for (const label of labels) {
+      const lr = label.getBoundingClientRect();
 
-    for (const button of routeDeleteButtons()) {
-      let current = button.parentElement;
-      for (let depth = 0; depth < 10 && current; depth += 1, current = current.parentElement) {
-        const text = norm(current.innerText || current.textContent || "");
-        if (!text.includes("НАСЕЛЕННЫЙ ПУНКТ")) continue;
+      for (const del of deletes) {
+        const dr = del.getBoundingClientRect();
+        if (dr.top <= lr.bottom) continue;
+        if (dr.top - lr.bottom > 220) continue;
 
-        const inputs = [...current.querySelectorAll(
-          'input:not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"])'
-        )].filter(visible);
-
-        if (!inputs.length) continue;
-
-        const br = button.getBoundingClientRect();
-        const scored = inputs.map((input) => {
+        for (const input of inputs) {
           const ir = input.getBoundingClientRect();
-          const aboveDelete = ir.top <= br.top + 8 ? 0 : 10000;
-          const horizontal = Math.abs(ir.left - br.left);
-          const vertical = Math.abs(br.top - ir.bottom);
-          return { input, score: aboveDelete + vertical * 10 + horizontal };
-        }).sort((a, b) => a.score - b.score);
+          const betweenVertically = ir.top >= lr.bottom - 8 && ir.bottom <= dr.top + 8;
+          const nearLabelX = Math.abs(ir.left - lr.left) <= 220;
+          const nearDeleteX = Math.abs(ir.left - dr.left) <= 220;
+          const usefulWidth = ir.width >= 120;
 
-        const rect = current.getBoundingClientRect();
-        candidates.push({
-          input: scored[0].input,
-          area: Math.max(1, rect.width * rect.height),
-          depth,
-          score: scored[0].score,
-        });
-        break;
+          if (!betweenVertically || !nearLabelX || !nearDeleteX || !usefulWidth) continue;
+
+          const score =
+            Math.abs(ir.top - lr.bottom) * 10 +
+            Math.abs(dr.top - ir.bottom) * 10 +
+            Math.abs(ir.left - lr.left) +
+            Math.abs(ir.left - dr.left);
+
+          candidates.push({ input, score });
+        }
       }
     }
 
-    candidates.sort((a, b) => a.area - b.area || a.score - b.score || a.depth - b.depth);
+    candidates.sort((a, b) => a.score - b.score);
     return candidates[0]?.input || null;
   }
 
@@ -828,29 +834,20 @@
 
   function chooseRouteSuggestion(input, value = "МОСКВА") {
     const node = routeSuggestionNode(input, value);
-    if (node) {
-      try {
-        node.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, view: window }));
-        node.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, view: window }));
-        node.click();
-      } catch {
-        try { node.click(); } catch {}
-      }
-      return true;
-    }
+    if (!node) return false;
 
-    // Fallback for keyboard-driven autocomplete widgets.
     try {
-      input.focus();
-      input.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "ArrowDown", code: "ArrowDown" }));
-      input.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: "ArrowDown", code: "ArrowDown" }));
-      input.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Enter", code: "Enter" }));
-      input.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: "Enter", code: "Enter" }));
-      return true;
+      node.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, view: window }));
+      node.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, view: window }));
+      node.click();
     } catch {
-      return false;
+      try { node.click(); } catch { return false; }
     }
+    return true;
   }
+
+  const ROUTE_TYPED_AT_KEY = "kd-mid-vn:route-typed-at:v1";
+  const ROUTE_SELECTED_AT_KEY = "kd-mid-vn:route-selected-at:v1";
 
   function routeValidationErrorVisible(input) {
     if (!input) return true;
@@ -925,30 +922,85 @@
       return { handled: true, ready: false };
     }
 
-    if (String(routeInput.value || "").trim() !== routeValue) {
-      const typed = typeRouteCityValue(routeInput, routeValue);
-      if (!typed) {
-        status("KD-MID Visa VN: chưa gõ được МОСКВА vào ô Маршрут; đang thử lại.", "wait");
-        continueAutofill(payload, 240);
+    const selectedAt = Number(sessionStorage.getItem(ROUTE_SELECTED_AT_KEY) || "0");
+    if (selectedAt) {
+      const age = Date.now() - selectedAt;
+      if (age < 1200) {
+        status("KD-MID Visa VN: đã chọn МОСКВА trong gợi ý; đang chờ KD-MID xác nhận và ổn định lại ô…", "wait");
+        continueAutofill(payload, 260);
         return { handled: true, ready: false };
       }
 
-      status("KD-MID Visa VN: đã gõ МОСКВА. Đang chờ danh sách gợi ý của KD-MID để chọn МОСКВА lần 2…", "wait");
-      continueAutofill(payload, 320);
+      sessionStorage.removeItem(ROUTE_SELECTED_AT_KEY);
+      sessionStorage.removeItem(ROUTE_TYPED_AT_KEY);
+
+      const settledInput = routeCityControl();
+      const accepted =
+        settledInput &&
+        routeCityControlLooksRight(settledInput) &&
+        String(settledInput.value || "").trim() === routeValue &&
+        !routeValidationErrorVisible(settledInput);
+
+      if (!accepted) {
+        status("KD-MID Visa VN: KD-MID chưa chấp nhận gợi ý МОСКВА sau khi chọn; đang nhập lại từ đầu, không báo OK giả.", "wait");
+        if (settledInput) {
+          activateControl(settledInput);
+          setNativeControlValue(settledInput, "");
+          settledInput.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+        continueAutofill(payload, 260);
+        return { handled: true, ready: false };
+      }
+    }
+
+    const liveRouteInput = routeCityControl();
+    if (!liveRouteInput || !routeCityControlLooksRight(liveRouteInput)) {
+      status("KD-MID Visa VN: chưa khóa được đúng ô Населенный пункт đang hiển thị; đang dò lại.", "wait");
+      continueAutofill(payload, 220);
       return { handled: true, ready: false };
     }
 
-    if (routeValidationErrorVisible(routeInput)) {
-      const chosen = chooseRouteSuggestion(routeInput, routeValue);
-      status(
-        chosen
-          ? "KD-MID Visa VN: đang chọn МОСКВА trong danh sách gợi ý của KD-MID…"
-          : "KD-MID Visa VN: chưa thấy gợi ý МОСКВА; đang chờ danh sách xuất hiện…",
-        "wait"
-      );
-      continueAutofill(payload, 320);
+    const liveValue = String(liveRouteInput.value || "").trim();
+    const hasRouteError = routeValidationErrorVisible(liveRouteInput);
+    const typedAt = Number(sessionStorage.getItem(ROUTE_TYPED_AT_KEY) || "0");
+
+    if (liveValue !== routeValue) {
+      const typed = typeRouteCityValue(liveRouteInput, routeValue);
+      if (!typed) {
+        status("KD-MID Visa VN: chưa gõ được МОСКВА vào đúng ô Населенный пункт; đang thử lại.", "wait");
+        continueAutofill(payload, 260);
+        return { handled: true, ready: false };
+      }
+      sessionStorage.setItem(ROUTE_TYPED_AT_KEY, String(Date.now()));
+      status("KD-MID Visa VN: đã gõ МОСКВА vào đúng ô. Đang chờ danh sách gợi ý xuất hiện…", "wait");
+      continueAutofill(payload, 360);
       return { handled: true, ready: false };
     }
+
+    if (hasRouteError) {
+      const suggestion = routeSuggestionNode(liveRouteInput, routeValue);
+      if (suggestion) {
+        const chosen = chooseRouteSuggestion(liveRouteInput, routeValue);
+        if (chosen) {
+          sessionStorage.setItem(ROUTE_SELECTED_AT_KEY, String(Date.now()));
+          status("KD-MID Visa VN: đã click đúng gợi ý МОСКВА; đang chờ KD-MID xác nhận, chưa báo OK.", "wait");
+          continueAutofill(payload, 300);
+          return { handled: true, ready: false };
+        }
+      }
+
+      if (!typedAt || Date.now() - typedAt > 1400) {
+        typeRouteCityValue(liveRouteInput, routeValue);
+        sessionStorage.setItem(ROUTE_TYPED_AT_KEY, String(Date.now()));
+      }
+
+      status("KD-MID Visa VN: МОСКВА mới chỉ được gõ, chưa được KD-MID chấp nhận. Đang chờ đúng gợi ý МОСКВА để click.", "wait");
+      continueAutofill(payload, 360);
+      return { handled: true, ready: false };
+    }
+
+    sessionStorage.removeItem(ROUTE_TYPED_AT_KEY);
+    sessionStorage.removeItem(ROUTE_SELECTED_AT_KEY);
 
     state = ensureSelectAfterLabel(
       "Имеете ли Вы документ о медицинском страховании, действительный на территории России?",
@@ -1040,7 +1092,7 @@
     }
 
     refreshAspNetValidators();
-    status(`KD-MID Visa VN: trang thông tin chuyến đi OK. Đã gõ và chọn gợi ý Населенный пункт = ${finalRoute.value}.`);
+    status(`KD-MID Visa VN: trang thông tin chuyến đi OK. KD-MID đã chấp nhận gợi ý Населенный пункт = ${finalRoute.value}; không còn lỗi đỏ.`);
     return { handled: true, ready: true };
   }
 
