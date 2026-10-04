@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.4
+// @version      0.9.5
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,7 +17,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.4";
+  const VERSION = "0.9.5";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
@@ -250,6 +250,112 @@
     });
 
     return changed ? "changed" : "ready";
+  }
+
+  function firstFollowingControl(labels, selector) {
+    const nodes = labelCandidates(labels);
+    const all = [...document.querySelectorAll(selector)].filter(visible);
+    for (const node of nodes) {
+      const following = all.find((el) => Boolean(node.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING));
+      if (following) return following;
+    }
+    return null;
+  }
+
+  function followingControls(labels, selector, count = 1) {
+    const nodes = labelCandidates(labels);
+    const all = [...document.querySelectorAll(selector)].filter(visible);
+    for (const node of nodes) {
+      const list = all.filter((el) => Boolean(node.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING));
+      if (list.length >= count) return list.slice(0, count);
+    }
+    return [];
+  }
+
+  function ensureTextAfterLabel(labels, value) {
+    if (value == null || value === "") return "ready";
+    const el = firstFollowingControl(labels, 'input:not([type="hidden"]):not([type="button"]):not([type="submit"]),textarea');
+    if (!el) return "missing";
+    if (String(el.value) === String(value)) return "ready";
+    el.value = value;
+    fire(el);
+    return "changed";
+  }
+
+  function ensureSelectAfterLabel(labels, values) {
+    const el = firstFollowingControl(labels, "select");
+    if (!el) return "missing";
+    if (el.disabled || el.options.length <= 1) return "waiting";
+    if (selectAlreadyHas(el, values)) return "ready";
+    const option = exactOption(el, values);
+    if (!option) return "waiting";
+    el.selectedIndex = option.index;
+    el.value = option.value;
+    fire(el);
+    return "changed";
+  }
+
+  function ensureDateAfterLabel(labels, value) {
+    if (!value) return "ready";
+    const parts = value.split("/");
+    if (parts.length !== 3) return "missing";
+    const list = followingControls(labels, 'input:not([type="hidden"]),select', 3);
+    if (list.length < 3) return "missing";
+    let changed = false;
+    parts.forEach((part, index) => {
+      const el = list[index];
+      if (el.tagName === "SELECT") {
+        const option = [...el.options].find((o) => String(o.value) === String(part)) ||
+          [...el.options].find((o) => norm(o.textContent) === norm(part));
+        if (option && (el.value !== option.value || el.selectedIndex !== option.index)) {
+          el.selectedIndex = option.index;
+          el.value = option.value;
+          fire(el);
+          changed = true;
+        }
+      } else if (String(el.value).replace(/^0+/, "") !== String(part).replace(/^0+/, "")) {
+        el.value = part;
+        fire(el);
+        changed = true;
+      }
+    });
+    return changed ? "changed" : "ready";
+  }
+
+  function isPersonalInfoPage() {
+    const body = norm(document.body.innerText || "");
+    return body.includes("ПЕРСОНАЛЬНАЯ ИНФОРМАЦИЯ") &&
+      body.includes("ФАМИЛИЯ (СОГЛАСНО ПАСПОРТУ)") &&
+      body.includes("МЕСТО РОЖДЕНИЯ");
+  }
+
+  function fillPersonalInfoPage(payload) {
+    if (!isPersonalInfoPage()) return { handled: false, ready: false };
+    const A = payload.applicant || {};
+    const steps = [
+      ["Фамилия", () => ensureTextAfterLabel("Фамилия (согласно паспорту)", A.surname)],
+      ["Имя", () => ensureTextAfterLabel("Имя, другие имена, отчество (согласно паспорту)", A.givenNames)],
+      ["Другие имена", () => ensureSelectAfterLabel("Есть ли у Вас другие когда-либо использовавшиеся имена", ["НЕТ","NO"])],
+      ["Пол", () => ensureSelectAfterLabel("Пол", [A.sex])],
+      ["Дата рождения", () => ensureDateAfterLabel("Дата рождения", A.birthDate)],
+      ["Место рождения", () => ensureTextAfterLabel("Место рождения", A.birthPlace)],
+      ["Родились в России", () => ensureSelectAfterLabel("Вы родились в России?", ["НЕТ","NO"])],
+    ];
+
+    for (const [label, fn] of steps) {
+      const state = fn();
+      if (state === "changed") {
+        status("KD-MID Visa VN: đã điền " + label + ". Đang kiểm tra trang cá nhân…", "wait");
+        return { handled: true, ready: false };
+      }
+      if (state !== "ready") {
+        status("KD-MID Visa VN: đang chờ đúng trường " + label + "…", "wait");
+        return { handled: true, ready: false };
+      }
+    }
+
+    status("KD-MID Visa VN: trang cá nhân đã điền đúng từng trường theo hồ sơ.");
+    return { handled: true, ready: true };
   }
 
   function setText(labels, value) {
@@ -522,19 +628,14 @@
     const visaPage = fillVisaRequestPage(payload);
     if (visaPage.handled) return visaPage.ready ? 1 : 0;
 
+    const personalPage = fillPersonalInfoPage(payload);
+    if (personalPage.handled) return personalPage.ready ? 1 : 0;
+
     const A = payload.applicant || {};
     let recognized = 0;
     const mark = (ok) => { if (ok) recognized += 1; };
 
     recognized += fillPassword(payload);
-
-    mark(setText("Фамилия (согласно паспорту)", A.surname));
-    mark(setText("Имя, другие имена, отчество", A.givenNames));
-    mark(setYesNo("Есть ли у Вас другие когда-либо использовавшиеся имена", false));
-    mark(setSelect("Пол", A.sex));
-    mark(setDate("Дата рождения", A.birthDate));
-    mark(setText("Место рождения", A.birthPlace));
-    mark(setYesNo("Вы родились в России", false));
 
     mark(setText("Номер паспорта", A.passportNo));
     mark(setDate("Дата выдачи", A.passportIssue));
@@ -759,6 +860,7 @@
     if (/ПЕЧАТНАЯ ФОРМА ЭЛЕКТРОННОЙ ВИЗОВОЙ АНКЕТЫ/i.test(body)) return false;
 
     if (isVisaRequestPage() && recognized < 1) return false;
+    if (isPersonalInfoPage() && recognized < 1) return false;
 
     if (recognized > 0) {
       return clickNamed(["ЗАПОЛНИТЬ НОВУЮ АНКЕТУ","COMPLETE NEW APPLICATION","ДАЛЕЕ","NEXT"], 800);
