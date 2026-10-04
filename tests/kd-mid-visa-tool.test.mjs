@@ -14,10 +14,10 @@ test("KD-MID Visa is registered as an internal Tool", () => {
   assert.match(page, /requireChatGPTUser\("\/tools\/kd-mid-visa"\)/);
 });
 
-test("Companion v0.9.9 is active in script and UI", () => {
-  assert.match(companion, /@version\s+0\.9\.9/);
-  assert.match(companion, /const VERSION = "0\.9\.9"/);
-  assert.match(tool, /Companion v0\.9\.9/);
+test("Companion v0.9.10 is active in script and UI", () => {
+  assert.match(companion, /@version\s+0\.9\.10/);
+  assert.match(companion, /const VERSION = "0\.9\.10"/);
+  assert.match(tool, /Companion v0\.9\.10/);
 });
 
 test("landing, password and official A4 flows remain intact", () => {
@@ -121,4 +121,36 @@ test("three Vietnam missions remain available", () => {
   assert.match(tool, /ПОСОЛЬСТВО РФ ВО ВЬЕТНАМЕ/);
   assert.match(tool, /ГЕНКОНСУЛЬСТВО РФ В ДАНАНГЕ/);
   assert.match(tool, /ГЕНКОНСУЛЬСТВО РФ В ХОШИМИНЕ/);
+});
+
+
+test("passport page has an exact handler for passport number and both passport dates", () => {
+  assert.match(companion, /function isPassportInfoPage/);
+  assert.match(companion, /function fillPassportInfoPage/);
+  assert.match(companion, /ensureTextAfterLabel\("Номер паспорта"/);
+  assert.match(companion, /ensureDateAfterLabel\("Дата выдачи"/);
+  assert.match(companion, /ensureDateAfterLabel\("Действителен до"/);
+  assert.match(companion, /страница hộ chiếu|trang hộ chiếu OK/);
+});
+
+test("generic fill no longer handles passport date fields", () => {
+  const fill = companion.slice(companion.indexOf("function fillPage"), companion.indexOf("function addHints"));
+  assert.match(fill, /fillPassportInfoPage\(payload\)/);
+  assert.doesNotMatch(fill, /mark\(setDate\("Дата выдачи"/);
+  assert.doesNotMatch(fill, /mark\(setDate\("Действителен до"/);
+});
+
+test("passport date fields use dd/mm/yyyy and Russian month mapping before Next", () => {
+  assert.match(tool, /Дата выдачи паспорта · dd\/mm\/yyyy/);
+  assert.match(tool, /Паспорт действителен до · dd\/mm\/yyyy/);
+  assert.match(tool, /đổi 06 thành Июнь/);
+  assert.match(companion, /findDateOption/);
+  assert.match(companion, /isPassportInfoPage\(\) && recognized < 1/);
+});
+
+test("navigation clicks are latched so the same page is not clicked repeatedly while loading", () => {
+  assert.match(companion, /pendingNavigationKey/);
+  assert.match(companion, /if \(pending === sig\) return true/);
+  assert.match(companion, /Date\.now\(\) - previousAt < 5000/);
+  assert.match(companion, /sessionStorage\.removeItem\(pendingNavigationKey\)/);
 });
