@@ -1128,8 +1128,17 @@
 
     const optionalText = (control, value) => {
       const text = String(value ?? "");
-      if (!text) return "ready";
-      return control ? writeTextControl(control, text) : "missing";
+      if (!control) return text ? "missing" : "ready";
+      if (!text) {
+        if (!String(control.value || "")) return "ready";
+        activateControl(control);
+        setNativeControlValue(control, "");
+        control.dispatchEvent(new Event("input", { bubbles: true }));
+        control.dispatchEvent(new Event("change", { bubbles: true }));
+        try { control.blur(); } catch {}
+        return String(control.value || "") === "" ? "changed" : "waiting";
+      }
+      return writeTextControl(control, text);
     };
 
     const steps = [
@@ -1189,7 +1198,7 @@
     const usedControls = textPairs.filter(([control, value]) => Boolean(value) && control).map(([control]) => control);
     const uniqueTextCount = new Set(usedControls).size;
     const textReady = textPairs.every(([control, value]) => {
-      if (!value) return true;
+      if (!value) return !control || String(control.value || "") === "";
       return Boolean(control) && String(control.value) === String(value);
     });
 
