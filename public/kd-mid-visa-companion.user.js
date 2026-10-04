@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.8
+// @version      0.9.9
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,7 +17,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.8";
+  const VERSION = "0.9.9";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
@@ -143,7 +143,8 @@
       const binary = atob(encoded);
       const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
       const payload = JSON.parse(new TextDecoder().decode(bytes));
-      // A payload explicitly embedded by App-Manager in this launch URL is authoritative.
+      // The payload in THIS launch URL is the only source allowed to initialize this KD-MID run.
+      try { GM_deleteValue(SHARED_PAYLOAD_KEY); } catch {}
       gmSet(SHARED_PAYLOAD_KEY, JSON.stringify(payload));
       history.replaceState(null, document.title, location.pathname + location.search);
       return payload;
@@ -436,20 +437,41 @@
       ["Родились в России", () => ensureSelectAfterLabel("Вы родились в России?", ["НЕТ","NO"])],
     ];
 
+    let waitingFor = "";
+    let changed = false;
     for (const [label, fn] of steps) {
       const state = fn();
-      if (state === "changed") {
-        status("KD-MID Visa VN: đã điền " + label + ". Đang kiểm tra trang cá nhân…", "wait");
-        return { handled: true, ready: false };
-      }
-      if (state !== "ready") {
-        status("KD-MID Visa VN: đang chờ đúng trường " + label + "…", "wait");
-        return { handled: true, ready: false };
-      }
+      if (state === "changed") changed = true;
+      else if (state !== "ready" && !waitingFor) waitingFor = label;
     }
 
     refreshAspNetValidators();
-    status(`KD-MID Visa VN: trang cá nhân đã đồng bộ đúng payload: ${A.surname || ""} · ${A.givenNames || ""} · ${A.birthDate || ""}.`);
+
+    if (waitingFor) {
+      status(`KD-MID Visa VN: payload ${payloadIdentity(payload)}; đang chờ đúng trường ${waitingFor}…`, "wait");
+      return { handled: true, ready: false };
+    }
+
+    // Re-validate after all writes in the same pass. This avoids a partial page
+    // where only Surname was written and the remaining fields stayed blank.
+    const checks = [
+      ensureTextAfterLabel("Фамилия (согласно паспорту)", A.surname),
+      ensureTextAfterLabel("Имя, другие имена, отчество (согласно паспорту)", A.givenNames),
+      ensureSelectAfterLabel("Есть ли у Вас другие когда-либо использовавшиеся имена", ["НЕТ","NO"]),
+      ensureSelectAfterLabel("Пол", [A.sex]),
+      ensureDateAfterLabel("Дата рождения", A.birthDate),
+      ensureTextAfterLabel("Место рождения", A.birthPlace),
+      ensureSelectAfterLabel("Вы родились в России?", ["НЕТ","NO"]),
+    ];
+    const ready = checks.every((state) => state === "ready");
+    refreshAspNetValidators();
+
+    if (!ready) {
+      status(`KD-MID Visa VN: đã ghi toàn bộ trang cá nhân từ payload ${payloadIdentity(payload)}; đang xác nhận lại giá trị…`, "wait");
+      return { handled: true, ready: false };
+    }
+
+    status(`KD-MID Visa VN: trang cá nhân OK: ${payloadIdentity(payload)}.`);
     return { handled: true, ready: true };
   }
 
@@ -1044,6 +1066,10 @@
         const fresh = JSON.parse(newValue);
         const freshRevision = payloadRevision(fresh);
         if (currentRevision && freshRevision && freshRevision < currentRevision) return;
+        if (currentPayload?.applicant?.id && fresh?.applicant?.id && fresh.applicant.id !== currentPayload.applicant.id) {
+          console.warn("[KD-MID Visa VN] Bỏ qua payload của hồ sơ khác", payloadIdentity(fresh));
+          return;
+        }
         if (payloadIdentity(fresh) === payloadIdentity(currentPayload) && freshRevision === currentRevision) return;
         applyLatestPayload(fresh, "payload mới từ App-Manager");
       } catch {}
