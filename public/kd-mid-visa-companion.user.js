@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.1
+// @version      0.9.2
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,7 +17,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.1";
+  const VERSION = "0.9.2";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
@@ -162,48 +162,82 @@
     return true;
   }
 
-  function selectContainingOption(values) {
+  function findSelectWithExactOption(values) {
     const wants = (Array.isArray(values) ? values : [values]).map(norm);
     return [...document.querySelectorAll("select")].find((select) =>
-      [...select.options].some((option) => wants.some((want) => want && norm(option.textContent).includes(want)))
+      [...select.options].some((option) => wants.includes(norm(option.textContent)))
     ) || null;
   }
 
-  function setSelectByOption(values) {
-    const el = selectContainingOption(values);
-    if (!el) return false;
+  function selectHasExactValue(select, values) {
+    if (!select) return false;
+    const selected = norm(select.options[select.selectedIndex]?.textContent || "");
     const wants = (Array.isArray(values) ? values : [values]).map(norm);
-    const option = [...el.options].find((o) => wants.includes(norm(o.textContent))) ||
-      [...el.options].find((o) => wants.some((want) => want && norm(o.textContent).includes(want)));
+    return wants.includes(selected);
+  }
+
+  function setExactSelectOption(select, values) {
+    if (!select) return false;
+    const wants = (Array.isArray(values) ? values : [values]).map(norm);
+    const option = [...select.options].find((item) => wants.includes(norm(item.textContent)));
     if (!option) return false;
-    if (el.value !== option.value) {
-      el.value = option.value;
-      fire(el);
+    if (select.value !== option.value || select.selectedIndex !== option.index) {
+      select.selectedIndex = option.index;
+      select.value = option.value;
+      fire(select);
     }
     return true;
   }
 
-  function selectHasValue(select, values) {
-    if (!select) return false;
-    const selected = norm(select.options[select.selectedIndex]?.textContent || "");
-    const wants = (Array.isArray(values) ? values : [values]).map(norm);
-    return wants.some((want) => want && selected.includes(want));
+  function landingControls() {
+    return {
+      country: findSelectWithExactOption(["ВЬЕТНАМ","VIETNAM"]),
+      language: findSelectWithExactOption(["РУССКИЙ (RUSSIAN)","RUSSIAN"]),
+      checkbox: blockControls(["Я прочитал эту информацию","I have read this information"])
+        .find((item) => item.type === "checkbox") || null,
+    };
   }
 
   function isLandingPage() {
-    return Boolean(selectContainingOption(["ВЬЕТНАМ","VIETNAM"])) &&
-      Boolean(selectContainingOption(["РУССКИЙ","RUSSIAN"])) &&
+    const { country, language } = landingControls();
+    return Boolean(country && language) &&
       norm(document.body.innerText || "").includes("Я ПРОЧИТАЛ ЭТУ ИНФОРМАЦИЮ");
   }
 
   function landingPageReady() {
-    const country = selectContainingOption(["ВЬЕТНАМ","VIETNAM"]);
-    const language = selectContainingOption(["РУССКИЙ","RUSSIAN"]);
-    const checkbox = blockControls(["Я прочитал эту информацию","I have read this information"])
-      .find((item) => item.type === "checkbox");
-    return selectHasValue(country, ["ВЬЕТНАМ","VIETNAM"]) &&
-      selectHasValue(language, ["РУССКИЙ","RUSSIAN"]) &&
+    const { country, language, checkbox } = landingControls();
+    return selectHasExactValue(country, ["ВЬЕТНАМ","VIETNAM"]) &&
+      selectHasExactValue(language, ["РУССКИЙ (RUSSIAN)","RUSSIAN"]) &&
       Boolean(checkbox?.checked);
+  }
+
+  function fillLandingPage() {
+    const { country, language, checkbox } = landingControls();
+    if (!country || !language) return { handled: false, ready: false };
+
+    if (!selectHasExactValue(country, ["ВЬЕТНАМ","VIETNAM"])) {
+      setExactSelectOption(country, ["ВЬЕТНАМ","VIETNAM"]);
+      status("KD-MID Visa VN: đã chọn Việt Nam. Đang chờ trang ổn định trước khi chọn ngôn ngữ…", "wait");
+      return { handled: true, ready: false };
+    }
+
+    if (!selectHasExactValue(language, ["РУССКИЙ (RUSSIAN)","RUSSIAN"])) {
+      setExactSelectOption(language, ["РУССКИЙ (RUSSIAN)","RUSSIAN"]);
+      status("KD-MID Visa VN: đã chọn РУССКИЙ (RUSSIAN). Đang chờ trang ổn định…", "wait");
+      return { handled: true, ready: false };
+    }
+
+    if (checkbox && !checkbox.checked) {
+      checkbox.click();
+      if (!checkbox.checked) {
+        checkbox.checked = true;
+        fire(checkbox);
+      }
+      status("KD-MID Visa VN: đã tích xác nhận đọc thông tin. Đang chuẩn bị mở hồ sơ mới…", "wait");
+      return { handled: true, ready: false };
+    }
+
+    return { handled: true, ready: landingPageReady() };
   }
 
   function setYesNo(labels, value) {
@@ -263,10 +297,6 @@
     const A = payload.applicant || {};
     let recognized = 0;
     const mark = (ok) => { if (ok) recognized += 1; };
-
-    mark(setSelectByOption(["ВЬЕТНАМ","VIETNAM"]));
-    mark(setSelectByOption(["РУССКИЙ","RUSSIAN"]));
-    mark(setCheckbox(["Я прочитал эту информацию","I have read this information"], true));
 
     recognized += fillPassword(payload);
 
@@ -534,8 +564,16 @@
   let retryCount = 0;
   let retryTimer = 0;
   function run(payload) {
-    const recognized = fillPage(payload);
     addHints();
+
+    if (isLandingPage()) {
+      const landing = fillLandingPage();
+      if (!landing.ready) return;
+      maybeAdvance(payload, 1);
+      return;
+    }
+
+    const recognized = fillPage(payload);
     maybeAdvance(payload, recognized);
   }
 
