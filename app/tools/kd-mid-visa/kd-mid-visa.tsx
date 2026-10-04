@@ -773,6 +773,41 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
     window.open("https://visa.kdmid.ru/", "kdmidVisa");
   }
 
+  function openResumeRecord(record: ResumeRecord) {
+    const revision = Date.now();
+    const matchedApplicant = store.applicants.find((item) => item.applicationId === record.applicationId);
+    const fallbackApplicant: Applicant = matchedApplicant ?? {
+      ...emptyApplicant(),
+      id: `resume:${record.applicationId}`,
+      surname: record.surname5,
+      givenNames: record.applicantName,
+      birthDate: record.birthYear ? `01/01/${record.birthYear}` : "",
+      applicationId: record.applicationId,
+      passwordOverride: record.password,
+    };
+    const base = buildPayload(fallbackApplicant, store.common, false, revision);
+    const payload = {
+      ...base,
+      _automation: { autoAdvance: false, autoPrint: false, mode: "resume" },
+      _resumeRecord: {
+        applicationId: record.applicationId,
+        surname5: record.surname5,
+        birthYear: record.birthYear,
+        password: record.password,
+        applicantName: record.applicantName,
+      },
+      _launchToken: revision,
+    };
+    persistActivePayload(payload);
+    window.postMessage({ type: "KD_MID_SET_PAYLOAD", payload }, window.location.origin);
+    const target = window.open(`https://visa.kdmid.ru/#kdmidv8=${encodeAutomationPayload(payload)}`, "_blank");
+    if (!target) {
+      setNotice("Trình duyệt đã chặn cửa sổ KD-MID. Hãy cho phép pop-up rồi bấm lại.");
+      return;
+    }
+    setNotice(`Đang mở lại Application ID ${record.applicationId}: Companion sẽ tự đi qua luồng khôi phục và dừng ở hồ sơ để bạn xem/sửa.`);
+  }
+
   function openAutomaticKdmid() {
     // Always re-read the just-persisted store at click time. Do not trust a stale React closure.
     const persisted = safeLoad();
@@ -828,7 +863,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       return;
     }
 
-    setNotice(`Payload v0.9.29 đã khóa: Surname=${latestSelected.surname}; Given names=${latestSelected.givenNames}; DOB=${normalizeDmy(latestSelected.birthDate)}; Passport=${latestSelected.passportNo}. Mỗi lần chạy sẽ mở tab KD-MID mới để không dùng cache/payload cũ.`);
+    setNotice(`Payload v0.9.30 đã khóa: Surname=${latestSelected.surname}; Given names=${latestSelected.givenNames}; DOB=${normalizeDmy(latestSelected.birthDate)}; Passport=${latestSelected.passportNo}. Mỗi lần chạy sẽ mở tab KD-MID mới để không dùng cache/payload cũ.`);
   }
 
   function saveManualRecord() {
@@ -1090,9 +1125,9 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
 
   function renderRecords() {
     return <section className={styles.panel}>
-      <header><div><span>BẢN GHI MỞ LẠI</span><h3>Thông tin dùng để sửa hồ sơ KD-MID</h3></div>{selected?.applicationId ? <button onClick={saveManualRecord}>Cập nhật từ hồ sơ đang chọn</button> : null}</header>
+      <header><div><span>BẢN GHI MỞ LẠI</span><h3>Mở lại hồ sơ KD-MID đã lưu để xem / chỉnh sửa</h3></div>{selected?.applicationId ? <button onClick={saveManualRecord}>Cập nhật từ hồ sơ đang chọn</button> : null}</header>
       {!store.records.length ? <div className={styles.empty}>Chưa có bản ghi. Khi bridge phát hiện Application ID, tool sẽ tự lưu.</div> : <div className={styles.records}>
-        {store.records.map((record) => <article key={record.applicationId}><div><span>Application ID</span><strong>{record.applicationId}</strong></div><div><span>5 chữ đầu Surname</span><strong>{record.surname5}</strong></div><div><span>Năm sinh</span><strong>{record.birthYear}</strong></div><div><span>Password</span><strong>{record.password}</strong></div><div><span>Hồ sơ</span><strong>{record.applicantName || "—"}</strong></div><a href="https://visa.kdmid.ru/" target="_blank" rel="noreferrer">Mở KD-MID ↗</a></article>)}
+        {store.records.map((record) => <article key={record.applicationId}><div><span>Application ID</span><strong>{record.applicationId}</strong></div><div><span>5 chữ đầu Surname</span><strong>{record.surname5}</strong></div><div><span>Năm sinh</span><strong>{record.birthYear}</strong></div><div><span>Password</span><strong>{record.password}</strong></div><div><span>Hồ sơ</span><strong>{record.applicantName || "—"}</strong></div><button className={styles.recordOpen} onClick={() => openResumeRecord(record)}>Mở lại / sửa ↗</button></article>)}
       </div>}
     </section>;
   }
@@ -1102,7 +1137,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       <header><div><span>KẾT NỐI KD-MID</span><h3>Tự động điền visa.kdmid.ru</h3></div><button onClick={() => void prepareBridge()} disabled={!selected}>Tạo bookmarklet dự phòng</button></header>
       <div className={styles.autoConnect}>
         <div><span>KHUYÊN DÙNG</span><h4>Tự động từ trang đầu đến PDF A4 chính thức</h4><p>Mỗi lần bấm chạy, Companion nhận lại <strong>hồ sơ mới nhất vừa lưu</strong> và mở <strong>một tab KD-MID mới</strong> để loại bỏ payload cũ, rồi tự chọn <strong>Việt Nam</strong> + <strong>Русский</strong> + tích <strong>“Я прочитал эту информацию”</strong>, tự mở hồ sơ mới, điền mật khẩu mặc định và <strong>dừng ở CAPTCHA để bạn tự nhập ký tự trong ảnh</strong>. Sau khi bạn nhập CAPTCHA, Companion tiếp tục tự động, ghi nhớ Application ID, điền các trang còn lại và cuối cùng bấm <strong>Печать формата A4</strong>.</p></div>
-        <div className={styles.autoActions}><a className={styles.installLink} href="/kd-mid-visa-companion.user.js" target="_blank" rel="noreferrer">1. Cài / cập nhật Companion v0.9.29 ↗</a><span className={styles.companionState} data-ready={Boolean(companionVersion)}>{companionVersion ? `✓ Companion ${companionVersion} đang hoạt động trên App-Manager` : "Companion v0.9.29 sẽ tự kiểm tra khi mở KD-MID"}</span><button onClick={openAutomaticKdmid} disabled={!selected}>3. Bắt đầu tự động đến PDF</button></div>
+        <div className={styles.autoActions}><a className={styles.installLink} href="/kd-mid-visa-companion.user.js" target="_blank" rel="noreferrer">1. Cài / cập nhật Companion v0.9.30 ↗</a><span className={styles.companionState} data-ready={Boolean(companionVersion)}>{companionVersion ? `✓ Companion ${companionVersion} đang hoạt động trên App-Manager` : "Companion v0.9.30 sẽ tự kiểm tra khi mở KD-MID"}</span><button onClick={openAutomaticKdmid} disabled={!selected}>3. Bắt đầu tự động đến PDF</button></div>
         <div className={styles.profileChooser}>
           <div><span>BƯỚC 2</span><strong>Chọn hồ sơ sử dụng</strong><small>Danh sách lấy trực tiếp từ mục Hồ sơ cá nhân đã lưu trên máy này.</small></div>
           {store.applicants.length ? <div className={styles.profileChooserControl}>
@@ -1116,7 +1151,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         <label className={styles.autoToggle}><input type="checkbox" checked={autoAdvance} onChange={(event) => setAutoAdvance(event.target.checked)} /><span><strong>Tự động toàn bộ sau CAPTCHA</strong><small>Bật mặc định. Companion không giải CAPTCHA: Tool điền password rồi chờ bạn nhập ký tự trong ảnh. Khi CAPTCHA đã được nhập, Tool tự tiếp tục các trang và yêu cầu KD-MID xuất PDF A4 chính thức.</small></span></label>
       </div>
       <div className={styles.connectGrid}>
-        <article><b>1</b><strong>Cài Companion v0.9.29</strong><p>Tampermonkey/Violentmonkey phải báo script <strong>Enabled</strong>. Nếu đã cài bản cũ, mở lại nút cài để cập nhật lên v0.9.29.</p></article>
+        <article><b>1</b><strong>Cài Companion v0.9.30</strong><p>Tampermonkey/Violentmonkey phải báo script <strong>Enabled</strong>. Nếu đã cài bản cũ, mở lại nút cài để cập nhật lên v0.9.30.</p></article>
         <article><b>2</b><strong>Chọn hồ sơ ngay phía trên</strong><p>{selected ? `Đang chọn: ${displayName(selected)}.` : "Chưa chọn hồ sơ."} Nếu có nhiều hồ sơ, mở danh sách và chọn đúng người trước khi chạy.</p></article>
         <article><b>3</b><strong>Password tự điền · CAPTCHA nhập tay</strong><p>Companion tự điền cả <strong>Пароль</strong> và <strong>Подтверждение пароля</strong>. CAPTCHA không được tự giải; bạn nhập ký tự trong ảnh. Sau khi nhập xong, Companion tự bấm <strong>Отправить</strong>.</p></article>
         <article><b>4</b><strong>Lưu ID rồi tiếp tục tự động</strong><p>Ở trang xác nhận <strong>Идентификационный номер Вашей анкеты</strong>, Companion lưu ID vào hồ sơ/Bản ghi mở lại, tự bấm <strong>Далее</strong>, rồi tiếp tục các trang còn lại đến <strong>Печать формата A4</strong>.</p></article>
@@ -1126,7 +1161,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         <textarea readOnly value={bookmarklet} placeholder="Bấm “Tạo bookmarklet dự phòng” để tạo javascript:..." />
         <div className={styles.bridgeActions}><button onClick={async () => { if (!bookmarklet) return; await navigator.clipboard.writeText(bookmarklet); setNotice("Đã sao chép bookmarklet."); }} disabled={!bookmarklet}>Sao chép bookmarklet</button><button className={styles.secondary} onClick={openKdmid}>Mở KD-MID thủ công ↗</button></div>
       </div>
-      <div className={styles.warning}><strong>Kiểm tra trước khi chạy</strong><p>Với v0.9.29, dòng trạng thái trên App-Manager chỉ là thông tin phụ. Luồng chính được kiểm tra trực tiếp khi tab <strong>visa.kdmid.ru</strong> mở: nếu Companion nhận hồ sơ, đoạn <code>#kdmidv8=...</code> sẽ tự biến mất và hộp trạng thái KD-MID Visa VN xuất hiện ở góc dưới. Tool không tự đọc/giải CAPTCHA; sau khi bạn nhập CAPTCHA, Companion tiếp tục và PDF/barcode do chính <strong>visa.kdmid.ru</strong> tạo. <strong>Barcode chỉ hợp lệ khi do KD-MID tạo.</strong></p></div>
+      <div className={styles.warning}><strong>Kiểm tra trước khi chạy</strong><p>Với v0.9.30, dòng trạng thái trên App-Manager chỉ là thông tin phụ. Luồng chính được kiểm tra trực tiếp khi tab <strong>visa.kdmid.ru</strong> mở: nếu Companion nhận hồ sơ, đoạn <code>#kdmidv8=...</code> sẽ tự biến mất và hộp trạng thái KD-MID Visa VN xuất hiện ở góc dưới. Tool không tự đọc/giải CAPTCHA; sau khi bạn nhập CAPTCHA, Companion tiếp tục và PDF/barcode do chính <strong>visa.kdmid.ru</strong> tạo. <strong>Barcode chỉ hợp lệ khi do KD-MID tạo.</strong></p></div>
     </section>;
   }
 

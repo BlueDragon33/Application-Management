@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.29
+// @version      0.9.30
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,7 +17,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.29";
+  const VERSION = "0.9.30";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
@@ -1420,7 +1420,7 @@
         checkbox.checked = true;
         fire(checkbox);
       }
-      status("KD-MID Visa VN: đã tích xác nhận đọc thông tin. Đang chuẩn bị mở hồ sơ mới…", "wait");
+      status("KD-MID Visa VN: đã tích xác nhận đọc thông tin. Đang chuẩn bị bước tiếp theo…", "wait");
       return { handled: true, ready: false };
     }
 
@@ -1481,6 +1481,109 @@
       }
     });
     return recognized;
+  }
+
+  function isResumeMode(payload) {
+    return payload?._automation?.mode === "resume" && Boolean(payload?._resumeRecord?.applicationId);
+  }
+
+  function resumeRecord(payload) {
+    return payload?._resumeRecord || {};
+  }
+
+  function isResumeApplicationIdPage() {
+    const body = norm(document.body.innerText || "");
+    return body.includes("НОМЕР АНКЕТЫ") &&
+      body.includes("ВОССТАНОВИТЬ АНКЕТУ") &&
+      !body.includes("ПЕРВЫЕ 5 БУКВ ВАШЕЙ ФАМИЛИИ");
+  }
+
+  function isResumeCredentialsPage() {
+    const body = norm(document.body.innerText || "");
+    return body.includes("ПЕРВЫЕ 5 БУКВ ВАШЕЙ ФАМИЛИИ") &&
+      body.includes("ГОД РОЖДЕНИЯ") &&
+      body.includes("ПАРОЛЬ") &&
+      body.includes("ПРОСМОТР АНКЕТЫ");
+  }
+
+  const resumeViewedKey = "kd-mid-vn:resume-viewed:v1";
+
+  function fillResumeFlow(payload) {
+    const record = resumeRecord(payload);
+    const id = String(record.applicationId || "");
+    if (!id) {
+      status("KD-MID Visa VN: bản ghi mở lại thiếu Application ID.", "wait");
+      return true;
+    }
+
+    if (isLandingPage()) {
+      const landing = fillLandingPage();
+      if (!landing.ready) return true;
+      status(`KD-MID Visa VN: chuẩn bị mở lại Application ID ${id}. Đang chọn «Открыть ранее заполненную анкету»…`);
+      clickNamed(["ОТКРЫТЬ РАНЕЕ ЗАПОЛНЕННУЮ АНКЕТУ","OPEN PREVIOUSLY COMPLETED APPLICATION"], 650);
+      return true;
+    }
+
+    if (isResumeApplicationIdPage()) {
+      const state = ensureTextAfterLabel(["Номер анкеты","Application number"], id);
+      if (state === "changed") {
+        status(`KD-MID Visa VN: đã điền Application ID ${id}. Đang kiểm tra trước khi khôi phục…`, "wait");
+        continueAutofill(payload, 160);
+        return true;
+      }
+      if (state !== "ready") {
+        status("KD-MID Visa VN: đang chờ ô «Номер анкеты» để điền Application ID…", "wait");
+        continueAutofill(payload, 220);
+        return true;
+      }
+      status(`KD-MID Visa VN: Application ID ${id} đã đúng. Đang bấm «Восстановить анкету»…`);
+      clickNamed(["ВОССТАНОВИТЬ АНКЕТУ","RESTORE APPLICATION"], 650);
+      return true;
+    }
+
+    if (isResumeCredentialsPage()) {
+      const surname5 = String(record.surname5 || "").toUpperCase();
+      const year = String(record.birthYear || "");
+      const password = String(record.password || "");
+
+      const surnameState = ensureTextAfterLabel(["Первые 5 букв Вашей фамилии","First 5 letters of your surname"], surname5);
+      if (surnameState === "changed") { continueAutofill(payload, 120); return true; }
+      if (surnameState !== "ready") {
+        status("KD-MID Visa VN: đang điền 5 chữ cái đầu của họ…", "wait");
+        continueAutofill(payload, 200);
+        return true;
+      }
+
+      const yearState = ensureTextAfterLabel(["Год рождения","Year of birth"], year);
+      if (yearState === "changed") { continueAutofill(payload, 120); return true; }
+      if (yearState !== "ready") {
+        status("KD-MID Visa VN: đang điền năm sinh…", "wait");
+        continueAutofill(payload, 200);
+        return true;
+      }
+
+      const passwordInput = [...document.querySelectorAll('input[type="password"]')].filter(visible)[0] || null;
+      const passwordState = passwordInput ? writeTextControl(passwordInput, password) : "missing";
+      if (passwordState === "changed") { continueAutofill(payload, 120); return true; }
+      if (passwordState !== "ready") {
+        status("KD-MID Visa VN: đang điền mật khẩu đã lưu…", "wait");
+        continueAutofill(payload, 200);
+        return true;
+      }
+
+      sessionStorage.setItem(resumeViewedKey, id);
+      status(`KD-MID Visa VN: đã điền đủ Application ID ${id} · Surname5 ${surname5} · năm ${year} · password. Đang bấm «Просмотр анкеты»…`);
+      clickNamed(["ПРОСМОТР АНКЕТЫ","VIEW APPLICATION"], 650);
+      return true;
+    }
+
+    if (sessionStorage.getItem(resumeViewedKey) === id) {
+      status(`KD-MID Visa VN: đã mở lại Application ID ${id}. Companion đã dừng tự động; bạn có thể xem hoặc chỉnh sửa hồ sơ cũ.`);
+      return true;
+    }
+
+    status(`KD-MID Visa VN: đang chờ trang khôi phục cho Application ID ${id}…`, "wait");
+    return true;
   }
 
   function isVisaRequestPage() {
@@ -1843,6 +1946,11 @@
       sessionStorage.removeItem(pendingNavigationKey);
     }
     lastRunSignature = currentSig;
+
+    if (isResumeMode(payload)) {
+      fillResumeFlow(payload);
+      return;
+    }
 
     if (isLandingPage()) {
       const landing = fillLandingPage();
