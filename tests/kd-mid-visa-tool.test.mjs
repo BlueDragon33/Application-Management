@@ -14,10 +14,10 @@ test("KD-MID Visa is registered as an internal Tool", () => {
   assert.match(page, /requireChatGPTUser\("\/tools\/kd-mid-visa"\)/);
 });
 
-test("Companion v0.9.14 is active in script and UI", () => {
-  assert.match(companion, /@version\s+0\.9\.14/);
-  assert.match(companion, /const VERSION = "0\.9\.14"/);
-  assert.match(tool, /Companion v0\.9\.14/);
+test("Companion v0.9.15 is active in script and UI", () => {
+  assert.match(companion, /@version\s+0\.9\.15/);
+  assert.match(companion, /const VERSION = "0\.9\.15"/);
+  assert.match(tool, /Companion v0\.9\.15/);
 });
 
 test("landing, password and official A4 flows remain intact", () => {
@@ -156,7 +156,7 @@ test("navigation clicks are latched so the same page is not clicked repeatedly w
 });
 
 
-test("v0.9.14 emulates real focus/edit/blur lifecycle so fields fill without user clicks", () => {
+test("v0.9.15 emulates real focus/edit/blur lifecycle so fields fill without user clicks", () => {
   assert.match(companion, /el\.focus\(\{ preventScroll: true \}\)/);
   assert.match(companion, /new FocusEvent\("focusin"/);
   assert.match(companion, /new FocusEvent\("focusout"/);
@@ -175,7 +175,7 @@ test("status-box DOM mutations do not recursively retrigger the runner", () => {
 });
 
 
-test("v0.9.14 handles the visit information page with exact field semantics", () => {
+test("v0.9.15 handles the visit information page with exact field semantics", () => {
   assert.match(companion, /function isVisitInfoPage/);
   assert.match(companion, /function fillVisitInfoPage/);
   assert.match(companion, /В КАКОЕ УЧРЕЖДЕНИЕ НАПРАВЛЯЕТЕСЬ/);
@@ -210,7 +210,7 @@ test("visit page cannot auto-advance until its dedicated handler is ready", () =
 });
 
 
-test("v0.9.14 directly maps stable personal-page controls by page order", () => {
+test("v0.9.15 directly maps stable personal-page controls by page order", () => {
   assert.match(companion, /function personalPageControls/);
   assert.match(companion, /surname: texts\[0\]/);
   assert.match(companion, /givenNames: texts\[1\]/);
@@ -219,14 +219,14 @@ test("v0.9.14 directly maps stable personal-page controls by page order", () => 
   assert.match(companion, /bornInRussia: selects\[3\]/);
 });
 
-test("v0.9.14 directly maps passport-page controls by page order", () => {
+test("v0.9.15 directly maps passport-page controls by page order", () => {
   assert.match(companion, /function passportPageControls/);
   assert.match(companion, /passportNo: texts\[0\]/);
   assert.match(companion, /issue: \[texts\[1\].*selects\[0\].*texts\[2\]/s);
   assert.match(companion, /expiry: \[texts\[3\].*selects\[1\].*texts\[4\]/s);
 });
 
-test("v0.9.14 programmatically clicks and focuses controls before writing", () => {
+test("v0.9.15 programmatically clicks and focuses controls before writing", () => {
   assert.match(companion, /function activateControl/);
   assert.match(companion, /el\.dispatchEvent\(new MouseEvent\("mousedown"/);
   assert.match(companion, /el\.click\(\)/);
@@ -242,16 +242,31 @@ test("personal page uses direct mapped controls before label fallback", () => {
 });
 
 
-test("v0.9.14 fills KD-MID dates in postback-safe order", () => {
+test("v0.9.15 fills KD-MID dates in postback-safe order", () => {
   assert.match(companion, /month dropdown can trigger an ASP\.NET postback/);
   assert.match(companion, /Select the month FIRST/);
   assert.match(companion, /return dateControlMatches\(monthEl, parts\[1\], 1\) \? "changed" : "waiting"/);
 });
 
-test("v0.9.14 only fills day and year after the month already matches", () => {
+test("v0.9.15 only fills day and year after the month already matches", () => {
   const fn = companion.slice(companion.indexOf("function writeDateControls"), companion.indexOf("function refreshAspNetValidators"));
   const monthBranch = fn.indexOf('if (monthEl.tagName === "SELECT"');
   const dayWrite = fn.indexOf('if (!dateControlMatches(dayEl');
   const yearWrite = fn.indexOf('if (!dateControlMatches(yearEl');
   assert.ok(monthBranch >= 0 && dayWrite > monthBranch && yearWrite > dayWrite);
+});
+
+
+test("v0.9.15 writes KD-MID day and year atomically after month is stable", () => {
+  assert.match(companion, /function writeDateTextAtomic/);
+  assert.match(companion, /Do NOT blur\/change here/);
+  assert.match(companion, /write DAY \+ YEAR atomically/);
+  assert.match(companion, /const dayOk = dayReadyBefore \|\| writeDateTextAtomic\(dayEl, parts\[0\]\)/);
+  assert.match(companion, /const yearOk = yearReadyBefore \|\| writeDateTextAtomic\(yearEl, parts\[2\]\)/);
+});
+
+test("v0.9.15 does not use fire() on day/year while the date group is incomplete", () => {
+  const fn = companion.slice(companion.indexOf("function writeDateTextAtomic"), companion.indexOf("function refreshAspNetValidators"));
+  assert.doesNotMatch(fn, /fire\(el\)/);
+  assert.match(fn, /refreshAspNetValidators\(\)/);
 });
