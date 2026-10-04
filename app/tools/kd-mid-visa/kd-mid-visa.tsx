@@ -11,6 +11,7 @@ const visaConsulates = [
 
 type Route = "dashboard" | "applicants" | "intake" | "common" | "records" | "backup" | "connect";
 type KeepMode = "full" | "record" | "none";
+type DeleteScope = "applicants" | "records" | "common" | "payload" | "intakeDrafts";
 
 type CommonData = {
   password: string;
@@ -467,6 +468,13 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
   const [intakeLabel, setIntakeLabel] = useState("");
   const [shareUrl, setShareUrl] = useState("");
   const [correctionSelections, setCorrectionSelections] = useState<Record<string, string[]>>({});
+  const [deleteSelection, setDeleteSelection] = useState<Record<DeleteScope, boolean>>({
+    applicants: false,
+    records: false,
+    common: false,
+    payload: false,
+    intakeDrafts: false,
+  });
 
   useEffect(() => {
     const loaded = safeLoad();
@@ -857,6 +865,81 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
     setNotice(mode === "record" ? "Đã xóa dữ liệu cá nhân, chỉ giữ thông tin mở lại hồ sơ." : "Đã xóa cả hồ sơ cá nhân và bản ghi mở lại.");
   }
 
+  function intakeDraftKeys() {
+    const keys: string[] = [];
+    try {
+      for (let index = 0; index < window.localStorage.length; index += 1) {
+        const key = window.localStorage.key(index);
+        if (key?.startsWith("visa-intake:draft:")) keys.push(key);
+      }
+    } catch {}
+    return keys;
+  }
+
+  function setDeleteScope(scope: DeleteScope, checked: boolean) {
+    setDeleteSelection((current) => ({ ...current, [scope]: checked }));
+  }
+
+  function setAllDeleteScopes(checked: boolean) {
+    setDeleteSelection({
+      applicants: checked,
+      records: checked,
+      common: checked,
+      payload: checked,
+      intakeDrafts: checked,
+    });
+  }
+
+  function deleteSelectedLocalData() {
+    const labels: Record<DeleteScope, string> = {
+      applicants: "Hồ sơ cá nhân",
+      records: "Bản ghi mở lại",
+      common: "Trường dùng chung",
+      payload: "Payload KD-MID/Companion",
+      intakeDrafts: "Bản nháp Form thu hồ sơ",
+    };
+    const selectedScopes = (Object.keys(deleteSelection) as DeleteScope[]).filter((scope) => deleteSelection[scope]);
+    if (!selectedScopes.length) {
+      setNotice("Hãy chọn ít nhất một nhóm dữ liệu cần xóa.");
+      return;
+    }
+
+    const effectiveScopes = deleteSelection.applicants && !deleteSelection.payload
+      ? [...selectedScopes, "payload" as DeleteScope]
+      : selectedScopes;
+    const uniqueScopes = [...new Set(effectiveScopes)];
+    const names = uniqueScopes.map((scope) => labels[scope]);
+    const extra = deleteSelection.applicants && !deleteSelection.payload
+      ? "\n\nPayload KD-MID/Companion cũng sẽ được xóa tự động để tránh dùng nhầm hồ sơ đã xóa."
+      : "";
+    if (!window.confirm(`Xóa các nhóm dữ liệu sau trên máy này?\n\n• ${names.join("\n• ")}${extra}\n\nThao tác này không thể hoàn tác nếu chưa có file backup.`)) return;
+
+    setStore((current) => {
+      const applicants = deleteSelection.applicants ? [] : current.applicants;
+      const records = deleteSelection.records ? [] : current.records;
+      const common = deleteSelection.common ? defaultCommon : current.common;
+      const selectedId = deleteSelection.applicants
+        ? ""
+        : applicants.some((item) => item.id === current.selectedId) ? current.selectedId : applicants[0]?.id ?? "";
+      const next: Store = { ...current, applicants, records, common, selectedId };
+      persistStoreSnapshot(next);
+      return next;
+    });
+
+    if (deleteSelection.payload || deleteSelection.applicants) {
+      try { window.localStorage.removeItem(activePayloadKey); } catch {}
+      setBookmarklet("");
+    }
+    if (deleteSelection.intakeDrafts) {
+      for (const key of intakeDraftKeys()) {
+        try { window.localStorage.removeItem(key); } catch {}
+      }
+    }
+
+    setDeleteSelection({ applicants: false, records: false, common: false, payload: false, intakeDrafts: false });
+    setNotice(`Đã xóa: ${names.join(", ")}.`);
+  }
+
   function exportBackup() {
     const blob = new Blob([JSON.stringify(store, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -1053,7 +1136,22 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       <div className={styles.backupGrid}>
         <article><strong>Xuất JSON</strong><p>Tệp có thể chứa thông tin hộ chiếu và password. Chỉ lưu ở nơi an toàn.</p><button onClick={exportBackup}>Tải bản sao lưu</button></article>
         <article><strong>Nhập JSON</strong><p>Khôi phục hồ sơ, trường dùng chung và bản ghi mở lại.</p><label className={styles.fileButton}>Chọn tệp<input type="file" accept="application/json,.json" onChange={(event) => { const file = event.target.files?.[0]; if (file) importBackup(file); }} /></label></article>
-        <article><strong>Xóa toàn bộ dữ liệu Tool</strong><p>Xóa localStorage KD-MID Visa trên máy hiện tại.</p><button className={styles.danger} onClick={() => { if (!window.confirm("Xóa toàn bộ dữ liệu KD-MID Visa trên máy này?")) return; const next: Store = { version: 1, common: defaultCommon, applicants: [], records: [], selectedId: "" }; setStore(next); setNotice("Đã xóa dữ liệu Tool."); }}>Xóa dữ liệu</button></article>
+        <article className={styles.deleteCard}>
+          <strong>Xóa dữ liệu có chọn lọc</strong>
+          <p>Chỉ xóa đúng nhóm bạn chọn trên máy hiện tại. Dữ liệu không được chọn vẫn giữ nguyên.</p>
+          <div className={styles.deleteToolbar}>
+            <button className={styles.secondary} type="button" onClick={() => setAllDeleteScopes(true)}>Chọn tất cả</button>
+            <button className={styles.secondary} type="button" onClick={() => setAllDeleteScopes(false)}>Bỏ chọn</button>
+          </div>
+          <div className={styles.deleteChoices}>
+            <label><input type="checkbox" checked={deleteSelection.applicants} onChange={(event) => setDeleteScope("applicants", event.target.checked)} /><span><strong>Hồ sơ cá nhân</strong><small>{store.applicants.length} hồ sơ · xóa mục này cũng tự xóa payload đang hoạt động</small></span></label>
+            <label><input type="checkbox" checked={deleteSelection.records} onChange={(event) => setDeleteScope("records", event.target.checked)} /><span><strong>Bản ghi mở lại</strong><small>{store.records.length} bản ghi Application ID</small></span></label>
+            <label><input type="checkbox" checked={deleteSelection.common} onChange={(event) => setDeleteScope("common", event.target.checked)} /><span><strong>Trường dùng chung</strong><small>Đưa cấu hình chung về mặc định ban đầu</small></span></label>
+            <label><input type="checkbox" checked={deleteSelection.payload} onChange={(event) => setDeleteScope("payload", event.target.checked)} /><span><strong>Payload KD-MID / Companion</strong><small>Xóa dữ liệu tạm đang chờ tự điền trên KD-MID</small></span></label>
+            <label><input type="checkbox" checked={deleteSelection.intakeDrafts} onChange={(event) => setDeleteScope("intakeDrafts", event.target.checked)} /><span><strong>Bản nháp Form thu hồ sơ</strong><small>Xóa các bản nháp visa-intake đã lưu trong trình duyệt này</small></span></label>
+          </div>
+          <button className={styles.danger} disabled={!Object.values(deleteSelection).some(Boolean)} onClick={deleteSelectedLocalData}>Xóa dữ liệu đã chọn</button>
+        </article>
       </div>
     </section>;
   }
