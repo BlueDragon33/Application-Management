@@ -73,10 +73,11 @@ async function snapshot() {
   for(const row of results.results) resultCount.set(row.link_id,(resultCount.get(row.link_id)??0)+1);
   return {
     links: links.results.map((row)=>({id:row.id,label:row.label,status:row.status,createdBy:row.created_by,createdAt:row.created_at,expiresAt:row.expires_at,publicPath:`/visa-intake?batch=${encodeURIComponent(row.id)}`,submissionCount:submissionCount.get(row.id)??0,resultCount:resultCount.get(row.id)??0})),
-    submissions: submissions.results.map((row)=>{
+    submissions: submissions.results.flatMap((row)=>{
       let applicant:Record<string,unknown>={},validation:Record<string,unknown>={};try{applicant=JSON.parse(row.payload_json)}catch{}try{validation=JSON.parse(row.validation_json)}catch{}
+      if(validation.adminHidden===true) return [];
       const result=resultBySubmission.get(row.id);
-      return {queueNo:row.queue_no,id:row.id,linkId:row.link_id,status:row.status,applicantName:row.applicant_name,passportNo:row.passport_no,email:row.email,phone:row.phone,applicant,validation,submittedAt:row.submitted_at,reviewedBy:row.reviewed_by,reviewedAt:row.reviewed_at,reviewNote:row.review_note,correctionFields:Array.isArray(validation.correctionFields)?validation.correctionFields.filter((value):value is string=>typeof value==="string"&&REVIEWABLE_FIELDS.has(value)):[],resubmittedFields:Array.isArray(validation.resubmittedFields)?validation.resubmittedFields.filter((value):value is string=>typeof value==="string"&&REVIEWABLE_FIELDS.has(value)):[],revision:typeof validation.revision==="number"?validation.revision:0,importedApplicantId:row.imported_applicant_id,result:result?{available:true,fileName:result.file_name,fileSize:result.file_size,uploadedAt:result.uploaded_at}:null};
+      return [{queueNo:row.queue_no,id:row.id,linkId:row.link_id,status:row.status,applicantName:row.applicant_name,passportNo:row.passport_no,email:row.email,phone:row.phone,applicant,validation,submittedAt:row.submitted_at,reviewedBy:row.reviewed_by,reviewedAt:row.reviewed_at,reviewNote:row.review_note,correctionFields:Array.isArray(validation.correctionFields)?validation.correctionFields.filter((value):value is string=>typeof value==="string"&&REVIEWABLE_FIELDS.has(value)):[],resubmittedFields:Array.isArray(validation.resubmittedFields)?validation.resubmittedFields.filter((value):value is string=>typeof value==="string"&&REVIEWABLE_FIELDS.has(value)):[],revision:typeof validation.revision==="number"?validation.revision:0,importedApplicantId:row.imported_applicant_id,result:result?{available:true,fileName:result.file_name,fileSize:result.file_size,uploadedAt:result.uploaded_at}:null}];
     }),
   };
 }
@@ -212,6 +213,28 @@ export async function POST(request: Request) {
       await database.prepare(`INSERT INTO visa_intake_results (id,submission_id,link_id,file_name,mime_type,file_size,pdf_blob,uploaded_by,uploaded_at) VALUES (?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP) ON CONFLICT(submission_id) DO UPDATE SET link_id=excluded.link_id,file_name=excluded.file_name,mime_type=excluded.mime_type,file_size=excluded.file_size,pdf_blob=excluded.pdf_blob,uploaded_by=excluded.uploaded_by,uploaded_at=CURRENT_TIMESTAMP`).bind(crypto.randomUUID(),submissionId,existing.link_id,fileName,"application/pdf",fileSize,buffer,actor.email).run();
       await audit(actor.email,"visa_intake_result_sent",submissionId,{fileName,fileSize});
       return json({ok:true,...(await snapshot())});
+    }
+
+    if (action === "archive-submission") {
+      if (!["publisher", "owner"].includes(actor.role)) {
+        throw new ControlAccessError("Chỉ Publisher/Owner được xóa hồ sơ khỏi hàng chờ.", 403, "PUBLISHER_REQUIRED");
+      }
+      const submissionId = text(body.submissionId, 80);
+      const existing = await database.prepare(
+        "SELECT status,validation_json FROM visa_intake_submissions WHERE id=? LIMIT 1",
+      ).bind(submissionId).first<{ status: string; validation_json: string }>();
+      if (!existing) throw new ControlAccessError("Không tìm thấy hồ sơ cần ẩn.", 404, "SUBMISSION_NOT_FOUND");
+      if (!["approved", "imported"].includes(existing.status)) {
+        throw new ControlAccessError("Chỉ ẩn khỏi hàng chờ đối với hồ sơ đã duyệt hoặc đã tiếp nhận.", 409, "SUBMISSION_ARCHIVE_LOCKED");
+      }
+      let validation: Record<string, unknown> = {};
+      try { validation = JSON.parse(existing.validation_json || "{}") as Record<string, unknown>; } catch {}
+      validation = { ...validation, adminHidden: true, adminHiddenAt: new Date().toISOString(), adminHiddenBy: actor.email };
+      await database.prepare(
+        "UPDATE visa_intake_submissions SET validation_json=? WHERE id=?",
+      ).bind(JSON.stringify(validation), submissionId).run();
+      await audit(actor.email, "visa_intake_archived", submissionId, { preservedResult: true });
+      return json({ ok: true, ...(await snapshot()) });
     }
 
     if (action === "delete-submission") {

@@ -731,22 +731,24 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
   }
 
   async function deleteIntakeSubmission(submission: IntakeSubmission) {
-    if (!["pending", "rejected"].includes(submission.status)) {
-      setNotice("Chỉ xóa được hồ sơ còn ở hàng chờ xác minh hoặc đang chờ người gửi sửa.");
-      return;
-    }
-    const confirmed = window.confirm(
-      `Xóa hồ sơ #${submission.queueNo} · ${submission.applicantName} khỏi hàng chờ?\n\nThao tác này sẽ xóa bản gửi này khỏi hệ thống và không thể hoàn tác.`,
-    );
-    if (!confirmed) return;
+    const completed = ["approved", "imported"].includes(submission.status);
+    const message = completed
+      ? `Xóa hồ sơ #${submission.queueNo} · ${submission.applicantName} khỏi hàng chờ quản trị?\n\nHồ sơ và PDF kết quả vẫn được giữ trên server để người khai tiếp tục xem trạng thái và tải kết quả.`
+      : `Xóa hồ sơ #${submission.queueNo} · ${submission.applicantName} khỏi hàng chờ?\n\nThao tác này sẽ xóa bản gửi này khỏi hệ thống và không thể hoàn tác.`;
+    if (!window.confirm(message)) return;
     try {
-      await intakeAction({ action: "delete-submission", submissionId: submission.id });
+      await intakeAction({
+        action: completed ? "archive-submission" : "delete-submission",
+        submissionId: submission.id,
+      });
       setCorrectionSelections((current) => {
         const next = { ...current };
         delete next[submission.id];
         return next;
       });
-      setNotice(`Đã xóa #${submission.queueNo} · ${submission.applicantName} khỏi hàng chờ xác minh.`);
+      setNotice(completed
+        ? `Đã ẩn #${submission.queueNo} · ${submission.applicantName} khỏi hàng chờ quản trị; PDF và dữ liệu người khai vẫn được giữ.`
+        : `Đã xóa #${submission.queueNo} · ${submission.applicantName} khỏi hàng chờ xác minh.`);
     } catch (reason) {
       setNotice(reason instanceof Error ? reason.message : "Không thể xóa hồ sơ khỏi hàng chờ.");
     }
@@ -1163,7 +1165,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
             {item.status === "rejected" ? <div className={styles.returnedInfo}><strong>Đã trả về để sửa</strong><span>{item.reviewNote || "Không có ghi chú thêm."}</span><small>{item.correctionFields?.length ?? 0} ô đã được đánh dấu sai.</small><button className={styles.danger} onClick={() => void deleteIntakeSubmission(item)}>Xóa khỏi hàng chờ</button></div> : null}
             {["approved", "imported"].includes(item.status) ? <div className={styles.resultSendBox}>
               <div><strong>Kết quả PDF cho người khai</strong><small>{item.result ? `Đã gửi ${item.result.fileName} · ${Math.ceil(item.result.fileSize / 1024)} KB · ${new Date(item.result.uploadedAt).toLocaleString("vi-VN")}` : "Chưa gửi PDF kết quả."}</small></div>
-              <label className={styles.resultFileButton}>{resultUploadingId === item.id ? "Đang gửi…" : item.result ? "Thay PDF kết quả" : "Gửi PDF kết quả"}<input type="file" accept="application/pdf,.pdf" disabled={resultUploadingId === item.id} onChange={(event) => { const file = event.target.files?.[0] ?? null; event.currentTarget.value = ""; void uploadIntakeResult(item, file); }} /></label>
+              <div className={styles.intakeActions}><label className={styles.resultFileButton}>{resultUploadingId === item.id ? "Đang gửi…" : item.result ? "Thay PDF kết quả" : "Gửi PDF kết quả"}<input type="file" accept="application/pdf,.pdf" disabled={resultUploadingId === item.id} onChange={(event) => { const file = event.target.files?.[0] ?? null; event.currentTarget.value = ""; void uploadIntakeResult(item, file); }} /></label><button className={styles.danger} onClick={() => void deleteIntakeSubmission(item)}>Xóa khỏi hàng chờ</button></div>
             </div> : null}
           </div>
         </details>)}

@@ -187,3 +187,15 @@ test("admin can delete only pending or rejected submissions from the verificatio
   assert.match(api, /SUBMISSION_DELETE_LOCKED/);
   assert.match(api, /\["pending", "rejected"\]\.includes\(existing\.status\)/);
 });
+
+
+test("completed submissions including those with PDF can be removed from the admin queue without deleting result data", () => {
+  assert.match(tool, /completed = \["approved", "imported"\]\.includes\(submission\.status\)/);
+  assert.match(tool, /action: completed \? "archive-submission" : "delete-submission"/);
+  assert.match(tool, /PDF kết quả vẫn được giữ trên server/);
+  assert.match(api, /action === "archive-submission"/);
+  assert.match(api, /adminHidden: true/);
+  assert.match(api, /preservedResult: true/);
+  assert.match(api, /validation\.adminHidden===true/);
+  assert.match(api, /\["approved", "imported"\]\.includes\(existing\.status\)/);
+});
