@@ -70,6 +70,12 @@ const approvalGateStorageKey = "application-management:approval-gate:v1";
 const launcherOrderStorageKey = "application-management:launcher-order:v1";
 const launcherCategoryStorageKey = "application-management:launcher-category-overrides:v1";
 const launcherSortStorageKey = "application-management:launcher-sort:v1";
+const launcherSortOptions: ReadonlyArray<{ id: AppLauncherSort; label: string }> = [
+  { id: "manual", label: "Thủ công" },
+  { id: "category-auto", label: "Tự động theo phân loại" },
+  { id: "name", label: "Tên A → Z" },
+  { id: "status", label: "Trạng thái" },
+];
 const fontScaleOptions: Array<{ id: FontScale; label: string; hint: string }> = [
   { id: "compact", label: "Gọn", hint: "Mức hiện tại · nhiều nội dung" },
   { id: "standard", label: "Chuẩn", hint: "Dễ đọc hơn" },
@@ -1124,6 +1130,7 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
   const [launcherSearch, setLauncherSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [sortMode, setSortMode] = useState<AppLauncherSort>("manual");
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [anchorElement, setAnchorElement] = useState<HTMLButtonElement | null>(null);
   const [popoverPlacement, setPopoverPlacement] = useState<AppLauncherPlacement>({ top: 12, left: 12, side: "right" });
@@ -1141,6 +1148,7 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
   const openGuardRef = useRef<string | null>(null);
   const openGuardTimerRef = useRef<number | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const sortMenuRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -1334,6 +1342,7 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
 
   function changeSortMode(next: AppLauncherSort) {
     setSortMode(next);
+    setSortMenuOpen(false);
     if (next !== "manual") {
       setEditMode(false);
       setDraggingId(null);
@@ -1565,6 +1574,24 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
   }, [selectedId, anchorElement, detailOpen]);
 
   useEffect(() => {
+    if (!sortMenuOpen) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (!target || sortMenuRef.current?.contains(target)) return;
+      setSortMenuOpen(false);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSortMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [sortMenuOpen]);
+
+  useEffect(() => {
     if (!selectedId) return;
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target as Node | null;
@@ -1599,15 +1626,32 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
           <button type="button" data-active={mode === "grid"} onClick={() => setMode("grid")}>▦</button>
           <button type="button" data-active={mode === "list"} onClick={() => setMode("list")}>☷</button>
         </div>
-        <label className="amv2-launcher-sort">
+        <div className="amv2-launcher-sort" ref={sortMenuRef}>
           <span>Sắp xếp:</span>
-          <select value={sortMode} onChange={(event) => changeSortMode(event.target.value as AppLauncherSort)}>
-            <option value="manual">Thủ công</option>
-            <option value="category-auto">Tự động theo phân loại</option>
-            <option value="name">Tên A → Z</option>
-            <option value="status">Trạng thái</option>
-          </select>
-        </label>
+          <button
+            type="button"
+            className="amv2-launcher-sort-trigger"
+            aria-haspopup="listbox"
+            aria-expanded={sortMenuOpen}
+            onClick={() => setSortMenuOpen((current) => !current)}
+          >
+            <b>{launcherSortOptions.find((option) => option.id === sortMode)?.label ?? "Thủ công"}</b>
+            <i aria-hidden="true">⌄</i>
+          </button>
+          {sortMenuOpen ? <div className="amv2-launcher-sort-menu" role="listbox" aria-label="Sắp xếp ứng dụng">
+            {launcherSortOptions.map((option) => <button
+              type="button"
+              role="option"
+              aria-selected={sortMode === option.id}
+              data-active={sortMode === option.id}
+              key={option.id}
+              onClick={() => changeSortMode(option.id)}
+            >
+              <span>{option.label}</span>
+              {sortMode === option.id ? <i aria-hidden="true">✓</i> : null}
+            </button>)}
+          </div> : null}
+        </div>
       </div>
 
       <div className="amv2-launcher-subbar">
