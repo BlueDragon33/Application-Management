@@ -168,6 +168,9 @@ export async function POST(request: Request) {
       if (!validDmy(applicant.lastVisitTo)) missing.push("Ngày kết thúc chuyến Nga gần nhất");
     }
     if (applicant.hasInsurance && !applicant.insurancePolicy) missing.push("Tên công ty/số hợp đồng bảo hiểm");
+    if ((applicant.childrenUnder16 || applicant.relativesInRussia) && !applicant.specialNotes) {
+      missing.push("Thông tin chi tiết về trẻ em/người thân tại Nga");
+    }
 
     if (!bool(body.confirmedAccurate)) missing.push("Xác nhận thông tin là đúng sự thật");
     if (missing.length) return json({ ok: false, error: "Form còn thiếu hoặc sai dữ liệu.", missing }, 400);
