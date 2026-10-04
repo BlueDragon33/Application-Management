@@ -938,7 +938,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
             {item.status === "pending" ? <div className={styles.intakeActions}><button onClick={() => void verifyAndImport(item)}>✓ Xác minh & lưu hồ sơ</button><button className={styles.danger} onClick={() => void rejectIntake(item)}>Trả lại / cần sửa</button></div> : null}
           </div>
         </details>)}
-      </div>
+      </div>}
     </section>;
   }
 
