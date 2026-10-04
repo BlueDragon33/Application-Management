@@ -41,7 +41,7 @@ test("production workflow opens official KD-MID directly", () => {
 });
 
 test("Companion v0.9 initializes the first KD-MID page", () => {
-  assert.match(companion, /VERSION = "0\.9\.0"/);
+  assert.match(companion, /VERSION = "0\.9\.1"/);
   assert.match(companion, /ВЬЕТНАМ/);
   assert.match(companion, /РУССКИЙ/);
   assert.match(companion, /Я прочитал эту информацию/);
@@ -88,4 +88,20 @@ test("UI describes v0.9 and manual CAPTCHA correctly", () => {
   assert.match(tool, /Password tự điền · CAPTCHA nhập tay/);
   assert.match(tool, /Lưu ID rồi tiếp tục tự động/);
   assert.match(tool, /không tự đọc\/giải CAPTCHA/);
+});
+
+
+test("v0.9.1 targets country and language by their own option lists", () => {
+  assert.match(companion, /function selectContainingOption/);
+  assert.match(companion, /setSelectByOption\(\["ВЬЕТНАМ","VIETNAM"\]\)/);
+  assert.match(companion, /setSelectByOption\(\["РУССКИЙ","RUSSIAN"\]\)/);
+  assert.match(companion, /function landingPageReady/);
+  assert.match(companion, /trang đầu đã đúng Việt Nam \+ Russian/);
+});
+
+test("landing page cannot advance until Russian is actually selected", () => {
+  const segment = companion.slice(companion.indexOf("function maybeAdvance"), companion.indexOf("function status"));
+  assert.match(segment, /isLandingPage\(\)/);
+  assert.match(segment, /landingPageReady\(\)/);
+  assert.ok(segment.indexOf("landingPageReady") < segment.indexOf("ЗАПОЛНИТЬ НОВУЮ АНКЕТУ"));
 });
