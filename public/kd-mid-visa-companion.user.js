@@ -129,6 +129,59 @@
     return block ? controls(block) : [];
   }
 
+  function matchingTextNodes(labels) {
+    const needles = (Array.isArray(labels) ? labels : [labels]).map(norm).filter(Boolean);
+    return [...document.querySelectorAll("label,td,th,div,span,p,b,strong")]
+      .map((node) => ({ node, text: norm(node.textContent) }))
+      .filter(({ text }) => needles.some((needle) => text.includes(needle)))
+      .sort((a, b) => a.text.length - b.text.length)
+      .map(({ node }) => node);
+  }
+
+  function findControlNearLabel(labels, selector) {
+    for (const node of matchingTextNodes(labels)) {
+      let current = node;
+      for (let depth = 0; depth < 6 && current; depth += 1, current = current.parentElement) {
+        const found = [...current.querySelectorAll(selector)].filter(visible);
+        if (current.matches?.(selector) && visible(current)) found.unshift(current);
+        const unique = [...new Set(found)];
+        if (unique.length === 1) return unique[0];
+      }
+    }
+    return null;
+  }
+
+  function findSelectNearLabel(labels) {
+    return findControlNearLabel(labels, "select");
+  }
+
+  function findInputNearLabel(labels) {
+    return findControlNearLabel(labels, 'input:not([type="hidden"]),textarea');
+  }
+
+  function setSelectNearLabel(labels, values) {
+    const el = findSelectNearLabel(labels);
+    if (!el) return false;
+    const wants = (Array.isArray(values) ? values : [values]).map(norm);
+    const option = [...el.options].find((o) => wants.includes(norm(o.textContent))) ||
+      [...el.options].find((o) => wants.some((want) => want && norm(o.textContent).includes(want)));
+    if (!option) return false;
+    if (el.value !== option.value || el.selectedIndex !== option.index) {
+      el.selectedIndex = option.index;
+      el.value = option.value;
+      fire(el);
+    }
+    return true;
+  }
+
+  function selectNearLabelHas(labels, values) {
+    const el = findSelectNearLabel(labels);
+    if (!el) return false;
+    const selected = norm(el.options[el.selectedIndex]?.textContent || "");
+    const wants = (Array.isArray(values) ? values : [values]).map(norm);
+    return wants.some((want) => selected === want || selected.includes(want));
+  }
+
   function setText(labels, value) {
     if (value == null || value === "") return false;
     const el = blockControls(labels).find((item) =>
@@ -293,25 +346,114 @@
     return recognized;
   }
 
+  function isVisaRequestPage() {
+    const body = norm(document.body.innerText || "");
+    return body.includes("ИНФОРМАЦИЯ О ЗАПРАШИВАЕМОЙ ВИЗЕ") &&
+      body.includes("ЦЕЛЬ ПОЕЗДКИ (РАЗДЕЛ)") &&
+      body.includes("КАТЕГОРИЯ И ВИД ВИЗЫ");
+  }
+
+  function setDateNearLabel(labels, value) {
+    if (!value) return false;
+    const node = matchingTextNodes(labels)[0];
+    if (!node) return false;
+    let current = node;
+    let list = [];
+    for (let depth = 0; depth < 6 && current; depth += 1, current = current.parentElement) {
+      list = [...current.querySelectorAll("input,select")].filter((item) => visible(item) && item.type !== "hidden");
+      if (list.length >= 3 && list.length <= 5) break;
+    }
+    if (list.length < 3) return false;
+    const parts = value.split("/");
+    if (parts.length !== 3) return false;
+    parts.forEach((part, index) => {
+      const el = list[index];
+      if (!el) return;
+      if (el.tagName === "SELECT") {
+        const option = [...el.options].find((o) => norm(o.textContent) === norm(part) || String(o.value) === String(part));
+        if (option && el.value !== option.value) {
+          el.value = option.value;
+          fire(el);
+        }
+      } else if (String(el.value) !== String(part)) {
+        el.value = part;
+        fire(el);
+      }
+    });
+    return true;
+  }
+
+  function fillVisaRequestPage(payload) {
+    if (!isVisaRequestPage()) return { handled: false, ready: false };
+    const A = payload.applicant || {};
+
+    setSelectNearLabel("Гражданство", [payload.citizenship, "ВЬЕТНАМ"]);
+    if (!selectNearLabelHas("Гражданство", [payload.citizenship, "ВЬЕТНАМ"])) {
+      status("KD-MID Visa VN: đang chọn quốc tịch Việt Nam…", "wait");
+      return { handled: true, ready: false };
+    }
+
+    setSelectNearLabel("Если Вы имели гражданство СССР или России", A.hadFormerRussianCitizenship ? ["ДА"] : ["НЕТ"]);
+    if (!selectNearLabelHas("Если Вы имели гражданство СССР или России", A.hadFormerRussianCitizenship ? ["ДА"] : ["НЕТ"])) {
+      status("KD-MID Visa VN: đang chọn trạng thái quốc tịch Liên Xô/Nga…", "wait");
+      return { handled: true, ready: false };
+    }
+
+    if (A.hadFormerRussianCitizenship) {
+      setDateNearLabel(["Когда?","Когда"], A.formerCitizenshipLostDate);
+      setText(["В связи с чем?","В связи с чем"], A.formerCitizenshipLossReason);
+    }
+
+    setSelectNearLabel("Цель поездки (раздел)", [payload.purposeSection, "УЧЕБА"]);
+    if (!selectNearLabelHas("Цель поездки (раздел)", [payload.purposeSection, "УЧЕБА"])) {
+      status("KD-MID Visa VN: đang chọn раздел = УЧЕБА…", "wait");
+      return { handled: true, ready: false };
+    }
+
+    const purposeSelect = findSelectNearLabel("Цель поездки");
+    if (!purposeSelect || purposeSelect.disabled || purposeSelect.options.length <= 1) {
+      status("KD-MID Visa VN: đang chờ KD-MID nạp danh sách Цель поездки…", "wait");
+      return { handled: true, ready: false };
+    }
+    setSelectNearLabel("Цель поездки", [payload.purpose, "УЧЕБА"]);
+    if (!selectNearLabelHas("Цель поездки", [payload.purpose, "УЧЕБА"])) {
+      status("KD-MID Visa VN: đang chọn Цель поездки = УЧЕБА…", "wait");
+      return { handled: true, ready: false };
+    }
+
+    const visaKind = findSelectNearLabel("Категория и вид визы");
+    if (!visaKind || visaKind.disabled || visaKind.options.length <= 1) {
+      status("KD-MID Visa VN: đang chờ KD-MID nạp Категория и вид визы…", "wait");
+      return { handled: true, ready: false };
+    }
+    setSelectNearLabel("Категория и вид визы", [payload.visaType, "ОБЫКНОВЕННАЯ УЧЕБНАЯ"]);
+    if (!selectNearLabelHas("Категория и вид визы", [payload.visaType, "ОБЫКНОВЕННАЯ УЧЕБНАЯ"])) {
+      status("KD-MID Visa VN: đang chọn ОБЫКНОВЕННАЯ УЧЕБНАЯ…", "wait");
+      return { handled: true, ready: false };
+    }
+
+    setSelectNearLabel("Кратность визы", [payload.entries, "ОДНОКРАТНАЯ"]);
+    if (!selectNearLabelHas("Кратность визы", [payload.entries, "ОДНОКРАТНАЯ"])) {
+      status("KD-MID Visa VN: đang chọn ОДНОКРАТНАЯ…", "wait");
+      return { handled: true, ready: false };
+    }
+
+    setDateNearLabel("Дата въезда в Россию", payload.entryDate);
+    setDateNearLabel("Дата выезда из России", payload.exitDate);
+
+    status("KD-MID Visa VN: trang visa đã điền đủ các trường phụ thuộc. Đang chuyển bước…");
+    return { handled: true, ready: true };
+  }
+
   function fillPage(payload) {
+    const visaPage = fillVisaRequestPage(payload);
+    if (visaPage.handled) return visaPage.ready ? 1 : 0;
+
     const A = payload.applicant || {};
     let recognized = 0;
     const mark = (ok) => { if (ok) recognized += 1; };
 
     recognized += fillPassword(payload);
-
-    mark(setSelect("Гражданство", payload.citizenship));
-    mark(setYesNo("Если Вы имели гражданство СССР или России", Boolean(A.hadFormerRussianCitizenship)));
-    if (A.hadFormerRussianCitizenship) {
-      mark(setDate(["Когда?","Когда"], A.formerCitizenshipLostDate));
-      mark(setText(["В связи с чем?","В связи с чем"], A.formerCitizenshipLossReason));
-    }
-    mark(setSelect("Цель поездки (раздел)", payload.purposeSection));
-    mark(setSelect("Цель поездки", payload.purpose));
-    mark(setSelect("Категория и вид визы", payload.visaType));
-    mark(setSelect("Кратность визы", payload.entries));
-    mark(setDate("Дата въезда в Россию", payload.entryDate));
-    mark(setDate("Дата выезда из России", payload.exitDate));
 
     mark(setText("Фамилия (согласно паспорту)", A.surname));
     mark(setText("Имя, другие имена, отчество", A.givenNames));
@@ -542,6 +684,8 @@
 
     const body = document.body.innerText || "";
     if (/ПЕЧАТНАЯ ФОРМА ЭЛЕКТРОННОЙ ВИЗОВОЙ АНКЕТЫ/i.test(body)) return false;
+
+    if (isVisaRequestPage() && recognized < 1) return false;
 
     if (recognized > 0) {
       return clickNamed(["ЗАПОЛНИТЬ НОВУЮ АНКЕТУ","COMPLETE NEW APPLICATION","ДАЛЕЕ","NEXT"], 800);
