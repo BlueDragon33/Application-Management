@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.26
+// @version      0.9.27
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,7 +17,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.26";
+  const VERSION = "0.9.27";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
@@ -1189,11 +1189,11 @@
       ["Điện thoại cá nhân", () => optionalText(C.personalPhone, A.phone)],
       ["E-mail cá nhân", () => optionalText(C.personalEmail, A.email)],
       ["Đang làm việc/học tập", () => C.worksOrStudies ? writeSelectControl(C.worksOrStudies, ["ДА","YES"]) : "missing"],
-      ["Nơi làm việc/học tập", () => optionalText(C.employer, A.workStudyPlace)],
-      ["Chức vụ", () => optionalText(C.position, A.position)],
-      ["Địa chỉ cơ quan", () => optionalText(C.workAddress, A.workAddress)],
-      ["Điện thoại cơ quan", () => optionalText(C.workPhone, A.workPhone)],
-      ["E-mail cơ quan", () => optionalText(C.workEmail, A.workEmail)],
+      ["Nơi làm việc/học tập", () => optionalText(C.employer, A.workStudyPlace || payload.employer)],
+      ["Chức vụ", () => optionalText(C.position, A.position || payload.defaultPosition)],
+      ["Địa chỉ cơ quan", () => optionalText(C.workAddress, A.workAddress || payload.employerAddress)],
+      ["Điện thoại cơ quan", () => optionalText(C.workPhone, A.workPhone || payload.fixedWorkPhone)],
+      ["E-mail cơ quan", () => optionalText(C.workEmail, A.workEmail || payload.employerEmail)],
       ["Trẻ em dưới 16 tuổi", () => C.children ? writeSelectControl(C.children, A.childrenUnder16 ? ["ДА","YES"] : ["НЕТ","NO"]) : "missing"],
       ["Người thân tại Nga", () => C.relatives ? writeSelectControl(C.relatives, A.relativesInRussia ? ["ДА","YES"] : ["НЕТ","NO"]) : "missing"],
     ];
@@ -1222,11 +1222,11 @@
       permanentAddress: String(payload.fixedPermanentAddress || A.personalAddress || ""),
       personalPhone: String(A.phone || ""),
       personalEmail: String(A.email || ""),
-      employer: String(A.workStudyPlace || ""),
-      position: String(A.position || ""),
-      workAddress: String(A.workAddress || ""),
-      workPhone: String(A.workPhone || ""),
-      workEmail: String(A.workEmail || ""),
+      employer: String(A.workStudyPlace || payload.employer || ""),
+      position: String(A.position || payload.defaultPosition || ""),
+      workAddress: String(A.workAddress || payload.employerAddress || ""),
+      workPhone: String(A.workPhone || payload.fixedWorkPhone || ""),
+      workEmail: String(A.workEmail || payload.employerEmail || ""),
     };
 
     const textPairs = [
