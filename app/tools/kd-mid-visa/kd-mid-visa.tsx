@@ -96,6 +96,8 @@ type IntakeSubmission = {
   reviewedBy: string | null;
   reviewedAt: string | null;
   reviewNote: string | null;
+  correctionFields: string[];
+  revision: number;
   importedApplicantId: string | null;
 };
 
@@ -464,6 +466,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
   const [intakeLoading, setIntakeLoading] = useState(false);
   const [intakeLabel, setIntakeLabel] = useState("");
   const [shareUrl, setShareUrl] = useState("");
+  const [correctionSelections, setCorrectionSelections] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     const loaded = safeLoad();
@@ -703,11 +706,29 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
     }
   }
 
+  function toggleCorrectionField(submissionId: string, field: string) {
+    setCorrectionSelections((current) => {
+      const selected = current[submissionId] ?? [];
+      const next = selected.includes(field) ? selected.filter((item) => item !== field) : [...selected, field];
+      return { ...current, [submissionId]: next };
+    });
+  }
+
   async function rejectIntake(submission: IntakeSubmission) {
-    const note = window.prompt("Lý do trả lại hồ sơ (không bắt buộc):", "") ?? "";
+    const correctionFields = correctionSelections[submission.id] ?? [];
+    if (!correctionFields.length) {
+      setNotice("Hãy click chọn ít nhất một ô sai trước khi trả hồ sơ.");
+      return;
+    }
+    const note = window.prompt("Ghi chú thêm cho người sửa (không bắt buộc):", "") ?? "";
     try {
-      await intakeAction({ action: "review", submissionId: submission.id, decision: "rejected", note });
-      setNotice(`Đã đánh dấu hồ sơ #${submission.queueNo} cần chỉnh sửa.`);
+      await intakeAction({ action: "review", submissionId: submission.id, decision: "rejected", note, correctionFields });
+      setCorrectionSelections((current) => {
+        const next = { ...current };
+        delete next[submission.id];
+        return next;
+      });
+      setNotice(`Đã trả hồ sơ #${submission.queueNo}; người gửi sẽ thấy ${correctionFields.length} ô cần sửa được bôi đỏ.`);
     } catch (reason) {
       setNotice(reason instanceof Error ? reason.message : "Không thể cập nhật hồ sơ.");
     }
@@ -903,8 +924,11 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       ["sex","Giới tính"],["passportNo","Số hộ chiếu"],["passportIssue","Ngày cấp"],["passportExpiry","Hết hạn"],
       ["phone","Điện thoại"],["email","Email"],["routeCity","Nơi đến Nga"],["workStudyPlace","Nơi làm việc/học tập"],
       ["position","Chức vụ"],["workAddress","Địa chỉ cơ quan"],["workPhone","Điện thoại cơ quan"],["workEmail","Email cơ quan"],
-      ["preferredEmbassy","Nơi nộp hồ sơ"],["formerCitizenshipLostDate","Ngày mất Q.tịch Nga/LX"],["formerCitizenshipLossReason","Lý do mất Q.tịch"],
-      ["visitsCount","Số lần đến Nga"],["lastVisitFrom","Chuyến Nga từ"],["lastVisitTo","Chuyến Nga đến"],["insurancePolicy","Bảo hiểm"],["specialNotes","Ghi chú"]
+      ["preferredEmbassy","Nơi nộp hồ sơ"],["hadFormerRussianCitizenship","Đã có Q.tịch Nga/LX"],
+      ["formerCitizenshipLostDate","Ngày mất Q.tịch Nga/LX"],["formerCitizenshipLossReason","Lý do mất Q.tịch"],
+      ["visitedRussia","Đã từng đến Nga"],["visitsCount","Số lần đến Nga"],["lastVisitFrom","Chuyến Nga từ"],["lastVisitTo","Chuyến Nga đến"],
+      ["hasInsurance","Có bảo hiểm Nga"],["insurancePolicy","Bảo hiểm"],["childrenUnder16","Trẻ em dưới 16 tuổi"],
+      ["relativesInRussia","Người thân tại Nga"],["specialNotes","Ghi chú"]
     ];
 
     return <section className={styles.panel}>
@@ -927,15 +951,25 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
               {fieldLabels.map(([key,label]) => {
                 const raw = item.applicant[key];
                 if (raw === undefined || raw === null || raw === "") return null;
-                return <div key={key}><span>{label}</span><strong>{String(raw)}</strong></div>;
+                const selectedForReturn = (correctionSelections[item.id] ?? []).includes(key);
+                const wasReturned = item.correctionFields?.includes(key);
+                const display = typeof raw === "boolean" ? (raw ? "Có" : "Không") : String(raw);
+                return <button
+                  type="button"
+                  key={key}
+                  className={styles.intakeField}
+                  data-selected={selectedForReturn || (item.status === "rejected" && wasReturned)}
+                  disabled={item.status !== "pending"}
+                  onClick={() => toggleCorrectionField(item.id, key)}
+                  title={item.status === "pending" ? "Click để đánh dấu ô này cần sửa" : undefined}
+                ><span>{label}</span><strong>{display}</strong></button>;
               })}
-              <div><span>Đã từng có Q.tịch Nga/LX</span><strong>{item.applicant.hadFormerRussianCitizenship === true ? "Có" : "Không"}</strong></div>
-              <div><span>Đã từng đến Nga</span><strong>{item.applicant.visitedRussia === true ? "Có" : "Không"}</strong></div>
-              <div><span>Có bảo hiểm Nga</span><strong>{item.applicant.hasInsurance === true ? "Có" : "Không"}</strong></div>
-              <div><span>Trẻ em dưới 16 tuổi đi cùng</span><strong>{item.applicant.childrenUnder16 === true ? "Có" : "Không"}</strong></div>
-              <div><span>Người thân tại Nga</span><strong>{item.applicant.relativesInRussia === true ? "Có" : "Không"}</strong></div>
             </div>
-            {item.status === "pending" ? <div className={styles.intakeActions}><button onClick={() => void verifyAndImport(item)}>✓ Xác minh & lưu hồ sơ</button><button className={styles.danger} onClick={() => void rejectIntake(item)}>Trả lại / cần sửa</button></div> : null}
+            {item.status === "pending" ? <div className={styles.intakeReviewBox}>
+              <small>Muốn trả hồ sơ: click trực tiếp vào từng ô sai phía trên. Ô được chọn sẽ chuyển đỏ.</small>
+              <div className={styles.intakeActions}><button onClick={() => void verifyAndImport(item)}>✓ Xác minh & lưu hồ sơ</button><button className={styles.danger} disabled={!(correctionSelections[item.id]?.length)} onClick={() => void rejectIntake(item)}>Trả lại · {correctionSelections[item.id]?.length ?? 0} ô cần sửa</button></div>
+            </div> : null}
+            {item.status === "rejected" ? <div className={styles.returnedInfo}><strong>Đã trả về để sửa</strong><span>{item.reviewNote || "Không có ghi chú thêm."}</span><small>{item.correctionFields?.length ?? 0} ô đã được đánh dấu sai.</small></div> : null}
           </div>
         </details>)}
       </div>}

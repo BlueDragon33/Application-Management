@@ -65,7 +65,7 @@ function utcToday() {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 }
 
-async function activeLink(token: string) {
+async function linkByToken(token: string) {
   if (!/^[A-Za-z0-9_-]{30,120}$/.test(token)) return null;
   const database = await getControlDatabase();
   const row = await database.prepare(
@@ -88,12 +88,50 @@ async function activeLink(token: string) {
 
 export async function GET(request: Request) {
   try {
-    const token = new URL(request.url).searchParams.get("token") ?? "";
-    const link = await activeLink(token);
-    if (!link) return json({ ok: false, error: "Link thu thập hồ sơ không hợp lệ hoặc đã đóng." }, 404);
+    const url = new URL(request.url);
+    const token = url.searchParams.get("token") ?? "";
+    const submissionId = text(url.searchParams.get("submissionId"), 80);
+    const link = await linkByToken(token);
+    if (!link) return json({ ok: false, error: "Link thu thập hồ sơ không hợp lệ." }, 404);
+
+    if (submissionId) {
+      const database = await getControlDatabase();
+      const row = await database.prepare(
+        `SELECT id,queue_no,link_id,status,applicant_name,validation_json,review_note,reviewed_at
+           FROM visa_intake_submissions WHERE id=? AND link_id=? LIMIT 1`,
+      ).bind(submissionId, link.id).first<{
+        id: string; queue_no: number; link_id: string; status: string; applicant_name: string;
+        validation_json: string; review_note: string | null; reviewed_at: string | null;
+      }>();
+      if (!row) return json({ ok: false, error: "Không tìm thấy hồ sơ đã gửi." }, 404);
+      let validation: Record<string, unknown> = {};
+      try { validation = JSON.parse(row.validation_json || "{}") as Record<string, unknown>; } catch {}
+      const correctionFields = Array.isArray(validation.correctionFields)
+        ? validation.correctionFields.filter((value): value is string => typeof value === "string")
+        : [];
+      return json({
+        ok: true,
+        link: { id: link.id, label: link.label, status: link.status },
+        defaults: link.defaults,
+        submission: {
+          id: row.id,
+          queueNo: row.queue_no,
+          status: row.status,
+          applicantName: row.applicant_name,
+          reviewNote: row.review_note,
+          reviewedAt: row.reviewed_at,
+          correctionFields,
+          revision: typeof validation.revision === "number" ? validation.revision : 0,
+        },
+      });
+    }
+
+    if (link.status !== "active") {
+      return json({ ok: false, error: "Link thu thập hồ sơ đã đóng." }, 404);
+    }
     return json({
       ok: true,
-      link: { id: link.id, label: link.label },
+      link: { id: link.id, label: link.label, status: link.status },
       defaults: link.defaults,
     });
   } catch {
@@ -107,8 +145,12 @@ export async function POST(request: Request) {
     if (length > 80_000) return json({ ok: false, error: "Dữ liệu gửi lên quá lớn." }, 413);
     const body = await request.json() as Record<string, unknown>;
     const token = text(body.token, 120);
-    const link = await activeLink(token);
-    if (!link) return json({ ok: false, error: "Link thu thập hồ sơ không hợp lệ hoặc đã đóng." }, 404);
+    const submissionId = text(body.submissionId, 80);
+    const link = await linkByToken(token);
+    if (!link) return json({ ok: false, error: "Link thu thập hồ sơ không hợp lệ." }, 404);
+    if (!submissionId && link.status !== "active") {
+      return json({ ok: false, error: "Link thu thập hồ sơ đã đóng." }, 404);
+    }
 
     const source = (body.applicant && typeof body.applicant === "object" ? body.applicant : {}) as Record<string, unknown>;
     const applicant = {
@@ -203,9 +245,38 @@ export async function POST(request: Request) {
     if (!bool(body.confirmedAccurate)) missing.push("Xác nhận thông tin là đúng sự thật");
     if (missing.length) return json({ ok: false, error: "Form còn thiếu hoặc sai dữ liệu.", missing }, 400);
 
-    const id = crypto.randomUUID();
     const applicantName = [applicant.surname, applicant.givenNames].filter(Boolean).join(" ");
     const database = await getControlDatabase();
+
+    if (submissionId) {
+      const existing = await database.prepare(
+        "SELECT id,queue_no,status,validation_json FROM visa_intake_submissions WHERE id=? AND link_id=? LIMIT 1",
+      ).bind(submissionId, link.id).first<{ id: string; queue_no: number; status: string; validation_json: string }>();
+      if (!existing) return json({ ok: false, error: "Không tìm thấy hồ sơ cần sửa." }, 404);
+      if (existing.status !== "rejected") {
+        return json({ ok: false, error: "Hồ sơ này hiện không ở trạng thái cần sửa." }, 409);
+      }
+      let previousValidation: Record<string, unknown> = {};
+      try { previousValidation = JSON.parse(existing.validation_json || "{}") as Record<string, unknown>; } catch {}
+      const revision = (typeof previousValidation.revision === "number" ? previousValidation.revision : 0) + 1;
+      const validation = { complete: true, checkedAt: new Date().toISOString(), revision, correctionFields: [] };
+      await database.prepare(
+        `UPDATE visa_intake_submissions
+            SET status='pending', applicant_name=?, passport_no=?, email=?, phone=?, payload_json=?, validation_json=?,
+                submitted_at=CURRENT_TIMESTAMP, reviewed_by=NULL, reviewed_at=NULL, review_note=NULL
+          WHERE id=? AND link_id=?`,
+      ).bind(
+        applicantName, applicant.passportNo, applicant.email, applicant.phone,
+        JSON.stringify(applicant), JSON.stringify(validation), submissionId, link.id,
+      ).run();
+      return json({
+        ok: true,
+        submission: { id: existing.id, queueNo: existing.queue_no, applicantName, status: "pending", revision },
+      });
+    }
+
+    const id = crypto.randomUUID();
+    const validation = { complete: true, checkedAt: new Date().toISOString(), revision: 0, correctionFields: [] };
     const result = await database.prepare(
       `INSERT INTO visa_intake_submissions
         (id,link_id,status,applicant_name,passport_no,email,phone,payload_json,validation_json)
@@ -218,7 +289,7 @@ export async function POST(request: Request) {
       applicant.email,
       applicant.phone,
       JSON.stringify(applicant),
-      JSON.stringify({ complete: true, checkedAt: new Date().toISOString() }),
+      JSON.stringify(validation),
     ).first<{ queue_no: number }>();
 
     return json({
@@ -227,6 +298,8 @@ export async function POST(request: Request) {
         id,
         queueNo: result?.queue_no ?? null,
         applicantName,
+        status: "pending",
+        revision: 0,
       },
     }, 201);
   } catch {

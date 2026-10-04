@@ -148,8 +148,8 @@ function DateFields({
   </div>;
 }
 
-function Field({ label, ru, hint, children }: { label: string; ru?: string; hint?: string; children: React.ReactNode }) {
-  return <label className={styles.field}>
+function Field({ label, ru, hint, children, fieldKey, correctionFields = [] }: { label: string; ru?: string; hint?: string; children: React.ReactNode; fieldKey?: string; correctionFields?: string[] }) {
+  return <label className={styles.field} data-correction={fieldKey ? correctionFields.includes(fieldKey) : false}>
     <span>{label}</span>
     {ru ? <small className={styles.ru}>{ru}</small> : null}
     {children}
@@ -167,11 +167,19 @@ export default function VisaIntakePage() {
   const [error, setError] = useState("");
   const [missing, setMissing] = useState<string[]>([]);
   const [confirmed, setConfirmed] = useState(false);
-  const [receipt, setReceipt] = useState<{ queueNo: number | null; applicantName: string } | null>(null);
+  const [receipt, setReceipt] = useState<{ id: string; queueNo: number | null; applicantName: string; status: string; reviewNote?: string | null; correctionFields?: string[] } | null>(null);
+  const correctionFields = receipt?.status === "rejected" ? (receipt.correctionFields ?? []) : [];
 
   useEffect(() => {
     const value = new URLSearchParams(window.location.search).get("token") ?? "";
     setToken(value);
+    let saved: { applicant?: ApplicantForm; receipt?: typeof receipt } | null = null;
+    try {
+      const raw = window.localStorage.getItem(`visa-intake:draft:${value}`);
+      saved = raw ? JSON.parse(raw) as { applicant?: ApplicantForm; receipt?: typeof receipt } : null;
+      if (saved?.applicant) setApplicant({ ...blank(), ...saved.applicant });
+      if (saved?.receipt) setReceipt(saved.receipt);
+    } catch {}
     if (!value) {
       setError("Link form chưa có mã thu hồ sơ.");
       setLoading(false);
@@ -191,18 +199,43 @@ export default function VisaIntakePage() {
         setPermanentAddress(upperPlain(String(defaults.permanentAddress ?? "")));
         setApplicant((current) => ({
           ...current,
-          routeCity: upperPlain(String(defaults.routeCity ?? current.routeCity)) || "МОСКВА",
-          workStudyPlace: upperPlain(String(defaults.employer ?? "")),
-          position: upperPlain(String(defaults.position ?? "")),
-          workAddress: upperPlain(String(defaults.workAddress ?? "")),
-          workPhone: String(defaults.workPhone ?? ""),
-          workEmail: String(defaults.workEmail ?? "").toLowerCase(),
+          routeCity: current.routeCity || upperPlain(String(defaults.routeCity ?? "")) || "МОСКВА",
+          workStudyPlace: current.workStudyPlace || upperPlain(String(defaults.employer ?? "")),
+          position: current.position || upperPlain(String(defaults.position ?? "")),
+          workAddress: current.workAddress || upperPlain(String(defaults.workAddress ?? "")),
+          workPhone: current.workPhone || String(defaults.workPhone ?? ""),
+          workEmail: current.workEmail || String(defaults.workEmail ?? "").toLowerCase(),
           preferredEmbassy: String(defaults.preferredEmbassy ?? current.preferredEmbassy),
         }));
       })
       .catch((reason) => setError(reason instanceof Error ? reason.message : "Không thể mở form."))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!token) return;
+    try {
+      window.localStorage.setItem(`visa-intake:draft:${token}`, JSON.stringify({ applicant, receipt }));
+    } catch {}
+  }, [token, applicant, receipt]);
+
+  useEffect(() => {
+    if (!token || !receipt?.id) return;
+    let cancelled = false;
+    const check = async () => {
+      try {
+        const response = await fetch(`/api/kd-mid-visa-intake/public?token=${encodeURIComponent(token)}&submissionId=${encodeURIComponent(receipt.id)}`, { cache: "no-store" });
+        const data = await response.json() as { ok?: boolean; submission?: typeof receipt };
+        if (!cancelled && response.ok && data.ok && data.submission) {
+          setReceipt((current) => current ? { ...current, ...data.submission } : data.submission ?? null);
+          if (data.submission.status === "rejected") document.title = "⚠ HỒ SƠ CẦN SỬA · Visa Nga";
+        }
+      } catch {}
+    };
+    void check();
+    const timer = window.setInterval(() => void check(), 15000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [token, receipt?.id]);
 
   const baseFields = useMemo(() => [
     applicant.surname, applicant.givenNames, applicant.birthDate, applicant.birthPlace,
@@ -226,19 +259,19 @@ export default function VisaIntakePage() {
       const response = await fetch("/api/kd-mid-visa-intake/public", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ token, applicant, confirmedAccurate: confirmed }),
+        body: JSON.stringify({ token, applicant, confirmedAccurate: confirmed, submissionId: receipt?.status === "rejected" ? receipt.id : undefined }),
       });
       const data = await response.json() as {
         ok?: boolean;
         error?: string;
         missing?: string[];
-        submission?: { queueNo: number | null; applicantName: string };
+        submission?: { id: string; queueNo: number | null; applicantName: string; status?: string };
       };
       if (!response.ok || !data.ok || !data.submission) {
         setMissing(Array.isArray(data.missing) ? data.missing : []);
         throw new Error(data.error || "Chưa thể gửi hồ sơ.");
       }
-      setReceipt(data.submission);
+      setReceipt({ ...data.submission, status: data.submission.status ?? "pending", correctionFields: [] });
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Không thể gửi hồ sơ.");
@@ -249,7 +282,7 @@ export default function VisaIntakePage() {
 
   if (loading) return <main className={styles.page}><section className={styles.card}><h1>Đang mở form hồ sơ Visa Nga…</h1></section></main>;
 
-  if (receipt) {
+  if (receipt && receipt.status !== "rejected") {
     return <main className={styles.page}><section className={styles.successCard}>
       <span>ĐÃ GỬI HỒ SƠ</span>
       <h1>{receipt.applicantName}</h1>
@@ -266,6 +299,7 @@ export default function VisaIntakePage() {
     </header>
 
     <form className={styles.form} onSubmit={submit}>
+      {receipt?.status === "rejected" ? <div className={styles.returnAlert}><strong>⚠ HỒ SƠ BỊ TRẢ VỀ · CẦN SỬA</strong><p>{receipt.reviewNote || "Hãy sửa các ô được đánh dấu đỏ rồi gửi lại."}</p><small>Giữ nguyên số tiếp nhận #{receipt.queueNo ?? "—"} · {correctionFields.length} ô cần sửa.</small></div> : null}
       <datalist id="visa-day-options">{dayOptions.map((value) => <option key={value} value={value} />)}</datalist>
       <datalist id="visa-month-options">{monthOptions.map((value) => <option key={value} value={value} />)}</datalist>
       {linkLabel ? <div className={styles.batch}>Đợt thu hồ sơ: <strong>{linkLabel}</strong></div> : null}
@@ -274,21 +308,21 @@ export default function VisaIntakePage() {
       <section className={styles.section}>
         <header><b>01</b><div><h2>Thông tin cá nhân</h2><p>Nhập đúng như hộ chiếu. Họ và tên dùng chữ Latin không dấu.</p></div></header>
         <div className={styles.grid}>
-          <Field label="Họ" ru="Фамилия" hint="Ví dụ: NGUYEN"><input required value={applicant.surname} onChange={(e) => set("surname", upperPlain(e.target.value))} /></Field>
-          <Field label="Tên và tên đệm" ru="Имя, другие имена, отчество" hint="Ví dụ: DINH NAM"><input required value={applicant.givenNames} onChange={(e) => set("givenNames", upperPlain(e.target.value))} /></Field>
-          <Field label="Ngày sinh" ru="Дата рождения" hint="Ngày và tháng có thể gõ hoặc chọn; năm nhập 4 chữ số."><DateFields required value={applicant.birthDate} onChange={(value) => set("birthDate", value)} /></Field>
-          <Field label="Nơi sinh" ru="Место рождения"><input required value={applicant.birthPlace} onChange={(e) => set("birthPlace", upperPlain(e.target.value))} /></Field>
-          <Field label="Giới tính" ru="Пол"><select value={applicant.sex} onChange={(e) => set("sex", e.target.value)}><option value="МУЖСКОЙ">Nam</option><option value="ЖЕНСКИЙ">Nữ</option></select></Field>
-          <Field label="Nơi đến tại Nga" ru="Маршрут (населенные пункты)" hint="Thông thường là МОСКВА"><input required value={applicant.routeCity} onChange={(e) => set("routeCity", upperPlain(e.target.value))} /></Field>
+          <Field fieldKey="surname" correctionFields={correctionFields} label="Họ" ru="Фамилия" hint="Ví dụ: NGUYEN"><input required value={applicant.surname} onChange={(e) => set("surname", upperPlain(e.target.value))} /></Field>
+          <Field fieldKey="givenNames" correctionFields={correctionFields} label="Tên và tên đệm" ru="Имя, другие имена, отчество" hint="Ví dụ: DINH NAM"><input required value={applicant.givenNames} onChange={(e) => set("givenNames", upperPlain(e.target.value))} /></Field>
+          <Field fieldKey="birthDate" correctionFields={correctionFields} label="Ngày sinh" ru="Дата рождения" hint="Ngày và tháng có thể gõ hoặc chọn; năm nhập 4 chữ số."><DateFields required value={applicant.birthDate} onChange={(value) => set("birthDate", value)} /></Field>
+          <Field fieldKey="birthPlace" correctionFields={correctionFields} label="Nơi sinh" ru="Место рождения"><input required value={applicant.birthPlace} onChange={(e) => set("birthPlace", upperPlain(e.target.value))} /></Field>
+          <Field fieldKey="sex" correctionFields={correctionFields} label="Giới tính" ru="Пол"><select value={applicant.sex} onChange={(e) => set("sex", e.target.value)}><option value="МУЖСКОЙ">Nam</option><option value="ЖЕНСКИЙ">Nữ</option></select></Field>
+          <Field fieldKey="routeCity" correctionFields={correctionFields} label="Nơi đến tại Nga" ru="Маршрут (населенные пункты)" hint="Thông thường là МОСКВА"><input required value={applicant.routeCity} onChange={(e) => set("routeCity", upperPlain(e.target.value))} /></Field>
         </div>
       </section>
 
       <section className={styles.section}>
         <header><b>02</b><div><h2>Hộ chiếu</h2><p>Mỗi ngày dùng 3 ô Ngày · Tháng · Năm để tránh nhập sai. Ngày cấp không được ở tương lai; ngày hết hạn phải sau ngày cấp và hộ chiếu phải còn hạn.</p></div></header>
         <div className={styles.grid}>
-          <Field label="Số hộ chiếu" ru="Номер паспорта"><input required value={applicant.passportNo} onChange={(e) => set("passportNo", upperPlain(e.target.value))} /></Field>
-          <Field label="Ngày cấp hộ chiếu" ru="Дата выдачи"><DateFields required value={applicant.passportIssue} onChange={(value) => set("passportIssue", value)} /></Field>
-          <Field label="Ngày hết hạn hộ chiếu" ru="Действителен до"><DateFields required value={applicant.passportExpiry} onChange={(value) => set("passportExpiry", value)} /></Field>
+          <Field fieldKey="passportNo" correctionFields={correctionFields} label="Số hộ chiếu" ru="Номер паспорта"><input required value={applicant.passportNo} onChange={(e) => set("passportNo", upperPlain(e.target.value))} /></Field>
+          <Field fieldKey="passportIssue" correctionFields={correctionFields} label="Ngày cấp hộ chiếu" ru="Дата выдачи"><DateFields required value={applicant.passportIssue} onChange={(value) => set("passportIssue", value)} /></Field>
+          <Field fieldKey="passportExpiry" correctionFields={correctionFields} label="Ngày hết hạn hộ chiếu" ru="Действителен до"><DateFields required value={applicant.passportExpiry} onChange={(value) => set("passportExpiry", value)} /></Field>
         </div>
       </section>
 
@@ -296,50 +330,50 @@ export default function VisaIntakePage() {
         <header><b>03</b><div><h2>Liên hệ & địa chỉ</h2><p>Fax không cần nhập. Địa chỉ thường trú bên dưới là địa chỉ dùng chung của đợt hồ sơ này.</p></div></header>
         <div className={styles.grid}>
           <Field label="Địa chỉ thường trú dùng cho hồ sơ" ru="Адрес вашего постоянного проживания"><input readOnly value={permanentAddress} /></Field>
-          <Field label="Điện thoại cá nhân" ru="Ваш личный телефон"><input required value={applicant.phone} onChange={(e) => set("phone", e.target.value)} /></Field>
-          <Field label="Email cá nhân" ru="Ваш личный E-mail"><input type="email" required value={applicant.email} onChange={(e) => set("email", e.target.value.toLowerCase())} /></Field>
+          <Field fieldKey="phone" correctionFields={correctionFields} label="Điện thoại cá nhân" ru="Ваш личный телефон"><input required value={applicant.phone} onChange={(e) => set("phone", e.target.value)} /></Field>
+          <Field fieldKey="email" correctionFields={correctionFields} label="Email cá nhân" ru="Ваш личный E-mail"><input type="email" required value={applicant.email} onChange={(e) => set("email", e.target.value.toLowerCase())} /></Field>
         </div>
       </section>
 
       <section className={styles.section}>
         <header><b>04</b><div><h2>Nơi làm việc / học tập</h2><p>Các ô đã có giá trị mặc định của đơn vị. Chỉ sửa nếu thông tin của bạn khác.</p></div></header>
         <div className={styles.grid}>
-          <Field label="Nơi làm việc / học tập" ru="Место работы (учебы)"><input required value={applicant.workStudyPlace} onChange={(e) => set("workStudyPlace", upperPlain(e.target.value))} /></Field>
-          <Field label="Chức vụ / tư cách" ru="Должность"><input required value={applicant.position} onChange={(e) => set("position", upperPlain(e.target.value))} /></Field>
-          <Field label="Địa chỉ cơ quan" ru="Рабочий адрес"><input required value={applicant.workAddress} onChange={(e) => set("workAddress", upperPlain(e.target.value))} /></Field>
-          <Field label="Điện thoại cơ quan" ru="Рабочий телефон"><input required value={applicant.workPhone} onChange={(e) => set("workPhone", e.target.value)} /></Field>
-          <Field label="Email cơ quan" ru="Рабочий E-mail"><input type="email" required value={applicant.workEmail} onChange={(e) => set("workEmail", e.target.value.toLowerCase())} /></Field>
+          <Field fieldKey="workStudyPlace" correctionFields={correctionFields} label="Nơi làm việc / học tập" ru="Место работы (учебы)"><input required value={applicant.workStudyPlace} onChange={(e) => set("workStudyPlace", upperPlain(e.target.value))} /></Field>
+          <Field fieldKey="position" correctionFields={correctionFields} label="Chức vụ / tư cách" ru="Должность"><input required value={applicant.position} onChange={(e) => set("position", upperPlain(e.target.value))} /></Field>
+          <Field fieldKey="workAddress" correctionFields={correctionFields} label="Địa chỉ cơ quan" ru="Рабочий адрес"><input required value={applicant.workAddress} onChange={(e) => set("workAddress", upperPlain(e.target.value))} /></Field>
+          <Field fieldKey="workPhone" correctionFields={correctionFields} label="Điện thoại cơ quan" ru="Рабочий телефон"><input required value={applicant.workPhone} onChange={(e) => set("workPhone", e.target.value)} /></Field>
+          <Field fieldKey="workEmail" correctionFields={correctionFields} label="Email cơ quan" ru="Рабочий E-mail"><input type="email" required value={applicant.workEmail} onChange={(e) => set("workEmail", e.target.value.toLowerCase())} /></Field>
         </div>
       </section>
 
       <section className={styles.section}>
         <header><b>05</b><div><h2>Lịch sử liên quan đến Nga</h2><p>Chọn Có chỉ khi đúng với trường hợp của bạn; các trường chi tiết sẽ tự xuất hiện.</p></div></header>
         <div className={styles.checks}>
-          <label><input type="checkbox" checked={applicant.hadFormerRussianCitizenship} onChange={(e) => set("hadFormerRussianCitizenship", e.target.checked)} /><span><strong>Đã từng có quốc tịch Liên Xô hoặc Nga</strong><small>Если Вы имели гражданство СССР или России</small></span></label>
-          <label><input type="checkbox" checked={applicant.visitedRussia} onChange={(e) => set("visitedRussia", e.target.checked)} /><span><strong>Đã từng đến Nga</strong><small>Были ли Вы когда-нибудь в России?</small></span></label>
-          <label><input type="checkbox" checked={applicant.hasInsurance} onChange={(e) => set("hasInsurance", e.target.checked)} /><span><strong>Có bảo hiểm có hiệu lực tại Nga</strong><small>Документ о медицинском страховании</small></span></label>
+          <label data-correction={correctionFields.includes("hadFormerRussianCitizenship")}><input type="checkbox" checked={applicant.hadFormerRussianCitizenship} onChange={(e) => set("hadFormerRussianCitizenship", e.target.checked)} /><span><strong>Đã từng có quốc tịch Liên Xô hoặc Nga</strong><small>Если Вы имели гражданство СССР или России</small></span></label>
+          <label data-correction={correctionFields.includes("visitedRussia")}><input type="checkbox" checked={applicant.visitedRussia} onChange={(e) => set("visitedRussia", e.target.checked)} /><span><strong>Đã từng đến Nga</strong><small>Были ли Вы когда-нибудь в России?</small></span></label>
+          <label data-correction={correctionFields.includes("hasInsurance")}><input type="checkbox" checked={applicant.hasInsurance} onChange={(e) => set("hasInsurance", e.target.checked)} /><span><strong>Có bảo hiểm có hiệu lực tại Nga</strong><small>Документ о медицинском страховании</small></span></label>
         </div>
         {applicant.hadFormerRussianCitizenship ? <div className={styles.grid}>
-          <Field label="Ngày mất quốc tịch"><DateFields required value={applicant.formerCitizenshipLostDate} onChange={(value) => set("formerCitizenshipLostDate", value)} /></Field>
-          <Field label="Lý do mất quốc tịch"><input required value={applicant.formerCitizenshipLossReason} onChange={(e) => set("formerCitizenshipLossReason", upperPlain(e.target.value))} /></Field>
+          <Field fieldKey="formerCitizenshipLostDate" correctionFields={correctionFields} label="Ngày mất quốc tịch"><DateFields required value={applicant.formerCitizenshipLostDate} onChange={(value) => set("formerCitizenshipLostDate", value)} /></Field>
+          <Field fieldKey="formerCitizenshipLossReason" correctionFields={correctionFields} label="Lý do mất quốc tịch"><input required value={applicant.formerCitizenshipLossReason} onChange={(e) => set("formerCitizenshipLossReason", upperPlain(e.target.value))} /></Field>
         </div> : null}
         {applicant.visitedRussia ? <div className={styles.grid}>
-          <Field label="Số lần đã đến Nga"><input required inputMode="numeric" value={applicant.visitsCount} onChange={(e) => set("visitsCount", e.target.value)} /></Field>
-          <Field label="Chuyến gần nhất - từ ngày"><DateFields required value={applicant.lastVisitFrom} onChange={(value) => set("lastVisitFrom", value)} /></Field>
-          <Field label="Chuyến gần nhất - đến ngày"><DateFields required value={applicant.lastVisitTo} onChange={(value) => set("lastVisitTo", value)} /></Field>
+          <Field fieldKey="visitsCount" correctionFields={correctionFields} label="Số lần đã đến Nga"><input required inputMode="numeric" value={applicant.visitsCount} onChange={(e) => set("visitsCount", e.target.value)} /></Field>
+          <Field fieldKey="lastVisitFrom" correctionFields={correctionFields} label="Chuyến gần nhất - từ ngày"><DateFields required value={applicant.lastVisitFrom} onChange={(value) => set("lastVisitFrom", value)} /></Field>
+          <Field fieldKey="lastVisitTo" correctionFields={correctionFields} label="Chuyến gần nhất - đến ngày"><DateFields required value={applicant.lastVisitTo} onChange={(value) => set("lastVisitTo", value)} /></Field>
         </div> : null}
-        {applicant.hasInsurance ? <div className={styles.grid}><Field label="Tên công ty bảo hiểm / số hợp đồng"><input required value={applicant.insurancePolicy} onChange={(e) => set("insurancePolicy", upperPlain(e.target.value))} /></Field></div> : null}
+        {applicant.hasInsurance ? <div className={styles.grid}><Field fieldKey="insurancePolicy" correctionFields={correctionFields} label="Tên công ty bảo hiểm / số hợp đồng"><input required value={applicant.insurancePolicy} onChange={(e) => set("insurancePolicy", upperPlain(e.target.value))} /></Field></div> : null}
       </section>
 
       <section className={styles.section}>
         <header><b>06</b><div><h2>Gia đình & nơi nộp hồ sơ</h2><p>Nếu không đánh dấu hai mục đầu thì hệ thống hiểu là Không.</p></div></header>
         <div className={styles.checks}>
-          <label><input type="checkbox" checked={applicant.childrenUnder16} onChange={(e) => set("childrenUnder16", e.target.checked)} /><span><strong>Có trẻ em dưới 16 tuổi đi cùng / ghi trong hộ chiếu</strong><small>Дети до 16 лет...</small></span></label>
-          <label><input type="checkbox" checked={applicant.relativesInRussia} onChange={(e) => set("relativesInRussia", e.target.checked)} /><span><strong>Có người thân hiện đang ở Nga</strong><small>Родственники на территории России</small></span></label>
+          <label data-correction={correctionFields.includes("childrenUnder16")}><input type="checkbox" checked={applicant.childrenUnder16} onChange={(e) => set("childrenUnder16", e.target.checked)} /><span><strong>Có trẻ em dưới 16 tuổi đi cùng / ghi trong hộ chiếu</strong><small>Дети до 16 лет...</small></span></label>
+          <label data-correction={correctionFields.includes("relativesInRussia")}><input type="checkbox" checked={applicant.relativesInRussia} onChange={(e) => set("relativesInRussia", e.target.checked)} /><span><strong>Có người thân hiện đang ở Nga</strong><small>Родственники на территории России</small></span></label>
         </div>
         <div className={styles.grid}>
-          <Field label="Nơi dự kiến nộp hồ sơ" ru="Место подачи заявления"><select value={applicant.preferredEmbassy} onChange={(e) => set("preferredEmbassy", e.target.value)}>{embassies.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
-          <Field label="Ghi chú đặc biệt" hint="Nếu Có ở các mục trẻ em/người thân, hãy ghi rõ thông tin cần người phụ trách biết."><textarea rows={4} value={applicant.specialNotes} onChange={(e) => set("specialNotes", upperPlain(e.target.value))} /></Field>
+          <Field fieldKey="preferredEmbassy" correctionFields={correctionFields} label="Nơi dự kiến nộp hồ sơ" ru="Место подачи заявления"><select value={applicant.preferredEmbassy} onChange={(e) => set("preferredEmbassy", e.target.value)}>{embassies.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
+          <Field fieldKey="specialNotes" correctionFields={correctionFields} label="Ghi chú đặc biệt" hint="Nếu Có ở các mục trẻ em/người thân, hãy ghi rõ thông tin cần người phụ trách biết."><textarea rows={4} value={applicant.specialNotes} onChange={(e) => set("specialNotes", upperPlain(e.target.value))} /></Field>
         </div>
       </section>
 

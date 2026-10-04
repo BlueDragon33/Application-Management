@@ -53,6 +53,10 @@ test("public intake form is Vietnamese and covers required visa profile fields",
   assert.match(publicWorkerPage, /data-part="day"/);
   assert.match(publicWorkerPage, /data-part="month"/);
   assert.match(publicWorkerPage, /data-part="year"/);
+  assert.match(publicWorkerPage, /localStorage\.setItem\(storageKey/);
+  assert.match(publicWorkerPage, /submissionId:receipt\?\.status==="rejected"/);
+  assert.match(publicWorkerPage, /setInterval\(\(\)=>void checkStatus\(\),15000\)/);
+  assert.match(publicWorkerPage, /data-correction/);
   assert.doesNotMatch(publicWorkerPage, /const formatDmy =/);
 });
 
@@ -67,6 +71,9 @@ test("public submit validates dates, emails, conditional fields and a confirmati
   assert.match(publicApi, /if \(applicant\.visitedRussia\)/);
   assert.match(publicApi, /if \(applicant\.hasInsurance/);
   assert.match(publicApi, /Xác nhận thông tin là đúng sự thật/);
+  assert.match(publicApi, /submissionId/);
+  assert.match(publicApi, /existing\.status !== "rejected"/);
+  assert.match(publicApi, /SET status='pending'/i);
 });
 
 test("public link stores only a token hash and admin creates a 256-bit share token", () => {
@@ -79,6 +86,8 @@ test("admin inbox sorts by queue number and requires review before import", () =
   assert.match(adminApi, /ORDER BY CASE status/);
   assert.match(adminApi, /queue_no ASC/);
   assert.match(adminApi, /SUBMISSION_NOT_APPROVED/);
+  assert.match(adminApi, /CORRECTION_FIELD_REQUIRED/);
+  assert.match(adminApi, /correctionFields/);
   assert.match(tool, /Xác minh & lưu hồ sơ/);
   assert.match(tool, /intakeOrder: submission\.queueNo/);
   assert.match(tool, /left - right/);
