@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.28
+// @version      0.9.29
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,7 +17,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.28";
+  const VERSION = "0.9.29";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
@@ -27,6 +27,7 @@
   const APP_HOST = "application-management.boiech-ai.workers.dev";
   const KD_HOST = "visa.kdmid.ru";
   const HASH_PREFIX = "#kdmidv8=";
+  const CANONICAL_PERMANENT_ADDRESS = "ВЬЕТНАМ, Г. ХАНОЙ, УЛИЦА НГИА ДО, ДОРОГА ХОАНГ КУОК ВЬЕТ, ДОМ Ш9";
 
   const norm = (v) => String(v || "").replace(/\s+/g, " ").trim().toUpperCase();
   const controls = (root = document) => [...root.querySelectorAll("input,select,textarea")];
@@ -1228,7 +1229,7 @@
 
     const steps = [
       ["Có địa chỉ thường trú", () => C.hasPermanentAddress ? writeSelectControl(C.hasPermanentAddress, ["ДА","YES"]) : "missing"],
-      ["Địa chỉ thường trú", () => optionalText(C.permanentAddress, payload.fixedPermanentAddress || A.personalAddress)],
+      ["Địa chỉ thường trú", () => optionalText(C.permanentAddress, CANONICAL_PERMANENT_ADDRESS)],
       ["Điện thoại cá nhân", () => optionalText(C.personalPhone, A.phone)],
       ["E-mail cá nhân", () => optionalText(C.personalEmail, A.email)],
       ["Đang làm việc/học tập", () => C.worksOrStudies ? writeSelectControl(C.worksOrStudies, ["ДА","YES"]) : "missing"],
@@ -1269,7 +1270,7 @@
 
     const finalC = contactInfoControls();
     const expected = {
-      permanentAddress: String(payload.fixedPermanentAddress || A.personalAddress || ""),
+      permanentAddress: CANONICAL_PERMANENT_ADDRESS,
       personalPhone: String(A.phone || ""),
       personalEmail: String(A.email || ""),
       employer: String(A.workStudyPlace || payload.employer || ""),
