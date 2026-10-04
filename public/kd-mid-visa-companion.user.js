@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.25
+// @version      0.9.26
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,7 +17,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.25";
+  const VERSION = "0.9.26";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
@@ -1105,17 +1105,47 @@
   }
 
   function contactInfoControls() {
+    // This KD-MID page has a stable visual/control order. Previous label-based
+    // lookup could miss "Ваш личный E-mail" even though the value exists in the
+    // payload. Use the page's actual control sequence and deliberately skip Fax.
+    const textInputs = [...document.querySelectorAll(
+      'input:not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]):not([type="password"])'
+    )].filter(visible);
+    const selects = [...document.querySelectorAll("select")].filter(visible);
+
+    if (textInputs.length >= 10 && selects.length >= 4) {
+      return {
+        hasPermanentAddress: selects[0],
+        permanentAddress: textInputs[0],
+        personalPhone: textInputs[1],
+        personalFax: textInputs[2],
+        personalEmail: textInputs[3],
+        worksOrStudies: selects[1],
+        employer: textInputs[4],
+        position: textInputs[5],
+        workAddress: textInputs[6],
+        workPhone: textInputs[7],
+        workFax: textInputs[8],
+        workEmail: textInputs[9],
+        children: selects[2],
+        relatives: selects[3],
+      };
+    }
+
+    // Fallback for minor markup variations.
     return {
       hasPermanentAddress: selectControlForField("Имеете ли Вы адрес постоянного проживания?"),
       permanentAddress: textControlForField("Адрес вашего постоянного проживания"),
       personalPhone: textControlForField("Ваш личный телефон"),
-      personalEmail: textControlForField("Ваш личный E-mail"),
+      personalFax: textControlForField("Ваш личный факс"),
+      personalEmail: textControlForField(["Ваш личный E-mail", "Ваш личный Email"]),
       worksOrStudies: selectControlForField("Вы работаете (работали ранее), учитесь (учились ранее)?"),
       employer: textControlForField("Место работы (учебы)"),
       position: textControlForField("Должность"),
       workAddress: textControlForField("Рабочий адрес"),
       workPhone: textControlForField("Рабочий телефон"),
-      workEmail: textControlForField("Рабочий E-mail"),
+      workFax: textControlForField("Рабочий факс"),
+      workEmail: textControlForField(["Рабочий E-mail", "Рабочий Email"]),
       children: selectControlForField("Дети до 16 лет"),
       relatives: selectControlForField("Имеете ли Вы в настоящее время родственников"),
     };
@@ -1125,6 +1155,18 @@
     if (!isContactInfoPage()) return { handled: false, ready: false };
     const A = payload.applicant || {};
     const C = contactInfoControls();
+
+    const clearFax = (control) => {
+      if (!control || !String(control.value || "")) return;
+      activateControl(control);
+      setNativeControlValue(control, "");
+      control.dispatchEvent(new Event("input", { bubbles: true }));
+      control.dispatchEvent(new Event("change", { bubbles: true }));
+      try { control.blur(); } catch {}
+    };
+
+    clearFax(C.personalFax);
+    clearFax(C.workFax);
 
     const optionalText = (control, value) => {
       const text = String(value ?? "");
@@ -1166,7 +1208,10 @@
         return { handled: true, ready: false };
       }
       if (state !== "ready") {
-        status(`KD-MID Visa VN: đang chờ đúng trường ${label}; chưa được phép bấm Далее.`, "wait");
+        const detail = label === "E-mail cá nhân"
+          ? ` (payload email: ${String(A.email || "") || "trống"})`
+          : "";
+        status(`KD-MID Visa VN: đang chờ đúng trường ${label}${detail}; chưa được phép bấm Далее.`, "wait");
         continueAutofill(payload, 220);
         return { handled: true, ready: false };
       }
