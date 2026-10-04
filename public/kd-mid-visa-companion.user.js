@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.17
+// @version      0.9.18
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,7 +17,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.17";
+  const VERSION = "0.9.18";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
@@ -688,6 +688,32 @@
     return { handled: true, ready: true };
   }
 
+  function routeCityControl() {
+    const routeTitle = exactFieldLabelNode("Маршрут (населенные пункты)");
+    const pointLabel = exactFieldLabelNode("Населенный пункт");
+
+    if (pointLabel) {
+      const direct = controlsFromExactField(
+        "Населенный пункт",
+        'input:not([type="hidden"]):not([type="button"]):not([type="submit"])',
+        1
+      )[0];
+      if (direct) return direct;
+    }
+
+    // Fallback: search only AFTER the route-section title, then prefer the
+    // first visible text input before the next yes/no section.
+    if (routeTitle) {
+      const all = [...document.querySelectorAll('input:not([type="hidden"]):not([type="button"]):not([type="submit"])')]
+        .filter(visible);
+      const after = all.find((el) =>
+        Boolean(routeTitle.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING)
+      );
+      if (after) return after;
+    }
+    return null;
+  }
+
   function isVisitInfoPage() {
     const body = norm(document.body.innerText || "");
     return body.includes("В КАКОЕ УЧРЕЖДЕНИЕ НАПРАВЛЯЕТЕСЬ") &&
@@ -720,7 +746,6 @@
       ["ИНН организации", payload.tin],
       ["Номер указания (телекса)", payload.telex],
       ["Номер приглашения", payload.invitation || ""],
-      ["Населенный пункт", A.routeCity || payload.city],
     ];
 
     for (const [label, value] of textSteps) {
@@ -737,6 +762,26 @@
         continueAutofill(payload, 220);
         return { handled: true, ready: false };
       }
+    }
+
+    const routeValue = String(A.routeCity || payload.city || "МОСКВА").trim();
+    const routeInput = routeCityControl();
+    if (!routeInput) {
+      status("KD-MID Visa VN: không tìm thấy đúng ô Маршрут / Населенный пункт; đang tự dò lại.", "wait");
+      continueAutofill(payload, 220);
+      return { handled: true, ready: false };
+    }
+
+    state = writeTextControl(routeInput, routeValue);
+    if (state === "changed") {
+      status(`KD-MID Visa VN: đã tự điền Маршрут = ${routeValue}. Đang tiếp tục…`, "wait");
+      continueAutofill(payload);
+      return { handled: true, ready: false };
+    }
+    if (state !== "ready" || String(routeInput.value).trim() !== routeValue) {
+      status(`KD-MID Visa VN: đang sửa ô Маршрут / Населенный пункт thành ${routeValue}.`, "wait");
+      continueAutofill(payload, 220);
+      return { handled: true, ready: false };
     }
 
     state = ensureSelectAfterLabel(
@@ -816,8 +861,15 @@
       }
     }
 
+    const finalRoute = routeCityControl();
+    if (!finalRoute || String(finalRoute.value).trim() !== String(A.routeCity || payload.city || "МОСКВА").trim()) {
+      status("KD-MID Visa VN: Маршрут chưa khớp payload; chưa được phép bấm Далее.", "wait");
+      continueAutofill(payload, 180);
+      return { handled: true, ready: false };
+    }
+
     refreshAspNetValidators();
-    status("KD-MID Visa VN: trang thông tin chuyến đi đã điền đủ. Организация giữ nguyên; bảo hiểm/từng đến Nga dùng đúng ДА/НЕТ.");
+    status(`KD-MID Visa VN: trang thông tin chuyến đi OK. Маршрут = ${finalRoute.value}.`);
     return { handled: true, ready: true };
   }
 
