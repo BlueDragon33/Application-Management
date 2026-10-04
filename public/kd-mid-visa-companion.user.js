@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.6
+// @version      0.9.7
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,7 +17,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.6";
+  const VERSION = "0.9.7";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
@@ -63,8 +63,19 @@
         window.postMessage({ type: "KD_MID_COMPANION_READY", version: VERSION }, location.origin);
       }
       if (data.type === "KD_MID_SET_PAYLOAD" && data.payload) {
-        gmSet(SHARED_PAYLOAD_KEY, JSON.stringify(data.payload));
-        window.postMessage({ type: "KD_MID_PAYLOAD_SAVED", applicantId: data.payload?.applicant?.id || "" }, location.origin);
+        const fresh = {
+          ...data.payload,
+          _payloadRevision: data.payload._payloadRevision || Date.now(),
+        };
+        gmSet(SHARED_PAYLOAD_KEY, JSON.stringify(fresh));
+        window.postMessage({
+          type: "KD_MID_PAYLOAD_SAVED",
+          applicantId: fresh?.applicant?.id || "",
+          surname: fresh?.applicant?.surname || "",
+          givenNames: fresh?.applicant?.givenNames || "",
+          birthDate: fresh?.applicant?.birthDate || "",
+          revision: fresh?._payloadRevision || 0,
+        }, location.origin);
       }
     });
 
@@ -980,7 +991,7 @@
   if (!currentPayload) {
     status(`KD-MID Visa VN Companion v${VERSION} đang chạy nhưng chưa nhận được hồ sơ. Quay lại App-Manager và bấm “Bắt đầu tự động đến PDF”.`, "wait");
   } else {
-    status(`KD-MID Visa VN Companion v${VERSION} đã nhận hồ sơ. Đang bắt đầu tự động…`);
+    status(`KD-MID Visa VN Companion v${VERSION} đã nhận: ${currentPayload?.applicant?.surname || ""} · ${currentPayload?.applicant?.givenNames || ""} · ${currentPayload?.applicant?.birthDate || ""}. Đang bắt đầu tự động…`);
     startProgressiveRun(currentPayload);
   }
 
@@ -990,15 +1001,14 @@
   });
 
   try {
-    GM_addValueChangeListener(SHARED_PAYLOAD_KEY, (_name, oldValue, newValue, remote) => {
+    GM_addValueChangeListener(SHARED_PAYLOAD_KEY, (_name, oldValue, newValue) => {
       if (!newValue || newValue === oldValue) return;
       try {
         const fresh = JSON.parse(newValue);
         currentPayload = fresh;
-        if (remote) {
-          status(`KD-MID Visa VN Companion v${VERSION}: hồ sơ đã được cập nhật từ App-Manager.`);
-          startProgressiveRun(fresh);
-        }
+        const identity = [fresh?.applicant?.surname, fresh?.applicant?.givenNames].filter(Boolean).join(" ");
+        status(`KD-MID Visa VN Companion v${VERSION}: đã nạp payload mới ${identity || "hồ sơ"} · ${fresh?.applicant?.birthDate || ""}.`);
+        startProgressiveRun(fresh);
       } catch {}
     });
   } catch (error) {
