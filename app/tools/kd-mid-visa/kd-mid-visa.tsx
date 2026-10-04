@@ -9,7 +9,7 @@ const visaConsulates = [
   { value: "ГЕНКОНСУЛЬСТВО РФ В ХОШИМИНЕ", label: "Tổng Lãnh sự quán Liên bang Nga tại TP. Hồ Chí Minh" },
 ] as const;
 
-type Route = "dashboard" | "applicants" | "common" | "records" | "backup" | "connect";
+type Route = "dashboard" | "applicants" | "intake" | "common" | "records" | "backup" | "connect";
 type KeepMode = "full" | "record" | "none";
 
 type CommonData = {
@@ -66,6 +66,37 @@ type Applicant = {
   hasInsurance: boolean;
   insurancePolicy: string;
   applicationId: string;
+  preferredEmbassy: string;
+  intakeOrder?: number;
+  intakeSubmissionId?: string;
+  specialNotes?: string;
+};
+
+type IntakeLink = {
+  id: string;
+  label: string;
+  status: string;
+  createdBy: string;
+  createdAt: string;
+  expiresAt: string | null;
+};
+
+type IntakeSubmission = {
+  queueNo: number;
+  id: string;
+  linkId: string;
+  status: string;
+  applicantName: string;
+  passportNo: string;
+  email: string;
+  phone: string;
+  applicant: Record<string, unknown>;
+  validation: Record<string, unknown>;
+  submittedAt: string;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  reviewNote: string | null;
+  importedApplicantId: string | null;
 };
 
 type ResumeRecord = {
@@ -146,6 +177,8 @@ function emptyApplicant(): Applicant {
     hasInsurance: false,
     insurancePolicy: "",
     applicationId: "",
+    preferredEmbassy: defaultCommon.embassy,
+    specialNotes: "",
   };
 }
 
@@ -174,6 +207,8 @@ function safeLoad(): Store {
           workEmail: String(item.workEmail ?? "").trim() || common.employerEmail,
           childrenUnder16: item.childrenUnder16 ?? false,
           relativesInRussia: item.relativesInRussia ?? false,
+          preferredEmbassy: item.preferredEmbassy || common.embassy,
+          specialNotes: item.specialNotes ?? "",
         };
       }) : [],
       records: Array.isArray(parsed.records) ? parsed.records : [],
@@ -272,6 +307,7 @@ function buildPayload(applicant: Applicant, common: CommonData, autoAdvance = fa
     ...common,
     entryDate: normalizeDmy(common.entryDate),
     exitDate: normalizeDmy(common.exitDate),
+    embassy: applicant.preferredEmbassy || common.embassy,
     fixedPermanentAddress: "ВЬЕТНАМ, Г. ХАНОЙ, УЛИЦА НГИА ДО, ДОРОГА ХОАНГ КУОК ВЬЕТ, ДОМ Ш9",
     fixedWorkPhone,
     _automation: { autoAdvance, autoPrint: true },
@@ -423,6 +459,11 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
   const [bookmarklet, setBookmarklet] = useState("");
   const [autoAdvance, setAutoAdvance] = useState(true);
   const [companionVersion, setCompanionVersion] = useState("");
+  const [intakeLinks, setIntakeLinks] = useState<IntakeLink[]>([]);
+  const [intakeSubmissions, setIntakeSubmissions] = useState<IntakeSubmission[]>([]);
+  const [intakeLoading, setIntakeLoading] = useState(false);
+  const [intakeLabel, setIntakeLabel] = useState("");
+  const [shareUrl, setShareUrl] = useState("");
 
   useEffect(() => {
     const loaded = safeLoad();
@@ -468,7 +509,11 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
     return () => window.removeEventListener("message", onMessage);
   }, [store.common.password]);
 
-  const selected = useMemo(() => store.applicants.find((item) => item.id === store.selectedId) ?? store.applicants[0] ?? null, [store.applicants, store.selectedId]);
+  useEffect(() => {
+    if (route === "intake") void loadIntake();
+  }, [route]);
+
+    const selected = useMemo(() => store.applicants.find((item) => item.id === store.selectedId) ?? store.applicants[0] ?? null, [store.applicants, store.selectedId]);
   const completeCount = store.applicants.filter((item) => item.applicationId).length;
 
   function selectApplicant(id: string) {
@@ -532,6 +577,150 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
   function removeApplicant(id: string) {
     if (!window.confirm("Xóa hồ sơ cá nhân này khỏi máy?")) return;
     setStore((current) => ({ ...current, applicants: current.applicants.filter((item) => item.id !== id), selectedId: current.selectedId === id ? "" : current.selectedId }));
+  }
+
+  async function loadIntake() {
+    setIntakeLoading(true);
+    try {
+      const response = await fetch("/api/kd-mid-visa-intake/admin", { cache: "no-store" });
+      const data = await response.json() as { ok?: boolean; error?: string; links?: IntakeLink[]; submissions?: IntakeSubmission[] };
+      if (!response.ok || !data.ok) throw new Error(data.error || "Không tải được hộp thư hồ sơ.");
+      setIntakeLinks(data.links ?? []);
+      setIntakeSubmissions(data.submissions ?? []);
+    } catch (reason) {
+      setNotice(reason instanceof Error ? reason.message : "Không tải được hộp thư hồ sơ.");
+    } finally {
+      setIntakeLoading(false);
+    }
+  }
+
+  async function intakeAction(payload: Record<string, unknown>) {
+    const response = await fetch("/api/kd-mid-visa-intake/admin", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json() as {
+      ok?: boolean;
+      error?: string;
+      token?: string;
+      links?: IntakeLink[];
+      submissions?: IntakeSubmission[];
+    };
+    if (!response.ok || !data.ok) throw new Error(data.error || "Thao tác hộp thư thất bại.");
+    setIntakeLinks(data.links ?? []);
+    setIntakeSubmissions(data.submissions ?? []);
+    return data;
+  }
+
+  async function createIntakeLink() {
+    try {
+      const data = await intakeAction({
+        action: "create-link",
+        label: intakeLabel,
+        defaults: {
+          routeCity: store.common.city,
+          employer: store.common.employer,
+          position: store.common.defaultPosition,
+          workAddress: store.common.employerAddress,
+          workPhone: fixedWorkPhone,
+          workEmail: store.common.employerEmail,
+          permanentAddress: fixedPermanentAddress,
+          preferredEmbassy: store.common.embassy,
+        },
+      });
+      if (!data.token) throw new Error("Không nhận được mã chia sẻ.");
+      const url = `${window.location.origin}/visa-intake?token=${encodeURIComponent(data.token)}`;
+      setShareUrl(url);
+      await navigator.clipboard.writeText(url).catch(() => undefined);
+      setNotice("Đã tạo và sao chép link Form hồ sơ Visa. Gửi link này cho người cần điền.");
+    } catch (reason) {
+      setNotice(reason instanceof Error ? reason.message : "Không tạo được link Form.");
+    }
+  }
+
+  function applicantFromIntake(submission: IntakeSubmission): Applicant {
+    const source = submission.applicant;
+    const value = (key: string) => typeof source[key] === "string" ? String(source[key]) : "";
+    const flag = (key: string) => source[key] === true;
+    return {
+      ...emptyApplicant(),
+      id: crypto.randomUUID(),
+      surname: value("surname").toUpperCase(),
+      givenNames: value("givenNames").toUpperCase(),
+      birthDate: normalizeDmy(value("birthDate")),
+      birthPlace: value("birthPlace").toUpperCase(),
+      sex: value("sex") || "МУЖСКОЙ",
+      passportNo: value("passportNo").toUpperCase(),
+      passportIssue: normalizeDmy(value("passportIssue")),
+      passportExpiry: normalizeDmy(value("passportExpiry")),
+      phone: value("phone"),
+      email: value("email"),
+      routeCity: value("routeCity").toUpperCase() || store.common.city,
+      workStudyPlace: value("workStudyPlace") || store.common.employer,
+      position: value("position") || store.common.defaultPosition,
+      workAddress: value("workAddress") || store.common.employerAddress,
+      workPhone: value("workPhone") || fixedWorkPhone,
+      workEmail: value("workEmail") || store.common.employerEmail,
+      preferredEmbassy: value("preferredEmbassy") || store.common.embassy,
+      hadFormerRussianCitizenship: flag("hadFormerRussianCitizenship"),
+      formerCitizenshipLostDate: normalizeDmy(value("formerCitizenshipLostDate")),
+      formerCitizenshipLossReason: value("formerCitizenshipLossReason"),
+      visitedRussia: flag("visitedRussia"),
+      visitsCount: value("visitsCount"),
+      lastVisitFrom: normalizeDmy(value("lastVisitFrom")),
+      lastVisitTo: normalizeDmy(value("lastVisitTo")),
+      hasInsurance: flag("hasInsurance"),
+      insurancePolicy: value("insurancePolicy"),
+      childrenUnder16: flag("childrenUnder16"),
+      relativesInRussia: flag("relativesInRussia"),
+      specialNotes: value("specialNotes"),
+      personalAddress: fixedPermanentAddress,
+      intakeOrder: submission.queueNo,
+      intakeSubmissionId: submission.id,
+    };
+  }
+
+  async function verifyAndImport(submission: IntakeSubmission) {
+    try {
+      await intakeAction({ action: "review", submissionId: submission.id, decision: "approved" });
+      const imported = applicantFromIntake(submission);
+      setStore((current) => {
+        const withoutDuplicate = current.applicants.filter((item) => item.intakeSubmissionId !== submission.id);
+        const applicants = [...withoutDuplicate, imported].sort((a, b) => {
+          const left = a.intakeOrder ?? Number.MAX_SAFE_INTEGER;
+          const right = b.intakeOrder ?? Number.MAX_SAFE_INTEGER;
+          return left - right;
+        });
+        const next = { ...current, applicants, selectedId: current.selectedId || imported.id };
+        persistStoreSnapshot(next);
+        return next;
+      });
+      await intakeAction({ action: "mark-imported", submissionId: submission.id, applicantId: imported.id });
+      setNotice(`Đã xác minh và lưu #${submission.queueNo} · ${submission.applicantName} vào danh sách làm Visa theo đúng thứ tự tiếp nhận.`);
+    } catch (reason) {
+      setNotice(reason instanceof Error ? reason.message : "Không thể xác minh và lưu hồ sơ.");
+    }
+  }
+
+  async function rejectIntake(submission: IntakeSubmission) {
+    const note = window.prompt("Lý do trả lại hồ sơ (không bắt buộc):", "") ?? "";
+    try {
+      await intakeAction({ action: "review", submissionId: submission.id, decision: "rejected", note });
+      setNotice(`Đã đánh dấu hồ sơ #${submission.queueNo} cần chỉnh sửa.`);
+    } catch (reason) {
+      setNotice(reason instanceof Error ? reason.message : "Không thể cập nhật hồ sơ.");
+    }
+  }
+
+  async function closeIntakeLink(linkId: string) {
+    if (!window.confirm("Đóng link này? Người khác sẽ không gửi thêm hồ sơ qua link đó.")) return;
+    try {
+      await intakeAction({ action: "close-link", linkId });
+      setNotice("Đã đóng link thu hồ sơ.");
+    } catch (reason) {
+      setNotice(reason instanceof Error ? reason.message : "Không đóng được link.");
+    }
   }
 
   async function prepareBridge() {
@@ -679,7 +868,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         <article><span>Hồ sơ cá nhân</span><strong>{store.applicants.length}</strong><small>{completeCount} đã có Application ID</small></article>
         <article><span>Bản ghi mở lại</span><strong>{store.records.length}</strong><small>ID · Surname5 · năm sinh · password</small></article>
         <article><span>Telex mặc định</span><strong>{store.common.telex}</strong><small>{store.common.city}</small></article>
-        <article><span>Lưu trữ</span><strong>Local</strong><small>Không có backend hồ sơ visa</small></article>
+        <article><span>Lưu trữ</span><strong>Local + D1</strong><small>Form gửi ngoài lưu tạm để xác minh; hồ sơ đã duyệt lưu vào danh sách xử lý trên máy.</small></article>
       </section>
       <section className={styles.panel}>
         <header><div><span>LUỒNG LÀM VIỆC</span><h3>4 bước</h3></div></header>
@@ -704,6 +893,52 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         </article>)}
       </div>}
       {selected ? <div className={styles.selectedBar}><span>Đang chọn</span><strong>{displayName(selected)}</strong><button onClick={() => setRoute("connect")}>Điền trên KD-MID</button></div> : null}
+    </section>;
+  }
+
+  function renderIntake() {
+    const pending = intakeSubmissions.filter((item) => item.status === "pending");
+    const fieldLabels: Array<[string,string]> = [
+      ["surname","Họ"],["givenNames","Tên + đệm"],["birthDate","Ngày sinh"],["birthPlace","Nơi sinh"],
+      ["sex","Giới tính"],["passportNo","Số hộ chiếu"],["passportIssue","Ngày cấp"],["passportExpiry","Hết hạn"],
+      ["phone","Điện thoại"],["email","Email"],["routeCity","Nơi đến Nga"],["workStudyPlace","Nơi làm việc/học tập"],
+      ["position","Chức vụ"],["workAddress","Địa chỉ cơ quan"],["workPhone","Điện thoại cơ quan"],["workEmail","Email cơ quan"],
+      ["preferredEmbassy","Nơi nộp hồ sơ"],["formerCitizenshipLostDate","Ngày mất Q.tịch Nga/LX"],["formerCitizenshipLossReason","Lý do mất Q.tịch"],
+      ["visitsCount","Số lần đến Nga"],["lastVisitFrom","Chuyến Nga từ"],["lastVisitTo","Chuyến Nga đến"],["insurancePolicy","Bảo hiểm"],["specialNotes","Ghi chú"]
+    ];
+
+    return <section className={styles.panel}>
+      <header><div><span>FORM GỬI TỪ BÊN NGOÀI</span><h3>Thu hồ sơ → xác minh → lưu theo thứ tự</h3></div><button onClick={() => void loadIntake()} disabled={intakeLoading}>{intakeLoading ? "Đang tải…" : "Làm mới"}</button></header>
+      <div className={styles.intakeCreate}>
+        <div><strong>Tạo link Form tiếng Việt</strong><small>Link chỉ dùng để nhập hồ sơ; không mở được khu quản trị. Sau khi gửi, hồ sơ sẽ vào hàng chờ bên dưới.</small></div>
+        <input value={intakeLabel} onChange={(e) => setIntakeLabel(e.target.value)} placeholder="Tên đợt / nhóm, ví dụ: Đợt Visa tháng 10" />
+        <button onClick={() => void createIntakeLink()}>Tạo link & sao chép</button>
+        {shareUrl ? <div className={styles.shareUrl}><input readOnly value={shareUrl}/><button className={styles.secondary} onClick={() => void navigator.clipboard.writeText(shareUrl)}>Sao chép</button><a href={shareUrl} target="_blank" rel="noreferrer">Mở form ↗</a></div> : null}
+      </div>
+      <div className={styles.intakeLinks}>
+        {intakeLinks.filter((item) => item.status === "active").map((item) => <article key={item.id}><div><strong>{item.label}</strong><small>Tạo {new Date(item.createdAt).toLocaleString("vi-VN")}</small></div><button className={styles.danger} onClick={() => void closeIntakeLink(item.id)}>Đóng link</button></article>)}
+      </div>
+      <div className={styles.intakeHeader}><strong>Hàng chờ xác minh</strong><span>{pending.length} hồ sơ đang chờ · sắp theo số tiếp nhận tăng dần</span></div>
+      {!intakeSubmissions.length ? <div className={styles.empty}>Chưa có hồ sơ nào gửi qua Form.</div> : <div className={styles.intakeList}>
+        {intakeSubmissions.map((item) => <details key={item.id} open={item.status === "pending"} data-status={item.status}>
+          <summary><b>#{item.queueNo}</b><div><strong>{item.applicantName}</strong><small>{item.passportNo} · {item.email} · {new Date(item.submittedAt).toLocaleString("vi-VN")}</small></div><span>{item.status === "pending" ? "Chờ xác minh" : item.status === "imported" ? "Đã lưu" : item.status === "approved" ? "Đã duyệt" : "Cần chỉnh sửa"}</span></summary>
+          <div className={styles.intakeDetail}>
+            <div className={styles.intakeFields}>
+              {fieldLabels.map(([key,label]) => {
+                const raw = item.applicant[key];
+                if (raw === undefined || raw === null || raw === "") return null;
+                return <div key={key}><span>{label}</span><strong>{String(raw)}</strong></div>;
+              })}
+              <div><span>Đã từng có Q.tịch Nga/LX</span><strong>{item.applicant.hadFormerRussianCitizenship === true ? "Có" : "Không"}</strong></div>
+              <div><span>Đã từng đến Nga</span><strong>{item.applicant.visitedRussia === true ? "Có" : "Không"}</strong></div>
+              <div><span>Có bảo hiểm Nga</span><strong>{item.applicant.hasInsurance === true ? "Có" : "Không"}</strong></div>
+              <div><span>Trẻ em dưới 16 tuổi đi cùng</span><strong>{item.applicant.childrenUnder16 === true ? "Có" : "Không"}</strong></div>
+              <div><span>Người thân tại Nga</span><strong>{item.applicant.relativesInRussia === true ? "Có" : "Không"}</strong></div>
+            </div>
+            {item.status === "pending" ? <div className={styles.intakeActions}><button onClick={() => void verifyAndImport(item)}>✓ Xác minh & lưu hồ sơ</button><button className={styles.danger} onClick={() => void rejectIntake(item)}>Trả lại / cần sửa</button></div> : null}
+          </div>
+        </details>)}
+      </div>}
     </section>;
   }
 
@@ -794,16 +1029,16 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       <Link href="/?view=applications" className={styles.back}>← Application Management</Link>
       <div className={styles.brand}><span>KV</span><div><strong>KD-MID Visa VN</strong><small>Form Nga · hướng dẫn Việt</small></div></div>
       <nav>
-        {([["dashboard","Tổng quan"],["applicants","Hồ sơ cá nhân"],["common","Trường dùng chung"],["connect","Kết nối KD-MID"],["records","Bản ghi mở lại"],["backup","Sao lưu dữ liệu"]] as Array<[Route,string]>).map(([id,label]) => <button key={id} data-active={route === id} onClick={() => setRoute(id)}>{label}</button>)}
+        {([["dashboard","Tổng quan"],["applicants","Hồ sơ cá nhân"],["intake","Form thu hồ sơ"],["common","Trường dùng chung"],["connect","Kết nối KD-MID"],["records","Bản ghi mở lại"],["backup","Sao lưu dữ liệu"]] as Array<[Route,string]>).map(([id,label]) => <button key={id} data-active={route === id} onClick={() => setRoute(id)}>{label}</button>)}
       </nav>
-      <div className={styles.privacy}><strong>● Local-first</strong><small>Dữ liệu hồ sơ chỉ lưu trong trình duyệt này, trừ khi bạn tự xuất backup.</small></div>
+      <div className={styles.privacy}><strong>● Local-first + Intake D1</strong><small>Hồ sơ tự tạo vẫn lưu trên máy. Hồ sơ gửi qua Form được lưu tạm trên D1 để xác minh trước khi nhập vào danh sách xử lý.</small></div>
       <div className={styles.user}><span>{user.displayName.slice(0,1).toUpperCase()}</span><div><strong>{user.displayName}</strong><small>{user.email}</small></div></div>
     </aside>
 
     <section className={styles.main}>
-      <header className={styles.topbar}><div><span>APPLICATION MANAGEMENT · TOOL</span><h1>{route === "dashboard" ? "Tổng quan" : route === "applicants" ? "Hồ sơ cá nhân" : route === "common" ? "Trường dùng chung" : route === "connect" ? "Kết nối KD-MID" : route === "records" ? "Bản ghi mở lại" : "Sao lưu dữ liệu"}</h1></div><div><button className={styles.secondary} onClick={() => setRoute("connect")}>Mở KD-MID chính thức</button><button onClick={() => setEditing(emptyApplicant())}>+ Hồ sơ mới</button></div></header>
+      <header className={styles.topbar}><div><span>APPLICATION MANAGEMENT · TOOL</span><h1>{route === "dashboard" ? "Tổng quan" : route === "applicants" ? "Hồ sơ cá nhân" : route === "intake" ? "Form thu hồ sơ" : route === "common" ? "Trường dùng chung" : route === "connect" ? "Kết nối KD-MID" : route === "records" ? "Bản ghi mở lại" : "Sao lưu dữ liệu"}</h1></div><div><button className={styles.secondary} onClick={() => setRoute("connect")}>Mở KD-MID chính thức</button><button onClick={() => setEditing(emptyApplicant())}>+ Hồ sơ mới</button></div></header>
       {notice ? <div className={styles.notice}>{notice}<button onClick={() => setNotice("")}>×</button></div> : null}
-      <div className={styles.content}>{route === "dashboard" ? renderDashboard() : route === "applicants" ? renderApplicants() : route === "common" ? renderCommon() : route === "connect" ? renderConnect() : route === "records" ? renderRecords() : renderBackup()}</div>
+      <div className={styles.content}>{route === "dashboard" ? renderDashboard() : route === "applicants" ? renderApplicants() : route === "intake" ? renderIntake() : route === "common" ? renderCommon() : route === "connect" ? renderConnect() : route === "records" ? renderRecords() : renderBackup()}</div>
     </section>
 
     {editing ? <div className={styles.modalBackdrop} onMouseDown={(event) => { if (event.currentTarget === event.target) setEditing(null); }}><section className={styles.modal}>
@@ -816,6 +1051,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
           <Field label="Место рождения · Nơi sinh"><TextInput value={editing.birthPlace} onChange={(v) => setEditing({ ...editing, birthPlace: v })} /></Field>
           <Field label="Пол · Giới tính"><select value={editing.sex} onChange={(e) => setEditing({ ...editing, sex: e.target.value })}><option>МУЖСКОЙ</option><option>ЖЕНСКИЙ</option></select></Field>
           <Field label="Маршрут (населенные пункты) · Nơi đến tại Nga" hint={`Mặc định: ${store.common.city}`}><TextInput value={editing.routeCity || store.common.city} onChange={(v) => setEditing({ ...editing, routeCity: v.toUpperCase() })} /></Field>
+          <Field label="Nơi nộp hồ sơ · Место подачи заявления"><select value={editing.preferredEmbassy || store.common.embassy} onChange={(e) => setEditing({ ...editing, preferredEmbassy: e.target.value })}>{visaConsulates.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></Field>
           <Field label="Если Вы имели гражданство СССР или России... · Đã từng có quốc tịch Liên Xô/Nga?"><select value={editing.hadFormerRussianCitizenship ? "ДА" : "НЕТ"} onChange={(e) => setEditing({ ...editing, hadFormerRussianCitizenship: e.target.value === "ДА" })}><option value="НЕТ">НЕТ · Không</option><option value="ДА">ДА · Có</option></select></Field>
           <Field label="Номер паспорта"><TextInput value={editing.passportNo} onChange={(v) => setEditing({ ...editing, passportNo: v.toUpperCase() })} /></Field>
           <Field label="Дата выдачи паспорта · dd/mm/yyyy" hint="Nhập dạng 25/06/2025. Companion sẽ đổi 06 thành Июнь trên KD-MID."><DateTextInput value={editing.passportIssue} onChange={(v) => setEditing({ ...editing, passportIssue: v })} placeholder="25/06/2025" /></Field>
@@ -830,6 +1066,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
           <Field label="Рабочий E-mail · Email cơ quan" hint={`Mặc định: ${store.common.employerEmail}`}><TextInput value={editing.workEmail} onChange={(v) => setEditing({ ...editing, workEmail: v })} /></Field>
           <Field label="Password riêng" hint={`Để trống = dùng ${store.common.password}`}><TextInput value={editing.passwordOverride} onChange={(v) => setEditing({ ...editing, passwordOverride: v })} /></Field>
           <Field label="Application ID" hint="Bridge sẽ tự ghi khi nhận diện được."><TextInput value={editing.applicationId} onChange={(v) => setEditing({ ...editing, applicationId: v.replace(/\D/g, "") })} /></Field>
+          <Field label="Ghi chú hồ sơ" hint="Dùng cho trường hợp đặc biệt cần kiểm tra thủ công."><TextInput value={editing.specialNotes || ""} onChange={(v) => setEditing({ ...editing, specialNotes: v })} /></Field>
         </div>
         {editing.hadFormerRussianCitizenship ? <div className={styles.formGrid}>
           <Field label="Когда? · Mất quốc tịch khi nào?" hint="dd/mm/yyyy"><DateTextInput value={editing.formerCitizenshipLostDate} onChange={(v) => setEditing({ ...editing, formerCitizenshipLostDate: v })} /></Field>

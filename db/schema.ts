@@ -106,3 +106,38 @@ export const deployOpsCredentials = sqliteTable("deploy_ops_credentials", {
 }, (table) => [
   index("deploy_ops_credentials_updated_idx").on(table.updatedAt),
 ]);
+
+
+export const visaIntakeLinks = sqliteTable("visa_intake_links", {
+  id: text("id").primaryKey(),
+  tokenHash: text("token_hash").notNull().unique(),
+  label: text("label").notNull().default(""),
+  status: text("status").notNull().default("active"),
+  defaultsJson: text("defaults_json").notNull().default("{}"),
+  createdBy: text("created_by").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  expiresAt: text("expires_at"),
+}, (table) => [
+  index("visa_intake_links_status_created_idx").on(table.status, table.createdAt),
+]);
+
+export const visaIntakeSubmissions = sqliteTable("visa_intake_submissions", {
+  queueNo: integer("queue_no").primaryKey({ autoIncrement: true }),
+  id: text("id").notNull().unique(),
+  linkId: text("link_id").notNull(),
+  status: text("status").notNull().default("pending"),
+  applicantName: text("applicant_name").notNull(),
+  passportNo: text("passport_no").notNull(),
+  email: text("email").notNull(),
+  phone: text("phone").notNull(),
+  payloadJson: text("payload_json").notNull(),
+  validationJson: text("validation_json").notNull().default("{}"),
+  submittedAt: text("submitted_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  reviewedBy: text("reviewed_by"),
+  reviewedAt: text("reviewed_at"),
+  reviewNote: text("review_note"),
+  importedApplicantId: text("imported_applicant_id"),
+}, (table) => [
+  index("visa_intake_submissions_status_queue_idx").on(table.status, table.queueNo),
+  index("visa_intake_submissions_link_queue_idx").on(table.linkId, table.queueNo),
+]);

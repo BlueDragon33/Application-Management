@@ -9,6 +9,7 @@ import {
   previewRequestAuthorized,
   withPreviewOwnerIdentity,
 } from "./preview-access";
+import { publicVisaIntakePage } from "./visa-intake-public";
 import {
   handleProductionAccount,
   handleProductionLogin,
@@ -59,6 +60,8 @@ async function databaseReady(env: Env) {
     await env.DB.prepare("SELECT app_id FROM deploy_ops_targets LIMIT 1").first();
     await env.DB.prepare("SELECT id FROM deploy_ops_runs LIMIT 1").first();
     await env.DB.prepare("SELECT provider FROM deploy_ops_credentials LIMIT 1").first();
+    await env.DB.prepare("SELECT id FROM visa_intake_links LIMIT 1").first();
+    await env.DB.prepare("SELECT id FROM visa_intake_submissions LIMIT 1").first();
     return true;
   } catch {
     return false;
@@ -170,6 +173,13 @@ function isCloudflareClientAsset(request: Request, url: URL) {
   return /\.(?:css|m?js|map|png|jpe?g|webp|avif|gif|svg|ico|woff2?|ttf|otf|webmanifest)$/i.test(url.pathname);
 }
 
+function isPublicVisaIntakeRequest(request: Request, url: URL) {
+  if (request.method === "GET" || request.method === "HEAD") {
+    if (url.pathname === "/api/kd-mid-visa-intake/public") return true;
+  }
+  return request.method === "POST" && url.pathname === "/api/kd-mid-visa-intake/public";
+}
+
 function freshDynamicResponse(response: Response, cloudflareChannel: boolean) {
   if (!cloudflareChannel) return response;
   const headers = new Headers(response.headers);
@@ -217,6 +227,15 @@ const worker = {
     // service worker deterministically.
     if ((isPreview || isProduction) && isPublicPwaAsset(request, url)) {
       return env.ASSETS.fetch(request);
+    }
+
+    // Public visa-intake is intentionally shareable without an admin session.
+    // The HTML is standalone/inline so authenticated application bundles remain protected.
+    if (isProduction && request.method === "GET" && url.pathname === "/visa-intake") {
+      return publicVisaIntakePage();
+    }
+    if (isProduction && isPublicVisaIntakeRequest(request, url)) {
+      return freshDynamicResponse(await handler.fetch(request, env, ctx), true);
     }
 
     if (isPreview) {
