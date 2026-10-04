@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.19
+// @version      0.9.20
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,7 +17,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.19";
+  const VERSION = "0.9.20";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
@@ -688,89 +688,61 @@
     return { handled: true, ready: true };
   }
 
-  function visualFieldInput(exactLabelText) {
-    const target = norm(exactLabelText);
-    const labels = [...document.querySelectorAll("label,td,th,div,span,p,b,strong")]
-      .filter((node) => visible(node) && norm(node.textContent) === target);
+  function routeCityCardInput() {
+    const containers = [...document.querySelectorAll("div,td,fieldset,section")].filter(visible);
+    const matches = [];
 
-    const inputs = [...document.querySelectorAll(
-      'input:not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"])'
-    )].filter(visible);
+    for (const container of containers) {
+      const text = norm(container.innerText || container.textContent || "");
+      if (!text.includes("НАСЕЛЕННЫЙ ПУНКТ")) continue;
+      if (!text.includes("УДАЛИТЬ")) continue;
+      if (text.includes("МЕДИЦИНСКОМ СТРАХОВАНИИ")) continue;
 
-    let best = null;
-    let bestScore = Number.POSITIVE_INFINITY;
+      const inputs = [...container.querySelectorAll(
+        'input:not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"])'
+      )].filter(visible);
 
-    for (const label of labels) {
-      const lr = label.getBoundingClientRect();
-      for (const input of inputs) {
-        const ir = input.getBoundingClientRect();
-        const verticalGap = ir.top - lr.bottom;
-        const horizontalGap = Math.abs(ir.left - lr.left);
-        const overlapsHorizontally = ir.right >= lr.left && ir.left <= lr.right + 420;
+      const deleteButtons = [...container.querySelectorAll("button,input[type=\"button\"],input[type=\"submit\"]")]
+        .filter(visible)
+        .filter((el) => norm(el.textContent || el.value || "") === "УДАЛИТЬ");
 
-        if (verticalGap < -8 || verticalGap > 110 || !overlapsHorizontally) continue;
+      if (inputs.length !== 1 || deleteButtons.length < 1) continue;
 
-        const score = verticalGap * 10 + horizontalGap;
-        if (score < bestScore) {
-          bestScore = score;
-          best = input;
-        }
-      }
+      const rect = container.getBoundingClientRect();
+      const area = Math.max(1, rect.width * rect.height);
+      matches.push({ input: inputs[0], area, textLength: text.length });
     }
 
-    return best;
+    matches.sort((a, b) => a.area - b.area || a.textLength - b.textLength);
+    return matches[0]?.input || null;
   }
 
   function routeCityControl() {
-    // KD-MID has duplicated explanatory text on the right side, so DOM-order
-    // matching alone can resolve the wrong input. Prefer the input physically
-    // closest to the visible "Населенный пункт" label in the gray route box.
-    const visual = visualFieldInput("Населенный пункт");
-    if (visual) return visual;
-
-    const routeTitle = exactFieldLabelNode("Маршрут (населенные пункты)");
-    const insuranceTitle = exactFieldLabelNode(
-      "Имеете ли Вы документ о медицинском страховании, действительный на территории России?"
-    );
-
-    // Strong DOM fallback: only accept a visible text input between the route
-    // section title and the following insurance question.
-    if (routeTitle) {
-      const candidates = [...document.querySelectorAll(
-        'input:not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"])'
-      )].filter(visible).filter((el) => {
-        const afterRoute = Boolean(routeTitle.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING);
-        const beforeInsurance = !insuranceTitle ||
-          Boolean(el.compareDocumentPosition(insuranceTitle) & Node.DOCUMENT_POSITION_FOLLOWING);
-        return afterRoute && beforeInsurance;
-      });
-
-      if (candidates.length === 1) return candidates[0];
-
-      const routeLike = candidates.find((el) => {
-        let current = el;
-        for (let depth = 0; depth < 6 && current; depth += 1, current = current.parentElement) {
-          const text = norm(current.innerText || current.textContent || "");
-          if (text.includes("НАСЕЛЕННЫЙ ПУНКТ") && text.includes("УДАЛИТЬ")) return true;
-        }
-        return false;
-      });
-      if (routeLike) return routeLike;
-    }
-
-    return null;
+    // This page has duplicated explanatory text and nested tables. Do not guess
+    // from label order anymore. The real route field is the ONE text input
+    // inside the gray card that also contains "Населенный пункт" + "Удалить".
+    return routeCityCardInput();
   }
 
   function routeCityControlLooksRight(el) {
     if (!el) return false;
-    const label = [...document.querySelectorAll("label,td,th,div,span,p,b,strong")]
-      .find((node) => visible(node) && norm(node.textContent) === "НАСЕЛЕННЫЙ ПУНКТ");
-    if (!label) return true;
-
-    const lr = label.getBoundingClientRect();
-    const ir = el.getBoundingClientRect();
-    const verticalGap = ir.top - lr.bottom;
-    return verticalGap >= -8 && verticalGap <= 110 && ir.left < lr.right + 420;
+    const card = el.closest("div,td,fieldset,section");
+    if (!card) return false;
+    let current = card;
+    for (let depth = 0; depth < 5 && current; depth += 1, current = current.parentElement) {
+      const text = norm(current.innerText || current.textContent || "");
+      const inputs = [...current.querySelectorAll(
+        'input:not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"])'
+      )].filter(visible);
+      if (
+        text.includes("НАСЕЛЕННЫЙ ПУНКТ") &&
+        text.includes("УДАЛИТЬ") &&
+        !text.includes("МЕДИЦИНСКОМ СТРАХОВАНИИ") &&
+        inputs.length === 1 &&
+        inputs[0] === el
+      ) return true;
+    }
+    return false;
   }
 
   function isVisitInfoPage() {
@@ -823,7 +795,7 @@
       }
     }
 
-    const routeValue = String(A.routeCity || payload.city || "МОСКВА").trim();
+    const routeValue = "МОСКВА";
     const routeInput = routeCityControl();
     if (!routeInput || !routeCityControlLooksRight(routeInput)) {
       status("KD-MID Visa VN: chưa khóa đúng ô Маршрут / Населенный пункт hiển thị trên màn hình; đang tự dò lại.", "wait");
@@ -832,14 +804,24 @@
     }
 
     state = writeTextControl(routeInput, routeValue);
-    if (state === "changed") {
-      status(`KD-MID Visa VN: đã tự điền Маршрут = ${routeValue}. Đang tiếp tục…`, "wait");
-      continueAutofill(payload);
+    if (String(routeInput.value).trim() !== routeValue) {
+      activateControl(routeInput);
+      setNativeControlValue(routeInput, routeValue);
+      routeInput.setAttribute("value", routeValue);
+      routeInput.dispatchEvent(new Event("input", { bubbles: true }));
+      routeInput.dispatchEvent(new Event("change", { bubbles: true }));
+      try { routeInput.blur(); } catch {}
+    }
+
+    if (String(routeInput.value).trim() !== routeValue) {
+      status("KD-MID Visa VN: ô Населенный пункт thật vẫn chưa nhận МОСКВА; đang thử lại đúng ô này.", "wait");
+      continueAutofill(payload, 220);
       return { handled: true, ready: false };
     }
-    if (state !== "ready" || String(routeInput.value).trim() !== routeValue) {
-      status(`KD-MID Visa VN: đang sửa ô Маршрут / Населенный пункт thành ${routeValue}.`, "wait");
-      continueAutofill(payload, 220);
+
+    if (state === "changed") {
+      status("KD-MID Visa VN: đã điền trực tiếp МОСКВА vào ô Населенный пункт thật.", "wait");
+      continueAutofill(payload);
       return { handled: true, ready: false };
     }
 
@@ -924,7 +906,7 @@
     if (
       !finalRoute ||
       !routeCityControlLooksRight(finalRoute) ||
-      String(finalRoute.value).trim() !== String(A.routeCity || payload.city || "МОСКВА").trim()
+      String(finalRoute.value).trim() !== "МОСКВА"
     ) {
       status("KD-MID Visa VN: Маршрут chưa khớp payload; chưa được phép bấm Далее.", "wait");
       continueAutofill(payload, 180);
