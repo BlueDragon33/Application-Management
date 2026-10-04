@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.27
+// @version      0.9.28
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,7 +17,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.27";
+  const VERSION = "0.9.28";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
@@ -1104,6 +1104,37 @@
       body.includes("РАБОЧИЙ АДРЕС");
   }
 
+  function yesNoSelectForQuestion(labels, fallbackFromEnd = 1) {
+    const needles = (Array.isArray(labels) ? labels : [labels]).map(norm).filter(Boolean);
+    const nodes = [...document.querySelectorAll("label,td,th,div,span,p,b,strong")]
+      .filter((node) => visible(node))
+      .filter((node) => {
+        const text = norm(node.textContent);
+        return needles.some((needle) => text === needle || text.includes(needle));
+      })
+      .sort((a, b) => norm(a.textContent).length - norm(b.textContent).length);
+
+    for (const node of nodes) {
+      let current = node;
+      for (let depth = 0; depth < 8 && current; depth += 1, current = current.parentElement) {
+        const selects = [...current.querySelectorAll("select")].filter(visible);
+        if (selects.length === 1) {
+          const values = [...selects[0].options].map((option) => norm(option.textContent || option.value));
+          const hasYes = values.includes("ДА") || values.includes("YES");
+          const hasNo = values.includes("НЕТ") || values.includes("NO");
+          if (hasYes && hasNo) return selects[0];
+        }
+      }
+    }
+
+    const allYesNo = [...document.querySelectorAll("select")].filter(visible).filter((select) => {
+      const values = [...select.options].map((option) => norm(option.textContent || option.value));
+      return (values.includes("ДА") || values.includes("YES")) &&
+        (values.includes("НЕТ") || values.includes("NO"));
+    });
+    return allYesNo.at(-fallbackFromEnd) || null;
+  }
+
   function contactInfoControls() {
     // This KD-MID page has a stable visual/control order. Previous label-based
     // lookup could miss "Ваш личный E-mail" even though the value exists in the
@@ -1127,8 +1158,14 @@
         workPhone: textInputs[7],
         workFax: textInputs[8],
         workEmail: textInputs[9],
-        children: selects[2],
-        relatives: selects[3],
+        children: yesNoSelectForQuestion([
+          "Дети до 16 лет и другие родственники, вписанные в Ваш паспорт и следующие с Вами",
+          "Дети до 16 лет"
+        ], 2),
+        relatives: yesNoSelectForQuestion([
+          "Имеете ли Вы в настоящее время родственников на территории России?",
+          "Имеете ли Вы в настоящее время родственников"
+        ], 1),
       };
     }
 
@@ -1146,8 +1183,14 @@
       workPhone: textControlForField("Рабочий телефон"),
       workFax: textControlForField("Рабочий факс"),
       workEmail: textControlForField(["Рабочий E-mail", "Рабочий Email"]),
-      children: selectControlForField("Дети до 16 лет"),
-      relatives: selectControlForField("Имеете ли Вы в настоящее время родственников"),
+      children: yesNoSelectForQuestion([
+        "Дети до 16 лет и другие родственники, вписанные в Ваш паспорт и следующие с Вами",
+        "Дети до 16 лет"
+      ], 2),
+      relatives: yesNoSelectForQuestion([
+        "Имеете ли Вы в настоящее время родственников на территории России?",
+        "Имеете ли Вы в настоящее время родственников"
+      ], 1),
     };
   }
 
@@ -1195,7 +1238,14 @@
       ["Điện thoại cơ quan", () => optionalText(C.workPhone, A.workPhone || payload.fixedWorkPhone)],
       ["E-mail cơ quan", () => optionalText(C.workEmail, A.workEmail || payload.employerEmail)],
       ["Trẻ em dưới 16 tuổi", () => C.children ? writeSelectControl(C.children, A.childrenUnder16 ? ["ДА","YES"] : ["НЕТ","NO"]) : "missing"],
-      ["Người thân tại Nga", () => C.relatives ? writeSelectControl(C.relatives, A.relativesInRussia ? ["ДА","YES"] : ["НЕТ","NO"]) : "missing"],
+      ["Người thân tại Nga", () => {
+        if (!C.relatives) return "missing";
+        const state = writeSelectControl(C.relatives, A.relativesInRussia ? ["ДА","YES"] : ["НЕТ","NO"]);
+        if (state === "changed" && !A.relativesInRussia) {
+          status("KD-MID Visa VN: đã chọn НЕТ ở dòng cuối 'người thân tại Nga'; đang kiểm tra lại.", "wait");
+        }
+        return state;
+      }],
     ];
 
     // Fax fields are intentionally skipped. KD-MID does not require them and
