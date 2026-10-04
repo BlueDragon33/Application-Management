@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.5
+// @version      0.9.6
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,7 +17,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.5";
+  const VERSION = "0.9.6";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
@@ -61,6 +61,10 @@
       if (!data) return;
       if (data.type === "KD_MID_PING") {
         window.postMessage({ type: "KD_MID_COMPANION_READY", version: VERSION }, location.origin);
+      }
+      if (data.type === "KD_MID_SET_PAYLOAD" && data.payload) {
+        gmSet(SHARED_PAYLOAD_KEY, JSON.stringify(data.payload));
+        window.postMessage({ type: "KD_MID_PAYLOAD_SAVED", applicantId: data.payload?.applicant?.id || "" }, location.origin);
       }
     });
 
@@ -210,6 +214,48 @@
     return "changed";
   }
 
+  const RU_MONTHS = ["","ЯНВАРЬ","ФЕВРАЛЬ","МАРТ","АПРЕЛЬ","МАЙ","ИЮНЬ","ИЮЛЬ","АВГУСТ","СЕНТЯБРЬ","ОКТЯБРЬ","НОЯБРЬ","ДЕКАБРЬ"];
+
+  function normalizedNumeric(value) {
+    const raw = String(value ?? "").trim();
+    if (!/^\d+$/.test(raw)) return raw;
+    return String(Number(raw));
+  }
+
+  function findDateOption(select, part, index) {
+    const raw = String(part ?? "").trim();
+    const numeric = normalizedNumeric(raw);
+    const options = [...select.options];
+
+    const byValue = options.find((o) => normalizedNumeric(o.value) === numeric);
+    if (byValue) return byValue;
+
+    const byTextNumeric = options.find((o) => normalizedNumeric(o.textContent) === numeric);
+    if (byTextNumeric) return byTextNumeric;
+
+    if (index === 1) {
+      const monthNumber = Number(numeric);
+      if (monthNumber >= 1 && monthNumber <= 12) {
+        const monthName = RU_MONTHS[monthNumber];
+        const byMonthName = options.find((o) => norm(o.textContent) === monthName);
+        if (byMonthName) return byMonthName;
+        // KD-MID normally has one placeholder followed by January..December.
+        const indexed = options[monthNumber];
+        if (indexed) return indexed;
+      }
+    }
+    return null;
+  }
+
+  function dateControlMatches(el, part, index) {
+    if (!el) return false;
+    if (el.tagName === "SELECT") {
+      const option = findDateOption(el, part, index);
+      return Boolean(option && el.selectedIndex === option.index);
+    }
+    return normalizedNumeric(el.value) === normalizedNumeric(part);
+  }
+
   function dateControlsNearLabel(labels) {
     for (const node of labelCandidates(labels)) {
       let current = node;
@@ -230,25 +276,28 @@
     if (list.length < 3) return "missing";
 
     let changed = false;
+    let unresolved = false;
     parts.forEach((part, index) => {
       const el = list[index];
-      if (!el) return;
+      if (!el) { unresolved = true; return; }
       if (el.tagName === "SELECT") {
-        const option = [...el.options].find((o) => String(o.value) === String(part)) ||
-          [...el.options].find((o) => norm(o.textContent) === norm(part));
-        if (option && (el.value !== option.value || el.selectedIndex !== option.index)) {
+        const option = findDateOption(el, part, index);
+        if (!option) { unresolved = true; return; }
+        if (el.value !== option.value || el.selectedIndex !== option.index) {
           el.selectedIndex = option.index;
           el.value = option.value;
           fire(el);
           changed = true;
         }
-      } else if (String(el.value).replace(/^0+/, "") !== String(part).replace(/^0+/, "")) {
+      } else if (!dateControlMatches(el, part, index)) {
         el.value = part;
         fire(el);
         changed = true;
       }
     });
 
+    if (unresolved) return "waiting";
+    if (!parts.every((part, index) => dateControlMatches(list[index], part, index))) return "waiting";
     return changed ? "changed" : "ready";
   }
 
@@ -301,24 +350,30 @@
     if (parts.length !== 3) return "missing";
     const list = followingControls(labels, 'input:not([type="hidden"]),select', 3);
     if (list.length < 3) return "missing";
+
     let changed = false;
+    let unresolved = false;
     parts.forEach((part, index) => {
       const el = list[index];
+      if (!el) { unresolved = true; return; }
       if (el.tagName === "SELECT") {
-        const option = [...el.options].find((o) => String(o.value) === String(part)) ||
-          [...el.options].find((o) => norm(o.textContent) === norm(part));
-        if (option && (el.value !== option.value || el.selectedIndex !== option.index)) {
+        const option = findDateOption(el, part, index);
+        if (!option) { unresolved = true; return; }
+        if (el.value !== option.value || el.selectedIndex !== option.index) {
           el.selectedIndex = option.index;
           el.value = option.value;
           fire(el);
           changed = true;
         }
-      } else if (String(el.value).replace(/^0+/, "") !== String(part).replace(/^0+/, "")) {
+      } else if (!dateControlMatches(el, part, index)) {
         el.value = part;
         fire(el);
         changed = true;
       }
     });
+
+    if (unresolved) return "waiting";
+    if (!parts.every((part, index) => dateControlMatches(list[index], part, index))) return "waiting";
     return changed ? "changed" : "ready";
   }
 
@@ -490,21 +545,24 @@
     if (parts.length !== 3) return false;
     const list = blockControls(labels).filter((item) => item.type !== "hidden");
     if (list.length < 3) return false;
+    let resolved = true;
     parts.forEach((part, index) => {
       const el = list[index];
-      if (!el) return;
+      if (!el) { resolved = false; return; }
       if (el.tagName === "SELECT") {
-        const option = [...el.options].find((o) => norm(o.textContent) === norm(part) || String(o.value) === String(part));
-        if (option && el.value !== option.value) {
+        const option = findDateOption(el, part, index);
+        if (!option) { resolved = false; return; }
+        if (el.value !== option.value || el.selectedIndex !== option.index) {
+          el.selectedIndex = option.index;
           el.value = option.value;
           fire(el);
         }
-      } else if (String(el.value) !== String(part)) {
+      } else if (!dateControlMatches(el, part, index)) {
         el.value = part;
         fire(el);
       }
     });
-    return true;
+    return resolved && parts.every((part, index) => dateControlMatches(list[index], part, index));
   }
 
   function fillPassword(payload) {
@@ -909,17 +967,47 @@
   }
 
   addHints();
-  const payload = readPayloadFromHash() || readSharedPayload();
-  if (!payload) {
+  let currentPayload = readPayloadFromHash() || readSharedPayload();
+
+  function applyLatestPayload(payload, source = "hồ sơ") {
+    if (!payload) return;
+    currentPayload = payload;
+    gmSet(SHARED_PAYLOAD_KEY, JSON.stringify(payload));
+    status(`KD-MID Visa VN Companion v${VERSION} đã nhận ${source} mới: ${[payload?.applicant?.surname, payload?.applicant?.givenNames].filter(Boolean).join(" ") || "hồ sơ"}.`);
+    startProgressiveRun(payload);
+  }
+
+  if (!currentPayload) {
     status(`KD-MID Visa VN Companion v${VERSION} đang chạy nhưng chưa nhận được hồ sơ. Quay lại App-Manager và bấm “Bắt đầu tự động đến PDF”.`, "wait");
   } else {
     status(`KD-MID Visa VN Companion v${VERSION} đã nhận hồ sơ. Đang bắt đầu tự động…`);
-    startProgressiveRun(payload);
+    startProgressiveRun(currentPayload);
+  }
+
+  window.addEventListener("hashchange", () => {
+    const fresh = readPayloadFromHash();
+    if (fresh) applyLatestPayload(fresh, "dữ liệu cập nhật");
+  });
+
+  try {
+    GM_addValueChangeListener(SHARED_PAYLOAD_KEY, (_name, oldValue, newValue, remote) => {
+      if (!newValue || newValue === oldValue) return;
+      try {
+        const fresh = JSON.parse(newValue);
+        currentPayload = fresh;
+        if (remote) {
+          status(`KD-MID Visa VN Companion v${VERSION}: hồ sơ đã được cập nhật từ App-Manager.`);
+          startProgressiveRun(fresh);
+        }
+      } catch {}
+    });
+  } catch (error) {
+    console.warn("[KD-MID Visa VN] payload listener unavailable", error);
   }
 
   let captchaIdleTimer = 0;
   document.addEventListener("input", (event) => {
-    const current = readSharedPayload();
+    const current = currentPayload || readSharedPayload();
     if (!current || !isPasswordCaptchaPage()) return;
     if (event.target !== findCaptchaInput()) return;
     window.clearTimeout(captchaIdleTimer);
@@ -929,14 +1017,14 @@
   }, true);
 
   document.addEventListener("change", (event) => {
-    const current = readSharedPayload();
+    const current = currentPayload || readSharedPayload();
     if (!current || !isPasswordCaptchaPage()) return;
     if (event.target !== findCaptchaInput() || captchaValue().length < 3) return;
     window.setTimeout(() => run(current), 120);
   }, true);
 
   document.addEventListener("keydown", (event) => {
-    const current = readSharedPayload();
+    const current = currentPayload || readSharedPayload();
     if (!current || !isPasswordCaptchaPage()) return;
     if (event.key !== "Enter" || event.target !== findCaptchaInput() || captchaValue().length < 3) return;
     event.preventDefault();
@@ -944,7 +1032,7 @@
   }, true);
 
   const observer = new MutationObserver(() => {
-    const current = readSharedPayload();
+    const current = currentPayload || readSharedPayload();
     addHints();
     if (!current) return;
     window.clearTimeout(observer._kdmidTimer);
