@@ -609,6 +609,10 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
 
   async function manageDevice(device: OperationsDevice, operation: "approve" | "remove") {
     if (!requireManagedAccess("Quản lý thiết bị")) return;
+    if (operation === "remove" && device.status !== "pending") {
+      setNotice(`Thiết bị ${device.deviceCode} đã được xử lý. Muốn xóa, khóa hoặc thay đổi quyền, hãy vào Quản trị của ${device.appName}.`);
+      return;
+    }
     if (operation === "approve" && device.appId === "boi-ech") {
       setAppFilter("boi-ech");
       switchView("access");
@@ -1797,10 +1801,10 @@ function DevicesView({ devices, actionBusy, manageDevice, bulkRemovePendingDevic
   const bulkTargets = devices.filter((device) => device.status === "pending" && device.canRemove).slice(0, 24);
   return <section className="amv2-page-panel">
     <div className="amv2-device-bulk-toolbar">
-      <div><strong>Thiết bị đang hiển thị</strong><small>Bulk-action chỉ áp dụng thiết bị chờ duyệt có contract xử lý thật. Bơi ếch xóa vĩnh viễn và luôn cần xác nhận hai lần.</small></div>
+      <div><strong>Thiết bị đang hiển thị</strong><small>Trung tâm chỉ xử lý trực tiếp thiết bị chờ duyệt. Thiết bị đã duyệt/đã khóa phải vào Quản trị của từng app để xóa, khóa hoặc thay đổi quyền. Bơi ếch xóa vĩnh viễn và luôn cần xác nhận hai lần.</small></div>
       <div className="amv2-device-bulk-actions"><button disabled={Boolean(actionBusy)} onClick={openAutomation}>⚙ Tự động</button><button data-danger="true" aria-label="Khóa hoặc loại toàn bộ thiết bị chờ duyệt đang hiển thị" disabled={!bulkTargets.length || Boolean(actionBusy)} onClick={() => void bulkRemovePendingDevices(devices)}>{actionBusy === "bulk-pending" ? "Đang khóa/loại…" : `Khóa / loại chờ duyệt (${bulkTargets.length})`}</button></div>
     </div>
-    <div className="amv2-view-table devices"><div className="head"><span>Ứng dụng</span><span>Thiết bị</span><span>Người dùng</span><span>Trạng thái</span><span>Hoạt động</span><span>Thao tác</span></div>{devices.map((device) => { const rowBusy = actionBusy === `${device.appId}:${device.deviceId}` || actionBusy === "bulk-pending"; return <div className="row" key={`${device.appId}:${device.deviceId}`}><AppCell appId={device.appId} name={device.appName}/><div><strong>{deviceKind(device)}</strong><small>{device.deviceCode}</small></div><span>{device.userLabel}</span><b>{device.status === "approved" ? "Đã duyệt" : device.status === "pending" ? "Chờ duyệt" : device.status === "blocked" ? "Đã khóa" : "Chưa rõ"}</b><span>{device.active ? "● Online" : relativeTime(device.lastSeenAt)}</span><div>{device.canApprove && device.status === "pending" ? <button disabled={rowBusy} onClick={() => void manageDevice(device, "approve")}>{device.appId === "boi-ech" ? "Phân quyền" : "Duyệt"}</button> : null}{device.canRemove ? <button data-danger="true" disabled={rowBusy} onClick={() => void manageDevice(device, "remove")}>{device.appId === "boi-ech" ? "Xóa" : "Khóa"}</button> : null}<Link href={device.href}>Quản trị</Link></div></div>; })}{!devices.length ? <div className="amv2-empty"><strong>Không tìm thấy thiết bị phù hợp.</strong></div> : null}</div>
+    <div className="amv2-view-table devices"><div className="head"><span>Ứng dụng</span><span>Thiết bị</span><span>Người dùng</span><span>Trạng thái</span><span>Hoạt động</span><span>Thao tác</span></div>{devices.map((device) => { const rowBusy = actionBusy === `${device.appId}:${device.deviceId}` || actionBusy === "bulk-pending"; return <div className="row" key={`${device.appId}:${device.deviceId}`}><AppCell appId={device.appId} name={device.appName}/><div><strong>{deviceKind(device)}</strong><small>{device.deviceCode}</small></div><span>{device.userLabel}</span><b>{device.status === "approved" ? "Đã duyệt" : device.status === "pending" ? "Chờ duyệt" : device.status === "blocked" ? "Đã khóa" : "Chưa rõ"}</b><span>{device.active ? "● Online" : relativeTime(device.lastSeenAt)}</span><div>{device.canApprove && device.status === "pending" ? <button disabled={rowBusy} onClick={() => void manageDevice(device, "approve")}>{device.appId === "boi-ech" ? "Phân quyền" : "Duyệt"}</button> : null}{device.canRemove && device.status === "pending" ? <button data-danger="true" disabled={rowBusy} onClick={() => void manageDevice(device, "remove")}>{device.appId === "boi-ech" ? "Xóa" : "Khóa"}</button> : null}<Link href={device.href}>Quản trị</Link></div></div>; })}{!devices.length ? <div className="amv2-empty"><strong>Không tìm thấy thiết bị phù hợp.</strong></div> : null}</div>
   </section>;
 }
 
