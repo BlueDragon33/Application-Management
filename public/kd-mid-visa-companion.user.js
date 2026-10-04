@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.21
+// @version      0.9.22
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,7 +17,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.21";
+  const VERSION = "0.9.22";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
@@ -748,48 +748,39 @@
     activateControl(el);
 
     try { el.setSelectionRange(0, String(el.value || "").length); } catch {}
-    setNativeControlValue(el, "");
-    el.dispatchEvent(new Event("input", { bubbles: true }));
 
-    let current = "";
-    for (const char of [...text]) {
-      try {
-        el.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: char }));
-      } catch {}
+    // Cốc Cốc/KD-MID accepts a real edit/paste path more reliably than synthetic
+    // key events. execCommand("insertText") mutates the focused input through the
+    // browser editing pipeline, closest to the user's successful manual paste.
+    let inserted = false;
+    try {
+      inserted = Boolean(document.execCommand?.("insertText", false, text));
+    } catch {}
 
+    if (!inserted || String(el.value || "").trim() !== text) {
       try {
-        if (typeof InputEvent === "function") {
-          el.dispatchEvent(new InputEvent("beforeinput", {
-            bubbles: true,
-            cancelable: true,
-            data: char,
-            inputType: "insertText",
-          }));
+        if (typeof el.setRangeText === "function") {
+          const len = String(el.value || "").length;
+          el.setSelectionRange(0, len);
+          el.setRangeText(text, 0, len, "end");
+          inserted = true;
         }
-      } catch {}
-
-      current += char;
-      setNativeControlValue(el, current);
-
-      try {
-        if (typeof InputEvent === "function") {
-          el.dispatchEvent(new InputEvent("input", {
-            bubbles: true,
-            data: char,
-            inputType: "insertText",
-          }));
-        } else {
-          el.dispatchEvent(new Event("input", { bubbles: true }));
-        }
-      } catch {
-        el.dispatchEvent(new Event("input", { bubbles: true }));
-      }
-
-      try {
-        el.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: char }));
       } catch {}
     }
 
+    if (String(el.value || "").trim() !== text) {
+      setNativeControlValue(el, text);
+    }
+
+    try {
+      el.dispatchEvent(new InputEvent("input", {
+        bubbles: true,
+        data: text,
+        inputType: "insertText",
+      }));
+    } catch {
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+    }
     el.dispatchEvent(new Event("change", { bubbles: true }));
     try { el.blur(); } catch {}
     refreshAspNetValidators();
@@ -957,6 +948,104 @@
 
     refreshAspNetValidators();
     status(`KD-MID Visa VN: trang thông tin chuyến đi OK. Ô hiển thị Населенный пункт = ${finalRoute.value}.`);
+    return { handled: true, ready: true };
+  }
+
+  function isContactInfoPage() {
+    const body = norm(document.body.innerText || "");
+    return body.includes("ИМЕЕТЕ ЛИ ВЫ АДРЕС ПОСТОЯННОГО ПРОЖИВАНИЯ") &&
+      body.includes("АДРЕС ВАШЕГО ПОСТОЯННОГО ПРОЖИВАНИЯ") &&
+      body.includes("МЕСТО РАБОТЫ (УЧЕБЫ)") &&
+      body.includes("РАБОЧИЙ АДРЕС");
+  }
+
+  function contactInfoControls() {
+    return {
+      hasPermanentAddress: selectControlForField("Имеете ли Вы адрес постоянного проживания?"),
+      permanentAddress: textControlForField("Адрес вашего постоянного проживания"),
+      personalPhone: textControlForField("Ваш личный телефон"),
+      personalEmail: textControlForField("Ваш личный E-mail"),
+      worksOrStudies: selectControlForField("Вы работаете (работали ранее), учитесь (учились ранее)?"),
+      employer: textControlForField("Место работы (учебы)"),
+      position: textControlForField("Должность"),
+      workAddress: textControlForField("Рабочий адрес"),
+      workPhone: textControlForField("Рабочий телефон"),
+      workEmail: textControlForField("Рабочий E-mail"),
+      children: selectControlForField("Дети до 16 лет"),
+      relatives: selectControlForField("Имеете ли Вы в настоящее время родственников"),
+    };
+  }
+
+  function fillContactInfoPage(payload) {
+    if (!isContactInfoPage()) return { handled: false, ready: false };
+    const A = payload.applicant || {};
+    const C = contactInfoControls();
+
+    const steps = [
+      ["Có địa chỉ thường trú", () => C.hasPermanentAddress ? writeSelectControl(C.hasPermanentAddress, ["ДА","YES"]) : "missing"],
+      ["Địa chỉ thường trú", () => C.permanentAddress ? writeTextControl(C.permanentAddress, payload.fixedPermanentAddress || A.personalAddress) : "missing"],
+      ["Điện thoại cá nhân", () => C.personalPhone ? writeTextControl(C.personalPhone, A.phone) : "missing"],
+      ["E-mail cá nhân", () => C.personalEmail ? writeTextControl(C.personalEmail, A.email) : "missing"],
+      ["Đang làm việc/học tập", () => C.worksOrStudies ? writeSelectControl(C.worksOrStudies, ["ДА","YES"]) : "missing"],
+      ["Nơi làm việc/học tập", () => C.employer ? writeTextControl(C.employer, payload.employer) : "missing"],
+      ["Chức vụ", () => C.position ? writeTextControl(C.position, A.position || payload.defaultPosition) : "missing"],
+      ["Địa chỉ cơ quan", () => C.workAddress ? writeTextControl(C.workAddress, payload.employerAddress) : "missing"],
+      ["Điện thoại cơ quan", () => C.workPhone ? writeTextControl(C.workPhone, payload.fixedWorkPhone || A.workPhone) : "missing"],
+      ["E-mail cơ quan", () => C.workEmail ? writeTextControl(C.workEmail, payload.employerEmail) : "missing"],
+      ["Trẻ em dưới 16 tuổi", () => C.children ? writeSelectControl(C.children, ["НЕТ","NO"]) : "missing"],
+      ["Người thân tại Nga", () => C.relatives ? writeSelectControl(C.relatives, ["НЕТ","NO"]) : "missing"],
+    ];
+
+    for (const [label, fn] of steps) {
+      const state = fn();
+      if (state === "changed") {
+        status(`KD-MID Visa VN: đã điền ${label}. Đang tiếp tục trang liên hệ…`, "wait");
+        continueAutofill(payload, 140);
+        return { handled: true, ready: false };
+      }
+      if (state !== "ready") {
+        status(`KD-MID Visa VN: đang chờ đúng trường ${label}; chưa được phép bấm Далее.`, "wait");
+        continueAutofill(payload, 220);
+        return { handled: true, ready: false };
+      }
+    }
+
+    const finalC = contactInfoControls();
+    const distinctText = [
+      finalC.permanentAddress,
+      finalC.personalPhone,
+      finalC.personalEmail,
+      finalC.employer,
+      finalC.position,
+      finalC.workAddress,
+      finalC.workPhone,
+      finalC.workEmail,
+    ].filter(Boolean);
+    const uniqueTextCount = new Set(distinctText).size;
+
+    const ready =
+      uniqueTextCount === distinctText.length &&
+      finalC.hasPermanentAddress && selectAlreadyHas(finalC.hasPermanentAddress, ["ДА","YES"]) &&
+      finalC.permanentAddress && String(finalC.permanentAddress.value) === String(payload.fixedPermanentAddress || A.personalAddress || "") &&
+      finalC.personalPhone && String(finalC.personalPhone.value) === String(A.phone || "") &&
+      finalC.personalEmail && String(finalC.personalEmail.value) === String(A.email || "") &&
+      finalC.worksOrStudies && selectAlreadyHas(finalC.worksOrStudies, ["ДА","YES"]) &&
+      finalC.employer && String(finalC.employer.value) === String(payload.employer || "") &&
+      finalC.position && String(finalC.position.value) === String(A.position || payload.defaultPosition || "") &&
+      finalC.workAddress && String(finalC.workAddress.value) === String(payload.employerAddress || "") &&
+      finalC.workPhone && String(finalC.workPhone.value) === String(payload.fixedWorkPhone || A.workPhone || "") &&
+      finalC.workEmail && String(finalC.workEmail.value) === String(payload.employerEmail || "") &&
+      finalC.children && selectAlreadyHas(finalC.children, ["НЕТ","NO"]) &&
+      finalC.relatives && selectAlreadyHas(finalC.relatives, ["НЕТ","NO"]);
+
+    if (!ready) {
+      status("KD-MID Visa VN: trang liên hệ còn trường sai/đang trỏ nhầm ô; đang tự sửa, chưa bấm Далее.", "wait");
+      continueAutofill(payload, 180);
+      return { handled: true, ready: false };
+    }
+
+    refreshAspNetValidators();
+    status("KD-MID Visa VN: trang liên hệ/cơ quan đã điền đúng từng ô.");
     return { handled: true, ready: true };
   }
 
@@ -1236,24 +1325,14 @@
     const visitPage = fillVisitInfoPage(payload);
     if (visitPage.handled) return visitPage.ready ? 1 : 0;
 
+    const contactPage = fillContactInfoPage(payload);
+    if (contactPage.handled) return contactPage.ready ? 1 : 0;
+
     const A = payload.applicant || {};
     let recognized = 0;
     const mark = (ok) => { if (ok) recognized += 1; };
 
     recognized += fillPassword(payload);
-
-    mark(setYesNo("Имеете ли Вы адрес постоянного проживания", true));
-    mark(setText("Адрес вашего постоянного проживания", payload.fixedPermanentAddress || A.personalAddress));
-    mark(setText("Ваш личный телефон", A.phone));
-    mark(setText("Ваш личный E-mail", A.email));
-    mark(setYesNo(["Вы работаете","Вы работаете (работали ранее), учитесь"], true));
-    mark(setText("Место работы (учебы)", payload.employer));
-    mark(setText("Должность", A.position || payload.defaultPosition));
-    mark(setText("Рабочий адрес", payload.employerAddress));
-    mark(setText("Рабочий телефон", payload.fixedWorkPhone || A.workPhone));
-    mark(setText("Рабочий E-mail", payload.employerEmail));
-    mark(setYesNo("Дети до 16 лет", false));
-    mark(setYesNo("Имеете ли Вы в настоящее время родственников", false));
 
     mark(setSelect("Наименование учреждения", payload.embassy));
     return recognized;
