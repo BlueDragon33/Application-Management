@@ -14,10 +14,10 @@ test("KD-MID Visa is registered as an internal Tool", () => {
   assert.match(page, /requireChatGPTUser\("\/tools\/kd-mid-visa"\)/);
 });
 
-test("Companion v0.9.21 is active in script and UI", () => {
-  assert.match(companion, /@version\s+0\.9\.21/);
-  assert.match(companion, /const VERSION = "0\.9\.21"/);
-  assert.match(tool, /Companion v0\.9\.21/);
+test("Companion v0.9.22 is active in script and UI", () => {
+  assert.match(companion, /@version\s+0\.9\.22/);
+  assert.match(companion, /const VERSION = "0\.9\.22"/);
+  assert.match(tool, /Companion v0\.9\.22/);
 });
 
 test("landing, password and official A4 flows remain intact", () => {
@@ -156,7 +156,7 @@ test("navigation clicks are latched so the same page is not clicked repeatedly w
 });
 
 
-test("v0.9.21 emulates real focus/edit/blur lifecycle so fields fill without user clicks", () => {
+test("v0.9.22 emulates real focus/edit/blur lifecycle so fields fill without user clicks", () => {
   assert.match(companion, /el\.focus\(\{ preventScroll: true \}\)/);
   assert.match(companion, /new FocusEvent\("focusin"/);
   assert.match(companion, /new FocusEvent\("focusout"/);
@@ -175,7 +175,7 @@ test("status-box DOM mutations do not recursively retrigger the runner", () => {
 });
 
 
-test("v0.9.21 handles the visit information page with exact field semantics", () => {
+test("v0.9.22 handles the visit information page with exact field semantics", () => {
   assert.match(companion, /function isVisitInfoPage/);
   assert.match(companion, /function fillVisitInfoPage/);
   assert.match(companion, /В КАКОЕ УЧРЕЖДЕНИЕ НАПРАВЛЯЕТЕСЬ/);
@@ -210,7 +210,7 @@ test("visit page cannot auto-advance until its dedicated handler is ready", () =
 });
 
 
-test("v0.9.21 directly maps stable personal-page controls by page order", () => {
+test("v0.9.22 directly maps stable personal-page controls by page order", () => {
   assert.match(companion, /function personalPageControls/);
   assert.match(companion, /surname: texts\[0\]/);
   assert.match(companion, /givenNames: texts\[1\]/);
@@ -219,14 +219,14 @@ test("v0.9.21 directly maps stable personal-page controls by page order", () => 
   assert.match(companion, /bornInRussia: selects\[3\]/);
 });
 
-test("v0.9.21 directly maps passport-page controls by page order", () => {
+test("v0.9.22 directly maps passport-page controls by page order", () => {
   assert.match(companion, /function passportPageControls/);
   assert.match(companion, /passportNo: texts\[0\]/);
   assert.match(companion, /issue: \[texts\[1\].*selects\[0\].*texts\[2\]/s);
   assert.match(companion, /expiry: \[texts\[3\].*selects\[1\].*texts\[4\]/s);
 });
 
-test("v0.9.21 programmatically clicks and focuses controls before writing", () => {
+test("v0.9.22 programmatically clicks and focuses controls before writing", () => {
   assert.match(companion, /function activateControl/);
   assert.match(companion, /el\.dispatchEvent\(new MouseEvent\("mousedown"/);
   assert.match(companion, /el\.click\(\)/);
@@ -242,13 +242,13 @@ test("personal page uses direct mapped controls before label fallback", () => {
 });
 
 
-test("v0.9.21 fills KD-MID dates in postback-safe order", () => {
+test("v0.9.22 fills KD-MID dates in postback-safe order", () => {
   assert.match(companion, /month dropdown can trigger an ASP\.NET postback/);
   assert.match(companion, /Select the month FIRST/);
   assert.match(companion, /return dateControlMatches\(monthEl, parts\[1\], 1\) \? "changed" : "waiting"/);
 });
 
-test("v0.9.21 only fills day and year after the month already matches", () => {
+test("v0.9.22 only fills day and year after the month already matches", () => {
   const fn = companion.slice(companion.indexOf("function writeDateControls"), companion.indexOf("function refreshAspNetValidators"));
   const monthBranch = fn.indexOf('if (monthEl.tagName === "SELECT"');
   const dayWrite = fn.indexOf('if (!dateControlMatches(dayEl');
@@ -257,7 +257,7 @@ test("v0.9.21 only fills day and year after the month already matches", () => {
 });
 
 
-test("v0.9.21 writes KD-MID day and year atomically after month is stable", () => {
+test("v0.9.22 writes KD-MID day and year atomically after month is stable", () => {
   assert.match(companion, /function writeDateTextAtomic/);
   assert.match(companion, /Do NOT blur\/change here/);
   assert.match(companion, /write DAY \+ YEAR atomically/);
@@ -265,93 +265,93 @@ test("v0.9.21 writes KD-MID day and year atomically after month is stable", () =
   assert.match(companion, /const yearOk = yearReadyBefore \|\| writeDateTextAtomic\(yearEl, parts\[2\]\)/);
 });
 
-test("v0.9.21 does not use fire() on day/year while the date group is incomplete", () => {
+test("v0.9.22 does not use fire() on day/year while the date group is incomplete", () => {
   const fn = companion.slice(companion.indexOf("function writeDateTextAtomic"), companion.indexOf("function refreshAspNetValidators"));
   assert.doesNotMatch(fn, /fire\(el\)/);
   assert.match(fn, /refreshAspNetValidators\(\)/);
 });
 
 
-test("v0.9.21 binds personal fields to their own DOM row instead of global input order", () => {
+test("v0.9.22 binds personal fields to their own DOM row instead of global input order", () => {
   assert.match(companion, /function controlsForField/);
   assert.match(companion, /node\.closest\?\.\("tr"\)/);
   assert.match(companion, /textControlForField\("Место рождения"\)/);
   assert.match(companion, /dateControlsForField\("Дата рождения"\)/);
 });
 
-test("v0.9.21 enforces strict DD\/MM\/YYYY before writing dates", () => {
+test("v0.9.22 enforces strict DD\/MM\/YYYY before writing dates", () => {
   assert.match(companion, /function parseDmyStrict/);
   assert.match(companion, /\^\(\\d\{2\}\)\\\/\(\\d\{2\}\)\\\/\(\\d\{4\}\)\$/);
   assert.match(companion, /const parts = parseDmyStrict\(value\)/);
 });
 
-test("v0.9.21 validates the actual row-bound personal controls before declaring page OK", () => {
+test("v0.9.22 validates the actual row-bound personal controls before declaring page OK", () => {
   assert.match(companion, /const finalC = personalPageControls\(\)/);
   assert.match(companion, /finalC\.dob\.length === 3/);
   assert.match(companion, /DOB phải là DD\/MM\/YYYY/);
 });
 
 
-test("v0.9.21 resolves each personal field from its exact label, not a shared outer row", () => {
+test("v0.9.22 resolves each personal field from its exact label, not a shared outer row", () => {
   assert.match(companion, /function exactFieldLabelNode/);
   assert.match(companion, /function controlsFromExactField/);
   assert.match(companion, /This is intentionally NOT based on a parent <tr>/);
   assert.doesNotMatch(companion, /node\.closest\?\.\("tr"\)/);
 });
 
-test("v0.9.21 prevents surname, given names and birth place from sharing one input", () => {
+test("v0.9.22 prevents surname, given names and birth place from sharing one input", () => {
   assert.match(companion, /const distinctPersonalTextControls/);
   assert.match(companion, /finalC\.surname !== finalC\.givenNames/);
   assert.match(companion, /finalC\.givenNames !== finalC\.birthPlace/);
   assert.match(companion, /selector trùng ô giữa Фамилия \/ Имя \/ Место рождения/);
 });
 
-test("v0.9.21 requires DOB controls to be exactly input-select-input after the DOB label", () => {
+test("v0.9.22 requires DOB controls to be exactly input-select-input after the DOB label", () => {
   assert.match(companion, /function dateControlsForField/);
   assert.match(companion, /if \(selectIndex !== 1\) return \[\]/);
 });
 
 
-test("v0.9.21 targets the route-city input explicitly", () => {
+test("v0.9.22 targets the route-city input explicitly", () => {
   assert.match(companion, /function routeCityControl/);
   assert.match(companion, /Маршрут \(населенные пункты\)/);
   assert.match(companion, /Населенный пункт/);
   assert.match(companion, /writeTextControl\(routeInput, routeValue\)/);
 });
 
-test("v0.9.21 defaults route city to МОСКВА and blocks Next until route matches", () => {
+test("v0.9.22 defaults route city to МОСКВА and blocks Next until route matches", () => {
   assert.match(companion, /payload\.city \|\| "МОСКВА"/);
   assert.match(companion, /Маршрут chưa khớp payload; chưa được phép bấm Далее/);
 });
 
 
-test("v0.9.21 resolves the visible route input by geometry near the exact label", () => {
+test("v0.9.22 resolves the visible route input by geometry near the exact label", () => {
   assert.match(companion, /function visualFieldInput/);
   assert.match(companion, /getBoundingClientRect/);
   assert.match(companion, /visualFieldInput\("Населенный пункт"\)/);
 });
 
-test("v0.9.21 only accepts the route input if it visually matches the displayed route label", () => {
+test("v0.9.22 only accepts the route input if it visually matches the displayed route label", () => {
   assert.match(companion, /function routeCityControlLooksRight/);
   assert.match(companion, /!routeCityControlLooksRight\(routeInput\)/);
   assert.match(companion, /!routeCityControlLooksRight\(finalRoute\)/);
 });
 
-test("v0.9.21 DOM fallback restricts route input to the section before insurance", () => {
+test("v0.9.22 DOM fallback restricts route input to the section before insurance", () => {
   assert.match(companion, /beforeInsurance/);
   assert.match(companion, /НАСЕЛЕННЫЙ ПУНКТ/);
   assert.match(companion, /УДАЛИТЬ/);
 });
 
 
-test("v0.9.21 hard-targets the actual gray route card input", () => {
+test("v0.9.22 hard-targets the actual gray route card input", () => {
   assert.match(companion, /function routeCityCardInput/);
   assert.match(companion, /НАСЕЛЕННЫЙ ПУНКТ/);
   assert.match(companion, /УДАЛИТЬ/);
   assert.match(companion, /inputs\.length !== 1/);
 });
 
-test("v0.9.21 always fills exactly МОСКВА into the real route input", () => {
+test("v0.9.22 always fills exactly МОСКВА into the real route input", () => {
   assert.match(companion, /const routeValue = "МОСКВА"/);
   assert.match(companion, /setNativeControlValue\(routeInput, routeValue\)/);
   assert.match(companion, /routeInput\.setAttribute\("value", routeValue\)/);
@@ -359,14 +359,14 @@ test("v0.9.21 always fills exactly МОСКВА into the real route input", () =
 });
 
 
-test("v0.9.21 anchors the real route input from the visible Удалить button", () => {
+test("v0.9.22 anchors the real route input from the visible Удалить button", () => {
   assert.match(companion, /function routeDeleteButtons/);
   assert.match(companion, /norm\(el\.textContent \|\| el\.value \|\| ""\) === "УДАЛИТЬ"/);
   assert.match(companion, /for \(const button of routeDeleteButtons\(\)\)/);
   assert.match(companion, /text\.includes\("НАСЕЛЕННЫЙ ПУНКТ"\)/);
 });
 
-test("v0.9.21 types МОСКВА as Cyrillic keystrokes into the route input", () => {
+test("v0.9.22 types МОСКВА as Cyrillic keystrokes into the route input", () => {
   assert.match(companion, /function typeRouteCityValue/);
   assert.match(companion, /new KeyboardEvent\("keydown"/);
   assert.match(companion, /new InputEvent\("beforeinput"/);
@@ -374,7 +374,36 @@ test("v0.9.21 types МОСКВА as Cyrillic keystrokes into the route input", (
   assert.match(companion, /const routeValue = "МОСКВА"/);
 });
 
-test("v0.9.21 route readiness is tied to the same Delete-anchored input", () => {
+test("v0.9.22 route readiness is tied to the same Delete-anchored input", () => {
   assert.match(companion, /return routeCityControl\(\) === el/);
   assert.match(companion, /đã khóa đúng ô Маршрут/);
+});
+
+
+test("v0.9.22 has a dedicated contact-information page handler", () => {
+  assert.match(companion, /function isContactInfoPage/);
+  assert.match(companion, /function contactInfoControls/);
+  assert.match(companion, /function fillContactInfoPage/);
+  assert.match(companion, /Адрес вашего постоянного проживания/);
+  assert.match(companion, /Место работы \(учебы\)/);
+  assert.match(companion, /Рабочий E-mail/);
+});
+
+test("v0.9.22 verifies contact fields are distinct before Next", () => {
+  assert.match(companion, /const uniqueTextCount = new Set\(distinctText\)\.size/);
+  assert.match(companion, /uniqueTextCount === distinctText\.length/);
+  assert.match(companion, /страница liên hệ|trang liên hệ còn trường sai/);
+});
+
+test("v0.9.22 no longer uses generic contact filling", () => {
+  const fill = companion.slice(companion.indexOf("function fillPage"), companion.indexOf("function addHints"));
+  assert.match(fill, /fillContactInfoPage\(payload\)/);
+  assert.doesNotMatch(fill, /mark\(setText\("Адрес вашего постоянного проживания"/);
+  assert.doesNotMatch(fill, /mark\(setText\("Место работы \(учебы\)"/);
+});
+
+test("v0.9.22 uses browser editing pipeline for МОСКВА route insertion", () => {
+  assert.match(companion, /execCommand\?\.\("insertText", false, text\)/);
+  assert.match(companion, /setRangeText/);
+  assert.match(companion, /closest to the user's successful manual paste/);
 });
