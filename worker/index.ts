@@ -166,18 +166,18 @@ function isPublicPwaAsset(request: Request, url: URL) {
   ]).has(url.pathname);
 }
 
-function isPublicVisaIntakeRequest(request: Request, url: URL) {
-  if (request.method === "GET" || request.method === "HEAD") {
-    if (url.pathname === "/api/kd-mid-visa-intake/public") return true;
-  }
-  return request.method === "POST" && url.pathname === "/api/kd-mid-visa-intake/public";
-}
-
 function isCloudflareClientAsset(request: Request, url: URL) {
   if (request.method !== "GET" && request.method !== "HEAD") return false;
   if (url.pathname.startsWith("/assets/")) return true;
   if (url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/_vinext/")) return true;
   return /\.(?:css|m?js|map|png|jpe?g|webp|avif|gif|svg|ico|woff2?|ttf|otf|webmanifest)$/i.test(url.pathname);
+}
+
+function isPublicVisaIntakeRequest(request: Request, url: URL) {
+  if (request.method === "GET" || request.method === "HEAD") {
+    if (url.pathname === "/api/kd-mid-visa-intake/public") return true;
+  }
+  return request.method === "POST" && url.pathname === "/api/kd-mid-visa-intake/public";
 }
 
 function freshDynamicResponse(response: Response, cloudflareChannel: boolean) {
