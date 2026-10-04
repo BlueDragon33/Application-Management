@@ -80,6 +80,9 @@ type IntakeLink = {
   createdBy: string;
   createdAt: string;
   expiresAt: string | null;
+  publicPath: string;
+  submissionCount: number;
+  resultCount: number;
 };
 
 type IntakeSubmission = {
@@ -101,6 +104,7 @@ type IntakeSubmission = {
   resubmittedFields: string[];
   revision: number;
   importedApplicantId: string | null;
+  result: { available: true; fileName: string; fileSize: number; uploadedAt: string } | null;
 };
 
 type ResumeRecord = {
@@ -468,6 +472,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
   const [intakeLoading, setIntakeLoading] = useState(false);
   const [intakeLabel, setIntakeLabel] = useState("");
   const [shareUrl, setShareUrl] = useState("");
+  const [resultUploadingId, setResultUploadingId] = useState("");
   const [correctionSelections, setCorrectionSelections] = useState<Record<string, string[]>>({});
   const [deleteSelection, setDeleteSelection] = useState<Record<DeleteScope, boolean>>({
     applicants: false,
@@ -616,6 +621,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       ok?: boolean;
       error?: string;
       token?: string;
+      link?: Partial<IntakeLink>;
       links?: IntakeLink[];
       submissions?: IntakeSubmission[];
     };
@@ -641,8 +647,9 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
           preferredEmbassy: store.common.embassy,
         },
       });
-      if (!data.token) throw new Error("Không nhận được mã chia sẻ.");
-      const url = `${window.location.origin}/visa-intake?token=${encodeURIComponent(data.token)}`;
+      const publicPath = String(data.link?.publicPath || "");
+      if (!publicPath) throw new Error("Không nhận được đường dẫn đợt thu hồ sơ.");
+      const url = `${window.location.origin}${publicPath}`;
       setShareUrl(url);
       await navigator.clipboard.writeText(url).catch(() => undefined);
       setNotice("Đã tạo và sao chép link Form hồ sơ Visa. Gửi link này cho người cần điền.");
@@ -740,6 +747,39 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       setNotice(`Đã trả hồ sơ #${submission.queueNo}; người gửi sẽ thấy ${correctionFields.length} ô cần sửa được bôi đỏ.`);
     } catch (reason) {
       setNotice(reason instanceof Error ? reason.message : "Không thể cập nhật hồ sơ.");
+    }
+  }
+
+  function intakePublicUrl(link: IntakeLink) {
+    return `${window.location.origin}${link.publicPath || `/visa-intake?batch=${encodeURIComponent(link.id)}`}`;
+  }
+
+  async function uploadIntakeResult(submission: IntakeSubmission, file: File | null) {
+    if (!file) return;
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      setNotice("Chỉ chấp nhận file PDF kết quả.");
+      return;
+    }
+    if (file.size > 2_000_000) {
+      setNotice("PDF kết quả không được vượt quá 2 MB.");
+      return;
+    }
+    setResultUploadingId(submission.id);
+    try {
+      const form = new FormData();
+      form.set("action", "send-result");
+      form.set("submissionId", submission.id);
+      form.set("file", file, file.name);
+      const response = await fetch("/api/kd-mid-visa-intake/admin", { method: "POST", body: form });
+      const data = await response.json() as { ok?: boolean; error?: string; links?: IntakeLink[]; submissions?: IntakeSubmission[] };
+      if (!response.ok || !data.ok) throw new Error(data.error || "Không gửi được PDF kết quả.");
+      setIntakeLinks(data.links ?? []);
+      setIntakeSubmissions(data.submissions ?? []);
+      setNotice(`Đã gửi PDF kết quả cho #${submission.queueNo} · ${submission.applicantName}. Người khai sẽ thấy trong mục Nhận kết quả.`);
+    } catch (reason) {
+      setNotice(reason instanceof Error ? reason.message : "Không gửi được PDF kết quả.");
+    } finally {
+      setResultUploadingId("");
     }
   }
 
@@ -1059,12 +1099,19 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         {shareUrl ? <div className={styles.shareUrl}><input readOnly value={shareUrl}/><button className={styles.secondary} onClick={() => void navigator.clipboard.writeText(shareUrl)}>Sao chép</button><a href={shareUrl} target="_blank" rel="noreferrer">Mở form ↗</a></div> : null}
       </div>
       <div className={styles.intakeLinks}>
-        {intakeLinks.filter((item) => item.status === "active").map((item) => <article key={item.id}><div><strong>{item.label}</strong><small>Tạo {new Date(item.createdAt).toLocaleString("vi-VN")}</small></div><button className={styles.danger} onClick={() => void closeIntakeLink(item.id)}>Đóng link</button></article>)}
+        {intakeLinks.map((item) => {
+          const url = intakePublicUrl(item);
+          return <article key={item.id} data-status={item.status}>
+            <div className={styles.intakeLinkMeta}><strong>{item.label}</strong><small>Tạo {new Date(item.createdAt).toLocaleString("vi-VN")} · {item.submissionCount} hồ sơ · {item.resultCount} PDF kết quả · {item.status === "active" ? "Đang mở" : "Đã đóng"}</small></div>
+            <div className={styles.intakeLinkUrl}><input readOnly value={url}/><button className={styles.secondary} onClick={() => void navigator.clipboard.writeText(url)}>Sao chép</button><a href={url} target="_blank" rel="noreferrer">Mở form ↗</a></div>
+            {item.status === "active" ? <button className={styles.danger} onClick={() => void closeIntakeLink(item.id)}>Đóng link</button> : <span className={styles.closedBadge}>Đã đóng</span>}
+          </article>;
+        })}
       </div>
       <div className={styles.intakeHeader}><strong>Hàng chờ xác minh</strong><span>{pending.length} hồ sơ đang chờ · sắp theo số tiếp nhận tăng dần</span></div>
       {!intakeSubmissions.length ? <div className={styles.empty}>Chưa có hồ sơ nào gửi qua Form.</div> : <div className={styles.intakeList}>
         {intakeSubmissions.map((item) => <details key={item.id} open={item.status === "pending"} data-status={item.status}>
-          <summary><b>#{item.queueNo}</b><div><strong>{item.applicantName}</strong><small>{item.passportNo} · {item.email} · {new Date(item.submittedAt).toLocaleString("vi-VN")}</small></div><span>{item.status === "pending" ? (item.revision > 0 ? "Đã sửa · chờ xác minh" : "Chờ xác minh") : item.status === "imported" ? "Đã lưu" : item.status === "approved" ? "Đã duyệt" : "Cần chỉnh sửa"}</span></summary>
+          <summary><b>#{item.queueNo}</b><div><strong>{item.applicantName}</strong><small>{item.passportNo} · {item.email} · {new Date(item.submittedAt).toLocaleString("vi-VN")}</small></div><span>{item.status === "pending" ? (item.revision > 0 ? "Đã sửa · chờ xác minh" : "Chờ xác minh") : item.status === "imported" ? "Đã tiếp nhận" : item.status === "approved" ? "Đã duyệt" : "Cần chỉnh sửa"}</span></summary>
           <div className={styles.intakeDetail}>
             <div className={styles.intakeFields}>
               {fieldLabels.map(([key,label]) => {
@@ -1091,6 +1138,10 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
               <div className={styles.intakeActions}><button onClick={() => void verifyAndImport(item)}>✓ Xác minh & lưu hồ sơ</button><button className={styles.danger} disabled={!(correctionSelections[item.id]?.length)} onClick={() => void rejectIntake(item)}>Trả lại · {correctionSelections[item.id]?.length ?? 0} ô cần sửa</button></div>
             </div> : null}
             {item.status === "rejected" ? <div className={styles.returnedInfo}><strong>Đã trả về để sửa</strong><span>{item.reviewNote || "Không có ghi chú thêm."}</span><small>{item.correctionFields?.length ?? 0} ô đã được đánh dấu sai.</small></div> : null}
+            {["approved", "imported"].includes(item.status) ? <div className={styles.resultSendBox}>
+              <div><strong>Kết quả PDF cho người khai</strong><small>{item.result ? `Đã gửi ${item.result.fileName} · ${Math.ceil(item.result.fileSize / 1024)} KB · ${new Date(item.result.uploadedAt).toLocaleString("vi-VN")}` : "Chưa gửi PDF kết quả."}</small></div>
+              <label className={styles.resultFileButton}>{resultUploadingId === item.id ? "Đang gửi…" : item.result ? "Thay PDF kết quả" : "Gửi PDF kết quả"}<input type="file" accept="application/pdf,.pdf" disabled={resultUploadingId === item.id} onChange={(event) => { const file = event.target.files?.[0] ?? null; event.currentTarget.value = ""; void uploadIntakeResult(item, file); }} /></label>
+            </div> : null}
           </div>
         </details>)}
       </div>}
