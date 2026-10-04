@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.10
+// @version      0.9.11
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,7 +17,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.10";
+  const VERSION = "0.9.11";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
@@ -35,11 +35,27 @@
     return style.display !== "none" && style.visibility !== "hidden" && !el.disabled;
   };
   const fire = (el) => {
+    try { el.focus({ preventScroll: true }); } catch { try { el.focus(); } catch {} }
+    el.dispatchEvent(new FocusEvent("focus", { bubbles: false }));
+    el.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
     el.dispatchEvent(new Event("input", { bubbles: true }));
     el.dispatchEvent(new Event("change", { bubbles: true }));
     el.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: "Unidentified" }));
-    el.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
+    el.dispatchEvent(new FocusEvent("blur", { bubbles: false }));
+    el.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+    try { el.blur(); } catch {}
   };
+
+  function setNativeControlValue(el, value) {
+    const proto = el instanceof HTMLTextAreaElement
+      ? HTMLTextAreaElement.prototype
+      : el instanceof HTMLSelectElement
+        ? HTMLSelectElement.prototype
+        : HTMLInputElement.prototype;
+    const descriptor = Object.getOwnPropertyDescriptor(proto, "value");
+    if (descriptor?.set) descriptor.set.call(el, value);
+    else el.value = value;
+  }
 
   function refreshAspNetValidators() {
     try {
@@ -330,7 +346,7 @@
           changed = true;
         }
       } else if (!dateControlMatches(el, part, index)) {
-        el.value = part;
+        setNativeControlValue(el, part);
         fire(el);
         changed = true;
       }
@@ -366,9 +382,9 @@
     const el = firstFollowingControl(labels, 'input:not([type="hidden"]):not([type="button"]):not([type="submit"]),textarea');
     if (!el) return "missing";
     if (String(el.value) === String(value)) return "ready";
-    el.value = value;
+    setNativeControlValue(el, value);
     fire(el);
-    return "changed";
+    return String(el.value) === String(value) ? "changed" : "waiting";
   }
 
   function ensureSelectAfterLabel(labels, values) {
@@ -378,8 +394,9 @@
     if (selectAlreadyHas(el, values)) return "ready";
     const option = exactOption(el, values);
     if (!option) return "waiting";
+    try { el.focus({ preventScroll: true }); } catch { try { el.focus(); } catch {} }
     el.selectedIndex = option.index;
-    el.value = option.value;
+    setNativeControlValue(el, option.value);
     fire(el);
     return "changed";
   }
@@ -406,7 +423,7 @@
           changed = true;
         }
       } else if (!dateControlMatches(el, part, index)) {
-        el.value = part;
+        setNativeControlValue(el, part);
         fire(el);
         changed = true;
       }
@@ -437,40 +454,20 @@
       ["Родились в России", () => ensureSelectAfterLabel("Вы родились в России?", ["НЕТ","NO"])],
     ];
 
-    let waitingFor = "";
-    let changed = false;
     for (const [label, fn] of steps) {
       const state = fn();
-      if (state === "changed") changed = true;
-      else if (state !== "ready" && !waitingFor) waitingFor = label;
+      if (state === "changed") {
+        refreshAspNetValidators();
+        status(`KD-MID Visa VN: đã tự điền ${label}. Đang chuyển sang trường kế tiếp…`, "wait");
+        return { handled: true, ready: false };
+      }
+      if (state !== "ready") {
+        status(`KD-MID Visa VN: đang chờ đúng trường ${label}; không cần bấm chuột vào ô.`, "wait");
+        return { handled: true, ready: false };
+      }
     }
 
     refreshAspNetValidators();
-
-    if (waitingFor) {
-      status(`KD-MID Visa VN: payload ${payloadIdentity(payload)}; đang chờ đúng trường ${waitingFor}…`, "wait");
-      return { handled: true, ready: false };
-    }
-
-    // Re-validate after all writes in the same pass. This avoids a partial page
-    // where only Surname was written and the remaining fields stayed blank.
-    const checks = [
-      ensureTextAfterLabel("Фамилия (согласно паспорту)", A.surname),
-      ensureTextAfterLabel("Имя, другие имена, отчество (согласно паспорту)", A.givenNames),
-      ensureSelectAfterLabel("Есть ли у Вас другие когда-либо использовавшиеся имена", ["НЕТ","NO"]),
-      ensureSelectAfterLabel("Пол", [A.sex]),
-      ensureDateAfterLabel("Дата рождения", A.birthDate),
-      ensureTextAfterLabel("Место рождения", A.birthPlace),
-      ensureSelectAfterLabel("Вы родились в России?", ["НЕТ","NO"]),
-    ];
-    const ready = checks.every((state) => state === "ready");
-    refreshAspNetValidators();
-
-    if (!ready) {
-      status(`KD-MID Visa VN: đã ghi toàn bộ trang cá nhân từ payload ${payloadIdentity(payload)}; đang xác nhận lại giá trị…`, "wait");
-      return { handled: true, ready: false };
-    }
-
     status(`KD-MID Visa VN: trang cá nhân OK: ${payloadIdentity(payload)}.`);
     return { handled: true, ready: true };
   }
@@ -493,32 +490,20 @@
       ["Действителен до", () => ensureDateAfterLabel("Действителен до", A.passportExpiry)],
     ];
 
-    let waitingFor = "";
     for (const [label, fn] of steps) {
       const state = fn();
-      if (state !== "ready" && state !== "changed" && !waitingFor) waitingFor = label;
+      if (state === "changed") {
+        refreshAspNetValidators();
+        status(`KD-MID Visa VN: đã tự điền ${label}. Đang chuyển sang trường hộ chiếu kế tiếp…`, "wait");
+        return { handled: true, ready: false };
+      }
+      if (state !== "ready") {
+        status(`KD-MID Visa VN: đang chờ đúng trường hộ chiếu ${label}; không cần bấm chuột.`, "wait");
+        return { handled: true, ready: false };
+      }
     }
 
     refreshAspNetValidators();
-
-    if (waitingFor) {
-      status(`KD-MID Visa VN: đang chờ đúng trường hộ chiếu ${waitingFor}. Payload: ${A.passportNo || ""} · ${A.passportIssue || ""} · ${A.passportExpiry || ""}`, "wait");
-      return { handled: true, ready: false };
-    }
-
-    const checks = [
-      ensureTextAfterLabel("Номер паспорта", A.passportNo),
-      ensureDateAfterLabel("Дата выдачи", A.passportIssue),
-      ensureDateAfterLabel("Действителен до", A.passportExpiry),
-    ];
-    const ready = checks.every((state) => state === "ready");
-    refreshAspNetValidators();
-
-    if (!ready) {
-      status(`KD-MID Visa VN: đã ghi trang hộ chiếu, đang xác nhận lại ngày/tháng/năm: ${A.passportIssue || ""} → ${A.passportExpiry || ""}`, "wait");
-      return { handled: true, ready: false };
-    }
-
     status(`KD-MID Visa VN: trang hộ chiếu OK: ${A.passportNo || ""} · cấp ${A.passportIssue || ""} · hết hạn ${A.passportExpiry || ""}.`);
     return { handled: true, ready: true };
   }
@@ -536,7 +521,7 @@
     );
     if (!el) return false;
     if (String(el.value) !== String(value)) {
-      el.value = value;
+      setNativeControlValue(el, value);
       fire(el);
     }
     return true;
@@ -1171,7 +1156,13 @@
     window.setTimeout(() => run(current), 50);
   }, true);
 
-  const observer = new MutationObserver(() => {
+  function isOwnStatusMutation(mutation) {
+    const nodes = [...mutation.addedNodes, ...mutation.removedNodes];
+    return nodes.length > 0 && nodes.every((node) => node?.id === "kd-mid-vn-status");
+  }
+
+  const observer = new MutationObserver((mutations) => {
+    if (mutations.length && mutations.every(isOwnStatusMutation)) return;
     const current = currentPayload || readSharedPayload();
     addHints();
     if (!current) return;
