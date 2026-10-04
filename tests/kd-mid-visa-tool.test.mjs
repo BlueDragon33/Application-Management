@@ -14,7 +14,7 @@ test("KD-MID Visa is registered as an internal Tool", () => {
   assert.match(page, /requireChatGPTUser\("\/tools\/kd-mid-visa"\)/);
 });
 
-test("Companion v0.9.4 is active", () => {
+test("Companion v0.9.5 is active", () => {
   assert.match(companion, /@version\s+0\.9\.3/);
   assert.match(companion, /const VERSION = "0\.9\.3"/);
   assert.match(tool, /Companion v0\.9\.3/);
@@ -76,7 +76,7 @@ test("three Vietnam missions remain available", () => {
 });
 
 
-test("v0.9.4 identifies the USSR/Russia citizenship dropdown by its DA/NET options", () => {
+test("v0.9.5 identifies the USSR/Russia citizenship dropdown by its DA/NET options", () => {
   assert.match(companion, /function findYesNoSelect/);
   assert.match(companion, /value === "ДА"/);
   assert.match(companion, /value === "НЕТ"/);
@@ -84,11 +84,35 @@ test("v0.9.4 identifies the USSR/Russia citizenship dropdown by its DA/NET optio
   assert.match(companion, /ensureVisaFormerCitizenship\(Boolean\(A\.hadFormerRussianCitizenship\)\)/);
 });
 
-test("v0.9.4 no longer relies on the long former-citizenship label to find that select", () => {
+test("v0.9.5 no longer relies on the long former-citizenship label to find that select", () => {
   const segment = companion.slice(
     companion.indexOf('const former = A.hadFormerRussianCitizenship'),
     companion.indexOf('if (A.hadFormerRussianCitizenship)', companion.indexOf('const former = A.hadFormerRussianCitizenship'))
   );
   assert.doesNotMatch(segment, /ensureSelectNearLabel\("Если Вы имели гражданство СССР или России"/);
   assert.match(segment, /ensureVisaFormerCitizenship/);
+});
+
+
+test("v0.9.5 maps personal-information fields by the control following each exact label", () => {
+  assert.match(companion, /function firstFollowingControl/);
+  assert.match(companion, /function ensureTextAfterLabel/);
+  assert.match(companion, /function ensureSelectAfterLabel/);
+  assert.match(companion, /function ensureDateAfterLabel/);
+  assert.match(companion, /function fillPersonalInfoPage/);
+  assert.match(companion, /Фамилия \(согласно паспорту\)/);
+  assert.match(companion, /Имя, другие имена, отчество \(согласно паспорту\)/);
+  assert.match(companion, /Место рождения/);
+});
+
+test("v0.9.5 stops generic filling from overwriting personal fields", () => {
+  const fill = companion.slice(companion.indexOf("function fillPage"), companion.indexOf("function addHints"));
+  assert.match(fill, /fillPersonalInfoPage\(payload\)/);
+  assert.doesNotMatch(fill, /setText\("Фамилия \(согласно паспорту\)"/);
+  assert.doesNotMatch(fill, /setText\("Место рождения"/);
+});
+
+test("personal page cannot auto-advance until every field is validated", () => {
+  const segment = companion.slice(companion.indexOf("function maybeAdvance"), companion.indexOf("function status"));
+  assert.match(segment, /isPersonalInfoPage\(\) && recognized < 1/);
 });
