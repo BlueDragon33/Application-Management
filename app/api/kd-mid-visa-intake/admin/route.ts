@@ -219,6 +219,13 @@ export async function POST(request: Request) {
         throw new ControlAccessError("Chỉ Publisher/Owner được xóa hồ sơ đã gửi.", 403, "PUBLISHER_REQUIRED");
       }
       const submissionId = text(body.submissionId, 80);
+      const existing = await database.prepare(
+        "SELECT status FROM visa_intake_submissions WHERE id=? LIMIT 1",
+      ).bind(submissionId).first<{ status: string }>();
+      if (!existing) throw new ControlAccessError("Không tìm thấy hồ sơ cần xóa.", 404, "SUBMISSION_NOT_FOUND");
+      if (!["pending", "rejected"].includes(existing.status)) {
+        throw new ControlAccessError("Chỉ xóa được hồ sơ còn ở hàng chờ xác minh hoặc đang chờ sửa.", 409, "SUBMISSION_DELETE_LOCKED");
+      }
       await database.prepare("DELETE FROM visa_intake_results WHERE submission_id=?").bind(submissionId).run();
       await database.prepare("DELETE FROM visa_intake_submissions WHERE id=?").bind(submissionId).run();
       await audit(actor.email, "visa_intake_deleted", submissionId);

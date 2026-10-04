@@ -730,6 +730,28 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
     });
   }
 
+  async function deleteIntakeSubmission(submission: IntakeSubmission) {
+    if (!["pending", "rejected"].includes(submission.status)) {
+      setNotice("Chỉ xóa được hồ sơ còn ở hàng chờ xác minh hoặc đang chờ người gửi sửa.");
+      return;
+    }
+    const confirmed = window.confirm(
+      `Xóa hồ sơ #${submission.queueNo} · ${submission.applicantName} khỏi hàng chờ?\n\nThao tác này sẽ xóa bản gửi này khỏi hệ thống và không thể hoàn tác.`,
+    );
+    if (!confirmed) return;
+    try {
+      await intakeAction({ action: "delete-submission", submissionId: submission.id });
+      setCorrectionSelections((current) => {
+        const next = { ...current };
+        delete next[submission.id];
+        return next;
+      });
+      setNotice(`Đã xóa #${submission.queueNo} · ${submission.applicantName} khỏi hàng chờ xác minh.`);
+    } catch (reason) {
+      setNotice(reason instanceof Error ? reason.message : "Không thể xóa hồ sơ khỏi hàng chờ.");
+    }
+  }
+
   async function rejectIntake(submission: IntakeSubmission) {
     const correctionFields = correctionSelections[submission.id] ?? [];
     if (!correctionFields.length) {
@@ -1136,9 +1158,9 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
             </div>
             {item.status === "pending" ? <div className={styles.intakeReviewBox}>
               <small>{item.revision > 0 ? "Ô xanh = người gửi đã sửa. Nếu vẫn sai, click ô xanh để chuyển đỏ và trả lại; nếu đúng, bấm Xác minh & lưu hồ sơ." : "Muốn trả hồ sơ: click trực tiếp vào từng ô sai phía trên. Ô được chọn sẽ chuyển đỏ."}</small>
-              <div className={styles.intakeActions}><button onClick={() => void verifyAndImport(item)}>✓ Xác minh & lưu hồ sơ</button><button className={styles.danger} disabled={!(correctionSelections[item.id]?.length)} onClick={() => void rejectIntake(item)}>Trả lại · {correctionSelections[item.id]?.length ?? 0} ô cần sửa</button></div>
+              <div className={styles.intakeActions}><button onClick={() => void verifyAndImport(item)}>✓ Xác minh & lưu hồ sơ</button><button className={styles.danger} disabled={!(correctionSelections[item.id]?.length)} onClick={() => void rejectIntake(item)}>Trả lại · {correctionSelections[item.id]?.length ?? 0} ô cần sửa</button><button className={styles.danger} onClick={() => void deleteIntakeSubmission(item)}>Xóa khỏi hàng chờ</button></div>
             </div> : null}
-            {item.status === "rejected" ? <div className={styles.returnedInfo}><strong>Đã trả về để sửa</strong><span>{item.reviewNote || "Không có ghi chú thêm."}</span><small>{item.correctionFields?.length ?? 0} ô đã được đánh dấu sai.</small></div> : null}
+            {item.status === "rejected" ? <div className={styles.returnedInfo}><strong>Đã trả về để sửa</strong><span>{item.reviewNote || "Không có ghi chú thêm."}</span><small>{item.correctionFields?.length ?? 0} ô đã được đánh dấu sai.</small><button className={styles.danger} onClick={() => void deleteIntakeSubmission(item)}>Xóa khỏi hàng chờ</button></div> : null}
             {["approved", "imported"].includes(item.status) ? <div className={styles.resultSendBox}>
               <div><strong>Kết quả PDF cho người khai</strong><small>{item.result ? `Đã gửi ${item.result.fileName} · ${Math.ceil(item.result.fileSize / 1024)} KB · ${new Date(item.result.uploadedAt).toLocaleString("vi-VN")}` : "Chưa gửi PDF kết quả."}</small></div>
               <label className={styles.resultFileButton}>{resultUploadingId === item.id ? "Đang gửi…" : item.result ? "Thay PDF kết quả" : "Gửi PDF kết quả"}<input type="file" accept="application/pdf,.pdf" disabled={resultUploadingId === item.id} onChange={(event) => { const file = event.target.files?.[0] ?? null; event.currentTarget.value = ""; void uploadIntakeResult(item, file); }} /></label>

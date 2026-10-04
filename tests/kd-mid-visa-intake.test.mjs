@@ -177,3 +177,13 @@ test("closing an intake link removes its admin card while preserving server-side
   assert.match(tool, /Tab đợt này đã được ẩn khỏi danh sách/);
   assert.match(publicApi, /Người đã gửi hồ sơ vẫn có thể mở lại link/);
 });
+
+
+test("admin can delete only pending or rejected submissions from the verification queue with confirmation", () => {
+  assert.match(tool, /function deleteIntakeSubmission\(submission: IntakeSubmission\)/);
+  assert.match(tool, /Xóa khỏi hàng chờ/);
+  assert.match(tool, /window\.confirm/);
+  assert.match(tool, /action: "delete-submission"/);
+  assert.match(api, /SUBMISSION_DELETE_LOCKED/);
+  assert.match(api, /\["pending", "rejected"\]\.includes\(existing\.status\)/);
+});
