@@ -41,7 +41,7 @@ test("production workflow opens official KD-MID directly", () => {
 });
 
 test("Companion v0.9 initializes the first KD-MID page", () => {
-  assert.match(companion, /VERSION = "0\.9\.1"/);
+  assert.match(companion, /VERSION = "0\.9\.2"/);
   assert.match(companion, /ВЬЕТНАМ/);
   assert.match(companion, /РУССКИЙ/);
   assert.match(companion, /Я прочитал эту информацию/);
@@ -104,4 +104,21 @@ test("landing page cannot advance until Russian is actually selected", () => {
   assert.match(segment, /isLandingPage\(\)/);
   assert.match(segment, /landingPageReady\(\)/);
   assert.ok(segment.indexOf("landingPageReady") < segment.indexOf("ЗАПОЛНИТЬ НОВУЮ АНКЕТУ"));
+});
+
+
+test("v0.9.2 matches the exact Russian language option instead of any option containing RUSSIAN", () => {
+  assert.match(companion, /findSelectWithExactOption/);
+  assert.match(companion, /РУССКИЙ \(RUSSIAN\)/);
+  assert.match(companion, /selectHasExactValue/);
+  assert.match(companion, /setExactSelectOption/);
+});
+
+test("v0.9.2 fills landing page sequentially to avoid country postback racing language selection", () => {
+  assert.match(companion, /function fillLandingPage/);
+  const segment = companion.slice(companion.indexOf("function fillLandingPage"), companion.indexOf("function setYesNo"));
+  assert.ok(segment.indexOf("ВЬЕТНАМ") < segment.indexOf("РУССКИЙ \(RUSSIAN\)"));
+  assert.match(segment, /đã chọn Việt Nam\. Đang chờ trang ổn định/);
+  assert.match(segment, /đã chọn РУССКИЙ \(RUSSIAN\)/);
+  assert.match(companion, /if \(isLandingPage\(\)\) \{[\s\S]*fillLandingPage\(\)/);
 });
