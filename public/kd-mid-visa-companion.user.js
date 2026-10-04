@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.3
+// @version      0.9.4
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,7 +17,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.3";
+  const VERSION = "0.9.4";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
@@ -179,6 +179,30 @@
     if (select.disabled || select.options.length <= 1) return "waiting";
     if (selectAlreadyHas(select, values)) return "ready";
     const option = exactOption(select, values);
+    if (!option) return "waiting";
+    select.selectedIndex = option.index;
+    select.value = option.value;
+    fire(select);
+    return "changed";
+  }
+
+  function findYesNoSelect() {
+    return [...document.querySelectorAll("select")].find((select) => {
+      if (!visible(select)) return false;
+      const values = [...select.options].map((option) => norm(option.textContent || option.value));
+      const hasYes = values.some((value) => value === "ДА" || value === "YES");
+      const hasNo = values.some((value) => value === "НЕТ" || value === "NO");
+      return hasYes && hasNo;
+    }) || null;
+  }
+
+  function ensureVisaFormerCitizenship(value) {
+    const select = findYesNoSelect();
+    if (!select) return "missing";
+    if (select.disabled || select.options.length <= 1) return "waiting";
+    const wants = value ? ["ДА","YES"] : ["НЕТ","NO"];
+    if (selectAlreadyHas(select, wants)) return "ready";
+    const option = exactOption(select, wants);
     if (!option) return "waiting";
     select.selectedIndex = option.index;
     select.value = option.value;
@@ -414,13 +438,13 @@
     }
 
     const former = A.hadFormerRussianCitizenship ? ["ДА"] : ["НЕТ"];
-    state = ensureSelectNearLabel("Если Вы имели гражданство СССР или России", former);
+    state = ensureVisaFormerCitizenship(Boolean(A.hadFormerRussianCitizenship));
     if (state === "changed") {
       status("KD-MID Visa VN: đã chọn quốc tịch Liên Xô/Nga = " + former[0] + ". Đang chờ cập nhật…", "wait");
       return { handled: true, ready: false };
     }
     if (state !== "ready") {
-      status("KD-MID Visa VN: đang chờ trường quốc tịch Liên Xô/Nga…", "wait");
+      status("KD-MID Visa VN: đang dò đúng dropdown ДА/НЕТ của quốc tịch Liên Xô/Nga…", "wait");
       return { handled: true, ready: false };
     }
 

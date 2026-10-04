@@ -14,7 +14,7 @@ test("KD-MID Visa is registered as an internal Tool", () => {
   assert.match(page, /requireChatGPTUser\("\/tools\/kd-mid-visa"\)/);
 });
 
-test("Companion v0.9.3 is active", () => {
+test("Companion v0.9.4 is active", () => {
   assert.match(companion, /@version\s+0\.9\.3/);
   assert.match(companion, /const VERSION = "0\.9\.3"/);
   assert.match(tool, /Companion v0\.9\.3/);
@@ -73,4 +73,22 @@ test("three Vietnam missions remain available", () => {
   assert.match(tool, /ПОСОЛЬСТВО РФ ВО ВЬЕТНАМЕ/);
   assert.match(tool, /ГЕНКОНСУЛЬСТВО РФ В ДАНАНГЕ/);
   assert.match(tool, /ГЕНКОНСУЛЬСТВО РФ В ХОШИМИНЕ/);
+});
+
+
+test("v0.9.4 identifies the USSR/Russia citizenship dropdown by its DA/NET options", () => {
+  assert.match(companion, /function findYesNoSelect/);
+  assert.match(companion, /value === "ДА"/);
+  assert.match(companion, /value === "НЕТ"/);
+  assert.match(companion, /function ensureVisaFormerCitizenship/);
+  assert.match(companion, /ensureVisaFormerCitizenship\(Boolean\(A\.hadFormerRussianCitizenship\)\)/);
+});
+
+test("v0.9.4 no longer relies on the long former-citizenship label to find that select", () => {
+  const segment = companion.slice(
+    companion.indexOf('const former = A.hadFormerRussianCitizenship'),
+    companion.indexOf('if (A.hadFormerRussianCitizenship)', companion.indexOf('const former = A.hadFormerRussianCitizenship'))
+  );
+  assert.doesNotMatch(segment, /ensureSelectNearLabel\("Если Вы имели гражданство СССР или России"/);
+  assert.match(segment, /ensureVisaFormerCitizenship/);
 });
