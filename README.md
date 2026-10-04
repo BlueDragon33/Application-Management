@@ -197,3 +197,21 @@ Sau khi đổi environment/secret phải phát hành lại bản Site được d
 - `npm run lint`
 
 Source chính nằm trong `app/`; D1 schema/migrations nằm trong `db/` và `drizzle/`.
+
+## KD-MID Visa Intake
+
+Tool KD-MID có thêm luồng thu hồ sơ từ người khác qua form tiếng Việt:
+
+1. quản trị viên tạo một link thu hồ sơ trong `/tools/kd-mid-visa`;
+2. người nhận link điền `/visa-intake?token=...` mà không cần tài khoản quản trị;
+3. dữ liệu được lưu tạm trong D1 production ở `visa_intake_submissions`;
+4. quản trị viên xem hàng chờ theo `queue_no`, xác minh từng trường rồi chọn **Xác minh & lưu hồ sơ**;
+5. hồ sơ đã duyệt được nhập vào danh sách KD-MID trên trình duyệt theo đúng thứ tự tiếp nhận để tiếp tục tự động điền visa.kdmid.ru.
+
+Ranh giới bảo mật:
+
+- link public dùng token ngẫu nhiên 256-bit; D1 chỉ lưu hash của token;
+- route public duy nhất là `/visa-intake` và `/api/kd-mid-visa-intake/public`; API quản trị vẫn nằm sau lớp xác thực Production;
+- form không thu Fax và không thu password KD-MID;
+- passport/PII do người điền gửi được lưu trong D1 cho đến khi quản trị viên chủ động xử lý/xóa; không được đưa dữ liệu này sang client app khác;
+- static bundle có thể đọc công khai để form hoạt động nhưng không chứa secret runtime.
