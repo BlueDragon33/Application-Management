@@ -164,6 +164,14 @@ function safeLoad(): Store {
   }
 }
 
+function persistStoreSnapshot(next: Store) {
+  try {
+    window.localStorage.setItem(storageKey, JSON.stringify(next));
+  } catch {
+    // The normal React persistence effect remains the fallback.
+  }
+}
+
 function normalizeDmy(value: string) {
   const raw = value.trim();
   if (!raw) return "";
@@ -229,6 +237,7 @@ function buildPayload(applicant: Applicant, common: CommonData, autoAdvance = fa
     fixedPermanentAddress,
     fixedWorkPhone,
     _automation: { autoAdvance, autoPrint: true },
+    _payloadRevision: Date.now(),
     applicant: {
       ...normalizedApplicant,
       personalAddress: fixedPermanentAddress,
@@ -426,7 +435,15 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
   const completeCount = store.applicants.filter((item) => item.applicationId).length;
 
   function mutateCommon<K extends keyof CommonData>(key: K, value: CommonData[K]) {
-    setStore((current) => ({ ...current, common: { ...current.common, [key]: value } }));
+    setStore((current) => {
+      const next = { ...current, common: { ...current.common, [key]: value } };
+      persistStoreSnapshot(next);
+      const currentApplicant = next.applicants.find((item) => item.id === next.selectedId) ?? next.applicants[0];
+      if (currentApplicant) {
+        window.postMessage({ type: "KD_MID_SET_PAYLOAD", payload: buildPayload(currentApplicant, next.common, autoAdvance) }, window.location.origin);
+      }
+      return next;
+    });
   }
 
   function saveApplicant(next: Applicant) {
@@ -434,7 +451,10 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       const exists = current.applicants.some((item) => item.id === next.id);
       const normalized = {
         ...next,
+        surname: next.surname.trim().toUpperCase(),
+        givenNames: next.givenNames.trim().toUpperCase(),
         birthDate: normalizeDmy(next.birthDate),
+        birthPlace: next.birthPlace.trim().toUpperCase(),
         passportIssue: normalizeDmy(next.passportIssue),
         passportExpiry: normalizeDmy(next.passportExpiry),
         formerCitizenshipLostDate: normalizeDmy(next.formerCitizenshipLostDate),
@@ -444,10 +464,15 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         workPhone: fixedWorkPhone,
       };
       const applicants = exists ? current.applicants.map((item) => item.id === normalized.id ? normalized : item) : [normalized, ...current.applicants];
-      return { ...current, applicants, selectedId: next.id };
+      const nextStore = { ...current, applicants, selectedId: normalized.id };
+      // Persist NOW instead of waiting for useEffect. This removes the save→run race.
+      persistStoreSnapshot(nextStore);
+      // Also overwrite Tampermonkey's shared payload NOW, so an already-open KD-MID tab cannot keep the old profile.
+      window.postMessage({ type: "KD_MID_SET_PAYLOAD", payload: buildPayload(normalized, nextStore.common, autoAdvance) }, window.location.origin);
+      return nextStore;
     });
     setEditing(null);
-    setNotice("Đã lưu hồ sơ cá nhân trên thiết bị này.");
+    setNotice(`Đã lưu và đồng bộ payload mới: ${next.surname.trim().toUpperCase()} · ${next.givenNames.trim().toUpperCase()} · ${normalizeDmy(next.birthDate)}.`);
   }
 
   function removeApplicant(id: string) {
@@ -477,39 +502,48 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
   }
 
   function openAutomaticKdmid() {
-    if (!selected) {
+    // Always re-read the just-persisted store at click time. Do not trust a stale React closure.
+    const persisted = safeLoad();
+    const requestedId = store.selectedId || persisted.selectedId;
+    const latestSelected = persisted.applicants.find((item) => item.id === requestedId)
+      ?? store.applicants.find((item) => item.id === requestedId)
+      ?? selected;
+    const latestCommon = persisted.common ?? store.common;
+
+    if (!latestSelected) {
       setNotice("Hãy tạo hoặc chọn một hồ sơ trước.");
       setRoute("applicants");
       return;
     }
 
-    const missing = applicantMissingFields(selected);
-    if (!selected.routeCity.trim()) missing.push("Маршрут / Nơi đến tại Nga");
-    if (selected.hadFormerRussianCitizenship) {
-      if (!selected.formerCitizenshipLostDate.trim()) missing.push("Когда? / Ngày mất quốc tịch Liên Xô/Nga");
-      if (!selected.formerCitizenshipLossReason.trim()) missing.push("В связи с чем? / Lý do mất quốc tịch");
+    const missing = applicantMissingFields(latestSelected);
+    if (!latestSelected.routeCity.trim()) missing.push("Маршрут / Nơi đến tại Nga");
+    if (latestSelected.hadFormerRussianCitizenship) {
+      if (!latestSelected.formerCitizenshipLostDate.trim()) missing.push("Когда? / Ngày mất quốc tịch Liên Xô/Nga");
+      if (!latestSelected.formerCitizenshipLossReason.trim()) missing.push("В связи с чем? / Lý do mất quốc tịch");
     }
-    if (selected.visitedRussia) {
-      if (!selected.visitsCount.trim()) missing.push("Số lần đã đến Nga");
-      if (!selected.lastVisitFrom.trim()) missing.push("Ngày bắt đầu chuyến Nga gần nhất");
-      if (!selected.lastVisitTo.trim()) missing.push("Ngày kết thúc chuyến Nga gần nhất");
+    if (latestSelected.visitedRussia) {
+      if (!latestSelected.visitsCount.trim()) missing.push("Số lần đã đến Nga");
+      if (!latestSelected.lastVisitFrom.trim()) missing.push("Ngày bắt đầu chuyến Nga gần nhất");
+      if (!latestSelected.lastVisitTo.trim()) missing.push("Ngày kết thúc chuyến Nga gần nhất");
     }
-    if (selected.hasInsurance && !selected.insurancePolicy.trim()) missing.push("Số hợp đồng bảo hiểm");
+    if (latestSelected.hasInsurance && !latestSelected.insurancePolicy.trim()) missing.push("Số hợp đồng bảo hiểm");
     if (missing.length) {
       setNotice(`Chưa thể tự điền. Hồ sơ còn thiếu: ${missing.join(", ")}.`);
       setRoute("applicants");
       return;
     }
 
-    const latestPayload = buildPayload(selected, store.common, autoAdvance);
+    const latestPayload = buildPayload(latestSelected, latestCommon, autoAdvance);
     window.postMessage({ type: "KD_MID_SET_PAYLOAD", payload: latestPayload }, window.location.origin);
-    const target = window.open(buildDirectAutomationUrl(selected, store.common, autoAdvance), "kdmidVisa");
+    const urlPayload = { ...latestPayload, _launchToken: Date.now() };
+    const target = window.open(`https://visa.kdmid.ru/#kdmidv8=${encodeAutomationPayload(urlPayload)}`, "kdmidVisa");
     if (!target) {
       setNotice("Trình duyệt đã chặn cửa sổ KD-MID. Hãy cho phép pop-up cho App-Manager rồi thử lại.");
       return;
     }
 
-    setNotice("Đã mở thẳng KD-MID bằng Companion v0.9.6. Trang sẽ không tự đóng; nếu script hoạt động, hash truyền hồ sơ sẽ biến mất và luồng tự động bắt đầu.");
+    setNotice(`Đã gửi payload MỚI sang Companion v0.9.7: ${latestSelected.surname} · ${latestSelected.givenNames} · ${normalizeDmy(latestSelected.birthDate)}. KD-MID phải dùng đúng 3 giá trị này.`);
   }
 
   function saveManualRecord() {
@@ -649,7 +683,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       <header><div><span>KẾT NỐI KD-MID</span><h3>Tự động điền visa.kdmid.ru</h3></div><button onClick={() => void prepareBridge()} disabled={!selected}>Tạo bookmarklet dự phòng</button></header>
       <div className={styles.autoConnect}>
         <div><span>KHUYÊN DÙNG</span><h4>Tự động từ trang đầu đến PDF A4 chính thức</h4><p>Mỗi lần bấm chạy, Companion nhận lại <strong>hồ sơ mới nhất vừa lưu</strong>, rồi tự chọn <strong>Việt Nam</strong> + <strong>Русский</strong> + tích <strong>“Я прочитал эту информацию”</strong>, tự mở hồ sơ mới, điền mật khẩu mặc định và <strong>dừng ở CAPTCHA để bạn tự nhập ký tự trong ảnh</strong>. Sau khi bạn nhập CAPTCHA, Companion tiếp tục tự động, ghi nhớ Application ID, điền các trang còn lại và cuối cùng bấm <strong>Печать формата A4</strong>.</p></div>
-        <div className={styles.autoActions}><a className={styles.installLink} href="/kd-mid-visa-companion.user.js" target="_blank" rel="noreferrer">1. Cài / cập nhật Companion v0.9.6 ↗</a><span className={styles.companionState} data-ready={Boolean(companionVersion)}>{companionVersion ? `✓ Companion ${companionVersion} đang hoạt động trên App-Manager` : "Companion v0.9.6 sẽ tự kiểm tra khi mở KD-MID"}</span><button onClick={openAutomaticKdmid} disabled={!selected}>3. Bắt đầu tự động đến PDF</button></div>
+        <div className={styles.autoActions}><a className={styles.installLink} href="/kd-mid-visa-companion.user.js" target="_blank" rel="noreferrer">1. Cài / cập nhật Companion v0.9.7 ↗</a><span className={styles.companionState} data-ready={Boolean(companionVersion)}>{companionVersion ? `✓ Companion ${companionVersion} đang hoạt động trên App-Manager` : "Companion v0.9.7 sẽ tự kiểm tra khi mở KD-MID"}</span><button onClick={openAutomaticKdmid} disabled={!selected}>3. Bắt đầu tự động đến PDF</button></div>
         <div className={styles.profileChooser}>
           <div><span>BƯỚC 2</span><strong>Chọn hồ sơ sử dụng</strong><small>Danh sách lấy trực tiếp từ mục Hồ sơ cá nhân đã lưu trên máy này.</small></div>
           {store.applicants.length ? <div className={styles.profileChooserControl}>
@@ -658,12 +692,12 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
             </select>
             {selected ? <button className={styles.secondary} onClick={() => setEditing({ ...selected })}>Sửa hồ sơ</button> : null}
           </div> : <div className={styles.profileChooserEmpty}><span>Chưa có hồ sơ nào.</span><button onClick={() => { setEditing(emptyApplicant()); setRoute("applicants"); }}>+ Tạo hồ sơ</button></div>}
-          {selected ? <div className={styles.profileSummary}><span>Đang dùng</span><strong>{displayName(selected)}</strong><small>{selected.passportNo || "Chưa có số hộ chiếu"} · {selected.birthDate || "Chưa có ngày sinh"}</small></div> : null}
+          {selected ? <div className={styles.profileSummary}><span>Payload sẽ gửi</span><strong>{selected.surname} | {selected.givenNames}</strong><small>Ngày sinh {normalizeDmy(selected.birthDate) || "—"} · {selected.passportNo || "Chưa có số hộ chiếu"}</small></div> : null}
         </div>
         <label className={styles.autoToggle}><input type="checkbox" checked={autoAdvance} onChange={(event) => setAutoAdvance(event.target.checked)} /><span><strong>Tự động toàn bộ sau CAPTCHA</strong><small>Bật mặc định. Companion không giải CAPTCHA: Tool điền password rồi chờ bạn nhập ký tự trong ảnh. Khi CAPTCHA đã được nhập, Tool tự tiếp tục các trang và yêu cầu KD-MID xuất PDF A4 chính thức.</small></span></label>
       </div>
       <div className={styles.connectGrid}>
-        <article><b>1</b><strong>Cài Companion v0.9.6</strong><p>Tampermonkey/Violentmonkey phải báo script <strong>Enabled</strong>. Nếu đã cài bản cũ, mở lại nút cài để cập nhật lên v0.9.6.</p></article>
+        <article><b>1</b><strong>Cài Companion v0.9.7</strong><p>Tampermonkey/Violentmonkey phải báo script <strong>Enabled</strong>. Nếu đã cài bản cũ, mở lại nút cài để cập nhật lên v0.9.7.</p></article>
         <article><b>2</b><strong>Chọn hồ sơ ngay phía trên</strong><p>{selected ? `Đang chọn: ${displayName(selected)}.` : "Chưa chọn hồ sơ."} Nếu có nhiều hồ sơ, mở danh sách và chọn đúng người trước khi chạy.</p></article>
         <article><b>3</b><strong>Password tự điền · CAPTCHA nhập tay</strong><p>Companion tự điền cả <strong>Пароль</strong> và <strong>Подтверждение пароля</strong>. CAPTCHA không được tự giải; bạn nhập ký tự trong ảnh. Sau khi nhập xong, Companion tự bấm <strong>Отправить</strong>.</p></article>
         <article><b>4</b><strong>Lưu ID rồi tiếp tục tự động</strong><p>Ở trang xác nhận <strong>Идентификационный номер Вашей анкеты</strong>, Companion lưu ID vào hồ sơ/Bản ghi mở lại, tự bấm <strong>Далее</strong>, rồi tiếp tục các trang còn lại đến <strong>Печать формата A4</strong>.</p></article>
@@ -673,7 +707,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         <textarea readOnly value={bookmarklet} placeholder="Bấm “Tạo bookmarklet dự phòng” để tạo javascript:..." />
         <div className={styles.bridgeActions}><button onClick={async () => { if (!bookmarklet) return; await navigator.clipboard.writeText(bookmarklet); setNotice("Đã sao chép bookmarklet."); }} disabled={!bookmarklet}>Sao chép bookmarklet</button><button className={styles.secondary} onClick={openKdmid}>Mở KD-MID thủ công ↗</button></div>
       </div>
-      <div className={styles.warning}><strong>Kiểm tra trước khi chạy</strong><p>Với v0.9.6, dòng trạng thái trên App-Manager chỉ là thông tin phụ. Luồng chính được kiểm tra trực tiếp khi tab <strong>visa.kdmid.ru</strong> mở: nếu Companion nhận hồ sơ, đoạn <code>#kdmidv8=...</code> sẽ tự biến mất và hộp trạng thái KD-MID Visa VN xuất hiện ở góc dưới. Tool không tự đọc/giải CAPTCHA; sau khi bạn nhập CAPTCHA, Companion tiếp tục và PDF/barcode do chính <strong>visa.kdmid.ru</strong> tạo. <strong>Barcode chỉ hợp lệ khi do KD-MID tạo.</strong></p></div>
+      <div className={styles.warning}><strong>Kiểm tra trước khi chạy</strong><p>Với v0.9.7, dòng trạng thái trên App-Manager chỉ là thông tin phụ. Luồng chính được kiểm tra trực tiếp khi tab <strong>visa.kdmid.ru</strong> mở: nếu Companion nhận hồ sơ, đoạn <code>#kdmidv8=...</code> sẽ tự biến mất và hộp trạng thái KD-MID Visa VN xuất hiện ở góc dưới. Tool không tự đọc/giải CAPTCHA; sau khi bạn nhập CAPTCHA, Companion tiếp tục và PDF/barcode do chính <strong>visa.kdmid.ru</strong> tạo. <strong>Barcode chỉ hợp lệ khi do KD-MID tạo.</strong></p></div>
     </section>;
   }
 
