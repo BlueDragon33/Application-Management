@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.14
+// @version      0.9.15
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,7 +17,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.14";
+  const VERSION = "0.9.15";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
@@ -95,6 +95,21 @@
     return selectAlreadyHas(el, values) ? "changed" : "waiting";
   }
 
+  function writeDateTextAtomic(el, value) {
+    if (!el) return false;
+    const text = String(value ?? "");
+    setNativeControlValue(el, text);
+    if (String(el.value) !== text) {
+      try { el.value = text; } catch {}
+    }
+    try { el.setAttribute("value", text); } catch {}
+    // Do NOT blur/change here. KD-MID validates date parts as a group, and
+    // committing the day while the year is still empty can clear the day again.
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: "Unidentified" }));
+    return normalizedNumeric(el.value) === normalizedNumeric(text);
+  }
+
   function writeDateControls(list, value) {
     if (!value) return "ready";
     const parts = value.split("/");
@@ -105,10 +120,7 @@
     const yearEl = list[2];
     if (!dayEl || !monthEl || !yearEl) return "missing";
 
-    // KD-MID's month dropdown can trigger an ASP.NET postback.
-    // Select the month FIRST and stop this tick immediately. After the page
-    // settles/reloads, the next tick fills day and year. Otherwise KD-MID can
-    // wipe day/year that were written in the same tick.
+    // Step 1: month only. Its change can trigger an ASP.NET postback.
     if (monthEl.tagName === "SELECT" && !dateControlMatches(monthEl, parts[1], 1)) {
       const option = findDateOption(monthEl, parts[1], 1);
       if (!option) return "waiting";
@@ -119,28 +131,21 @@
       return dateControlMatches(monthEl, parts[1], 1) ? "changed" : "waiting";
     }
 
+    // Step 2: once the month is stable, write DAY + YEAR atomically.
+    // Never blur/change the day before the year exists: KD-MID can clear it.
+    const dayReadyBefore = dateControlMatches(dayEl, parts[0], 0);
+    const yearReadyBefore = dateControlMatches(yearEl, parts[2], 2);
+
     let changed = false;
+    if (!dayReadyBefore || !yearReadyBefore) {
+      const dayOk = dayReadyBefore || writeDateTextAtomic(dayEl, parts[0]);
+      const yearOk = yearReadyBefore || writeDateTextAtomic(yearEl, parts[2]);
+      changed = dayOk || yearOk;
 
-    if (!dateControlMatches(dayEl, parts[0], 0)) {
-      activateControl(dayEl);
-      setNativeControlValue(dayEl, parts[0]);
-      fire(dayEl);
-      if (!dateControlMatches(dayEl, parts[0], 0)) {
-        try { dayEl.value = parts[0]; } catch {}
-        fire(dayEl);
+      if (dayOk && yearOk) {
+        // Both values now exist. A single grouped validation pass is safe.
+        refreshAspNetValidators();
       }
-      changed = true;
-    }
-
-    if (!dateControlMatches(yearEl, parts[2], 2)) {
-      activateControl(yearEl);
-      setNativeControlValue(yearEl, parts[2]);
-      fire(yearEl);
-      if (!dateControlMatches(yearEl, parts[2], 2)) {
-        try { yearEl.value = parts[2]; } catch {}
-        fire(yearEl);
-      }
-      changed = true;
     }
 
     const ready =
