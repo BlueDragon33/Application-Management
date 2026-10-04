@@ -75,6 +75,21 @@ function blank(): ApplicantForm {
   };
 }
 
+function upperPlain(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[đĐ]/g, (letter) => letter === "đ" ? "d" : "D")
+    .toUpperCase();
+}
+
+function formatDmy(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
 function Field({ label, ru, hint, children }: { label: string; ru?: string; hint?: string; children: React.ReactNode }) {
   return <label className={styles.field}>
     <span>{label}</span>
@@ -115,15 +130,15 @@ export default function VisaIntakePage() {
         if (!response.ok || !data.ok) throw new Error(data.error || "Link không hợp lệ.");
         const defaults = data.defaults ?? {};
         setLinkLabel(String(data.link?.label ?? ""));
-        setPermanentAddress(String(defaults.permanentAddress ?? ""));
+        setPermanentAddress(upperPlain(String(defaults.permanentAddress ?? "")));
         setApplicant((current) => ({
           ...current,
-          routeCity: String(defaults.routeCity ?? current.routeCity) || "МОСКВА",
-          workStudyPlace: String(defaults.employer ?? ""),
-          position: String(defaults.position ?? ""),
-          workAddress: String(defaults.workAddress ?? ""),
+          routeCity: upperPlain(String(defaults.routeCity ?? current.routeCity)) || "МОСКВА",
+          workStudyPlace: upperPlain(String(defaults.employer ?? "")),
+          position: upperPlain(String(defaults.position ?? "")),
+          workAddress: upperPlain(String(defaults.workAddress ?? "")),
           workPhone: String(defaults.workPhone ?? ""),
-          workEmail: String(defaults.workEmail ?? ""),
+          workEmail: String(defaults.workEmail ?? "").toLowerCase(),
           preferredEmbassy: String(defaults.preferredEmbassy ?? current.preferredEmbassy),
         }));
       })
@@ -199,21 +214,21 @@ export default function VisaIntakePage() {
       <section className={styles.section}>
         <header><b>01</b><div><h2>Thông tin cá nhân</h2><p>Nhập đúng như hộ chiếu. Họ và tên dùng chữ Latin không dấu.</p></div></header>
         <div className={styles.grid}>
-          <Field label="Họ" ru="Фамилия" hint="Ví dụ: NGUYEN"><input required value={applicant.surname} onChange={(e) => set("surname", e.target.value.toUpperCase())} /></Field>
-          <Field label="Tên và tên đệm" ru="Имя, другие имена, отчество" hint="Ví dụ: DINH NAM"><input required value={applicant.givenNames} onChange={(e) => set("givenNames", e.target.value.toUpperCase())} /></Field>
-          <Field label="Ngày sinh" ru="Дата рождения" hint="Định dạng dd/mm/yyyy"><input required placeholder="03/03/1991" value={applicant.birthDate} onChange={(e) => set("birthDate", e.target.value)} /></Field>
-          <Field label="Nơi sinh" ru="Место рождения"><input required value={applicant.birthPlace} onChange={(e) => set("birthPlace", e.target.value.toUpperCase())} /></Field>
+          <Field label="Họ" ru="Фамилия" hint="Ví dụ: NGUYEN"><input required value={applicant.surname} onChange={(e) => set("surname", upperPlain(e.target.value))} /></Field>
+          <Field label="Tên và tên đệm" ru="Имя, другие имена, отчество" hint="Ví dụ: DINH NAM"><input required value={applicant.givenNames} onChange={(e) => set("givenNames", upperPlain(e.target.value))} /></Field>
+          <Field label="Ngày sinh" ru="Дата рождения" hint="Định dạng dd/mm/yyyy"><input required placeholder="03/03/1991" value={applicant.birthDate} inputMode="numeric" maxLength={10} onChange={(e) => set("birthDate", formatDmy(e.target.value))} /></Field>
+          <Field label="Nơi sinh" ru="Место рождения"><input required value={applicant.birthPlace} onChange={(e) => set("birthPlace", upperPlain(e.target.value))} /></Field>
           <Field label="Giới tính" ru="Пол"><select value={applicant.sex} onChange={(e) => set("sex", e.target.value)}><option value="МУЖСКОЙ">Nam</option><option value="ЖЕНСКИЙ">Nữ</option></select></Field>
-          <Field label="Nơi đến tại Nga" ru="Маршрут (населенные пункты)" hint="Thông thường là МОСКВА"><input required value={applicant.routeCity} onChange={(e) => set("routeCity", e.target.value.toUpperCase())} /></Field>
+          <Field label="Nơi đến tại Nga" ru="Маршрут (населенные пункты)" hint="Thông thường là МОСКВА"><input required value={applicant.routeCity} onChange={(e) => set("routeCity", upperPlain(e.target.value))} /></Field>
         </div>
       </section>
 
       <section className={styles.section}>
-        <header><b>02</b><div><h2>Hộ chiếu</h2><p>Đối chiếu trực tiếp với trang thông tin hộ chiếu.</p></div></header>
+        <header><b>02</b><div><h2>Hộ chiếu</h2><p>Ngày tự định dạng dd/mm/yyyy. Ngày cấp không được ở tương lai; ngày hết hạn phải sau ngày cấp và hộ chiếu phải còn hạn.</p></div></header>
         <div className={styles.grid}>
-          <Field label="Số hộ chiếu" ru="Номер паспорта"><input required value={applicant.passportNo} onChange={(e) => set("passportNo", e.target.value.toUpperCase())} /></Field>
-          <Field label="Ngày cấp hộ chiếu" ru="Дата выдачи" hint="dd/mm/yyyy"><input required placeholder="25/06/2025" value={applicant.passportIssue} onChange={(e) => set("passportIssue", e.target.value)} /></Field>
-          <Field label="Ngày hết hạn hộ chiếu" ru="Действителен до" hint="dd/mm/yyyy"><input required placeholder="25/06/2035" value={applicant.passportExpiry} onChange={(e) => set("passportExpiry", e.target.value)} /></Field>
+          <Field label="Số hộ chiếu" ru="Номер паспорта"><input required value={applicant.passportNo} onChange={(e) => set("passportNo", upperPlain(e.target.value))} /></Field>
+          <Field label="Ngày cấp hộ chiếu" ru="Дата выдачи" hint="dd/mm/yyyy"><input required placeholder="25/06/2025" value={applicant.passportIssue} inputMode="numeric" maxLength={10} onChange={(e) => set("passportIssue", formatDmy(e.target.value))} /></Field>
+          <Field label="Ngày hết hạn hộ chiếu" ru="Действителен до" hint="dd/mm/yyyy"><input required placeholder="25/06/2035" value={applicant.passportExpiry} inputMode="numeric" maxLength={10} onChange={(e) => set("passportExpiry", formatDmy(e.target.value))} /></Field>
         </div>
       </section>
 
@@ -222,18 +237,18 @@ export default function VisaIntakePage() {
         <div className={styles.grid}>
           <Field label="Địa chỉ thường trú dùng cho hồ sơ" ru="Адрес вашего постоянного проживания"><input readOnly value={permanentAddress} /></Field>
           <Field label="Điện thoại cá nhân" ru="Ваш личный телефон"><input required value={applicant.phone} onChange={(e) => set("phone", e.target.value)} /></Field>
-          <Field label="Email cá nhân" ru="Ваш личный E-mail"><input type="email" required value={applicant.email} onChange={(e) => set("email", e.target.value)} /></Field>
+          <Field label="Email cá nhân" ru="Ваш личный E-mail"><input type="email" required value={applicant.email} onChange={(e) => set("email", e.target.value.toLowerCase())} /></Field>
         </div>
       </section>
 
       <section className={styles.section}>
         <header><b>04</b><div><h2>Nơi làm việc / học tập</h2><p>Các ô đã có giá trị mặc định của đơn vị. Chỉ sửa nếu thông tin của bạn khác.</p></div></header>
         <div className={styles.grid}>
-          <Field label="Nơi làm việc / học tập" ru="Место работы (учебы)"><input required value={applicant.workStudyPlace} onChange={(e) => set("workStudyPlace", e.target.value)} /></Field>
-          <Field label="Chức vụ / tư cách" ru="Должность"><input required value={applicant.position} onChange={(e) => set("position", e.target.value)} /></Field>
-          <Field label="Địa chỉ cơ quan" ru="Рабочий адрес"><input required value={applicant.workAddress} onChange={(e) => set("workAddress", e.target.value)} /></Field>
+          <Field label="Nơi làm việc / học tập" ru="Место работы (учебы)"><input required value={applicant.workStudyPlace} onChange={(e) => set("workStudyPlace", upperPlain(e.target.value))} /></Field>
+          <Field label="Chức vụ / tư cách" ru="Должность"><input required value={applicant.position} onChange={(e) => set("position", upperPlain(e.target.value))} /></Field>
+          <Field label="Địa chỉ cơ quan" ru="Рабочий адрес"><input required value={applicant.workAddress} onChange={(e) => set("workAddress", upperPlain(e.target.value))} /></Field>
           <Field label="Điện thoại cơ quan" ru="Рабочий телефон"><input required value={applicant.workPhone} onChange={(e) => set("workPhone", e.target.value)} /></Field>
-          <Field label="Email cơ quan" ru="Рабочий E-mail"><input type="email" required value={applicant.workEmail} onChange={(e) => set("workEmail", e.target.value)} /></Field>
+          <Field label="Email cơ quan" ru="Рабочий E-mail"><input type="email" required value={applicant.workEmail} onChange={(e) => set("workEmail", e.target.value.toLowerCase())} /></Field>
         </div>
       </section>
 
@@ -245,15 +260,15 @@ export default function VisaIntakePage() {
           <label><input type="checkbox" checked={applicant.hasInsurance} onChange={(e) => set("hasInsurance", e.target.checked)} /><span><strong>Có bảo hiểm có hiệu lực tại Nga</strong><small>Документ о медицинском страховании</small></span></label>
         </div>
         {applicant.hadFormerRussianCitizenship ? <div className={styles.grid}>
-          <Field label="Ngày mất quốc tịch" hint="dd/mm/yyyy"><input required value={applicant.formerCitizenshipLostDate} onChange={(e) => set("formerCitizenshipLostDate", e.target.value)} /></Field>
-          <Field label="Lý do mất quốc tịch"><input required value={applicant.formerCitizenshipLossReason} onChange={(e) => set("formerCitizenshipLossReason", e.target.value)} /></Field>
+          <Field label="Ngày mất quốc tịch" hint="dd/mm/yyyy"><input required value={applicant.formerCitizenshipLostDate} inputMode="numeric" maxLength={10} onChange={(e) => set("formerCitizenshipLostDate", formatDmy(e.target.value))} /></Field>
+          <Field label="Lý do mất quốc tịch"><input required value={applicant.formerCitizenshipLossReason} onChange={(e) => set("formerCitizenshipLossReason", upperPlain(e.target.value))} /></Field>
         </div> : null}
         {applicant.visitedRussia ? <div className={styles.grid}>
           <Field label="Số lần đã đến Nga"><input required inputMode="numeric" value={applicant.visitsCount} onChange={(e) => set("visitsCount", e.target.value)} /></Field>
-          <Field label="Chuyến gần nhất - từ ngày" hint="dd/mm/yyyy"><input required value={applicant.lastVisitFrom} onChange={(e) => set("lastVisitFrom", e.target.value)} /></Field>
-          <Field label="Chuyến gần nhất - đến ngày" hint="dd/mm/yyyy"><input required value={applicant.lastVisitTo} onChange={(e) => set("lastVisitTo", e.target.value)} /></Field>
+          <Field label="Chuyến gần nhất - từ ngày" hint="dd/mm/yyyy"><input required value={applicant.lastVisitFrom} inputMode="numeric" maxLength={10} onChange={(e) => set("lastVisitFrom", formatDmy(e.target.value))} /></Field>
+          <Field label="Chuyến gần nhất - đến ngày" hint="dd/mm/yyyy"><input required value={applicant.lastVisitTo} inputMode="numeric" maxLength={10} onChange={(e) => set("lastVisitTo", formatDmy(e.target.value))} /></Field>
         </div> : null}
-        {applicant.hasInsurance ? <div className={styles.grid}><Field label="Tên công ty bảo hiểm / số hợp đồng"><input required value={applicant.insurancePolicy} onChange={(e) => set("insurancePolicy", e.target.value)} /></Field></div> : null}
+        {applicant.hasInsurance ? <div className={styles.grid}><Field label="Tên công ty bảo hiểm / số hợp đồng"><input required value={applicant.insurancePolicy} onChange={(e) => set("insurancePolicy", upperPlain(e.target.value))} /></Field></div> : null}
       </section>
 
       <section className={styles.section}>
@@ -264,7 +279,7 @@ export default function VisaIntakePage() {
         </div>
         <div className={styles.grid}>
           <Field label="Nơi dự kiến nộp hồ sơ" ru="Место подачи заявления"><select value={applicant.preferredEmbassy} onChange={(e) => set("preferredEmbassy", e.target.value)}>{embassies.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
-          <Field label="Ghi chú đặc biệt" hint="Nếu Có ở các mục trẻ em/người thân, hãy ghi rõ thông tin cần người phụ trách biết."><textarea rows={4} value={applicant.specialNotes} onChange={(e) => set("specialNotes", e.target.value)} /></Field>
+          <Field label="Ghi chú đặc biệt" hint="Nếu Có ở các mục trẻ em/người thân, hãy ghi rõ thông tin cần người phụ trách biết."><textarea rows={4} value={applicant.specialNotes} onChange={(e) => set("specialNotes", upperPlain(e.target.value))} /></Field>
         </div>
       </section>
 

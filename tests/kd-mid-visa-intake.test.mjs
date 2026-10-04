@@ -43,10 +43,19 @@ test("public intake form is Vietnamese and covers required visa profile fields",
   assert.match(publicPage, /required value=\{applicant\.email\}/);
   assert.match(publicPage, /childrenUnder16/);
   assert.match(publicPage, /relativesInRussia/);
+  assert.match(publicPage, /function upperPlain/);
+  assert.match(publicPage, /function formatDmy/);
+  assert.match(publicWorkerPage, /const upperPlain =/);
+  assert.match(publicWorkerPage, /const formatDmy =/);
 });
 
 test("public submit validates dates, emails, conditional fields and a confirmation", () => {
   assert.match(publicApi, /function validDmy/);
+  assert.match(publicApi, /function upperPlain/);
+  assert.match(publicApi, /normalize\("NFD"\)/);
+  assert.match(publicApi, /Ngày cấp hộ chiếu không được ở tương lai/);
+  assert.match(publicApi, /Ngày hết hạn hộ chiếu phải sau ngày cấp/);
+  assert.match(publicApi, /Hộ chiếu đã hết hạn/);
   assert.match(publicApi, /Email cá nhân không hợp lệ/);
   assert.match(publicApi, /if \(applicant\.visitedRussia\)/);
   assert.match(publicApi, /if \(applicant\.hasInsurance/);

@@ -37,14 +37,32 @@ function bool(value: unknown) {
   return value === true;
 }
 
-function validDmy(value: string) {
+function upperPlain(value: unknown, max = 300) {
+  return text(value, max)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[đĐ]/g, (letter) => letter === "đ" ? "d" : "D")
+    .toUpperCase();
+}
+
+function parseDmy(value: string) {
   const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (!match) return false;
+  if (!match) return null;
   const day = Number(match[1]);
   const month = Number(match[2]);
   const year = Number(match[3]);
   const date = new Date(Date.UTC(year, month - 1, day));
-  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
+  return date;
+}
+
+function validDmy(value: string) {
+  return parseDmy(value) !== null;
+}
+
+function utcToday() {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 }
 
 async function activeLink(token: string) {
@@ -94,35 +112,35 @@ export async function POST(request: Request) {
 
     const source = (body.applicant && typeof body.applicant === "object" ? body.applicant : {}) as Record<string, unknown>;
     const applicant = {
-      surname: text(source.surname, 80).toUpperCase(),
-      givenNames: text(source.givenNames, 120).toUpperCase(),
+      surname: upperPlain(source.surname, 80),
+      givenNames: upperPlain(source.givenNames, 120),
       birthDate: text(source.birthDate, 10),
-      birthPlace: text(source.birthPlace, 160).toUpperCase(),
+      birthPlace: upperPlain(source.birthPlace, 160),
       sex: text(source.sex, 20),
-      passportNo: text(source.passportNo, 40).toUpperCase(),
+      passportNo: upperPlain(source.passportNo, 40),
       passportIssue: text(source.passportIssue, 10),
       passportExpiry: text(source.passportExpiry, 10),
       phone: text(source.phone, 40),
       email: text(source.email, 160).toLowerCase(),
-      routeCity: text(source.routeCity, 80).toUpperCase() || "МОСКВА",
-      workStudyPlace: text(source.workStudyPlace, 240),
-      position: text(source.position, 120),
-      workAddress: text(source.workAddress, 300),
+      routeCity: upperPlain(source.routeCity, 80) || "МОСКВА",
+      workStudyPlace: upperPlain(source.workStudyPlace, 240),
+      position: upperPlain(source.position, 120),
+      workAddress: upperPlain(source.workAddress, 300),
       workPhone: text(source.workPhone, 40),
       workEmail: text(source.workEmail, 160).toLowerCase(),
       preferredEmbassy: text(source.preferredEmbassy, 120),
       hadFormerRussianCitizenship: bool(source.hadFormerRussianCitizenship),
       formerCitizenshipLostDate: text(source.formerCitizenshipLostDate, 10),
-      formerCitizenshipLossReason: text(source.formerCitizenshipLossReason, 300),
+      formerCitizenshipLossReason: upperPlain(source.formerCitizenshipLossReason, 300),
       visitedRussia: bool(source.visitedRussia),
       visitsCount: text(source.visitsCount, 10),
       lastVisitFrom: text(source.lastVisitFrom, 10),
       lastVisitTo: text(source.lastVisitTo, 10),
       hasInsurance: bool(source.hasInsurance),
-      insurancePolicy: text(source.insurancePolicy, 300),
+      insurancePolicy: upperPlain(source.insurancePolicy, 300),
       childrenUnder16: bool(source.childrenUnder16),
       relativesInRussia: bool(source.relativesInRussia),
-      specialNotes: text(source.specialNotes, 1200),
+      specialNotes: upperPlain(source.specialNotes, 1200),
     };
 
     const missing: string[] = [];
@@ -153,6 +171,16 @@ export async function POST(request: Request) {
     ] as const) {
       if (applicant[key] && !validDmy(applicant[key])) missing.push(`${label} phải theo dd/mm/yyyy`);
     }
+    const today = utcToday();
+    const birthDate = parseDmy(applicant.birthDate);
+    const passportIssue = parseDmy(applicant.passportIssue);
+    const passportExpiry = parseDmy(applicant.passportExpiry);
+    if (birthDate && birthDate > today) missing.push("Ngày sinh không được ở tương lai");
+    if (passportIssue && passportIssue > today) missing.push("Ngày cấp hộ chiếu không được ở tương lai");
+    if (birthDate && passportIssue && passportIssue <= birthDate) missing.push("Ngày cấp hộ chiếu phải sau ngày sinh");
+    if (passportIssue && passportExpiry && passportExpiry <= passportIssue) missing.push("Ngày hết hạn hộ chiếu phải sau ngày cấp");
+    if (passportExpiry && passportExpiry <= today) missing.push("Hộ chiếu đã hết hạn");
+
     if (!["МУЖСКОЙ", "ЖЕНСКИЙ"].includes(applicant.sex)) missing.push("Giới tính không hợp lệ");
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(applicant.email)) missing.push("Email cá nhân không hợp lệ");
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(applicant.workEmail)) missing.push("Email cơ quan không hợp lệ");

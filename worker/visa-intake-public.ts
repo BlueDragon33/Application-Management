@@ -33,7 +33,7 @@ export function publicVisaIntakePage() {
 <label class="field">Giới tính <small>Пол</small><select name="sex"><option value="МУЖСКОЙ">Nam</option><option value="ЖЕНСКИЙ">Nữ</option></select></label>
 <label class="field">Nơi đến tại Nga <small>Маршрут</small><input name="routeCity" value="МОСКВА" required></label>
 </div></section>
-<section class="section"><header><b>02</b><div><h2>Hộ chiếu</h2><p>Đối chiếu trực tiếp với trang thông tin hộ chiếu.</p></div></header><div class="grid">
+<section class="section"><header><b>02</b><div><h2>Hộ chiếu</h2><p>Ngày tự định dạng dd/mm/yyyy. Ngày cấp không được ở tương lai; ngày hết hạn phải sau ngày cấp và hộ chiếu phải còn hạn.</p></div></header><div class="grid">
 <label class="field">Số hộ chiếu <small>Номер паспорта</small><input name="passportNo" required></label>
 <label class="field">Ngày cấp hộ chiếu <small>Дата выдачи · dd/mm/yyyy</small><input name="passportIssue" placeholder="25/06/2025" required></label>
 <label class="field">Ngày hết hạn hộ chiếu <small>Действителен до · dd/mm/yyyy</small><input name="passportExpiry" placeholder="25/06/2035" required></label>
@@ -77,6 +77,19 @@ export function publicVisaIntakePage() {
   const confirmed = document.getElementById("confirmed");
   const submit = document.getElementById("submit");
   const byName = name => form.elements.namedItem(name);
+  const upperPlain = value => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[đĐ]/g, letter => letter === "đ" ? "d" : "D").toUpperCase();
+  const formatDmy = value => {
+    const digits = String(value || "").replace(/\D/g,"").slice(0,8);
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 4) return digits.slice(0,2)+"/"+digits.slice(2);
+    return digits.slice(0,2)+"/"+digits.slice(2,4)+"/"+digits.slice(4);
+  };
+  const dateNames = ["birthDate","passportIssue","passportExpiry","formerCitizenshipLostDate","lastVisitFrom","lastVisitTo"];
+  const emailNames = ["email","workEmail"];
+  const plainNames = ["surname","givenNames","birthPlace","routeCity","passportNo","workStudyPlace","position","workAddress","formerCitizenshipLossReason","insurancePolicy","specialNotes"];
+  dateNames.forEach(name => { const el=byName(name); if(el){ el.inputMode="numeric"; el.maxLength=10; el.addEventListener("input",()=>{el.value=formatDmy(el.value);}); }});
+  emailNames.forEach(name => { const el=byName(name); if(el) el.addEventListener("input",()=>{el.value=el.value.toLowerCase();}); });
+  plainNames.forEach(name => { const el=byName(name); if(el) el.addEventListener("input",()=>{el.value=upperPlain(el.value);}); });
   const setError = (message, missing=[]) => { error.style.display = message ? "block" : "none"; error.innerHTML = message ? "<strong>"+message+"</strong>"+(missing.length?"<ul>"+missing.map(x=>"<li>"+String(x).replace(/[<>&]/g,"")+"</li>").join("")+"</ul>":"") : ""; };
   const toggle = (checkboxId, fieldsId) => {
     const c = document.getElementById(checkboxId), box = document.getElementById(fieldsId);
@@ -95,29 +108,29 @@ export function publicVisaIntakePage() {
     batch.innerHTML = "Đợt thu hồ sơ: <strong>"+String(data.link?.label || "").replace(/[<>&]/g,"")+"</strong>";
     const d = data.defaults || {};
     const values = {
-      routeCity:d.routeCity || "МОСКВА", workStudyPlace:d.employer || "", position:d.position || "",
-      workAddress:d.workAddress || "", workPhone:d.workPhone || "", workEmail:d.workEmail || "",
+      routeCity:upperPlain(d.routeCity || "МОСКВА"), workStudyPlace:upperPlain(d.employer || ""), position:upperPlain(d.position || ""),
+      workAddress:upperPlain(d.workAddress || ""), workPhone:d.workPhone || "", workEmail:String(d.workEmail || "").toLowerCase(),
       preferredEmbassy:d.preferredEmbassy || "ПОСОЛЬСТВО РФ ВО ВЬЕТНАМЕ"
     };
     Object.entries(values).forEach(([k,v]) => { const el=byName(k); if(el) el.value=String(v); });
-    document.getElementById("permanentAddress").value = String(d.permanentAddress || "");
+    document.getElementById("permanentAddress").value = upperPlain(d.permanentAddress || "");
   }).catch(e => { setError(e.message || "Không thể mở form."); form.style.display="none"; batch.style.display="none"; });
 
   form.addEventListener("submit", async event => {
     event.preventDefault(); setError(""); submit.disabled=true; submit.textContent="Đang gửi…";
     const value = name => String(byName(name)?.value || "").trim();
     const applicant = {
-      surname:value("surname").toUpperCase(), givenNames:value("givenNames").toUpperCase(), birthDate:value("birthDate"),
-      birthPlace:value("birthPlace").toUpperCase(), sex:value("sex"), passportNo:value("passportNo").toUpperCase(),
-      passportIssue:value("passportIssue"), passportExpiry:value("passportExpiry"), phone:value("phone"), email:value("email"),
-      routeCity:value("routeCity").toUpperCase(), workStudyPlace:value("workStudyPlace"), position:value("position"),
-      workAddress:value("workAddress"), workPhone:value("workPhone"), workEmail:value("workEmail"),
+      surname:upperPlain(value("surname")), givenNames:upperPlain(value("givenNames")), birthDate:value("birthDate"),
+      birthPlace:upperPlain(value("birthPlace")), sex:value("sex"), passportNo:upperPlain(value("passportNo")),
+      passportIssue:value("passportIssue"), passportExpiry:value("passportExpiry"), phone:value("phone"), email:value("email").toLowerCase(),
+      routeCity:upperPlain(value("routeCity")), workStudyPlace:upperPlain(value("workStudyPlace")), position:upperPlain(value("position")),
+      workAddress:upperPlain(value("workAddress")), workPhone:value("workPhone"), workEmail:value("workEmail").toLowerCase(),
       preferredEmbassy:value("preferredEmbassy"), hadFormerRussianCitizenship:document.getElementById("former").checked,
-      formerCitizenshipLostDate:value("formerCitizenshipLostDate"), formerCitizenshipLossReason:value("formerCitizenshipLossReason"),
+      formerCitizenshipLostDate:value("formerCitizenshipLostDate"), formerCitizenshipLossReason:upperPlain(value("formerCitizenshipLossReason")),
       visitedRussia:document.getElementById("visited").checked, visitsCount:value("visitsCount"), lastVisitFrom:value("lastVisitFrom"),
       lastVisitTo:value("lastVisitTo"), hasInsurance:document.getElementById("insurance").checked,
-      insurancePolicy:value("insurancePolicy"), childrenUnder16:document.getElementById("children").checked,
-      relativesInRussia:document.getElementById("relatives").checked, specialNotes:value("specialNotes")
+      insurancePolicy:upperPlain(value("insurancePolicy")), childrenUnder16:document.getElementById("children").checked,
+      relativesInRussia:document.getElementById("relatives").checked, specialNotes:upperPlain(value("specialNotes"))
     };
     try {
       const r = await fetch("/api/kd-mid-visa-intake/public", {method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({token,applicant,confirmedAccurate:confirmed.checked})});
