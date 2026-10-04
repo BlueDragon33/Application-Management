@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.20
+// @version      0.9.21
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,7 +17,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.20";
+  const VERSION = "0.9.21";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
@@ -688,61 +688,112 @@
     return { handled: true, ready: true };
   }
 
-  function routeCityCardInput() {
-    const containers = [...document.querySelectorAll("div,td,fieldset,section")].filter(visible);
-    const matches = [];
-
-    for (const container of containers) {
-      const text = norm(container.innerText || container.textContent || "");
-      if (!text.includes("НАСЕЛЕННЫЙ ПУНКТ")) continue;
-      if (!text.includes("УДАЛИТЬ")) continue;
-      if (text.includes("МЕДИЦИНСКОМ СТРАХОВАНИИ")) continue;
-
-      const inputs = [...container.querySelectorAll(
-        'input:not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"])'
-      )].filter(visible);
-
-      const deleteButtons = [...container.querySelectorAll("button,input[type=\"button\"],input[type=\"submit\"]")]
-        .filter(visible)
-        .filter((el) => norm(el.textContent || el.value || "") === "УДАЛИТЬ");
-
-      if (inputs.length !== 1 || deleteButtons.length < 1) continue;
-
-      const rect = container.getBoundingClientRect();
-      const area = Math.max(1, rect.width * rect.height);
-      matches.push({ input: inputs[0], area, textLength: text.length });
-    }
-
-    matches.sort((a, b) => a.area - b.area || a.textLength - b.textLength);
-    return matches[0]?.input || null;
+  function routeDeleteButtons() {
+    return [...document.querySelectorAll("button,input[type=\"button\"],input[type=\"submit\"]")]
+      .filter(visible)
+      .filter((el) => norm(el.textContent || el.value || "") === "УДАЛИТЬ");
   }
 
   function routeCityControl() {
-    // This page has duplicated explanatory text and nested tables. Do not guess
-    // from label order anymore. The real route field is the ONE text input
-    // inside the gray card that also contains "Населенный пункт" + "Удалить".
-    return routeCityCardInput();
+    // Strongest anchor on this page: the route card always has its own
+    // "Удалить" button. Walk UP from that button until we find the smallest
+    // ancestor that also contains "Населенный пункт" and at least one visible
+    // text input. This avoids duplicated help text and outer-table ambiguity.
+    const candidates = [];
+
+    for (const button of routeDeleteButtons()) {
+      let current = button.parentElement;
+      for (let depth = 0; depth < 10 && current; depth += 1, current = current.parentElement) {
+        const text = norm(current.innerText || current.textContent || "");
+        if (!text.includes("НАСЕЛЕННЫЙ ПУНКТ")) continue;
+
+        const inputs = [...current.querySelectorAll(
+          'input:not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"])'
+        )].filter(visible);
+
+        if (!inputs.length) continue;
+
+        const br = button.getBoundingClientRect();
+        const scored = inputs.map((input) => {
+          const ir = input.getBoundingClientRect();
+          const aboveDelete = ir.top <= br.top + 8 ? 0 : 10000;
+          const horizontal = Math.abs(ir.left - br.left);
+          const vertical = Math.abs(br.top - ir.bottom);
+          return { input, score: aboveDelete + vertical * 10 + horizontal };
+        }).sort((a, b) => a.score - b.score);
+
+        const rect = current.getBoundingClientRect();
+        candidates.push({
+          input: scored[0].input,
+          area: Math.max(1, rect.width * rect.height),
+          depth,
+          score: scored[0].score,
+        });
+        break;
+      }
+    }
+
+    candidates.sort((a, b) => a.area - b.area || a.score - b.score || a.depth - b.depth);
+    return candidates[0]?.input || null;
   }
 
   function routeCityControlLooksRight(el) {
     if (!el) return false;
-    const card = el.closest("div,td,fieldset,section");
-    if (!card) return false;
-    let current = card;
-    for (let depth = 0; depth < 5 && current; depth += 1, current = current.parentElement) {
-      const text = norm(current.innerText || current.textContent || "");
-      const inputs = [...current.querySelectorAll(
-        'input:not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"])'
-      )].filter(visible);
-      if (
-        text.includes("НАСЕЛЕННЫЙ ПУНКТ") &&
-        text.includes("УДАЛИТЬ") &&
-        !text.includes("МЕДИЦИНСКОМ СТРАХОВАНИИ") &&
-        inputs.length === 1 &&
-        inputs[0] === el
-      ) return true;
+    return routeCityControl() === el;
+  }
+
+  function typeRouteCityValue(el, value) {
+    if (!el) return false;
+    const text = String(value || "");
+    activateControl(el);
+
+    try { el.setSelectionRange(0, String(el.value || "").length); } catch {}
+    setNativeControlValue(el, "");
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+
+    let current = "";
+    for (const char of [...text]) {
+      try {
+        el.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: char }));
+      } catch {}
+
+      try {
+        if (typeof InputEvent === "function") {
+          el.dispatchEvent(new InputEvent("beforeinput", {
+            bubbles: true,
+            cancelable: true,
+            data: char,
+            inputType: "insertText",
+          }));
+        }
+      } catch {}
+
+      current += char;
+      setNativeControlValue(el, current);
+
+      try {
+        if (typeof InputEvent === "function") {
+          el.dispatchEvent(new InputEvent("input", {
+            bubbles: true,
+            data: char,
+            inputType: "insertText",
+          }));
+        } else {
+          el.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+      } catch {
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+
+      try {
+        el.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: char }));
+      } catch {}
     }
-    return false;
+
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+    try { el.blur(); } catch {}
+    refreshAspNetValidators();
+    return String(el.value || "").trim() === text;
   }
 
   function isVisitInfoPage() {
@@ -803,25 +854,16 @@
       return { handled: true, ready: false };
     }
 
-    state = writeTextControl(routeInput, routeValue);
-    if (String(routeInput.value).trim() !== routeValue) {
-      activateControl(routeInput);
-      setNativeControlValue(routeInput, routeValue);
-      routeInput.setAttribute("value", routeValue);
-      routeInput.dispatchEvent(new Event("input", { bubbles: true }));
-      routeInput.dispatchEvent(new Event("change", { bubbles: true }));
-      try { routeInput.blur(); } catch {}
-    }
+    if (String(routeInput.value || "").trim() !== routeValue) {
+      const typed = typeRouteCityValue(routeInput, routeValue);
+      if (!typed) {
+        status("KD-MID Visa VN: đã khóa đúng ô Маршрут nhưng KD-MID chưa nhận МОСКВА; đang gõ lại ký tự Cyrillic.", "wait");
+        continueAutofill(payload, 240);
+        return { handled: true, ready: false };
+      }
 
-    if (String(routeInput.value).trim() !== routeValue) {
-      status("KD-MID Visa VN: ô Населенный пункт thật vẫn chưa nhận МОСКВА; đang thử lại đúng ô này.", "wait");
-      continueAutofill(payload, 220);
-      return { handled: true, ready: false };
-    }
-
-    if (state === "changed") {
-      status("KD-MID Visa VN: đã điền trực tiếp МОСКВА vào ô Населенный пункт thật.", "wait");
-      continueAutofill(payload);
+      status("KD-MID Visa VN: đã gõ МОСКВА trực tiếp vào ô Населенный пункт.", "wait");
+      continueAutofill(payload, 180);
       return { handled: true, ready: false };
     }
 
