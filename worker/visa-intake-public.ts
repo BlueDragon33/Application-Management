@@ -1,0 +1,137 @@
+function headers() {
+  return {
+    "content-type": "text/html; charset=utf-8",
+    "cache-control": "no-store",
+    "referrer-policy": "no-referrer",
+    "x-content-type-options": "nosniff",
+    "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+  };
+}
+
+export function publicVisaIntakePage() {
+  const html = `<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Form hồ sơ Visa Nga</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,system-ui,sans-serif;background:#07120f;color:#effaf6}*{box-sizing:border-box}body{margin:0;background:#07120f;color:#effaf6}.page{width:min(1080px,calc(100% - 24px));margin:24px auto 64px}.hero,.section,.confirm,.success{border:1px solid #214f42;border-radius:18px;background:#0b211b}.hero{padding:26px;background:linear-gradient(135deg,#0b211b,#0a1714)}.hero span,.section header b{color:#e1d252;font-weight:900;letter-spacing:.1em;font-size:12px}.hero h1{font-size:clamp(28px,5vw,44px);margin:8px 0}.hero p,.section p,.hint{color:#95b7ab}.batch,.error{margin:16px 0;padding:12px 14px;border-radius:10px}.batch{border:1px solid #2b6955;background:#0d2b22}.error{border:1px solid #8f4747;background:#3a1b1b;color:#ffdada;display:none}.section{margin-top:16px;padding:20px}.section header{display:flex;gap:12px;align-items:flex-start}.section header b{display:grid;place-items:center;width:38px;height:38px;border:1px solid #756c27;border-radius:10px}.section h2{margin:0 0 4px}.section header p{margin:0}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:16px}.field{display:grid;gap:5px;font-weight:800;font-size:14px}.field small{font-weight:500;color:#89aa9f}.field input,.field select,.field textarea{width:100%;padding:11px 12px;border:1px solid #2b6354;border-radius:9px;background:#071510;color:#fff;font:inherit}.field input[readonly]{color:#b8d0c7;background:#10251f}.checks{display:grid;gap:10px;margin-top:16px}.checks label,.confirm label{display:flex;gap:10px;padding:12px;border:1px solid #2a5648;border-radius:10px;background:#0a1c17}.checks input,.confirm input{width:18px;height:18px;margin-top:2px}.checks span,.confirm span{display:grid;gap:3px}.checks small,.confirm small{color:#89aa9f}.conditional{display:none}.confirm{margin-top:16px;padding:18px}.confirm button{width:100%;min-height:52px;margin-top:14px;border:0;border-radius:11px;background:#e1d252;color:#15130a;font-weight:950;font-size:16px}.confirm button:disabled{opacity:.5}.success{margin-top:28px;padding:32px;text-align:center;display:none}.success strong{display:block;color:#e1d252;font-size:36px;margin-top:10px}@media(max-width:720px){.grid{grid-template-columns:1fr}.page{width:min(100% - 16px,1080px);margin-top:8px}.hero,.section{padding:16px}}
+</style>
+</head>
+<body>
+<main class="page">
+<section class="hero"><span>FORM THU THẬP HỒ SƠ VISA NGA</span><h1>Điền thông tin để chuẩn bị hồ sơ KD-MID</h1><p>Hướng dẫn bằng tiếng Việt. Hãy nhập đúng theo hộ chiếu và kiểm tra kỹ trước khi gửi.</p></section>
+<div id="batch" class="batch">Đang kiểm tra link thu hồ sơ…</div>
+<div id="error" class="error"></div>
+<form id="form">
+<section class="section"><header><b>01</b><div><h2>Thông tin cá nhân</h2><p>Họ và tên nhập chữ Latin không dấu, đúng thứ tự trên hộ chiếu.</p></div></header><div class="grid">
+<label class="field">Họ <small>Фамилия</small><input name="surname" required></label>
+<label class="field">Tên và tên đệm <small>Имя, другие имена, отчество</small><input name="givenNames" required></label>
+<label class="field">Ngày sinh <small>Дата рождения · dd/mm/yyyy</small><input name="birthDate" placeholder="03/03/1991" required></label>
+<label class="field">Nơi sinh <small>Место рождения</small><input name="birthPlace" required></label>
+<label class="field">Giới tính <small>Пол</small><select name="sex"><option value="МУЖСКОЙ">Nam</option><option value="ЖЕНСКИЙ">Nữ</option></select></label>
+<label class="field">Nơi đến tại Nga <small>Маршрут</small><input name="routeCity" value="МОСКВА" required></label>
+</div></section>
+<section class="section"><header><b>02</b><div><h2>Hộ chiếu</h2><p>Đối chiếu trực tiếp với trang thông tin hộ chiếu.</p></div></header><div class="grid">
+<label class="field">Số hộ chiếu <small>Номер паспорта</small><input name="passportNo" required></label>
+<label class="field">Ngày cấp hộ chiếu <small>Дата выдачи · dd/mm/yyyy</small><input name="passportIssue" placeholder="25/06/2025" required></label>
+<label class="field">Ngày hết hạn hộ chiếu <small>Действителен до · dd/mm/yyyy</small><input name="passportExpiry" placeholder="25/06/2035" required></label>
+</div></section>
+<section class="section"><header><b>03</b><div><h2>Liên hệ & địa chỉ</h2><p>Không cần nhập Fax.</p></div></header><div class="grid">
+<label class="field">Địa chỉ thường trú dùng cho đợt hồ sơ <small>Адрес вашего постоянного проживания</small><input id="permanentAddress" readonly></label>
+<label class="field">Điện thoại cá nhân <small>Ваш личный телефон</small><input name="phone" required></label>
+<label class="field">Email cá nhân <small>Ваш личный E-mail</small><input name="email" type="email" required></label>
+</div></section>
+<section class="section"><header><b>04</b><div><h2>Nơi làm việc / học tập</h2><p>Form tự nạp dữ liệu mặc định của đợt hồ sơ. Chỉ sửa nếu thông tin của bạn khác.</p></div></header><div class="grid">
+<label class="field">Nơi làm việc / học tập <small>Место работы (учебы)</small><input name="workStudyPlace" required></label>
+<label class="field">Chức vụ / tư cách <small>Должность</small><input name="position" required></label>
+<label class="field">Địa chỉ cơ quan <small>Рабочий адрес</small><input name="workAddress" required></label>
+<label class="field">Điện thoại cơ quan <small>Рабочий телефон</small><input name="workPhone" required></label>
+<label class="field">Email cơ quan <small>Рабочий E-mail</small><input name="workEmail" type="email" required></label>
+</div></section>
+<section class="section"><header><b>05</b><div><h2>Lịch sử liên quan đến Nga</h2><p>Chọn Có chỉ khi đúng với bạn.</p></div></header>
+<div class="checks">
+<label><input id="former" type="checkbox"><span><strong>Đã từng có quốc tịch Liên Xô hoặc Nga</strong><small>Если Вы имели гражданство СССР или России</small></span></label>
+<label><input id="visited" type="checkbox"><span><strong>Đã từng đến Nga</strong><small>Были ли Вы когда-нибудь в России?</small></span></label>
+<label><input id="insurance" type="checkbox"><span><strong>Có bảo hiểm có hiệu lực tại Nga</strong><small>Документ о медицинском страховании</small></span></label>
+</div>
+<div id="formerFields" class="grid conditional"><label class="field">Ngày mất quốc tịch <small>dd/mm/yyyy</small><input name="formerCitizenshipLostDate"></label><label class="field">Lý do mất quốc tịch<input name="formerCitizenshipLossReason"></label></div>
+<div id="visitFields" class="grid conditional"><label class="field">Số lần đã đến Nga<input name="visitsCount"></label><label class="field">Chuyến gần nhất - từ ngày <small>dd/mm/yyyy</small><input name="lastVisitFrom"></label><label class="field">Chuyến gần nhất - đến ngày <small>dd/mm/yyyy</small><input name="lastVisitTo"></label></div>
+<div id="insuranceFields" class="grid conditional"><label class="field">Tên công ty / số hợp đồng bảo hiểm<input name="insurancePolicy"></label></div>
+</section>
+<section class="section"><header><b>06</b><div><h2>Gia đình & nơi nộp hồ sơ</h2><p>Không đánh dấu hai mục đầu nghĩa là Không.</p></div></header>
+<div class="checks"><label><input id="children" type="checkbox"><span><strong>Có trẻ em dưới 16 tuổi đi cùng / ghi trong hộ chiếu</strong><small>Дети до 16 лет...</small></span></label><label><input id="relatives" type="checkbox"><span><strong>Có người thân hiện đang ở Nga</strong><small>Родственники на территории России</small></span></label></div>
+<div class="grid"><label class="field">Nơi dự kiến nộp hồ sơ <small>Место подачи заявления</small><select name="preferredEmbassy"><option value="ПОСОЛЬСТВО РФ ВО ВЬЕТНАМЕ">Đại sứ quán Nga tại Hà Nội</option><option value="ГЕНКОНСУЛЬСТВО РФ В ДАНАНГЕ">Tổng Lãnh sự quán Nga tại Đà Nẵng</option><option value="ГЕНКОНСУЛЬСТВО РФ В ХОШИМИНЕ">Tổng Lãnh sự quán Nga tại TP.HCM</option></select></label><label class="field">Ghi chú đặc biệt <small>Nếu có trẻ em/người thân tại Nga, ghi rõ thông tin cần người phụ trách biết.</small><textarea name="specialNotes" rows="4"></textarea></label></div>
+</section>
+<section class="confirm"><label><input id="confirmed" type="checkbox"><span><strong>Tôi xác nhận thông tin trên là đúng theo giấy tờ của mình.</strong><small>Người phụ trách sẽ xác minh trước khi dùng dữ liệu này để làm hồ sơ Visa.</small></span></label><button id="submit" type="submit" disabled>Hoàn thành & gửi hồ sơ</button></section>
+</form>
+<section id="success" class="success"><span>ĐÃ GỬI HỒ SƠ</span><h2 id="successName"></h2><p>Hồ sơ đã vào hàng chờ xác minh.</p><strong id="queue"></strong></section>
+</main>
+<script>
+(() => {
+  const token = new URLSearchParams(location.search).get("token") || "";
+  const form = document.getElementById("form");
+  const error = document.getElementById("error");
+  const batch = document.getElementById("batch");
+  const confirmed = document.getElementById("confirmed");
+  const submit = document.getElementById("submit");
+  const byName = name => form.elements.namedItem(name);
+  const setError = (message, missing=[]) => { error.style.display = message ? "block" : "none"; error.innerHTML = message ? "<strong>"+message+"</strong>"+(missing.length?"<ul>"+missing.map(x=>"<li>"+String(x).replace(/[<>&]/g,"")+"</li>").join("")+"</ul>":"") : ""; };
+  const toggle = (checkboxId, fieldsId) => {
+    const c = document.getElementById(checkboxId), box = document.getElementById(fieldsId);
+    const run = () => { box.style.display = c.checked ? "grid" : "none"; box.querySelectorAll("input").forEach(i => i.required = c.checked); };
+    c.addEventListener("change", run); run();
+  };
+  toggle("former","formerFields"); toggle("visited","visitFields"); toggle("insurance","insuranceFields");
+  confirmed.addEventListener("change", () => submit.disabled = !confirmed.checked);
+
+  fetch("/api/kd-mid-visa-intake/public?token="+encodeURIComponent(token), {cache:"no-store"}).then(async r => {
+    const data = await r.json();
+    if (!r.ok || !data.ok) throw new Error(data.error || "Link không hợp lệ.");
+    batch.innerHTML = "Đợt thu hồ sơ: <strong>"+String(data.link?.label || "").replace(/[<>&]/g,"")+"</strong>";
+    const d = data.defaults || {};
+    const values = {
+      routeCity:d.routeCity || "МОСКВА", workStudyPlace:d.employer || "", position:d.position || "",
+      workAddress:d.workAddress || "", workPhone:d.workPhone || "", workEmail:d.workEmail || "",
+      preferredEmbassy:d.preferredEmbassy || "ПОСОЛЬСТВО РФ ВО ВЬЕТНАМЕ"
+    };
+    Object.entries(values).forEach(([k,v]) => { const el=byName(k); if(el) el.value=String(v); });
+    document.getElementById("permanentAddress").value = String(d.permanentAddress || "");
+  }).catch(e => { setError(e.message || "Không thể mở form."); form.style.display="none"; batch.style.display="none"; });
+
+  form.addEventListener("submit", async event => {
+    event.preventDefault(); setError(""); submit.disabled=true; submit.textContent="Đang gửi…";
+    const value = name => String(byName(name)?.value || "").trim();
+    const applicant = {
+      surname:value("surname").toUpperCase(), givenNames:value("givenNames").toUpperCase(), birthDate:value("birthDate"),
+      birthPlace:value("birthPlace").toUpperCase(), sex:value("sex"), passportNo:value("passportNo").toUpperCase(),
+      passportIssue:value("passportIssue"), passportExpiry:value("passportExpiry"), phone:value("phone"), email:value("email"),
+      routeCity:value("routeCity").toUpperCase(), workStudyPlace:value("workStudyPlace"), position:value("position"),
+      workAddress:value("workAddress"), workPhone:value("workPhone"), workEmail:value("workEmail"),
+      preferredEmbassy:value("preferredEmbassy"), hadFormerRussianCitizenship:document.getElementById("former").checked,
+      formerCitizenshipLostDate:value("formerCitizenshipLostDate"), formerCitizenshipLossReason:value("formerCitizenshipLossReason"),
+      visitedRussia:document.getElementById("visited").checked, visitsCount:value("visitsCount"), lastVisitFrom:value("lastVisitFrom"),
+      lastVisitTo:value("lastVisitTo"), hasInsurance:document.getElementById("insurance").checked,
+      insurancePolicy:value("insurancePolicy"), childrenUnder16:document.getElementById("children").checked,
+      relativesInRussia:document.getElementById("relatives").checked, specialNotes:value("specialNotes")
+    };
+    try {
+      const r = await fetch("/api/kd-mid-visa-intake/public", {method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({token,applicant,confirmedAccurate:confirmed.checked})});
+      const data = await r.json();
+      if (!r.ok || !data.ok) { setError(data.error || "Chưa thể gửi hồ sơ.", data.missing || []); throw new Error("validation"); }
+      form.style.display="none"; batch.style.display="none"; error.style.display="none";
+      document.getElementById("success").style.display="block";
+      document.getElementById("successName").textContent=data.submission?.applicantName || "";
+      document.getElementById("queue").textContent="#"+(data.submission?.queueNo ?? "—");
+      scrollTo({top:0,behavior:"smooth"});
+    } catch(e) {
+      if (e?.message !== "validation") setError("Không thể gửi hồ sơ lúc này. Vui lòng thử lại.");
+      submit.disabled=!confirmed.checked; submit.textContent="Hoàn thành & gửi hồ sơ";
+    }
+  });
+})();
+</script>
+</body></html>`;
+  return new Response(html, { status: 200, headers: headers() });
+}
