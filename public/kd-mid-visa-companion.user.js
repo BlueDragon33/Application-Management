@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.16
+// @version      0.9.17
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,7 +17,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.16";
+  const VERSION = "0.9.17";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
@@ -471,65 +471,69 @@
     return changed ? "changed" : "ready";
   }
 
-  function controlsForField(labels) {
-    const candidates = labelCandidates(labels);
-    for (const node of candidates) {
-      const row = node.closest?.("tr");
-      if (row) {
-        const rowControls = controls(row).filter((el) => visible(el) && el.type !== "hidden");
-        if (rowControls.length) return rowControls;
-      }
+  function exactFieldLabelNode(labels) {
+    const needles = (Array.isArray(labels) ? labels : [labels]).map(norm).filter(Boolean);
+    const nodes = [...document.querySelectorAll("label,td,th,div,span,p,b,strong")];
 
-      let current = node;
-      for (let depth = 0; depth < 6 && current; depth += 1, current = current.parentElement) {
-        const list = controls(current).filter((el) => visible(el) && el.type !== "hidden");
-        if (list.length >= 1 && list.length <= 4) return list;
-      }
-    }
-    return [];
+    const exact = nodes
+      .filter((node) => needles.includes(norm(node.textContent)))
+      .sort((a, b) => {
+        const aControls = controls(a).filter((el) => visible(el) && el.type !== "hidden").length;
+        const bControls = controls(b).filter((el) => visible(el) && el.type !== "hidden").length;
+        return aControls - bControls || a.children.length - b.children.length;
+      });
+
+    return exact[0] || labelCandidates(labels)[0] || null;
+  }
+
+  function controlsFromExactField(labels, selector, count = 1) {
+    const node = exactFieldLabelNode(labels);
+    if (!node) return [];
+
+    // Some KD-MID layouts put the control inside the same TD/DIV as the label.
+    const inside = [...node.querySelectorAll(selector)].filter(visible);
+    if (inside.length >= count) return inside.slice(0, count);
+
+    // Otherwise use the first controls that occur AFTER this exact field label.
+    // This is intentionally NOT based on a parent <tr>, because KD-MID can wrap
+    // several fields inside one outer row/table and that caused Имя to overwrite Фамилия.
+    const all = [...document.querySelectorAll(selector)].filter(visible);
+    const following = all.filter((el) =>
+      Boolean(node.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING)
+    );
+    return following.slice(0, count);
   }
 
   function textControlForField(labels) {
-    return controlsForField(labels).find((el) =>
-      el.matches?.('input:not([type="hidden"]):not([type="button"]):not([type="submit"]),textarea')
-    ) || null;
+    return controlsFromExactField(
+      labels,
+      'input:not([type="hidden"]):not([type="button"]):not([type="submit"]),textarea',
+      1
+    )[0] || null;
   }
 
   function selectControlForField(labels) {
-    return controlsForField(labels).find((el) => el.tagName === "SELECT") || null;
+    return controlsFromExactField(labels, "select", 1)[0] || null;
   }
 
   function dateControlsForField(labels) {
-    const list = controlsForField(labels).filter((el) =>
-      el.tagName === "SELECT" ||
-      el.matches?.('input:not([type="hidden"]):not([type="button"]):not([type="submit"])')
+    const list = controlsFromExactField(
+      labels,
+      'input:not([type="hidden"]):not([type="button"]):not([type="submit"]),select',
+      3
     );
     if (list.length < 3) return [];
     const selectIndex = list.findIndex((el) => el.tagName === "SELECT");
-    if (selectIndex < 0) return [];
-    const before = [...list.slice(0, selectIndex)].reverse().find((el) => el.tagName !== "SELECT");
-    const after = list.slice(selectIndex + 1).find((el) => el.tagName !== "SELECT");
-    return before && after ? [before, list[selectIndex], after] : [];
+    if (selectIndex !== 1) return [];
+    return [list[0], list[1], list[2]];
   }
 
   function firstFollowingControl(labels, selector) {
-    const nodes = labelCandidates(labels);
-    const all = [...document.querySelectorAll(selector)].filter(visible);
-    for (const node of nodes) {
-      const following = all.find((el) => Boolean(node.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING));
-      if (following) return following;
-    }
-    return null;
+    return controlsFromExactField(labels, selector, 1)[0] || null;
   }
 
   function followingControls(labels, selector, count = 1) {
-    const nodes = labelCandidates(labels);
-    const all = [...document.querySelectorAll(selector)].filter(visible);
-    for (const node of nodes) {
-      const list = all.filter((el) => Boolean(node.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING));
-      if (list.length >= count) return list.slice(0, count);
-    }
-    return [];
+    return controlsFromExactField(labels, selector, count);
   }
 
   function ensureTextAfterLabel(labels, value) {
@@ -612,7 +616,16 @@
     }
 
     const finalC = personalPageControls();
+    const distinctPersonalTextControls =
+      finalC.surname &&
+      finalC.givenNames &&
+      finalC.birthPlace &&
+      finalC.surname !== finalC.givenNames &&
+      finalC.surname !== finalC.birthPlace &&
+      finalC.givenNames !== finalC.birthPlace;
+
     const finalReady =
+      distinctPersonalTextControls &&
       finalC.surname && String(finalC.surname.value) === String(A.surname || "") &&
       finalC.givenNames && String(finalC.givenNames.value) === String(A.givenNames || "") &&
       finalC.otherNames && selectAlreadyHas(finalC.otherNames, ["НЕТ","NO"]) &&
@@ -623,7 +636,11 @@
       finalC.bornInRussia && selectAlreadyHas(finalC.bornInRussia, ["НЕТ","NO"]);
 
     if (!finalReady) {
-      status(`KD-MID Visa VN: chưa xác nhận đủ dữ liệu trang cá nhân; đang tự sửa lại. DOB phải là DD/MM/YYYY = ${A.birthDate || ""}.`, "wait");
+      if (!distinctPersonalTextControls) {
+        status("KD-MID Visa VN: phát hiện selector trùng ô giữa Фамилия / Имя / Место рождения; đang dò lại theo nhãn chính xác.", "wait");
+      } else {
+        status(`KD-MID Visa VN: chưa xác nhận đủ dữ liệu trang cá nhân; đang tự sửa lại. DOB phải là DD/MM/YYYY = ${A.birthDate || ""}.`, "wait");
+      }
       continueAutofill(payload, 180);
       return { handled: true, ready: false };
     }
