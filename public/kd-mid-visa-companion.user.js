@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.8.0
-// @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru từ App-Manager, dừng CAPTCHA để người dùng nhập rồi tiếp tục đến PDF A4.
+// @version      0.9.0
+// @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
 // @run-at       document-idle
@@ -17,36 +17,36 @@
 (() => {
   "use strict";
 
-  const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v8";
-  const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v8";
-  const SHARED_SESSION_KEY = "kd-mid-visa-vn:shared-session:v8";
-  const CLICK_KEY = "kd-mid-visa-vn:auto-click:v8";
-  const PRINT_KEY = "kd-mid-visa-vn:auto-print:v8";
+  const VERSION = "0.9.0";
+  const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
+  const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
+  const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
+  const PRINT_KEY = "kd-mid-visa-vn:auto-print:v9";
   const RETRY_MS = 450;
-  const RETRY_LIMIT = 120;
+  const RETRY_LIMIT = 160;
   const APP_HOST = "application-management.boiech-ai.workers.dev";
   const KD_HOST = "visa.kdmid.ru";
   const HASH_PREFIX = "#kdmidv8=";
 
   const norm = (v) => String(v || "").replace(/\s+/g, " ").trim().toUpperCase();
   const controls = (root = document) => [...root.querySelectorAll("input,select,textarea")];
+  const visible = (el) => {
+    const style = window.getComputedStyle(el);
+    return style.display !== "none" && style.visibility !== "hidden" && !el.disabled;
+  };
   const fire = (el) => {
     el.dispatchEvent(new Event("input", { bubbles: true }));
     el.dispatchEvent(new Event("change", { bubbles: true }));
   };
 
   function gmSet(key, value) {
-    try { GM_setValue(key, value); return true; } catch (error) {
-      console.error("[KD-MID Visa VN] GM_setValue failed", error);
-      return false;
-    }
+    try { GM_setValue(key, value); return true; }
+    catch (error) { console.error("[KD-MID Visa VN] GM_setValue failed", error); return false; }
   }
 
   function gmGet(key, fallback = "") {
-    try { return GM_getValue(key, fallback); } catch (error) {
-      console.error("[KD-MID Visa VN] GM_getValue failed", error);
-      return fallback;
-    }
+    try { return GM_getValue(key, fallback); }
+    catch (error) { console.error("[KD-MID Visa VN] GM_getValue failed", error); return fallback; }
   }
 
   function relayRecordToApp(record) {
@@ -59,20 +59,8 @@
       if (event.origin !== location.origin) return;
       const data = event.data;
       if (!data) return;
-
       if (data.type === "KD_MID_PING") {
-        window.postMessage({ type: "KD_MID_COMPANION_READY", version: "0.7.0" }, location.origin);
-        return;
-      }
-
-      if (data.type !== "KD_MID_STORE_PAYLOAD" || !data.payload || !data.nonce) return;
-
-      const okPayload = gmSet(SHARED_PAYLOAD_KEY, JSON.stringify(data.payload));
-      const okSession = gmSet(SHARED_SESSION_KEY, String(data.nonce));
-      if (okPayload && okSession) {
-        window.postMessage({ type: "KD_MID_STORE_ACK", nonce: String(data.nonce), version: "0.7.0" }, location.origin);
-      } else {
-        window.postMessage({ type: "KD_MID_STORE_ERROR", nonce: String(data.nonce) }, location.origin);
+        window.postMessage({ type: "KD_MID_COMPANION_READY", version: VERSION }, location.origin);
       }
     });
 
@@ -90,14 +78,13 @@
       console.warn("[KD-MID Visa VN] GM_addValueChangeListener unavailable", error);
     }
 
-    window.postMessage({ type: "KD_MID_COMPANION_READY", version: "0.7.0" }, location.origin);
+    window.postMessage({ type: "KD_MID_COMPANION_READY", version: VERSION }, location.origin);
   }
 
   if (location.hostname === APP_HOST) {
     runAppManagerBridge();
     return;
   }
-
   if (location.hostname !== KD_HOST) return;
 
   function readSharedPayload() {
@@ -118,7 +105,7 @@
       history.replaceState(null, document.title, location.pathname + location.search);
       return payload;
     } catch (error) {
-      console.error("[KD-MID Visa VN] Không đọc được payload v0.8 từ URL hash", error);
+      console.error("[KD-MID Visa VN] Không đọc được payload từ URL hash", error);
       return null;
     }
   }
@@ -216,7 +203,7 @@
   function fillPassword(payload) {
     const password = payload?.applicant?.password || payload?.password;
     if (!password) return 0;
-    const inputs = [...document.querySelectorAll('input[type="password"]')];
+    const inputs = [...document.querySelectorAll('input[type="password"]')].filter(visible);
     let recognized = 0;
     inputs.forEach((el) => {
       recognized += 1;
@@ -293,7 +280,6 @@
     mark(setYesNo("Имеете ли Вы в настоящее время родственников", false));
 
     mark(setSelect("Наименование учреждения", payload.embassy));
-
     return recognized;
   }
 
@@ -301,6 +287,9 @@
     const hints = [
       ["Страна","Country","Nước nộp hồ sơ"],
       ["Язык подсказок","Hints and help language","Ngôn ngữ hướng dẫn"],
+      ["Пароль","Password","Mật khẩu"],
+      ["Подтверждение пароля","Confirm password","Xác nhận mật khẩu"],
+      ["Введите надпись с картинки","Enter text from image","Nhập CAPTCHA trong ảnh"],
       ["Гражданство","Citizenship","Quốc tịch"],
       ["Цель поездки","Purpose of visit","Mục đích chuyến đi"],
       ["Категория и вид визы","Visa category/type","Loại visa"],
@@ -327,27 +316,56 @@
     }
   }
 
-  function extractApplicationId() {
-    const body = document.body.innerText || "";
-    const patterns = [
-      /Идентификационный номер Вашей анкеты\s*:?\s*(\d{6,12})/i,
-      /Номер анкеты\s*:?\s*(\d{6,12})/i,
-      /№ заявления \(сайт\)[^0-9]{0,50}(\d{6,12})/i,
-      /Application (?:ID|number)[^0-9]{0,50}(\d{6,12})/i,
-    ];
-    for (const pattern of patterns) {
-      const match = body.match(pattern);
-      if (match) return match[1];
-    }
-    return "";
+  function isPasswordCaptchaPage() {
+    const body = norm(document.body.innerText || "");
+    return Boolean(document.querySelector('input[type="password"]')) &&
+      (body.includes("ПОДТВЕРЖДЕНИЕ ПАРОЛЯ") || body.includes("ВВЕДИТЕ НАДПИСЬ С КАРТИНКИ"));
   }
 
-  function saveApplicationRecord(payload, complete = false) {
+  function findCaptchaInput() {
+    const direct = document.querySelector('input[name*="captcha" i],input[id*="captcha" i],input[name*="code" i],input[id*="code" i]');
+    if (direct && direct.type !== "hidden" && visible(direct)) return direct;
+
+    const labeled = blockControls(["Введите надпись с картинки","Enter text from image"])
+      .filter((el) => visible(el) && (el.type === "text" || el.type === "" || !el.type));
+    if (labeled.length) return labeled[labeled.length - 1];
+
+    if (isPasswordCaptchaPage()) {
+      const textInputs = [...document.querySelectorAll('input[type="text"],input:not([type])')]
+        .filter((el) => visible(el));
+      if (textInputs.length) return textInputs[textInputs.length - 1];
+    }
+    return null;
+  }
+
+  function captchaValue() {
+    return String(findCaptchaInput()?.value || "").trim();
+  }
+
+  function captchaReady() {
+    return captchaValue().length >= 5;
+  }
+
+  function isIdConfirmationPage() {
+    const body = norm(document.body.innerText || "");
+    return body.includes("ИДЕНТИФИКАЦИОННЫЙ НОМЕР ВАШЕЙ АНКЕТЫ") ||
+      body.includes("ПЕЧАТЬ НОМЕРА АНКЕТЫ");
+  }
+
+  function extractConfirmedApplicationId() {
+    if (!isIdConfirmationPage()) return "";
+    const body = document.body.innerText || "";
+    const match = body.match(/Идентификационный номер Вашей анкеты\s*:?\s*(\d{6,12})/i) ||
+      body.match(/Номер анкеты\s*:?\s*(\d{6,12})/i);
+    return match?.[1] || "";
+  }
+
+  function saveConfirmedApplicationRecord(payload, complete = false) {
     const previousRaw = gmGet(SHARED_RECORD_KEY, "");
     let previous = null;
     try { previous = previousRaw ? JSON.parse(previousRaw) : null; } catch {}
 
-    const id = extractApplicationId() || previous?.applicationId || "";
+    const id = extractConfirmedApplicationId() || previous?.applicationId || "";
     if (!id) return "";
 
     const A = payload.applicant || {};
@@ -363,27 +381,6 @@
     };
     gmSet(SHARED_RECORD_KEY, JSON.stringify(record));
     return id;
-  }
-
-  function findCaptchaInput() {
-    const direct = document.querySelector('input[name*="captcha" i],input[id*="captcha" i],input[name*="code" i],input[id*="code" i]');
-    if (direct && direct.type !== "hidden") return direct;
-    const image = document.querySelector('img[src*="captcha" i],img[id*="captcha" i],img[class*="captcha" i]');
-    if (!image) return null;
-    const container = image.closest("form,table,div,td") || document;
-    return [...container.querySelectorAll('input[type="text"],input:not([type])')].find((el) => !el.disabled) || null;
-  }
-
-  function isCaptchaPage() {
-    const hasPassword = Boolean(document.querySelector('input[type="password"]'));
-    const body = norm(document.body.innerText || "");
-    const hasCaptchaImage = Boolean(document.querySelector('img[src*="captcha" i],img[id*="captcha" i],img[class*="captcha" i]'));
-    return hasPassword && (Boolean(findCaptchaInput()) || hasCaptchaImage || body.includes("КОД С КАРТИНКИ") || body.includes("CAPTCHA"));
-  }
-
-  function captchaReady() {
-    const input = findCaptchaInput();
-    return Boolean(input && String(input.value || "").trim().length >= 3);
   }
 
   function pageSignature() {
@@ -424,7 +421,7 @@
     if (Date.now() - previousAt < 5000) return true;
 
     sessionStorage.setItem(PRINT_KEY + ":" + key, String(Date.now()));
-    saveApplicationRecord(payload, true);
+    saveConfirmedApplicationRecord(payload, true);
     status("KD-MID Visa VN: hồ sơ hoàn tất. Đang yêu cầu KD-MID xuất PDF A4 chính thức…");
 
     const candidates = [...document.querySelectorAll("button,input[type=button],input[type=submit],a")];
@@ -439,28 +436,32 @@
 
     if (maybeAutoPrint(payload)) return true;
 
-    const body = document.body.innerText || "";
-    const id = extractApplicationId();
-    if (id) {
-      saveApplicationRecord(payload, false);
-      status(`KD-MID Visa VN: đã ghi nhớ Application ID ${id}. Đang tiếp tục…`);
-      return clickNamed(["ДАЛЕЕ","NEXT"], 650);
-    }
-
-    if (isCaptchaPage()) {
+    // Trang password/CAPTCHA phải được xử lý TRƯỚC việc đọc số анкеты ở header.
+    if (isPasswordCaptchaPage()) {
       fillPassword(payload);
       if (!captchaReady()) {
-        status("KD-MID Visa VN: đã điền mật khẩu. Hãy nhập ký tự CAPTCHA trong ảnh; sau khi nhập xong Tool sẽ tự tiếp tục.", "wait");
+        status("KD-MID Visa VN: đã điền Password + Confirm Password. Hãy tự nhập CAPTCHA trong ảnh; Tool sẽ tự bấm «Отправить» khi bạn nhập xong.", "wait");
         return false;
       }
-      status("KD-MID Visa VN: CAPTCHA đã được bạn nhập. Đang tiếp tục…");
-      return clickNamed(["ДАЛЕЕ","NEXT","ПРОДОЛЖИТЬ","CONTINUE","ОТПРАВИТЬ","SUBMIT"], 450);
+      status("KD-MID Visa VN: CAPTCHA đã được nhập. Đang gửi để tạo hồ sơ…");
+      return clickNamed(["ОТПРАВИТЬ","SUBMIT"], 550);
     }
 
+    if (isIdConfirmationPage()) {
+      const id = saveConfirmedApplicationRecord(payload, false);
+      if (id) {
+        status(`KD-MID Visa VN: đã lưu Application ID ${id} vào hồ sơ. Đang bấm «Далее»…`);
+        return clickNamed(["ДАЛЕЕ","NEXT"], 700);
+      }
+      status("KD-MID Visa VN: đang chờ Application ID xác nhận từ KD-MID…", "wait");
+      return false;
+    }
+
+    const body = document.body.innerText || "";
     if (/ПЕЧАТНАЯ ФОРМА ЭЛЕКТРОННОЙ ВИЗОВОЙ АНКЕТЫ/i.test(body)) return false;
 
     if (recognized > 0) {
-      return clickNamed(["ЗАПОЛНИТЬ НОВУЮ АНКЕТУ","COMPLETE NEW APPLICATION","ДАЛЕЕ","NEXT"], 750);
+      return clickNamed(["ЗАПОЛНИТЬ НОВУЮ АНКЕТУ","COMPLETE NEW APPLICATION","ДАЛЕЕ","NEXT"], 800);
     }
     return false;
   }
@@ -472,7 +473,7 @@
     const colors = tone === "wait"
       ? ["#b7791f","#fffbeb","#744210"]
       : ["#2f855a","#ecfdf5","#14532d"];
-    box.style.cssText = `position:fixed;right:14px;bottom:14px;z-index:2147483647;max-width:430px;padding:10px 12px;border:1px solid ${colors[0]};border-radius:10px;background:${colors[1]};color:${colors[2]};box-shadow:0 8px 30px rgba(0,0,0,.22);font:600 12px/1.45 Arial`;
+    box.style.cssText = `position:fixed;right:14px;bottom:14px;z-index:2147483647;max-width:450px;padding:10px 12px;border:1px solid ${colors[0]};border-radius:10px;background:${colors[1]};color:${colors[2]};box-shadow:0 8px 30px rgba(0,0,0,.22);font:600 12px/1.45 Arial`;
     box.textContent = message;
     document.body.appendChild(box);
   }
@@ -482,7 +483,6 @@
   function run(payload) {
     const recognized = fillPage(payload);
     addHints();
-    saveApplicationRecord(payload, false);
     maybeAdvance(payload, recognized);
   }
 
@@ -499,18 +499,38 @@
   }
 
   addHints();
-  const payload = readSharedPayload();
+  const payload = readPayloadFromHash() || readSharedPayload();
   if (!payload) {
-    status("KD-MID Visa VN Companion v0.7 đang chạy nhưng chưa nhận được hồ sơ từ App-Manager. Quay lại App-Manager và bấm “Bắt đầu tự động đến PDF”.", "wait");
+    status(`KD-MID Visa VN Companion v${VERSION} đang chạy nhưng chưa nhận được hồ sơ. Quay lại App-Manager và bấm “Bắt đầu tự động đến PDF”.`, "wait");
   } else {
-    status("KD-MID Visa VN Companion v0.7 đã nhận hồ sơ. Đang bắt đầu tự động…");
+    status(`KD-MID Visa VN Companion v${VERSION} đã nhận hồ sơ. Đang bắt đầu tự động…`);
     startProgressiveRun(payload);
   }
 
-  document.addEventListener("input", () => {
+  let captchaIdleTimer = 0;
+  document.addEventListener("input", (event) => {
     const current = readSharedPayload();
-    if (!current || !isCaptchaPage()) return;
+    if (!current || !isPasswordCaptchaPage()) return;
+    if (event.target !== findCaptchaInput()) return;
+    window.clearTimeout(captchaIdleTimer);
+    if (captchaValue().length >= 5) {
+      captchaIdleTimer = window.setTimeout(() => run(current), 700);
+    }
+  }, true);
+
+  document.addEventListener("change", (event) => {
+    const current = readSharedPayload();
+    if (!current || !isPasswordCaptchaPage()) return;
+    if (event.target !== findCaptchaInput() || captchaValue().length < 3) return;
     window.setTimeout(() => run(current), 120);
+  }, true);
+
+  document.addEventListener("keydown", (event) => {
+    const current = readSharedPayload();
+    if (!current || !isPasswordCaptchaPage()) return;
+    if (event.key !== "Enter" || event.target !== findCaptchaInput() || captchaValue().length < 3) return;
+    event.preventDefault();
+    window.setTimeout(() => run(current), 50);
   }, true);
 
   const observer = new MutationObserver(() => {
