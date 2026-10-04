@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.15
+// @version      0.9.16
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,7 +17,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.15";
+  const VERSION = "0.9.16";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
@@ -112,8 +112,8 @@
 
   function writeDateControls(list, value) {
     if (!value) return "ready";
-    const parts = value.split("/");
-    if (parts.length !== 3 || list.length < 3) return "missing";
+    const parts = parseDmyStrict(value);
+    if (!parts || list.length < 3) return "missing";
 
     const dayEl = list[0];
     const monthEl = list[1];
@@ -377,6 +377,21 @@
     return String(Number(raw));
   }
 
+  function parseDmyStrict(value) {
+    const match = String(value ?? "").trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!match) return null;
+    const day = Number(match[1]);
+    const month = Number(match[2]);
+    const year = Number(match[3]);
+    const check = new Date(Date.UTC(year, month - 1, day));
+    if (
+      check.getUTCFullYear() !== year ||
+      check.getUTCMonth() !== month - 1 ||
+      check.getUTCDate() !== day
+    ) return null;
+    return [match[1], match[2], match[3]];
+  }
+
   function findDateOption(select, part, index) {
     const raw = String(part ?? "").trim();
     const numeric = normalizedNumeric(raw);
@@ -456,6 +471,47 @@
     return changed ? "changed" : "ready";
   }
 
+  function controlsForField(labels) {
+    const candidates = labelCandidates(labels);
+    for (const node of candidates) {
+      const row = node.closest?.("tr");
+      if (row) {
+        const rowControls = controls(row).filter((el) => visible(el) && el.type !== "hidden");
+        if (rowControls.length) return rowControls;
+      }
+
+      let current = node;
+      for (let depth = 0; depth < 6 && current; depth += 1, current = current.parentElement) {
+        const list = controls(current).filter((el) => visible(el) && el.type !== "hidden");
+        if (list.length >= 1 && list.length <= 4) return list;
+      }
+    }
+    return [];
+  }
+
+  function textControlForField(labels) {
+    return controlsForField(labels).find((el) =>
+      el.matches?.('input:not([type="hidden"]):not([type="button"]):not([type="submit"]),textarea')
+    ) || null;
+  }
+
+  function selectControlForField(labels) {
+    return controlsForField(labels).find((el) => el.tagName === "SELECT") || null;
+  }
+
+  function dateControlsForField(labels) {
+    const list = controlsForField(labels).filter((el) =>
+      el.tagName === "SELECT" ||
+      el.matches?.('input:not([type="hidden"]):not([type="button"]):not([type="submit"])')
+    );
+    if (list.length < 3) return [];
+    const selectIndex = list.findIndex((el) => el.tagName === "SELECT");
+    if (selectIndex < 0) return [];
+    const before = [...list.slice(0, selectIndex)].reverse().find((el) => el.tagName !== "SELECT");
+    const after = list.slice(selectIndex + 1).find((el) => el.tagName !== "SELECT");
+    return before && after ? [before, list[selectIndex], after] : [];
+  }
+
   function firstFollowingControl(labels, selector) {
     const nodes = labelCandidates(labels);
     const all = [...document.querySelectorAll(selector)].filter(visible);
@@ -501,32 +557,22 @@
   }
 
   function personalPageControls() {
-    const texts = [...document.querySelectorAll('input[type="text"],input:not([type])')].filter(visible);
-    const selects = [...document.querySelectorAll("select")].filter(visible);
-    // Stable order on KD-MID Personal Information:
-    // text: surname, givenNames, day, year, birthPlace
-    // select: otherNames, sex, month, bornInRussia
     return {
-      surname: texts[0] || null,
-      givenNames: texts[1] || null,
-      otherNames: selects[0] || null,
-      sex: selects[1] || null,
-      dob: [texts[2] || null, selects[2] || null, texts[3] || null],
-      birthPlace: texts[4] || null,
-      bornInRussia: selects[3] || null,
+      surname: textControlForField("Фамилия (согласно паспорту)"),
+      givenNames: textControlForField("Имя, другие имена, отчество (согласно паспорту)"),
+      otherNames: selectControlForField("Есть ли у Вас другие когда-либо использовавшиеся имена"),
+      sex: selectControlForField("Пол"),
+      dob: dateControlsForField("Дата рождения"),
+      birthPlace: textControlForField("Место рождения"),
+      bornInRussia: selectControlForField("Вы родились в России?"),
     };
   }
 
   function passportPageControls() {
-    const texts = [...document.querySelectorAll('input[type="text"],input:not([type])')].filter(visible);
-    const selects = [...document.querySelectorAll("select")].filter(visible);
-    // Stable order on KD-MID Passport Information:
-    // text: passportNo, issueDay, issueYear, expiryDay, expiryYear
-    // select: issueMonth, expiryMonth
     return {
-      passportNo: texts[0] || null,
-      issue: [texts[1] || null, selects[0] || null, texts[2] || null],
-      expiry: [texts[3] || null, selects[1] || null, texts[4] || null],
+      passportNo: textControlForField("Номер паспорта"),
+      issue: dateControlsForField("Дата выдачи"),
+      expiry: dateControlsForField("Действителен до"),
     };
   }
 
@@ -554,7 +600,6 @@
     for (const [label, fn] of steps) {
       const state = fn();
       if (state === "changed") {
-        refreshAspNetValidators();
         status(`KD-MID Visa VN: đã tự điền ${label}. Đang chuyển sang trường kế tiếp…`, "wait");
         continueAutofill(payload);
         return { handled: true, ready: false };
@@ -564,6 +609,23 @@
         continueAutofill(payload, 220);
         return { handled: true, ready: false };
       }
+    }
+
+    const finalC = personalPageControls();
+    const finalReady =
+      finalC.surname && String(finalC.surname.value) === String(A.surname || "") &&
+      finalC.givenNames && String(finalC.givenNames.value) === String(A.givenNames || "") &&
+      finalC.otherNames && selectAlreadyHas(finalC.otherNames, ["НЕТ","NO"]) &&
+      finalC.sex && selectAlreadyHas(finalC.sex, [A.sex]) &&
+      finalC.dob.length === 3 && parseDmyStrict(A.birthDate) &&
+        parseDmyStrict(A.birthDate).every((part, index) => dateControlMatches(finalC.dob[index], part, index)) &&
+      finalC.birthPlace && String(finalC.birthPlace.value) === String(A.birthPlace || "") &&
+      finalC.bornInRussia && selectAlreadyHas(finalC.bornInRussia, ["НЕТ","NO"]);
+
+    if (!finalReady) {
+      status(`KD-MID Visa VN: chưa xác nhận đủ dữ liệu trang cá nhân; đang tự sửa lại. DOB phải là DD/MM/YYYY = ${A.birthDate || ""}.`, "wait");
+      continueAutofill(payload, 180);
+      return { handled: true, ready: false };
     }
 
     refreshAspNetValidators();
@@ -593,7 +655,6 @@
     for (const [label, fn] of steps) {
       const state = fn();
       if (state === "changed") {
-        refreshAspNetValidators();
         status(`KD-MID Visa VN: đã tự điền ${label}. Đang chuyển sang trường hộ chiếu kế tiếp…`, "wait");
         continueAutofill(payload);
         return { handled: true, ready: false };
