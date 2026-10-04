@@ -7,6 +7,7 @@ const publicPage = fs.readFileSync("app/visa-intake/page.tsx", "utf8");
 const publicApi = fs.readFileSync("app/api/kd-mid-visa-intake/public/route.ts", "utf8");
 const adminApi = fs.readFileSync("app/api/kd-mid-visa-intake/admin/route.ts", "utf8");
 const worker = fs.readFileSync("worker/index.ts", "utf8");
+const publicWorkerPage = fs.readFileSync("worker/visa-intake-public.ts", "utf8");
 const migration = fs.readFileSync("drizzle/0009_visa_intake.sql", "utf8");
 const schema = fs.readFileSync("db/schema.ts", "utf8");
 
@@ -22,11 +23,13 @@ test("visa intake has isolated link and submission tables", () => {
 test("only public intake page and public intake API bypass Production admin login", () => {
   assert.match(worker, /function isPublicVisaIntakeRequest/);
   assert.match(worker, /url\.pathname === "\/visa-intake"/);
+  assert.match(worker, /publicVisaIntakePage\(\)/);
   assert.match(worker, /url\.pathname === "\/api\/kd-mid-visa-intake\/public"/);
   assert.doesNotMatch(worker, /url\.pathname === "\/api\/kd-mid-visa-intake\/admin".*return true/s);
 });
 
 test("public intake form is Vietnamese and covers required visa profile fields", () => {
+  const formSource = publicWorkerPage + "\n" + publicPage;
   for (const phrase of [
     "Thông tin cá nhân",
     "Hộ chiếu",
@@ -35,7 +38,7 @@ test("public intake form is Vietnamese and covers required visa profile fields",
     "Lịch sử liên quan đến Nga",
     "Gia đình & nơi nộp hồ sơ",
     "Hoàn thành & gửi hồ sơ",
-  ]) assert.ok(publicPage.includes(phrase), phrase);
+  ]) assert.ok(formSource.includes(phrase), phrase);
   assert.match(publicPage, /required value=\{applicant\.passportNo\}/);
   assert.match(publicPage, /required value=\{applicant\.email\}/);
   assert.match(publicPage, /childrenUnder16/);
