@@ -164,6 +164,21 @@ function safeLoad(): Store {
   }
 }
 
+function normalizeDmy(value: string) {
+  const raw = value.trim();
+  if (!raw) return "";
+  const iso = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  const dmy = raw.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
+  const parts = iso ? [iso[3], iso[2], iso[1]] : dmy ? [dmy[1], dmy[2], dmy[3]] : null;
+  if (!parts) return raw;
+  const day = Number(parts[0]);
+  const month = Number(parts[1]);
+  const year = Number(parts[2]);
+  const check = new Date(Date.UTC(year, month - 1, day));
+  if (check.getUTCFullYear() !== year || check.getUTCMonth() !== month - 1 || check.getUTCDate() !== day) return raw;
+  return `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`;
+}
+
 function surname5(value: string) {
   return value.trim().replace(/\s+/g, "").toUpperCase().slice(0, 5);
 }
@@ -198,18 +213,29 @@ function emitChange(el: HTMLInputElement | HTMLSelectElement | HTMLTextAreaEleme
 }
 
 function buildPayload(applicant: Applicant, common: CommonData, autoAdvance = false) {
+  const normalizedApplicant = {
+    ...applicant,
+    birthDate: normalizeDmy(applicant.birthDate),
+    passportIssue: normalizeDmy(applicant.passportIssue),
+    passportExpiry: normalizeDmy(applicant.passportExpiry),
+    formerCitizenshipLostDate: normalizeDmy(applicant.formerCitizenshipLostDate),
+    lastVisitFrom: normalizeDmy(applicant.lastVisitFrom),
+    lastVisitTo: normalizeDmy(applicant.lastVisitTo),
+  };
   return {
     ...common,
+    entryDate: normalizeDmy(common.entryDate),
+    exitDate: normalizeDmy(common.exitDate),
     fixedPermanentAddress,
     fixedWorkPhone,
     _automation: { autoAdvance, autoPrint: true },
     applicant: {
-      ...applicant,
+      ...normalizedApplicant,
       personalAddress: fixedPermanentAddress,
       workPhone: fixedWorkPhone,
       password: applicant.passwordOverride || common.password,
       surname5: surname5(applicant.surname),
-      birthYear: birthYear(applicant.birthDate),
+      birthYear: birthYear(normalizedApplicant.birthDate),
     },
   };
 }
@@ -222,7 +248,7 @@ function encodeAutomationPayload(payload: ReturnType<typeof buildPayload>) {
 }
 
 function buildDirectAutomationUrl(applicant: Applicant, common: CommonData, autoAdvance: boolean) {
-  const payload = buildPayload(applicant, common, autoAdvance);
+  const payload = { ...buildPayload(applicant, common, autoAdvance), _launchToken: Date.now() };
   return `https://visa.kdmid.ru/#kdmidv8=${encodeAutomationPayload(payload)}`;
 }
 
@@ -331,6 +357,16 @@ function TextInput({ value, onChange, placeholder = "" }: { value: string; onCha
   return <input value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />;
 }
 
+function DateTextInput({ value, onChange, placeholder = "dd/mm/yyyy" }: { value: string; onChange: (value: string) => void; placeholder?: string }) {
+  return <input
+    inputMode="numeric"
+    value={value}
+    placeholder={placeholder}
+    onChange={(event) => onChange(event.target.value)}
+    onBlur={(event) => onChange(normalizeDmy(event.target.value))}
+  />;
+}
+
 export default function KdMidVisaTool({ user }: { user: { displayName: string; email: string } }) {
   const [route, setRoute] = useState<Route>("dashboard");
   const [store, setStore] = useState<Store>({ version: 1, common: defaultCommon, applicants: [], records: [], selectedId: "" });
@@ -396,7 +432,17 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
   function saveApplicant(next: Applicant) {
     setStore((current) => {
       const exists = current.applicants.some((item) => item.id === next.id);
-      const normalized = { ...next, personalAddress: fixedPermanentAddress, workPhone: fixedWorkPhone };
+      const normalized = {
+        ...next,
+        birthDate: normalizeDmy(next.birthDate),
+        passportIssue: normalizeDmy(next.passportIssue),
+        passportExpiry: normalizeDmy(next.passportExpiry),
+        formerCitizenshipLostDate: normalizeDmy(next.formerCitizenshipLostDate),
+        lastVisitFrom: normalizeDmy(next.lastVisitFrom),
+        lastVisitTo: normalizeDmy(next.lastVisitTo),
+        personalAddress: fixedPermanentAddress,
+        workPhone: fixedWorkPhone,
+      };
       const applicants = exists ? current.applicants.map((item) => item.id === normalized.id ? normalized : item) : [normalized, ...current.applicants];
       return { ...current, applicants, selectedId: next.id };
     });
@@ -455,13 +501,15 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       return;
     }
 
+    const latestPayload = buildPayload(selected, store.common, autoAdvance);
+    window.postMessage({ type: "KD_MID_SET_PAYLOAD", payload: latestPayload }, window.location.origin);
     const target = window.open(buildDirectAutomationUrl(selected, store.common, autoAdvance), "kdmidVisa");
     if (!target) {
       setNotice("Trình duyệt đã chặn cửa sổ KD-MID. Hãy cho phép pop-up cho App-Manager rồi thử lại.");
       return;
     }
 
-    setNotice("Đã mở thẳng KD-MID bằng Companion v0.9.5.1. Trang sẽ không tự đóng; nếu script hoạt động, hash truyền hồ sơ sẽ biến mất và luồng tự động bắt đầu.");
+    setNotice("Đã mở thẳng KD-MID bằng Companion v0.9.6. Trang sẽ không tự đóng; nếu script hoạt động, hash truyền hồ sơ sẽ biến mất và luồng tự động bắt đầu.");
   }
 
   function saveManualRecord() {
@@ -568,8 +616,8 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         <Field label="Цель поездки · Mục đích"><TextInput value={c.purpose} onChange={(v) => mutateCommon("purpose", v)} /></Field>
         <Field label="Категория и вид визы"><TextInput value={c.visaType} onChange={(v) => mutateCommon("visaType", v)} /></Field>
         <Field label="Кратность визы"><TextInput value={c.entries} onChange={(v) => mutateCommon("entries", v)} /></Field>
-        <Field label="Ngày vào Nga"><TextInput value={c.entryDate} onChange={(v) => mutateCommon("entryDate", v)} /></Field>
-        <Field label="Ngày ra Nga"><TextInput value={c.exitDate} onChange={(v) => mutateCommon("exitDate", v)} /></Field>
+        <Field label="Ngày vào Nga · dd/mm/yyyy"><DateTextInput value={c.entryDate} onChange={(v) => mutateCommon("entryDate", v)} /></Field>
+        <Field label="Ngày ra Nga · dd/mm/yyyy"><DateTextInput value={c.exitDate} onChange={(v) => mutateCommon("exitDate", v)} /></Field>
         <Field label="Наименование организации"><TextInput value={c.organization} onChange={(v) => mutateCommon("organization", v)} /></Field>
         <Field label="Адрес организации"><TextInput value={c.organizationAddress} onChange={(v) => mutateCommon("organizationAddress", v)} /></Field>
         <Field label="ИНН"><TextInput value={c.tin} onChange={(v) => mutateCommon("tin", v)} /></Field>
@@ -600,8 +648,8 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
     return <section className={styles.panel}>
       <header><div><span>KẾT NỐI KD-MID</span><h3>Tự động điền visa.kdmid.ru</h3></div><button onClick={() => void prepareBridge()} disabled={!selected}>Tạo bookmarklet dự phòng</button></header>
       <div className={styles.autoConnect}>
-        <div><span>KHUYÊN DÙNG</span><h4>Tự động từ trang đầu đến PDF A4 chính thức</h4><p>Companion tự chọn <strong>Việt Nam</strong> + <strong>Русский</strong> + tích <strong>“Я прочитал эту информацию”</strong>, tự mở hồ sơ mới, điền mật khẩu mặc định và <strong>dừng ở CAPTCHA để bạn tự nhập ký tự trong ảnh</strong>. Sau khi bạn nhập CAPTCHA, Companion tiếp tục tự động, ghi nhớ Application ID, điền các trang còn lại và cuối cùng bấm <strong>Печать формата A4</strong>.</p></div>
-        <div className={styles.autoActions}><a className={styles.installLink} href="/kd-mid-visa-companion.user.js" target="_blank" rel="noreferrer">1. Cài / cập nhật Companion v0.9.5.1 ↗</a><span className={styles.companionState} data-ready={Boolean(companionVersion)}>{companionVersion ? `✓ Companion ${companionVersion} đang hoạt động trên App-Manager` : "Companion v0.9.5.1 sẽ tự kiểm tra khi mở KD-MID"}</span><button onClick={openAutomaticKdmid} disabled={!selected}>3. Bắt đầu tự động đến PDF</button></div>
+        <div><span>KHUYÊN DÙNG</span><h4>Tự động từ trang đầu đến PDF A4 chính thức</h4><p>Mỗi lần bấm chạy, Companion nhận lại <strong>hồ sơ mới nhất vừa lưu</strong>, rồi tự chọn <strong>Việt Nam</strong> + <strong>Русский</strong> + tích <strong>“Я прочитал эту информацию”</strong>, tự mở hồ sơ mới, điền mật khẩu mặc định và <strong>dừng ở CAPTCHA để bạn tự nhập ký tự trong ảnh</strong>. Sau khi bạn nhập CAPTCHA, Companion tiếp tục tự động, ghi nhớ Application ID, điền các trang còn lại và cuối cùng bấm <strong>Печать формата A4</strong>.</p></div>
+        <div className={styles.autoActions}><a className={styles.installLink} href="/kd-mid-visa-companion.user.js" target="_blank" rel="noreferrer">1. Cài / cập nhật Companion v0.9.6 ↗</a><span className={styles.companionState} data-ready={Boolean(companionVersion)}>{companionVersion ? `✓ Companion ${companionVersion} đang hoạt động trên App-Manager` : "Companion v0.9.6 sẽ tự kiểm tra khi mở KD-MID"}</span><button onClick={openAutomaticKdmid} disabled={!selected}>3. Bắt đầu tự động đến PDF</button></div>
         <div className={styles.profileChooser}>
           <div><span>BƯỚC 2</span><strong>Chọn hồ sơ sử dụng</strong><small>Danh sách lấy trực tiếp từ mục Hồ sơ cá nhân đã lưu trên máy này.</small></div>
           {store.applicants.length ? <div className={styles.profileChooserControl}>
@@ -615,7 +663,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         <label className={styles.autoToggle}><input type="checkbox" checked={autoAdvance} onChange={(event) => setAutoAdvance(event.target.checked)} /><span><strong>Tự động toàn bộ sau CAPTCHA</strong><small>Bật mặc định. Companion không giải CAPTCHA: Tool điền password rồi chờ bạn nhập ký tự trong ảnh. Khi CAPTCHA đã được nhập, Tool tự tiếp tục các trang và yêu cầu KD-MID xuất PDF A4 chính thức.</small></span></label>
       </div>
       <div className={styles.connectGrid}>
-        <article><b>1</b><strong>Cài Companion v0.9.5.1</strong><p>Tampermonkey/Violentmonkey phải báo script <strong>Enabled</strong>. Nếu đã cài bản cũ, mở lại nút cài để cập nhật lên v0.9.5.</p></article>
+        <article><b>1</b><strong>Cài Companion v0.9.6</strong><p>Tampermonkey/Violentmonkey phải báo script <strong>Enabled</strong>. Nếu đã cài bản cũ, mở lại nút cài để cập nhật lên v0.9.6.</p></article>
         <article><b>2</b><strong>Chọn hồ sơ ngay phía trên</strong><p>{selected ? `Đang chọn: ${displayName(selected)}.` : "Chưa chọn hồ sơ."} Nếu có nhiều hồ sơ, mở danh sách và chọn đúng người trước khi chạy.</p></article>
         <article><b>3</b><strong>Password tự điền · CAPTCHA nhập tay</strong><p>Companion tự điền cả <strong>Пароль</strong> và <strong>Подтверждение пароля</strong>. CAPTCHA không được tự giải; bạn nhập ký tự trong ảnh. Sau khi nhập xong, Companion tự bấm <strong>Отправить</strong>.</p></article>
         <article><b>4</b><strong>Lưu ID rồi tiếp tục tự động</strong><p>Ở trang xác nhận <strong>Идентификационный номер Вашей анкеты</strong>, Companion lưu ID vào hồ sơ/Bản ghi mở lại, tự bấm <strong>Далее</strong>, rồi tiếp tục các trang còn lại đến <strong>Печать формата A4</strong>.</p></article>
@@ -625,7 +673,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         <textarea readOnly value={bookmarklet} placeholder="Bấm “Tạo bookmarklet dự phòng” để tạo javascript:..." />
         <div className={styles.bridgeActions}><button onClick={async () => { if (!bookmarklet) return; await navigator.clipboard.writeText(bookmarklet); setNotice("Đã sao chép bookmarklet."); }} disabled={!bookmarklet}>Sao chép bookmarklet</button><button className={styles.secondary} onClick={openKdmid}>Mở KD-MID thủ công ↗</button></div>
       </div>
-      <div className={styles.warning}><strong>Kiểm tra trước khi chạy</strong><p>Với v0.9.5, dòng trạng thái trên App-Manager chỉ là thông tin phụ. Luồng chính được kiểm tra trực tiếp khi tab <strong>visa.kdmid.ru</strong> mở: nếu Companion nhận hồ sơ, đoạn <code>#kdmidv8=...</code> sẽ tự biến mất và hộp trạng thái KD-MID Visa VN xuất hiện ở góc dưới. Tool không tự đọc/giải CAPTCHA; sau khi bạn nhập CAPTCHA, Companion tiếp tục và PDF/barcode do chính <strong>visa.kdmid.ru</strong> tạo. <strong>Barcode chỉ hợp lệ khi do KD-MID tạo.</strong></p></div>
+      <div className={styles.warning}><strong>Kiểm tra trước khi chạy</strong><p>Với v0.9.6, dòng trạng thái trên App-Manager chỉ là thông tin phụ. Luồng chính được kiểm tra trực tiếp khi tab <strong>visa.kdmid.ru</strong> mở: nếu Companion nhận hồ sơ, đoạn <code>#kdmidv8=...</code> sẽ tự biến mất và hộp trạng thái KD-MID Visa VN xuất hiện ở góc dưới. Tool không tự đọc/giải CAPTCHA; sau khi bạn nhập CAPTCHA, Companion tiếp tục và PDF/barcode do chính <strong>visa.kdmid.ru</strong> tạo. <strong>Barcode chỉ hợp lệ khi do KD-MID tạo.</strong></p></div>
     </section>;
   }
 
@@ -663,14 +711,14 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         <div className={styles.formGrid}>
           <Field label="Фамилия · Surname" hint="Họ đúng như hộ chiếu; không nhập tên vào ô này."><TextInput value={editing.surname} onChange={(v) => setEditing({ ...editing, surname: v.toUpperCase() })} /></Field>
           <Field label="Имя, другие имена · Given/Middle names" hint="Tên + tên đệm đúng như hộ chiếu."><TextInput value={editing.givenNames} onChange={(v) => setEditing({ ...editing, givenNames: v.toUpperCase() })} /></Field>
-          <Field label="Дата рождения · dd/mm/yyyy"><TextInput value={editing.birthDate} onChange={(v) => setEditing({ ...editing, birthDate: v })} placeholder="03/03/1991" /></Field>
+          <Field label="Дата рождения · dd/mm/yyyy" hint="Ví dụ 03/03/1991; Tool tự chuẩn hóa ngày/tháng và chọn đúng tháng tiếng Nga trên KD-MID."><DateTextInput value={editing.birthDate} onChange={(v) => setEditing({ ...editing, birthDate: v })} placeholder="03/03/1991" /></Field>
           <Field label="Место рождения · Nơi sinh"><TextInput value={editing.birthPlace} onChange={(v) => setEditing({ ...editing, birthPlace: v })} /></Field>
           <Field label="Пол · Giới tính"><select value={editing.sex} onChange={(e) => setEditing({ ...editing, sex: e.target.value })}><option>МУЖСКОЙ</option><option>ЖЕНСКИЙ</option></select></Field>
           <Field label="Маршрут (населенные пункты) · Nơi đến tại Nga" hint={`Mặc định: ${store.common.city}`}><TextInput value={editing.routeCity || store.common.city} onChange={(v) => setEditing({ ...editing, routeCity: v.toUpperCase() })} /></Field>
           <Field label="Если Вы имели гражданство СССР или России... · Đã từng có quốc tịch Liên Xô/Nga?"><select value={editing.hadFormerRussianCitizenship ? "ДА" : "НЕТ"} onChange={(e) => setEditing({ ...editing, hadFormerRussianCitizenship: e.target.value === "ДА" })}><option value="НЕТ">НЕТ · Không</option><option value="ДА">ДА · Có</option></select></Field>
           <Field label="Номер паспорта"><TextInput value={editing.passportNo} onChange={(v) => setEditing({ ...editing, passportNo: v.toUpperCase() })} /></Field>
-          <Field label="Дата выдачи паспорта"><TextInput value={editing.passportIssue} onChange={(v) => setEditing({ ...editing, passportIssue: v })} placeholder="25/06/2025" /></Field>
-          <Field label="Паспорт действителен до"><TextInput value={editing.passportExpiry} onChange={(v) => setEditing({ ...editing, passportExpiry: v })} placeholder="25/06/2035" /></Field>
+          <Field label="Дата выдачи паспорта · dd/mm/yyyy"><DateTextInput value={editing.passportIssue} onChange={(v) => setEditing({ ...editing, passportIssue: v })} placeholder="25/06/2025" /></Field>
+          <Field label="Паспорт действителен до · dd/mm/yyyy"><DateTextInput value={editing.passportExpiry} onChange={(v) => setEditing({ ...editing, passportExpiry: v })} placeholder="25/06/2035" /></Field>
           <Field label="Адрес вашего постоянного проживания · Địa chỉ thường trú" hint="Cố định cho mọi hồ sơ."><input value={fixedPermanentAddress} readOnly /></Field>
           <Field label="Điện thoại cá nhân"><TextInput value={editing.phone} onChange={(v) => setEditing({ ...editing, phone: v })} /></Field>
           <Field label="Email cá nhân"><TextInput value={editing.email} onChange={(v) => setEditing({ ...editing, email: v })} /></Field>
@@ -680,11 +728,11 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
           <Field label="Application ID" hint="Bridge sẽ tự ghi khi nhận diện được."><TextInput value={editing.applicationId} onChange={(v) => setEditing({ ...editing, applicationId: v.replace(/\D/g, "") })} /></Field>
         </div>
         {editing.hadFormerRussianCitizenship ? <div className={styles.formGrid}>
-          <Field label="Когда? · Mất quốc tịch khi nào?" hint="dd/mm/yyyy"><TextInput value={editing.formerCitizenshipLostDate} onChange={(v) => setEditing({ ...editing, formerCitizenshipLostDate: v })} placeholder="dd/mm/yyyy" /></Field>
+          <Field label="Когда? · Mất quốc tịch khi nào?" hint="dd/mm/yyyy"><DateTextInput value={editing.formerCitizenshipLostDate} onChange={(v) => setEditing({ ...editing, formerCitizenshipLostDate: v })} /></Field>
           <Field label="В связи с чем? · Lý do mất quốc tịch"><TextInput value={editing.formerCitizenshipLossReason} onChange={(v) => setEditing({ ...editing, formerCitizenshipLossReason: v })} /></Field>
         </div> : null}
         <div className={styles.toggleRow}><label><input type="checkbox" checked={editing.visitedRussia} onChange={(e) => setEditing({ ...editing, visitedRussia: e.target.checked })} /> Đã từng đến Nga</label><label><input type="checkbox" checked={editing.hasInsurance} onChange={(e) => setEditing({ ...editing, hasInsurance: e.target.checked })} /> Có bảo hiểm hiệu lực tại Nga</label></div>
-        {editing.visitedRussia ? <div className={styles.formGrid}><Field label="Số lần đến Nga"><TextInput value={editing.visitsCount} onChange={(v) => setEditing({ ...editing, visitsCount: v })} /></Field><Field label="Chuyến gần nhất · từ"><TextInput value={editing.lastVisitFrom} onChange={(v) => setEditing({ ...editing, lastVisitFrom: v })} /></Field><Field label="Chuyến gần nhất · đến"><TextInput value={editing.lastVisitTo} onChange={(v) => setEditing({ ...editing, lastVisitTo: v })} /></Field></div> : null}
+        {editing.visitedRussia ? <div className={styles.formGrid}><Field label="Số lần đến Nga"><TextInput value={editing.visitsCount} onChange={(v) => setEditing({ ...editing, visitsCount: v })} /></Field><Field label="Chuyến gần nhất · từ"><DateTextInput value={editing.lastVisitFrom} onChange={(v) => setEditing({ ...editing, lastVisitFrom: v })} /></Field><Field label="Chuyến gần nhất · đến"><DateTextInput value={editing.lastVisitTo} onChange={(v) => setEditing({ ...editing, lastVisitTo: v })} /></Field></div> : null}
         {editing.hasInsurance ? <div className={styles.formGrid}><Field label="Tên công ty / số policy"><TextInput value={editing.insurancePolicy} onChange={(v) => setEditing({ ...editing, insurancePolicy: v })} /></Field></div> : null}
         <div className={styles.resumePreview}><span>Bản ghi mở lại sẽ là</span><strong>{editing.applicationId || "Application ID"} · {surname5(editing.surname) || "SURNA"} · {birthYear(editing.birthDate) || "YYYY"} · {editing.passwordOverride || store.common.password}</strong></div>
       </div>
