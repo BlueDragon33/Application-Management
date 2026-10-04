@@ -132,9 +132,10 @@ test("v0.8 opens KD-MID directly and transfers payload through a self-clearing h
   assert.match(tool, /Trang sẽ không tự đóng/);
 });
 
-test("connect page still reports Companion status when the App-Manager side is available", () => {
+test("connect page treats App-Manager Companion status as informational in v0.8", () => {
   assert.match(tool, /companionVersion/);
-  assert.match(tool, /Companion chưa được phát hiện/);
-  assert.match(tool, /đang hoạt động/);
+  assert.match(tool, /Companion v0\.8 sẽ tự kiểm tra khi mở KD-MID/);
+  assert.match(tool, /đang hoạt động trên App-Manager/);
+  assert.match(tool, /dòng trạng thái trên App-Manager chỉ là thông tin phụ/);
   assert.match(tool, /KD_MID_PING/);
 });
