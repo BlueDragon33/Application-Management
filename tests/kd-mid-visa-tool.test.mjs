@@ -382,3 +382,19 @@ test("v0.9.29 contact autofill ignores stale truncated address payloads", () => 
   assert.match(companion, /optionalText\(C\.permanentAddress, CANONICAL_PERMANENT_ADDRESS\)/);
   assert.match(companion, /permanentAddress: CANONICAL_PERMANENT_ADDRESS/);
 });
+
+
+test("backup page supports selective local-data deletion instead of all-or-nothing deletion", () => {
+  assert.match(tool, /type DeleteScope = "applicants" \| "records" \| "common" \| "payload" \| "intakeDrafts"/);
+  assert.match(tool, /function deleteSelectedLocalData\(\)/);
+  assert.match(tool, /Xóa dữ liệu có chọn lọc/);
+  assert.match(tool, /Hồ sơ cá nhân/);
+  assert.match(tool, /Bản ghi mở lại/);
+  assert.match(tool, /Trường dùng chung/);
+  assert.match(tool, /Payload KD-MID \/ Companion/);
+  assert.match(tool, /Bản nháp Form thu hồ sơ/);
+  assert.match(tool, /startsWith\("visa-intake:draft:"\)/);
+  assert.match(tool, /window\.localStorage\.removeItem\(activePayloadKey\)/);
+  assert.match(tool, /Chọn tất cả/);
+  assert.match(tool, /Bỏ chọn/);
+});
