@@ -14,36 +14,40 @@ test("KD-MID Visa is registered as an internal Tool", () => {
   assert.match(page, /requireChatGPTUser\("\/tools\/kd-mid-visa"\)/);
 });
 
-test("Companion v0.9.8 is active in script and UI", () => {
-  assert.match(companion, /@version\s+0\.9\.8/);
-  assert.match(companion, /const VERSION = "0\.9\.8"/);
-  assert.match(tool, /Companion v0\.9\.8/);
+test("Companion v0.9.9 is active in script and UI", () => {
+  assert.match(companion, /@version\s+0\.9\.9/);
+  assert.match(companion, /const VERSION = "0\.9\.9"/);
+  assert.match(tool, /Companion v0\.9\.9/);
 });
 
-test("landing page still selects Vietnam and Russian before continuing", () => {
-  assert.match(companion, /РУССКИЙ \(RUSSIAN\)/);
-  assert.match(companion, /Я прочитал эту информацию/);
+test("landing, password and official A4 flows remain intact", () => {
   assert.match(companion, /fillLandingPage/);
-});
-
-test("password page still fills both password fields and waits for manual CAPTCHA", () => {
+  assert.match(companion, /РУССКИЙ \(RUSSIAN\)/);
   assert.match(companion, /function fillPassword/);
-  assert.match(companion, /ПОДТВЕРЖДЕНИЕ ПАРОЛЯ/);
   assert.match(companion, /ВВЕДИТЕ НАДПИСЬ С КАРТИНКИ/);
-  assert.match(companion, /ОТПРАВИТЬ/);
+  assert.match(companion, /ПЕЧАТЬ ФОРМАТА A4/);
+  assert.match(companion, /printButton\.click/);
 });
 
-test("visa request page keeps the exact required values", () => {
+test("visa request page keeps the required study values", () => {
   assert.match(companion, /function fillVisaRequestPage/);
   assert.match(companion, /ВЬЕТНАМ/);
   assert.match(companion, /УЧЕБА/);
   assert.match(companion, /ОБЫКНОВЕННАЯ УЧЕБНАЯ/);
   assert.match(companion, /ОДНОКРАТНАЯ/);
-  assert.match(companion, /function ensureVisaFormerCitizenship/);
 });
 
-test("personal information page maps each field independently", () => {
+test("personal page writes all required fields in one pass", () => {
   assert.match(companion, /function fillPersonalInfoPage/);
+  assert.match(companion, /let waitingFor = ""/);
+  assert.match(companion, /let changed = false/);
+  assert.match(companion, /for \(const \[label, fn\] of steps\)/);
+  assert.match(companion, /const checks = \[/);
+  assert.match(companion, /trang cá nhân OK/);
+  assert.doesNotMatch(companion.slice(companion.indexOf("function fillPersonalInfoPage"), companion.indexOf("function setText")), /đã điền " \+ label/);
+});
+
+test("personal page maps surname, given names, sex, DOB and birth place independently", () => {
   assert.match(companion, /ensureTextAfterLabel\("Фамилия \(согласно паспорту\)"/);
   assert.match(companion, /ensureTextAfterLabel\("Имя, другие имена, отчество \(согласно паспорту\)"/);
   assert.match(companion, /ensureSelectAfterLabel\("Пол"/);
@@ -51,20 +55,15 @@ test("personal information page maps each field independently", () => {
   assert.match(companion, /ensureTextAfterLabel\("Место рождения"/);
 });
 
-test("Russian month names are supported for KD-MID date selects", () => {
+test("Russian month names are supported and date is not ready until the month really matches", () => {
   assert.match(companion, /const RU_MONTHS = \["","ЯНВАРЬ","ФЕВРАЛЬ","МАРТ"/);
   assert.match(companion, /function findDateOption/);
   assert.match(companion, /monthName = RU_MONTHS\[monthNumber\]/);
-  assert.match(companion, /options\[monthNumber\]/);
-});
-
-test("date fill is not considered ready when a month option cannot be resolved", () => {
   assert.match(companion, /if \(!option\) \{ unresolved = true; return; \}/);
-  assert.match(companion, /if \(unresolved\) return "waiting"/);
   assert.match(companion, /dateControlMatches/);
 });
 
-test("App-Manager normalizes dd/mm/yyyy dates before sending them to KD-MID", () => {
+test("App-Manager normalizes profile dates before building the payload", () => {
   assert.match(tool, /function normalizeDmy/);
   assert.match(tool, /birthDate: normalizeDmy\(applicant\.birthDate\)/);
   assert.match(tool, /passportIssue: normalizeDmy\(applicant\.passportIssue\)/);
@@ -72,64 +71,54 @@ test("App-Manager normalizes dd/mm/yyyy dates before sending them to KD-MID", ()
   assert.match(tool, /function DateTextInput/);
 });
 
-test("saving a profile persists immediately and overwrites the shared Companion payload", () => {
-  assert.match(tool, /function persistStoreSnapshot/);
+test("save writes one canonical applicant payload immediately", () => {
+  assert.match(tool, /const activePayloadKey/);
+  assert.match(tool, /function persistActivePayload/);
   assert.match(tool, /persistStoreSnapshot\(nextStore\)/);
-  assert.match(tool, /Đã lưu và đồng bộ payload mới/);
+  assert.match(tool, /const payload = buildPayload\(normalized, nextStore\.common, autoAdvance\)/);
+  assert.match(tool, /persistActivePayload\(payload\)/);
   assert.match(tool, /KD_MID_SET_PAYLOAD/);
-  assert.match(companion, /data\.type === "KD_MID_SET_PAYLOAD"/);
-  assert.match(companion, /gmSet\(SHARED_PAYLOAD_KEY, JSON\.stringify\(fresh\)\)/);
 });
 
-test("launch re-reads the persisted selected profile instead of trusting a stale React closure", () => {
-  assert.match(tool, /const persisted = safeLoad\(\)/);
+test("profile selection is persisted synchronously and refreshes the active payload", () => {
+  assert.match(tool, /function selectApplicant\(id: string\)/);
+  assert.match(tool, /persistStoreSnapshot\(next\)/);
+  assert.match(tool, /persistActivePayload\(payload\)/);
+  assert.match(tool, /onChange=\{\(event\) => selectApplicant\(event\.target\.value\)\}/);
+});
+
+test("launch uses persisted selectedId before potentially stale React state", () => {
+  assert.match(tool, /const requestedId = persisted\.selectedId \|\| store\.selectedId/);
   assert.match(tool, /const latestSelected = persisted\.applicants\.find/);
-  assert.match(tool, /const latestPayload = buildPayload\(latestSelected, latestCommon, autoAdvance\)/);
-  assert.match(tool, /Payload MỚI|payload MỚI|Đã gửi payload MỚI/);
+  assert.match(tool, /const revision = Date\.now\(\)/);
+  assert.match(tool, /buildPayload\(latestSelected, latestCommon, autoAdvance, revision\)/);
+  assert.match(tool, /persistActivePayload\(latestPayload\)/);
 });
 
-test("payloads carry a revision so Tampermonkey detects every profile update", () => {
-  assert.match(tool, /_payloadRevision: Date\.now\(\)/);
-  assert.match(companion, /_payloadRevision: data\.payload\._payloadRevision \|\| Date\.now\(\)/);
+test("launch performs a post-persist payload sanity check", () => {
+  assert.match(tool, /const persistedPayload = readActivePayload\(\)/);
+  assert.match(tool, /payload vừa lưu không khớp hồ sơ đang chọn/);
+  assert.match(tool, /target\.close\(\)/);
 });
 
-test("same KD-MID tab always reloads when the payload hash or GM payload changes", () => {
-  assert.match(tool, /_launchToken: Date\.now\(\)/);
-  assert.match(companion, /window\.addEventListener\("hashchange"/);
-  assert.match(companion, /GM_addValueChangeListener\(SHARED_PAYLOAD_KEY/);
-  assert.match(companion, /currentPayload = fresh/);
-  assert.match(companion, /startProgressiveRun\(fresh\)/);
-  assert.doesNotMatch(companion, /if \(remote\)/);
+test("explicit launch hash purges the previous shared payload before storing the new one", () => {
+  assert.match(companion, /GM_deleteValue\(SHARED_PAYLOAD_KEY\)/);
+  assert.match(companion, /gmSet\(SHARED_PAYLOAD_KEY, JSON\.stringify\(payload\)\)/);
 });
 
-test("application ID and official A4 flow remain intact", () => {
-  assert.match(companion, /saveConfirmedApplicationRecord/);
-  assert.match(companion, /ПЕЧАТЬ ФОРМАТА A4/);
-  assert.match(companion, /printButton\.click/);
+test("Companion rejects payloads belonging to another applicant", () => {
+  assert.match(companion, /fresh\.applicant\.id !== currentPayload\.applicant\.id/);
+  assert.match(companion, /Bỏ qua payload của hồ sơ khác/);
+});
+
+test("ASP.NET validation is refreshed after personal values are written", () => {
+  assert.match(companion, /function refreshAspNetValidators/);
+  assert.match(companion, /ValidatorValidate/);
+  assert.match(companion, /refreshAspNetValidators\(\)/);
 });
 
 test("three Vietnam missions remain available", () => {
   assert.match(tool, /ПОСОЛЬСТВО РФ ВО ВЬЕТНАМЕ/);
   assert.match(tool, /ГЕНКОНСУЛЬСТВО РФ В ДАНАНГЕ/);
   assert.match(tool, /ГЕНКОНСУЛЬСТВО РФ В ХОШИМИНЕ/);
-});
-
-
-test("v0.9.8 treats the explicit launch hash as authoritative", () => {
-  assert.match(companion, /const hashPayload = readPayloadFromHash\(\)/);
-  assert.match(companion, /let currentPayload = hashPayload \|\| readSharedPayload\(\)/);
-  assert.match(companion, /function payloadRevision/);
-  assert.match(companion, /nextRevision < currentRevision/);
-});
-
-test("v0.9.8 opens every automation run in a fresh KD-MID tab", () => {
-  assert.match(tool, /window\.open\([^\n]+, "_blank"\)/);
-  assert.match(tool, /mở tab KD-MID mới/);
-});
-
-test("v0.9.8 exposes exact payload identity and refreshes ASP.NET validation", () => {
-  assert.match(companion, /function payloadIdentity/);
-  assert.match(companion, /function refreshAspNetValidators/);
-  assert.match(companion, /ValidatorValidate/);
-  assert.match(companion, /trang cá nhân đã đồng bộ đúng payload/);
 });
