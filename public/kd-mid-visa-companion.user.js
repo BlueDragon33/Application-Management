@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.11
+// @version      0.9.12
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,7 +17,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.11";
+  const VERSION = "0.9.12";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
@@ -434,6 +434,12 @@
     return changed ? "changed" : "ready";
   }
 
+  let fieldContinueTimer = 0;
+  function continueAutofill(payload, delay = 140) {
+    window.clearTimeout(fieldContinueTimer);
+    fieldContinueTimer = window.setTimeout(() => run(payload), delay);
+  }
+
   function isPersonalInfoPage() {
     const body = norm(document.body.innerText || "");
     return body.includes("ПЕРСОНАЛЬНАЯ ИНФОРМАЦИЯ") &&
@@ -459,10 +465,12 @@
       if (state === "changed") {
         refreshAspNetValidators();
         status(`KD-MID Visa VN: đã tự điền ${label}. Đang chuyển sang trường kế tiếp…`, "wait");
+        continueAutofill(payload);
         return { handled: true, ready: false };
       }
       if (state !== "ready") {
-        status(`KD-MID Visa VN: đang chờ đúng trường ${label}; không cần bấm chuột vào ô.`, "wait");
+        status(`KD-MID Visa VN: đang chờ đúng trường ${label}; Companion sẽ tự thử lại, không cần bấm chuột.`, "wait");
+        continueAutofill(payload, 220);
         return { handled: true, ready: false };
       }
     }
@@ -495,16 +503,151 @@
       if (state === "changed") {
         refreshAspNetValidators();
         status(`KD-MID Visa VN: đã tự điền ${label}. Đang chuyển sang trường hộ chiếu kế tiếp…`, "wait");
+        continueAutofill(payload);
         return { handled: true, ready: false };
       }
       if (state !== "ready") {
-        status(`KD-MID Visa VN: đang chờ đúng trường hộ chiếu ${label}; không cần bấm chuột.`, "wait");
+        status(`KD-MID Visa VN: đang chờ đúng trường hộ chiếu ${label}; Companion sẽ tự thử lại, không cần bấm chuột.`, "wait");
+        continueAutofill(payload, 220);
         return { handled: true, ready: false };
       }
     }
 
     refreshAspNetValidators();
     status(`KD-MID Visa VN: trang hộ chiếu OK: ${A.passportNo || ""} · cấp ${A.passportIssue || ""} · hết hạn ${A.passportExpiry || ""}.`);
+    return { handled: true, ready: true };
+  }
+
+  function isVisitInfoPage() {
+    const body = norm(document.body.innerText || "");
+    return body.includes("В КАКОЕ УЧРЕЖДЕНИЕ НАПРАВЛЯЕТЕСЬ") &&
+      body.includes("МАРШРУТ (НАСЕЛЕННЫЕ ПУНКТЫ)") &&
+      body.includes("МЕДИЦИНСКОМ СТРАХОВАНИИ") &&
+      body.includes("БЫЛИ ЛИ ВЫ КОГДА-НИБУДЬ В РОССИИ");
+  }
+
+  function fillVisitInfoPage(payload) {
+    if (!isVisitInfoPage()) return { handled: false, ready: false };
+    const A = payload.applicant || {};
+
+    // IMPORTANT: this first select is NOT a yes/no question.
+    // It must remain "Организация", never "НЕТ".
+    let state = ensureSelectAfterLabel("В какое учреждение направляетесь?", ["ОРГАНИЗАЦИЯ","ORGANIZATION"]);
+    if (state === "changed") {
+      status("KD-MID Visa VN: đã chọn nơi hướng đến = Организация. Đang điền thông tin tổ chức…", "wait");
+      continueAutofill(payload);
+      return { handled: true, ready: false };
+    }
+    if (state !== "ready") {
+      status("KD-MID Visa VN: đang chờ dropdown Организация; không được đổi trường này thành НЕТ.", "wait");
+      continueAutofill(payload, 220);
+      return { handled: true, ready: false };
+    }
+
+    const textSteps = [
+      ["Наименование организации", payload.organization],
+      ["Адрес", payload.organizationAddress],
+      ["ИНН организации", payload.tin],
+      ["Номер указания (телекса)", payload.telex],
+      ["Номер приглашения", payload.invitation || ""],
+      ["Населенный пункт", A.routeCity || payload.city],
+    ];
+
+    for (const [label, value] of textSteps) {
+      if (!value && label === "Номер приглашения") continue;
+      state = ensureTextAfterLabel(label, value);
+      if (state === "changed") {
+        refreshAspNetValidators();
+        status(`KD-MID Visa VN: đã tự điền ${label}. Đang tiếp tục tự động…`, "wait");
+        continueAutofill(payload);
+        return { handled: true, ready: false };
+      }
+      if (state !== "ready") {
+        status(`KD-MID Visa VN: đang chờ đúng trường ${label}; Companion sẽ tự thử lại.`, "wait");
+        continueAutofill(payload, 220);
+        return { handled: true, ready: false };
+      }
+    }
+
+    state = ensureSelectAfterLabel(
+      "Имеете ли Вы документ о медицинском страховании, действительный на территории России?",
+      A.hasInsurance ? ["ДА","YES"] : ["НЕТ","NO"]
+    );
+    if (state === "changed") {
+      status(`KD-MID Visa VN: bảo hiểm = ${A.hasInsurance ? "ДА" : "НЕТ"}. Đang tiếp tục…`, "wait");
+      continueAutofill(payload);
+      return { handled: true, ready: false };
+    }
+    if (state !== "ready") {
+      status("KD-MID Visa VN: đang chờ đúng dropdown bảo hiểm ДА/НЕТ.", "wait");
+      continueAutofill(payload, 220);
+      return { handled: true, ready: false };
+    }
+
+    if (A.hasInsurance && A.insurancePolicy) {
+      state = ensureTextAfterLabel(
+        ["Название страховой компании и номер полиса","номер страхового документа"],
+        A.insurancePolicy
+      );
+      if (state === "changed") {
+        continueAutofill(payload);
+        return { handled: true, ready: false };
+      }
+      if (state !== "ready") {
+        continueAutofill(payload, 220);
+        return { handled: true, ready: false };
+      }
+    }
+
+    state = ensureSelectAfterLabel(
+      "Были ли Вы когда-нибудь в России?",
+      A.visitedRussia ? ["ДА","YES"] : ["НЕТ","NO"]
+    );
+    if (state === "changed") {
+      status(`KD-MID Visa VN: từng đến Nga = ${A.visitedRussia ? "ДА" : "НЕТ"}. Đang tiếp tục…`, "wait");
+      continueAutofill(payload);
+      return { handled: true, ready: false };
+    }
+    if (state !== "ready") {
+      status("KD-MID Visa VN: đang chờ đúng dropdown từng đến Nga ДА/НЕТ.", "wait");
+      continueAutofill(payload, 220);
+      return { handled: true, ready: false };
+    }
+
+    if (A.visitedRussia) {
+      state = ensureTextAfterLabel("Сколько раз Вы были в России", A.visitsCount);
+      if (state === "changed") {
+        continueAutofill(payload);
+        return { handled: true, ready: false };
+      }
+      if (state !== "ready") {
+        continueAutofill(payload, 220);
+        return { handled: true, ready: false };
+      }
+
+      state = ensureDateAfterLabel(["Даты Вашей последней поездки","Дата въезда"], A.lastVisitFrom);
+      if (state === "changed") {
+        continueAutofill(payload);
+        return { handled: true, ready: false };
+      }
+      if (state !== "ready") {
+        continueAutofill(payload, 220);
+        return { handled: true, ready: false };
+      }
+
+      state = ensureDateAfterLabel("Дата выезда", A.lastVisitTo);
+      if (state === "changed") {
+        continueAutofill(payload);
+        return { handled: true, ready: false };
+      }
+      if (state !== "ready") {
+        continueAutofill(payload, 220);
+        return { handled: true, ready: false };
+      }
+    }
+
+    refreshAspNetValidators();
+    status("KD-MID Visa VN: trang thông tin chuyến đi đã điền đủ. Организация giữ nguyên; bảo hiểm/từng đến Nga dùng đúng ДА/НЕТ.");
     return { handled: true, ready: true };
   }
 
@@ -787,26 +930,14 @@
     const passportPage = fillPassportInfoPage(payload);
     if (passportPage.handled) return passportPage.ready ? 1 : 0;
 
+    const visitPage = fillVisitInfoPage(payload);
+    if (visitPage.handled) return visitPage.ready ? 1 : 0;
+
     const A = payload.applicant || {};
     let recognized = 0;
     const mark = (ok) => { if (ok) recognized += 1; };
 
     recognized += fillPassword(payload);
-
-    mark(setText("Наименование организации", payload.organization));
-    mark(setText("Адрес", payload.organizationAddress));
-    mark(setText("ИНН организации", payload.tin));
-    mark(setText("Номер указания (телекса)", payload.telex));
-    if (payload.invitation) mark(setText("Номер приглашения", payload.invitation));
-    mark(setText("Населенный пункт", A.routeCity || payload.city));
-    mark(setYesNo("Имеете ли Вы документ о медицинском страховании", Boolean(A.hasInsurance)));
-    if (A.hasInsurance) mark(setText(["Название страховой компании и номер полиса","номер страхового документа"], A.insurancePolicy));
-    mark(setYesNo("Были ли Вы когда-нибудь в России", Boolean(A.visitedRussia)));
-    if (A.visitedRussia) {
-      mark(setText("Сколько раз Вы были в России", A.visitsCount));
-      mark(setDate(["Даты Вашей последней поездки","Дата въезда"], A.lastVisitFrom));
-      mark(setDate("Дата выезда", A.lastVisitTo));
-    }
 
     mark(setYesNo("Имеете ли Вы адрес постоянного проживания", true));
     mark(setText("Адрес вашего постоянного проживания", payload.fixedPermanentAddress || A.personalAddress));
@@ -1027,6 +1158,7 @@
     if (isVisaRequestPage() && recognized < 1) return false;
     if (isPersonalInfoPage() && recognized < 1) return false;
     if (isPassportInfoPage() && recognized < 1) return false;
+    if (isVisitInfoPage() && recognized < 1) return false;
 
     if (recognized > 0) {
       return clickNamed(["ЗАПОЛНИТЬ НОВУЮ АНКЕТУ","COMPLETE NEW APPLICATION","ДАЛЕЕ","NEXT"], 800);

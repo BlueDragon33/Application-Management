@@ -14,10 +14,10 @@ test("KD-MID Visa is registered as an internal Tool", () => {
   assert.match(page, /requireChatGPTUser\("\/tools\/kd-mid-visa"\)/);
 });
 
-test("Companion v0.9.11 is active in script and UI", () => {
-  assert.match(companion, /@version\s+0\.9\.11/);
-  assert.match(companion, /const VERSION = "0\.9\.11"/);
-  assert.match(tool, /Companion v0\.9\.11/);
+test("Companion v0.9.12 is active in script and UI", () => {
+  assert.match(companion, /@version\s+0\.9\.12/);
+  assert.match(companion, /const VERSION = "0\.9\.12"/);
+  assert.match(tool, /Companion v0\.9\.12/);
 });
 
 test("landing, password and official A4 flows remain intact", () => {
@@ -156,7 +156,7 @@ test("navigation clicks are latched so the same page is not clicked repeatedly w
 });
 
 
-test("v0.9.11 emulates real focus/edit/blur lifecycle so fields fill without user clicks", () => {
+test("v0.9.12 emulates real focus/edit/blur lifecycle so fields fill without user clicks", () => {
   assert.match(companion, /el\.focus\(\{ preventScroll: true \}\)/);
   assert.match(companion, /new FocusEvent\("focusin"/);
   assert.match(companion, /new FocusEvent\("focusout"/);
@@ -172,4 +172,39 @@ test("personal and passport pages advance one field per automatic tick", () => {
 test("status-box DOM mutations do not recursively retrigger the runner", () => {
   assert.match(companion, /function isOwnStatusMutation/);
   assert.match(companion, /mutations\.every\(isOwnStatusMutation\)/);
+});
+
+
+test("v0.9.12 handles the visit information page with exact field semantics", () => {
+  assert.match(companion, /function isVisitInfoPage/);
+  assert.match(companion, /function fillVisitInfoPage/);
+  assert.match(companion, /В КАКОЕ УЧРЕЖДЕНИЕ НАПРАВЛЯЕТЕСЬ/);
+  assert.match(companion, /МАРШРУТ \(НАСЕЛЕННЫЕ ПУНКТЫ\)/);
+  assert.match(companion, /МЕДИЦИНСКОМ СТРАХОВАНИИ/);
+  assert.match(companion, /БЫЛИ ЛИ ВЫ КОГДА-НИБУДЬ В РОССИИ/);
+});
+
+test("the first visit-page select is Organization and is never treated as a yes/no field", () => {
+  assert.match(companion, /ensureSelectAfterLabel\("В какое учреждение направляетесь\?", \["ОРГАНИЗАЦИЯ","ORGANIZATION"\]\)/);
+  assert.match(companion, /this first select is NOT a yes\/no question/);
+  const visit = companion.slice(companion.indexOf("function fillVisitInfoPage"), companion.indexOf("function setText"));
+  assert.doesNotMatch(visit, /setYesNo\("В какое учреждение направляетесь/);
+});
+
+test("visit page automatically continues after every filled field without mouse clicks", () => {
+  assert.match(companion, /function continueAutofill/);
+  assert.match(companion, /continueAutofill\(payload\)/);
+  assert.match(companion, /Companion sẽ tự thử lại/);
+});
+
+test("generic visit-page filling was removed to prevent cross-targeting selects", () => {
+  const fill = companion.slice(companion.indexOf("function fillPage"), companion.indexOf("function addHints"));
+  assert.match(fill, /fillVisitInfoPage\(payload\)/);
+  assert.doesNotMatch(fill, /mark\(setText\("Наименование организации"/);
+  assert.doesNotMatch(fill, /mark\(setYesNo\("Были ли Вы когда-нибудь в России"/);
+});
+
+test("visit page cannot auto-advance until its dedicated handler is ready", () => {
+  const segment = companion.slice(companion.indexOf("function maybeAdvance"), companion.indexOf("function status"));
+  assert.match(segment, /isVisitInfoPage\(\) && recognized < 1/);
 });
