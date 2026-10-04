@@ -85,6 +85,9 @@ export function publicVisaIntakePage() {
   };
   toggle("former","formerFields"); toggle("visited","visitFields"); toggle("insurance","insuranceFields");
   confirmed.addEventListener("change", () => submit.disabled = !confirmed.checked);
+  const children = document.getElementById("children"), relatives = document.getElementById("relatives"), notes = byName("specialNotes");
+  const syncSpecialNotes = () => { if (notes) notes.required = children.checked || relatives.checked; };
+  children.addEventListener("change", syncSpecialNotes); relatives.addEventListener("change", syncSpecialNotes); syncSpecialNotes();
 
   fetch("/api/kd-mid-visa-intake/public?token="+encodeURIComponent(token), {cache:"no-store"}).then(async r => {
     const data = await r.json();
