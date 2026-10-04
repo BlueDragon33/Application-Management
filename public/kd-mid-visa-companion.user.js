@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.9
+// @version      0.9.10
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,7 +17,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.9";
+  const VERSION = "0.9.10";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
@@ -475,6 +475,54 @@
     return { handled: true, ready: true };
   }
 
+  function isPassportInfoPage() {
+    const body = norm(document.body.innerText || "");
+    return body.includes("ИНФОРМАЦИЯ О ПАСПОРТЕ") &&
+      body.includes("НОМЕР ПАСПОРТА") &&
+      body.includes("ДАТА ВЫДАЧИ") &&
+      body.includes("ДЕЙСТВИТЕЛЕН ДО");
+  }
+
+  function fillPassportInfoPage(payload) {
+    if (!isPassportInfoPage()) return { handled: false, ready: false };
+    const A = payload.applicant || {};
+
+    const steps = [
+      ["Номер паспорта", () => ensureTextAfterLabel("Номер паспорта", A.passportNo)],
+      ["Дата выдачи", () => ensureDateAfterLabel("Дата выдачи", A.passportIssue)],
+      ["Действителен до", () => ensureDateAfterLabel("Действителен до", A.passportExpiry)],
+    ];
+
+    let waitingFor = "";
+    for (const [label, fn] of steps) {
+      const state = fn();
+      if (state !== "ready" && state !== "changed" && !waitingFor) waitingFor = label;
+    }
+
+    refreshAspNetValidators();
+
+    if (waitingFor) {
+      status(`KD-MID Visa VN: đang chờ đúng trường hộ chiếu ${waitingFor}. Payload: ${A.passportNo || ""} · ${A.passportIssue || ""} · ${A.passportExpiry || ""}`, "wait");
+      return { handled: true, ready: false };
+    }
+
+    const checks = [
+      ensureTextAfterLabel("Номер паспорта", A.passportNo),
+      ensureDateAfterLabel("Дата выдачи", A.passportIssue),
+      ensureDateAfterLabel("Действителен до", A.passportExpiry),
+    ];
+    const ready = checks.every((state) => state === "ready");
+    refreshAspNetValidators();
+
+    if (!ready) {
+      status(`KD-MID Visa VN: đã ghi trang hộ chiếu, đang xác nhận lại ngày/tháng/năm: ${A.passportIssue || ""} → ${A.passportExpiry || ""}`, "wait");
+      return { handled: true, ready: false };
+    }
+
+    status(`KD-MID Visa VN: trang hộ chiếu OK: ${A.passportNo || ""} · cấp ${A.passportIssue || ""} · hết hạn ${A.passportExpiry || ""}.`);
+    return { handled: true, ready: true };
+  }
+
   function setText(labels, value) {
     if (value == null || value === "") return false;
     const el = blockControls(labels).find((item) =>
@@ -751,15 +799,14 @@
     const personalPage = fillPersonalInfoPage(payload);
     if (personalPage.handled) return personalPage.ready ? 1 : 0;
 
+    const passportPage = fillPassportInfoPage(payload);
+    if (passportPage.handled) return passportPage.ready ? 1 : 0;
+
     const A = payload.applicant || {};
     let recognized = 0;
     const mark = (ok) => { if (ok) recognized += 1; };
 
     recognized += fillPassword(payload);
-
-    mark(setText("Номер паспорта", A.passportNo));
-    mark(setDate("Дата выдачи", A.passportIssue));
-    mark(setDate("Действителен до", A.passportExpiry));
 
     mark(setText("Наименование организации", payload.organization));
     mark(setText("Адрес", payload.organizationAddress));
@@ -906,6 +953,8 @@
     return location.pathname + location.search + ":" + String(hash >>> 0);
   }
 
+  const pendingNavigationKey = "kd-mid-vn:navigation-pending:v1";
+
   function clickNamed(labels, delay = 700) {
     const wants = labels.map(norm);
     const candidates = [...document.querySelectorAll("button,input[type=button],input[type=submit],a")];
@@ -913,11 +962,22 @@
     if (!button || button.disabled) return false;
 
     const sig = pageSignature() + ":" + wants.join(",");
+    const pending = sessionStorage.getItem(pendingNavigationKey);
+    if (pending === sig) return true;
+
     const previousAt = Number(sessionStorage.getItem(CLICK_KEY + ":" + sig) || "0");
-    if (Date.now() - previousAt < 1800) return true;
+    if (Date.now() - previousAt < 5000) return true;
 
     sessionStorage.setItem(CLICK_KEY + ":" + sig, String(Date.now()));
-    setTimeout(() => button.click(), delay);
+    sessionStorage.setItem(pendingNavigationKey, sig);
+    setTimeout(() => {
+      button.click();
+      window.setTimeout(() => {
+        if (sessionStorage.getItem(pendingNavigationKey) === sig) {
+          sessionStorage.removeItem(pendingNavigationKey);
+        }
+      }, 8000);
+    }, delay);
     return true;
   }
 
@@ -981,6 +1041,7 @@
 
     if (isVisaRequestPage() && recognized < 1) return false;
     if (isPersonalInfoPage() && recognized < 1) return false;
+    if (isPassportInfoPage() && recognized < 1) return false;
 
     if (recognized > 0) {
       return clickNamed(["ЗАПОЛНИТЬ НОВУЮ АНКЕТУ","COMPLETE NEW APPLICATION","ДАЛЕЕ","NEXT"], 800);
@@ -1002,8 +1063,14 @@
 
   let retryCount = 0;
   let retryTimer = 0;
+  let lastRunSignature = "";
   function run(payload) {
     addHints();
+    const currentSig = pageSignature();
+    if (lastRunSignature && currentSig !== lastRunSignature) {
+      sessionStorage.removeItem(pendingNavigationKey);
+    }
+    lastRunSignature = currentSig;
 
     if (isLandingPage()) {
       const landing = fillLandingPage();
