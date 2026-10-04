@@ -38,8 +38,21 @@ test("Applications launcher defaults to manual app-first ordering", () => {
   assert.match(dashboard, /useState<AppLauncherSort>\("manual"\)/);
   assert.match(dashboard, /return \[\.\.\.appItems, \.\.\.toolItems\]/);
   assert.match(dashboard, /if \(a\.kind !== b\.kind\) return a\.kind === "app" \? -1 : 1/);
-  assert.match(dashboard, /<option value="manual">Thủ công<\/option>/);
-  assert.match(dashboard, /<option value="category-auto">Tự động theo phân loại<\/option>/);
+  assert.match(dashboard, /\{ id: "manual", label: "Thủ công" \}/);
+  assert.match(dashboard, /\{ id: "category-auto", label: "Tự động theo phân loại" \}/);
+});
+
+test("sort picker is fully themed instead of using the browser native select popup", () => {
+  const toolbarStart = dashboard.indexOf('className="amv2-launcher-toolbar"');
+  const toolbarEnd = dashboard.indexOf('className="amv2-launcher-subbar"', toolbarStart);
+  const toolbar = dashboard.slice(toolbarStart, toolbarEnd);
+  assert.match(toolbar, /className="amv2-launcher-sort-trigger"/);
+  assert.match(toolbar, /className="amv2-launcher-sort-menu"/);
+  assert.match(toolbar, /role="listbox"/);
+  assert.match(toolbar, /role="option"/);
+  assert.doesNotMatch(toolbar, /<select|<option/);
+  assert.match(css, /\.amv2-launcher-sort-menu > button:hover/);
+  assert.match(css, /\.amv2-launcher-sort-menu > button\[data-active="true"\]/);
 });
 
 test("automatic category sorting persists and reacts to category edits", () => {

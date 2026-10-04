@@ -84,11 +84,12 @@
 }
 
 .amv2-launcher-sort {
+  position: relative;
   min-height: 46px;
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 0 10px 0 13px;
+  padding: 0 6px 0 13px;
   border: 1px solid rgba(255,255,255,.08);
   border-radius: 11px;
   background: rgba(4, 49, 38, .76);
@@ -102,15 +103,106 @@
   font-weight: 700;
 }
 
-.amv2-launcher-sort select {
-  min-width: 120px;
+.amv2-launcher-sort-trigger {
+  min-width: 178px;
   min-height: 34px;
-  border: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 9px 0 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
   outline: 0;
   background: transparent;
   color: #eef8f4;
+  cursor: pointer;
+}
+
+.amv2-launcher-sort-trigger:hover,
+.amv2-launcher-sort-trigger[aria-expanded="true"] {
+  border-color: rgba(83, 225, 181, .18);
+  background: rgba(22, 115, 87, .28);
+}
+
+.amv2-launcher-sort-trigger:focus-visible {
+  border-color: rgba(91, 236, 193, .62);
+  box-shadow: 0 0 0 2px rgba(55, 217, 169, .12);
+}
+
+.amv2-launcher-sort-trigger > b {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.amv2-launcher-sort-trigger > i {
+  flex: 0 0 auto;
+  color: #8fb8aa;
+  font-size: 14px;
+  font-style: normal;
+  transition: transform 120ms ease;
+}
+
+.amv2-launcher-sort-trigger[aria-expanded="true"] > i {
+  transform: rotate(180deg);
+}
+
+.amv2-launcher-sort-menu {
+  position: absolute;
+  z-index: 120;
+  top: calc(100% + 6px);
+  right: 0;
+  width: max(230px, 100%);
+  display: grid;
+  gap: 3px;
+  padding: 6px;
+  border: 1px solid rgba(82, 227, 182, .24);
+  border-radius: 11px;
+  background: #073d30;
+  box-shadow: 0 18px 42px rgba(0,0,0,.34);
+  backdrop-filter: blur(10px);
+}
+
+.amv2-launcher-sort-menu > button {
+  width: 100%;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  outline: 0;
+  background: transparent;
+  color: #c8ddd5;
   font-size: 13px;
   font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.amv2-launcher-sort-menu > button:hover,
+.amv2-launcher-sort-menu > button:focus-visible {
+  border-color: rgba(81, 227, 181, .18);
+  background: rgba(18, 118, 88, .34);
+  color: #f2fbf8;
+}
+
+.amv2-launcher-sort-menu > button[data-active="true"] {
+  border-color: rgba(85, 233, 188, .26);
+  background: rgba(14, 133, 98, .46);
+  color: #63e5bd;
+}
+
+.amv2-launcher-sort-menu > button > i {
+  flex: 0 0 auto;
+  color: #5ee0b7;
+  font-size: 13px;
+  font-style: normal;
 }
 
 .amv2-launcher-subbar {
