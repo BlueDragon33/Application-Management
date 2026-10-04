@@ -14,10 +14,10 @@ test("KD-MID Visa is registered as an internal Tool", () => {
   assert.match(page, /requireChatGPTUser\("\/tools\/kd-mid-visa"\)/);
 });
 
-test("Companion v0.9.12 is active in script and UI", () => {
-  assert.match(companion, /@version\s+0\.9\.12/);
-  assert.match(companion, /const VERSION = "0\.9\.12"/);
-  assert.match(tool, /Companion v0\.9\.12/);
+test("Companion v0.9.13 is active in script and UI", () => {
+  assert.match(companion, /@version\s+0\.9\.13/);
+  assert.match(companion, /const VERSION = "0\.9\.13"/);
+  assert.match(tool, /Companion v0\.9\.13/);
 });
 
 test("landing, password and official A4 flows remain intact", () => {
@@ -156,7 +156,7 @@ test("navigation clicks are latched so the same page is not clicked repeatedly w
 });
 
 
-test("v0.9.12 emulates real focus/edit/blur lifecycle so fields fill without user clicks", () => {
+test("v0.9.13 emulates real focus/edit/blur lifecycle so fields fill without user clicks", () => {
   assert.match(companion, /el\.focus\(\{ preventScroll: true \}\)/);
   assert.match(companion, /new FocusEvent\("focusin"/);
   assert.match(companion, /new FocusEvent\("focusout"/);
@@ -175,7 +175,7 @@ test("status-box DOM mutations do not recursively retrigger the runner", () => {
 });
 
 
-test("v0.9.12 handles the visit information page with exact field semantics", () => {
+test("v0.9.13 handles the visit information page with exact field semantics", () => {
   assert.match(companion, /function isVisitInfoPage/);
   assert.match(companion, /function fillVisitInfoPage/);
   assert.match(companion, /В КАКОЕ УЧРЕЖДЕНИЕ НАПРАВЛЯЕТЕСЬ/);
@@ -207,4 +207,36 @@ test("generic visit-page filling was removed to prevent cross-targeting selects"
 test("visit page cannot auto-advance until its dedicated handler is ready", () => {
   const segment = companion.slice(companion.indexOf("function maybeAdvance"), companion.indexOf("function status"));
   assert.match(segment, /isVisitInfoPage\(\) && recognized < 1/);
+});
+
+
+test("v0.9.13 directly maps stable personal-page controls by page order", () => {
+  assert.match(companion, /function personalPageControls/);
+  assert.match(companion, /surname: texts\[0\]/);
+  assert.match(companion, /givenNames: texts\[1\]/);
+  assert.match(companion, /dob: \[texts\[2\].*selects\[2\].*texts\[3\]/s);
+  assert.match(companion, /birthPlace: texts\[4\]/);
+  assert.match(companion, /bornInRussia: selects\[3\]/);
+});
+
+test("v0.9.13 directly maps passport-page controls by page order", () => {
+  assert.match(companion, /function passportPageControls/);
+  assert.match(companion, /passportNo: texts\[0\]/);
+  assert.match(companion, /issue: \[texts\[1\].*selects\[0\].*texts\[2\]/s);
+  assert.match(companion, /expiry: \[texts\[3\].*selects\[1\].*texts\[4\]/s);
+});
+
+test("v0.9.13 programmatically clicks and focuses controls before writing", () => {
+  assert.match(companion, /function activateControl/);
+  assert.match(companion, /el\.dispatchEvent\(new MouseEvent\("mousedown"/);
+  assert.match(companion, /el\.click\(\)/);
+  assert.match(companion, /function writeTextControl/);
+  assert.match(companion, /function writeSelectControl/);
+  assert.match(companion, /function writeDateControls/);
+});
+
+test("personal page uses direct mapped controls before label fallback", () => {
+  assert.match(companion, /C\.givenNames \? writeTextControl\(C\.givenNames, A\.givenNames\)/);
+  assert.match(companion, /C\.birthPlace \? writeTextControl\(C\.birthPlace, A\.birthPlace\)/);
+  assert.match(companion, /C\.dob\.every\(Boolean\) \? writeDateControls\(C\.dob, A\.birthDate\)/);
 });
