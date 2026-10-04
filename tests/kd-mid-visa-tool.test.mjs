@@ -14,10 +14,10 @@ test("KD-MID Visa is registered as an internal Tool", () => {
   assert.match(page, /requireChatGPTUser\("\/tools\/kd-mid-visa"\)/);
 });
 
-test("Companion v0.9.10 is active in script and UI", () => {
-  assert.match(companion, /@version\s+0\.9\.10/);
-  assert.match(companion, /const VERSION = "0\.9\.10"/);
-  assert.match(tool, /Companion v0\.9\.10/);
+test("Companion v0.9.11 is active in script and UI", () => {
+  assert.match(companion, /@version\s+0\.9\.11/);
+  assert.match(companion, /const VERSION = "0\.9\.11"/);
+  assert.match(tool, /Companion v0\.9\.11/);
 });
 
 test("landing, password and official A4 flows remain intact", () => {
@@ -153,4 +153,23 @@ test("navigation clicks are latched so the same page is not clicked repeatedly w
   assert.match(companion, /if \(pending === sig\) return true/);
   assert.match(companion, /Date\.now\(\) - previousAt < 5000/);
   assert.match(companion, /sessionStorage\.removeItem\(pendingNavigationKey\)/);
+});
+
+
+test("v0.9.11 emulates real focus/edit/blur lifecycle so fields fill without user clicks", () => {
+  assert.match(companion, /el\.focus\(\{ preventScroll: true \}\)/);
+  assert.match(companion, /new FocusEvent\("focusin"/);
+  assert.match(companion, /new FocusEvent\("focusout"/);
+  assert.match(companion, /function setNativeControlValue/);
+});
+
+test("personal and passport pages advance one field per automatic tick", () => {
+  assert.match(companion, /đang chuyển sang trường kế tiếp/);
+  assert.match(companion, /không cần bấm chuột vào ô/);
+  assert.match(companion, /đang chuyển sang trường hộ chiếu kế tiếp/);
+});
+
+test("status-box DOM mutations do not recursively retrigger the runner", () => {
+  assert.match(companion, /function isOwnStatusMutation/);
+  assert.match(companion, /mutations\.every\(isOwnStatusMutation\)/);
 });
