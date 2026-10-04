@@ -787,7 +787,8 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
     if (!window.confirm("Đóng link này? Người khác sẽ không gửi thêm hồ sơ qua link đó.")) return;
     try {
       await intakeAction({ action: "close-link", linkId });
-      setNotice("Đã đóng link thu hồ sơ.");
+      setShareUrl((current) => current.includes(`batch=${encodeURIComponent(linkId)}`) ? "" : current);
+      setNotice("Đã đóng link thu hồ sơ. Tab đợt này đã được ẩn khỏi danh sách.");
     } catch (reason) {
       setNotice(reason instanceof Error ? reason.message : "Không đóng được link.");
     }
@@ -1099,12 +1100,12 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         {shareUrl ? <div className={styles.shareUrl}><input readOnly value={shareUrl}/><button className={styles.secondary} onClick={() => void navigator.clipboard.writeText(shareUrl)}>Sao chép</button><a href={shareUrl} target="_blank" rel="noreferrer">Mở form ↗</a></div> : null}
       </div>
       <div className={styles.intakeLinks}>
-        {intakeLinks.map((item) => {
+        {intakeLinks.filter((item) => item.status === "active").map((item) => {
           const url = intakePublicUrl(item);
           return <article key={item.id} data-status={item.status}>
-            <div className={styles.intakeLinkMeta}><strong>{item.label}</strong><small>Tạo {new Date(item.createdAt).toLocaleString("vi-VN")} · {item.submissionCount} hồ sơ · {item.resultCount} PDF kết quả · {item.status === "active" ? "Đang mở" : "Đã đóng"}</small></div>
+            <div className={styles.intakeLinkMeta}><strong>{item.label}</strong><small>Tạo {new Date(item.createdAt).toLocaleString("vi-VN")} · {item.submissionCount} hồ sơ · {item.resultCount} PDF kết quả · Đang mở</small></div>
             <div className={styles.intakeLinkUrl}><input readOnly value={url}/><button className={styles.secondary} onClick={() => void navigator.clipboard.writeText(url)}>Sao chép</button><a href={url} target="_blank" rel="noreferrer">Mở form ↗</a></div>
-            {item.status === "active" ? <button className={styles.danger} onClick={() => void closeIntakeLink(item.id)}>Đóng link</button> : <span className={styles.closedBadge}>Đã đóng</span>}
+            <button className={styles.danger} onClick={() => void closeIntakeLink(item.id)}>Đóng link</button>
           </article>;
         })}
       </div>

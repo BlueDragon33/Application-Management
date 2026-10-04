@@ -146,7 +146,7 @@ test("intake batches keep a recoverable stable public link after reset", () => {
   assert.match(publicApi, /WHERE id=\? LIMIT 1/);
   assert.match(tool, /function intakePublicUrl/);
   assert.match(tool, /item\.publicPath/);
-  assert.doesNotMatch(tool, /intakeLinks\.filter\(\(item\) => item\.status === "active"\)/);
+  assert.match(tool, /intakeLinks\.filter\(\(item\) => item\.status === "active"\)/);
 });
 
 test("accepted intake submissions can receive and download one PDF result", () => {
@@ -167,5 +167,13 @@ test("accepted intake submissions can receive and download one PDF result", () =
 test("closed batches still allow an existing submission to check status and receive results", () => {
   assert.match(publicApi, /if\(submissionId\)|if \(submissionId\)/);
   assert.match(publicApi, /link\.status!==?"active"|link\.status !== "active"/);
+  assert.match(publicApi, /Người đã gửi hồ sơ vẫn có thể mở lại link/);
+});
+
+
+test("closing an intake link removes its admin card while preserving server-side history", () => {
+  assert.match(tool, /intakeLinks\.filter\(\(item\) => item\.status === "active"\)/);
+  assert.match(tool, /setShareUrl\(\(current\) => current\.includes/);
+  assert.match(tool, /Tab đợt này đã được ẩn khỏi danh sách/);
   assert.match(publicApi, /Người đã gửi hồ sơ vẫn có thể mở lại link/);
 });
