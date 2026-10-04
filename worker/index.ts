@@ -9,6 +9,7 @@ import {
   previewRequestAuthorized,
   withPreviewOwnerIdentity,
 } from "./preview-access";
+import { publicVisaIntakePage } from "./visa-intake-public";
 import {
   handleProductionAccount,
   handleProductionLogin,
@@ -167,7 +168,6 @@ function isPublicPwaAsset(request: Request, url: URL) {
 
 function isPublicVisaIntakeRequest(request: Request, url: URL) {
   if (request.method === "GET" || request.method === "HEAD") {
-    if (url.pathname === "/visa-intake") return true;
     if (url.pathname === "/api/kd-mid-visa-intake/public") return true;
   }
   return request.method === "POST" && url.pathname === "/api/kd-mid-visa-intake/public";
@@ -230,9 +230,9 @@ const worker = {
     }
 
     // Public visa-intake is intentionally shareable without an admin session.
-    // Static client assets contain no private records and must also load before auth.
-    if ((isPreview || isProduction) && isCloudflareClientAsset(request, url)) {
-      return env.ASSETS.fetch(request);
+    // The HTML is standalone/inline so authenticated application bundles remain protected.
+    if (isProduction && request.method === "GET" && url.pathname === "/visa-intake") {
+      return publicVisaIntakePage();
     }
     if (isProduction && isPublicVisaIntakeRequest(request, url)) {
       return freshDynamicResponse(await handler.fetch(request, env, ctx), true);
@@ -275,6 +275,10 @@ const worker = {
 
     if (isProduction && request.method === "GET" && url.pathname === "/__repair-cache") {
       return repairBrowserCache(env);
+    }
+
+    if ((isPreview || isProduction) && isCloudflareClientAsset(request, url)) {
+      return env.ASSETS.fetch(request);
     }
 
     if (isPreview) {
