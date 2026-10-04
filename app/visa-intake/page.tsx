@@ -83,11 +83,69 @@ function upperPlain(value: string) {
     .toUpperCase();
 }
 
-function formatDmy(value: string) {
-  const digits = value.replace(/\D/g, "").slice(0, 8);
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
-  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+const dayOptions = Array.from({ length: 31 }, (_, index) => String(index + 1).padStart(2, "0"));
+const monthOptions = Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, "0"));
+
+function composeDmy(day: string, month: string, year: string) {
+  return day || month || year ? `${day}/${month}/${year}` : "";
+}
+
+function normalizeTwoDigits(value: string, max: number) {
+  if (!value) return "";
+  const number = Number(value);
+  if (!Number.isInteger(number) || number < 1 || number > max) return value;
+  return String(number).padStart(2, "0");
+}
+
+function DateFields({
+  value,
+  onChange,
+  required = false,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  required?: boolean;
+}) {
+  const [day = "", month = "", year = ""] = value.split("/");
+  const clean = (input: string, length: number) => input.replace(/\D/g, "").slice(0, length);
+  const update = (nextDay: string, nextMonth: string, nextYear: string) => onChange(composeDmy(nextDay, nextMonth, nextYear));
+
+  return <div className={styles.dateFields}>
+    <input
+      aria-label="Ngày"
+      title="Ngày"
+      placeholder="NGÀY"
+      inputMode="numeric"
+      maxLength={2}
+      list="visa-day-options"
+      required={required}
+      value={day}
+      onChange={(event) => update(clean(event.target.value, 2), month, year)}
+      onBlur={() => update(normalizeTwoDigits(day, 31), month, year)}
+    />
+    <input
+      aria-label="Tháng"
+      title="Tháng"
+      placeholder="THÁNG"
+      inputMode="numeric"
+      maxLength={2}
+      list="visa-month-options"
+      required={required}
+      value={month}
+      onChange={(event) => update(day, clean(event.target.value, 2), year)}
+      onBlur={() => update(day, normalizeTwoDigits(month, 12), year)}
+    />
+    <input
+      aria-label="Năm"
+      title="Năm"
+      placeholder="NĂM"
+      inputMode="numeric"
+      maxLength={4}
+      required={required}
+      value={year}
+      onChange={(event) => update(day, month, clean(event.target.value, 4))}
+    />
+  </div>;
 }
 
 function Field({ label, ru, hint, children }: { label: string; ru?: string; hint?: string; children: React.ReactNode }) {
@@ -208,6 +266,8 @@ export default function VisaIntakePage() {
     </header>
 
     <form className={styles.form} onSubmit={submit}>
+      <datalist id="visa-day-options">{dayOptions.map((value) => <option key={value} value={value} />)}</datalist>
+      <datalist id="visa-month-options">{monthOptions.map((value) => <option key={value} value={value} />)}</datalist>
       {linkLabel ? <div className={styles.batch}>Đợt thu hồ sơ: <strong>{linkLabel}</strong></div> : null}
       {error ? <div className={styles.error}><strong>{error}</strong>{missing.length ? <ul>{missing.map((item) => <li key={item}>{item}</li>)}</ul> : null}</div> : null}
 
@@ -216,7 +276,7 @@ export default function VisaIntakePage() {
         <div className={styles.grid}>
           <Field label="Họ" ru="Фамилия" hint="Ví dụ: NGUYEN"><input required value={applicant.surname} onChange={(e) => set("surname", upperPlain(e.target.value))} /></Field>
           <Field label="Tên và tên đệm" ru="Имя, другие имена, отчество" hint="Ví dụ: DINH NAM"><input required value={applicant.givenNames} onChange={(e) => set("givenNames", upperPlain(e.target.value))} /></Field>
-          <Field label="Ngày sinh" ru="Дата рождения" hint="Định dạng dd/mm/yyyy"><input required placeholder="03/03/1991" value={applicant.birthDate} inputMode="numeric" maxLength={10} onChange={(e) => set("birthDate", formatDmy(e.target.value))} /></Field>
+          <Field label="Ngày sinh" ru="Дата рождения" hint="Ngày và tháng có thể gõ hoặc chọn; năm nhập 4 chữ số."><DateFields required value={applicant.birthDate} onChange={(value) => set("birthDate", value)} /></Field>
           <Field label="Nơi sinh" ru="Место рождения"><input required value={applicant.birthPlace} onChange={(e) => set("birthPlace", upperPlain(e.target.value))} /></Field>
           <Field label="Giới tính" ru="Пол"><select value={applicant.sex} onChange={(e) => set("sex", e.target.value)}><option value="МУЖСКОЙ">Nam</option><option value="ЖЕНСКИЙ">Nữ</option></select></Field>
           <Field label="Nơi đến tại Nga" ru="Маршрут (населенные пункты)" hint="Thông thường là МОСКВА"><input required value={applicant.routeCity} onChange={(e) => set("routeCity", upperPlain(e.target.value))} /></Field>
@@ -224,11 +284,11 @@ export default function VisaIntakePage() {
       </section>
 
       <section className={styles.section}>
-        <header><b>02</b><div><h2>Hộ chiếu</h2><p>Ngày tự định dạng dd/mm/yyyy. Ngày cấp không được ở tương lai; ngày hết hạn phải sau ngày cấp và hộ chiếu phải còn hạn.</p></div></header>
+        <header><b>02</b><div><h2>Hộ chiếu</h2><p>Mỗi ngày dùng 3 ô Ngày · Tháng · Năm để tránh nhập sai. Ngày cấp không được ở tương lai; ngày hết hạn phải sau ngày cấp và hộ chiếu phải còn hạn.</p></div></header>
         <div className={styles.grid}>
           <Field label="Số hộ chiếu" ru="Номер паспорта"><input required value={applicant.passportNo} onChange={(e) => set("passportNo", upperPlain(e.target.value))} /></Field>
-          <Field label="Ngày cấp hộ chiếu" ru="Дата выдачи" hint="dd/mm/yyyy"><input required placeholder="25/06/2025" value={applicant.passportIssue} inputMode="numeric" maxLength={10} onChange={(e) => set("passportIssue", formatDmy(e.target.value))} /></Field>
-          <Field label="Ngày hết hạn hộ chiếu" ru="Действителен до" hint="dd/mm/yyyy"><input required placeholder="25/06/2035" value={applicant.passportExpiry} inputMode="numeric" maxLength={10} onChange={(e) => set("passportExpiry", formatDmy(e.target.value))} /></Field>
+          <Field label="Ngày cấp hộ chiếu" ru="Дата выдачи"><DateFields required value={applicant.passportIssue} onChange={(value) => set("passportIssue", value)} /></Field>
+          <Field label="Ngày hết hạn hộ chiếu" ru="Действителен до"><DateFields required value={applicant.passportExpiry} onChange={(value) => set("passportExpiry", value)} /></Field>
         </div>
       </section>
 
@@ -260,13 +320,13 @@ export default function VisaIntakePage() {
           <label><input type="checkbox" checked={applicant.hasInsurance} onChange={(e) => set("hasInsurance", e.target.checked)} /><span><strong>Có bảo hiểm có hiệu lực tại Nga</strong><small>Документ о медицинском страховании</small></span></label>
         </div>
         {applicant.hadFormerRussianCitizenship ? <div className={styles.grid}>
-          <Field label="Ngày mất quốc tịch" hint="dd/mm/yyyy"><input required value={applicant.formerCitizenshipLostDate} inputMode="numeric" maxLength={10} onChange={(e) => set("formerCitizenshipLostDate", formatDmy(e.target.value))} /></Field>
+          <Field label="Ngày mất quốc tịch"><DateFields required value={applicant.formerCitizenshipLostDate} onChange={(value) => set("formerCitizenshipLostDate", value)} /></Field>
           <Field label="Lý do mất quốc tịch"><input required value={applicant.formerCitizenshipLossReason} onChange={(e) => set("formerCitizenshipLossReason", upperPlain(e.target.value))} /></Field>
         </div> : null}
         {applicant.visitedRussia ? <div className={styles.grid}>
           <Field label="Số lần đã đến Nga"><input required inputMode="numeric" value={applicant.visitsCount} onChange={(e) => set("visitsCount", e.target.value)} /></Field>
-          <Field label="Chuyến gần nhất - từ ngày" hint="dd/mm/yyyy"><input required value={applicant.lastVisitFrom} inputMode="numeric" maxLength={10} onChange={(e) => set("lastVisitFrom", formatDmy(e.target.value))} /></Field>
-          <Field label="Chuyến gần nhất - đến ngày" hint="dd/mm/yyyy"><input required value={applicant.lastVisitTo} inputMode="numeric" maxLength={10} onChange={(e) => set("lastVisitTo", formatDmy(e.target.value))} /></Field>
+          <Field label="Chuyến gần nhất - từ ngày"><DateFields required value={applicant.lastVisitFrom} onChange={(value) => set("lastVisitFrom", value)} /></Field>
+          <Field label="Chuyến gần nhất - đến ngày"><DateFields required value={applicant.lastVisitTo} onChange={(value) => set("lastVisitTo", value)} /></Field>
         </div> : null}
         {applicant.hasInsurance ? <div className={styles.grid}><Field label="Tên công ty bảo hiểm / số hợp đồng"><input required value={applicant.insurancePolicy} onChange={(e) => set("insurancePolicy", upperPlain(e.target.value))} /></Field></div> : null}
       </section>

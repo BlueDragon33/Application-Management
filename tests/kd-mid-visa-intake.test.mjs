@@ -44,9 +44,16 @@ test("public intake form is Vietnamese and covers required visa profile fields",
   assert.match(publicPage, /childrenUnder16/);
   assert.match(publicPage, /relativesInRussia/);
   assert.match(publicPage, /function upperPlain/);
-  assert.match(publicPage, /function formatDmy/);
+  assert.match(publicPage, /function DateFields/);
+  assert.match(publicPage, /visa-day-options/);
+  assert.match(publicPage, /visa-month-options/);
+  assert.doesNotMatch(publicPage, /function formatDmy/);
   assert.match(publicWorkerPage, /const upperPlain =/);
-  assert.match(publicWorkerPage, /const formatDmy =/);
+  assert.match(publicWorkerPage, /data-date="birthDate"/);
+  assert.match(publicWorkerPage, /data-part="day"/);
+  assert.match(publicWorkerPage, /data-part="month"/);
+  assert.match(publicWorkerPage, /data-part="year"/);
+  assert.doesNotMatch(publicWorkerPage, /const formatDmy =/);
 });
 
 test("public submit validates dates, emails, conditional fields and a confirmation", () => {
