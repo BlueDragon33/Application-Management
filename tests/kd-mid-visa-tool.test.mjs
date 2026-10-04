@@ -14,10 +14,10 @@ test("KD-MID Visa is registered as an internal Tool", () => {
   assert.match(page, /requireChatGPTUser\("\/tools\/kd-mid-visa"\)/);
 });
 
-test("Companion v0.9.6 is active in script and UI", () => {
-  assert.match(companion, /@version\s+0\.9\.6/);
-  assert.match(companion, /const VERSION = "0\.9\.6"/);
-  assert.match(tool, /Companion v0\.9\.6/);
+test("Companion v0.9.7 is active in script and UI", () => {
+  assert.match(companion, /@version\s+0\.9\.7/);
+  assert.match(companion, /const VERSION = "0\.9\.7"/);
+  assert.match(tool, /Companion v0\.9\.7/);
 });
 
 test("landing page still selects Vietnam and Russian before continuing", () => {
@@ -72,17 +72,34 @@ test("App-Manager normalizes dd/mm/yyyy dates before sending them to KD-MID", ()
   assert.match(tool, /function DateTextInput/);
 });
 
-test("every launch pushes the newest saved profile to the Companion", () => {
+test("saving a profile persists immediately and overwrites the shared Companion payload", () => {
+  assert.match(tool, /function persistStoreSnapshot/);
+  assert.match(tool, /persistStoreSnapshot\(nextStore\)/);
+  assert.match(tool, /Đã lưu và đồng bộ payload mới/);
   assert.match(tool, /KD_MID_SET_PAYLOAD/);
   assert.match(companion, /data\.type === "KD_MID_SET_PAYLOAD"/);
-  assert.match(companion, /gmSet\(SHARED_PAYLOAD_KEY, JSON\.stringify\(data\.payload\)\)/);
+  assert.match(companion, /gmSet\(SHARED_PAYLOAD_KEY, JSON\.stringify\(fresh\)\)/);
 });
 
-test("same KD-MID tab refreshes when the payload hash or GM payload changes", () => {
+test("launch re-reads the persisted selected profile instead of trusting a stale React closure", () => {
+  assert.match(tool, /const persisted = safeLoad\(\)/);
+  assert.match(tool, /const latestSelected = persisted\.applicants\.find/);
+  assert.match(tool, /const latestPayload = buildPayload\(latestSelected, latestCommon, autoAdvance\)/);
+  assert.match(tool, /Payload MỚI|payload MỚI|Đã gửi payload MỚI/);
+});
+
+test("payloads carry a revision so Tampermonkey detects every profile update", () => {
+  assert.match(tool, /_payloadRevision: Date\.now\(\)/);
+  assert.match(companion, /_payloadRevision: data\.payload\._payloadRevision \|\| Date\.now\(\)/);
+});
+
+test("same KD-MID tab always reloads when the payload hash or GM payload changes", () => {
   assert.match(tool, /_launchToken: Date\.now\(\)/);
   assert.match(companion, /window\.addEventListener\("hashchange"/);
   assert.match(companion, /GM_addValueChangeListener\(SHARED_PAYLOAD_KEY/);
+  assert.match(companion, /currentPayload = fresh/);
   assert.match(companion, /startProgressiveRun\(fresh\)/);
+  assert.doesNotMatch(companion, /if \(remote\)/);
 });
 
 test("application ID and official A4 flow remain intact", () => {
