@@ -205,6 +205,32 @@ function DateFields({
   </div>;
 }
 
+const STUDENT_FORM_DEFAULTS: Partial<ApplicantForm> & Record<string, string> = {
+  passwordOverride: "qllhs2025",
+  citizenship: "ВЬЕТНАМ",
+  purposeSection: "УЧЕБА",
+  purpose: "УЧЕБА",
+  visaType: "ОБЫКНОВЕННАЯ УЧЕБНАЯ",
+  entries: "ОДНОКРАТНАЯ",
+  entryDate: "05/10/2026",
+  exitDate: "31/12/2026",
+  destinationType: "ОРГАНИЗАЦИЯ",
+  organization: "МИН-ВО НАУКИ И ВЫСШЕГО ОБРАЗОВАНИЯ РФ (МИНОБРНАУКИ РОССИИ)",
+  organizationAddress: "125993, МОСКВА, УЛ. ТВЕРСКАЯ, Д.11, СТР.1, 4",
+  tin: "7707740714",
+  telex: "321422",
+  invitation: "",
+  routeCity: "МОСКВА",
+  workStudyPlace: "ГОСУДАРСТВЕННЫЙ ТЕХНИЧЕСКИЙ УНИВЕРСИТЕТ ИМЕНИ ЛЕ КУИ ДОНА",
+  position: "СТУДЕНТ",
+  workAddress: "ВЬЕТНАМ, Г. ХАНОЙ, УЛИЦА НГИА ДО, ДОРОГА ХОАНГ КУОК ВЬЕТ",
+  workPhone: "+842437555706",
+  workEmail: "lequydonqllhs@gmail.com",
+  personalAddress: "ВЬЕТНАМ, Г. ХАНОЙ, УЛИЦА НГИА ДО, ДОРОГА ХОАНГ КУОК ВЬЕТ, ДОМ Ш9",
+  preferredEmbassy: "ПОСОЛЬСТВО РФ ВО ВЬЕТНАМЕ",
+};
+const STUDENT_SHARED_KEYS = Object.keys(STUDENT_FORM_DEFAULTS) as Array<keyof ApplicantForm>;
+
 const deviceStorageKey = "visa-intake:device-id:v1";
 function ensureDeviceId() {
   try {
@@ -272,8 +298,22 @@ export default function VisaIntakePage() {
           }
           throw new Error(data.error || "Link không hợp lệ.");
         }
-        const defaults = data.defaults ?? {};
-        const resolvedFormType = data.link?.formType === "general" || defaults.formType === "general" ? "general" : "student";
+        const rawDefaults = data.defaults ?? {};
+        const resolvedFormType = data.link?.formType === "general" || rawDefaults.formType === "general" ? "general" : "student";
+        const defaults: Record<string, unknown> = { ...rawDefaults };
+        if (resolvedFormType === "student") {
+          for (const [key, value] of Object.entries(STUDENT_FORM_DEFAULTS)) {
+            const sourceKey = key === "passwordOverride" ? "password" :
+              key === "workStudyPlace" ? "employer" :
+              key === "position" ? "position" :
+              key === "workAddress" ? "workAddress" :
+              key === "workPhone" ? "workPhone" :
+              key === "workEmail" ? "workEmail" :
+              key === "personalAddress" ? "permanentAddress" :
+              key === "preferredEmbassy" ? "preferredEmbassy" : key;
+            if (!String(defaults[sourceKey] ?? "").trim() && String(value ?? "").trim()) defaults[sourceKey] = value;
+          }
+        }
         setFormType(resolvedFormType);
         setLinkLabel(String(data.link?.label ?? ""));
         setPermanentAddress(upperPlain(String(defaults.permanentAddress ?? "")));
@@ -304,7 +344,17 @@ export default function VisaIntakePage() {
           preferredEmbassy: current.preferredEmbassy || String(defaults.preferredEmbassy ?? ""),
           };
           const recovered = data.submission?.applicant;
-          return recovered ? { ...withDefaults, ...recovered, passportExpiry: passportExpiryFromIssue(String(recovered.passportIssue ?? withDefaults.passportIssue)) } : withDefaults;
+          if (!recovered) return withDefaults;
+          const merged = { ...withDefaults, ...recovered } as ApplicantForm;
+          if (resolvedFormType === "student") {
+            for (const key of STUDENT_SHARED_KEYS) {
+              if (typeof withDefaults[key] === "string" && !String(recovered[key] ?? "").trim()) {
+                (merged as unknown as Record<string, unknown>)[key] = withDefaults[key];
+              }
+            }
+          }
+          merged.passportExpiry = passportExpiryFromIssue(String(merged.passportIssue ?? ""));
+          return merged;
         });
         if (data.submission) setReceipt((current) => current ? { ...current, ...data.submission } : data.submission ?? null);
       })

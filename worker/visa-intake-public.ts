@@ -134,6 +134,38 @@ export function publicVisaIntakePage() {
   let receipt = saved?.receipt || null;
   let currentApplicant = saved?.applicant || null;
   let formType = "student";
+  const STUDENT_FORM_DEFAULTS = {
+    password:"qllhs2025",
+    citizenship:"ВЬЕТНАМ",
+    purposeSection:"УЧЕБА",
+    purpose:"УЧЕБА",
+    visaType:"ОБЫКНОВЕННАЯ УЧЕБНАЯ",
+    entries:"ОДНОКРАТНАЯ",
+    entryDate:"05/10/2026",
+    exitDate:"31/12/2026",
+    destinationType:"ОРГАНИЗАЦИЯ",
+    organization:"МИН-ВО НАУКИ И ВЫСШЕГО ОБРАЗОВАНИЯ РФ (МИНОБРНАУКИ РОССИИ)",
+    organizationAddress:"125993, МОСКВА, УЛ. ТВЕРСКАЯ, Д.11, СТР.1, 4",
+    tin:"7707740714",
+    telex:"321422",
+    invitation:"",
+    routeCity:"МОСКВА",
+    employer:"ГОСУДАРСТВЕННЫЙ ТЕХНИЧЕСКИЙ УНИВЕРСИТЕТ ИМЕНИ ЛЕ КУИ ДОНА",
+    position:"СТУДЕНТ",
+    workAddress:"ВЬЕТНАМ, Г. ХАНОЙ, УЛИЦА НГИА ДО, ДОРОГА ХОАНГ КУОК ВЬЕТ",
+    workPhone:"+842437555706",
+    workEmail:"lequydonqllhs@gmail.com",
+    permanentAddress:"ВЬЕТНАМ, Г. ХАНОЙ, УЛИЦА НГИА ДО, ДОРОГА ХОАНГ КУОК ВЬЕТ, ДОМ Ш9",
+    preferredEmbassy:"ПОСОЛЬСТВО РФ ВО ВЬЕТНАМЕ"
+  };
+  const withStudentFallbacks = raw => {
+    const merged={...(raw || {})};
+    for(const [key,value] of Object.entries(STUDENT_FORM_DEFAULTS)){
+      if(!String(merged[key] ?? "").trim() && String(value ?? "").trim()) merged[key]=value;
+    }
+    return merged;
+  };
+
   let lastStatus = receipt?.status || "";
   const saveLocal = (applicant=currentApplicant) => {
     currentApplicant = applicant || currentApplicant;
@@ -272,9 +304,10 @@ export function publicVisaIntakePage() {
   fetch("/api/kd-mid-visa-intake/public?"+apiAccess()+(receipt?.id ? "&submissionId="+encodeURIComponent(receipt.id) : "")+"&deviceId="+encodeURIComponent(deviceId), {cache:"no-store"}).then(async r => {
     const data = await r.json();
     if (!r.ok || !data.ok) { if(r.status===410){linkClosed=true;try{localStorage.removeItem(storageKey)}catch{}} throw new Error(data.error || "Link không hợp lệ."); }
-    const d = data.defaults || {};
-    formType = data.link?.formType === "general" || d.formType === "general" ? "general" : "student";
+    const rawDefaults = data.defaults || {};
+    formType = data.link?.formType === "general" || rawDefaults.formType === "general" ? "general" : "student";
     const student = formType === "student";
+    const d = student ? withStudentFallbacks(rawDefaults) : rawDefaults;
     batch.innerHTML = "Đợt thu hồ sơ: <strong>"+String(data.link?.label || "").replace(/[<>&]/g,"")+"</strong> · <b>"+(student ? "MẪU NHẬP HỌC" : "NGƯỜI THƯỜNG")+"</b>";
     document.getElementById("formTypeBadge").textContent = student ? "LINK 1 · MẪU NHẬP HỌC" : "LINK 2 · MẪU VISA NGƯỜI THƯỜNG";
     document.getElementById("heroTitle").textContent = student ? "Điền hồ sơ nhập học để chuẩn bị KD-MID" : "Điền hồ sơ visa cá nhân để chuẩn bị KD-MID";
@@ -313,8 +346,9 @@ export function publicVisaIntakePage() {
     };
 
     if(data.submission?.applicant){
-      currentApplicant=data.submission.applicant;
+      currentApplicant=student ? mergeCommonDefaultsIntoDraft(data.submission.applicant) : data.submission.applicant;
       fillApplicant(currentApplicant);
+      saveLocal(currentApplicant);
     } else if(currentApplicant) {
       currentApplicant=mergeCommonDefaultsIntoDraft(currentApplicant);
       fillApplicant(currentApplicant);
