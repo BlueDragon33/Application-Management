@@ -308,3 +308,23 @@ test("student common defaults are written directly into empty production form fi
   assert.match(publicWorkerPage, /currentApplicant=mergeCommonDefaultsIntoDraft\(\{\}\)/);
   assert.match(publicWorkerPage, /được điền sẵn trực tiếp trong từng ô/);
 });
+
+
+test("student intake links always expose complete shared defaults, including old links with blank defaults", () => {
+  for (const value of [
+    "05/10/2026",
+    "31/12/2026",
+    "7707740714",
+    "321422",
+    "МОСКВА",
+    "СТУДЕНТ",
+    "+842437555706",
+    "lequydonqllhs@gmail.com",
+    "ПОСОЛЬСТВО РФ ВО ВЬЕТНАМЕ",
+  ]) {
+    assert.match(publicApi, new RegExp(value.replace(/[.*+?^$()|[\]{}]/g, "\\$&")));
+  }
+  assert.match(publicApi, /defaults=fillStudentDefaults\(defaults\)/);
+  assert.match(publicApi, /const recoveredDefaults = fillStudentDefaults\(link\.defaults\)/);
+  assert.match(adminApi, /const safeDefaults = student \? fillStudentDefaults\(submittedDefaults\) : submittedDefaults/);
+});
