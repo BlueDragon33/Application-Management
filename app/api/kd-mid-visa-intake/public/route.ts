@@ -45,6 +45,42 @@ function upperPlain(value: unknown, max = 300) {
     .toUpperCase();
 }
 
+const STUDENT_INTAKE_DEFAULTS = {
+  formType: "student",
+  password: "qllhs2025",
+  citizenship: "ВЬЕТНАМ",
+  purposeSection: "УЧЕБА",
+  purpose: "УЧЕБА",
+  visaType: "ОБЫКНОВЕННАЯ УЧЕБНАЯ",
+  entries: "ОДНОКРАТНАЯ",
+  entryDate: "05/10/2026",
+  exitDate: "31/12/2026",
+  destinationType: "ОРГАНИЗАЦИЯ",
+  organization: "МИН-ВО НАУКИ И ВЫСШЕГО ОБРАЗОВАНИЯ РФ (МИНОБРНАУКИ РОССИИ)",
+  organizationAddress: "125993, МОСКВА, УЛ. ТВЕРСКАЯ, Д.11, СТР.1, 4",
+  tin: "7707740714",
+  telex: "321422",
+  invitation: "",
+  routeCity: "МОСКВА",
+  employer: "ГОСУДАРСТВЕННЫЙ ТЕХНИЧЕСКИЙ УНИВЕРСИТЕТ ИМЕНИ ЛЕ КУИ ДОНА",
+  position: "СТУДЕНТ",
+  workAddress: "ВЬЕТНАМ, Г. ХАНОЙ, УЛИЦА НГИА ДО, ДОРОГА ХОАНГ КУОК ВЬЕТ",
+  workPhone: "+842437555706",
+  workEmail: "lequydonqllhs@gmail.com",
+  permanentAddress: "ВЬЕТНАМ, Г. ХАНОЙ, УЛИЦА НГИА ДО, ДОРОГА ХОАНГ КУОК ВЬЕТ, ДОМ Ш9",
+  preferredEmbassy: "ПОСОЛЬСТВО РФ ВО ВЬЕТНАМЕ",
+} as const;
+
+function fillStudentDefaults(raw: Record<string, unknown>) {
+  const formType = raw.formType === "general" ? "general" : "student";
+  if (formType === "general") return { ...raw, formType };
+  const merged: Record<string, unknown> = { ...raw, formType: "student" };
+  for (const [key, value] of Object.entries(STUDENT_INTAKE_DEFAULTS)) {
+    if (!String(merged[key] ?? "").trim() && String(value ?? "").trim()) merged[key] = value;
+  }
+  return merged;
+}
+
 function parseDmy(value: string) {
   const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
   if (!match) return null;
@@ -84,7 +120,11 @@ async function linkByAccess(token:string,batch:string){
  const database=await getControlDatabase();let row:IntakeAccessLink|null=null;
  if(validBatchId(batch)) row=await database.prepare("SELECT id,label,status,defaults_json,expires_at FROM visa_intake_links WHERE id=? LIMIT 1").bind(batch).first<IntakeAccessLink>();
  else if(/^[A-Za-z0-9_-]{30,120}$/.test(token)) row=await database.prepare("SELECT id,label,status,defaults_json,expires_at FROM visa_intake_links WHERE token_hash=? LIMIT 1").bind(await sha256(token)).first<IntakeAccessLink>();
- if(!row)return null;let defaults:Record<string,unknown>={};try{defaults=JSON.parse(row.defaults_json)}catch{}return {...row,defaults,expired:Boolean(row.expires_at&&Date.parse(row.expires_at)<=Date.now())};
+ if(!row)return null;
+ let defaults:Record<string,unknown>={};
+ try{defaults=JSON.parse(row.defaults_json)}catch{}
+ defaults=fillStudentDefaults(defaults);
+ return {...row,defaults,expired:Boolean(row.expires_at&&Date.parse(row.expires_at)<=Date.now())};
 }
 function publicAccessQuery(token:string,batch:string){return validBatchId(batch)?`batch=${encodeURIComponent(batch)}`:`token=${encodeURIComponent(token)}`;}
 export async function GET(request:Request){
@@ -139,6 +179,11 @@ export async function GET(request:Request){
     let applicant:Record<string,unknown>={};
     try{validation=JSON.parse(row.validation_json||"{}")}catch{}
     try{applicant=JSON.parse(row.payload_json||"{}")}catch{}
+    const recoveredDefaults = fillStudentDefaults(link.defaults);
+    for (const [key, value] of Object.entries(recoveredDefaults)) {
+      if (key === "formType") continue;
+      if (!String(applicant[key] ?? "").trim() && String(value ?? "").trim()) applicant[key] = value;
+    }
     const correctionFields=Array.isArray(validation.correctionFields)?validation.correctionFields.filter((value):value is string=>typeof value==="string"):[];
     const resubmittedFields=Array.isArray(validation.resubmittedFields)?validation.resubmittedFields.filter((value):value is string=>typeof value==="string"):[];
     const accessQuery=publicAccessQuery(token,batch);
