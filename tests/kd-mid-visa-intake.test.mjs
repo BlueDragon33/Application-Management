@@ -226,3 +226,21 @@ test("payload and bookmarklet no longer overwrite editable address and fax profi
   assert.match(tool, /Ваш личный факс/);
   assert.match(tool, /Рабочий факс/);
 });
+
+
+test("admin creates two persistent intake form types and snapshots the type in defaults", () => {
+  assert.match(tool, /intakeFormType/);
+  assert.match(tool, /Link 1 · Nhập học/);
+  assert.match(tool, /Link 2 · Người thường/);
+  assert.match(adminApi, /formType = text\(body\.formType, 20\) === "general"/);
+  assert.match(adminApi, /formType,/);
+  assert.match(adminApi, /defaults\.formType==="general"/);
+});
+
+test("general intake does not inherit study-only KD-MID defaults while student intake requires Telex", () => {
+  assert.match(tool, /purposeSection: student \? store\.common\.purposeSection : ""/);
+  assert.match(tool, /telex: student \? store\.common\.telex : ""/);
+  assert.match(publicApi, /student \? "УЧЕБА" : ""/);
+  assert.match(publicApi, /student \? "МОСКВА" : ""/);
+  assert.match(publicApi, /\["telex", "Mã Telex"\]/);
+});

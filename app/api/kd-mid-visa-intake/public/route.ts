@@ -93,10 +93,12 @@ export async function GET(request:Request){
    let validation:Record<string,unknown>={};try{validation=JSON.parse(row.validation_json||"{}")}catch{}
    const correctionFields=Array.isArray(validation.correctionFields)?validation.correctionFields.filter((value):value is string=>typeof value==="string"):[],resubmittedFields=Array.isArray(validation.resubmittedFields)?validation.resubmittedFields.filter((value):value is string=>typeof value==="string"):[];
    const accessQuery=publicAccessQuery(token,batch);
-   return json({ok:true,link:{id:link.id,label:link.label,status:link.status},defaults:link.defaults,submission:{id:row.id,queueNo:row.queue_no,status:row.status,applicantName:row.applicant_name,reviewNote:row.review_note,reviewedAt:row.reviewed_at,correctionFields,resubmittedFields,revision:typeof validation.revision==="number"?validation.revision:0,result:result?{available:true,fileName:result.file_name,fileSize:result.file_size,uploadedAt:result.uploaded_at,downloadUrl:`/api/kd-mid-visa-intake/public?${accessQuery}&submissionId=${encodeURIComponent(row.id)}&result=1`}:null}});
+   const formType=link.defaults.formType==="general"?"general":"student";
+   return json({ok:true,link:{id:link.id,label:link.label,status:link.status,formType},defaults:link.defaults,submission:{id:row.id,queueNo:row.queue_no,status:row.status,applicantName:row.applicant_name,reviewNote:row.review_note,reviewedAt:row.reviewed_at,correctionFields,resubmittedFields,revision:typeof validation.revision==="number"?validation.revision:0,result:result?{available:true,fileName:result.file_name,fileSize:result.file_size,uploadedAt:result.uploaded_at,downloadUrl:`/api/kd-mid-visa-intake/public?${accessQuery}&submissionId=${encodeURIComponent(row.id)}&result=1`}:null}});
   }
   if(link.status!=="active"||link.expired)return json({ok:false,error:"Đợt thu hồ sơ đã đóng. Người đã gửi hồ sơ vẫn có thể mở lại link trên đúng trình duyệt để xem trạng thái và nhận kết quả."},410);
-  return json({ok:true,link:{id:link.id,label:link.label,status:link.status},defaults:link.defaults});
+  const formType=link.defaults.formType==="general"?"general":"student";
+  return json({ok:true,link:{id:link.id,label:link.label,status:link.status,formType},defaults:link.defaults});
  }catch{return json({ok:false,error:"Không thể mở form thu thập lúc này."},503);}
 }
 export async function POST(request: Request) {
@@ -113,6 +115,8 @@ export async function POST(request: Request) {
 
     const source = (body.applicant && typeof body.applicant === "object" ? body.applicant : {}) as Record<string, unknown>;
     const defaults = link.defaults ?? {};
+    const formType = defaults.formType === "general" ? "general" : "student";
+    const student = formType === "student";
     const passportIssue = text(source.passportIssue, 10);
     const applicant = {
       surname: upperPlain(source.surname, 80),
@@ -124,13 +128,13 @@ export async function POST(request: Request) {
       otherNames: upperPlain(source.otherNames, 240),
       bornInRussia: bool(source.bornInRussia),
       citizenship: upperPlain(source.citizenship, 80) || upperPlain(defaults.citizenship, 80) || "ВЬЕТНАМ",
-      purposeSection: upperPlain(source.purposeSection, 120) || upperPlain(defaults.purposeSection, 120) || "УЧЕБА",
-      purpose: upperPlain(source.purpose, 120) || upperPlain(defaults.purpose, 120) || "УЧЕБА",
-      visaType: upperPlain(source.visaType, 160) || upperPlain(defaults.visaType, 160) || "ОБЫКНОВЕННАЯ УЧЕБНАЯ",
-      entries: upperPlain(source.entries, 80) || upperPlain(defaults.entries, 80) || "ОДНОКРАТНАЯ",
+      purposeSection: upperPlain(source.purposeSection, 120) || upperPlain(defaults.purposeSection, 120) || (student ? "УЧЕБА" : ""),
+      purpose: upperPlain(source.purpose, 120) || upperPlain(defaults.purpose, 120) || (student ? "УЧЕБА" : ""),
+      visaType: upperPlain(source.visaType, 160) || upperPlain(defaults.visaType, 160) || (student ? "ОБЫКНОВЕННАЯ УЧЕБНАЯ" : ""),
+      entries: upperPlain(source.entries, 80) || upperPlain(defaults.entries, 80) || (student ? "ОДНОКРАТНАЯ" : ""),
       entryDate: text(source.entryDate, 10) || text(defaults.entryDate, 10),
       exitDate: text(source.exitDate, 10) || text(defaults.exitDate, 10),
-      destinationType: upperPlain(source.destinationType, 80) || upperPlain(defaults.destinationType, 80) || "ОРГАНИЗАЦИЯ",
+      destinationType: upperPlain(source.destinationType, 80) || upperPlain(defaults.destinationType, 80) || (student ? "ОРГАНИЗАЦИЯ" : ""),
       organization: upperPlain(source.organization, 300) || upperPlain(defaults.organization, 300),
       organizationAddress: upperPlain(source.organizationAddress, 400) || upperPlain(defaults.organizationAddress, 400),
       tin: text(source.tin, 40) || text(defaults.tin, 40),
@@ -144,7 +148,7 @@ export async function POST(request: Request) {
       phone: text(source.phone, 40),
       personalFax: text(source.personalFax, 40),
       email: text(source.email, 160).toLowerCase(),
-      routeCity: upperPlain(source.routeCity, 80) || upperPlain(defaults.routeCity, 80) || "МОСКВА",
+      routeCity: upperPlain(source.routeCity, 80) || upperPlain(defaults.routeCity, 80) || (student ? "МОСКВА" : ""),
       worksOrStudies: source.worksOrStudies !== false,
       workStudyPlace: upperPlain(source.workStudyPlace, 240) || upperPlain(defaults.employer, 240),
       position: upperPlain(source.position, 120) || upperPlain(defaults.position, 120),
@@ -184,10 +188,6 @@ export async function POST(request: Request) {
       ["entryDate", "Ngày vào Nga"],
       ["exitDate", "Ngày ra Nga"],
       ["destinationType", "Loại nơi đến tại Nga"],
-      ["organization", "Tên tổ chức mời/tiếp nhận"],
-      ["organizationAddress", "Địa chỉ tổ chức"],
-      ["tin", "INN tổ chức"],
-      ["telex", "Số chỉ thị/telex"],
       ["routeCity", "Nơi đến tại Nga"],
       ["passportNo", "Số hộ chiếu"],
       ["passportIssue", "Ngày cấp hộ chiếu"],
@@ -195,7 +195,16 @@ export async function POST(request: Request) {
       ["phone", "Điện thoại cá nhân"],
       ["email", "Email cá nhân"],
       ["preferredEmbassy", "Nơi nộp hồ sơ"],
-    ];    for (const [key, label] of required) if (!String(applicant[key] ?? "").trim()) missing.push(label);
+    ];
+    if (student) {
+      required.push(
+        ["organization", "Tên tổ chức mời/tiếp nhận"],
+        ["organizationAddress", "Địa chỉ tổ chức"],
+        ["tin", "INN tổ chức"],
+        ["telex", "Mã Telex"],
+      );
+    }
+    for (const [key, label] of required) if (!String(applicant[key] ?? "").trim()) missing.push(label);
 
     for (const [key, label] of [
       ["birthDate", "Ngày sinh"],

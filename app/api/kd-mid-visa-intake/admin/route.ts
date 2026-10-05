@@ -66,7 +66,7 @@ async function audit(actor: string, action: string, target: string, detail: Reco
 async function snapshot() {
   const database = await getControlDatabase();
   const [links, submissions, results] = await Promise.all([
-    database.prepare(`SELECT id,label,status,created_by,created_at,expires_at FROM visa_intake_links ORDER BY created_at DESC LIMIT 100`).all<{ id:string; label:string; status:string; created_by:string; created_at:string; expires_at:string|null }>(),
+    database.prepare(`SELECT id,label,status,defaults_json,created_by,created_at,expires_at FROM visa_intake_links ORDER BY created_at DESC LIMIT 100`).all<{ id:string; label:string; status:string; defaults_json:string; created_by:string; created_at:string; expires_at:string|null }>(),
     database.prepare(`SELECT queue_no,id,link_id,status,applicant_name,passport_no,email,phone,payload_json,validation_json,submitted_at,reviewed_by,reviewed_at,review_note,imported_applicant_id FROM visa_intake_submissions ORDER BY CASE status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 WHEN 'imported' THEN 2 ELSE 3 END, queue_no ASC LIMIT 500`).all<{ queue_no:number; id:string; link_id:string; status:string; applicant_name:string; passport_no:string; email:string; phone:string; payload_json:string; validation_json:string; submitted_at:string; reviewed_by:string|null; reviewed_at:string|null; review_note:string|null; imported_applicant_id:string|null }>(),
     database.prepare(`SELECT submission_id,link_id,file_name,file_size,uploaded_at FROM visa_intake_results ORDER BY uploaded_at DESC`).all<{ submission_id:string; link_id:string; file_name:string; file_size:number; uploaded_at:string }>(),
   ]);
@@ -75,7 +75,11 @@ async function snapshot() {
   for(const row of submissions.results) submissionCount.set(row.link_id,(submissionCount.get(row.link_id)??0)+1);
   for(const row of results.results) resultCount.set(row.link_id,(resultCount.get(row.link_id)??0)+1);
   return {
-    links: links.results.map((row)=>({id:row.id,label:row.label,status:row.status,createdBy:row.created_by,createdAt:row.created_at,expiresAt:row.expires_at,publicPath:`/visa-intake?batch=${encodeURIComponent(row.id)}`,submissionCount:submissionCount.get(row.id)??0,resultCount:resultCount.get(row.id)??0})),
+    links: links.results.map((row)=>{
+      let defaults:Record<string,unknown>={};try{defaults=JSON.parse(row.defaults_json||"{}")}catch{}
+      const formType=defaults.formType==="general"?"general":"student";
+      return {id:row.id,label:row.label,status:row.status,createdBy:row.created_by,createdAt:row.created_at,expiresAt:row.expires_at,publicPath:`/visa-intake?batch=${encodeURIComponent(row.id)}`,submissionCount:submissionCount.get(row.id)??0,resultCount:resultCount.get(row.id)??0,formType};
+    }),
     submissions: submissions.results.flatMap((row)=>{
       let applicant:Record<string,unknown>={},validation:Record<string,unknown>={};try{applicant=JSON.parse(row.payload_json)}catch{}try{validation=JSON.parse(row.validation_json)}catch{}
       if(validation.adminHidden===true) return [];
@@ -111,23 +115,26 @@ export async function POST(request: Request) {
       const token = base64Url(crypto.getRandomValues(new Uint8Array(32)));
       const id = crypto.randomUUID();
       const label = text(body.label, 120) || `Đợt thu hồ sơ ${new Date().toLocaleDateString("vi-VN")}`;
+      const formType = text(body.formType, 20) === "general" ? "general" : "student";
+      const student = formType === "student";
       const defaults = body.defaults && typeof body.defaults === "object" ? body.defaults as Record<string, unknown> : {};
       const safeDefaults = {
+        formType,
         password: text(defaults.password, 120),
         citizenship: text(defaults.citizenship, 80) || "ВЬЕТНАМ",
-        purposeSection: text(defaults.purposeSection, 120) || "УЧЕБА",
-        purpose: text(defaults.purpose, 120) || "УЧЕБА",
-        visaType: text(defaults.visaType, 160) || "ОБЫКНОВЕННАЯ УЧЕБНАЯ",
-        entries: text(defaults.entries, 80) || "ОДНОКРАТНАЯ",
+        purposeSection: text(defaults.purposeSection, 120) || (student ? "УЧЕБА" : ""),
+        purpose: text(defaults.purpose, 120) || (student ? "УЧЕБА" : ""),
+        visaType: text(defaults.visaType, 160) || (student ? "ОБЫКНОВЕННАЯ УЧЕБНАЯ" : ""),
+        entries: text(defaults.entries, 80) || (student ? "ОДНОКРАТНАЯ" : ""),
         entryDate: text(defaults.entryDate, 10),
         exitDate: text(defaults.exitDate, 10),
-        destinationType: text(defaults.destinationType, 80) || "ОРГАНИЗАЦИЯ",
+        destinationType: text(defaults.destinationType, 80) || (student ? "ОРГАНИЗАЦИЯ" : ""),
         organization: text(defaults.organization, 300),
         organizationAddress: text(defaults.organizationAddress, 400),
         tin: text(defaults.tin, 40),
         telex: text(defaults.telex, 80),
         invitation: text(defaults.invitation, 120),
-        routeCity: text(defaults.routeCity, 80) || "МОСКВА",
+        routeCity: text(defaults.routeCity, 80) || (student ? "МОСКВА" : ""),
         employer: text(defaults.employer, 240),
         position: text(defaults.position, 120),
         workAddress: text(defaults.workAddress, 300),
@@ -141,11 +148,11 @@ export async function POST(request: Request) {
           (id,token_hash,label,status,defaults_json,created_by)
          VALUES (?,?,?,'active',?,?)`,
       ).bind(id, await sha256(token), label, JSON.stringify(safeDefaults), actor.email).run();
-      await audit(actor.email, "visa_intake_link_created", id, { label });
+      await audit(actor.email, "visa_intake_link_created", id, { label, formType });
       return json({
         ok: true,
         token,
-        link: { id, label, status: "active", publicPath: `/visa-intake?batch=${encodeURIComponent(id)}` },
+        link: { id, label, status: "active", formType, publicPath: `/visa-intake?batch=${encodeURIComponent(id)}` },
         ...(await snapshot()),
       }, 201);
     }

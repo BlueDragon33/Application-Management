@@ -104,6 +104,7 @@ type IntakeLink = {
   publicPath: string;
   submissionCount: number;
   resultCount: number;
+  formType: "student" | "general";
 };
 
 type IntakeSubmission = {
@@ -557,6 +558,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
   const [intakeSubmissions, setIntakeSubmissions] = useState<IntakeSubmission[]>([]);
   const [intakeLoading, setIntakeLoading] = useState(false);
   const [intakeLabel, setIntakeLabel] = useState("");
+  const [intakeFormType, setIntakeFormType] = useState<"student" | "general">("student");
   const [shareUrl, setShareUrl] = useState("");
   const [resultUploadingId, setResultUploadingId] = useState("");
   const [correctionSelections, setCorrectionSelections] = useState<Record<string, string[]>>({});
@@ -719,32 +721,34 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
 
   async function createIntakeLink() {
     try {
+      const student = intakeFormType === "student";
       const data = await intakeAction({
         action: "create-link",
+        formType: intakeFormType,
         label: intakeLabel,
         defaults: {
           password: store.common.password,
-          citizenship: store.common.citizenship,
-          purposeSection: store.common.purposeSection,
-          purpose: store.common.purpose,
-          visaType: store.common.visaType,
-          entries: store.common.entries,
-          entryDate: store.common.entryDate,
-          exitDate: store.common.exitDate,
-          destinationType: store.common.destinationType,
-          organization: store.common.organization,
-          organizationAddress: store.common.organizationAddress,
-          tin: store.common.tin,
-          telex: store.common.telex,
-          invitation: store.common.invitation,
-          routeCity: store.common.city,
-          employer: store.common.employer,
-          position: store.common.defaultPosition,
-          workAddress: store.common.employerAddress,
-          workPhone: fixedWorkPhone,
-          workEmail: store.common.employerEmail,
-          permanentAddress: fixedPermanentAddress,
-          preferredEmbassy: store.common.embassy,
+          citizenship: store.common.citizenship || "ВЬЕТНАМ",
+          purposeSection: student ? store.common.purposeSection : "",
+          purpose: student ? store.common.purpose : "",
+          visaType: student ? store.common.visaType : "",
+          entries: student ? store.common.entries : "",
+          entryDate: student ? store.common.entryDate : "",
+          exitDate: student ? store.common.exitDate : "",
+          destinationType: student ? store.common.destinationType : "",
+          organization: student ? store.common.organization : "",
+          organizationAddress: student ? store.common.organizationAddress : "",
+          tin: student ? store.common.tin : "",
+          telex: student ? store.common.telex : "",
+          invitation: student ? store.common.invitation : "",
+          routeCity: student ? store.common.city : "",
+          employer: student ? store.common.employer : "",
+          position: student ? store.common.defaultPosition : "",
+          workAddress: student ? store.common.employerAddress : "",
+          workPhone: student ? fixedWorkPhone : "",
+          workEmail: student ? store.common.employerEmail : "",
+          permanentAddress: student ? fixedPermanentAddress : "",
+          preferredEmbassy: student ? store.common.embassy : "",
         },
       });
       const publicPath = String(data.link?.publicPath || "");
@@ -752,7 +756,9 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       const url = `${window.location.origin}${publicPath}`;
       setShareUrl(url);
       await navigator.clipboard.writeText(url).catch(() => undefined);
-      setNotice("Đã tạo và sao chép link Form hồ sơ Visa. Gửi link này cho người cần điền.");
+      setNotice(student
+        ? "Đã tạo Link 1 · Mẫu nhập học và sao chép URL. Telex được lấy từ Trường dùng chung."
+        : "Đã tạo Link 2 · Người thường và sao chép URL. Các trường visa không chắc chắn được để trống.");
     } catch (reason) {
       setNotice(reason instanceof Error ? reason.message : "Không tạo được link Form.");
     }
@@ -1243,16 +1249,20 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
     return <section className={styles.panel}>
       <header><div><span>FORM GỬI TỪ BÊN NGOÀI</span><h3>Thu hồ sơ → xác minh → lưu theo thứ tự</h3></div><button onClick={() => void loadIntake()} disabled={intakeLoading}>{intakeLoading ? "Đang tải…" : "Làm mới"}</button></header>
       <div className={styles.intakeCreate}>
-        <div><strong>Tạo link Form tiếng Việt</strong><small>Link chỉ dùng để nhập hồ sơ; không mở được khu quản trị. Sau khi gửi, hồ sơ sẽ vào hàng chờ bên dưới.</small></div>
+        <div><strong>Tạo link Form tiếng Việt</strong><small>Chọn đúng loại mẫu trước khi tạo. Link 1 dùng cho nhập học; Link 2 dùng cho hồ sơ visa người thường.</small></div>
         <input value={intakeLabel} onChange={(e) => setIntakeLabel(e.target.value)} placeholder="Tên đợt / nhóm, ví dụ: Đợt Visa tháng 10" />
-        <button onClick={() => void createIntakeLink()}>Tạo link & sao chép</button>
+        <div className={styles.intakeTypeChoice}>
+          <button type="button" data-active={intakeFormType === "student"} onClick={() => setIntakeFormType("student")}><strong>Link 1 · Nhập học</strong><small>Mẫu cũ + Mã Telex</small></button>
+          <button type="button" data-active={intakeFormType === "general"} onClick={() => setIntakeFormType("general")}><strong>Link 2 · Người thường</strong><small>Mẫu visa tổng quát</small></button>
+        </div>
+        <button onClick={() => void createIntakeLink()}>Tạo {intakeFormType === "student" ? "Link 1" : "Link 2"} & sao chép</button>
         {shareUrl ? <div className={styles.shareUrl}><input readOnly value={shareUrl}/><button className={styles.secondary} onClick={() => void navigator.clipboard.writeText(shareUrl)}>Sao chép</button><a href={shareUrl} target="_blank" rel="noreferrer">Mở form ↗</a></div> : null}
       </div>
       <div className={styles.intakeLinks}>
         {intakeLinks.filter((item) => item.status === "active").map((item) => {
           const url = intakePublicUrl(item);
           return <article key={item.id} data-status={item.status}>
-            <div className={styles.intakeLinkMeta}><strong>{item.label}</strong><small>Tạo {new Date(item.createdAt).toLocaleString("vi-VN")} · {item.submissionCount} hồ sơ · {item.resultCount} PDF kết quả · Đang mở</small></div>
+            <div className={styles.intakeLinkMeta}><strong>{item.label}</strong><span className={styles.intakeTypeBadge} data-type={item.formType}>{item.formType === "general" ? "LINK 2 · NGƯỜI THƯỜNG" : "LINK 1 · NHẬP HỌC"}</span><small>Tạo {new Date(item.createdAt).toLocaleString("vi-VN")} · {item.submissionCount} hồ sơ · {item.resultCount} PDF kết quả · Đang mở</small></div>
             <div className={styles.intakeLinkUrl}><input readOnly value={url}/><button className={styles.secondary} onClick={() => void navigator.clipboard.writeText(url)}>Sao chép</button><a href={url} target="_blank" rel="noreferrer">Mở form ↗</a></div>
             <button className={styles.danger} onClick={() => void closeIntakeLink(item.id)}>Đóng link</button>
           </article>;
