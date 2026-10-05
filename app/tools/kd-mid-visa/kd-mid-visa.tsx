@@ -176,6 +176,30 @@ const defaultCommon: CommonData = {
   defaultPosition: "СТУДЕНТ",
 };
 
+const commonDeleteFields: Array<{ key: keyof CommonData; label: string }> = [
+  { key: "password", label: "Password mặc định" },
+  { key: "citizenship", label: "Quốc tịch" },
+  { key: "purposeSection", label: "Nhóm mục đích" },
+  { key: "purpose", label: "Mục đích chuyến đi" },
+  { key: "visaType", label: "Loại visa" },
+  { key: "entries", label: "Số lần nhập cảnh" },
+  { key: "entryDate", label: "Ngày vào Nga" },
+  { key: "exitDate", label: "Ngày ra Nga" },
+  { key: "organization", label: "Tổ chức tiếp nhận" },
+  { key: "organizationAddress", label: "Địa chỉ tổ chức" },
+  { key: "tin", label: "INN" },
+  { key: "telex", label: "Mã Telex" },
+  { key: "invitation", label: "Số giấy mời" },
+  { key: "destinationType", label: "Loại nơi đến" },
+  { key: "city", label: "Nơi đến tại Nga" },
+  { key: "embassy", label: "Nơi nộp hồ sơ" },
+  { key: "employer", label: "Nơi làm việc / học tập" },
+  { key: "employerAddress", label: "Địa chỉ cơ quan" },
+  { key: "employerEmail", label: "Email cơ quan" },
+  { key: "defaultPosition", label: "Chức danh mặc định" },
+];
+
+
 function emptyApplicant(): Applicant {
   return {
     id: crypto.randomUUID(),
@@ -570,6 +594,10 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
     payload: false,
     intakeDrafts: false,
   });
+  const [deleteApplicantIds, setDeleteApplicantIds] = useState<string[]>([]);
+  const [deleteRecordIds, setDeleteRecordIds] = useState<string[]>([]);
+  const [deleteCommonKeys, setDeleteCommonKeys] = useState<Array<keyof CommonData>>([]);
+  const [deleteDraftKeys, setDeleteDraftKeys] = useState<string[]>([]);
 
   useEffect(() => {
     const loaded = safeLoad();
@@ -681,8 +709,57 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
   }
 
   function removeApplicant(id: string) {
-    if (!window.confirm("Xóa hồ sơ cá nhân này khỏi máy?")) return;
-    setStore((current) => ({ ...current, applicants: current.applicants.filter((item) => item.id !== id), selectedId: current.selectedId === id ? "" : current.selectedId }));
+    const target = store.applicants.find((item) => item.id === id);
+    if (!window.confirm(`Xóa hồ sơ ${target ? displayName(target) : ""} khỏi máy?\n\nNếu đây là hồ sơ đang dùng, payload KD-MID liên quan cũng sẽ bị xóa.`)) return;
+    const activeApplicantId = readActivePayload()?.applicant?.id ?? "";
+    setStore((current) => {
+      const applicants = current.applicants.filter((item) => item.id !== id);
+      const selectedId = current.selectedId === id ? applicants[0]?.id ?? "" : current.selectedId;
+      const next = { ...current, applicants, selectedId };
+      persistStoreSnapshot(next);
+      return next;
+    });
+    if (activeApplicantId === id) {
+      try { window.localStorage.removeItem(activePayloadKey); } catch {}
+      setBookmarklet("");
+    }
+  }
+
+  function removeResumeRecord(record: ResumeRecord) {
+    if (!window.confirm(`Xóa bản ghi mở lại Application ID ${record.applicationId}?\n\nHồ sơ cá nhân tương ứng vẫn được giữ.`)) return;
+    setStore((current) => {
+      const next = { ...current, records: current.records.filter((item) => item.id !== record.id) };
+      persistStoreSnapshot(next);
+      return next;
+    });
+    setNotice(`Đã xóa bản ghi mở lại ${record.applicationId}.`);
+  }
+
+  function resetCommonFields(keys: Array<keyof CommonData>) {
+    if (!keys.length) {
+      setNotice("Hãy chọn ít nhất một trường dùng chung cần reset.");
+      return;
+    }
+    const labels = keys.map((key) => commonDeleteFields.find((item) => item.key === key)?.label ?? key);
+    if (!window.confirm(`Đưa các trường sau về mặc định ban đầu?\n\n• ${labels.join("\n• ")}`)) return;
+    setStore((current) => {
+      const common = { ...current.common } as Record<keyof CommonData, string>;
+      for (const key of keys) common[key] = defaultCommon[key];
+      const next: Store = { ...current, common };
+      persistStoreSnapshot(next);
+      const applicant = next.applicants.find((item) => item.id === next.selectedId) ?? next.applicants[0];
+      if (applicant) persistActivePayload(buildPayload(applicant, next.common, autoAdvance));
+      return next;
+    });
+    setDeleteCommonKeys([]);
+    setNotice(`Đã reset ${labels.length} trường dùng chung về mặc định.`);
+  }
+
+  function clearActivePayload() {
+    if (!window.confirm("Xóa payload KD-MID / Companion đang hoạt động trên máy này?\n\nHồ sơ cá nhân vẫn được giữ.")) return;
+    try { window.localStorage.removeItem(activePayloadKey); } catch {}
+    setBookmarklet("");
+    setNotice("Đã xóa payload KD-MID / Companion đang hoạt động.");
   }
 
   async function loadIntake() {
@@ -1106,6 +1183,25 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
     return keys;
   }
 
+  function intakeDraftEntries() {
+    return intakeDraftKeys().map((key) => {
+      let label = "Bản nháp chưa có tên";
+      let meta = key.replace("visa-intake:draft:", "").slice(0, 32);
+      try {
+        const raw = window.localStorage.getItem(key);
+        const parsed = raw ? JSON.parse(raw) as { applicant?: Record<string, unknown>; receipt?: Record<string, unknown> } : null;
+        const applicant = parsed?.applicant ?? {};
+        const receipt = parsed?.receipt ?? {};
+        const name = [applicant.surname, applicant.givenNames].map((value) => String(value ?? "").trim()).filter(Boolean).join(" ");
+        label = name || String(receipt.applicantName ?? "").trim() || label;
+        const queue = receipt.queueNo ? `#${receipt.queueNo}` : "";
+        const status = String(receipt.status ?? "").trim();
+        meta = [queue, status, meta].filter(Boolean).join(" · ");
+      } catch {}
+      return { key, label, meta };
+    });
+  }
+
   function setDeleteScope(scope: DeleteScope, checked: boolean) {
     setDeleteSelection((current) => ({ ...current, [scope]: checked }));
   }
@@ -1129,45 +1225,69 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       intakeDrafts: "Bản nháp Form thu hồ sơ",
     };
     const selectedScopes = (Object.keys(deleteSelection) as DeleteScope[]).filter((scope) => deleteSelection[scope]);
-    if (!selectedScopes.length) {
-      setNotice("Hãy chọn ít nhất một nhóm dữ liệu cần xóa.");
+    const hasGranular = deleteApplicantIds.length || deleteRecordIds.length || deleteCommonKeys.length || deleteDraftKeys.length;
+    if (!selectedScopes.length && !hasGranular) {
+      setNotice("Hãy chọn ít nhất một nhóm hoặc một mục dữ liệu cần xóa.");
       return;
     }
 
-    const effectiveScopes = deleteSelection.applicants && !deleteSelection.payload
-      ? [...selectedScopes, "payload" as DeleteScope]
-      : selectedScopes;
-    const uniqueScopes = [...new Set(effectiveScopes)];
-    const names = uniqueScopes.map((scope) => labels[scope]);
-    const extra = deleteSelection.applicants && !deleteSelection.payload
-      ? "\n\nPayload KD-MID/Companion cũng sẽ được xóa tự động để tránh dùng nhầm hồ sơ đã xóa."
-      : "";
-    if (!window.confirm(`Xóa các nhóm dữ liệu sau trên máy này?\n\n• ${names.join("\n• ")}${extra}\n\nThao tác này không thể hoàn tác nếu chưa có file backup.`)) return;
+    const descriptions: string[] = selectedScopes.map((scope) => labels[scope]);
+    if (!deleteSelection.applicants && deleteApplicantIds.length) descriptions.push(`Hồ sơ cá nhân: ${deleteApplicantIds.length} mục`);
+    if (!deleteSelection.records && deleteRecordIds.length) descriptions.push(`Bản ghi mở lại: ${deleteRecordIds.length} mục`);
+    if (!deleteSelection.common && deleteCommonKeys.length) descriptions.push(`Trường dùng chung: ${deleteCommonKeys.length} trường về mặc định`);
+    if (!deleteSelection.intakeDrafts && deleteDraftKeys.length) descriptions.push(`Bản nháp Form: ${deleteDraftKeys.length} mục`);
+
+    const activeApplicantId = readActivePayload()?.applicant?.id ?? "";
+    const selectedApplicantSet = new Set(deleteApplicantIds);
+    const shouldClearPayload = deleteSelection.payload
+      || deleteSelection.applicants
+      || Boolean(activeApplicantId && selectedApplicantSet.has(activeApplicantId));
+    if (shouldClearPayload && !deleteSelection.payload) descriptions.push("Payload KD-MID/Companion liên quan");
+
+    if (!window.confirm(`Xóa/reset đúng các dữ liệu sau trên máy này?\n\n• ${descriptions.join("\n• ")}\n\nThao tác này không thể hoàn tác nếu chưa có file backup.`)) return;
 
     setStore((current) => {
-      const applicants = deleteSelection.applicants ? [] : current.applicants;
-      const records = deleteSelection.records ? [] : current.records;
-      const common = deleteSelection.common ? defaultCommon : current.common;
-      const selectedId = deleteSelection.applicants
-        ? ""
-        : applicants.some((item) => item.id === current.selectedId) ? current.selectedId : applicants[0]?.id ?? "";
+      const applicantIds = new Set(deleteApplicantIds);
+      const recordIds = new Set(deleteRecordIds);
+      const applicants = deleteSelection.applicants ? [] : current.applicants.filter((item) => !applicantIds.has(item.id));
+      const records = deleteSelection.records ? [] : current.records.filter((item) => !recordIds.has(item.id));
+      let common: CommonData;
+      if (deleteSelection.common) {
+        common = { ...defaultCommon };
+      } else {
+        const commonRecord = { ...current.common } as Record<keyof CommonData, string>;
+        for (const key of deleteCommonKeys) commonRecord[key] = defaultCommon[key];
+        common = commonRecord;
+      }
+      const selectedId = applicants.some((item) => item.id === current.selectedId)
+        ? current.selectedId
+        : applicants[0]?.id ?? "";
       const next: Store = { ...current, applicants, records, common, selectedId };
       persistStoreSnapshot(next);
+
+      if (!shouldClearPayload && (deleteSelection.common || deleteCommonKeys.length)) {
+        const applicant = next.applicants.find((item) => item.id === next.selectedId) ?? next.applicants[0];
+        if (applicant) persistActivePayload(buildPayload(applicant, next.common, autoAdvance));
+      }
       return next;
     });
 
-    if (deleteSelection.payload || deleteSelection.applicants) {
+    if (shouldClearPayload) {
       try { window.localStorage.removeItem(activePayloadKey); } catch {}
       setBookmarklet("");
     }
-    if (deleteSelection.intakeDrafts) {
-      for (const key of intakeDraftKeys()) {
-        try { window.localStorage.removeItem(key); } catch {}
-      }
+
+    const draftKeys = deleteSelection.intakeDrafts ? intakeDraftKeys() : deleteDraftKeys;
+    for (const key of draftKeys) {
+      try { window.localStorage.removeItem(key); } catch {}
     }
 
     setDeleteSelection({ applicants: false, records: false, common: false, payload: false, intakeDrafts: false });
-    setNotice(`Đã xóa: ${names.join(", ")}.`);
+    setDeleteApplicantIds([]);
+    setDeleteRecordIds([]);
+    setDeleteCommonKeys([]);
+    setDeleteDraftKeys([]);
+    setNotice(`Đã xử lý: ${descriptions.join(", ")}.`);
   }
 
   function exportBackup() {
@@ -1337,6 +1457,14 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         <Field label="Адрес вашего постоянного проживания · Địa chỉ thường trú" hint="Cố định cho mọi hồ sơ."><input value={fixedPermanentAddress} readOnly /></Field>
         <Field label="Рабочий телефон · Điện thoại cơ quan" hint="Cố định cho mọi hồ sơ."><input value={fixedWorkPhone} readOnly /></Field>
       </div>
+      <details className={styles.inlineDeletePanel}>
+        <summary>Reset / xóa từng trường dùng chung</summary>
+        <p>Chọn riêng trường cần đưa về giá trị mặc định ban đầu. Các trường khác giữ nguyên.</p>
+        <div className={styles.inlineDeleteGrid}>
+          {commonDeleteFields.map(({ key, label }) => <label key={key}><input type="checkbox" checked={deleteCommonKeys.includes(key)} onChange={(event) => setDeleteCommonKeys((current) => event.target.checked ? [...new Set([...current, key])] : current.filter((item) => item !== key))} /><span><strong>{label}</strong><small>{store.common[key] || "Đang trống"} → {defaultCommon[key] || "trống"}</small></span></label>)}
+        </div>
+        <button className={styles.danger} disabled={!deleteCommonKeys.length} onClick={() => resetCommonFields(deleteCommonKeys)}>Reset các trường đã chọn</button>
+      </details>
     </section>;
   }
 
@@ -1344,7 +1472,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
     return <section className={styles.panel}>
       <header><div><span>BẢN GHI MỞ LẠI</span><h3>Mở lại hồ sơ KD-MID đã lưu để xem / chỉnh sửa</h3></div>{selected?.applicationId ? <button onClick={saveManualRecord}>Cập nhật từ hồ sơ đang chọn</button> : null}</header>
       {!store.records.length ? <div className={styles.empty}>Chưa có bản ghi. Khi bridge phát hiện Application ID, tool sẽ tự lưu.</div> : <div className={styles.records}>
-        {store.records.map((record) => <article key={record.applicationId}><div><span>Application ID</span><strong>{record.applicationId}</strong></div><div><span>5 chữ đầu Surname</span><strong>{record.surname5}</strong></div><div><span>Năm sinh</span><strong>{record.birthYear}</strong></div><div><span>Password</span><strong>{record.password}</strong></div><div><span>Hồ sơ</span><strong>{record.applicantName || "—"}</strong></div><button className={styles.recordOpen} onClick={() => openResumeRecord(record)}>Mở lại / sửa ↗</button></article>)}
+        {store.records.map((record) => <article key={record.applicationId}><div><span>Application ID</span><strong>{record.applicationId}</strong></div><div><span>5 chữ đầu Surname</span><strong>{record.surname5}</strong></div><div><span>Năm sinh</span><strong>{record.birthYear}</strong></div><div><span>Password</span><strong>{record.password}</strong></div><div><span>Hồ sơ</span><strong>{record.applicantName || "—"}</strong></div><button className={styles.recordOpen} onClick={() => openResumeRecord(record)}>Mở lại / sửa ↗</button><button className={styles.danger} onClick={() => removeResumeRecord(record)}>Xóa</button></article>)}
       </div>}
     </section>;
   }
@@ -1376,13 +1504,20 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       <div className={styles.bridgeBox}>
         <div><strong>Phương án dự phòng: Bookmarklet</strong><small>Dùng khi không muốn cài userscript. Cần bấm bookmarklet trên từng trang KD-MID.</small></div>
         <textarea readOnly value={bookmarklet} placeholder="Bấm “Tạo bookmarklet dự phòng” để tạo javascript:..." />
-        <div className={styles.bridgeActions}><button onClick={async () => { if (!bookmarklet) return; await navigator.clipboard.writeText(bookmarklet); setNotice("Đã sao chép bookmarklet."); }} disabled={!bookmarklet}>Sao chép bookmarklet</button><button className={styles.secondary} onClick={openKdmid}>Mở KD-MID thủ công ↗</button></div>
+        <div className={styles.bridgeActions}><button onClick={async () => { if (!bookmarklet) return; await navigator.clipboard.writeText(bookmarklet); setNotice("Đã sao chép bookmarklet."); }} disabled={!bookmarklet}>Sao chép bookmarklet</button><button className={styles.secondary} onClick={openKdmid}>Mở KD-MID thủ công ↗</button><button className={styles.danger} onClick={clearActivePayload}>Xóa payload tạm</button></div>
       </div>
       <div className={styles.warning}><strong>Kiểm tra trước khi chạy</strong><p>Với v0.9.31, dòng trạng thái trên App-Manager chỉ là thông tin phụ. Luồng chính được kiểm tra trực tiếp khi tab <strong>visa.kdmid.ru</strong> mở: nếu Companion nhận hồ sơ, đoạn <code>#kdmidv8=...</code> sẽ tự biến mất và hộp trạng thái KD-MID Visa VN xuất hiện ở góc dưới. Tool không tự đọc/giải CAPTCHA; sau khi bạn nhập CAPTCHA, Companion tiếp tục và PDF/barcode do chính <strong>visa.kdmid.ru</strong> tạo. <strong>Barcode chỉ hợp lệ khi do KD-MID tạo.</strong></p></div>
     </section>;
   }
 
   function renderBackup() {
+    const drafts = hydrated ? intakeDraftEntries() : [];
+    const hasAnyDelete = Object.values(deleteSelection).some(Boolean)
+      || deleteApplicantIds.length > 0
+      || deleteRecordIds.length > 0
+      || deleteCommonKeys.length > 0
+      || deleteDraftKeys.length > 0;
+
     return <section className={styles.panel}>
       <header><div><span>SAO LƯU</span><h3>Backup cục bộ</h3></div></header>
       <div className={styles.backupGrid}>
@@ -1390,19 +1525,39 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         <article><strong>Nhập JSON</strong><p>Khôi phục hồ sơ, trường dùng chung và bản ghi mở lại.</p><label className={styles.fileButton}>Chọn tệp<input type="file" accept="application/json,.json" onChange={(event) => { const file = event.target.files?.[0]; if (file) importBackup(file); }} /></label></article>
         <article className={styles.deleteCard}>
           <strong>Xóa dữ liệu có chọn lọc</strong>
-          <p>Chỉ xóa đúng nhóm bạn chọn trên máy hiện tại. Dữ liệu không được chọn vẫn giữ nguyên.</p>
+          <p>Tick nhóm để xóa toàn bộ, hoặc mở “Chọn từng mục” để chỉ xóa một phần nhỏ hơn. Dữ liệu không chọn vẫn giữ nguyên.</p>
           <div className={styles.deleteToolbar}>
-            <button className={styles.secondary} type="button" onClick={() => setAllDeleteScopes(true)}>Chọn tất cả</button>
-            <button className={styles.secondary} type="button" onClick={() => setAllDeleteScopes(false)}>Bỏ chọn</button>
+            <button className={styles.secondary} type="button" onClick={() => setAllDeleteScopes(true)}>Chọn tất cả nhóm</button>
+            <button className={styles.secondary} type="button" onClick={() => { setAllDeleteScopes(false); setDeleteApplicantIds([]); setDeleteRecordIds([]); setDeleteCommonKeys([]); setDeleteDraftKeys([]); }}>Bỏ chọn tất cả</button>
           </div>
           <div className={styles.deleteChoices}>
-            <label><input type="checkbox" checked={deleteSelection.applicants} onChange={(event) => setDeleteScope("applicants", event.target.checked)} /><span><strong>Hồ sơ cá nhân</strong><small>{store.applicants.length} hồ sơ · xóa mục này cũng tự xóa payload đang hoạt động</small></span></label>
-            <label><input type="checkbox" checked={deleteSelection.records} onChange={(event) => setDeleteScope("records", event.target.checked)} /><span><strong>Bản ghi mở lại</strong><small>{store.records.length} bản ghi Application ID</small></span></label>
-            <label><input type="checkbox" checked={deleteSelection.common} onChange={(event) => setDeleteScope("common", event.target.checked)} /><span><strong>Trường dùng chung</strong><small>Đưa cấu hình chung về mặc định ban đầu</small></span></label>
+            <label><input type="checkbox" checked={deleteSelection.applicants} onChange={(event) => setDeleteScope("applicants", event.target.checked)} /><span><strong>Hồ sơ cá nhân</strong><small>{store.applicants.length} hồ sơ · chọn nhóm = xóa toàn bộ</small></span></label>
+            <label><input type="checkbox" checked={deleteSelection.records} onChange={(event) => setDeleteScope("records", event.target.checked)} /><span><strong>Bản ghi mở lại</strong><small>{store.records.length} bản ghi · chọn nhóm = xóa toàn bộ</small></span></label>
+            <label><input type="checkbox" checked={deleteSelection.common} onChange={(event) => setDeleteScope("common", event.target.checked)} /><span><strong>Trường dùng chung</strong><small>Chọn nhóm = reset toàn bộ về mặc định</small></span></label>
             <label><input type="checkbox" checked={deleteSelection.payload} onChange={(event) => setDeleteScope("payload", event.target.checked)} /><span><strong>Payload KD-MID / Companion</strong><small>Xóa dữ liệu tạm đang chờ tự điền trên KD-MID</small></span></label>
-            <label><input type="checkbox" checked={deleteSelection.intakeDrafts} onChange={(event) => setDeleteScope("intakeDrafts", event.target.checked)} /><span><strong>Bản nháp Form thu hồ sơ</strong><small>Xóa các bản nháp visa-intake đã lưu trong trình duyệt này</small></span></label>
+            <label><input type="checkbox" checked={deleteSelection.intakeDrafts} onChange={(event) => setDeleteScope("intakeDrafts", event.target.checked)} /><span><strong>Bản nháp Form thu hồ sơ</strong><small>{drafts.length} bản nháp trên trình duyệt này · chọn nhóm = xóa toàn bộ</small></span></label>
           </div>
-          <button className={styles.danger} disabled={!Object.values(deleteSelection).some(Boolean)} onClick={deleteSelectedLocalData}>Xóa dữ liệu đã chọn</button>
+
+          <div className={styles.deleteDetailsGrid}>
+            <details>
+              <summary>Chọn từng hồ sơ cá nhân · {deleteApplicantIds.length} đã chọn</summary>
+              <div>{store.applicants.length ? store.applicants.map((item) => <label key={item.id}><input type="checkbox" checked={deleteApplicantIds.includes(item.id)} onChange={(event) => setDeleteApplicantIds((current) => event.target.checked ? [...new Set([...current, item.id])] : current.filter((id) => id !== item.id))} /><span><strong>{displayName(item)}</strong><small>{item.passportNo || "Chưa có hộ chiếu"} · {item.birthDate || "Chưa có ngày sinh"}</small></span></label>) : <small>Không có hồ sơ.</small>}</div>
+            </details>
+            <details>
+              <summary>Chọn từng bản ghi mở lại · {deleteRecordIds.length} đã chọn</summary>
+              <div>{store.records.length ? store.records.map((record) => <label key={record.id}><input type="checkbox" checked={deleteRecordIds.includes(record.id)} onChange={(event) => setDeleteRecordIds((current) => event.target.checked ? [...new Set([...current, record.id])] : current.filter((id) => id !== record.id))} /><span><strong>{record.applicationId}</strong><small>{record.applicantName || record.surname5} · {record.birthYear}</small></span></label>) : <small>Không có bản ghi.</small>}</div>
+            </details>
+            <details>
+              <summary>Chọn từng trường dùng chung · {deleteCommonKeys.length} đã chọn</summary>
+              <div>{commonDeleteFields.map(({ key, label }) => <label key={key}><input type="checkbox" checked={deleteCommonKeys.includes(key)} onChange={(event) => setDeleteCommonKeys((current) => event.target.checked ? [...new Set([...current, key])] : current.filter((item) => item !== key))} /><span><strong>{label}</strong><small>{store.common[key] || "Đang trống"}</small></span></label>)}</div>
+            </details>
+            <details>
+              <summary>Chọn từng bản nháp Form · {deleteDraftKeys.length} đã chọn</summary>
+              <div>{drafts.length ? drafts.map((draft) => <label key={draft.key}><input type="checkbox" checked={deleteDraftKeys.includes(draft.key)} onChange={(event) => setDeleteDraftKeys((current) => event.target.checked ? [...new Set([...current, draft.key])] : current.filter((key) => key !== draft.key))} /><span><strong>{draft.label}</strong><small>{draft.meta}</small></span></label>) : <small>Không có bản nháp trên trình duyệt này.</small>}</div>
+            </details>
+          </div>
+
+          <button className={styles.danger} disabled={!hasAnyDelete} onClick={deleteSelectedLocalData}>Xóa / reset dữ liệu đã chọn</button>
         </article>
       </div>
     </section>;
