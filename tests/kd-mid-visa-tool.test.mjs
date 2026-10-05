@@ -14,7 +14,7 @@ test("KD-MID Visa is registered as an internal Tool", () => {
   assert.match(page, /requireChatGPTUser\("\/tools\/kd-mid-visa"\)/);
 });
 
-test("Companion v0.9.31 is active in script and UI", () => {
+test("Companion v0.9.32 is active in script and UI", () => {
   assert.match(companion, /@version\s+0\.9\.31/);
   assert.match(companion, /const VERSION = "0\.9\.31"/);
   assert.match(tool, /Companion v0\.9\.31/);
@@ -157,7 +157,7 @@ test("navigation clicks are latched so the same page is not clicked repeatedly w
 });
 
 
-test("v0.9.31 emulates real focus/edit/blur lifecycle so fields fill without user clicks", () => {
+test("v0.9.32 emulates real focus/edit/blur lifecycle so fields fill without user clicks", () => {
   assert.match(companion, /el\.focus\(\{ preventScroll: true \}\)/);
   assert.match(companion, /new FocusEvent\("focusin"/);
   assert.match(companion, /new FocusEvent\("focusout"/);
@@ -176,7 +176,7 @@ test("status-box DOM mutations do not recursively retrigger the runner", () => {
 });
 
 
-test("v0.9.31 handles the visit information page with exact field semantics", () => {
+test("v0.9.32 handles the visit information page with exact field semantics", () => {
   assert.match(companion, /function isVisitInfoPage/);
   assert.match(companion, /function fillVisitInfoPage/);
   assert.match(companion, /В КАКОЕ УЧРЕЖДЕНИЕ НАПРАВЛЯЕТЕСЬ/);
@@ -211,7 +211,7 @@ test("visit page cannot auto-advance until its dedicated handler is ready", () =
 });
 
 
-test("v0.9.31 resolves personal and passport fields from exact labels", () => {
+test("v0.9.32 resolves personal and passport fields from exact labels", () => {
   assert.match(companion, /function personalPageControls/);
   assert.match(companion, /textControlForField\("Фамилия \(согласно паспорту\)"\)/);
   assert.match(companion, /textControlForField\("Имя, другие имена, отчество \(согласно паспорту\)"\)/);
@@ -221,14 +221,14 @@ test("v0.9.31 resolves personal and passport fields from exact labels", () => {
   assert.match(companion, /dateControlsForField\("Действителен до"\)/);
 });
 
-test("v0.9.31 keeps personal text controls distinct before declaring the page ready", () => {
+test("v0.9.32 keeps personal text controls distinct before declaring the page ready", () => {
   assert.match(companion, /const distinctPersonalTextControls/);
   assert.match(companion, /finalC\.surname !== finalC\.givenNames/);
   assert.match(companion, /finalC\.givenNames !== finalC\.birthPlace/);
   assert.match(companion, /selector trùng ô giữa Фамилия \/ Имя \/ Место рождения/);
 });
 
-test("v0.9.31 writes dates month-first and day-year atomically", () => {
+test("v0.9.32 writes dates month-first and day-year atomically", () => {
   assert.match(companion, /function writeDateControls/);
   assert.match(companion, /Step 1: month only/);
   assert.match(companion, /Step 2: once the month is stable, write DAY \+ YEAR atomically/);
@@ -237,7 +237,7 @@ test("v0.9.31 writes dates month-first and day-year atomically", () => {
   assert.match(companion, /function parseDmyStrict/);
 });
 
-test("v0.9.31 targets the visible route field between the label and Delete button", () => {
+test("v0.9.32 targets the visible route field between the label and Delete button", () => {
   assert.match(companion, /function routeCityControl/);
   assert.match(companion, /function routeCityLabels/);
   assert.match(companion, /function routeDeleteButtons/);
@@ -245,7 +245,7 @@ test("v0.9.31 targets the visible route field between the label and Delete butto
   assert.match(companion, /exact "Населенный пункт" label -> text input -> "Удалить" button/);
 });
 
-test("v0.9.31 types МОСКВА through the browser editing pipeline and keeps focus for autocomplete", () => {
+test("v0.9.32 types МОСКВА through the browser editing pipeline and keeps focus for autocomplete", () => {
   assert.match(companion, /function typeRouteCityValue/);
   assert.match(companion, /execCommand\?\.\("insertText", false, text\)/);
   assert.match(companion, /setRangeText/);
@@ -253,7 +253,7 @@ test("v0.9.31 types МОСКВА through the browser editing pipeline and keeps 
   assert.match(companion, /second autocomplete list after typing МОСКВА/);
 });
 
-test("v0.9.31 selects an exact МОСКВА autocomplete item and waits for KD-MID acceptance", () => {
+test("v0.9.32 selects an exact МОСКВА autocomplete item and waits for KD-MID acceptance", () => {
   assert.match(companion, /function routeSuggestionNode/);
   assert.match(companion, /function chooseRouteSuggestion/);
   assert.match(companion, /ROUTE_SELECTED_AT_KEY/);
@@ -262,7 +262,7 @@ test("v0.9.31 selects an exact МОСКВА autocomplete item and waits for KD-M
   assert.match(companion, /không còn lỗi đỏ/);
 });
 
-test("v0.9.31 stores optional contact/work fields per applicant", () => {
+test("v0.9.32 stores optional contact/work fields per applicant", () => {
   assert.match(tool, /workStudyPlace: string/);
   assert.match(tool, /workAddress: string/);
   assert.match(tool, /workEmail: string/);
@@ -270,7 +270,7 @@ test("v0.9.31 stores optional contact/work fields per applicant", () => {
   assert.match(tool, /relativesInRussia: boolean/);
 });
 
-test("v0.9.31 applicant editor exposes optional contact/work inputs", () => {
+test("v0.9.32 applicant editor exposes optional contact/work inputs", () => {
   assert.match(tool, /Место работы \(учебы\) · Nơi làm việc \/ học tập/);
   assert.match(tool, /Рабочий адрес · Địa chỉ cơ quan/);
   assert.match(tool, /Рабочий телефон · Điện thoại cơ quan/);
@@ -278,7 +278,7 @@ test("v0.9.31 applicant editor exposes optional contact/work inputs", () => {
   assert.match(tool, /Không có thì để trống/);
 });
 
-test("v0.9.31 final two profile flags default to no when unchecked", () => {
+test("v0.9.32 final two profile flags default to no when unchecked", () => {
   assert.match(tool, /childrenUnder16: false/);
   assert.match(tool, /relativesInRussia: false/);
   assert.match(tool, /Có trẻ em dưới 16 tuổi đi cùng/);
@@ -287,14 +287,14 @@ test("v0.9.31 final two profile flags default to no when unchecked", () => {
   assert.match(companion, /A\.relativesInRussia \? \["ДА","YES"\] : \["НЕТ","NO"\]/);
 });
 
-test("v0.9.31 deliberately skips both fax fields", () => {
+test("v0.9.32 deliberately skips both fax fields", () => {
   const contact = companion.slice(companion.indexOf("function fillContactInfoPage"), companion.indexOf("function setText"));
   assert.match(contact, /Fax fields are intentionally skipped/);
   assert.doesNotMatch(contact, /Ваш личный факс/);
   assert.doesNotMatch(contact, /Рабочий факс/);
 });
 
-test("v0.9.31 contact handler uses applicant-specific work fields and leaves blank values blank", () => {
+test("v0.9.32 contact handler uses applicant-specific work fields and leaves blank values blank", () => {
   assert.match(companion, /optionalText/);
   assert.match(companion, /A\.workStudyPlace/);
   assert.match(companion, /A\.workAddress/);
@@ -304,34 +304,34 @@ test("v0.9.31 contact handler uses applicant-specific work fields and leaves bla
   assert.match(companion, /String\(control\.value \|\| ""\) === ""/);
 });
 
-test("v0.9.31 phone and email are no longer launch-required", () => {
+test("v0.9.32 phone and email are no longer launch-required", () => {
   const missing = tool.slice(tool.indexOf("function applicantMissingFields"), tool.indexOf("function emitChange"));
   assert.doesNotMatch(missing, /Điện thoại cá nhân/);
   assert.doesNotMatch(missing, /Email cá nhân/);
 });
 
 
-test("v0.9.31 maps KD-MID contact inputs by stable page order including fax slots", () => {
+test("v0.9.32 maps KD-MID contact inputs by stable page order including fax slots", () => {
   assert.match(companion, /textInputs\.length >= 10 && selects\.length >= 4/);
   assert.match(companion, /personalEmail: textInputs\[3\]/);
   assert.match(companion, /employer: textInputs\[4\]/);
   assert.match(companion, /workEmail: textInputs\[9\]/);
 });
 
-test("v0.9.31 explicitly skips and clears both fax controls", () => {
+test("v0.9.32 explicitly skips and clears both fax controls", () => {
   assert.match(companion, /personalFax: textInputs\[2\]/);
   assert.match(companion, /workFax: textInputs\[8\]/);
   assert.match(companion, /clearFax\(C\.personalFax\)/);
   assert.match(companion, /clearFax\(C\.workFax\)/);
 });
 
-test("v0.9.31 personal email comes from applicant payload and no longer depends only on label lookup", () => {
+test("v0.9.32 personal email comes from applicant payload and no longer depends only on label lookup", () => {
   assert.match(companion, /\["E-mail cá nhân", \(\) => optionalText\(C\.personalEmail, A\.email\)\]/);
   assert.match(companion, /payload email:/);
 });
 
 
-test("v0.9.31 payload falls back to saved common work defaults when applicant overrides are blank", () => {
+test("v0.9.32 payload falls back to saved common work defaults when applicant overrides are blank", () => {
   assert.match(tool, /workStudyPlace: applicant\.workStudyPlace\.trim\(\) \|\| common\.employer/);
   assert.match(tool, /position: applicant\.position\.trim\(\) \|\| common\.defaultPosition/);
   assert.match(tool, /workAddress: applicant\.workAddress\.trim\(\) \|\| common\.employerAddress/);
@@ -339,14 +339,14 @@ test("v0.9.31 payload falls back to saved common work defaults when applicant ov
   assert.match(tool, /workEmail: applicant\.workEmail\.trim\(\) \|\| common\.employerEmail/);
 });
 
-test("v0.9.31 legacy blank work fields are hydrated from current common defaults", () => {
+test("v0.9.32 legacy blank work fields are hydrated from current common defaults", () => {
   assert.match(tool, /String\(item\.workStudyPlace \?\? ""\)\.trim\(\) \|\| common\.employer/);
   assert.match(tool, /String\(item\.position \?\? ""\)\.trim\(\) \|\| common\.defaultPosition/);
   assert.match(tool, /String\(item\.workAddress \?\? ""\)\.trim\(\) \|\| common\.employerAddress/);
   assert.match(tool, /String\(item\.workEmail \?\? ""\)\.trim\(\) \|\| common\.employerEmail/);
 });
 
-test("v0.9.31 companion uses common work defaults when applicant-specific values are blank", () => {
+test("v0.9.32 companion uses common work defaults when applicant-specific values are blank", () => {
   assert.match(companion, /A\.workStudyPlace \|\| payload\.employer/);
   assert.match(companion, /A\.position \|\| payload\.defaultPosition/);
   assert.match(companion, /A\.workAddress \|\| payload\.employerAddress/);
@@ -355,30 +355,30 @@ test("v0.9.31 companion uses common work defaults when applicant-specific values
 });
 
 
-test("v0.9.31 resolves the final relatives-in-Russia dropdown explicitly", () => {
+test("v0.9.32 resolves the final relatives-in-Russia dropdown explicitly", () => {
   assert.match(companion, /function yesNoSelectForQuestion/);
   assert.match(companion, /Имеете ли Вы в настоящее время родственников на территории России\?/);
   assert.match(companion, /fallbackFromEnd = 1/);
 });
 
-test("v0.9.31 defaults the final relatives dropdown to НЕТ when the profile checkbox is off", () => {
+test("v0.9.32 defaults the final relatives dropdown to НЕТ when the profile checkbox is off", () => {
   assert.match(companion, /A\.relativesInRussia \? \["ДА","YES"\] : \["НЕТ","NO"\]/);
   assert.match(companion, /đã chọn НЕТ ở dòng cuối 'người thân tại Nga'/);
 });
 
-test("v0.9.31 uses the last yes-no dropdown as the final relatives fallback", () => {
+test("v0.9.32 uses the last yes-no dropdown as the final relatives fallback", () => {
   assert.match(companion, /return allYesNo\.at\(-fallbackFromEnd\) \|\| null/);
   assert.match(companion, /\], 1\)/);
 });
 
 
-test("v0.9.31 preserves the complete canonical permanent address including ДОМ Ш9", () => {
+test("v0.9.32 preserves the complete canonical permanent address including ДОМ Ш9", () => {
   const full = "ВЬЕТНАМ, Г. ХАНОЙ, УЛИЦА НГИА ДО, ДОРОГА ХОАНГ КУОК ВЬЕТ, ДОМ Ш9";
   assert.ok(tool.includes(full));
   assert.ok(companion.includes(full));
 });
 
-test("v0.9.31 contact autofill ignores stale truncated address payloads", () => {
+test("v0.9.32 contact autofill ignores stale truncated address payloads", () => {
   assert.match(companion, /optionalText\(C\.permanentAddress, CANONICAL_PERMANENT_ADDRESS\)/);
   assert.match(companion, /permanentAddress: CANONICAL_PERMANENT_ADDRESS/);
 });
@@ -408,7 +408,7 @@ test("record open button launches the dedicated KD-MID resume mode", () => {
   assert.doesNotMatch(tool.slice(tool.indexOf("function renderRecords"), tool.indexOf("function renderConnect")), /href="https:\/\/visa\.kdmid\.ru\/"/);
 });
 
-test("Companion v0.9.31 follows the official previously-filled application recovery sequence", () => {
+test("Companion v0.9.32 follows the official previously-filled application recovery sequence", () => {
   assert.match(companion, /function isResumeMode/);
   assert.match(companion, /function fillResumeFlow/);
   assert.match(companion, /ОТКРЫТЬ РАНЕЕ ЗАПОЛНЕННУЮ АНКЕТУ/);
@@ -421,7 +421,7 @@ test("Companion v0.9.31 follows the official previously-filled application recov
 });
 
 
-test("Companion v0.9.31 detects the real restore page structurally and fills the visible application ID input", () => {
+test("Companion v0.9.32 detects the real restore page structurally and fills the visible application ID input", () => {
   assert.match(companion, /function resumeActionButton/);
   assert.match(companion, /function resumeControlNearLabel/);
   assert.match(companion, /function resumeApplicationIdControl/);
@@ -430,7 +430,7 @@ test("Companion v0.9.31 detects the real restore page structurally and fills the
   assert.match(companion, /writeTextControl\(applicationIdInput, id\)/);
 });
 
-test("Companion v0.9.31 has structural fallbacks for surname5, birth year and password on resume credentials", () => {
+test("Companion v0.9.32 has structural fallbacks for surname5, birth year and password on resume credentials", () => {
   assert.match(companion, /function resumeCredentialControls/);
   assert.match(companion, /allText\.length >= 3 \? allText\.slice\(-2\) : allText/);
   assert.match(companion, /writeTextControl\(controls\.surname, surname5\)/);
@@ -447,4 +447,16 @@ test("KD-MID applicant model carries complete visa request/contact fields and de
   assert.match(tool, /Number\(match\[3\]\) \+ 10/);
   assert.match(tool, /passportExpiry: passportExpiryFromIssue\(applicant\.passportIssue\)/);
   assert.match(tool, /passportExpiry: passportExpiryFromIssue\(next\.passportIssue\)/);
+});
+
+
+test("Companion v0.9.32 uses profile values for previously hard-coded KD-MID fields", () => {
+  assert.match(companion, /@version\s+0\.9\.32/);
+  assert.match(companion, /A\.hasOtherNames/);
+  assert.match(companion, /A\.bornInRussia/);
+  assert.match(companion, /payload\.destinationType/);
+  assert.match(companion, /A\.hasPermanentAddress/);
+  assert.match(companion, /A\.personalFax/);
+  assert.match(companion, /A\.worksOrStudies/);
+  assert.match(companion, /A\.workFax/);
 });

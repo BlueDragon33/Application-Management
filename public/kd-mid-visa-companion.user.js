@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.31
+// @version      0.9.32
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,7 +17,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.31";
+  const VERSION = "0.9.32";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
@@ -595,11 +595,11 @@
     const steps = [
       ["Фамилия", () => C.surname ? writeTextControl(C.surname, A.surname) : ensureTextAfterLabel("Фамилия (согласно паспорту)", A.surname)],
       ["Имя", () => C.givenNames ? writeTextControl(C.givenNames, A.givenNames) : ensureTextAfterLabel("Имя, другие имена, отчество (согласно паспорту)", A.givenNames)],
-      ["Другие имена", () => C.otherNames ? writeSelectControl(C.otherNames, ["НЕТ","NO"]) : ensureSelectAfterLabel("Есть ли у Вас другие когда-либо использовавшиеся имена", ["НЕТ","NO"])],
+      ["Другие имена", () => C.otherNames ? writeSelectControl(C.otherNames, A.hasOtherNames ? ["ДА","YES"] : ["НЕТ","NO"]) : ensureSelectAfterLabel("Есть ли у Вас другие когда-либо использовавшиеся имена", A.hasOtherNames ? ["ДА","YES"] : ["НЕТ","NO"])],
       ["Пол", () => C.sex ? writeSelectControl(C.sex, [A.sex]) : ensureSelectAfterLabel("Пол", [A.sex])],
       ["Дата рождения", () => C.dob.every(Boolean) ? writeDateControls(C.dob, A.birthDate) : ensureDateAfterLabel("Дата рождения", A.birthDate)],
       ["Место рождения", () => C.birthPlace ? writeTextControl(C.birthPlace, A.birthPlace) : ensureTextAfterLabel("Место рождения", A.birthPlace)],
-      ["Родились в России", () => C.bornInRussia ? writeSelectControl(C.bornInRussia, ["НЕТ","NO"]) : ensureSelectAfterLabel("Вы родились в России?", ["НЕТ","NO"])],
+      ["Родились в России", () => C.bornInRussia ? writeSelectControl(C.bornInRussia, A.bornInRussia ? ["ДА","YES"] : ["НЕТ","NO"]) : ensureSelectAfterLabel("Вы родились в России?", A.bornInRussia ? ["ДА","YES"] : ["НЕТ","NO"])],
     ];
 
     for (const [label, fn] of steps) {
@@ -629,12 +629,12 @@
       distinctPersonalTextControls &&
       finalC.surname && String(finalC.surname.value) === String(A.surname || "") &&
       finalC.givenNames && String(finalC.givenNames.value) === String(A.givenNames || "") &&
-      finalC.otherNames && selectAlreadyHas(finalC.otherNames, ["НЕТ","NO"]) &&
+      finalC.otherNames && selectAlreadyHas(finalC.otherNames, A.hasOtherNames ? ["ДА","YES"] : ["НЕТ","NO"]) &&
       finalC.sex && selectAlreadyHas(finalC.sex, [A.sex]) &&
       finalC.dob.length === 3 && parseDmyStrict(A.birthDate) &&
         parseDmyStrict(A.birthDate).every((part, index) => dateControlMatches(finalC.dob[index], part, index)) &&
       finalC.birthPlace && String(finalC.birthPlace.value) === String(A.birthPlace || "") &&
-      finalC.bornInRussia && selectAlreadyHas(finalC.bornInRussia, ["НЕТ","NO"]);
+      finalC.bornInRussia && selectAlreadyHas(finalC.bornInRussia, A.bornInRussia ? ["ДА","YES"] : ["НЕТ","NO"]);
 
     if (!finalReady) {
       if (!distinctPersonalTextControls) {
@@ -879,7 +879,7 @@
 
     // IMPORTANT: this first select is NOT a yes/no question.
     // It must remain "Организация", never "НЕТ".
-    let state = ensureSelectAfterLabel("В какое учреждение направляетесь?", ["ОРГАНИЗАЦИЯ","ORGANIZATION"]);
+    let state = ensureSelectAfterLabel("В какое учреждение направляетесь?", [payload.destinationType || "ОРГАНИЗАЦИЯ","ОРГАНИЗАЦИЯ","ORGANIZATION"]);
     if (state === "changed") {
       status("KD-MID Visa VN: đã chọn nơi hướng đến = Организация. Đang điền thông tin tổ chức…", "wait");
       continueAutofill(payload);
@@ -915,7 +915,7 @@
       }
     }
 
-    const routeValue = "МОСКВА";
+    const routeValue = A.routeCity || payload.city || "МОСКВА";
     const routeInput = routeCityControl();
     if (!routeInput || !routeCityControlLooksRight(routeInput)) {
       status("KD-MID Visa VN: chưa khóa đúng ô Маршрут / Населенный пункт hiển thị trên màn hình; đang tự dò lại.", "wait");
@@ -1200,18 +1200,6 @@
     const A = payload.applicant || {};
     const C = contactInfoControls();
 
-    const clearFax = (control) => {
-      if (!control || !String(control.value || "")) return;
-      activateControl(control);
-      setNativeControlValue(control, "");
-      control.dispatchEvent(new Event("input", { bubbles: true }));
-      control.dispatchEvent(new Event("change", { bubbles: true }));
-      try { control.blur(); } catch {}
-    };
-
-    clearFax(C.personalFax);
-    clearFax(C.workFax);
-
     const optionalText = (control, value) => {
       const text = String(value ?? "");
       if (!control) return text ? "missing" : "ready";
@@ -1228,16 +1216,18 @@
     };
 
     const steps = [
-      ["Có địa chỉ thường trú", () => C.hasPermanentAddress ? writeSelectControl(C.hasPermanentAddress, ["ДА","YES"]) : "missing"],
-      ["Địa chỉ thường trú", () => optionalText(C.permanentAddress, CANONICAL_PERMANENT_ADDRESS)],
+      ["Có địa chỉ thường trú", () => C.hasPermanentAddress ? writeSelectControl(C.hasPermanentAddress, A.hasPermanentAddress === false ? ["НЕТ","NO"] : ["ДА","YES"]) : "missing"],
+      ["Địa chỉ thường trú", () => optionalText(C.permanentAddress, A.hasPermanentAddress === false ? "" : (A.personalAddress || CANONICAL_PERMANENT_ADDRESS))],
       ["Điện thoại cá nhân", () => optionalText(C.personalPhone, A.phone)],
+      ["Fax cá nhân", () => optionalText(C.personalFax, A.personalFax)],
       ["E-mail cá nhân", () => optionalText(C.personalEmail, A.email)],
-      ["Đang làm việc/học tập", () => C.worksOrStudies ? writeSelectControl(C.worksOrStudies, ["ДА","YES"]) : "missing"],
-      ["Nơi làm việc/học tập", () => optionalText(C.employer, A.workStudyPlace || payload.employer)],
-      ["Chức vụ", () => optionalText(C.position, A.position || payload.defaultPosition)],
-      ["Địa chỉ cơ quan", () => optionalText(C.workAddress, A.workAddress || payload.employerAddress)],
-      ["Điện thoại cơ quan", () => optionalText(C.workPhone, A.workPhone || payload.fixedWorkPhone)],
-      ["E-mail cơ quan", () => optionalText(C.workEmail, A.workEmail || payload.employerEmail)],
+      ["Đang làm việc/học tập", () => C.worksOrStudies ? writeSelectControl(C.worksOrStudies, A.worksOrStudies === false ? ["НЕТ","NO"] : ["ДА","YES"]) : "missing"],
+      ["Nơi làm việc/học tập", () => optionalText(C.employer, A.worksOrStudies === false ? "" : (A.workStudyPlace || payload.employer))],
+      ["Chức vụ", () => optionalText(C.position, A.worksOrStudies === false ? "" : (A.position || payload.defaultPosition))],
+      ["Địa chỉ cơ quan", () => optionalText(C.workAddress, A.worksOrStudies === false ? "" : (A.workAddress || payload.employerAddress))],
+      ["Điện thoại cơ quan", () => optionalText(C.workPhone, A.worksOrStudies === false ? "" : (A.workPhone || payload.fixedWorkPhone))],
+      ["Fax cơ quan", () => optionalText(C.workFax, A.worksOrStudies === false ? "" : A.workFax)],
+      ["E-mail cơ quan", () => optionalText(C.workEmail, A.worksOrStudies === false ? "" : (A.workEmail || payload.employerEmail))],
       ["Trẻ em dưới 16 tuổi", () => C.children ? writeSelectControl(C.children, A.childrenUnder16 ? ["ДА","YES"] : ["НЕТ","NO"]) : "missing"],
       ["Người thân tại Nga", () => {
         if (!C.relatives) return "missing";
@@ -1270,24 +1260,28 @@
 
     const finalC = contactInfoControls();
     const expected = {
-      permanentAddress: CANONICAL_PERMANENT_ADDRESS,
+      permanentAddress: A.hasPermanentAddress === false ? "" : String(A.personalAddress || CANONICAL_PERMANENT_ADDRESS),
       personalPhone: String(A.phone || ""),
+      personalFax: String(A.personalFax || ""),
       personalEmail: String(A.email || ""),
-      employer: String(A.workStudyPlace || payload.employer || ""),
-      position: String(A.position || payload.defaultPosition || ""),
-      workAddress: String(A.workAddress || payload.employerAddress || ""),
-      workPhone: String(A.workPhone || payload.fixedWorkPhone || ""),
-      workEmail: String(A.workEmail || payload.employerEmail || ""),
+      employer: A.worksOrStudies === false ? "" : String(A.workStudyPlace || payload.employer || ""),
+      position: A.worksOrStudies === false ? "" : String(A.position || payload.defaultPosition || ""),
+      workAddress: A.worksOrStudies === false ? "" : String(A.workAddress || payload.employerAddress || ""),
+      workPhone: A.worksOrStudies === false ? "" : String(A.workPhone || payload.fixedWorkPhone || ""),
+      workFax: A.worksOrStudies === false ? "" : String(A.workFax || ""),
+      workEmail: A.worksOrStudies === false ? "" : String(A.workEmail || payload.employerEmail || ""),
     };
 
     const textPairs = [
       [finalC.permanentAddress, expected.permanentAddress],
       [finalC.personalPhone, expected.personalPhone],
+      [finalC.personalFax, expected.personalFax],
       [finalC.personalEmail, expected.personalEmail],
       [finalC.employer, expected.employer],
       [finalC.position, expected.position],
       [finalC.workAddress, expected.workAddress],
       [finalC.workPhone, expected.workPhone],
+      [finalC.workFax, expected.workFax],
       [finalC.workEmail, expected.workEmail],
     ];
 
@@ -1300,8 +1294,8 @@
 
     const ready =
       uniqueTextCount === usedControls.length &&
-      finalC.hasPermanentAddress && selectAlreadyHas(finalC.hasPermanentAddress, ["ДА","YES"]) &&
-      finalC.worksOrStudies && selectAlreadyHas(finalC.worksOrStudies, ["ДА","YES"]) &&
+      finalC.hasPermanentAddress && selectAlreadyHas(finalC.hasPermanentAddress, A.hasPermanentAddress === false ? ["НЕТ","NO"] : ["ДА","YES"]) &&
+      finalC.worksOrStudies && selectAlreadyHas(finalC.worksOrStudies, A.worksOrStudies === false ? ["НЕТ","NO"] : ["ДА","YES"]) &&
       finalC.children && selectAlreadyHas(finalC.children, A.childrenUnder16 ? ["ДА","YES"] : ["НЕТ","NO"]) &&
       finalC.relatives && selectAlreadyHas(finalC.relatives, A.relativesInRussia ? ["ДА","YES"] : ["НЕТ","NO"]) &&
       textReady;
@@ -1318,7 +1312,7 @@
     }
 
     refreshAspNetValidators();
-    status("KD-MID Visa VN: trang liên hệ/cơ quan đã điền đúng. Hai dòng Fax được bỏ qua.");
+    status("KD-MID Visa VN: trang liên hệ/cơ quan đã điền đúng, gồm cả Fax nếu hồ sơ có dữ liệu.");
     return { handled: true, ready: true };
   }
 
