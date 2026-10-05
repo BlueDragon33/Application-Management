@@ -21,7 +21,7 @@ export function publicVisaIntakePage() {
 </head>
 <body>
 <main class="page">
-<section class="hero"><span>FORM THU THẬP HỒ SƠ VISA NGA</span><h1>Điền thông tin để chuẩn bị hồ sơ KD-MID</h1><p>Hướng dẫn bằng tiếng Việt. Hãy nhập đúng theo hộ chiếu và kiểm tra kỹ trước khi gửi.</p></section>
+<section class="hero"><span id="formTypeBadge">FORM THU THẬP HỒ SƠ VISA NGA</span><h1 id="heroTitle">Điền thông tin để chuẩn bị hồ sơ KD-MID</h1><p id="heroIntro">Hướng dẫn bằng tiếng Việt. Hãy nhập đúng theo hộ chiếu và kiểm tra kỹ trước khi gửi.</p></section>
 <div id="batch" class="batch">Đang kiểm tra link thu hồ sơ…</div>
 <div id="error" class="error"></div>
 <div id="returnAlert" class="return-alert"><strong>⚠ HỒ SƠ BỊ TRẢ VỀ · CẦN SỬA</strong><p id="returnNote"></p><small id="returnMeta"></small><button id="refreshReturned" type="button">↻ Cập nhật trạng thái</button></div>
@@ -40,7 +40,7 @@ export function publicVisaIntakePage() {
 <label class="field" data-field="organization">Tên tổ chức tiếp nhận <small>Наименование организации</small><input name="organization" required></label>
 <label class="field" data-field="organizationAddress">Địa chỉ tổ chức <small>Адрес</small><input name="organizationAddress" required></label>
 <label class="field" data-field="tin">INN tổ chức <small>ИНН организации</small><input name="tin" required></label>
-<label class="field" data-field="telex">Số chỉ thị / Telex <small>Номер указания (телекса)</small><input name="telex" required></label>
+<label class="field" data-field="telex" id="telexField">Mã Telex / Số chỉ thị <small>Номер указания (телекса)</small><input name="telex" required></label>
 <label class="field" data-field="invitation">Số giấy mời <small>Номер приглашения · không có thì để trống</small><input name="invitation"></label>
 </div></section>
 <section class="section"><header><b>02</b><div><h2>Thông tin cá nhân</h2><p>Họ và tên nhập chữ Latin không dấu, đúng thứ tự trên hộ chiếu.</p></div></header><div class="grid">
@@ -52,7 +52,7 @@ export function publicVisaIntakePage() {
 <label class="field" data-field="hasOtherNames">Đã từng dùng tên khác? <small>Есть ли у Вас другие когда-либо использовавшиеся имена</small><select name="hasOtherNames"><option value="НЕТ">Không</option><option value="ДА">Có</option></select></label>
 <label class="field" data-field="otherNames">Tên khác đã từng dùng <small>Không có thì để trống</small><input name="otherNames"></label>
 <label class="field" data-field="bornInRussia">Sinh tại Nga? <small>Вы родились в России?</small><select name="bornInRussia"><option value="НЕТ">Không</option><option value="ДА">Có</option></select></label>
-<label class="field" data-field="routeCity">Nơi đến tại Nga <small>Маршрут</small><input name="routeCity" value="МОСКВА" required></label>
+<label class="field" data-field="routeCity">Nơi đến tại Nga <small>Маршрут</small><input name="routeCity" required></label>
 </div></section>
 <section class="section"><header><b>03</b><div><h2>Hộ chiếu</h2><p>Mỗi ngày dùng 3 ô Ngày · Tháng · Năm để tránh nhập sai. Ngày cấp không được ở tương lai; ngày hết hạn phải sau ngày cấp và hộ chiếu phải còn hạn.</p></div></header><div class="grid">
 <label class="field" data-field="passportNo">Số hộ chiếu <small>Номер паспорта</small><input name="passportNo" required></label>
@@ -88,7 +88,7 @@ export function publicVisaIntakePage() {
 </section>
 <section class="section"><header><b>07</b><div><h2>Gia đình & nơi nộp hồ sơ</h2><p>Không đánh dấu hai mục đầu nghĩa là Không.</p></div></header>
 <div class="checks"><label data-field="childrenUnder16"><input id="children" type="checkbox"><span><strong>Có trẻ em dưới 16 tuổi đi cùng / ghi trong hộ chiếu</strong><small>Дети до 16 лет...</small></span></label><label data-field="relativesInRussia"><input id="relatives" type="checkbox"><span><strong>Có người thân hiện đang ở Nga</strong><small>Родственники на территории России</small></span></label></div>
-<div class="grid"><label class="field" data-field="preferredEmbassy">Nơi dự kiến nộp hồ sơ <small>Место подачи заявления</small><select name="preferredEmbassy"><option value="ПОСОЛЬСТВО РФ ВО ВЬЕТНАМЕ">Đại sứ quán Nga tại Hà Nội</option><option value="ГЕНКОНСУЛЬСТВО РФ В ДАНАНГЕ">Tổng Lãnh sự quán Nga tại Đà Nẵng</option><option value="ГЕНКОНСУЛЬСТВО РФ В ХОШИМИНЕ">Tổng Lãnh sự quán Nga tại TP.HCM</option></select></label><label class="field" data-field="specialNotes">Ghi chú đặc biệt <small>Nếu có trẻ em/người thân tại Nga, ghi rõ thông tin cần người phụ trách biết.</small><textarea name="specialNotes" rows="4"></textarea></label></div>
+<div class="grid"><label class="field" data-field="preferredEmbassy">Nơi dự kiến nộp hồ sơ <small>Место подачи заявления</small><select name="preferredEmbassy" required><option value="">-- Chọn nơi nộp hồ sơ --</option><option value="ПОСОЛЬСТВО РФ ВО ВЬЕТНАМЕ">Đại sứ quán Nga tại Hà Nội</option><option value="ГЕНКОНСУЛЬСТВО РФ В ДАНАНГЕ">Tổng Lãnh sự quán Nga tại Đà Nẵng</option><option value="ГЕНКОНСУЛЬСТВО РФ В ХОШИМИНЕ">Tổng Lãnh sự quán Nga tại TP.HCM</option></select></label><label class="field" data-field="specialNotes">Ghi chú đặc biệt <small>Nếu có trẻ em/người thân tại Nga, ghi rõ thông tin cần người phụ trách biết.</small><textarea name="specialNotes" rows="4"></textarea></label></div>
 </section>
 <section class="section"><header><b>08</b><div><h2>Thông tin KD-MID</h2><p>Mật khẩu được nạp mặc định theo đợt. Application ID chưa có thì để trống.</p></div></header><div class="grid">
 <label class="field" data-field="passwordOverride">Mật khẩu KD-MID<input name="passwordOverride"></label>
@@ -116,6 +116,7 @@ export function publicVisaIntakePage() {
   try { saved = JSON.parse(localStorage.getItem(storageKey) || "null"); } catch {}
   let receipt = saved?.receipt || null;
   let currentApplicant = saved?.applicant || null;
+  let formType = "student";
   let lastStatus = receipt?.status || "";
   const saveLocal = (applicant=currentApplicant) => {
     currentApplicant = applicant || currentApplicant;
@@ -253,16 +254,28 @@ export function publicVisaIntakePage() {
   fetch("/api/kd-mid-visa-intake/public?"+apiAccess()+(receipt?.id ? "&submissionId="+encodeURIComponent(receipt.id) : ""), {cache:"no-store"}).then(async r => {
     const data = await r.json();
     if (!r.ok || !data.ok) throw new Error(data.error || "Link không hợp lệ.");
-    batch.innerHTML = "Đợt thu hồ sơ: <strong>"+String(data.link?.label || "").replace(/[<>&]/g,"")+"</strong>";
     const d = data.defaults || {};
+    formType = data.link?.formType === "general" || d.formType === "general" ? "general" : "student";
+    const student = formType === "student";
+    batch.innerHTML = "Đợt thu hồ sơ: <strong>"+String(data.link?.label || "").replace(/[<>&]/g,"")+"</strong> · <b>"+(student ? "MẪU NHẬP HỌC" : "NGƯỜI THƯỜNG")+"</b>";
+    document.getElementById("formTypeBadge").textContent = student ? "LINK 1 · MẪU NHẬP HỌC" : "LINK 2 · MẪU VISA NGƯỜI THƯỜNG";
+    document.getElementById("heroTitle").textContent = student ? "Điền hồ sơ nhập học để chuẩn bị KD-MID" : "Điền hồ sơ visa cá nhân để chuẩn bị KD-MID";
+    document.getElementById("heroIntro").textContent = student ? "Các dữ liệu học tập dùng chung đã được nạp sẵn. Hãy kiểm tra Mã Telex và thông tin cá nhân trước khi gửi." : "Mẫu tổng quát không tự áp các giá trị visa học tập. Hãy nhập đúng thông tin theo mục đích chuyến đi của bạn.";
+    const telexField=document.getElementById("telexField");
+    if(telexField) telexField.childNodes[0].textContent=student ? "Mã Telex " : "Mã Telex / Số chỉ thị ";
+    ["organization","organizationAddress","tin","telex"].forEach(name=>{const el=byName(name);if(el) el.required=student;});
     const values = {
-      citizenship:upperPlain(d.citizenship || "ВЬЕТНАМ"), purposeSection:upperPlain(d.purposeSection || "УЧЕБА"), purpose:upperPlain(d.purpose || "УЧЕБА"),
-      visaType:upperPlain(d.visaType || "ОБЫКНОВЕННАЯ УЧЕБНАЯ"), entries:upperPlain(d.entries || "ОДНОКРАТНАЯ"),
-      destinationType:upperPlain(d.destinationType || "ОРГАНИЗАЦИЯ"), organization:upperPlain(d.organization || ""), organizationAddress:upperPlain(d.organizationAddress || ""),
+      citizenship:upperPlain(d.citizenship || "ВЬЕТНАМ"),
+      purposeSection:upperPlain(d.purposeSection || (student ? "УЧЕБА" : "")),
+      purpose:upperPlain(d.purpose || (student ? "УЧЕБА" : "")),
+      visaType:upperPlain(d.visaType || (student ? "ОБЫКНОВЕННАЯ УЧЕБНАЯ" : "")),
+      entries:upperPlain(d.entries || (student ? "ОДНОКРАТНАЯ" : "")),
+      destinationType:upperPlain(d.destinationType || (student ? "ОРГАНИЗАЦИЯ" : "")),
+      organization:upperPlain(d.organization || ""), organizationAddress:upperPlain(d.organizationAddress || ""),
       tin:String(d.tin || ""), telex:String(d.telex || ""), invitation:String(d.invitation || ""), passwordOverride:String(d.password || ""),
-      personalAddress:upperPlain(d.permanentAddress || ""), routeCity:upperPlain(d.routeCity || "МОСКВА"),
+      personalAddress:upperPlain(d.permanentAddress || ""), routeCity:upperPlain(d.routeCity || (student ? "МОСКВА" : "")),
       workStudyPlace:upperPlain(d.employer || ""), position:upperPlain(d.position || ""), workAddress:upperPlain(d.workAddress || ""),
-      workPhone:d.workPhone || "", workEmail:String(d.workEmail || "").toLowerCase(), preferredEmbassy:d.preferredEmbassy || "ПОСОЛЬСТВО РФ ВО ВЬЕТНАМЕ"
+      workPhone:d.workPhone || "", workEmail:String(d.workEmail || "").toLowerCase(), preferredEmbassy:d.preferredEmbassy || ""
     };
     Object.entries(values).forEach(([k,v]) => { const el=byName(k); if(el && !String(el.value || "").trim()) el.value=String(v); });
     if(d.entryDate && !byName("entryDate").value) fillDate("entryDate",String(d.entryDate));

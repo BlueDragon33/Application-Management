@@ -254,3 +254,13 @@ test("React public intake visibly distinguishes student and general forms", () =
   assert.match(publicPage, /purposeSection: ""/);
   assert.match(publicPage, /routeCity: ""/);
 });
+
+
+test("production worker renders student versus general intake from persisted formType", () => {
+  assert.match(publicWorkerPage, /LINK 1 · MẪU NHẬP HỌC/);
+  assert.match(publicWorkerPage, /LINK 2 · MẪU VISA NGƯỜI THƯỜNG/);
+  assert.match(publicWorkerPage, /formType = data\.link\?\.formType === "general"/);
+  assert.match(publicWorkerPage, /el\.required=student/);
+  assert.match(publicWorkerPage, /student \? "МОСКВА" : ""/);
+  assert.match(publicWorkerPage, /-- Chọn nơi nộp hồ sơ --/);
+});
