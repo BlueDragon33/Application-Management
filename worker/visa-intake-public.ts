@@ -278,9 +278,9 @@ export function publicVisaIntakePage() {
     batch.innerHTML = "Đợt thu hồ sơ: <strong>"+String(data.link?.label || "").replace(/[<>&]/g,"")+"</strong> · <b>"+(student ? "MẪU NHẬP HỌC" : "NGƯỜI THƯỜNG")+"</b>";
     document.getElementById("formTypeBadge").textContent = student ? "LINK 1 · MẪU NHẬP HỌC" : "LINK 2 · MẪU VISA NGƯỜI THƯỜNG";
     document.getElementById("heroTitle").textContent = student ? "Điền hồ sơ nhập học để chuẩn bị KD-MID" : "Điền hồ sơ visa cá nhân để chuẩn bị KD-MID";
-    document.getElementById("heroIntro").textContent = student ? "Các dữ liệu học tập dùng chung đã được nạp sẵn. Hãy kiểm tra Mã Telex và thông tin cá nhân trước khi gửi." : "Mẫu tổng quát không tự áp các giá trị visa học tập. Hãy nhập đúng thông tin theo mục đích chuyến đi của bạn.";
+    document.getElementById("heroIntro").textContent = student ? "Các dữ liệu học tập dùng chung đã được điền sẵn trực tiếp trong từng ô. Chỉ sửa ô nào khác với giấy tờ của bạn; hãy kiểm tra Mã Telex trước khi gửi." : "Mẫu tổng quát không tự áp các giá trị visa học tập. Hãy nhập đúng thông tin theo mục đích chuyến đi của bạn.";
     document.getElementById("guideTypeTitle").textContent=student ? "Mẫu nhập học" : "Mẫu người thường";
-    document.getElementById("guideTypeText").textContent=student ? "Các trường chung đã điền sẵn theo đợt. Nếu khác giấy tờ của bạn, sửa trực tiếp trước khi gửi. Mã Telex bắt buộc." : "Không dùng mặc định học tập. Điền mục đích, loại visa, lịch trình và thông tin thư mời đúng hồ sơ thực tế; Telex có thể để trống nếu không dùng.";
+    document.getElementById("guideTypeText").textContent=student ? "Các trường chung đã nằm sẵn trong ô nhập theo đợt. Bạn chỉ cần kiểm tra; nếu khác giấy tờ thì sửa trực tiếp. Mã Telex bắt buộc." : "Không dùng mặc định học tập. Điền mục đích, loại visa, lịch trình và thông tin thư mời đúng hồ sơ thực tế; Telex có thể để trống nếu không dùng.";
     document.getElementById("prefillNotice").style.display=student ? "block" : "none";
     const telexField=document.getElementById("telexField");
     if(telexField) telexField.childNodes[0].textContent=student ? "Mã Telex " : "Mã Telex / Số chỉ thị ";
@@ -301,8 +301,29 @@ export function publicVisaIntakePage() {
     Object.entries(values).forEach(([k,v]) => { const el=byName(k); if(el && !String(el.value || "").trim()) el.value=String(v); });
     if(d.entryDate && !byName("entryDate").value) fillDate("entryDate",String(d.entryDate));
     if(d.exitDate && !byName("exitDate").value) fillDate("exitDate",String(d.exitDate));
-    if(data.submission?.applicant){ currentApplicant=data.submission.applicant; fillApplicant(currentApplicant); }
-    else if(currentApplicant) fillApplicant(currentApplicant);
+
+    const mergeCommonDefaultsIntoDraft = draft => {
+      const merged={...(draft || {})};
+      Object.entries(values).forEach(([key,value]) => {
+        if(!String(merged[key] ?? "").trim() && String(value ?? "").trim()) merged[key]=String(value);
+      });
+      if(!String(merged.entryDate || "").trim() && d.entryDate) merged.entryDate=String(d.entryDate);
+      if(!String(merged.exitDate || "").trim() && d.exitDate) merged.exitDate=String(d.exitDate);
+      return merged;
+    };
+
+    if(data.submission?.applicant){
+      currentApplicant=data.submission.applicant;
+      fillApplicant(currentApplicant);
+    } else if(currentApplicant) {
+      currentApplicant=mergeCommonDefaultsIntoDraft(currentApplicant);
+      fillApplicant(currentApplicant);
+      saveLocal(currentApplicant);
+    } else {
+      currentApplicant=mergeCommonDefaultsIntoDraft({});
+      fillApplicant(currentApplicant);
+      saveLocal(currentApplicant);
+    }
     syncPassportExpiry();
     if(data.submission) {
       receipt={...receipt,...data.submission};

@@ -299,3 +299,12 @@ test("sender browser keeps a stable device id and automatically recovers the ser
   assert.match(publicWorkerPage, /data\.submission\?\.applicant/);
   assert.match(publicWorkerPage, /deviceId,applicant/);
 });
+
+
+test("student common defaults are written directly into empty production form fields and old blank drafts cannot erase them", () => {
+  assert.match(publicWorkerPage, /const mergeCommonDefaultsIntoDraft = draft/);
+  assert.match(publicWorkerPage, /if\(!String\(merged\[key\] \?\? ""\)\.trim\(\) && String\(value \?\? ""\)\.trim\(\)\) merged\[key\]=String\(value\)/);
+  assert.match(publicWorkerPage, /currentApplicant=mergeCommonDefaultsIntoDraft\(currentApplicant\)/);
+  assert.match(publicWorkerPage, /currentApplicant=mergeCommonDefaultsIntoDraft\(\{\}\)/);
+  assert.match(publicWorkerPage, /được điền sẵn trực tiếp trong từng ô/);
+});
