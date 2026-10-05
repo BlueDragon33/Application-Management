@@ -208,14 +208,14 @@ export async function POST(request: Request) {
     }
     const today = utcToday();
     const birthDate = parseDmy(applicant.birthDate);
-    const passportIssue = parseDmy(applicant.passportIssue);
+    const passportIssueDate = parseDmy(applicant.passportIssue);
     const passportExpiry = parseDmy(applicant.passportExpiry);
     const entryDate = parseDmy(applicant.entryDate);
     const exitDate = parseDmy(applicant.exitDate);
     if (birthDate && birthDate > today) missing.push("Ngày sinh không được ở tương lai");
-    if (passportIssue && passportIssue > today) missing.push("Ngày cấp hộ chiếu không được ở tương lai");
-    if (birthDate && passportIssue && passportIssue <= birthDate) missing.push("Ngày cấp hộ chiếu phải sau ngày sinh");
-    if (passportIssue && passportExpiry && passportExpiry <= passportIssue) missing.push("Ngày hết hạn hộ chiếu phải sau ngày cấp");
+    if (passportIssueDate && passportIssueDate > today) missing.push("Ngày cấp hộ chiếu không được ở tương lai");
+    if (birthDate && passportIssueDate && passportIssueDate <= birthDate) missing.push("Ngày cấp hộ chiếu phải sau ngày sinh");
+    if (passportIssueDate && passportExpiry && passportExpiry <= passportIssueDate) missing.push("Ngày hết hạn hộ chiếu phải sau ngày cấp");
     if (passportExpiry && passportExpiry <= today) missing.push("Hộ chiếu đã hết hạn");
     if (entryDate && exitDate && exitDate < entryDate) missing.push("Ngày ra Nga phải bằng hoặc sau ngày vào Nga");
     if (applicant.hasOtherNames && !applicant.otherNames) missing.push("Tên khác đã từng sử dụng");
