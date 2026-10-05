@@ -74,7 +74,7 @@ function blank(): ApplicantForm {
     hasOtherNames: false,
     otherNames: "",
     bornInRussia: false,
-    citizenship: "ВЬЕТНАМ",
+    citizenship: "",
     purposeSection: "",
     purpose: "",
     visaType: "",
@@ -205,6 +205,19 @@ function DateFields({
   </div>;
 }
 
+const deviceStorageKey = "visa-intake:device-id:v1";
+function ensureDeviceId() {
+  try {
+    const existing = window.localStorage.getItem(deviceStorageKey) ?? "";
+    if (/^[A-Za-z0-9_-]{20,120}$/.test(existing)) return existing;
+    const next = crypto.randomUUID();
+    window.localStorage.setItem(deviceStorageKey, next);
+    return next;
+  } catch {
+    return crypto.randomUUID();
+  }
+}
+
 function Field({ label, ru, hint, children, fieldKey, correctionFields = [] }: { label: string; ru?: string; hint?: string; children: React.ReactNode; fieldKey?: string; correctionFields?: string[] }) {
   return <label className={styles.field} data-correction={fieldKey ? correctionFields.includes(fieldKey) : false}>
     <span>{label}</span>
@@ -218,6 +231,7 @@ export default function VisaIntakePage() {
   const [token, setToken] = useState("");
   const [batch, setBatch] = useState("");
   const [accessKey, setAccessKey] = useState("");
+  const [deviceId, setDeviceId] = useState("");
   const [applicant, setApplicant] = useState<ApplicantForm>(blank());
   const [permanentAddress, setPermanentAddress] = useState("");
   const [linkLabel, setLinkLabel] = useState("");
@@ -228,7 +242,7 @@ export default function VisaIntakePage() {
   const [error, setError] = useState("");
   const [missing, setMissing] = useState<string[]>([]);
   const [confirmed, setConfirmed] = useState(false);
-  const [receipt, setReceipt] = useState<{ id: string; queueNo: number | null; applicantName: string; status: string; reviewNote?: string | null; correctionFields?: string[]; resubmittedFields?: string[]; revision?: number; result?: { available: true; fileName: string; fileSize: number; uploadedAt: string; downloadUrl: string } | null } | null>(null);
+  const [receipt, setReceipt] = useState<{ id: string; queueNo: number | null; applicantName: string; status: string; reviewNote?: string | null; correctionFields?: string[]; resubmittedFields?: string[]; revision?: number; deviceCode?: string | null; applicant?: ApplicantForm; result?: { available: true; fileName: string; fileSize: number; uploadedAt: string; downloadUrl: string } | null } | null>(null);
   const correctionFields = receipt?.status === "rejected" ? (receipt.correctionFields ?? []) : [];
 
   useEffect(() => {
@@ -236,7 +250,8 @@ export default function VisaIntakePage() {
     const tokenValue = params.get("token") ?? "";
     const batchValue = params.get("batch") ?? "";
     const key = batchValue ? `batch:${batchValue}` : tokenValue ? `token:${tokenValue}` : "";
-    setToken(tokenValue); setBatch(batchValue); setAccessKey(key);
+    const deviceValue = ensureDeviceId();
+    setToken(tokenValue); setBatch(batchValue); setAccessKey(key); setDeviceId(deviceValue);
     let saved: { applicant?: ApplicantForm; receipt?: typeof receipt } | null = null;
     try {
       const raw = key ? window.localStorage.getItem(`visa-intake:draft:${key}`) : null;
@@ -247,16 +262,23 @@ export default function VisaIntakePage() {
     if (!tokenValue && !batchValue) { setError("Link form chưa có mã thu hồ sơ."); setLoading(false); return; }
     const access = batchValue ? `batch=${encodeURIComponent(batchValue)}` : `token=${encodeURIComponent(tokenValue)}`;
     const receiptPart = saved?.receipt?.id ? `&submissionId=${encodeURIComponent(saved.receipt.id)}` : "";
-    void fetch(`/api/kd-mid-visa-intake/public?${access}${receiptPart}`, { cache: "no-store" })
+    const devicePart = `&deviceId=${encodeURIComponent(deviceValue)}`;
+    void fetch(`/api/kd-mid-visa-intake/public?${access}${receiptPart}${devicePart}`, { cache: "no-store" })
       .then(async (response) => {
         const data = await response.json() as { ok?: boolean; error?: string; link?: { label?: string; formType?: string }; defaults?: Record<string, unknown>; submission?: typeof receipt };
-        if (!response.ok || !data.ok) throw new Error(data.error || "Link không hợp lệ.");
+        if (!response.ok || !data.ok) {
+          if (response.status === 410 && key) {
+            try { window.localStorage.removeItem(`visa-intake:draft:${key}`); } catch {}
+          }
+          throw new Error(data.error || "Link không hợp lệ.");
+        }
         const defaults = data.defaults ?? {};
         const resolvedFormType = data.link?.formType === "general" || defaults.formType === "general" ? "general" : "student";
         setFormType(resolvedFormType);
         setLinkLabel(String(data.link?.label ?? ""));
         setPermanentAddress(upperPlain(String(defaults.permanentAddress ?? "")));
-        setApplicant((current) => ({
+        setApplicant((current) => {
+          const withDefaults: ApplicantForm = {
           ...current,
           citizenship: current.citizenship || upperPlain(String(defaults.citizenship ?? "")) || "ВЬЕТНАМ",
           purposeSection: current.purposeSection || upperPlain(String(defaults.purposeSection ?? "")),
@@ -280,7 +302,10 @@ export default function VisaIntakePage() {
           workPhone: current.workPhone || String(defaults.workPhone ?? ""),
           workEmail: current.workEmail || String(defaults.workEmail ?? "").toLowerCase(),
           preferredEmbassy: current.preferredEmbassy || String(defaults.preferredEmbassy ?? ""),
-        }));
+          };
+          const recovered = data.submission?.applicant;
+          return recovered ? { ...withDefaults, ...recovered, passportExpiry: passportExpiryFromIssue(String(recovered.passportIssue ?? withDefaults.passportIssue)) } : withDefaults;
+        });
         if (data.submission) setReceipt((current) => current ? { ...current, ...data.submission } : data.submission ?? null);
       })
       .catch((reason) => setError(reason instanceof Error ? reason.message : "Không thể mở form."))
@@ -292,14 +317,18 @@ export default function VisaIntakePage() {
   }, [accessKey, applicant, receipt]);
 
   async function refreshSubmissionStatus(manual = false) {
-    if ((!token && !batch) || !receipt?.id) return;
+    if ((!token && !batch) || !receipt?.id || !deviceId) return;
     if (manual) setStatusChecking(true);
     try {
       const access = batch ? `batch=${encodeURIComponent(batch)}` : `token=${encodeURIComponent(token)}`;
-      const response = await fetch(`/api/kd-mid-visa-intake/public?${access}&submissionId=${encodeURIComponent(receipt.id)}`, { cache: "no-store" });
+      const response = await fetch(`/api/kd-mid-visa-intake/public?${access}&submissionId=${encodeURIComponent(receipt.id)}&deviceId=${encodeURIComponent(deviceId)}`, { cache: "no-store" });
       const data = await response.json() as { ok?: boolean; error?: string; submission?: typeof receipt };
       if (!response.ok || !data.ok || !data.submission) {
-        if (manual) setError(data.error || "Không cập nhật được trạng thái hồ sơ.");
+        if (response.status === 410 && accessKey) {
+          try { window.localStorage.removeItem(`visa-intake:draft:${accessKey}`); } catch {}
+          setReceipt(null);
+        }
+        if (manual || response.status === 410) setError(data.error || "Không cập nhật được trạng thái hồ sơ.");
         return;
       }
       setReceipt((current) => current ? { ...current, ...data.submission } : data.submission ?? null);
@@ -316,7 +345,7 @@ export default function VisaIntakePage() {
     void refreshSubmissionStatus(false);
     const timer = window.setInterval(() => void refreshSubmissionStatus(false), 15000);
     return () => window.clearInterval(timer);
-  }, [token, batch, receipt?.id]);
+  }, [token, batch, deviceId, receipt?.id]);
 
   const baseFields = useMemo(() => {
     const fields = [
@@ -343,7 +372,7 @@ export default function VisaIntakePage() {
       const response = await fetch("/api/kd-mid-visa-intake/public", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ token, batch, applicant, confirmedAccurate: confirmed, submissionId: receipt?.status === "rejected" ? receipt.id : undefined }),
+        body: JSON.stringify({ token, batch, deviceId, applicant, confirmedAccurate: confirmed, submissionId: receipt?.status === "rejected" ? receipt.id : undefined }),
       });
       const data = await response.json() as {
         ok?: boolean;
@@ -372,7 +401,7 @@ export default function VisaIntakePage() {
       <span>{accepted ? "ĐÃ TIẾP NHẬN HỒ SƠ" : "ĐÃ GỬI HỒ SƠ"}</span>
       <h1>{receipt.applicantName}</h1>
       <p>{accepted ? "Hồ sơ của bạn đã được người phụ trách xác minh và tiếp nhận." : "Hồ sơ đã được chuyển vào hàng chờ xác minh. Người phụ trách sẽ kiểm tra trước khi tiếp nhận."}</p>
-      <div className={styles.receipt}><small>Số thứ tự tiếp nhận</small><strong>#{receipt.queueNo ?? "—"}</strong></div>
+      <div className={styles.receipt}><small>Số thứ tự tiếp nhận</small><strong>#{receipt.queueNo ?? "—"}</strong>{receipt.deviceCode ? <small>Mã thiết bị: {receipt.deviceCode}</small> : null}</div>
       <div className={styles.resultBox}>
         <strong>Nhận kết quả</strong>
         {receipt.result?.available ? <><p>Đã có PDF kết quả: <b>{receipt.result.fileName}</b></p><a href={receipt.result.downloadUrl}>Tải PDF kết quả</a></> : <p>{accepted ? "Hồ sơ đã được tiếp nhận. PDF kết quả sẽ xuất hiện tại đây khi người phụ trách gửi." : "Sau khi hồ sơ được tiếp nhận, kết quả PDF sẽ được gửi tại đây."}</p>}
@@ -392,6 +421,18 @@ export default function VisaIntakePage() {
       <datalist id="visa-day-options">{dayOptions.map((value) => <option key={value} value={value} />)}</datalist>
       <datalist id="visa-month-options">{monthOptions.map((value) => <option key={value} value={value} />)}</datalist>
       {linkLabel ? <div className={styles.batch}>Đợt thu hồ sơ: <strong>{linkLabel}</strong> · <b>{formType === "student" ? "MẪU NHẬP HỌC" : "NGƯỜI THƯỜNG"}</b></div> : null}
+      <details className={styles.guide} open>
+        <summary>Hướng dẫn điền hồ sơ</summary>
+        <div className={styles.guideGrid}>
+          <article><strong>Thông tin theo hộ chiếu</strong><p>Họ, tên, nơi sinh và số hộ chiếu nhập đúng giấy tờ. Chữ tiếng Việt sẽ tự chuyển sang IN HOA không dấu; email giữ chữ thường.</p></article>
+          <article><strong>Ngày tháng</strong><p>Nhập riêng Ngày · Tháng · Năm. Ngày hết hạn hộ chiếu tự động lấy cùng ngày/tháng ngày cấp và cộng 10 năm.</p></article>
+          <article><strong>Các mục Có / Không</strong><p>Chỉ chọn Có khi đúng thực tế. Khi chọn Có, các ô chi tiết liên quan sẽ xuất hiện và cần điền đầy đủ.</p></article>
+          <article><strong>Khi hồ sơ bị trả về</strong><p>Ô sai sẽ màu đỏ. Sửa xong gửi lại, ô đó chuyển xanh để admin xác minh lại. Không cần tạo hồ sơ mới.</p></article>
+          <article><strong>Đóng tab và mở lại</strong><p>Thiết bị này có mã riêng. Sau khi đã gửi, mở lại đúng link trên cùng trình duyệt sẽ tự khôi phục hồ sơ/trạng thái cho đến khi admin đóng link.</p></article>
+          <article><strong>{formType === "student" ? "Mẫu nhập học" : "Mẫu người thường"}</strong><p>{formType === "student" ? "Các trường chung đã được điền sẵn theo đợt. Nếu giấy tờ của bạn khác, sửa trực tiếp trước khi gửi. Mã Telex là trường bắt buộc." : "Không dùng mặc định học tập. Hãy điền mục đích, loại visa, lịch trình và thông tin thư mời đúng trường hợp thực tế; Telex có thể để trống nếu không dùng."}</p></article>
+        </div>
+      </details>
+      {formType === "student" ? <div className={styles.prefillNotice}><strong>Thông tin chung Link 1 đã nạp sẵn</strong><p>Quốc tịch · nhóm/mục đích học tập · loại visa · số lần nhập cảnh · ngày vào/ra · loại nơi đến · tổ chức tiếp nhận · địa chỉ tổ chức · INN · Mã Telex · số giấy mời nếu có · Moscow · địa chỉ thường trú · nơi học · STUDENT · địa chỉ/điện thoại/email đơn vị · nơi nộp · mật khẩu KD-MID. <b>Nếu thông tin nào không đúng với bạn, sửa trực tiếp trong ô tương ứng.</b></p></div> : null}
       {error ? <div className={styles.error}><strong>{error}</strong>{missing.length ? <ul>{missing.map((item) => <li key={item}>{item}</li>)}</ul> : null}</div> : null}
 
       <section className={styles.section}>

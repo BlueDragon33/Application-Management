@@ -10,6 +10,7 @@ const worker = fs.readFileSync("worker/index.ts", "utf8");
 const publicWorkerPage = fs.readFileSync("worker/visa-intake-public.ts", "utf8");
 const migration = fs.readFileSync("drizzle/0009_visa_intake.sql", "utf8");
 const resultMigration = fs.readFileSync("drizzle/0010_visa_intake_results.sql", "utf8");
+const deviceMigration = fs.readFileSync("drizzle/0011_visa_intake_device_recovery.sql", "utf8");
 const schema = fs.readFileSync("db/schema.ts", "utf8");
 
 test("visa intake has isolated link and submission tables", () => {
@@ -164,10 +165,9 @@ test("accepted intake submissions can receive and download one PDF result", () =
   assert.match(publicWorkerPage, /Tải PDF kết quả/);
 });
 
-test("closed batches still allow an existing submission to check status and receive results", () => {
-  assert.match(publicApi, /if\(submissionId\)|if \(submissionId\)/);
+test("closed batches stop sender-side recovery and result access", () => {
   assert.match(publicApi, /link\.status!==?"active"|link\.status !== "active"/);
-  assert.match(publicApi, /Người đã gửi hồ sơ vẫn có thể mở lại link/);
+  assert.match(publicApi, /Link này không còn cho phép người nhận mở lại hồ sơ hoặc nhận kết quả/);
 });
 
 
@@ -275,10 +275,27 @@ test("public intake binds each submitted record to a stable hashed browser devic
   assert.match(publicApi, /Thiết bị này không khớp/);
   assert.match(adminApi, /device_code/);
   assert.match(tool, /Thiết bị \$\{item\.deviceCode\}/);
-  assert.match(resultMigration + migration, /visa_intake_submissions_link_device_idx/);
+  assert.match(deviceMigration, /visa_intake_submissions_link_device_idx/);
 });
 
 test("closing an intake link disables sender recovery while preserving admin-side records", () => {
   assert.match(publicApi, /Link này không còn cho phép người nhận mở lại hồ sơ hoặc nhận kết quả/);
   assert.match(publicApi, /if\(link\.status!==?"active"\|\|link\.expired\)/);
+});
+
+
+test("both intake variants include visible filling guidance and student common-default notice", () => {
+  assert.match(publicPage, /Hướng dẫn điền hồ sơ/);
+  assert.match(publicPage, /Thông tin chung Link 1 đã nạp sẵn/);
+  assert.match(publicWorkerPage, /Hướng dẫn điền hồ sơ/);
+  assert.match(publicWorkerPage, /Thông tin chung Link 1 đã nạp sẵn/);
+});
+
+test("sender browser keeps a stable device id and automatically recovers the server submission after tab close", () => {
+  assert.match(publicPage, /visa-intake:device-id:v1/);
+  assert.match(publicPage, /deviceId=\$\{encodeURIComponent\(deviceValue\)\}/);
+  assert.match(publicPage, /data\.submission\?\.applicant/);
+  assert.match(publicWorkerPage, /visa-intake:device-id:v1/);
+  assert.match(publicWorkerPage, /data\.submission\?\.applicant/);
+  assert.match(publicWorkerPage, /deviceId,applicant/);
 });

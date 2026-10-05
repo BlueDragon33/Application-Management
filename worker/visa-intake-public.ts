@@ -17,6 +17,7 @@ export function publicVisaIntakePage() {
 <title>Form hồ sơ Visa Nga</title>
 <style>
 :root{color-scheme:dark;font-family:Inter,system-ui,sans-serif;background:#07120f;color:#effaf6}*{box-sizing:border-box}body{margin:0;background:#07120f;color:#effaf6}.page{width:min(1080px,calc(100% - 24px));margin:24px auto 64px}.hero,.section,.confirm,.success{border:1px solid #214f42;border-radius:18px;background:#0b211b}.hero{padding:26px;background:linear-gradient(135deg,#0b211b,#0a1714)}.hero span,.section header b{color:#e1d252;font-weight:900;letter-spacing:.1em;font-size:12px}.hero h1{font-size:clamp(28px,5vw,44px);margin:8px 0}.hero p,.section p,.hint{color:#95b7ab}.batch,.error,.return-alert{margin:16px 0;padding:12px 14px;border-radius:10px}.batch{border:1px solid #2b6955;background:#0d2b22}.error{border:1px solid #8f4747;background:#3a1b1b;color:#ffdada;display:none}.return-alert{display:none;border:2px solid #e66d6d;background:#411b1b;color:#ffe0e0;box-shadow:0 0 0 4px rgba(230,109,109,.08)}.return-alert strong{font-size:16px}.return-alert p{margin:6px 0}.return-alert button,.success button{margin-top:12px;border:1px solid #4c7668;border-radius:10px;background:#10261f;color:#effaf6;padding:10px 14px;font:inherit;font-weight:850;cursor:pointer}.return-alert button:disabled,.success button:disabled{opacity:.55;cursor:wait}.field[data-correction="true"],.checks label[data-correction="true"]{border:2px solid #e66d6d!important;background:rgba(230,109,109,.12)!important;border-radius:10px;padding:8px}.field[data-correction="true"] input,.field[data-correction="true"] select,.field[data-correction="true"] textarea{border-color:#e66d6d}.section{margin-top:16px;padding:20px}.section header{display:flex;gap:12px;align-items:flex-start}.section header b{display:grid;place-items:center;width:38px;height:38px;border:1px solid #756c27;border-radius:10px}.section h2{margin:0 0 4px}.section header p{margin:0}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:16px}.field{display:grid;gap:5px;font-weight:800;font-size:14px}.field small{font-weight:500;color:#89aa9f}.field input,.field select,.field textarea{width:100%;padding:11px 12px;border:1px solid #2b6354;border-radius:9px;background:#071510;color:#fff;font:inherit}.date-fields{display:grid;grid-template-columns:minmax(72px,.9fr) minmax(82px,1fr) minmax(108px,1.25fr);gap:8px}.date-fields input{text-align:center;min-width:0;padding-left:8px;padding-right:8px}.date-fields input::placeholder{font-size:12px;color:#6f9186}.field input[readonly]{color:#b8d0c7;background:#10251f}.checks{display:grid;gap:10px;margin-top:16px}.checks label,.confirm label{display:flex;gap:10px;padding:12px;border:1px solid #2a5648;border-radius:10px;background:#0a1c17}.checks input,.confirm input{width:18px;height:18px;margin-top:2px}.checks span,.confirm span{display:grid;gap:3px}.checks small,.confirm small{color:#89aa9f}.conditional{display:none}.confirm{margin-top:16px;padding:18px}.confirm button{width:100%;min-height:52px;margin-top:14px;border:0;border-radius:11px;background:#e1d252;color:#15130a;font-weight:950;font-size:16px}.confirm button:disabled{opacity:.5}.success{margin-top:28px;padding:32px;text-align:center;display:none}.success>strong{display:block;color:#e1d252;font-size:36px;margin-top:10px}.result-box{margin:18px auto 0;max-width:560px;padding:16px;border:1px solid #2d6b57;border-radius:14px;background:#071510}.result-box strong{display:block;font-size:17px}.result-box p{color:#9fc0b5;margin:7px 0 12px}.result-box a{display:none;text-decoration:none;border-radius:10px;background:#e1d252;color:#15130a;padding:10px 14px;font-weight:950}@media(max-width:720px){.grid{grid-template-columns:1fr}.page{width:min(100% - 16px,1080px);margin-top:8px}.hero,.section{padding:16px}.date-fields{grid-template-columns:minmax(64px,.85fr) minmax(74px,1fr) minmax(92px,1.2fr);gap:6px}}
+.guide{margin:16px 0;border:1px solid #315f50;border-radius:14px;background:#0b211b;overflow:hidden}.guide summary{cursor:pointer;padding:14px 16px;font-weight:900;color:#e1d252}.guide-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:0 16px 16px}.guide-grid article{padding:12px;border:1px solid #244d40;border-radius:10px;background:#081713}.guide-grid strong{font-size:13px}.guide-grid p{margin:5px 0 0;color:#91b3a7;font-size:12px;line-height:1.55}.prefill-notice{display:none;margin:16px 0;padding:14px 16px;border:1px solid #756c27;border-radius:12px;background:#25220c;color:#d8d3a0}.prefill-notice strong{color:#f2e87f}.prefill-notice p{margin:5px 0 0;font-size:12px;line-height:1.55}@media(max-width:720px){.guide-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -25,6 +26,15 @@ export function publicVisaIntakePage() {
 <div id="batch" class="batch">Đang kiểm tra link thu hồ sơ…</div>
 <div id="error" class="error"></div>
 <div id="returnAlert" class="return-alert"><strong>⚠ HỒ SƠ BỊ TRẢ VỀ · CẦN SỬA</strong><p id="returnNote"></p><small id="returnMeta"></small><button id="refreshReturned" type="button">↻ Cập nhật trạng thái</button></div>
+<details class="guide" open><summary>Hướng dẫn điền hồ sơ</summary><div class="guide-grid">
+<article><strong>Thông tin theo hộ chiếu</strong><p>Họ, tên, nơi sinh và số hộ chiếu nhập đúng giấy tờ. Chữ tiếng Việt tự chuyển IN HOA không dấu; email giữ chữ thường.</p></article>
+<article><strong>Ngày tháng</strong><p>Nhập riêng Ngày · Tháng · Năm. Ngày hết hạn hộ chiếu tự động giữ ngày/tháng ngày cấp và cộng 10 năm.</p></article>
+<article><strong>Các mục Có / Không</strong><p>Chỉ chọn Có khi đúng thực tế. Các ô chi tiết sẽ tự hiện và cần điền đầy đủ.</p></article>
+<article><strong>Khi hồ sơ bị trả về</strong><p>Ô sai màu đỏ; sửa và gửi lại để admin thấy ô đã sửa màu xanh và xác minh lại.</p></article>
+<article><strong>Đóng tab và mở lại</strong><p>Sau khi đã gửi, mở lại đúng link trên cùng trình duyệt sẽ tự khôi phục hồ sơ và trạng thái bằng mã thiết bị cho đến khi admin đóng link.</p></article>
+<article><strong id="guideTypeTitle">Loại mẫu</strong><p id="guideTypeText"></p></article>
+</div></details>
+<div id="prefillNotice" class="prefill-notice"><strong>Thông tin chung Link 1 đã nạp sẵn</strong><p>Quốc tịch · nhóm/mục đích học tập · loại visa · số lần nhập cảnh · ngày vào/ra · loại nơi đến · tổ chức tiếp nhận · địa chỉ tổ chức · INN · Mã Telex · số giấy mời nếu có · Moscow · địa chỉ thường trú · nơi học · STUDENT · địa chỉ/điện thoại/email đơn vị · nơi nộp · mật khẩu KD-MID. Nếu khác giấy tờ của bạn, sửa trực tiếp trong ô tương ứng.</p></div>
 <form id="form">
 <datalist id="day-options"><option value="01"></option><option value="02"></option><option value="03"></option><option value="04"></option><option value="05"></option><option value="06"></option><option value="07"></option><option value="08"></option><option value="09"></option><option value="10"></option><option value="11"></option><option value="12"></option><option value="13"></option><option value="14"></option><option value="15"></option><option value="16"></option><option value="17"></option><option value="18"></option><option value="19"></option><option value="20"></option><option value="21"></option><option value="22"></option><option value="23"></option><option value="24"></option><option value="25"></option><option value="26"></option><option value="27"></option><option value="28"></option><option value="29"></option><option value="30"></option><option value="31"></option></datalist>
 <datalist id="month-options"><option value="01"></option><option value="02"></option><option value="03"></option><option value="04"></option><option value="05"></option><option value="06"></option><option value="07"></option><option value="08"></option><option value="09"></option><option value="10"></option><option value="11"></option><option value="12"></option></datalist>
@@ -112,6 +122,13 @@ export function publicVisaIntakePage() {
   const submit = document.getElementById("submit");
   const byName = name => form.elements.namedItem(name);
   const storageKey = "visa-intake:draft:"+accessKey;
+  const deviceStorageKey = "visa-intake:device-id:v1";
+  let deviceId = "";
+  try {
+    deviceId = localStorage.getItem(deviceStorageKey) || "";
+    if(!/^[A-Za-z0-9_-]{20,120}$/.test(deviceId)){ deviceId=crypto.randomUUID(); localStorage.setItem(deviceStorageKey,deviceId); }
+  } catch { deviceId=crypto.randomUUID(); }
+  let linkClosed = false;
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem(storageKey) || "null"); } catch {}
   let receipt = saved?.receipt || null;
@@ -200,7 +217,7 @@ export function publicVisaIntakePage() {
     form.style.display="none"; batch.style.display="none"; error.style.display="none";
     document.getElementById("success").style.display="block";
     document.getElementById("successName").textContent=submission.applicantName || "";
-    document.getElementById("queue").textContent="#"+(submission.queueNo ?? "—");
+    document.getElementById("queue").textContent="#"+(submission.queueNo ?? "—")+(submission.deviceCode ? " · "+submission.deviceCode : "");
     const accepted=["approved","imported"].includes(submission.status);
     document.getElementById("successState").textContent=accepted ? "ĐÃ TIẾP NHẬN HỒ SƠ" : "ĐÃ GỬI HỒ SƠ";
     document.getElementById("successMessage").textContent=accepted ? "Hồ sơ của bạn đã được người phụ trách xác minh và tiếp nhận." : (submission.revision || 0) > 0 ? "Nội dung đã sửa đã được gửi lại. Hãy chờ người phụ trách xác minh." : "Hồ sơ đã vào hàng chờ xác minh.";
@@ -228,13 +245,14 @@ export function publicVisaIntakePage() {
   children.addEventListener("change", syncSpecialNotes); relatives.addEventListener("change", syncSpecialNotes); syncSpecialNotes();
   if(currentApplicant) { fillApplicant(currentApplicant); document.getElementById("former").dispatchEvent(new Event("change")); document.getElementById("visited").dispatchEvent(new Event("change")); document.getElementById("insurance").dispatchEvent(new Event("change")); syncSpecialNotes(); }
 
-  const statusUrl = () => "/api/kd-mid-visa-intake/public?"+apiAccess()+(receipt?.id ? "&submissionId="+encodeURIComponent(receipt.id) : "");
+  const statusUrl = () => "/api/kd-mid-visa-intake/public?"+apiAccess()+(receipt?.id ? "&submissionId="+encodeURIComponent(receipt.id) : "")+"&deviceId="+encodeURIComponent(deviceId);
   const refreshButtons=[document.getElementById("refreshWaiting"),document.getElementById("refreshReturned")].filter(Boolean);
   const checkStatus = async (manual=false) => {
-    if(!receipt?.id) return;
+    if(!receipt?.id || linkClosed) return;
     if(manual) refreshButtons.forEach(button=>{button.disabled=true;button.textContent="↻ Đang cập nhật…";});
     try {
       const r=await fetch(statusUrl(),{cache:"no-store"}); const data=await r.json();
+      if(r.status===410){linkClosed=true;try{localStorage.removeItem(storageKey)}catch{}receipt=null;form.style.display="none";document.getElementById("success").style.display="none";batch.style.display="none";setError(data.error||"Đợt thu hồ sơ đã đóng.");return;}
       if(!r.ok || !data.ok || !data.submission) return;
       if(data.submission.status==="rejected") {
         const becameRejected=lastStatus!=="rejected";
@@ -251,9 +269,9 @@ export function publicVisaIntakePage() {
   };
   refreshButtons.forEach(button=>button.addEventListener("click",()=>void checkStatus(true)));
 
-  fetch("/api/kd-mid-visa-intake/public?"+apiAccess()+(receipt?.id ? "&submissionId="+encodeURIComponent(receipt.id) : ""), {cache:"no-store"}).then(async r => {
+  fetch("/api/kd-mid-visa-intake/public?"+apiAccess()+(receipt?.id ? "&submissionId="+encodeURIComponent(receipt.id) : "")+"&deviceId="+encodeURIComponent(deviceId), {cache:"no-store"}).then(async r => {
     const data = await r.json();
-    if (!r.ok || !data.ok) throw new Error(data.error || "Link không hợp lệ.");
+    if (!r.ok || !data.ok) { if(r.status===410){linkClosed=true;try{localStorage.removeItem(storageKey)}catch{}} throw new Error(data.error || "Link không hợp lệ."); }
     const d = data.defaults || {};
     formType = data.link?.formType === "general" || d.formType === "general" ? "general" : "student";
     const student = formType === "student";
@@ -261,6 +279,9 @@ export function publicVisaIntakePage() {
     document.getElementById("formTypeBadge").textContent = student ? "LINK 1 · MẪU NHẬP HỌC" : "LINK 2 · MẪU VISA NGƯỜI THƯỜNG";
     document.getElementById("heroTitle").textContent = student ? "Điền hồ sơ nhập học để chuẩn bị KD-MID" : "Điền hồ sơ visa cá nhân để chuẩn bị KD-MID";
     document.getElementById("heroIntro").textContent = student ? "Các dữ liệu học tập dùng chung đã được nạp sẵn. Hãy kiểm tra Mã Telex và thông tin cá nhân trước khi gửi." : "Mẫu tổng quát không tự áp các giá trị visa học tập. Hãy nhập đúng thông tin theo mục đích chuyến đi của bạn.";
+    document.getElementById("guideTypeTitle").textContent=student ? "Mẫu nhập học" : "Mẫu người thường";
+    document.getElementById("guideTypeText").textContent=student ? "Các trường chung đã điền sẵn theo đợt. Nếu khác giấy tờ của bạn, sửa trực tiếp trước khi gửi. Mã Telex bắt buộc." : "Không dùng mặc định học tập. Điền mục đích, loại visa, lịch trình và thông tin thư mời đúng hồ sơ thực tế; Telex có thể để trống nếu không dùng.";
+    document.getElementById("prefillNotice").style.display=student ? "block" : "none";
     const telexField=document.getElementById("telexField");
     if(telexField) telexField.childNodes[0].textContent=student ? "Mã Telex " : "Mã Telex / Số chỉ thị ";
     ["organization","organizationAddress","tin","telex"].forEach(name=>{const el=byName(name);if(el) el.required=student;});
@@ -280,10 +301,12 @@ export function publicVisaIntakePage() {
     Object.entries(values).forEach(([k,v]) => { const el=byName(k); if(el && !String(el.value || "").trim()) el.value=String(v); });
     if(d.entryDate && !byName("entryDate").value) fillDate("entryDate",String(d.entryDate));
     if(d.exitDate && !byName("exitDate").value) fillDate("exitDate",String(d.exitDate));
-    if(currentApplicant) fillApplicant(currentApplicant);
+    if(data.submission?.applicant){ currentApplicant=data.submission.applicant; fillApplicant(currentApplicant); }
+    else if(currentApplicant) fillApplicant(currentApplicant);
     syncPassportExpiry();
     if(data.submission) {
       receipt={...receipt,...data.submission};
+      saveLocal(currentApplicant);
       if(data.submission.status==="rejected") showReturned(data.submission); else showWaiting(data.submission);
     }
   }).catch(e => { setError(e.message || "Không thể mở form."); form.style.display="none"; batch.style.display="none"; });
@@ -318,7 +341,7 @@ export function publicVisaIntakePage() {
     const applicant = readApplicant();
     saveLocal(applicant);
     try {
-      const r = await fetch("/api/kd-mid-visa-intake/public", {method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({token,batch:batchId,applicant,confirmedAccurate:confirmed.checked,submissionId:receipt?.status==="rejected" ? receipt.id : undefined})});
+      const r = await fetch("/api/kd-mid-visa-intake/public", {method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({token,batch:batchId,deviceId,applicant,confirmedAccurate:confirmed.checked,submissionId:receipt?.status==="rejected" ? receipt.id : undefined})});
       const data = await r.json();
       if (!r.ok || !data.ok) { setError(data.error || "Chưa thể gửi hồ sơ.", data.missing || []); throw new Error("validation"); }
       receipt={...data.submission,status:data.submission?.status || "pending",correctionFields:data.submission?.correctionFields || []};
