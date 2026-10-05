@@ -40,6 +40,42 @@ function text(value: unknown, max = 500) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
 
+const STUDENT_INTAKE_DEFAULTS = {
+  formType: "student",
+  password: "qllhs2025",
+  citizenship: "ВЬЕТНАМ",
+  purposeSection: "УЧЕБА",
+  purpose: "УЧЕБА",
+  visaType: "ОБЫКНОВЕННАЯ УЧЕБНАЯ",
+  entries: "ОДНОКРАТНАЯ",
+  entryDate: "05/10/2026",
+  exitDate: "31/12/2026",
+  destinationType: "ОРГАНИЗАЦИЯ",
+  organization: "МИН-ВО НАУКИ И ВЫСШЕГО ОБРАЗОВАНИЯ РФ (МИНОБРНАУКИ РОССИИ)",
+  organizationAddress: "125993, МОСКВА, УЛ. ТВЕРСКАЯ, Д.11, СТР.1, 4",
+  tin: "7707740714",
+  telex: "321422",
+  invitation: "",
+  routeCity: "МОСКВА",
+  employer: "ГОСУДАРСТВЕННЫЙ ТЕХНИЧЕСКИЙ УНИВЕРСИТЕТ ИМЕНИ ЛЕ КУИ ДОНА",
+  position: "СТУДЕНТ",
+  workAddress: "ВЬЕТНАМ, Г. ХАНОЙ, УЛИЦА НГИА ДО, ДОРОГА ХОАНГ КУОК ВЬЕТ",
+  workPhone: "+842437555706",
+  workEmail: "lequydonqllhs@gmail.com",
+  permanentAddress: "ВЬЕТНАМ, Г. ХАНОЙ, УЛИЦА НГИА ДО, ДОРОГА ХОАНГ КУОК ВЬЕТ, ДОМ Ш9",
+  preferredEmbassy: "ПОСОЛЬСТВО РФ ВО ВЬЕТНАМЕ",
+} as const;
+
+function fillStudentDefaults(raw: Record<string, unknown>) {
+  const formType = raw.formType === "general" ? "general" : "student";
+  if (formType === "general") return { ...raw, formType };
+  const merged: Record<string, unknown> = { ...raw, formType: "student" };
+  for (const [key, value] of Object.entries(STUDENT_INTAKE_DEFAULTS)) {
+    if (!String(merged[key] ?? "").trim() && String(value ?? "").trim()) merged[key] = value;
+  }
+  return merged;
+}
+
 async function adminIdentity() {
   const user = await getChatGPTUser();
   if (!user) throw new ControlAccessError("Cần đăng nhập quản trị.", 401, "SIGN_IN_REQUIRED");
@@ -118,23 +154,23 @@ export async function POST(request: Request) {
       const formType = text(body.formType, 20) === "general" ? "general" : "student";
       const student = formType === "student";
       const defaults = body.defaults && typeof body.defaults === "object" ? body.defaults as Record<string, unknown> : {};
-      const safeDefaults = {
+      const submittedDefaults: Record<string, unknown> = {
         formType,
         password: text(defaults.password, 120),
-        citizenship: text(defaults.citizenship, 80) || "ВЬЕТНАМ",
-        purposeSection: text(defaults.purposeSection, 120) || (student ? "УЧЕБА" : ""),
-        purpose: text(defaults.purpose, 120) || (student ? "УЧЕБА" : ""),
-        visaType: text(defaults.visaType, 160) || (student ? "ОБЫКНОВЕННАЯ УЧЕБНАЯ" : ""),
-        entries: text(defaults.entries, 80) || (student ? "ОДНОКРАТНАЯ" : ""),
+        citizenship: text(defaults.citizenship, 80),
+        purposeSection: text(defaults.purposeSection, 120),
+        purpose: text(defaults.purpose, 120),
+        visaType: text(defaults.visaType, 160),
+        entries: text(defaults.entries, 80),
         entryDate: text(defaults.entryDate, 10),
         exitDate: text(defaults.exitDate, 10),
-        destinationType: text(defaults.destinationType, 80) || (student ? "ОРГАНИЗАЦИЯ" : ""),
+        destinationType: text(defaults.destinationType, 80),
         organization: text(defaults.organization, 300),
         organizationAddress: text(defaults.organizationAddress, 400),
         tin: text(defaults.tin, 40),
         telex: text(defaults.telex, 80),
         invitation: text(defaults.invitation, 120),
-        routeCity: text(defaults.routeCity, 80) || (student ? "МОСКВА" : ""),
+        routeCity: text(defaults.routeCity, 80),
         employer: text(defaults.employer, 240),
         position: text(defaults.position, 120),
         workAddress: text(defaults.workAddress, 300),
@@ -143,6 +179,7 @@ export async function POST(request: Request) {
         permanentAddress: text(defaults.permanentAddress, 300),
         preferredEmbassy: text(defaults.preferredEmbassy, 120),
       };
+      const safeDefaults = student ? fillStudentDefaults(submittedDefaults) : submittedDefaults;
       await database.prepare(
         `INSERT INTO visa_intake_links
           (id,token_hash,label,status,defaults_json,created_by)
