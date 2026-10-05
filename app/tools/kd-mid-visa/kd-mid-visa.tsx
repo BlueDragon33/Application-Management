@@ -27,6 +27,7 @@ type CommonData = {
   tin: string;
   telex: string;
   invitation: string;
+  destinationType: string;
   city: string;
   embassy: string;
   employer: string;
@@ -42,16 +43,36 @@ type Applicant = {
   birthDate: string;
   birthPlace: string;
   sex: string;
+  hasOtherNames: boolean;
+  otherNames: string;
+  bornInRussia: boolean;
+  citizenship: string;
+  purposeSection: string;
+  purpose: string;
+  visaType: string;
+  entries: string;
+  entryDate: string;
+  exitDate: string;
+  destinationType: string;
+  organization: string;
+  organizationAddress: string;
+  tin: string;
+  telex: string;
+  invitation: string;
   passportNo: string;
   passportIssue: string;
   passportExpiry: string;
   personalAddress: string;
+  hasPermanentAddress: boolean;
   phone: string;
+  personalFax: string;
   email: string;
+  worksOrStudies: boolean;
   workStudyPlace: string;
   position: string;
   workAddress: string;
   workPhone: string;
+  workFax: string;
   workEmail: string;
   childrenUnder16: boolean;
   relativesInRussia: boolean;
@@ -144,6 +165,7 @@ const defaultCommon: CommonData = {
   tin: "7707740714",
   telex: "321422",
   invitation: "",
+  destinationType: "ОРГАНИЗАЦИЯ",
   city: "МОСКВА",
   embassy: "ПОСОЛЬСТВО РФ ВО ВЬЕТНАМЕ",
   employer: "ГОСУДАРСТВЕННЫЙ ТЕХНИЧЕСКИЙ УНИВЕРСИТЕТ ИМЕНИ ЛЕ КУИ ДОНА",
@@ -160,16 +182,36 @@ function emptyApplicant(): Applicant {
     birthDate: "",
     birthPlace: "",
     sex: "МУЖСКОЙ",
+    hasOtherNames: false,
+    otherNames: "",
+    bornInRussia: false,
+    citizenship: defaultCommon.citizenship,
+    purposeSection: defaultCommon.purposeSection,
+    purpose: defaultCommon.purpose,
+    visaType: defaultCommon.visaType,
+    entries: defaultCommon.entries,
+    entryDate: defaultCommon.entryDate,
+    exitDate: defaultCommon.exitDate,
+    destinationType: defaultCommon.destinationType,
+    organization: defaultCommon.organization,
+    organizationAddress: defaultCommon.organizationAddress,
+    tin: defaultCommon.tin,
+    telex: defaultCommon.telex,
+    invitation: defaultCommon.invitation,
     passportNo: "",
     passportIssue: "",
     passportExpiry: "",
     personalAddress: fixedPermanentAddress,
+    hasPermanentAddress: true,
     phone: "",
+    personalFax: "",
     email: "",
+    worksOrStudies: true,
     workStudyPlace: defaultCommon.employer,
     position: defaultCommon.defaultPosition,
     workAddress: defaultCommon.employerAddress,
     workPhone: fixedWorkPhone,
+    workFax: "",
     workEmail: defaultCommon.employerEmail,
     childrenUnder16: false,
     relativesInRussia: false,
@@ -204,6 +246,26 @@ function safeLoad(): Store {
         return {
           ...item,
           routeCity: item.routeCity || "МОСКВА",
+          hasOtherNames: item.hasOtherNames ?? false,
+          otherNames: item.otherNames ?? "",
+          bornInRussia: item.bornInRussia ?? false,
+          citizenship: item.citizenship || common.citizenship,
+          purposeSection: item.purposeSection || common.purposeSection,
+          purpose: item.purpose || common.purpose,
+          visaType: item.visaType || common.visaType,
+          entries: item.entries || common.entries,
+          entryDate: item.entryDate || common.entryDate,
+          exitDate: item.exitDate || common.exitDate,
+          destinationType: item.destinationType || common.destinationType,
+          organization: item.organization || common.organization,
+          organizationAddress: item.organizationAddress || common.organizationAddress,
+          tin: item.tin || common.tin,
+          telex: item.telex || common.telex,
+          invitation: item.invitation ?? common.invitation,
+          hasPermanentAddress: item.hasPermanentAddress ?? true,
+          personalFax: item.personalFax ?? "",
+          worksOrStudies: item.worksOrStudies ?? true,
+          workFax: item.workFax ?? "",
           hadFormerRussianCitizenship: item.hadFormerRussianCitizenship ?? false,
           formerCitizenshipLostDate: item.formerCitizenshipLostDate ?? "",
           formerCitizenshipLossReason: item.formerCitizenshipLossReason ?? "",
@@ -265,6 +327,13 @@ function normalizeDmy(value: string) {
   return `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`;
 }
 
+function passportExpiryFromIssue(value: string) {
+  const normalized = normalizeDmy(value);
+  const match = normalized.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) return "";
+  return `${match[1]}/${match[2]}/${Number(match[3]) + 10}`;
+}
+
 function surname5(value: string) {
   return value.trim().replace(/\s+/g, "").toUpperCase().slice(0, 5);
 }
@@ -297,24 +366,40 @@ function emitChange(el: HTMLInputElement | HTMLSelectElement | HTMLTextAreaEleme
 }
 
 function buildPayload(applicant: Applicant, common: CommonData, autoAdvance = false, revision = Date.now()) {
+  const resolvedCommon: CommonData = {
+    ...common,
+    citizenship: applicant.citizenship || common.citizenship,
+    purposeSection: applicant.purposeSection || common.purposeSection,
+    purpose: applicant.purpose || common.purpose,
+    visaType: applicant.visaType || common.visaType,
+    entries: applicant.entries || common.entries,
+    entryDate: applicant.entryDate || common.entryDate,
+    exitDate: applicant.exitDate || common.exitDate,
+    destinationType: applicant.destinationType || common.destinationType,
+    organization: applicant.organization || common.organization,
+    organizationAddress: applicant.organizationAddress || common.organizationAddress,
+    tin: applicant.tin || common.tin,
+    telex: applicant.telex || common.telex,
+    invitation: applicant.invitation ?? common.invitation,
+  };
   const normalizedApplicant = {
     ...applicant,
-    workStudyPlace: applicant.workStudyPlace.trim() || common.employer,
-    position: applicant.position.trim() || common.defaultPosition,
-    workAddress: applicant.workAddress.trim() || common.employerAddress,
+    workStudyPlace: applicant.workStudyPlace.trim() || resolvedCommon.employer,
+    position: applicant.position.trim() || resolvedCommon.defaultPosition,
+    workAddress: applicant.workAddress.trim() || resolvedCommon.employerAddress,
     workPhone: applicant.workPhone.trim() || fixedWorkPhone,
-    workEmail: applicant.workEmail.trim() || common.employerEmail,
+    workEmail: applicant.workEmail.trim() || resolvedCommon.employerEmail,
     birthDate: normalizeDmy(applicant.birthDate),
     passportIssue: normalizeDmy(applicant.passportIssue),
-    passportExpiry: normalizeDmy(applicant.passportExpiry),
+    passportExpiry: passportExpiryFromIssue(applicant.passportIssue),
     formerCitizenshipLostDate: normalizeDmy(applicant.formerCitizenshipLostDate),
     lastVisitFrom: normalizeDmy(applicant.lastVisitFrom),
     lastVisitTo: normalizeDmy(applicant.lastVisitTo),
   };
   return {
-    ...common,
-    entryDate: normalizeDmy(common.entryDate),
-    exitDate: normalizeDmy(common.exitDate),
+    ...resolvedCommon,
+    entryDate: normalizeDmy(resolvedCommon.entryDate),
+    exitDate: normalizeDmy(resolvedCommon.exitDate),
     embassy: applicant.preferredEmbassy || common.embassy,
     fixedPermanentAddress: "ВЬЕТНАМ, Г. ХАНОЙ, УЛИЦА НГИА ДО, ДОРОГА ХОАНГ КУОК ВЬЕТ, ДОМ Ш9",
     fixedWorkPhone,
@@ -571,7 +656,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         birthDate: normalizeDmy(next.birthDate),
         birthPlace: next.birthPlace.trim().toUpperCase(),
         passportIssue: normalizeDmy(next.passportIssue),
-        passportExpiry: normalizeDmy(next.passportExpiry),
+        passportExpiry: passportExpiryFromIssue(next.passportIssue),
         formerCitizenshipLostDate: normalizeDmy(next.formerCitizenshipLostDate),
         lastVisitFrom: normalizeDmy(next.lastVisitFrom),
         lastVisitTo: normalizeDmy(next.lastVisitTo),
@@ -637,6 +722,20 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         action: "create-link",
         label: intakeLabel,
         defaults: {
+          password: store.common.password,
+          citizenship: store.common.citizenship,
+          purposeSection: store.common.purposeSection,
+          purpose: store.common.purpose,
+          visaType: store.common.visaType,
+          entries: store.common.entries,
+          entryDate: store.common.entryDate,
+          exitDate: store.common.exitDate,
+          destinationType: store.common.destinationType,
+          organization: store.common.organization,
+          organizationAddress: store.common.organizationAddress,
+          tin: store.common.tin,
+          telex: store.common.telex,
+          invitation: store.common.invitation,
           routeCity: store.common.city,
           employer: store.common.employer,
           position: store.common.defaultPosition,
@@ -670,16 +769,36 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       birthDate: normalizeDmy(value("birthDate")),
       birthPlace: value("birthPlace").toUpperCase(),
       sex: value("sex") || "МУЖСКОЙ",
+      hasOtherNames: flag("hasOtherNames"),
+      otherNames: value("otherNames"),
+      bornInRussia: flag("bornInRussia"),
+      citizenship: value("citizenship") || store.common.citizenship,
+      purposeSection: value("purposeSection") || store.common.purposeSection,
+      purpose: value("purpose") || store.common.purpose,
+      visaType: value("visaType") || store.common.visaType,
+      entries: value("entries") || store.common.entries,
+      entryDate: normalizeDmy(value("entryDate")) || store.common.entryDate,
+      exitDate: normalizeDmy(value("exitDate")) || store.common.exitDate,
+      destinationType: value("destinationType") || store.common.destinationType,
+      organization: value("organization") || store.common.organization,
+      organizationAddress: value("organizationAddress") || store.common.organizationAddress,
+      tin: value("tin") || store.common.tin,
+      telex: value("telex") || store.common.telex,
+      invitation: value("invitation"),
       passportNo: value("passportNo").toUpperCase(),
       passportIssue: normalizeDmy(value("passportIssue")),
-      passportExpiry: normalizeDmy(value("passportExpiry")),
+      passportExpiry: passportExpiryFromIssue(value("passportIssue")),
+      hasPermanentAddress: source.hasPermanentAddress !== false,
       phone: value("phone"),
+      personalFax: value("personalFax"),
       email: value("email"),
       routeCity: value("routeCity").toUpperCase() || store.common.city,
+      worksOrStudies: source.worksOrStudies !== false,
       workStudyPlace: value("workStudyPlace") || store.common.employer,
       position: value("position") || store.common.defaultPosition,
       workAddress: value("workAddress") || store.common.employerAddress,
       workPhone: value("workPhone") || fixedWorkPhone,
+      workFax: value("workFax"),
       workEmail: value("workEmail") || store.common.employerEmail,
       preferredEmbassy: value("preferredEmbassy") || store.common.embassy,
       hadFormerRussianCitizenship: flag("hadFormerRussianCitizenship"),
@@ -693,8 +812,10 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       insurancePolicy: value("insurancePolicy"),
       childrenUnder16: flag("childrenUnder16"),
       relativesInRussia: flag("relativesInRussia"),
+      passwordOverride: value("passwordOverride"),
+      applicationId: value("applicationId").replace(/\D/g, ""),
       specialNotes: value("specialNotes"),
-      personalAddress: fixedPermanentAddress,
+      personalAddress: value("personalAddress") || fixedPermanentAddress,
       intakeOrder: submission.queueNo,
       intakeSubmissionId: submission.id,
     };
@@ -1105,9 +1226,12 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
     const pending = intakeSubmissions.filter((item) => item.status === "pending");
     const fieldLabels: Array<[string,string]> = [
       ["surname","Họ"],["givenNames","Tên + đệm"],["birthDate","Ngày sinh"],["birthPlace","Nơi sinh"],
-      ["sex","Giới tính"],["passportNo","Số hộ chiếu"],["passportIssue","Ngày cấp"],["passportExpiry","Hết hạn"],
-      ["phone","Điện thoại"],["email","Email"],["routeCity","Nơi đến Nga"],["workStudyPlace","Nơi làm việc/học tập"],
-      ["position","Chức vụ"],["workAddress","Địa chỉ cơ quan"],["workPhone","Điện thoại cơ quan"],["workEmail","Email cơ quan"],
+      ["sex","Giới tính"],["hasOtherNames","Đã dùng tên khác"],["otherNames","Tên khác đã dùng"],["bornInRussia","Sinh tại Nga"],
+      ["citizenship","Quốc tịch"],["purposeSection","Nhóm mục đích"],["purpose","Mục đích"],["visaType","Loại visa"],["entries","Số lần nhập cảnh"],["entryDate","Ngày vào Nga"],["exitDate","Ngày ra Nga"],
+      ["destinationType","Loại nơi đến"],["organization","Tổ chức mời"],["organizationAddress","Địa chỉ tổ chức"],["tin","INN"],["telex","Telex"],["invitation","Số giấy mời"],
+      ["passportNo","Số hộ chiếu"],["passportIssue","Ngày cấp"],["passportExpiry","Hết hạn"],
+      ["hasPermanentAddress","Có địa chỉ thường trú"],["personalAddress","Địa chỉ thường trú"],["phone","Điện thoại"],["personalFax","Fax cá nhân"],["email","Email"],["routeCity","Nơi đến Nga"],["worksOrStudies","Đang làm/học"],["workStudyPlace","Nơi làm việc/học tập"],
+      ["position","Chức vụ"],["workAddress","Địa chỉ cơ quan"],["workPhone","Điện thoại cơ quan"],["workFax","Fax cơ quan"],["workEmail","Email cơ quan"],["passwordOverride","Mật khẩu KD-MID"],["applicationId","Application ID"],
       ["preferredEmbassy","Nơi nộp hồ sơ"],["hadFormerRussianCitizenship","Đã có Q.tịch Nga/LX"],
       ["formerCitizenshipLostDate","Ngày mất Q.tịch Nga/LX"],["formerCitizenshipLossReason","Lý do mất Q.tịch"],
       ["visitedRussia","Đã từng đến Nga"],["visitsCount","Số lần đến Nga"],["lastVisitFrom","Chuyến Nga từ"],["lastVisitTo","Chuyến Nga đến"],
@@ -1180,6 +1304,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       <div className={styles.formGrid}>
         <Field label="Password mặc định" hint="Có thể ghi đè riêng từng hồ sơ."><TextInput value={c.password} onChange={(v) => mutateCommon("password", v)} /></Field>
         <Field label="Гражданство · Quốc tịch"><TextInput value={c.citizenship} onChange={(v) => mutateCommon("citizenship", v)} /></Field>
+        <Field label="Цель поездки (раздел)"><TextInput value={c.purposeSection} onChange={(v) => mutateCommon("purposeSection", v)} /></Field>
         <Field label="Цель поездки · Mục đích"><TextInput value={c.purpose} onChange={(v) => mutateCommon("purpose", v)} /></Field>
         <Field label="Категория и вид визы"><TextInput value={c.visaType} onChange={(v) => mutateCommon("visaType", v)} /></Field>
         <Field label="Кратность визы"><TextInput value={c.entries} onChange={(v) => mutateCommon("entries", v)} /></Field>
@@ -1190,6 +1315,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         <Field label="ИНН"><TextInput value={c.tin} onChange={(v) => mutateCommon("tin", v)} /></Field>
         <Field label="Номер указания (телекса)"><TextInput value={c.telex} onChange={(v) => mutateCommon("telex", v)} /></Field>
         <Field label="Номер приглашения" hint="Để trống nếu giấy ghi НЕТ."><TextInput value={c.invitation} onChange={(v) => mutateCommon("invitation", v)} /></Field>
+        <Field label="В какое учреждение направляетесь?"><TextInput value={c.destinationType} onChange={(v) => mutateCommon("destinationType", v)} /></Field>
         <Field label="Маршрут mặc định · Населенный пункт" hint="Hồ sơ cá nhân có thể ghi đè giá trị này."><TextInput value={c.city} onChange={(v) => mutateCommon("city", v)} /></Field>
         <Field label="Nơi nộp hồ sơ · Получатель анкеты" hint="Chọn đúng cơ quan tiếp nhận; Tool sẽ điền lựa chọn này trên visa.kdmid.ru."><select value={c.embassy} onChange={(event) => mutateCommon("embassy", event.target.value)}>{visaConsulates.map((item) => <option key={item.value} value={item.value}>{item.label} · {item.value}</option>)}</select></Field>
         <Field label="Nơi làm việc / học tập"><TextInput value={c.employer} onChange={(v) => mutateCommon("employer", v)} /></Field>
@@ -1296,19 +1422,39 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
           <Field label="Дата рождения · dd/mm/yyyy" hint="Ví dụ 03/03/1991; Tool tự chuẩn hóa ngày/tháng và chọn đúng tháng tiếng Nga trên KD-MID."><DateTextInput value={editing.birthDate} onChange={(v) => setEditing({ ...editing, birthDate: v })} placeholder="03/03/1991" /></Field>
           <Field label="Место рождения · Nơi sinh"><TextInput value={editing.birthPlace} onChange={(v) => setEditing({ ...editing, birthPlace: v })} /></Field>
           <Field label="Пол · Giới tính"><select value={editing.sex} onChange={(e) => setEditing({ ...editing, sex: e.target.value })}><option>МУЖСКОЙ</option><option>ЖЕНСКИЙ</option></select></Field>
+          <Field label="Đã từng dùng tên khác?"><select value={editing.hasOtherNames ? "ДА" : "НЕТ"} onChange={(e) => setEditing({ ...editing, hasOtherNames: e.target.value === "ДА" })}><option value="НЕТ">НЕТ · Không</option><option value="ДА">ДА · Có</option></select></Field>
+          <Field label="Tên khác đã từng dùng" hint="Không có thì để trống."><TextInput value={editing.otherNames} onChange={(v) => setEditing({ ...editing, otherNames: v.toUpperCase() })} /></Field>
+          <Field label="Вы родились в России? · Sinh tại Nga?"><select value={editing.bornInRussia ? "ДА" : "НЕТ"} onChange={(e) => setEditing({ ...editing, bornInRussia: e.target.value === "ДА" })}><option value="НЕТ">НЕТ · Không</option><option value="ДА">ДА · Có</option></select></Field>
+          <Field label="Гражданство · Quốc tịch"><TextInput value={editing.citizenship} onChange={(v) => setEditing({ ...editing, citizenship: v.toUpperCase() })} /></Field>
+          <Field label="Цель поездки (раздел)"><TextInput value={editing.purposeSection} onChange={(v) => setEditing({ ...editing, purposeSection: v.toUpperCase() })} /></Field>
+          <Field label="Цель поездки"><TextInput value={editing.purpose} onChange={(v) => setEditing({ ...editing, purpose: v.toUpperCase() })} /></Field>
+          <Field label="Категория и вид визы"><TextInput value={editing.visaType} onChange={(v) => setEditing({ ...editing, visaType: v.toUpperCase() })} /></Field>
+          <Field label="Кратность визы"><TextInput value={editing.entries} onChange={(v) => setEditing({ ...editing, entries: v.toUpperCase() })} /></Field>
+          <Field label="Ngày vào Nga"><DateTextInput value={editing.entryDate} onChange={(v) => setEditing({ ...editing, entryDate: v })} /></Field>
+          <Field label="Ngày ra Nga"><DateTextInput value={editing.exitDate} onChange={(v) => setEditing({ ...editing, exitDate: v })} /></Field>
+          <Field label="В какое учреждение направляетесь?"><TextInput value={editing.destinationType} onChange={(v) => setEditing({ ...editing, destinationType: v.toUpperCase() })} /></Field>
+          <Field label="Наименование организации"><TextInput value={editing.organization} onChange={(v) => setEditing({ ...editing, organization: v.toUpperCase() })} /></Field>
+          <Field label="Адрес организации"><TextInput value={editing.organizationAddress} onChange={(v) => setEditing({ ...editing, organizationAddress: v.toUpperCase() })} /></Field>
+          <Field label="ИНН организации"><TextInput value={editing.tin} onChange={(v) => setEditing({ ...editing, tin: v })} /></Field>
+          <Field label="Номер указания (телекса)"><TextInput value={editing.telex} onChange={(v) => setEditing({ ...editing, telex: v })} /></Field>
+          <Field label="Номер приглашения" hint="Không có thì để trống."><TextInput value={editing.invitation} onChange={(v) => setEditing({ ...editing, invitation: v })} /></Field>
           <Field label="Маршрут (населенные пункты) · Nơi đến tại Nga" hint={`Mặc định: ${store.common.city}`}><TextInput value={editing.routeCity || store.common.city} onChange={(v) => setEditing({ ...editing, routeCity: v.toUpperCase() })} /></Field>
           <Field label="Nơi nộp hồ sơ · Место подачи заявления"><select value={editing.preferredEmbassy || store.common.embassy} onChange={(e) => setEditing({ ...editing, preferredEmbassy: e.target.value })}>{visaConsulates.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></Field>
           <Field label="Если Вы имели гражданство СССР или России... · Đã từng có quốc tịch Liên Xô/Nga?"><select value={editing.hadFormerRussianCitizenship ? "ДА" : "НЕТ"} onChange={(e) => setEditing({ ...editing, hadFormerRussianCitizenship: e.target.value === "ДА" })}><option value="НЕТ">НЕТ · Không</option><option value="ДА">ДА · Có</option></select></Field>
           <Field label="Номер паспорта"><TextInput value={editing.passportNo} onChange={(v) => setEditing({ ...editing, passportNo: v.toUpperCase() })} /></Field>
-          <Field label="Дата выдачи паспорта · dd/mm/yyyy" hint="Nhập dạng 25/06/2025. Companion sẽ đổi 06 thành Июнь trên KD-MID."><DateTextInput value={editing.passportIssue} onChange={(v) => setEditing({ ...editing, passportIssue: v })} placeholder="25/06/2025" /></Field>
-          <Field label="Паспорт действителен до · dd/mm/yyyy" hint="Nhập dạng 25/06/2035. Companion sẽ kiểm tra đủ ngày · tháng Nga · năm trước khi bấm Далее."><DateTextInput value={editing.passportExpiry} onChange={(v) => setEditing({ ...editing, passportExpiry: v })} placeholder="25/06/2035" /></Field>
-          <Field label="Адрес вашего постоянного проживания · Địa chỉ thường trú" hint="Cố định cho mọi hồ sơ."><input value={fixedPermanentAddress} readOnly /></Field>
+          <Field label="Дата выдачи паспорта · dd/mm/yyyy" hint="Ngày hết hạn tự lấy cùng ngày/tháng và năm +10."><DateTextInput value={editing.passportIssue} onChange={(v) => setEditing({ ...editing, passportIssue: v, passportExpiry: passportExpiryFromIssue(v) })} placeholder="25/06/2025" /></Field>
+          <Field label="Паспорт действителен до · tự động +10 năm"><input value={editing.passportExpiry} readOnly /></Field>
+          <Field label="Có địa chỉ thường trú?"><select value={editing.hasPermanentAddress ? "ДА" : "НЕТ"} onChange={(e) => setEditing({ ...editing, hasPermanentAddress: e.target.value === "ДА" })}><option value="ДА">ДА · Có</option><option value="НЕТ">НЕТ · Không</option></select></Field>
+          <Field label="Адрес вашего постоянного проживания · Địa chỉ thường trú"><TextInput value={editing.personalAddress} onChange={(v) => setEditing({ ...editing, personalAddress: v.toUpperCase() })} /></Field>
           <Field label="Điện thoại cá nhân" hint="Không có thì để trống."><TextInput value={editing.phone} onChange={(v) => setEditing({ ...editing, phone: v })} /></Field>
+          <Field label="Fax cá nhân" hint="Không có thì để trống."><TextInput value={editing.personalFax} onChange={(v) => setEditing({ ...editing, personalFax: v })} /></Field>
           <Field label="Email cá nhân" hint="Không có thì để trống."><TextInput value={editing.email} onChange={(v) => setEditing({ ...editing, email: v })} /></Field>
+          <Field label="Đang làm việc / học tập?"><select value={editing.worksOrStudies ? "ДА" : "НЕТ"} onChange={(e) => setEditing({ ...editing, worksOrStudies: e.target.value === "ДА" })}><option value="ДА">ДА · Có</option><option value="НЕТ">НЕТ · Không</option></select></Field>
           <Field label="Место работы (учебы) · Nơi làm việc / học tập" hint={`Mặc định: ${store.common.employer}`}><TextInput value={editing.workStudyPlace} onChange={(v) => setEditing({ ...editing, workStudyPlace: v })} /></Field>
           <Field label="Должность · Chức danh" hint={`Mặc định: ${store.common.defaultPosition}`}><TextInput value={editing.position} onChange={(v) => setEditing({ ...editing, position: v })} /></Field>
           <Field label="Рабочий адрес · Địa chỉ cơ quan" hint={`Mặc định: ${store.common.employerAddress}`}><TextInput value={editing.workAddress} onChange={(v) => setEditing({ ...editing, workAddress: v })} /></Field>
           <Field label="Рабочий телефон · Điện thoại cơ quan" hint={`Mặc định: ${fixedWorkPhone}`}><TextInput value={editing.workPhone} onChange={(v) => setEditing({ ...editing, workPhone: v })} /></Field>
+          <Field label="Рабочий факс · Fax cơ quan" hint="Không có thì để trống."><TextInput value={editing.workFax} onChange={(v) => setEditing({ ...editing, workFax: v })} /></Field>
           <Field label="Рабочий E-mail · Email cơ quan" hint={`Mặc định: ${store.common.employerEmail}`}><TextInput value={editing.workEmail} onChange={(v) => setEditing({ ...editing, workEmail: v })} /></Field>
           <Field label="Password riêng" hint={`Để trống = dùng ${store.common.password}`}><TextInput value={editing.passwordOverride} onChange={(v) => setEditing({ ...editing, passwordOverride: v })} /></Field>
           <Field label="Application ID" hint="Bridge sẽ tự ghi khi nhận diện được."><TextInput value={editing.applicationId} onChange={(v) => setEditing({ ...editing, applicationId: v.replace(/\D/g, "") })} /></Field>

@@ -437,3 +437,14 @@ test("Companion v0.9.31 has structural fallbacks for surname5, birth year and pa
   assert.match(companion, /writeTextControl\(controls\.year, year\)/);
   assert.match(companion, /writeTextControl\(controls\.password, password\)/);
 });
+
+
+test("KD-MID applicant model carries complete visa request/contact fields and derives passport expiry", () => {
+  for (const field of ["citizenship","purposeSection","purpose","visaType","entries","entryDate","exitDate","destinationType","organization","organizationAddress","tin","telex","invitation","hasOtherNames","otherNames","bornInRussia","hasPermanentAddress","personalFax","worksOrStudies","workFax"]) {
+    assert.match(tool, new RegExp(field + ":"));
+  }
+  assert.match(tool, /function passportExpiryFromIssue/);
+  assert.match(tool, /Number\(match\[3\]\) \+ 10/);
+  assert.match(tool, /passportExpiry: passportExpiryFromIssue\(applicant\.passportIssue\)/);
+  assert.match(tool, /passportExpiry: passportExpiryFromIssue\(next\.passportIssue\)/);
+});

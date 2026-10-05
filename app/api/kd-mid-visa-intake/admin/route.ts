@@ -6,8 +6,11 @@ export const dynamic = "force-dynamic";
 type AdminRole = "reviewer" | "publisher" | "owner";
 
 const REVIEWABLE_FIELDS = new Set([
-  "surname", "givenNames", "birthDate", "birthPlace", "sex", "passportNo", "passportIssue", "passportExpiry",
-  "phone", "email", "routeCity", "workStudyPlace", "position", "workAddress", "workPhone", "workEmail",
+  "surname", "givenNames", "birthDate", "birthPlace", "sex", "hasOtherNames", "otherNames", "bornInRussia",
+  "citizenship", "purposeSection", "purpose", "visaType", "entries", "entryDate", "exitDate", "destinationType",
+  "organization", "organizationAddress", "tin", "telex", "invitation", "passportNo", "passportIssue", "passportExpiry",
+  "hasPermanentAddress", "personalAddress", "phone", "personalFax", "email", "routeCity", "worksOrStudies",
+  "workStudyPlace", "position", "workAddress", "workPhone", "workFax", "workEmail", "passwordOverride", "applicationId",
   "preferredEmbassy", "hadFormerRussianCitizenship", "formerCitizenshipLostDate", "formerCitizenshipLossReason",
   "visitedRussia", "visitsCount", "lastVisitFrom", "lastVisitTo", "hasInsurance", "insurancePolicy",
   "childrenUnder16", "relativesInRussia", "specialNotes",
@@ -110,6 +113,20 @@ export async function POST(request: Request) {
       const label = text(body.label, 120) || `Đợt thu hồ sơ ${new Date().toLocaleDateString("vi-VN")}`;
       const defaults = body.defaults && typeof body.defaults === "object" ? body.defaults as Record<string, unknown> : {};
       const safeDefaults = {
+        password: text(defaults.password, 120),
+        citizenship: text(defaults.citizenship, 80) || "ВЬЕТНАМ",
+        purposeSection: text(defaults.purposeSection, 120) || "УЧЕБА",
+        purpose: text(defaults.purpose, 120) || "УЧЕБА",
+        visaType: text(defaults.visaType, 160) || "ОБЫКНОВЕННАЯ УЧЕБНАЯ",
+        entries: text(defaults.entries, 80) || "ОДНОКРАТНАЯ",
+        entryDate: text(defaults.entryDate, 10),
+        exitDate: text(defaults.exitDate, 10),
+        destinationType: text(defaults.destinationType, 80) || "ОРГАНИЗАЦИЯ",
+        organization: text(defaults.organization, 300),
+        organizationAddress: text(defaults.organizationAddress, 400),
+        tin: text(defaults.tin, 40),
+        telex: text(defaults.telex, 80),
+        invitation: text(defaults.invitation, 120),
         routeCity: text(defaults.routeCity, 80) || "МОСКВА",
         employer: text(defaults.employer, 240),
         position: text(defaults.position, 120),
