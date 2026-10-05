@@ -269,7 +269,7 @@ function safeLoad(): Store {
           hadFormerRussianCitizenship: item.hadFormerRussianCitizenship ?? false,
           formerCitizenshipLostDate: item.formerCitizenshipLostDate ?? "",
           formerCitizenshipLossReason: item.formerCitizenshipLossReason ?? "",
-          personalAddress: fixedPermanentAddress,
+          personalAddress: String(item.personalAddress ?? "").trim() || fixedPermanentAddress,
           workStudyPlace: String(item.workStudyPlace ?? "").trim() || common.employer,
           position: String(item.position ?? "").trim() || common.defaultPosition,
           workAddress: String(item.workAddress ?? "").trim() || common.employerAddress,
@@ -407,7 +407,7 @@ function buildPayload(applicant: Applicant, common: CommonData, autoAdvance = fa
     _payloadRevision: revision,
     applicant: {
       ...normalizedApplicant,
-      personalAddress: "ВЬЕТНАМ, Г. ХАНОЙ, УЛИЦА НГИА ДО, ДОРОГА ХОАНГ КУОК ВЬЕТ, ДОМ Ш9",
+      personalAddress: applicant.hasPermanentAddress === false ? "" : (applicant.personalAddress || fixedPermanentAddress),
       password: applicant.passwordOverride || common.password,
       surname5: surname5(applicant.surname),
       birthYear: birthYear(normalizedApplicant.birthDate),
@@ -452,14 +452,14 @@ setAnySelect(["Кратность визы"],p.entries);
 setDate("Дата въезда в Россию",p.entryDate);setDate("Дата выезда из России",p.exitDate);
 setAnyText(["Фамилия (согласно паспорту)"],A.surname);
 setAnyText(["Имя, другие имена, отчество"],A.givenNames);
-setYesNo("Есть ли у Вас другие когда-либо использовавшиеся имена",false);
+setYesNo("Есть ли у Вас другие когда-либо использовавшиеся имена",Boolean(A.hasOtherNames));
 setAnySelect(["Пол"],A.sex);
 setDate("Дата рождения",A.birthDate);
 setAnyText(["Место рождения"],A.birthPlace);
-setYesNo("Вы родились в России",false);
+setYesNo("Вы родились в России",Boolean(A.bornInRussia));
 setAnyText(["Номер паспорта"],A.passportNo);
 setDate("Дата выдачи",A.passportIssue);setDate("Действителен до",A.passportExpiry);
-setAnyText(["Наименование организации"],p.organization);
+setAnySelect(["В какое учреждение направляетесь"],p.destinationType);setAnyText(["Наименование организации"],p.organization);
 setAnyText(["Адрес"],p.organizationAddress);
 setAnyText(["ИНН организации"],p.tin);
 setAnyText(["Номер указания (телекса)"],p.telex);
@@ -469,14 +469,15 @@ setYesNo("Имеете ли Вы документ о медицинском ст
 if(A.hasInsurance)setAnyText(["Название страховой компании и номер полиса","номер страхового документа"],A.insurancePolicy);
 setYesNo("Были ли Вы когда-нибудь в России",A.visitedRussia);
 if(A.visitedRussia){setAnyText(["Сколько раз Вы были в России"],A.visitsCount);setDate("Дата въезда",A.lastVisitFrom);setDate("Дата выезда",A.lastVisitTo)}
-setYesNo("Имеете ли Вы адрес постоянного проживания",true);
-setAnyText(["Адрес вашего постоянного проживания"],p.fixedPermanentAddress||A.personalAddress);
-setAnyText(["Ваш личный телефон"],A.phone);setAnyText(["Ваш личный E-mail"],A.email);
-setYesNo("Вы работаете",true);
+setYesNo("Имеете ли Вы адрес постоянного проживания",A.hasPermanentAddress!==false);
+setAnyText(["Адрес вашего постоянного проживания"],A.personalAddress||p.fixedPermanentAddress);
+setAnyText(["Ваш личный телефон"],A.phone);setAnyText(["Ваш личный факс"],A.personalFax);setAnyText(["Ваш личный E-mail"],A.email);
+setYesNo("Вы работаете",A.worksOrStudies!==false);
 setAnyText(["Место работы (учебы)"],A.workStudyPlace);
 setAnyText(["Должность"],A.position);
 setAnyText(["Рабочий адрес"],A.workAddress);
 setAnyText(["Рабочий телефон"],A.workPhone);
+setAnyText(["Рабочий факс"],A.workFax);
 setAnyText(["Рабочий E-mail"],A.workEmail);
 setYesNo("Дети до 16 лет",Boolean(A.childrenUnder16));setYesNo("Имеете ли Вы в настоящее время родственников",Boolean(A.relativesInRussia));
 setAnySelect(["Наименование учреждения"],p.embassy);

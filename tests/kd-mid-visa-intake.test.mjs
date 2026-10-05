@@ -210,3 +210,19 @@ test("public intake exposes complete visa request fields and server derives pass
   assert.match(publicApi, /passportExpiry: passportExpiryFromIssue\(passportIssue\)/);
   assert.match(publicPage, /readOnly value=\{applicant\.passportExpiry\}/);
 });
+
+
+test("production standalone intake exposes the same complete KD-MID field set", () => {
+  for (const field of ["citizenship","purposeSection","purpose","visaType","entries","entryDate","exitDate","destinationType","organization","organizationAddress","tin","telex","invitation","hasOtherNames","otherNames","bornInRussia","hasPermanentAddress","personalAddress","personalFax","worksOrStudies","workFax","passwordOverride","applicationId"]) {
+    assert.match(publicWorkerPage, new RegExp('name="' + field + '"|data-date="' + field + '"'));
+  }
+  assert.match(publicWorkerPage, /passportExpiryFromIssue/);
+  assert.match(publicWorkerPage, /readonly required/);
+});
+
+test("payload and bookmarklet no longer overwrite editable address and fax profile fields", () => {
+  assert.match(tool, /personalAddress: applicant\.hasPermanentAddress === false/);
+  assert.match(tool, /A\.personalAddress\|\|p\.fixedPermanentAddress/);
+  assert.match(tool, /Ваш личный факс/);
+  assert.match(tool, /Рабочий факс/);
+});
