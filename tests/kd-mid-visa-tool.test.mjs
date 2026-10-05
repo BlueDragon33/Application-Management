@@ -460,3 +460,38 @@ test("Companion v0.9.32 uses profile values for previously hard-coded KD-MID fie
   assert.match(companion, /A\.worksOrStudies/);
   assert.match(companion, /A\.workFax/);
 });
+
+
+test("backup supports granular deletion inside every local-data group", () => {
+  assert.match(tool, /deleteApplicantIds/);
+  assert.match(tool, /deleteRecordIds/);
+  assert.match(tool, /deleteCommonKeys/);
+  assert.match(tool, /deleteDraftKeys/);
+  assert.match(tool, /Chọn từng hồ sơ cá nhân/);
+  assert.match(tool, /Chọn từng bản ghi mở lại/);
+  assert.match(tool, /Chọn từng trường dùng chung/);
+  assert.match(tool, /Chọn từng bản nháp Form/);
+  assert.match(tool, /Xóa \/ reset dữ liệu đã chọn/);
+});
+
+test("records, common fields and active payload can be deleted from their own tabs", () => {
+  assert.match(tool, /function removeResumeRecord\(record: ResumeRecord\)/);
+  assert.match(tool, /onClick=\{\(\) => removeResumeRecord\(record\)\}>Xóa/);
+  assert.match(tool, /Reset \/ xóa từng trường dùng chung/);
+  assert.match(tool, /function resetCommonFields\(keys: Array<keyof CommonData>\)/);
+  assert.match(tool, /function clearActivePayload\(\)/);
+  assert.match(tool, />Xóa payload tạm<\/button>/);
+});
+
+test("granular applicant deletion only clears payload when that deleted applicant owns the active payload", () => {
+  assert.match(tool, /const activeApplicantId = readActivePayload\(\)\?\.applicant\?\.id/);
+  assert.match(tool, /selectedApplicantSet\.has\(activeApplicantId\)/);
+  assert.match(tool, /current\.applicants\.filter\(\(item\) => !applicantIds\.has\(item\.id\)\)/);
+});
+
+test("draft deletion parses friendly applicant metadata instead of exposing only storage keys", () => {
+  assert.match(tool, /function intakeDraftEntries\(\)/);
+  assert.match(tool, /parsed\?\.applicant/);
+  assert.match(tool, /receipt\.queueNo/);
+  assert.match(tool, /Bản nháp chưa có tên/);
+});
