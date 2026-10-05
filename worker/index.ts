@@ -233,7 +233,7 @@ const worker = {
     // Public visa-intake is intentionally shareable without an admin session.
     // The HTML is standalone/inline so authenticated application bundles remain protected.
     if (isProduction && request.method === "GET" && url.pathname === "/visa-intake") {
-      return publicVisaIntakePage();
+      return await publicVisaIntakePage(request, env);
     }
     if (isProduction && isPublicVisaIntakeRequest(request, url)) {
       return freshDynamicResponse(await handler.fetch(request, env, ctx), true);

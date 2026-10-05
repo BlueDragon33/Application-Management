@@ -1,3 +1,79 @@
+type VisaIntakePageEnv = { DB: D1Database };
+
+const STUDENT_SERVER_DEFAULTS: Record<string, string> = {
+  formType: "student",
+  password: "qllhs2025",
+  citizenship: "ВЬЕТНАМ",
+  purposeSection: "УЧЕБА",
+  purpose: "УЧЕБА",
+  visaType: "ОБЫКНОВЕННАЯ УЧЕБНАЯ",
+  entries: "ОДНОКРАТНАЯ",
+  entryDate: "05/10/2026",
+  exitDate: "31/12/2026",
+  destinationType: "ОРГАНИЗАЦИЯ",
+  organization: "МИН-ВО НАУКИ И ВЫСШЕГО ОБРАЗОВАНИЯ РФ (МИНОБРНАУКИ РОССИИ)",
+  organizationAddress: "125993, МОСКВА, УЛ. ТВЕРСКАЯ, Д.11, СТР.1, 4",
+  tin: "7707740714",
+  telex: "321422",
+  invitation: "",
+  routeCity: "МОСКВА",
+  employer: "ГОСУДАРСТВЕННЫЙ ТЕХНИЧЕСКИЙ УНИВЕРСИТЕТ ИМЕНИ ЛЕ КУИ ДОНА",
+  position: "СТУДЕНТ",
+  workAddress: "ВЬЕТНАМ, Г. ХАНОЙ, УЛИЦА НГИА ДО, ДОРОГА ХОАНГ КУОК ВЬЕТ",
+  workPhone: "+842437555706",
+  workEmail: "lequydonqllhs@gmail.com",
+  permanentAddress: "ВЬЕТНАМ, Г. ХАНОЙ, УЛИЦА НГИА ДО, ДОРОГА ХОАНГ КУОК ВЬЕТ, ДОМ Ш9",
+  preferredEmbassy: "ПОСОЛЬСТВО РФ ВО ВЬЕТНАМЕ",
+};
+
+function htmlAttr(value: unknown) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+function base64Url(bytes: Uint8Array) {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/g, "");
+}
+
+async function hashToken(value: string) {
+  return base64Url(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value))));
+}
+
+function mergeStudentServerDefaults(raw: Record<string, unknown>) {
+  const formType = raw.formType === "general" ? "general" : "student";
+  if (formType === "general") return { ...raw, formType };
+  const merged: Record<string, unknown> = { ...raw, formType: "student" };
+  for (const [key, value] of Object.entries(STUDENT_SERVER_DEFAULTS)) {
+    if (!String(merged[key] ?? "").trim() && value) merged[key] = value;
+  }
+  return merged;
+}
+
+async function resolveServerDefaults(request: Request, env: VisaIntakePageEnv) {
+  const url = new URL(request.url);
+  const batch = url.searchParams.get("batch") ?? "";
+  const token = url.searchParams.get("token") ?? "";
+  let row: { defaults_json: string } | null = null;
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(batch)) {
+    row = await env.DB.prepare("SELECT defaults_json FROM visa_intake_links WHERE id=? LIMIT 1").bind(batch).first<{ defaults_json: string }>();
+  } else if (/^[A-Za-z0-9_-]{30,120}$/.test(token)) {
+    row = await env.DB.prepare("SELECT defaults_json FROM visa_intake_links WHERE token_hash=? LIMIT 1").bind(await hashToken(token)).first<{ defaults_json: string }>();
+  }
+  let defaults: Record<string, unknown> = {};
+  try { defaults = row?.defaults_json ? JSON.parse(row.defaults_json) as Record<string, unknown> : {}; } catch {}
+  return mergeStudentServerDefaults(defaults);
+}
+
+function dateParts(value: unknown) {
+  const [day = "", month = "", year = ""] = String(value ?? "").split("/");
+  return { day: htmlAttr(day), month: htmlAttr(month), year: htmlAttr(year), full: htmlAttr(value) };
+}
+
 function headers() {
   return {
     "content-type": "text/html; charset=utf-8",
@@ -8,7 +84,13 @@ function headers() {
   };
 }
 
-export function publicVisaIntakePage() {
+export async function publicVisaIntakePage(request: Request, env: VisaIntakePageEnv) {
+  let serverDefaults: Record<string, unknown> = {};
+  try { serverDefaults = await resolveServerDefaults(request, env); } catch {}
+  const serverStudent = serverDefaults.formType !== "general";
+  const entryDate = dateParts(serverDefaults.entryDate);
+  const exitDate = dateParts(serverDefaults.exitDate);
+  const selectedEmbassy = String(serverDefaults.preferredEmbassy ?? "");
   const html = `<!doctype html>
 <html lang="vi">
 <head>
@@ -22,7 +104,7 @@ export function publicVisaIntakePage() {
 </head>
 <body>
 <main class="page">
-<section class="hero"><span id="formTypeBadge">FORM THU THẬP HỒ SƠ VISA NGA</span><h1 id="heroTitle">Điền thông tin để chuẩn bị hồ sơ KD-MID</h1><p id="heroIntro">Hướng dẫn bằng tiếng Việt. Hãy nhập đúng theo hộ chiếu và kiểm tra kỹ trước khi gửi.</p></section>
+<section class="hero"><span id="formTypeBadge">${serverStudent ? "LINK 1 · MẪU NHẬP HỌC" : "LINK 2 · MẪU VISA NGƯỜI THƯỜNG"}</span><h1 id="heroTitle">${serverStudent ? "Điền hồ sơ nhập học để chuẩn bị KD-MID" : "Điền hồ sơ visa cá nhân để chuẩn bị KD-MID"}</h1><p id="heroIntro">${serverStudent ? "Các dữ liệu dùng chung đã được điền sẵn trực tiếp trong ô. Chỉ sửa nếu giấy tờ của bạn khác." : "Hãy nhập thông tin theo đúng mục đích chuyến đi của bạn."}</p></section>
 <div id="batch" class="batch">Đang kiểm tra link thu hồ sơ…</div>
 <div id="error" class="error"></div>
 <div id="returnAlert" class="return-alert"><strong>⚠ HỒ SƠ BỊ TRẢ VỀ · CẦN SỬA</strong><p id="returnNote"></p><small id="returnMeta"></small><button id="refreshReturned" type="button">↻ Cập nhật trạng thái</button></div>
@@ -39,19 +121,19 @@ export function publicVisaIntakePage() {
 <datalist id="day-options"><option value="01"></option><option value="02"></option><option value="03"></option><option value="04"></option><option value="05"></option><option value="06"></option><option value="07"></option><option value="08"></option><option value="09"></option><option value="10"></option><option value="11"></option><option value="12"></option><option value="13"></option><option value="14"></option><option value="15"></option><option value="16"></option><option value="17"></option><option value="18"></option><option value="19"></option><option value="20"></option><option value="21"></option><option value="22"></option><option value="23"></option><option value="24"></option><option value="25"></option><option value="26"></option><option value="27"></option><option value="28"></option><option value="29"></option><option value="30"></option><option value="31"></option></datalist>
 <datalist id="month-options"><option value="01"></option><option value="02"></option><option value="03"></option><option value="04"></option><option value="05"></option><option value="06"></option><option value="07"></option><option value="08"></option><option value="09"></option><option value="10"></option><option value="11"></option><option value="12"></option></datalist>
 <section class="section"><header><b>01</b><div><h2>Thông tin visa & thư mời</h2><p>Các trường có thể mặc định theo đợt đã được điền sẵn. Chỉ sửa khi giấy tờ của bạn khác.</p></div></header><div class="grid">
-<label class="field" data-field="citizenship">Quốc tịch <small>Гражданство</small><input name="citizenship" required></label>
-<label class="field" data-field="purposeSection">Nhóm mục đích <small>Цель поездки (раздел)</small><input name="purposeSection" required></label>
-<label class="field" data-field="purpose">Mục đích chuyến đi <small>Цель поездки</small><input name="purpose" required></label>
-<label class="field" data-field="visaType">Loại visa <small>Категория и вид визы</small><input name="visaType" required></label>
-<label class="field" data-field="entries">Số lần nhập cảnh <small>Кратность визы</small><input name="entries" required></label>
-<label class="field" data-field="entryDate">Ngày vào Nga <small>Дата въезда в Россию</small><div class="date-fields" data-date="entryDate"><input data-part="day" aria-label="Ngày" placeholder="NGÀY" inputmode="numeric" maxlength="2" list="day-options" required><input data-part="month" aria-label="Tháng" placeholder="THÁNG" inputmode="numeric" maxlength="2" list="month-options" required><input data-part="year" aria-label="Năm" placeholder="NĂM" inputmode="numeric" maxlength="4" required><input type="hidden" name="entryDate"></div></label>
-<label class="field" data-field="exitDate">Ngày ra Nga <small>Дата выезда из России</small><div class="date-fields" data-date="exitDate"><input data-part="day" aria-label="Ngày" placeholder="NGÀY" inputmode="numeric" maxlength="2" list="day-options" required><input data-part="month" aria-label="Tháng" placeholder="THÁNG" inputmode="numeric" maxlength="2" list="month-options" required><input data-part="year" aria-label="Năm" placeholder="NĂM" inputmode="numeric" maxlength="4" required><input type="hidden" name="exitDate"></div></label>
-<label class="field" data-field="destinationType">Loại nơi đến <small>В какое учреждение направляетесь?</small><input name="destinationType" required></label>
-<label class="field" data-field="organization">Tên tổ chức tiếp nhận <small>Наименование организации</small><input name="organization" required></label>
-<label class="field" data-field="organizationAddress">Địa chỉ tổ chức <small>Адрес</small><input name="organizationAddress" required></label>
-<label class="field" data-field="tin">INN tổ chức <small>ИНН организации</small><input name="tin" required></label>
-<label class="field" data-field="telex" id="telexField">Mã Telex / Số chỉ thị <small>Номер указания (телекса)</small><input name="telex" required></label>
-<label class="field" data-field="invitation">Số giấy mời <small>Номер приглашения · không có thì để trống</small><input name="invitation"></label>
+<label class="field" data-field="citizenship">Quốc tịch <small>Гражданство</small><input name="citizenship" value="${htmlAttr(serverDefaults.citizenship)}" required></label>
+<label class="field" data-field="purposeSection">Nhóm mục đích <small>Цель поездки (раздел)</small><input name="purposeSection" value="${htmlAttr(serverDefaults.purposeSection)}" required></label>
+<label class="field" data-field="purpose">Mục đích chuyến đi <small>Цель поездки</small><input name="purpose" value="${htmlAttr(serverDefaults.purpose)}" required></label>
+<label class="field" data-field="visaType">Loại visa <small>Категория и вид визы</small><input name="visaType" value="${htmlAttr(serverDefaults.visaType)}" required></label>
+<label class="field" data-field="entries">Số lần nhập cảnh <small>Кратность визы</small><input name="entries" value="${htmlAttr(serverDefaults.entries)}" required></label>
+<label class="field" data-field="entryDate">Ngày vào Nga <small>Дата въезда в Россию</small><div class="date-fields" data-date="entryDate"><input data-part="day" aria-label="Ngày" placeholder="NGÀY" value="${entryDate.day}" inputmode="numeric" maxlength="2" list="day-options" required><input data-part="month" aria-label="Tháng" placeholder="THÁNG" value="${entryDate.month}" inputmode="numeric" maxlength="2" list="month-options" required><input data-part="year" aria-label="Năm" placeholder="NĂM" value="${entryDate.year}" inputmode="numeric" maxlength="4" required><input type="hidden" name="entryDate" value="${entryDate.full}"></div></label>
+<label class="field" data-field="exitDate">Ngày ra Nga <small>Дата выезда из России</small><div class="date-fields" data-date="exitDate"><input data-part="day" aria-label="Ngày" placeholder="NGÀY" value="${exitDate.day}" inputmode="numeric" maxlength="2" list="day-options" required><input data-part="month" aria-label="Tháng" placeholder="THÁNG" value="${exitDate.month}" inputmode="numeric" maxlength="2" list="month-options" required><input data-part="year" aria-label="Năm" placeholder="NĂM" value="${exitDate.year}" inputmode="numeric" maxlength="4" required><input type="hidden" name="exitDate" value="${exitDate.full}"></div></label>
+<label class="field" data-field="destinationType">Loại nơi đến <small>В какое учреждение направляетесь?</small><input name="destinationType" value="${htmlAttr(serverDefaults.destinationType)}" required></label>
+<label class="field" data-field="organization">Tên tổ chức tiếp nhận <small>Наименование организации</small><input name="organization" value="${htmlAttr(serverDefaults.organization)}" required></label>
+<label class="field" data-field="organizationAddress">Địa chỉ tổ chức <small>Адрес</small><input name="organizationAddress" value="${htmlAttr(serverDefaults.organizationAddress)}" required></label>
+<label class="field" data-field="tin">INN tổ chức <small>ИНН организации</small><input name="tin" value="${htmlAttr(serverDefaults.tin)}" required></label>
+<label class="field" data-field="telex" id="telexField">Mã Telex / Số chỉ thị <small>Номер указания (телекса)</small><input name="telex" value="${htmlAttr(serverDefaults.telex)}" required></label>
+<label class="field" data-field="invitation">Số giấy mời <small>Номер приглашения · không có thì để trống</small><input name="invitation" value="${htmlAttr(serverDefaults.invitation)}"></label>
 </div></section>
 <section class="section"><header><b>02</b><div><h2>Thông tin cá nhân</h2><p>Họ và tên nhập chữ Latin không dấu, đúng thứ tự trên hộ chiếu.</p></div></header><div class="grid">
 <label class="field" data-field="surname">Họ <small>Фамилия</small><input name="surname" required></label>
@@ -62,7 +144,7 @@ export function publicVisaIntakePage() {
 <label class="field" data-field="hasOtherNames">Đã từng dùng tên khác? <small>Есть ли у Вас другие когда-либо использовавшиеся имена</small><select name="hasOtherNames"><option value="НЕТ">Không</option><option value="ДА">Có</option></select></label>
 <label class="field" data-field="otherNames">Tên khác đã từng dùng <small>Không có thì để trống</small><input name="otherNames"></label>
 <label class="field" data-field="bornInRussia">Sinh tại Nga? <small>Вы родились в России?</small><select name="bornInRussia"><option value="НЕТ">Không</option><option value="ДА">Có</option></select></label>
-<label class="field" data-field="routeCity">Nơi đến tại Nga <small>Маршрут</small><input name="routeCity" required></label>
+<label class="field" data-field="routeCity">Nơi đến tại Nga <small>Маршрут</small><input name="routeCity" value="${htmlAttr(serverDefaults.routeCity)}" required></label>
 </div></section>
 <section class="section"><header><b>03</b><div><h2>Hộ chiếu</h2><p>Mỗi ngày dùng 3 ô Ngày · Tháng · Năm để tránh nhập sai. Ngày cấp không được ở tương lai; ngày hết hạn phải sau ngày cấp và hộ chiếu phải còn hạn.</p></div></header><div class="grid">
 <label class="field" data-field="passportNo">Số hộ chiếu <small>Номер паспорта</small><input name="passportNo" required></label>
@@ -71,7 +153,7 @@ export function publicVisaIntakePage() {
 </div></section>
 <section class="section"><header><b>04</b><div><h2>Liên hệ & địa chỉ</h2><p>Địa chỉ thường trú được nạp mặc định; Fax không có thì để trống.</p></div></header><div class="grid">
 <label class="field" data-field="hasPermanentAddress">Có địa chỉ thường trú? <small>Имеете ли Вы адрес постоянного проживания?</small><select name="hasPermanentAddress"><option value="ДА">Có</option><option value="НЕТ">Không</option></select></label>
-<label class="field" data-field="personalAddress" id="personalAddressField">Địa chỉ thường trú <small>Адрес вашего постоянного проживания</small><input name="personalAddress"></label>
+<label class="field" data-field="personalAddress" id="personalAddressField">Địa chỉ thường trú <small>Адрес вашего постоянного проживания</small><input name="personalAddress" value="${htmlAttr(serverDefaults.permanentAddress)}"></label>
 <label class="field" data-field="phone">Điện thoại cá nhân <small>Ваш личный телефон</small><input name="phone" required></label>
 <label class="field" data-field="personalFax">Fax cá nhân <small>Ваш личный факс · không có thì để trống</small><input name="personalFax"></label>
 <label class="field" data-field="email">Email cá nhân <small>Ваш личный E-mail</small><input name="email" type="email" required></label>
@@ -79,12 +161,12 @@ export function publicVisaIntakePage() {
 <section class="section"><header><b>05</b><div><h2>Nơi làm việc / học tập</h2><p>Form tự nạp dữ liệu mặc định của đợt hồ sơ. Chỉ sửa nếu thông tin của bạn khác.</p></div></header><div class="grid">
 <label class="field" data-field="worksOrStudies">Đang làm việc / học tập? <small>Вы работаете (работали ранее), учитесь (учились ранее)?</small><select name="worksOrStudies"><option value="ДА">Có</option><option value="НЕТ">Không</option></select></label>
 </div><div id="workFields" class="grid">
-<label class="field" data-field="workStudyPlace">Nơi làm việc / học tập <small>Место работы (учебы)</small><input name="workStudyPlace" required></label>
-<label class="field" data-field="position">Chức vụ / tư cách <small>Должность</small><input name="position" required></label>
-<label class="field" data-field="workAddress">Địa chỉ cơ quan <small>Рабочий адрес</small><input name="workAddress" required></label>
-<label class="field" data-field="workPhone">Điện thoại cơ quan <small>Рабочий телефон</small><input name="workPhone" required></label>
+<label class="field" data-field="workStudyPlace">Nơi làm việc / học tập <small>Место работы (учебы)</small><input name="workStudyPlace" value="${htmlAttr(serverDefaults.employer)}" required></label>
+<label class="field" data-field="position">Chức vụ / tư cách <small>Должность</small><input name="position" value="${htmlAttr(serverDefaults.position)}" required></label>
+<label class="field" data-field="workAddress">Địa chỉ cơ quan <small>Рабочий адрес</small><input name="workAddress" value="${htmlAttr(serverDefaults.workAddress)}" required></label>
+<label class="field" data-field="workPhone">Điện thoại cơ quan <small>Рабочий телефон</small><input name="workPhone" value="${htmlAttr(serverDefaults.workPhone)}" required></label>
 <label class="field" data-field="workFax">Fax cơ quan <small>Рабочий факс · không có thì để trống</small><input name="workFax"></label>
-<label class="field" data-field="workEmail">Email cơ quan <small>Рабочий E-mail</small><input name="workEmail" type="email" required></label>
+<label class="field" data-field="workEmail">Email cơ quan <small>Рабочий E-mail</small><input name="workEmail" type="email" value="${htmlAttr(serverDefaults.workEmail)}" required></label>
 </div></section>
 <section class="section"><header><b>06</b><div><h2>Lịch sử liên quan đến Nga</h2><p>Chọn Có chỉ khi đúng với bạn.</p></div></header>
 <div class="checks">
@@ -98,10 +180,10 @@ export function publicVisaIntakePage() {
 </section>
 <section class="section"><header><b>07</b><div><h2>Gia đình & nơi nộp hồ sơ</h2><p>Không đánh dấu hai mục đầu nghĩa là Không.</p></div></header>
 <div class="checks"><label data-field="childrenUnder16"><input id="children" type="checkbox"><span><strong>Có trẻ em dưới 16 tuổi đi cùng / ghi trong hộ chiếu</strong><small>Дети до 16 лет...</small></span></label><label data-field="relativesInRussia"><input id="relatives" type="checkbox"><span><strong>Có người thân hiện đang ở Nga</strong><small>Родственники на территории России</small></span></label></div>
-<div class="grid"><label class="field" data-field="preferredEmbassy">Nơi dự kiến nộp hồ sơ <small>Место подачи заявления</small><select name="preferredEmbassy" required><option value="">-- Chọn nơi nộp hồ sơ --</option><option value="ПОСОЛЬСТВО РФ ВО ВЬЕТНАМЕ">Đại sứ quán Nga tại Hà Nội</option><option value="ГЕНКОНСУЛЬСТВО РФ В ДАНАНГЕ">Tổng Lãnh sự quán Nga tại Đà Nẵng</option><option value="ГЕНКОНСУЛЬСТВО РФ В ХОШИМИНЕ">Tổng Lãnh sự quán Nga tại TP.HCM</option></select></label><label class="field" data-field="specialNotes">Ghi chú đặc biệt <small>Nếu có trẻ em/người thân tại Nga, ghi rõ thông tin cần người phụ trách biết.</small><textarea name="specialNotes" rows="4"></textarea></label></div>
+<div class="grid"><label class="field" data-field="preferredEmbassy">Nơi dự kiến nộp hồ sơ <small>Место подачи заявления</small><select name="preferredEmbassy" required><option value="">-- Chọn nơi nộp hồ sơ --</option><option value="ПОСОЛЬСТВО РФ ВО ВЬЕТНАМЕ" ${selectedEmbassy === "ПОСОЛЬСТВО РФ ВО ВЬЕТНАМЕ" ? "selected" : ""}>Đại sứ quán Nga tại Hà Nội</option><option value="ГЕНКОНСУЛЬСТВО РФ В ДАНАНГЕ" ${selectedEmbassy === "ГЕНКОНСУЛЬСТВО РФ В ДАНАНГЕ" ? "selected" : ""}>Tổng Lãnh sự quán Nga tại Đà Nẵng</option><option value="ГЕНКОНСУЛЬСТВО РФ В ХОШИМИНЕ" ${selectedEmbassy === "ГЕНКОНСУЛЬСТВО РФ В ХОШИМИНЕ" ? "selected" : ""}>Tổng Lãnh sự quán Nga tại TP.HCM</option></select></label><label class="field" data-field="specialNotes">Ghi chú đặc biệt <small>Nếu có trẻ em/người thân tại Nga, ghi rõ thông tin cần người phụ trách biết.</small><textarea name="specialNotes" rows="4"></textarea></label></div>
 </section>
 <section class="section"><header><b>08</b><div><h2>Thông tin KD-MID</h2><p>Mật khẩu được nạp mặc định theo đợt. Application ID chưa có thì để trống.</p></div></header><div class="grid">
-<label class="field" data-field="passwordOverride">Mật khẩu KD-MID<input name="passwordOverride"></label>
+<label class="field" data-field="passwordOverride">Mật khẩu KD-MID<input name="passwordOverride" value="${htmlAttr(serverDefaults.password)}"></label>
 <label class="field" data-field="applicationId">Application ID <small>Chưa có thì để trống</small><input name="applicationId" inputmode="numeric"></label>
 </div></section>
 <section class="confirm"><label><input id="confirmed" type="checkbox"><span><strong>Tôi xác nhận thông tin trên là đúng theo giấy tờ của mình.</strong><small>Người phụ trách sẽ xác minh trước khi dùng dữ liệu này để làm hồ sơ Visa.</small></span></label><button id="submit" type="submit" disabled>Hoàn thành & gửi hồ sơ</button></section>

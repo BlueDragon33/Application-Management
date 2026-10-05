@@ -339,3 +339,17 @@ test("Link 1 client has its own complete fallback defaults and recovered blank d
   assert.match(publicPage, /if \(resolvedFormType === "student"\)/);
   assert.match(publicPage, /!String\(recovered\[key\] \?\? ""\)\.trim\(\)/);
 });
+
+
+test("production visa intake server-renders Link 1 defaults into input value attributes before JavaScript runs", () => {
+  assert.match(publicWorkerPage, /export async function publicVisaIntakePage\(request: Request, env: VisaIntakePageEnv\)/);
+  assert.match(publicWorkerPage, /resolveServerDefaults\(request, env\)/);
+  assert.match(publicWorkerPage, /name="workStudyPlace" value="\$\{htmlAttr\(serverDefaults\.employer\)\}"/);
+  assert.match(publicWorkerPage, /name="position" value="\$\{htmlAttr\(serverDefaults\.position\)\}"/);
+  assert.match(publicWorkerPage, /name="workAddress" value="\$\{htmlAttr\(serverDefaults\.workAddress\)\}"/);
+  assert.match(publicWorkerPage, /name="workPhone" value="\$\{htmlAttr\(serverDefaults\.workPhone\)\}"/);
+  assert.match(publicWorkerPage, /name="workEmail" type="email" value="\$\{htmlAttr\(serverDefaults\.workEmail\)\}"/);
+  assert.match(publicWorkerPage, /name="telex" value="\$\{htmlAttr\(serverDefaults\.telex\)\}"/);
+  assert.match(publicWorkerPage, /value="\$\{entryDate\.day\}"/);
+  assert.match(publicWorkerPage, /STUDENT_SERVER_DEFAULTS/);
+});
