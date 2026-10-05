@@ -75,13 +75,13 @@ function blank(): ApplicantForm {
     otherNames: "",
     bornInRussia: false,
     citizenship: "ВЬЕТНАМ",
-    purposeSection: "УЧЕБА",
-    purpose: "УЧЕБА",
-    visaType: "ОБЫКНОВЕННАЯ УЧЕБНАЯ",
-    entries: "ОДНОКРАТНАЯ",
+    purposeSection: "",
+    purpose: "",
+    visaType: "",
+    entries: "",
     entryDate: "",
     exitDate: "",
-    destinationType: "ОРГАНИЗАЦИЯ",
+    destinationType: "",
     organization: "",
     organizationAddress: "",
     tin: "",
@@ -95,7 +95,7 @@ function blank(): ApplicantForm {
     phone: "",
     personalFax: "",
     email: "",
-    routeCity: "МОСКВА",
+    routeCity: "",
     worksOrStudies: true,
     workStudyPlace: "",
     position: "",
@@ -105,7 +105,7 @@ function blank(): ApplicantForm {
     workEmail: "",
     passwordOverride: "",
     applicationId: "",
-    preferredEmbassy: "ПОСОЛЬСТВО РФ ВО ВЬЕТНАМЕ",
+    preferredEmbassy: "",
     hadFormerRussianCitizenship: false,
     formerCitizenshipLostDate: "",
     formerCitizenshipLossReason: "",
@@ -221,6 +221,7 @@ export default function VisaIntakePage() {
   const [applicant, setApplicant] = useState<ApplicantForm>(blank());
   const [permanentAddress, setPermanentAddress] = useState("");
   const [linkLabel, setLinkLabel] = useState("");
+  const [formType, setFormType] = useState<"student" | "general">("student");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [statusChecking, setStatusChecking] = useState(false);
@@ -248,21 +249,23 @@ export default function VisaIntakePage() {
     const receiptPart = saved?.receipt?.id ? `&submissionId=${encodeURIComponent(saved.receipt.id)}` : "";
     void fetch(`/api/kd-mid-visa-intake/public?${access}${receiptPart}`, { cache: "no-store" })
       .then(async (response) => {
-        const data = await response.json() as { ok?: boolean; error?: string; link?: { label?: string }; defaults?: Record<string, unknown>; submission?: typeof receipt };
+        const data = await response.json() as { ok?: boolean; error?: string; link?: { label?: string; formType?: string }; defaults?: Record<string, unknown>; submission?: typeof receipt };
         if (!response.ok || !data.ok) throw new Error(data.error || "Link không hợp lệ.");
         const defaults = data.defaults ?? {};
+        const resolvedFormType = data.link?.formType === "general" || defaults.formType === "general" ? "general" : "student";
+        setFormType(resolvedFormType);
         setLinkLabel(String(data.link?.label ?? ""));
         setPermanentAddress(upperPlain(String(defaults.permanentAddress ?? "")));
         setApplicant((current) => ({
           ...current,
           citizenship: current.citizenship || upperPlain(String(defaults.citizenship ?? "")) || "ВЬЕТНАМ",
-          purposeSection: current.purposeSection || upperPlain(String(defaults.purposeSection ?? "")) || "УЧЕБА",
-          purpose: current.purpose || upperPlain(String(defaults.purpose ?? "")) || "УЧЕБА",
-          visaType: current.visaType || upperPlain(String(defaults.visaType ?? "")) || "ОБЫКНОВЕННАЯ УЧЕБНАЯ",
-          entries: current.entries || upperPlain(String(defaults.entries ?? "")) || "ОДНОКРАТНАЯ",
+          purposeSection: current.purposeSection || upperPlain(String(defaults.purposeSection ?? "")),
+          purpose: current.purpose || upperPlain(String(defaults.purpose ?? "")),
+          visaType: current.visaType || upperPlain(String(defaults.visaType ?? "")),
+          entries: current.entries || upperPlain(String(defaults.entries ?? "")),
           entryDate: current.entryDate || String(defaults.entryDate ?? ""),
           exitDate: current.exitDate || String(defaults.exitDate ?? ""),
-          destinationType: current.destinationType || upperPlain(String(defaults.destinationType ?? "")) || "ОРГАНИЗАЦИЯ",
+          destinationType: current.destinationType || upperPlain(String(defaults.destinationType ?? "")),
           organization: current.organization || upperPlain(String(defaults.organization ?? "")),
           organizationAddress: current.organizationAddress || upperPlain(String(defaults.organizationAddress ?? "")),
           tin: current.tin || String(defaults.tin ?? ""),
@@ -270,13 +273,13 @@ export default function VisaIntakePage() {
           invitation: current.invitation || String(defaults.invitation ?? ""),
           passwordOverride: current.passwordOverride || String(defaults.password ?? ""),
           personalAddress: current.personalAddress || upperPlain(String(defaults.permanentAddress ?? "")),
-          routeCity: current.routeCity || upperPlain(String(defaults.routeCity ?? "")) || "МОСКВА",
+          routeCity: current.routeCity || upperPlain(String(defaults.routeCity ?? "")),
           workStudyPlace: current.workStudyPlace || upperPlain(String(defaults.employer ?? "")),
           position: current.position || upperPlain(String(defaults.position ?? "")),
           workAddress: current.workAddress || upperPlain(String(defaults.workAddress ?? "")),
           workPhone: current.workPhone || String(defaults.workPhone ?? ""),
           workEmail: current.workEmail || String(defaults.workEmail ?? "").toLowerCase(),
-          preferredEmbassy: String(defaults.preferredEmbassy ?? current.preferredEmbassy),
+          preferredEmbassy: current.preferredEmbassy || String(defaults.preferredEmbassy ?? ""),
         }));
         if (data.submission) setReceipt((current) => current ? { ...current, ...data.submission } : data.submission ?? null);
       })
@@ -315,14 +318,15 @@ export default function VisaIntakePage() {
     return () => window.clearInterval(timer);
   }, [token, batch, receipt?.id]);
 
-  const baseFields = useMemo(() => [
-    applicant.citizenship, applicant.purpose, applicant.visaType, applicant.entries, applicant.entryDate, applicant.exitDate,
-    applicant.organization, applicant.organizationAddress, applicant.tin, applicant.telex,
-    applicant.surname, applicant.givenNames, applicant.birthDate, applicant.birthPlace,
-    applicant.passportNo, applicant.passportIssue, applicant.passportExpiry,
-    applicant.phone, applicant.email, applicant.workStudyPlace, applicant.position,
-    applicant.workAddress, applicant.workPhone, applicant.workEmail,
-  ], [applicant]);
+  const baseFields = useMemo(() => {
+    const fields = [
+      applicant.citizenship, applicant.purposeSection, applicant.purpose, applicant.visaType, applicant.entries, applicant.entryDate, applicant.exitDate,
+      applicant.destinationType, applicant.routeCity, applicant.surname, applicant.givenNames, applicant.birthDate, applicant.birthPlace,
+      applicant.passportNo, applicant.passportIssue, applicant.passportExpiry, applicant.phone, applicant.email, applicant.preferredEmbassy,
+    ];
+    if (formType === "student") fields.push(applicant.organization, applicant.organizationAddress, applicant.tin, applicant.telex);
+    return fields;
+  }, [applicant, formType]);
 
   const completion = Math.round((baseFields.filter((value) => value.trim()).length / baseFields.length) * 100);
 
@@ -379,7 +383,7 @@ export default function VisaIntakePage() {
   }
   return <main className={styles.page}>
     <header className={styles.hero}>
-      <div><span>FORM THU THẬP HỒ SƠ VISA NGA</span><h1>Điền thông tin cá nhân để chuẩn bị hồ sơ KD-MID</h1><p>Hướng dẫn hoàn toàn bằng tiếng Việt. Hãy nhập đúng theo hộ chiếu và kiểm tra kỹ trước khi gửi.</p></div>
+      <div><span>{formType === "student" ? "LINK 1 · MẪU NHẬP HỌC" : "LINK 2 · MẪU VISA NGƯỜI THƯỜNG"}</span><h1>{formType === "student" ? "Điền hồ sơ nhập học để chuẩn bị KD-MID" : "Điền hồ sơ visa cá nhân để chuẩn bị KD-MID"}</h1><p>{formType === "student" ? "Các dữ liệu học tập dùng chung đã được nạp sẵn. Hãy kiểm tra Mã Telex và thông tin cá nhân trước khi gửi." : "Mẫu tổng quát không tự áp các giá trị visa học tập. Hãy nhập đúng thông tin theo mục đích chuyến đi của bạn."}</p></div>
       <div className={styles.progress}><small>Mức hoàn thành cơ bản</small><strong>{completion}%</strong><div><i style={{ width: `${completion}%` }} /></div></div>
     </header>
 
@@ -387,11 +391,11 @@ export default function VisaIntakePage() {
       {receipt?.status === "rejected" ? <div className={styles.returnAlert}><strong>⚠ HỒ SƠ BỊ TRẢ VỀ · CẦN SỬA</strong><p>{receipt.reviewNote || "Hãy sửa các ô được đánh dấu đỏ rồi gửi lại."}</p><small>Giữ nguyên số tiếp nhận #{receipt.queueNo ?? "—"} · {correctionFields.length} ô cần sửa.</small><button className={styles.statusRefresh} type="button" disabled={statusChecking} onClick={() => void refreshSubmissionStatus(true)}>{statusChecking ? "↻ Đang cập nhật…" : "↻ Cập nhật trạng thái"}</button></div> : null}
       <datalist id="visa-day-options">{dayOptions.map((value) => <option key={value} value={value} />)}</datalist>
       <datalist id="visa-month-options">{monthOptions.map((value) => <option key={value} value={value} />)}</datalist>
-      {linkLabel ? <div className={styles.batch}>Đợt thu hồ sơ: <strong>{linkLabel}</strong></div> : null}
+      {linkLabel ? <div className={styles.batch}>Đợt thu hồ sơ: <strong>{linkLabel}</strong> · <b>{formType === "student" ? "MẪU NHẬP HỌC" : "NGƯỜI THƯỜNG"}</b></div> : null}
       {error ? <div className={styles.error}><strong>{error}</strong>{missing.length ? <ul>{missing.map((item) => <li key={item}>{item}</li>)}</ul> : null}</div> : null}
 
       <section className={styles.section}>
-        <header><b>01</b><div><h2>Thông tin visa & thư mời</h2><p>Các trường có thể mặc định theo đợt đã được điền sẵn. Chỉ sửa khi giấy tờ của bạn khác.</p></div></header>
+        <header><b>01</b><div><h2>Thông tin visa & thư mời</h2><p>{formType === "student" ? "Dữ liệu nhập học dùng chung đã được điền sẵn; kiểm tra Mã Telex trước khi gửi." : "Mẫu người thường chỉ điền sẵn dữ liệu an toàn. Mục đích, loại visa, lịch trình và thông tin thư mời phải nhập theo hồ sơ thực tế."}</p></div></header>
         <div className={styles.grid}>
           <Field fieldKey="citizenship" correctionFields={correctionFields} label="Quốc tịch" ru="Гражданство"><input required value={applicant.citizenship} onChange={(e) => set("citizenship", upperPlain(e.target.value))} /></Field>
           <Field fieldKey="purposeSection" correctionFields={correctionFields} label="Nhóm mục đích" ru="Цель поездки (раздел)"><input required value={applicant.purposeSection} onChange={(e) => set("purposeSection", upperPlain(e.target.value))} /></Field>
@@ -401,10 +405,10 @@ export default function VisaIntakePage() {
           <Field fieldKey="entryDate" correctionFields={correctionFields} label="Ngày vào Nga" ru="Дата въезда в Россию"><DateFields required value={applicant.entryDate} onChange={(value) => set("entryDate", value)} /></Field>
           <Field fieldKey="exitDate" correctionFields={correctionFields} label="Ngày ra Nga" ru="Дата выезда из России"><DateFields required value={applicant.exitDate} onChange={(value) => set("exitDate", value)} /></Field>
           <Field fieldKey="destinationType" correctionFields={correctionFields} label="Loại nơi đến" ru="В какое учреждение направляетесь?"><input required value={applicant.destinationType} onChange={(e) => set("destinationType", upperPlain(e.target.value))} /></Field>
-          <Field fieldKey="organization" correctionFields={correctionFields} label="Tên tổ chức tiếp nhận" ru="Наименование организации"><input required value={applicant.organization} onChange={(e) => set("organization", upperPlain(e.target.value))} /></Field>
-          <Field fieldKey="organizationAddress" correctionFields={correctionFields} label="Địa chỉ tổ chức" ru="Адрес"><input required value={applicant.organizationAddress} onChange={(e) => set("organizationAddress", upperPlain(e.target.value))} /></Field>
-          <Field fieldKey="tin" correctionFields={correctionFields} label="INN tổ chức" ru="ИНН организации"><input required value={applicant.tin} onChange={(e) => set("tin", e.target.value.replace(/\D/g, ""))} /></Field>
-          <Field fieldKey="telex" correctionFields={correctionFields} label="Số chỉ thị / Telex" ru="Номер указания (телекса)"><input required value={applicant.telex} onChange={(e) => set("telex", e.target.value)} /></Field>
+          <Field fieldKey="organization" correctionFields={correctionFields} label="Tên tổ chức tiếp nhận" ru="Наименование организации"><input required={formType === "student"} value={applicant.organization} onChange={(e) => set("organization", upperPlain(e.target.value))} /></Field>
+          <Field fieldKey="organizationAddress" correctionFields={correctionFields} label="Địa chỉ tổ chức" ru="Адрес"><input required={formType === "student"} value={applicant.organizationAddress} onChange={(e) => set("organizationAddress", upperPlain(e.target.value))} /></Field>
+          <Field fieldKey="tin" correctionFields={correctionFields} label="INN tổ chức" ru="ИНН организации"><input required={formType === "student"} value={applicant.tin} onChange={(e) => set("tin", e.target.value.replace(/\D/g, ""))} /></Field>
+          <Field fieldKey="telex" correctionFields={correctionFields} label={formType === "student" ? "Mã Telex" : "Mã Telex / Số chỉ thị"} ru="Номер указания (телекса)" hint={formType === "student" ? "Bắt buộc đối với mẫu nhập học." : "Nếu hồ sơ không dùng Telex thì có thể để trống."}><input required={formType === "student"} value={applicant.telex} onChange={(e) => set("telex", e.target.value)} /></Field>
           <Field fieldKey="invitation" correctionFields={correctionFields} label="Số giấy mời" ru="Номер приглашения" hint="Không có thì để trống."><input value={applicant.invitation} onChange={(e) => set("invitation", e.target.value)} /></Field>
         </div>
       </section>
@@ -485,7 +489,7 @@ export default function VisaIntakePage() {
           <label data-correction={correctionFields.includes("relativesInRussia")}><input type="checkbox" checked={applicant.relativesInRussia} onChange={(e) => set("relativesInRussia", e.target.checked)} /><span><strong>Có người thân hiện đang ở Nga</strong><small>Родственники на территории России</small></span></label>
         </div>
         <div className={styles.grid}>
-          <Field fieldKey="preferredEmbassy" correctionFields={correctionFields} label="Nơi dự kiến nộp hồ sơ" ru="Место подачи заявления"><select value={applicant.preferredEmbassy} onChange={(e) => set("preferredEmbassy", e.target.value)}>{embassies.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
+          <Field fieldKey="preferredEmbassy" correctionFields={correctionFields} label="Nơi dự kiến nộp hồ sơ" ru="Место подачи заявления"><select required value={applicant.preferredEmbassy} onChange={(e) => set("preferredEmbassy", e.target.value)}><option value="">-- Chọn nơi nộp hồ sơ --</option>{embassies.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
           <Field fieldKey="specialNotes" correctionFields={correctionFields} label="Ghi chú đặc biệt" hint="Nếu Có ở các mục trẻ em/người thân, hãy ghi rõ thông tin cần người phụ trách biết."><textarea rows={4} value={applicant.specialNotes} onChange={(e) => set("specialNotes", upperPlain(e.target.value))} /></Field>
         </div>
       </section>

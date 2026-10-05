@@ -244,3 +244,13 @@ test("general intake does not inherit study-only KD-MID defaults while student i
   assert.match(publicApi, /student \? "МОСКВА" : ""/);
   assert.match(publicApi, /\["telex", "Mã Telex"\]/);
 });
+
+
+test("React public intake visibly distinguishes student and general forms", () => {
+  assert.match(publicPage, /LINK 1 · MẪU NHẬP HỌC/);
+  assert.match(publicPage, /LINK 2 · MẪU VISA NGƯỜI THƯỜNG/);
+  assert.match(publicPage, /required=\{formType === "student"\} value=\{applicant\.telex\}/);
+  assert.match(publicPage, /-- Chọn nơi nộp hồ sơ --/);
+  assert.match(publicPage, /purposeSection: ""/);
+  assert.match(publicPage, /routeCity: ""/);
+});
