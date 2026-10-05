@@ -130,6 +130,8 @@ export const visaIntakeSubmissions = sqliteTable("visa_intake_submissions", {
   passportNo: text("passport_no").notNull(),
   email: text("email").notNull(),
   phone: text("phone").notNull(),
+  deviceHash: text("device_hash"),
+  deviceCode: text("device_code"),
   payloadJson: text("payload_json").notNull(),
   validationJson: text("validation_json").notNull().default("{}"),
   submittedAt: text("submitted_at").notNull().default(sql`CURRENT_TIMESTAMP`),
@@ -140,6 +142,7 @@ export const visaIntakeSubmissions = sqliteTable("visa_intake_submissions", {
 }, (table) => [
   index("visa_intake_submissions_status_queue_idx").on(table.status, table.queueNo),
   index("visa_intake_submissions_link_queue_idx").on(table.linkId, table.queueNo),
+  index("visa_intake_submissions_link_device_idx").on(table.linkId, table.deviceHash),
 ]);
 
 

@@ -116,6 +116,7 @@ type IntakeSubmission = {
   passportNo: string;
   email: string;
   phone: string;
+  deviceCode: string | null;
   applicant: Record<string, unknown>;
   validation: Record<string, unknown>;
   submittedAt: string;
@@ -1271,7 +1272,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       <div className={styles.intakeHeader}><strong>Hàng chờ xác minh</strong><span>{pending.length} hồ sơ đang chờ · sắp theo số tiếp nhận tăng dần</span></div>
       {!intakeSubmissions.length ? <div className={styles.empty}>Chưa có hồ sơ nào gửi qua Form.</div> : <div className={styles.intakeList}>
         {intakeSubmissions.map((item) => <details key={item.id} open={item.status === "pending"} data-status={item.status}>
-          <summary><b>#{item.queueNo}</b><div><strong>{item.applicantName}</strong><small>{item.passportNo} · {item.email} · {new Date(item.submittedAt).toLocaleString("vi-VN")}</small></div><span>{item.status === "pending" ? (item.revision > 0 ? "Đã sửa · chờ xác minh" : "Chờ xác minh") : item.status === "imported" ? "Đã tiếp nhận" : item.status === "approved" ? "Đã duyệt" : "Cần chỉnh sửa"}</span></summary>
+          <summary><b>#{item.queueNo}</b><div><strong>{item.applicantName}</strong><small>{item.passportNo} · {item.email} · {item.deviceCode ? `Thiết bị ${item.deviceCode} · ` : ""}{new Date(item.submittedAt).toLocaleString("vi-VN")}</small></div><span>{item.status === "pending" ? (item.revision > 0 ? "Đã sửa · chờ xác minh" : "Chờ xác minh") : item.status === "imported" ? "Đã tiếp nhận" : item.status === "approved" ? "Đã duyệt" : "Cần chỉnh sửa"}</span></summary>
           <div className={styles.intakeDetail}>
             <div className={styles.intakeFields}>
               {fieldLabels.map(([key,label]) => {

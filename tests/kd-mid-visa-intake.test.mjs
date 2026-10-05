@@ -264,3 +264,21 @@ test("production worker renders student versus general intake from persisted for
   assert.match(publicWorkerPage, /student \? "МОСКВА" : ""/);
   assert.match(publicWorkerPage, /-- Chọn nơi nộp hồ sơ --/);
 });
+
+
+test("public intake binds each submitted record to a stable hashed browser device identity", () => {
+  assert.match(publicApi, /function validDeviceId/);
+  assert.match(publicApi, /async function deviceIdentity/);
+  assert.match(publicApi, /device_hash/);
+  assert.match(publicApi, /device_code/);
+  assert.match(publicApi, /WHERE link_id=\? AND device_hash=\?/);
+  assert.match(publicApi, /Thiết bị này không khớp/);
+  assert.match(adminApi, /device_code/);
+  assert.match(tool, /Thiết bị \$\{item\.deviceCode\}/);
+  assert.match(resultMigration + migration, /visa_intake_submissions_link_device_idx/);
+});
+
+test("closing an intake link disables sender recovery while preserving admin-side records", () => {
+  assert.match(publicApi, /Link này không còn cho phép người nhận mở lại hồ sơ hoặc nhận kết quả/);
+  assert.match(publicApi, /if\(link\.status!==?"active"\|\|link\.expired\)/);
+});
