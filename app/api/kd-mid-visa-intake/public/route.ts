@@ -65,6 +65,12 @@ function utcToday() {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 }
 
+function passportExpiryFromIssue(value: string) {
+  const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) return "";
+  return `${match[1]}/${match[2]}/${Number(match[3]) + 10}`;
+}
+
 function validBatchId(value:string){return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);}
 type IntakeAccessLink={id:string;label:string;status:string;defaults_json:string;expires_at:string|null};
 async function linkByAccess(token:string,batch:string){
@@ -106,24 +112,49 @@ export async function POST(request: Request) {
     if (!submissionId && (link.status !== "active" || link.expired)) return json({ ok: false, error: "Đợt thu hồ sơ đã đóng." }, 410);
 
     const source = (body.applicant && typeof body.applicant === "object" ? body.applicant : {}) as Record<string, unknown>;
+    const defaults = link.defaults ?? {};
+    const passportIssue = text(source.passportIssue, 10);
     const applicant = {
       surname: upperPlain(source.surname, 80),
       givenNames: upperPlain(source.givenNames, 120),
       birthDate: text(source.birthDate, 10),
       birthPlace: upperPlain(source.birthPlace, 160),
       sex: text(source.sex, 20),
+      hasOtherNames: bool(source.hasOtherNames),
+      otherNames: upperPlain(source.otherNames, 240),
+      bornInRussia: bool(source.bornInRussia),
+      citizenship: upperPlain(source.citizenship, 80) || upperPlain(defaults.citizenship, 80) || "ВЬЕТНАМ",
+      purposeSection: upperPlain(source.purposeSection, 120) || upperPlain(defaults.purposeSection, 120) || "УЧЕБА",
+      purpose: upperPlain(source.purpose, 120) || upperPlain(defaults.purpose, 120) || "УЧЕБА",
+      visaType: upperPlain(source.visaType, 160) || upperPlain(defaults.visaType, 160) || "ОБЫКНОВЕННАЯ УЧЕБНАЯ",
+      entries: upperPlain(source.entries, 80) || upperPlain(defaults.entries, 80) || "ОДНОКРАТНАЯ",
+      entryDate: text(source.entryDate, 10) || text(defaults.entryDate, 10),
+      exitDate: text(source.exitDate, 10) || text(defaults.exitDate, 10),
+      destinationType: upperPlain(source.destinationType, 80) || upperPlain(defaults.destinationType, 80) || "ОРГАНИЗАЦИЯ",
+      organization: upperPlain(source.organization, 300) || upperPlain(defaults.organization, 300),
+      organizationAddress: upperPlain(source.organizationAddress, 400) || upperPlain(defaults.organizationAddress, 400),
+      tin: text(source.tin, 40) || text(defaults.tin, 40),
+      telex: text(source.telex, 80) || text(defaults.telex, 80),
+      invitation: text(source.invitation, 120) || text(defaults.invitation, 120),
       passportNo: upperPlain(source.passportNo, 40),
-      passportIssue: text(source.passportIssue, 10),
-      passportExpiry: text(source.passportExpiry, 10),
+      passportIssue,
+      passportExpiry: passportExpiryFromIssue(passportIssue),
+      hasPermanentAddress: source.hasPermanentAddress !== false,
+      personalAddress: upperPlain(source.personalAddress, 300) || upperPlain(defaults.permanentAddress, 300),
       phone: text(source.phone, 40),
+      personalFax: text(source.personalFax, 40),
       email: text(source.email, 160).toLowerCase(),
-      routeCity: upperPlain(source.routeCity, 80) || "МОСКВА",
-      workStudyPlace: upperPlain(source.workStudyPlace, 240),
-      position: upperPlain(source.position, 120),
-      workAddress: upperPlain(source.workAddress, 300),
-      workPhone: text(source.workPhone, 40),
-      workEmail: text(source.workEmail, 160).toLowerCase(),
-      preferredEmbassy: text(source.preferredEmbassy, 120),
+      routeCity: upperPlain(source.routeCity, 80) || upperPlain(defaults.routeCity, 80) || "МОСКВА",
+      worksOrStudies: source.worksOrStudies !== false,
+      workStudyPlace: upperPlain(source.workStudyPlace, 240) || upperPlain(defaults.employer, 240),
+      position: upperPlain(source.position, 120) || upperPlain(defaults.position, 120),
+      workAddress: upperPlain(source.workAddress, 300) || upperPlain(defaults.workAddress, 300),
+      workPhone: text(source.workPhone, 40) || text(defaults.workPhone, 40),
+      workFax: text(source.workFax, 40),
+      workEmail: (text(source.workEmail, 160) || text(defaults.workEmail, 160)).toLowerCase(),
+      preferredEmbassy: text(source.preferredEmbassy, 120) || text(defaults.preferredEmbassy, 120),
+      passwordOverride: text(source.passwordOverride, 120) || text(defaults.password, 120),
+      applicationId: text(source.applicationId, 30).replace(/\D/g, ""),
       hadFormerRussianCitizenship: bool(source.hadFormerRussianCitizenship),
       formerCitizenshipLostDate: text(source.formerCitizenshipLostDate, 10),
       formerCitizenshipLossReason: upperPlain(source.formerCitizenshipLossReason, 300),
@@ -145,24 +176,33 @@ export async function POST(request: Request) {
       ["birthDate", "Ngày sinh"],
       ["birthPlace", "Nơi sinh"],
       ["sex", "Giới tính"],
+      ["citizenship", "Quốc tịch"],
+      ["purposeSection", "Nhóm mục đích chuyến đi"],
+      ["purpose", "Mục đích chuyến đi"],
+      ["visaType", "Loại visa"],
+      ["entries", "Số lần nhập cảnh"],
+      ["entryDate", "Ngày vào Nga"],
+      ["exitDate", "Ngày ra Nga"],
+      ["destinationType", "Loại nơi đến tại Nga"],
+      ["organization", "Tên tổ chức mời/tiếp nhận"],
+      ["organizationAddress", "Địa chỉ tổ chức"],
+      ["tin", "INN tổ chức"],
+      ["telex", "Số chỉ thị/telex"],
+      ["routeCity", "Nơi đến tại Nga"],
       ["passportNo", "Số hộ chiếu"],
       ["passportIssue", "Ngày cấp hộ chiếu"],
       ["passportExpiry", "Ngày hết hạn hộ chiếu"],
       ["phone", "Điện thoại cá nhân"],
       ["email", "Email cá nhân"],
-      ["workStudyPlace", "Nơi làm việc/học tập"],
-      ["position", "Chức vụ"],
-      ["workAddress", "Địa chỉ cơ quan"],
-      ["workPhone", "Điện thoại cơ quan"],
-      ["workEmail", "Email cơ quan"],
       ["preferredEmbassy", "Nơi nộp hồ sơ"],
-    ];
-    for (const [key, label] of required) if (!String(applicant[key] ?? "").trim()) missing.push(label);
+    ];    for (const [key, label] of required) if (!String(applicant[key] ?? "").trim()) missing.push(label);
 
     for (const [key, label] of [
       ["birthDate", "Ngày sinh"],
       ["passportIssue", "Ngày cấp hộ chiếu"],
       ["passportExpiry", "Ngày hết hạn hộ chiếu"],
+      ["entryDate", "Ngày vào Nga"],
+      ["exitDate", "Ngày ra Nga"],
     ] as const) {
       if (applicant[key] && !validDmy(applicant[key])) missing.push(`${label} phải theo dd/mm/yyyy`);
     }
@@ -170,15 +210,27 @@ export async function POST(request: Request) {
     const birthDate = parseDmy(applicant.birthDate);
     const passportIssue = parseDmy(applicant.passportIssue);
     const passportExpiry = parseDmy(applicant.passportExpiry);
+    const entryDate = parseDmy(applicant.entryDate);
+    const exitDate = parseDmy(applicant.exitDate);
     if (birthDate && birthDate > today) missing.push("Ngày sinh không được ở tương lai");
     if (passportIssue && passportIssue > today) missing.push("Ngày cấp hộ chiếu không được ở tương lai");
     if (birthDate && passportIssue && passportIssue <= birthDate) missing.push("Ngày cấp hộ chiếu phải sau ngày sinh");
     if (passportIssue && passportExpiry && passportExpiry <= passportIssue) missing.push("Ngày hết hạn hộ chiếu phải sau ngày cấp");
     if (passportExpiry && passportExpiry <= today) missing.push("Hộ chiếu đã hết hạn");
+    if (entryDate && exitDate && exitDate < entryDate) missing.push("Ngày ra Nga phải bằng hoặc sau ngày vào Nga");
+    if (applicant.hasOtherNames && !applicant.otherNames) missing.push("Tên khác đã từng sử dụng");
+    if (applicant.hasPermanentAddress && !applicant.personalAddress) missing.push("Địa chỉ thường trú");
+    if (applicant.worksOrStudies) {
+      if (!applicant.workStudyPlace) missing.push("Nơi làm việc/học tập");
+      if (!applicant.position) missing.push("Chức vụ/tư cách");
+      if (!applicant.workAddress) missing.push("Địa chỉ cơ quan");
+      if (!applicant.workPhone) missing.push("Điện thoại cơ quan");
+      if (!applicant.workEmail) missing.push("Email cơ quan");
+    }
 
     if (!["МУЖСКОЙ", "ЖЕНСКИЙ"].includes(applicant.sex)) missing.push("Giới tính không hợp lệ");
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(applicant.email)) missing.push("Email cá nhân không hợp lệ");
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(applicant.workEmail)) missing.push("Email cơ quan không hợp lệ");
+    if (applicant.workEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(applicant.workEmail)) missing.push("Email cơ quan không hợp lệ");
     if (!ALLOWED_EMBASSIES.has(applicant.preferredEmbassy)) missing.push("Nơi nộp hồ sơ không hợp lệ");
 
     if (applicant.hadFormerRussianCitizenship) {

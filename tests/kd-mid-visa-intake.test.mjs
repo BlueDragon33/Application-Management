@@ -199,3 +199,14 @@ test("completed submissions including those with PDF can be removed from the adm
   assert.match(api, /validation\.adminHidden===true/);
   assert.match(api, /\["approved", "imported"\]\.includes\(existing\.status\)/);
 });
+
+
+test("public intake exposes complete visa request fields and server derives passport expiry from issue date", () => {
+  for (const field of ["citizenship","purposeSection","purpose","visaType","entries","entryDate","exitDate","destinationType","organization","organizationAddress","tin","telex","invitation","hasOtherNames","otherNames","bornInRussia","hasPermanentAddress","personalAddress","personalFax","worksOrStudies","workFax","passwordOverride","applicationId"]) {
+    assert.match(publicPage, new RegExp(field));
+    assert.match(publicApi, new RegExp(field));
+  }
+  assert.match(publicApi, /function passportExpiryFromIssue/);
+  assert.match(publicApi, /passportExpiry: passportExpiryFromIssue\(passportIssue\)/);
+  assert.match(publicPage, /readOnly value=\{applicant\.passportExpiry\}/);
+});
