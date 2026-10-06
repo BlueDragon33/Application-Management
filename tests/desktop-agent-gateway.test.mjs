@@ -57,3 +57,17 @@ test("production auth bypass is narrow to the desktop transport and public contr
     /desktop-agent\/admin/,
   );
 });
+
+
+test("unsigned re-registration cannot mutate existing agent telemetry", () => {
+  const server = source("app/desktop-agent.server.ts");
+  const registration = server.slice(
+    server.indexOf("export async function registerDesktopAgent"),
+    server.indexOf("export async function challengeDesktopAgent"),
+  );
+  assert.doesNotMatch(
+    registration,
+    /UPDATE desktop_agent_devices SET app_version/,
+  );
+  assert.match(server, /device\.status !== "approved"/);
+});
