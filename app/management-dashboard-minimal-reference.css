@@ -403,3 +403,34 @@
     background: #131b19 !important;
   }
 }
+
+
+/* Pass 3: targeted polish after live screenshot review. */
+.amv2-devices-panel .amv2-panel-title h2 {
+  font-size: 18px !important;
+}
+.amv2-devices-panel .amv2-panel-title h2::after {
+  content: none !important;
+}
+
+.amv2-quick-grid > button:nth-child(8) {
+  background: #141d1b !important;
+  border-color: rgba(178,201,194,.10) !important;
+  color: #dce4e1 !important;
+}
+
+.amv2-brand strong {
+  font-size: 14px !important;
+  font-weight: 750 !important;
+  line-height: 1.16 !important;
+}
+
+@media (min-width: 1200px) and (min-aspect-ratio: 4/3) {
+  .amv2-shell {
+    grid-template-columns: 268px minmax(0, 1fr) !important;
+  }
+
+  .amv2-page-head h1 {
+    font-size: clamp(30px, 1.85vw, 34px) !important;
+  }
+}
