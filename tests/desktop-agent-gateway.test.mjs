@@ -45,3 +45,15 @@ test("desktop agent database schema never stores a private key", () => {
   assert.match(migration, /entitlement_state/);
   assert.match(migration, /update_policy_json/);
 });
+
+
+test("production auth bypass is narrow to the desktop transport and public contract", () => {
+  const worker = source("worker/index.ts");
+  assert.match(worker, /isPublicDesktopAgentRequest/);
+  assert.match(worker, /url\.pathname === "\/api\/desktop-agent"/);
+  assert.match(worker, /url\.pathname === "\/api\/desktop-agent\/contract"/);
+  assert.doesNotMatch(
+    worker.match(/function isPublicDesktopAgentRequest[\s\S]*?\n}/)?.[0] ?? "",
+    /desktop-agent\/admin/,
+  );
+});
