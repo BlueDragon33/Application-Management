@@ -50,3 +50,24 @@ test("Google remains primary and password recovery is visually demoted", () => {
   assert.match(auth, /Đăng nhập chính/);
   assert.match(auth, /Google ·/);
 });
+
+
+test("production Worker blocks sensitive central mutations until recent step-up", () => {
+  const worker = fs.readFileSync("worker/index.ts", "utf8");
+  assert.match(auth, /sensitiveProductionMutation/);
+  assert.match(auth, /\/api\/center/);
+  assert.match(auth, /manage-control-device/);
+  assert.match(auth, /\/api\/focused-device-operation/);
+  assert.match(auth, /\/api\/managed-apps/);
+  assert.match(auth, /\/api\/deploy-ops/);
+  assert.match(auth, /safe-publish/);
+  assert.match(auth, /STEP_UP_REQUIRED/);
+  assert.match(auth, /stepUpPath: ACCOUNT_PATH/);
+  assert.match(worker, /productionStepUpGate\(request, env, identity\)/);
+});
+
+test("first Google identity link is restricted to configured Owner email", () => {
+  assert.match(auth, /const configuredOwner = ownerEmails\(env\.CONTROL_OWNER_EMAILS\)\.includes\(profile\.email\)/);
+  assert.match(auth, /if \(!configuredOwner\) return null/);
+  assert.match(auth, /account\.role !== "owner"/);
+});
