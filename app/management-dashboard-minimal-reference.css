@@ -1,142 +1,123 @@
-/* Minimal reference pass.
-   Visual-only overrides mounted last. Business logic stays in management-dashboard-v2.tsx. */
+/* Minimal reference pass 2.
+   This file is mounted last on purpose. !important is restricted to visible
+   presentation properties so legacy reference layers cannot re-saturate the UI.
+   Business logic remains in management-dashboard-v2.tsx. */
 
 :root {
-  --amv2-bg: #0b1513;
-  --amv2-bg-soft: #101c19;
-  --amv2-panel: #12231f;
-  --amv2-panel-dark: #0f1f1b;
-  --amv2-line: rgba(129, 190, 171, .16);
-  --amv2-line-soft: rgba(255, 255, 255, .055);
-  --amv2-text: #eef5f2;
-  --amv2-muted: #91a59e;
-  --amv2-cyan: #5fcbb0;
-  --amv2-green: #69caaa;
-  --amv2-red: #d87872;
-  --amv2-gold: #c6ae67;
-  --amv2-blue: #7f91c6;
+  --amv2-bg: #0a0f0e;
+  --amv2-bg-soft: #101614;
+  --amv2-panel: #121a18;
+  --amv2-panel-dark: #0e1513;
+  --amv2-line: rgba(178, 201, 194, .12);
+  --amv2-line-soft: rgba(255, 255, 255, .05);
+  --amv2-text: #edf2f0;
+  --amv2-muted: #91a09b;
+  --amv2-cyan: #66c5ad;
+  --amv2-green: #70c4a9;
+  --amv2-red: #d57974;
+  --amv2-gold: #bea768;
+  --amv2-blue: #8290b7;
 }
 
 .amv2-shell {
-  background: #0b1513;
+  background: #0a0f0e !important;
+  color: #edf2f0 !important;
 }
 
 .amv2-sidebar {
-  border-right-color: rgba(126, 187, 168, .13);
-  background: #0d1d19;
+  background: #0d1412 !important;
+  border-right: 1px solid rgba(178,201,194,.10) !important;
+}
+
+.amv2-brand {
+  border-bottom-color: rgba(255,255,255,.045) !important;
 }
 
 .amv2-brand > div {
-  border-color: rgba(95, 203, 176, .34);
-  box-shadow: none;
+  border-color: rgba(102,197,173,.28) !important;
+  background: #111c19 !important;
+  box-shadow: none !important;
+}
+
+.amv2-brand small,
+.amv2-brand em,
+.amv2-sidebar blockquote,
+.amv2-sidebar footer {
+  color: #879791 !important;
+}
+
+.amv2-sidebar nav button {
+  color: #c8d1ce !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .amv2-sidebar nav button:hover {
-  background: rgba(255,255,255,.035);
+  background: rgba(255,255,255,.035) !important;
 }
 
 .amv2-sidebar nav button[data-active="true"] {
-  border-color: rgba(95, 203, 176, .22);
-  background: rgba(68, 133, 113, .19);
-  box-shadow: inset 3px 0 0 #58bda2;
+  color: #f0f5f3 !important;
+  border-color: rgba(102,197,173,.19) !important;
+  background: #15221f !important;
+  box-shadow: inset 3px 0 0 #63b9a2 !important;
+}
+
+.amv2-sidebar nav i {
+  color: #b9c9c4 !important;
+}
+
+.amv2-system-card {
+  background: #111917 !important;
+  border-color: rgba(178,201,194,.11) !important;
+  box-shadow: none !important;
+}
+
+.amv2-system-card header strong,
+.amv2-system-card p b {
+  color: #71c6ad !important;
 }
 
 .amv2-sidebar footer i,
 .amv2-online > i {
-  box-shadow: none;
-}
-
-.amv2-system-card,
-.amv2-topbar,
-.amv2-search,
-.amv2-filter,
-.amv2-online,
-.amv2-clock,
-.amv2-account > div {
-  background: #10231e;
-}
-
-.amv2-system-card,
-.amv2-search,
-.amv2-filter,
-.amv2-clock,
-.amv2-account > div {
-  border-color: rgba(126, 187, 168, .16);
+  box-shadow: none !important;
 }
 
 .amv2-topbar {
-  border-bottom-color: rgba(126, 187, 168, .12);
-  box-shadow: none;
+  background: #0e1513 !important;
+  border-bottom: 1px solid rgba(178,201,194,.10) !important;
+  box-shadow: none !important;
+}
+
+.amv2-search,
+.amv2-filter,
+.amv2-access-mode,
+.amv2-online,
+.amv2-clock,
+.amv2-account > div {
+  background: #121a18 !important;
+  border-color: rgba(178,201,194,.11) !important;
+  box-shadow: none !important;
+}
+
+.amv2-search input::placeholder,
+.amv2-filter,
+.amv2-access-mode small,
+.amv2-online small,
+.amv2-account summary small,
+.amv2-clock small {
+  color: #879791 !important;
 }
 
 .amv2-account summary > span {
-  background: #1d6958;
+  background: #1b5c4e !important;
+  box-shadow: none !important;
 }
 
-.amv2-panel {
-  border-color: rgba(126, 187, 168, .16);
-  background: #10231e;
-  box-shadow: none;
-}
-
-.amv2-metrics > button {
-  border-color: rgba(148, 184, 172, .14);
-  background: #142622;
-  box-shadow: none;
-}
-
-.amv2-metrics > button[data-tone="teal"] { background: #143129; }
-.amv2-metrics > button[data-tone="gold"] { background: #2c2d20; }
-.amv2-metrics > button[data-tone="red"] { background: #302322; }
-.amv2-metrics > button[data-tone="blue"] { background: #20283a; }
-
-.amv2-metrics > button > i {
-  background: rgba(255,255,255,.055);
-}
-
-.amv2-metrics em {
-  color: #91aaa1;
-}
-
-.amv2-alert-grid > button {
-  border-color: rgba(148, 184, 172, .12);
-  box-shadow: none;
-}
-
-.amv2-alert-grid > button[data-tone="gold"] { background: #292b20; }
-.amv2-alert-grid > button[data-tone="red"] { background: #2d2221; }
-.amv2-alert-grid > button[data-tone="olive"] { background: #222920; }
-.amv2-alert-grid > button[data-tone="blue"] { background: #1c2932; }
-
-.amv2-quick-grid button {
-  border-color: rgba(141, 185, 171, .13);
-  background: #152925;
-  box-shadow: none;
-}
-
-.amv2-quick-grid button:hover {
-  border-color: rgba(95, 203, 176, .28);
-  background: #18312b;
-}
-
-.amv2-quick-grid button[data-danger="true"] {
-  border-color: rgba(216, 120, 114, .24);
-  background: #2a201f;
-  color: #e5b0ac;
-}
-
-.amv2-overview-app-tile {
-  border-color: rgba(135, 184, 169, .11);
-  background: #142722;
-}
-
-.amv2-overview-app-tile[data-kind="tool"] {
-  border-color: rgba(184, 168, 119, .12);
-  background: #182820;
-}
-
-.amv2-overview-app-icon .amv2-app-icon {
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.09);
+.amv2-online strong,
+.amv2-clock div:last-child strong {
+  color: #71c6ad !important;
 }
 
 .amv2-page-head h1,
@@ -145,54 +126,280 @@
   font-family: "Segoe UI", "Noto Sans", Arial, sans-serif !important;
 }
 
+.amv2-page-head h1 {
+  color: #f2f5f4 !important;
+  font-weight: 720 !important;
+  letter-spacing: -.025em !important;
+}
+
 .amv2-page-head p {
-  color: #8fa39c;
+  color: #879791 !important;
+}
+
+.amv2-notification-board {
+  background: #0e1513 !important;
+  border-color: rgba(178,201,194,.10) !important;
+  box-shadow: none !important;
+}
+
+.amv2-notification-board h2,
+.amv2-notification-empty {
+  color: #a8b4b0 !important;
+}
+
+.amv2-panel,
+.amv2-priority-panel,
+.amv2-alert-panel,
+.amv2-quick-panel,
+.amv2-apps-panel,
+.amv2-devices-panel {
+  background: #101716 !important;
+  border-color: rgba(178,201,194,.11) !important;
+  box-shadow: none !important;
+}
+
+.amv2-panel-title,
+.amv2-overview-apps-title {
+  border-bottom-color: rgba(255,255,255,.04) !important;
+}
+
+.amv2-panel-title h2,
+.amv2-overview-apps-title h2,
+.amv2-quick-panel > header h2 {
+  color: #e7eeeb !important;
+  font-weight: 700 !important;
 }
 
 .amv2-panel-title > div > span,
 .amv2-panel-title > button,
 .amv2-overview-apps-title > div > span,
 .amv2-overview-apps-title > span {
-  color: #65c9ae;
+  color: #69bda6 !important;
 }
 
-.amv2-overview-app-tile > small[data-state="connected"] { color: #7bc5ae; }
-.amv2-overview-app-tile > small[data-state="connected"] > i { background: #61bea3; }
-.amv2-overview-app-tile > small[data-state="warning"] { color: #c4ac69; }
-.amv2-overview-app-tile > small[data-state="warning"] > i { background: #b99f58; }
-.amv2-overview-app-tile > small[data-state="unavailable"] { color: #d58b85; }
-.amv2-overview-app-tile > small[data-state="unavailable"] > i { background: #c96f69; }
+/* KPI: one neutral surface; tone is conveyed only by the icon/accent. */
+.amv2-metrics > button,
+.amv2-metrics > button[data-tone="teal"],
+.amv2-metrics > button[data-tone="gold"],
+.amv2-metrics > button[data-tone="red"],
+.amv2-metrics > button[data-tone="blue"] {
+  background: #131b19 !important;
+  border: 1px solid rgba(178,201,194,.11) !important;
+  box-shadow: none !important;
+}
 
+.amv2-metrics > button > i {
+  background: #192320 !important;
+  box-shadow: none !important;
+}
+
+.amv2-metrics > button[data-tone="teal"] > i { color: #6dc4ad !important; }
+.amv2-metrics > button[data-tone="gold"] > i { color: #bea768 !important; }
+.amv2-metrics > button[data-tone="red"] > i { color: #d57974 !important; }
+.amv2-metrics > button[data-tone="blue"] > i { color: #8290b7 !important; }
+
+.amv2-metrics small {
+  color: #cfd8d5 !important;
+}
+
+.amv2-metrics strong {
+  color: #f3f6f5 !important;
+}
+
+.amv2-metrics em,
+.amv2-metrics > button > b {
+  color: #82928d !important;
+}
+
+/* Quick alerts use a common neutral surface, not four coloured blocks. */
+.amv2-alert-grid > button,
+.amv2-alert-grid > button[data-tone="gold"],
+.amv2-alert-grid > button[data-tone="red"],
+.amv2-alert-grid > button[data-tone="olive"],
+.amv2-alert-grid > button[data-tone="blue"] {
+  background: #151d1b !important;
+  border: 1px solid rgba(178,201,194,.10) !important;
+  box-shadow: none !important;
+}
+
+.amv2-alert-grid > button[data-tone="gold"] { border-top-color: rgba(190,167,104,.45) !important; }
+.amv2-alert-grid > button[data-tone="red"] { border-top-color: rgba(213,121,116,.45) !important; }
+.amv2-alert-grid > button[data-tone="olive"] { border-top-color: rgba(129,158,112,.42) !important; }
+.amv2-alert-grid > button[data-tone="blue"] { border-top-color: rgba(130,144,183,.45) !important; }
+
+.amv2-alert-grid small {
+  color: #9ca9a5 !important;
+}
+
+.amv2-alert-grid strong {
+  color: #eff3f2 !important;
+}
+
+/* Quick actions: one surface. Destructive is the only filled semantic exception. */
+.amv2-quick-grid button {
+  background: #141d1b !important;
+  border: 1px solid rgba(178,201,194,.10) !important;
+  color: #dce4e1 !important;
+  box-shadow: none !important;
+}
+
+.amv2-quick-grid button:hover,
+.amv2-quick-grid button[data-active="true"] {
+  background: #18231f !important;
+  border-color: rgba(102,197,173,.24) !important;
+}
+
+.amv2-quick-grid button[data-danger="true"] {
+  background: #231918 !important;
+  border-color: rgba(213,121,116,.23) !important;
+  color: #dca39f !important;
+}
+
+/* App tiles: remove tool-colour wash; status dot/text carries meaning. */
+.amv2-overview-app-tile,
+.amv2-overview-app-tile[data-kind="tool"] {
+  background: #141d1b !important;
+  border-color: rgba(178,201,194,.09) !important;
+  box-shadow: none !important;
+}
+
+.amv2-overview-app-tile:hover {
+  background: #18221f !important;
+  border-color: rgba(102,197,173,.18) !important;
+}
+
+.amv2-overview-app-icon .amv2-app-icon {
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.08) !important;
+}
+
+.amv2-overview-app-tile > strong {
+  color: #e3eae7 !important;
+}
+
+.amv2-overview-app-tile > small {
+  color: #879791 !important;
+}
+
+.amv2-overview-app-tile > small[data-state="connected"] { color: #71bca6 !important; }
+.amv2-overview-app-tile > small[data-state="connected"] > i { background: #5fb79f !important; }
+.amv2-overview-app-tile > small[data-state="warning"] { color: #bca466 !important; }
+.amv2-overview-app-tile > small[data-state="warning"] > i { background: #b59b58 !important; }
+.amv2-overview-app-tile > small[data-state="unavailable"] { color: #cf827c !important; }
+.amv2-overview-app-tile > small[data-state="unavailable"] > i { background: #c66f69 !important; }
+
+.amv2-priority-head,
+.amv2-device-head,
+.amv2-app-head {
+  background: #17211e !important;
+  color: #b7c3bf !important;
+}
+
+.amv2-priority-row,
+.amv2-device-row,
+.amv2-app-row {
+  border-bottom-color: rgba(255,255,255,.045) !important;
+  background: transparent !important;
+}
+
+/* Desktop geometry is intentionally a little tighter than the old saturated UI. */
 @media (min-width: 1200px) and (min-aspect-ratio: 4/3) {
+  .amv2-shell {
+    grid-template-columns: 252px minmax(0, 1fr) !important;
+  }
+
+  .amv2-workspace {
+    grid-template-rows: 68px minmax(0, 1fr) !important;
+  }
+
+  .amv2-topbar {
+    min-height: 68px !important;
+    padding: 8px 16px !important;
+    gap: 8px !important;
+  }
+
+  .amv2-sidebar {
+    padding: 12px 11px 10px !important;
+  }
+
+  .amv2-brand {
+    min-height: 80px !important;
+  }
+
+  .amv2-sidebar nav {
+    gap: 4px !important;
+    padding-top: 12px !important;
+  }
+
+  .amv2-sidebar nav button {
+    min-height: 48px !important;
+  }
+
+  .amv2-content {
+    width: calc(100% - 26px) !important;
+    height: calc(100dvh - 68px) !important;
+    padding: 8px 0 !important;
+  }
+
+  .amv2-stage[data-view="overview"] {
+    grid-template-rows: 98px minmax(0, 1fr) !important;
+  }
+
+  .amv2-metrics,
+  .amv2-metrics > button {
+    min-height: 98px !important;
+    height: 98px !important;
+  }
+
+  .amv2-overview-grid {
+    grid-template-columns: minmax(0, 1.12fr) minmax(500px, .88fr) !important;
+    grid-template-rows: 126px 204px minmax(190px, 1fr) !important;
+    gap: 9px 10px !important;
+  }
+
   .amv2-overview-app-screen {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    grid-auto-rows: minmax(82px, auto);
-    gap: 7px;
-    overflow-y: auto;
-    overflow-x: hidden;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    grid-auto-rows: minmax(78px, auto) !important;
+    gap: 6px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
   }
 
   .amv2-overview-app-tile {
-    min-height: 82px;
+    min-height: 78px !important;
+    border-radius: 9px !important;
+  }
+
+  .amv2-panel,
+  .amv2-priority-panel,
+  .amv2-alert-panel,
+  .amv2-quick-panel,
+  .amv2-apps-panel,
+  .amv2-devices-panel,
+  .amv2-metrics > button,
+  .amv2-search,
+  .amv2-filter,
+  .amv2-clock,
+  .amv2-system-card {
+    border-radius: 10px !important;
   }
 }
 
 @media (max-width: 1199px) {
   .amv2-shell {
-    background: #0b1513;
+    background: #0a0f0e !important;
   }
 
   .amv2-overview-app-screen {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important;
   }
 }
 
 @media (max-width: 680px) {
   .amv2-overview-app-screen {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr !important;
   }
 
   .amv2-metrics > button {
-    background: #142622;
+    background: #131b19 !important;
   }
 }
