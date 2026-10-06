@@ -77,7 +77,7 @@ function base64Url(bytes: Uint8Array) {
 }
 
 function fromBase64Url(value: string) {
-  if (!/^[A-Za-z0-9_-]{80,96}$/.test(value)) {
+  if (!/^[A-Za-z0-9_-]{80,104}$/.test(value)) {
     throw new DesktopAgentGatewayError("Chữ ký thiết bị không hợp lệ.", 400, "INVALID_AGENT_SIGNATURE");
   }
   const normalized = value.replaceAll("-", "+").replaceAll("_", "/");
@@ -87,6 +87,44 @@ function fromBase64Url(value: string) {
   } catch {
     throw new DesktopAgentGatewayError("Chữ ký thiết bị không hợp lệ.", 400, "INVALID_AGENT_SIGNATURE");
   }
+}
+
+function normalizeP256Signature(signature: Uint8Array) {
+  if (signature.length === 64) return signature;
+  if (signature.length < 68 || signature.length > 72 || signature[0] !== 0x30) {
+    throw new DesktopAgentGatewayError("Định dạng chữ ký ECDSA không hợp lệ.", 400, "INVALID_AGENT_SIGNATURE");
+  }
+
+  let offset = 2;
+  if (signature[1] & 0x80) {
+    const lengthBytes = signature[1] & 0x7f;
+    if (lengthBytes !== 1) throw new DesktopAgentGatewayError("Định dạng chữ ký ECDSA không hợp lệ.", 400, "INVALID_AGENT_SIGNATURE");
+    offset = 3;
+  }
+  if (signature[offset] !== 0x02) throw new DesktopAgentGatewayError("Định dạng chữ ký ECDSA không hợp lệ.", 400, "INVALID_AGENT_SIGNATURE");
+  const rLength = signature[offset + 1];
+  const rStart = offset + 2;
+  const rEnd = rStart + rLength;
+  if (signature[rEnd] !== 0x02) throw new DesktopAgentGatewayError("Định dạng chữ ký ECDSA không hợp lệ.", 400, "INVALID_AGENT_SIGNATURE");
+  const sLength = signature[rEnd + 1];
+  const sStart = rEnd + 2;
+  const sEnd = sStart + sLength;
+  if (sEnd !== signature.length) throw new DesktopAgentGatewayError("Định dạng chữ ký ECDSA không hợp lệ.", 400, "INVALID_AGENT_SIGNATURE");
+
+  const trimInteger = (bytes: Uint8Array) => {
+    let start = 0;
+    while (start < bytes.length - 1 && bytes[start] === 0) start += 1;
+    const value = bytes.slice(start);
+    if (value.length > 32) throw new DesktopAgentGatewayError("Chữ ký ECDSA vượt kích thước P-256.", 400, "INVALID_AGENT_SIGNATURE");
+    const padded = new Uint8Array(32);
+    padded.set(value, 32 - value.length);
+    return padded;
+  };
+
+  const output = new Uint8Array(64);
+  output.set(trimInteger(signature.slice(rStart, rEnd)), 0);
+  output.set(trimInteger(signature.slice(sStart, sEnd)), 32);
+  return output;
 }
 
 function publicKeyShape(value: unknown): JsonWebKey {
@@ -335,7 +373,7 @@ async function verifyAgentProof(payload: Record<string, unknown>, action: "heart
   const valid = await crypto.subtle.verify(
     { name: "ECDSA", hash: "SHA-256" },
     key,
-    fromBase64Url(signature),
+    normalizeP256Signature(fromBase64Url(signature)),
     message,
   );
   if (!valid) {
