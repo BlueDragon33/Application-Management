@@ -8,6 +8,15 @@ import {
   type GoogleOAuthEnv,
   type GoogleOAuthProfile,
 } from "./google-oauth";
+import {
+  beginTotpEnrollment,
+  completeTotpEnrollment,
+  removeTotp,
+  totpState,
+  verifyTotp,
+  type TotpEnv,
+  type TotpState,
+} from "./totp";
 
 const LOGIN_PATH = "/__login";
 const LOGOUT_PATH = "/__logout";
@@ -19,9 +28,10 @@ const SESSION_TTL_SECONDS = 12 * 60 * 60;
 const PASSWORD_ITERATIONS = 100_000;
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_SECONDS = 15 * 60;
+const STEP_UP_TTL_SECONDS = 15 * 60;
 const encoder = new TextEncoder();
 
-type ProductionAuthEnv = GoogleOAuthEnv & {
+type ProductionAuthEnv = GoogleOAuthEnv & TotpEnv & {
   DB: D1Database;
   CONTROL_OWNER_EMAILS?: string;
   APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD?: string;
@@ -33,6 +43,8 @@ export type ProductionIdentity = {
   displayName: string;
   mustChangePassword: boolean;
   sessionHash: string;
+  authMethod: "google" | "password";
+  stepUpAt: number | null;
 };
 
 function text(value: unknown) {
@@ -219,7 +231,16 @@ function loginPageForEnv(env: ProductionAuthEnv, message = "", email = "") {
   return loginPage(message, email, googleOAuthConfigured(env));
 }
 
-function accountPage(identity: ProductionIdentity, profile: { phone?: string | null }, notice = "") {
+type AccountPageData = {
+  phone?: string | null;
+  googleLinked?: boolean;
+  googleEmail?: string | null;
+  totp?: TotpState | null;
+  setupSecret?: string | null;
+  setupUri?: string | null;
+};
+
+function accountPage(identity: ProductionIdentity, profile: AccountPageData, notice = "") {
   const message = notice
     ? `<p class="${notice.startsWith("Lỗi:") ? "error" : "success"}">${escapeHtml(notice)}</p>`
     : "";
@@ -228,7 +249,41 @@ function accountPage(identity: ProductionIdentity, profile: { phone?: string | n
     <p>Quản lý trực tiếp tài khoản Production của Application Management.</p>
     ${message}
     ${identity.mustChangePassword ? '<p class="error">Mật khẩu bootstrap chỉ dùng lần đầu. Hãy đổi mật khẩu trước khi tiếp tục sử dụng lâu dài.</p>' : ""}
-    <div class="field"><span>Email đăng nhập</span><strong>${escapeHtml(identity.email)}</strong></div>
+    <div class="field"><span>Email quyền nội bộ</span><strong>${escapeHtml(identity.email)}</strong></div>
+    <div class="field"><span>Đăng nhập chính</span><strong>${profile.googleLinked ? `Google · ${escapeHtml(profile.googleEmail || identity.email)}` : "Tài khoản khôi phục"}</strong></div>
+    <div class="field"><span>Authenticator</span><strong>${profile.totp?.enabled ? "Đã bật · Step-up cho thao tác nhạy cảm" : profile.totp?.configured ? "Chưa bật" : "Chưa cấu hình khóa mã hóa"}</strong></div>
+    ${profile.setupSecret ? `
+      <div class="success">
+        <strong>Thiết lập Google Authenticator</strong>
+        <p>Mở Google Authenticator → thêm tài khoản → nhập khóa thiết lập thủ công bên dưới.</p>
+        <div class="field"><span>Khóa thiết lập</span><strong>${escapeHtml(profile.setupSecret)}</strong></div>
+        <p class="note">URI kỹ thuật: ${escapeHtml(profile.setupUri ?? "")}</p>
+      </div>
+      <form method="post" action="${ACCOUNT_PATH}/mfa/verify">
+        <label for="verifyTotpCode">Mã 6 số đang hiển thị</label>
+        <input id="verifyTotpCode" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
+        <button type="submit">Xác nhận và bật Authenticator</button>
+      </form>
+    ` : profile.totp?.configured && !profile.totp.enabled ? `
+      <form method="post" action="${ACCOUNT_PATH}/mfa/setup">
+        <h2>Xác thực tăng cường</h2>
+        <p class="note">Chỉ dùng khi thay đổi bảo mật hoặc thực hiện thao tác nhạy cảm.</p>
+        <button type="submit">Thiết lập Google Authenticator</button>
+      </form>
+    ` : ""}
+    ${profile.totp?.enabled ? `
+      <form method="post" action="${ACCOUNT_PATH}/mfa/step-up">
+        <h2>Xác minh thao tác nhạy cảm</h2>
+        <label for="stepUpTotpCode">Mã Authenticator</label>
+        <input id="stepUpTotpCode" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
+        <button type="submit">Xác minh trong 15 phút</button>
+        <p class="note">${identity.stepUpAt && Math.floor(Date.now()/1000) - identity.stepUpAt < STEP_UP_TTL_SECONDS ? "Phiên này vừa được xác minh tăng cường." : "Chưa có xác minh tăng cường gần đây."}</p>
+      </form>
+      <form method="post" action="${ACCOUNT_PATH}/mfa/disable">
+        <button class="secondary" type="submit">Tắt Authenticator</button>
+        <p class="note">Yêu cầu một lần xác minh tăng cường còn hiệu lực.</p>
+      </form>
+    ` : ""}
     <form method="post" action="${ACCOUNT_PATH}/profile">
       <h2>Thông tin tài khoản</h2>
       <label for="displayName">Tên hiển thị</label>
@@ -237,8 +292,10 @@ function accountPage(identity: ProductionIdentity, profile: { phone?: string | n
       <input id="phone" name="phone" maxlength="32" inputmode="tel" value="${escapeHtml(profile.phone ?? "")}">
       <button type="submit">Lưu thông tin</button>
     </form>
+    <details>
+      <summary>Tùy chọn khôi phục nâng cao</summary>
     <form method="post" action="${ACCOUNT_PATH}/email">
-      <h2>Đổi email đăng nhập</h2>
+      <h2>Đổi email quyền nội bộ</h2>
       <label for="newEmail">Email mới</label>
       <input id="newEmail" name="newEmail" type="email" autocomplete="email" required>
       <label for="emailPassword">Mật khẩu hiện tại</label>
@@ -254,8 +311,9 @@ function accountPage(identity: ProductionIdentity, profile: { phone?: string | n
       <input id="newPassword" name="newPassword" type="password" autocomplete="new-password" minlength="12" required>
       <label for="confirmPassword">Nhập lại mật khẩu mới</label>
       <input id="confirmPassword" name="confirmPassword" type="password" autocomplete="new-password" minlength="12" required>
-      <button type="submit">Đổi mật khẩu</button>
+      <button type="submit">Đổi mật khẩu khôi phục</button>
     </form>
+    </details>
     <div class="row"><a class="button secondary" href="/">Về Application Management</a><form method="post" action="${LOGOUT_PATH}"><button class="secondary" type="submit">Đăng xuất</button></form></div>
   `);
 }
@@ -272,15 +330,15 @@ function redirect(path: string, cookie?: string | readonly string[]) {
   return new Response("Redirecting", { status: 303, headers });
 }
 
-async function createSession(env: ProductionAuthEnv, email: string) {
+async function createSession(env: ProductionAuthEnv, email: string, authMethod: "google" | "password") {
   const now = Math.floor(Date.now() / 1000);
   await env.DB.prepare("DELETE FROM control_sessions WHERE expires_at<=?1").bind(now).run();
   const token = base64Url(crypto.getRandomValues(new Uint8Array(32)));
   const sessionHash = await sha256(token);
   const expiresAt = now + SESSION_TTL_SECONDS;
   await env.DB.prepare(
-    "INSERT INTO control_sessions (session_id_hash,email,expires_at,created_at,last_seen_at) VALUES (?1,?2,?3,?4,?4)",
-  ).bind(sessionHash, email, expiresAt, now).run();
+    "INSERT INTO control_sessions (session_id_hash,email,expires_at,created_at,last_seen_at,auth_method,step_up_at) VALUES (?1,?2,?3,?4,?4,?5,NULL)",
+  ).bind(sessionHash, email, expiresAt, now, authMethod).run();
   return {
     token,
     sessionHash,
@@ -447,7 +505,7 @@ export async function handleProductionGoogleCallback(request: Request, env: Prod
 
   let session: Awaited<ReturnType<typeof createSession>>;
   try {
-    session = await createSession(env, account.email);
+    session = await createSession(env, account.email, "google");
   } catch (error) {
     return productionAuthFailure("google-session-create", error);
   }
@@ -485,11 +543,13 @@ export async function productionIdentity(request: Request, env: ProductionAuthEn
   const sessionHash = await sha256(token);
   const now = Math.floor(Date.now() / 1000);
   const row = await env.DB.prepare(
-    "SELECT s.email,s.expires_at,s.last_seen_at,a.display_name,a.must_change_password,a.status FROM control_sessions s JOIN control_accounts a ON a.email=s.email WHERE s.session_id_hash=?1 LIMIT 1",
+    "SELECT s.email,s.expires_at,s.last_seen_at,s.auth_method,s.step_up_at,a.display_name,a.must_change_password,a.status FROM control_sessions s JOIN control_accounts a ON a.email=s.email WHERE s.session_id_hash=?1 LIMIT 1",
   ).bind(sessionHash).first<{
     email: string;
     expires_at: number;
     last_seen_at: number;
+    auth_method: string;
+    step_up_at: number | null;
     display_name: string | null;
     must_change_password: number;
     status: string;
@@ -506,6 +566,8 @@ export async function productionIdentity(request: Request, env: ProductionAuthEn
     displayName: row.display_name?.trim() || row.email.split("@")[0] || "Administrator",
     mustChangePassword: row.must_change_password === 1,
     sessionHash,
+    authMethod: row.auth_method === "google" ? "google" : "password",
+    stepUpAt: row.step_up_at,
   };
 }
 
@@ -577,7 +639,7 @@ export async function handleProductionLogin(request: Request, env: ProductionAut
 
   let session: Awaited<ReturnType<typeof createSession>>;
   try {
-    session = await createSession(env, email);
+    session = await createSession(env, email, "password");
   } catch (error) {
     return productionAuthFailure("session-create", error);
   }
@@ -594,15 +656,74 @@ export async function handleProductionLogout(request: Request, env: ProductionAu
   return redirect(LOGIN_PATH, `${SESSION_COOKIE}=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Strict`);
 }
 
+function stepUpFresh(identity: ProductionIdentity) {
+  if (!identity.stepUpAt) return false;
+  return Math.floor(Date.now() / 1000) - identity.stepUpAt <= STEP_UP_TTL_SECONDS;
+}
+
+async function accountPageData(env: ProductionAuthEnv, identity: ProductionIdentity): Promise<AccountPageData> {
+  const [profile, google, mfa] = await Promise.all([
+    env.DB.prepare("SELECT phone FROM control_accounts WHERE email=?1").bind(identity.email).first<{ phone: string | null }>(),
+    env.DB.prepare("SELECT provider_email FROM control_auth_identities WHERE provider='google' AND account_email=?1 LIMIT 1").bind(identity.email).first<{ provider_email: string }>(),
+    totpState(env, identity.email),
+  ]);
+  return {
+    phone: profile?.phone ?? null,
+    googleLinked: Boolean(google?.provider_email),
+    googleEmail: google?.provider_email ?? null,
+    totp: mfa,
+  };
+}
+
+async function requireAccountStepUp(env: ProductionAuthEnv, identity: ProductionIdentity) {
+  const state = await totpState(env, identity.email);
+  return !state.enabled || stepUpFresh(identity);
+}
+
 export async function handleProductionAccount(request: Request, env: ProductionAuthEnv, identity: ProductionIdentity) {
   const url = new URL(request.url);
   if (request.method === "GET" && url.pathname === ACCOUNT_PATH) {
-    const profile = await env.DB.prepare("SELECT phone FROM control_accounts WHERE email=?1").bind(identity.email).first<{ phone: string | null }>();
-    return responseHtml(accountPage(identity, profile ?? {}));
+    return responseHtml(accountPage(identity, await accountPageData(env, identity)));
   }
   if (request.method !== "POST" || !sameOriginPost(request)) return new Response("Method Not Allowed", { status: 405, headers: secureHeaders("text/plain; charset=utf-8") });
 
   const form = await request.formData();
+
+  if (url.pathname === `${ACCOUNT_PATH}/mfa/setup`) {
+    try {
+      const setup = await beginTotpEnrollment(env, identity.email, identity.displayName);
+      const data = await accountPageData(env, identity);
+      return responseHtml(accountPage(identity, { ...data, setupSecret: setup.secret, setupUri: setup.uri }, "Nhập mã 6 số để hoàn tất liên kết Authenticator."));
+    } catch {
+      return responseHtml(accountPage(identity, await accountPageData(env, identity), "Lỗi: Không thể bắt đầu thiết lập Authenticator."), 400);
+    }
+  }
+
+  if (url.pathname === `${ACCOUNT_PATH}/mfa/verify`) {
+    const ok = await completeTotpEnrollment(env, identity.email, form.get("code"));
+    if (!ok) return responseHtml(accountPage(identity, await accountPageData(env, identity), "Lỗi: Mã Authenticator không đúng hoặc đã hết hạn."), 401);
+    const now = Math.floor(Date.now() / 1000);
+    await env.DB.prepare("UPDATE control_sessions SET step_up_at=?2 WHERE session_id_hash=?1").bind(identity.sessionHash, now).run();
+    return responseHtml(accountPage({ ...identity, stepUpAt: now }, await accountPageData(env, identity), "Đã bật Authenticator. Xác minh tăng cường có hiệu lực 15 phút."));
+  }
+
+  if (url.pathname === `${ACCOUNT_PATH}/mfa/step-up`) {
+    const ok = await verifyTotp(env, identity.email, form.get("code"));
+    if (!ok) return responseHtml(accountPage(identity, await accountPageData(env, identity), "Lỗi: Mã Authenticator không đúng hoặc đã hết hạn."), 401);
+    const now = Math.floor(Date.now() / 1000);
+    await env.DB.prepare("UPDATE control_sessions SET step_up_at=?2 WHERE session_id_hash=?1").bind(identity.sessionHash, now).run();
+    return responseHtml(accountPage({ ...identity, stepUpAt: now }, await accountPageData(env, identity), "Đã xác minh tăng cường. Thao tác nhạy cảm được mở trong 15 phút."));
+  }
+
+  if (url.pathname === `${ACCOUNT_PATH}/mfa/disable`) {
+    if (!(await requireAccountStepUp(env, identity))) {
+      return responseHtml(accountPage(identity, await accountPageData(env, identity), "Lỗi: Hãy xác minh Authenticator trước khi tắt lớp bảo mật này."), 403);
+    }
+    await removeTotp(env, identity.email);
+    await env.DB.prepare("UPDATE control_sessions SET step_up_at=NULL WHERE email=?1").bind(identity.email).run();
+    return responseHtml(accountPage({ ...identity, stepUpAt: null }, await accountPageData(env, identity), "Đã tắt Authenticator."));
+  }
+
   if (url.pathname === `${ACCOUNT_PATH}/profile`) {
     const displayName = text(form.get("displayName")).slice(0, 80);
     const phone = text(form.get("phone")).slice(0, 32);
@@ -615,6 +736,9 @@ export async function handleProductionAccount(request: Request, env: ProductionA
   }
 
   if (url.pathname === `${ACCOUNT_PATH}/email`) {
+    if (!(await requireAccountStepUp(env, identity))) {
+      return responseHtml(accountPage(identity, await accountPageData(env, identity), "Lỗi: Hãy xác minh Authenticator trước khi đổi email quyền nội bộ."), 403);
+    }
     const newEmail = normalizeEmail(form.get("newEmail"));
     const currentPassword = text(form.get("currentPassword"));
     const profile = await env.DB.prepare("SELECT phone FROM control_accounts WHERE email=?1").bind(identity.email).first<{ phone: string | null }>();
@@ -639,6 +763,9 @@ export async function handleProductionAccount(request: Request, env: ProductionA
   }
 
   if (url.pathname === `${ACCOUNT_PATH}/password`) {
+    if (!(await requireAccountStepUp(env, identity))) {
+      return responseHtml(accountPage(identity, await accountPageData(env, identity), "Lỗi: Hãy xác minh Authenticator trước khi đổi mật khẩu khôi phục."), 403);
+    }
     const currentPassword = text(form.get("currentPassword"));
     const newPassword = text(form.get("newPassword"));
     const confirmPassword = text(form.get("confirmPassword"));
@@ -718,6 +845,7 @@ export const PRODUCTION_AUTH_GUARDRAILS = {
   passwordIterations: PASSWORD_ITERATIONS,
   lockAfterFailures: MAX_FAILED_ATTEMPTS,
   lockSeconds: LOCK_SECONDS,
+  stepUpTtlSeconds: STEP_UP_TTL_SECONDS,
   sameSite: "Strict",
   httpOnly: true,
 } as const;
