@@ -408,7 +408,7 @@ export async function heartbeatDesktopAgent(payload: Record<string, unknown>) {
       .prepare(
         `SELECT command_id,command_type,state,issued_at,expires_at
            FROM desktop_agent_commands
-          WHERE device_id=?1 AND state='queued' AND expires_at>=?2
+          WHERE device_id=?1 AND state IN ('queued','delivered') AND expires_at>=?2
           ORDER BY issued_at ASC LIMIT 16`,
       )
       .bind(row.device_id, now)
