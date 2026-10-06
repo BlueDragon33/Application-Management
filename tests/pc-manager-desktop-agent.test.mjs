@@ -54,3 +54,18 @@ test("P8 database migration separates device identity challenges commands and au
   assert.match(migration, /entitlement_state/);
   assert.match(migration, /update_policy/);
 });
+
+
+test("registration does not claim online presence before signed heartbeat proof", () => {
+  const gateway = source("app/desktop-agent-gateway.server.ts");
+  const registerStart = gateway.indexOf("export async function registerDesktopAgent");
+  const challengeStart = gateway.indexOf("export async function createDesktopAgentChallenge");
+  const register = gateway.slice(registerStart, challengeStart);
+  const heartbeatStart = gateway.indexOf("export async function heartbeatDesktopAgent");
+  const ackStart = gateway.indexOf("export async function acknowledgeDesktopAgentCommand");
+  const heartbeat = gateway.slice(heartbeatStart, ackStart);
+
+  assert.doesNotMatch(register, /last_seen_at=CURRENT_TIMESTAMP/);
+  assert.match(heartbeat, /last_seen_at=CURRENT_TIMESTAMP/);
+  assert.match(heartbeat, /verifyAgentProof\(payload, "heartbeat"\)/);
+});
