@@ -166,7 +166,10 @@ async function verifyGoogleIdToken(
   if (alg !== "RS256" || !kid) throw new Error("google_id_token_header");
 
   const keys = await googleJwks();
-  const jwk = keys.find((item) => item.kid === kid && item.kty === "RSA");
+  const jwk = keys.find((item) => {
+    const candidate = item as JsonWebKey & { kid?: string };
+    return candidate.kid === kid && candidate.kty === "RSA";
+  });
   if (!jwk) throw new Error("google_id_token_key");
 
   const key = await crypto.subtle.importKey(
