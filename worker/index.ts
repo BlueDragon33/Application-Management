@@ -73,6 +73,10 @@ async function databaseReady(env: Env) {
     await env.DB.prepare("SELECT id FROM visa_intake_links LIMIT 1").first();
     await env.DB.prepare("SELECT id FROM visa_intake_submissions LIMIT 1").first();
     await env.DB.prepare("SELECT id FROM visa_intake_results LIMIT 1").first();
+    await env.DB.prepare("SELECT device_id FROM desktop_agent_devices LIMIT 1").first();
+    await env.DB.prepare("SELECT nonce FROM desktop_agent_challenges LIMIT 1").first();
+    await env.DB.prepare("SELECT command_id FROM desktop_agent_commands LIMIT 1").first();
+    await env.DB.prepare("SELECT id FROM desktop_agent_audit LIMIT 1").first();
     return true;
   } catch {
     return false;
@@ -198,6 +202,11 @@ function isPublicVisaIntakeRequest(request: Request, url: URL) {
   return request.method === "POST" && url.pathname === "/api/kd-mid-visa-intake/public";
 }
 
+function isPublicDesktopAgentRequest(request: Request, url: URL) {
+  if (url.pathname !== "/api/desktop-agent") return false;
+  return request.method === "GET" || request.method === "HEAD" || request.method === "POST";
+}
+
 function freshDynamicResponse(response: Response, cloudflareChannel: boolean) {
   if (!cloudflareChannel) return response;
   const headers = new Headers(response.headers);
@@ -245,6 +254,13 @@ const worker = {
     // service worker deterministically.
     if ((isPreview || isProduction) && isPublicPwaAsset(request, url)) {
       return env.ASSETS.fetch(request);
+    }
+
+    // Native PC Manager agents authenticate with their own P-256 challenge flow.
+    // Only the narrow agent endpoint bypasses browser/admin session auth; the
+    // desktop-agent-admin route stays behind normal control-plane authentication.
+    if ((isPreview || isProduction) && isPublicDesktopAgentRequest(request, url)) {
+      return freshDynamicResponse(await handler.fetch(request, env, ctx), true);
     }
 
     // Public visa-intake is intentionally shareable without an admin session.
