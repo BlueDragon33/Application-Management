@@ -142,7 +142,7 @@ function secureHeaders(contentType = "text/html; charset=utf-8") {
   return {
     "cache-control": "no-store, private",
     "content-type": contentType,
-    "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+    "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; script-src 'self'; img-src 'self' data:; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
     "referrer-policy": "no-referrer",
     "x-content-type-options": "nosniff",
     "x-frame-options": "DENY",
@@ -196,7 +196,7 @@ function shell(title: string, body: string) {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${escapeHtml(title)} · Application Management</title>
 <style>
-:root{color-scheme:dark;font-family:Inter,system-ui,sans-serif;background:#07120f;color:#effaf6}*{box-sizing:border-box}body{min-height:100vh;margin:0;display:grid;place-items:center;padding:20px;background:radial-gradient(circle at 20% 0,#123e32 0,transparent 36%),#07120f}.card{width:min(560px,100%);background:#0b211b;border:1px solid #1f5748;border-radius:18px;padding:26px;box-shadow:0 28px 80px #0009}h1{font-size:24px;margin:0 0 8px}h2{font-size:16px;margin:24px 0 8px}p{color:#a8c8bd;line-height:1.55}label{display:block;margin:14px 0 6px;font-size:13px;font-weight:700}input{width:100%;padding:12px 13px;border:1px solid #2c6857;border-radius:9px;background:#071812;color:#fff}button,.button{display:inline-flex;align-items:center;justify-content:center;min-height:42px;margin-top:14px;padding:0 16px;border:1px solid #37a480;border-radius:9px;background:#167258;color:#fff;font-weight:800;text-decoration:none;cursor:pointer}.secondary{background:#102f27;border-color:#2b6857}.row{display:flex;gap:9px;flex-wrap:wrap}.error{padding:10px 12px;border:1px solid #9e4242;border-radius:9px;background:#401d1d;color:#ffd5d5}.success{padding:10px 12px;border:1px solid #29815f;border-radius:9px;background:#123d30;color:#caffec}.note{font-size:12px;color:#779d90}.field{padding:10px 12px;border:1px solid #244f43;border-radius:9px;background:#0a1915}.field span,.field strong{display:block}.field span{font-size:11px;color:#7ea596}.field strong{margin-top:4px;overflow-wrap:anywhere}.google{width:100%;background:#fff;color:#1f1f1f;border-color:#d8dadd}.divider{display:flex;align-items:center;gap:10px;margin:18px 0;color:#688f82;font-size:12px}.divider:before,.divider:after{content:"";height:1px;background:#244f43;flex:1}details{margin-top:12px;padding-top:4px}summary{cursor:pointer;color:#9bc4b6;font-size:13px;font-weight:700}</style>
+:root{color-scheme:dark;font-family:Inter,system-ui,sans-serif;background:#07120f;color:#effaf6}*{box-sizing:border-box}body{min-height:100vh;margin:0;display:grid;place-items:center;padding:20px;background:radial-gradient(circle at 20% 0,#123e32 0,transparent 36%),#07120f}.card{width:min(560px,100%);background:#0b211b;border:1px solid #1f5748;border-radius:18px;padding:26px;box-shadow:0 28px 80px #0009}h1{font-size:24px;margin:0 0 8px}h2{font-size:16px;margin:24px 0 8px}p{color:#a8c8bd;line-height:1.55}label{display:block;margin:14px 0 6px;font-size:13px;font-weight:700}input{width:100%;padding:12px 13px;border:1px solid #2c6857;border-radius:9px;background:#071812;color:#fff}button,.button{display:inline-flex;align-items:center;justify-content:center;min-height:42px;margin-top:14px;padding:0 16px;border:1px solid #37a480;border-radius:9px;background:#167258;color:#fff;font-weight:800;text-decoration:none;cursor:pointer}.secondary{background:#102f27;border-color:#2b6857}.row{display:flex;gap:9px;flex-wrap:wrap}.error{padding:10px 12px;border:1px solid #9e4242;border-radius:9px;background:#401d1d;color:#ffd5d5}.success{padding:10px 12px;border:1px solid #29815f;border-radius:9px;background:#123d30;color:#caffec}.note{font-size:12px;color:#779d90}.field{padding:10px 12px;border:1px solid #244f43;border-radius:9px;background:#0a1915}.field span,.field strong{display:block}.field span{font-size:11px;color:#7ea596}.field strong{margin-top:4px;overflow-wrap:anywhere}.google{width:100%;background:#fff;color:#1f1f1f;border-color:#d8dadd}.divider{display:flex;align-items:center;gap:10px;margin:18px 0;color:#688f82;font-size:12px}.divider:before,.divider:after{content:"";height:1px;background:#244f43;flex:1}.qr-shell{display:grid;place-items:center;margin:16px auto;padding:14px;width:max-content;max-width:100%;border-radius:16px;background:#fff;box-shadow:0 10px 28px #0005}.qr-shell canvas,.qr-shell img{display:block;max-width:100%;height:auto}.qr-target{width:232px;min-height:232px;display:grid;place-items:center;color:#34564d;font-size:12px;text-align:center}.mfa-steps{margin:10px 0;padding-left:20px;color:#c6ded6;line-height:1.6}.manual-key{margin-top:14px;border-top:1px solid #245244;padding-top:10px}details{margin-top:12px;padding-top:4px}summary{cursor:pointer;color:#9bc4b6;font-size:13px;font-weight:700}</style>
 </head>
 <body><main class="card">${body}</main></body>
 </html>`;
@@ -255,12 +255,24 @@ function accountPage(identity: ProductionIdentity, profile: AccountPageData, not
     ${profile.setupSecret ? `
       <div class="success">
         <strong>Thiết lập Google Authenticator</strong>
-        <p>Mở Google Authenticator → thêm tài khoản → nhập khóa thiết lập thủ công bên dưới.</p>
-        <div class="field"><span>Khóa thiết lập</span><strong>${escapeHtml(profile.setupSecret)}</strong></div>
-        <p class="note">URI kỹ thuật: ${escapeHtml(profile.setupUri ?? "")}</p>
+        <ol class="mfa-steps">
+          <li>Mở Google Authenticator trên điện thoại.</li>
+          <li>Nhấn dấu <strong>+</strong> → <strong>Quét mã QR</strong>.</li>
+          <li>Quét mã bên dưới, sau đó nhập mã 6 số để xác nhận.</li>
+        </ol>
+        <div class="qr-shell">
+          <div class="qr-target" data-authenticator-qr="${escapeHtml(profile.setupUri ?? "")}" aria-label="Mã QR thiết lập Google Authenticator">Đang tạo mã QR…</div>
+        </div>
+        <p class="note">Mã QR được tạo cục bộ ngay trong App-Manager; khóa Authenticator không được gửi tới dịch vụ QR bên ngoài.</p>
+        <details class="manual-key">
+          <summary>Không quét được? Nhập khóa thiết lập thủ công</summary>
+          <div class="field"><span>Khóa thiết lập</span><strong>${escapeHtml(profile.setupSecret)}</strong></div>
+        </details>
       </div>
+      <script defer src="/vendor/qrcode.min.js"></script>
+      <script defer src="/authenticator-qr.js"></script>
       <form method="post" action="${ACCOUNT_PATH}/mfa/verify">
-        <label for="verifyTotpCode">Mã 6 số đang hiển thị</label>
+        <label for="verifyTotpCode">Mã 6 số trong Google Authenticator</label>
         <input id="verifyTotpCode" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
         <button type="submit">Xác nhận và bật Authenticator</button>
       </form>
