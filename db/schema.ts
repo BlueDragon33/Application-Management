@@ -108,6 +108,57 @@ export const deployOpsCredentials = sqliteTable("deploy_ops_credentials", {
 ]);
 
 
+export const desktopAgentDevices = sqliteTable("desktop_agent_devices", {
+  deviceId: text("device_id").primaryKey(),
+  displayCode: text("display_code").notNull().unique(),
+  publicKeyJwk: text("public_key_jwk").notNull(),
+  appId: text("app_id").notNull(),
+  platform: text("platform").notNull(),
+  deviceType: text("device_type").notNull(),
+  status: text("status").notNull().default("pending"),
+  appVersion: text("app_version").notNull().default(""),
+  releaseChannel: text("release_channel").notNull().default("stable"),
+  entitlementState: text("entitlement_state").notNull().default("unknown"),
+  updatePolicyJson: text("update_policy_json").notNull().default("{}"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  approvedAt: text("approved_at"),
+  blockedAt: text("blocked_at"),
+  lastSeenAt: text("last_seen_at"),
+}, (table) => [
+  index("desktop_agent_devices_status_seen_idx").on(table.status, table.lastSeenAt),
+]);
+
+export const desktopAgentChallenges = sqliteTable("desktop_agent_challenges", {
+  nonce: text("nonce").primaryKey(),
+  deviceId: text("device_id").notNull(),
+  expiresAt: integer("expires_at").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("desktop_agent_challenges_device_idx").on(table.deviceId, table.expiresAt),
+]);
+
+export const desktopAgentCommands = sqliteTable("desktop_agent_commands", {
+  commandId: text("command_id").primaryKey(),
+  deviceId: text("device_id").notNull(),
+  commandType: text("command_type").notNull(),
+  payloadJson: text("payload_json").notNull().default("{}"),
+  status: text("status").notNull().default("queued"),
+  deliveryCount: integer("delivery_count").notNull().default(0),
+  createdBy: text("created_by").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  deliveredAt: text("delivered_at"),
+  completedAt: text("completed_at"),
+  resultJson: text("result_json"),
+}, (table) => [
+  index("desktop_agent_commands_delivery_idx").on(
+    table.deviceId,
+    table.status,
+    table.deliveredAt,
+    table.createdAt,
+  ),
+]);
+
+
 export const visaIntakeLinks = sqliteTable("visa_intake_links", {
   id: text("id").primaryKey(),
   tokenHash: text("token_hash").notNull().unique(),
