@@ -39,6 +39,9 @@ jobs:
       APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID: ${{ secrets.APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID }}
       APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD: ${{ secrets.APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD }}
       APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET: ${{ secrets.APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET }}
+      GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+      APPLICATION_MANAGEMENT_MFA_ENCRYPTION_KEY: ${{ secrets.APPLICATION_MANAGEMENT_MFA_ENCRYPTION_KEY }}
       MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY: ${{ secrets.MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
@@ -99,6 +102,12 @@ jobs:
             echo '::error::APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET must contain at least 32 characters.'
             exit 1
           fi
+          if [[ -n "${GOOGLE_OAUTH_CLIENT_ID:-}" || -n "${GOOGLE_OAUTH_CLIENT_SECRET:-}" ]]; then
+            if [[ -z "${GOOGLE_OAUTH_CLIENT_ID:-}" || -z "${GOOGLE_OAUTH_CLIENT_SECRET:-}" ]]; then
+              echo '::error::GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET must be configured together.'
+              exit 1
+            fi
+          fi
           if [[ -n "${MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY:-}" && ! "$MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY" =~ ^[A-Za-z0-9_-]{43}$ ]]; then
             echo '::error::MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY must be a 32-byte URL-safe base64 key (43 chars, no padding).'
             exit 1
@@ -158,6 +167,38 @@ jobs:
       - name: Install production read-back secret
         shell: bash
         run: printf '%s' "$APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET" | npx wrangler secret put APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET --config wrangler.production.jsonc
+
+      - name: Install Google OAuth credentials when configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${GOOGLE_OAUTH_CLIENT_ID:-}" && -n "${GOOGLE_OAUTH_CLIENT_SECRET:-}" ]]; then
+            printf '%s' "$GOOGLE_OAUTH_CLIENT_ID" | npx wrangler secret put GOOGLE_OAUTH_CLIENT_ID --config wrangler.production.jsonc
+            printf '%s' "$GOOGLE_OAUTH_CLIENT_SECRET" | npx wrangler secret put GOOGLE_OAUTH_CLIENT_SECRET --config wrangler.production.jsonc
+            echo 'Google OAuth credentials installed as protected Worker secrets.'
+          else
+            echo 'Google OAuth credentials not supplied; password recovery login remains available.'
+          fi
+
+      - name: Ensure MFA encryption key
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${APPLICATION_MANAGEMENT_MFA_ENCRYPTION_KEY:-}" ]]; then
+            if [[ ! "$APPLICATION_MANAGEMENT_MFA_ENCRYPTION_KEY" =~ ^[A-Za-z0-9_-]{43}$ ]]; then
+              echo '::error::APPLICATION_MANAGEMENT_MFA_ENCRYPTION_KEY must be a 32-byte URL-safe base64 key (43 chars, no padding).'
+              exit 1
+            fi
+            printf '%s' "$APPLICATION_MANAGEMENT_MFA_ENCRYPTION_KEY" | npx wrangler secret put APPLICATION_MANAGEMENT_MFA_ENCRYPTION_KEY --config wrangler.production.jsonc
+            echo 'MFA encryption key installed from protected environment secret.'
+          elif npx wrangler secret list --config wrangler.production.jsonc 2>/dev/null | grep -q 'APPLICATION_MANAGEMENT_MFA_ENCRYPTION_KEY'; then
+            echo 'MFA encryption key already exists; keeping the current key.'
+          else
+            GENERATED_MFA_KEY="$(node --input-type=module -e "import crypto from 'node:crypto'; process.stdout.write(crypto.randomBytes(32).toString('base64url'))")"
+            printf '%s' "$GENERATED_MFA_KEY" | npx wrangler secret put APPLICATION_MANAGEMENT_MFA_ENCRYPTION_KEY --config wrangler.production.jsonc
+            unset GENERATED_MFA_KEY
+            echo 'MFA encryption key created once as a Worker secret.'
+          fi
 
       - name: Ensure managed app credential encryption key
         shell: bash
@@ -224,6 +265,17 @@ jobs:
           if grep -qi 'preview access secret' /tmp/production-login.html; then
             echo '::error::Production login page must not expose Preview login wording.'
             exit 1
+          fi
+          if [[ -n "${GOOGLE_OAUTH_CLIENT_ID:-}" && -n "${GOOGLE_OAUTH_CLIENT_SECRET:-}" ]]; then
+            if ! grep -q 'Tiếp tục với Google' /tmp/production-login.html; then
+              echo '::error::Google OAuth credentials were supplied but the Production login page does not expose Google sign-in.'
+              exit 1
+            fi
+            GOOGLE_START_CODE="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 15 "$APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/__auth/google")"
+            if [[ "$GOOGLE_START_CODE" != "303" ]]; then
+              echo "::error::Expected Google OAuth start route to redirect with 303, got HTTP $GOOGLE_START_CODE."
+              exit 1
+            fi
           fi
           FORM_CODE="$(curl --silent --show-error --output /tmp/production-login-post.html --write-out '%{http_code}' --max-time 15 \
             -X POST \
@@ -292,7 +344,10 @@ jobs:
           if (!value.databaseReady) throw new Error('Production D1 schema is not ready.');
           if (!value.assetsReady) throw new Error('Production static assets are not ready on the live Worker version.');
           if (!value.productionAuthConfigured) throw new Error('Production account authentication is not configured.');
-          if (value.accessMode !== 'account-session') throw new Error('Unexpected Production access mode.');
+          const googleExpected = Boolean(process.env.GOOGLE_OAUTH_CLIENT_ID && process.env.GOOGLE_OAUTH_CLIENT_SECRET);
+          if (googleExpected && !value.googleAuthConfigured) throw new Error('Google OAuth secrets were supplied but the live Worker did not enable Google authentication.');
+          const expectedAccessMode = googleExpected ? 'google-oauth+account-session' : 'account-session';
+          if (value.accessMode !== expectedAccessMode) throw new Error(`Unexpected Production access mode: ${value.accessMode}; expected ${expectedAccessMode}.`);
           if (!value.ownerPolicyConfigured) throw new Error('Production owner policy is missing.');
           if (value.networkMode !== 'production') throw new Error('Production must use production network resolution.');
           console.log('Application Management Cloudflare production read-back PASS.');

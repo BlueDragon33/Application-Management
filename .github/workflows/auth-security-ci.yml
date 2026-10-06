@@ -1,0 +1,41 @@
+name: Authentication Security CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "worker/google-oauth.ts"
+      - "worker/totp.ts"
+      - "worker/production-auth.ts"
+      - "worker/index.ts"
+      - "drizzle/0012_google_auth_identities.sql"
+      - "drizzle/0013_totp_step_up.sql"
+      - "tests/google-production-auth.test.mjs"
+      - "tests/totp-step-up-auth.test.mjs"
+      - ".github/workflows/deploy-application-management-production.yml"
+      - ".github/workflows/auth-security-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: application-management-auth-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  auth-check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Authentication regression tests
+        run: node --test tests/google-production-auth.test.mjs tests/totp-step-up-auth.test.mjs tests/cloudflare-production-boundary.test.mjs tests/production-deploy-trigger.test.mjs tests/production-owner-control-session.test.mjs tests/security-contract.test.mjs

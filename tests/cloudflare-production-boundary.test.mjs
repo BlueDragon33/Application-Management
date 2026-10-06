@@ -59,7 +59,9 @@ test("production Worker authenticates before application and uses separate deplo
   assert.match(worker, /productionIdentity\(request, env\)/);
   assert.match(worker, /withProductionIdentity\(request, identity\)/);
   assert.match(worker, /productionReadbackAuthorized/);
-  assert.match(worker, /accessMode: isProduction \? "account-session"/);
+  assert.match(worker, /productionGoogleAuthConfigured\(env\)/);
+  assert.match(worker, /"google-oauth\+account-session"/);
+  assert.match(worker, /"account-session"/);
   assert.match(worker, /productionAuthConfigured/);
   assert.doesNotMatch(auth, /APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET/);
 });
@@ -117,7 +119,9 @@ test("production deploy requires either manual confirmation or the owner-only PR
   assert.ok(deploy.includes("for attempt in {1..12}"));
   assert.ok(deploy.includes("waiting for Cloudflare secret/version propagation"));
   assert.ok(deploy.includes("did not become ready within 60 seconds"));
-  assert.ok(deploy.includes("value.accessMode !== 'account-session'"));
+  assert.ok(deploy.includes("expectedAccessMode"));
+  assert.ok(deploy.includes("google-oauth+account-session"));
+  assert.ok(deploy.includes("value.googleAuthConfigured"));
   assert.ok(deploy.includes("value.productionAuthConfigured"));
   assert.ok(deploy.includes("Create short-lived owner contract probe session"));
   assert.ok(deploy.includes('--data \'{"action":"probe-all"}\''));
