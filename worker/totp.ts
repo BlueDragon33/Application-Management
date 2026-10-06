@@ -102,11 +102,11 @@ async function decryptSecret(env: TotpEnv, ciphertext: string, iv: string) {
 
 function counterBytes(counter: number) {
   const bytes = new Uint8Array(8);
-  let value = BigInt(counter);
-  for (let index = 7; index >= 0; index -= 1) {
-    bytes[index] = Number(value & 255n);
-    value >>= 8n;
-  }
+  const view = new DataView(bytes.buffer);
+  const high = Math.floor(counter / 0x1_0000_0000);
+  const low = counter >>> 0;
+  view.setUint32(0, high, false);
+  view.setUint32(4, low, false);
   return bytes;
 }
 
