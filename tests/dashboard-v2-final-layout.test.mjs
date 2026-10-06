@@ -66,8 +66,10 @@ test("minimal reference styling mounts after launcher styles and keeps flat stat
   const minimal = page.indexOf('management-dashboard-minimal-reference.css');
   const css = source("app/management-dashboard-minimal-reference.css");
   assert.ok(launcher >= 0 && minimal > launcher);
-  assert.match(css, /\.amv2-panel\s*\{[\s\S]*?background:\s*#10231e/);
-  assert.match(css, /\.amv2-metrics > button\s*\{[\s\S]*?background:\s*#142622/);
-  assert.match(css, /grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\)/);
+  assert.match(css, /\.amv2-panel,[\s\S]*?background:\s*#101716\s*!important/);
+  assert.match(css, /\.amv2-metrics > button,[\s\S]*?background:\s*#131b19\s*!important/);
+  assert.match(css, /\.amv2-metrics > button\[data-tone="teal"\],[\s\S]*?background:\s*#131b19\s*!important/);
+  assert.match(css, /grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\)\s*!important/);
+  assert.match(css, /grid-template-columns:\s*252px minmax\(0, 1fr\)\s*!important/);
   assert.doesNotMatch(css, /radial-gradient|linear-gradient/);
 });
