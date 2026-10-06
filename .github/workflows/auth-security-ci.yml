@@ -38,4 +38,4 @@ jobs:
       - name: TypeScript
         run: npm run typecheck
       - name: Authentication regression tests
-        run: node --test tests/google-production-auth.test.mjs tests/totp-step-up-auth.test.mjs tests/production-owner-control-session.test.mjs tests/security-contract.test.mjs
+        run: node --test tests/google-production-auth.test.mjs tests/totp-step-up-auth.test.mjs tests/cloudflare-production-boundary.test.mjs tests/production-deploy-trigger.test.mjs tests/production-owner-control-session.test.mjs tests/security-contract.test.mjs
