@@ -73,6 +73,8 @@ async function databaseReady(env: Env) {
     await env.DB.prepare("SELECT id FROM visa_intake_links LIMIT 1").first();
     await env.DB.prepare("SELECT id FROM visa_intake_submissions LIMIT 1").first();
     await env.DB.prepare("SELECT id FROM visa_intake_results LIMIT 1").first();
+    await env.DB.prepare("SELECT device_id FROM desktop_agent_devices LIMIT 1").first();
+    await env.DB.prepare("SELECT command_id FROM desktop_agent_commands LIMIT 1").first();
     return true;
   } catch {
     return false;
@@ -198,6 +200,16 @@ function isPublicVisaIntakeRequest(request: Request, url: URL) {
   return request.method === "POST" && url.pathname === "/api/kd-mid-visa-intake/public";
 }
 
+function isPublicDesktopAgentRequest(request: Request, url: URL) {
+  if (request.method === "POST" && url.pathname === "/api/desktop-agent") {
+    return true;
+  }
+  return (
+    (request.method === "GET" || request.method === "HEAD") &&
+    url.pathname === "/api/desktop-agent/contract"
+  );
+}
+
 function freshDynamicResponse(response: Response, cloudflareChannel: boolean) {
   if (!cloudflareChannel) return response;
   const headers = new Headers(response.headers);
@@ -253,6 +265,13 @@ const worker = {
       return await publicVisaIntakePage(request, env);
     }
     if (isProduction && isPublicVisaIntakeRequest(request, url)) {
+      return freshDynamicResponse(await handler.fetch(request, env, ctx), true);
+    }
+
+    // Native PC Manager authenticates this narrow gateway with its own
+    // P-256 one-time challenge. The admin endpoint remains behind the
+    // normal Application Management account/device gate.
+    if ((isPreview || isProduction) && isPublicDesktopAgentRequest(request, url)) {
       return freshDynamicResponse(await handler.fetch(request, env, ctx), true);
     }
 

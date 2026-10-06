@@ -21,6 +21,7 @@ Application Management · ChatGPT Site
     │   └── LEVEL 2 · subject modules
     ├── LEVEL 1 · GrowUP MyChildren
     ├── LEVEL 1 · PriceReport Tùng Gia Bảo
+    ├── LEVEL 1 · PC Manager Desktop
     └── LEVEL 1 · CAD CAM 3D
 ```
 
@@ -56,6 +57,7 @@ Application Management không được:
 | Bauman | `BM-` | Registry, P-256 Device Gate, session/revoke, audit và device commands đã có backend |
 | GrowUP | `GU-` | Local Control Service privacy-safe đã có; production remote vẫn fail-closed |
 | PriceReport | `KT-` | Registry/Device Control local-first, tách dữ liệu báo giá khỏi control-plane |
+| PC Manager Desktop | `PC-` | Desktop Agent Gateway outbound-only; P-256, approval, heartbeat, entitlement và typed commands |
 | CAD CAM 3D | `CAD-` | Namespace dành riêng; remote registry/control chưa bật |
 
 Quyền **truy cập** và quyền **chỉnh sửa** luôn là hai lớp độc lập.
@@ -144,6 +146,20 @@ PriceReport là client kế toán/báo giá local-first. Dữ liệu báo giá, 
 
 KT Control đã có P-256 session, optimistic concurrency, idempotent command và read-back trong local stack. Production remote chỉ được coi là sẵn sàng sau khi origin/secret/deployment thật được xác minh.
 
+## PC Manager Desktop
+
+PC Manager là client Windows native. Khác với Universal Management Contract dành cho web/server client, PC Manager dùng **Desktop Agent Gateway outbound-only**:
+
+1. PC Manager giữ private key P-256 trong Windows CNG và chỉ gửi public JWK khi đăng ký;
+2. thiết bị xuất hiện ở namespace `PC-` với trạng thái `pending/approved/blocked`;
+3. khi ứng dụng đang chạy, PC Manager chủ động gửi heartbeat HTTPS; Trung tâm không mở kết nối vào PC;
+4. online/offline được suy từ heartbeat, không từ ping hoặc cổng inbound;
+5. release channel, entitlement và update policy được trả trong heartbeat;
+6. remote command chỉ thuộc allow-list `CHECK_UPDATE`, `RUN_HEALTH_SCAN`, `REFRESH_DEVICE_STATUS`, `DISABLE_LICENSE`;
+7. không có primitive arbitrary shell, PowerShell, process execution, registry mutation hoặc download-and-run.
+
+Khu quản trị riêng nằm tại `/apps/pc-manager`. Production vẫn giữ trạng thái `migrating` cho tới khi gateway được deploy, cấu hình HTTPS origin ở desktop client và xác minh handshake thật.
+
 ## CAD CAM 3D
 
 CAD CAM 3D là client kỹ thuật cấp 1. Trung tâm chỉ quản lý readiness, policy giao diện, feature flags, print-policy và ranh giới thiết bị. Project CAD, geometry, mesh và file STL/STEP/3MF không được đưa vào control-plane.
@@ -161,6 +177,7 @@ Remote registry `CAD-`, signed Device Gate và Control API chưa tồn tại nê
 | Bauman Hub | Có | BM registry + Device Contract + admin UI | Migrating |
 | GrowUP | Có | Privacy-safe local Control Service | Pending production remote |
 | PriceReport | Có | KT Control + device management local-first | Migrating |
+| PC Manager Desktop | Windows native | Desktop Agent Gateway P-256 + typed command console | Migrating |
 | CAD CAM 3D | Có | Readiness/policy admin, mutation fail-closed | Pending Control API |
 
 Không đổi `migrating/pending` thành `connected` chỉ vì code build xanh; phải có bằng chứng deployment/configuration thật.

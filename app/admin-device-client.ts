@@ -82,6 +82,42 @@ export type CenterBootstrap = {
   upstreamError?: string | null;
 };
 
+export type DesktopAgentDevice = {
+  deviceId: string;
+  deviceCode: string;
+  appId: "pc-manager";
+  platform: "windows";
+  deviceType: "desktop-native";
+  status: "pending" | "approved" | "blocked";
+  online: boolean;
+  appVersion: string;
+  releaseChannel: "dev" | "beta" | "stable";
+  entitlementState: "unknown" | "active" | "trial" | "disabled";
+  updatePolicy: {
+    channel?: "dev" | "beta" | "stable";
+    autoCheck?: boolean;
+    minimumVersion?: string;
+  };
+  createdAt: string;
+  approvedAt: string | null;
+  blockedAt: string | null;
+  lastSeenAt: string | null;
+};
+
+export type DesktopAgentAdminResponse = {
+  ok?: boolean;
+  devices?: DesktopAgentDevice[];
+  device?: DesktopAgentDevice;
+  command?: {
+    commandId: string;
+    deviceId: string;
+    type: "CHECK_UPDATE" | "RUN_HEALTH_SCAN" | "REFRESH_DEVICE_STATUS" | "DISABLE_LICENSE";
+    status: "queued";
+  };
+  error?: string;
+  code?: string;
+};
+
 export type OperationsDevice = {
   appId: string;
   appName: string;
@@ -438,6 +474,19 @@ export async function operationsAction(body: Record<string, unknown>) {
   const path = body.action === "set-auto-approval" ? "/api/operations-auto-approval"
     : focusedDeviceAction ? "/api/focused-device-operation" : "/api/operations";
   return await secureApi(path, credential, access, actionBody) as OperationsActionResponse;
+}
+
+export async function desktopAgentAdminAction(body: Record<string, unknown>) {
+  const { credential, access } = await approvedSession();
+  if (access.status !== "approved") {
+    throw new AdminApiError("Thiết bị quản trị chưa được cấp quyền.", { device: access });
+  }
+  return await secureApi(
+    "/api/desktop-agent/admin",
+    credential,
+    access,
+    body,
+  ) as DesktopAgentAdminResponse;
 }
 
 export async function managedAppsAction(body: Record<string, unknown>) {
