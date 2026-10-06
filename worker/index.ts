@@ -12,9 +12,14 @@ import {
 import { publicVisaIntakePage } from "./visa-intake-public";
 import {
   handleProductionAccount,
+  handleProductionGoogleCallback,
+  handleProductionGoogleStart,
   handleProductionLogin,
   handleProductionLogout,
   productionAccountPath,
+  productionGoogleAuthConfigured,
+  productionGoogleCallbackPath,
+  productionGoogleStartPath,
   productionIdentity,
   productionLoginPath,
   productionLogoutPath,
@@ -41,6 +46,9 @@ interface Env {
   APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET?: string;
   APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD?: string;
   APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET?: string;
+  GOOGLE_OAUTH_CLIENT_ID?: string;
+  GOOGLE_OAUTH_CLIENT_SECRET?: string;
+  GOOGLE_OAUTH_REDIRECT_URI?: string;
   APPLICATION_MANAGEMENT_DEPLOYMENT_CHANNEL?: string;
   APPLICATION_MANAGEMENT_BUILD_REVISION?: string;
   VERCEL_TOKEN?: string;
@@ -102,7 +110,14 @@ async function deploymentStatus(env: Env) {
     productionAuthConfigured: isProduction
       && configured(env.CONTROL_OWNER_EMAILS)
       && (env.APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET?.trim().length ?? 0) >= 32,
-    accessMode: isProduction ? "account-session" : isPreview ? "application-preview-secret" : "upstream-identity",
+    googleAuthConfigured: isProduction && productionGoogleAuthConfigured(env),
+    accessMode: isProduction
+      ? productionGoogleAuthConfigured(env)
+        ? "google-oauth+account-session"
+        : "account-session"
+      : isPreview
+        ? "application-preview-secret"
+        : "upstream-identity",
     ownerPolicyConfigured: configured(env.CONTROL_OWNER_EMAILS),
     networkMode: env.CONTROL_PLANE_NETWORK_MODE ?? "unknown",
     clients: {
@@ -247,6 +262,8 @@ const worker = {
     }
 
     if (isProduction) {
+      if (url.pathname === productionGoogleStartPath()) return handleProductionGoogleStart(request, env);
+      if (url.pathname === productionGoogleCallbackPath()) return handleProductionGoogleCallback(request, env);
       if (url.pathname === productionLoginPath()) return handleProductionLogin(request, env);
       if (url.pathname === productionLogoutPath()) return handleProductionLogout(request, env);
 
