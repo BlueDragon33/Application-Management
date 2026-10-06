@@ -266,6 +266,17 @@ jobs:
             echo '::error::Production login page must not expose Preview login wording.'
             exit 1
           fi
+          if [[ -n "${GOOGLE_OAUTH_CLIENT_ID:-}" && -n "${GOOGLE_OAUTH_CLIENT_SECRET:-}" ]]; then
+            if ! grep -q 'Tiếp tục với Google' /tmp/production-login.html; then
+              echo '::error::Google OAuth credentials were supplied but the Production login page does not expose Google sign-in.'
+              exit 1
+            fi
+            GOOGLE_START_CODE="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 15 "$APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/__auth/google")"
+            if [[ "$GOOGLE_START_CODE" != "303" ]]; then
+              echo "::error::Expected Google OAuth start route to redirect with 303, got HTTP $GOOGLE_START_CODE."
+              exit 1
+            fi
+          fi
           FORM_CODE="$(curl --silent --show-error --output /tmp/production-login-post.html --write-out '%{http_code}' --max-time 15 \
             -X POST \
             -H "Origin: $APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN" \
@@ -333,7 +344,10 @@ jobs:
           if (!value.databaseReady) throw new Error('Production D1 schema is not ready.');
           if (!value.assetsReady) throw new Error('Production static assets are not ready on the live Worker version.');
           if (!value.productionAuthConfigured) throw new Error('Production account authentication is not configured.');
-          if (value.accessMode !== 'account-session') throw new Error('Unexpected Production access mode.');
+          const googleExpected = Boolean(process.env.GOOGLE_OAUTH_CLIENT_ID && process.env.GOOGLE_OAUTH_CLIENT_SECRET);
+          if (googleExpected && !value.googleAuthConfigured) throw new Error('Google OAuth secrets were supplied but the live Worker did not enable Google authentication.');
+          const expectedAccessMode = googleExpected ? 'google-oauth+account-session' : 'account-session';
+          if (value.accessMode !== expectedAccessMode) throw new Error(`Unexpected Production access mode: ${value.accessMode}; expected ${expectedAccessMode}.`);
           if (!value.ownerPolicyConfigured) throw new Error('Production owner policy is missing.');
           if (value.networkMode !== 'production') throw new Error('Production must use production network resolution.');
           console.log('Application Management Cloudflare production read-back PASS.');
