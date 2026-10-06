@@ -11,6 +11,8 @@ CONTROL_OWNER_EMAILS=local.owner@example.test
 # GOOGLE_OAUTH_CLIENT_ID=<client-id>.apps.googleusercontent.com
 # GOOGLE_OAUTH_CLIENT_SECRET=<client-secret>
 # GOOGLE_OAUTH_REDIRECT_URI=http://localhost:<port>/__auth/google/callback
+# Optional TOTP secret encryption key: exactly 32 random bytes, URL-safe base64 without padding.
+# APPLICATION_MANAGEMENT_MFA_ENCRYPTION_KEY=<43-char-url-safe-key>
 
 # Optional client bridges for full-stack local testing.
 # Start each independent client on its own loopback port and use the same local-only secret on both sides.
