@@ -136,6 +136,17 @@ export const applicationRegistry: readonly ApplicationConfig[] = [
     guardrails: ["Không đưa dữ liệu báo giá/khách hàng vào control-plane", "Mất App Manager không được chặn core runtime local-first", "Duyệt/khóa chỉ bật khi KT Control live xác nhận đủ capability và read-back", "Không dùng chung registry BM/BE/HN"],
   },
   {
+    id: "pc-manager", name: "PC Manager Desktop", shortName: "PC Manager", href: "/apps/pc-manager",
+    initials: "PC", category: "Kỹ thuật", tier: "client", status: "warning", contractState: "migrating",
+    repository: "BlueDragon33/pc-manager-desktop",
+    scope: "Ứng dụng Windows native quản lý sức khỏe, dọn dẹp, startup, ứng dụng, lưu trữ và giám sát máy tính. Kết nối Application Management bằng Desktop Agent Gateway outbound-only; không mở cổng inbound trên máy người dùng.",
+    contractNote: "P8 Desktop Agent Gateway dùng P-256, heartbeat outbound, approval/entitlement/update policy và command envelope allow-list. Giữ trạng thái migrating cho tới khi gateway Production được cấu hình và handshake thật được xác minh.",
+    devicePolicy: "Namespace PC- riêng · desktop-native Windows · pending/approved/blocked · online dựa trên heartbeat · private key thiết bị ở Windows CNG và không được đưa lên control-plane.",
+    deviceExperiences: standardDeviceExperiences,
+    capabilities: ["Thiết bị PC-", "Duyệt/khóa thiết bị", "Heartbeat online/offline", "Release channel", "Entitlement", "Update policy", "Typed remote commands", "Audit"],
+    guardrails: ["Chỉ outbound HTTPS từ PC Manager", "Không arbitrary shell/PowerShell/process/registry/download-and-run", "Không đưa filename/browsing history/document content lên Trung tâm", "Không đánh dấu connected chỉ vì CI xanh"],
+  },
+  {
     id: "nc03-modem", name: "NC03 Control Center", shortName: "NC03 Modem", href: "/apps/nc03-modem",
     localUrl: "/api/local-web-launch?app=nc03-modem",
     initials: "N3", iconPath: "/app-icons/nc03-modem.svg", category: "Kỹ thuật", tier: "client", status: "warning", contractState: "pending",
