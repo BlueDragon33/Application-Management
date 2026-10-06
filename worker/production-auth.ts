@@ -438,8 +438,11 @@ async function ensureGoogleAccount(env: ProductionAuthEnv, profile: GoogleOAuthP
     return linked;
   }
 
+  const configuredOwner = ownerEmails(env.CONTROL_OWNER_EMAILS).includes(profile.email);
+  if (!configuredOwner) return null;
+
   let account = await accountByEmail(env, profile.email);
-  if (!account && ownerEmails(env.CONTROL_OWNER_EMAILS).includes(profile.email)) {
+  if (!account) {
     const bootstrapRecovery = text(env.APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD);
     const recoverySecret = bootstrapRecovery.length >= 14
       ? bootstrapRecovery
@@ -452,7 +455,7 @@ async function ensureGoogleAccount(env: ProductionAuthEnv, profile: GoogleOAuthP
     account = await accountByEmail(env, profile.email);
   }
 
-  if (!account || account.status !== "active") return null;
+  if (!account || account.status !== "active" || account.role !== "owner") return null;
 
   await env.DB.prepare(
     "INSERT INTO control_auth_identities (provider,provider_subject,account_email,provider_email,email_verified,created_at,updated_at) VALUES ('google',?1,?2,?3,1,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) ON CONFLICT(provider,provider_subject) DO UPDATE SET provider_email=excluded.provider_email,email_verified=1,updated_at=CURRENT_TIMESTAMP",
@@ -791,6 +794,84 @@ export async function handleProductionAccount(request: Request, env: ProductionA
   return new Response("Not Found", { status: 404, headers: secureHeaders("text/plain; charset=utf-8") });
 }
 
+function sensitiveProductionMutation(pathname: string, payload: Record<string, unknown>) {
+  const action = text(payload.action);
+  const operation = text(payload.operation);
+
+  if (pathname === "/api/center" && action === "manage-control-device") return true;
+  if (pathname === "/api/focused-device-operation") return true;
+  if (pathname === "/api/operations-auto-approval") return true;
+
+  if (pathname === "/api/operations") {
+    if (action === "set-auto-approval" || action === "set-auto-block-pending") return true;
+    if (action === "manage-client-device") return true;
+  }
+
+  if (pathname === "/api/managed-apps") {
+    if (action === "upsert" || action === "remove") return true;
+  }
+
+  if (pathname === "/api/deploy-ops") {
+    return new Set([
+      "save-target",
+      "save-provider-credential",
+      "remove-provider-credential",
+      "safe-publish",
+    ]).has(action);
+  }
+
+  if (pathname === "/api/apps/boi-ech/access" && action === "manage-access") return true;
+
+  // Preserve a fail-closed path for future destructive operation names routed
+  // through the central operations endpoint.
+  if (pathname === "/api/operations" && /^(?:delete|remove|block|lock|unblock|revoke|publish|release)/i.test(operation)) {
+    return true;
+  }
+
+  return false;
+}
+
+function stepUpRequiredResponse() {
+  return Response.json(
+    {
+      ok: false,
+      error: "Hãy xác minh Google Authenticator trước khi thực hiện thao tác nhạy cảm.",
+      code: "STEP_UP_REQUIRED",
+      stepUpPath: ACCOUNT_PATH,
+      stepUpTtlSeconds: STEP_UP_TTL_SECONDS,
+    },
+    {
+      status: 403,
+      headers: {
+        "cache-control": "no-store, private",
+        "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+        "x-content-type-options": "nosniff",
+      },
+    },
+  );
+}
+
+export async function productionStepUpGate(
+  request: Request,
+  env: ProductionAuthEnv,
+  identity: ProductionIdentity,
+): Promise<Response | null> {
+  if (request.method !== "POST" && request.method !== "PUT" && request.method !== "PATCH" && request.method !== "DELETE") {
+    return null;
+  }
+
+  const state = await totpState(env, identity.email);
+  if (!state.enabled || stepUpFresh(identity)) return null;
+
+  const pathname = new URL(request.url).pathname;
+  let payload: Record<string, unknown> = {};
+  if (request.headers.get("content-type")?.toLowerCase().includes("application/json")) {
+    payload = await request.clone().json().catch(() => ({})) as Record<string, unknown>;
+  }
+
+  return sensitiveProductionMutation(pathname, payload) ? stepUpRequiredResponse() : null;
+}
+
 export function productionUnauthorized(request: Request) {
   const acceptsHtml = (request.headers.get("accept") ?? "").includes("text/html");
   if (request.method === "GET" && acceptsHtml) return Response.redirect(new URL(LOGIN_PATH, request.url), 303);
@@ -850,6 +931,7 @@ export const PRODUCTION_AUTH_GUARDRAILS = {
   lockAfterFailures: MAX_FAILED_ATTEMPTS,
   lockSeconds: LOCK_SECONDS,
   stepUpTtlSeconds: STEP_UP_TTL_SECONDS,
+  sensitiveMutationGate: true,
   sameSite: "Strict",
   httpOnly: true,
 } as const;
