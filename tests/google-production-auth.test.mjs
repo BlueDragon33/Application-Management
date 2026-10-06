@@ -58,3 +58,10 @@ test("production worker routes OAuth endpoints before requiring an existing sess
   assert.match(worker, /googleAuthConfigured/);
   assert.match(worker, /google-oauth\+account-session/);
 });
+
+
+test("Google OAuth session cookie survives the cross-site callback redirect", () => {
+  assert.match(production, /authMethod === "google" \? "Lax" : "Strict"/);
+  assert.match(production, /SameSite=\$\{sameSite\}/);
+  assert.match(production, /HttpOnly; Secure/);
+});
