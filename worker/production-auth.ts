@@ -1,3 +1,14 @@
+import {
+  clearGoogleOAuthCookies,
+  googleOAuthCallbackPath,
+  googleOAuthConfigured,
+  googleOAuthStartPath,
+  handleGoogleOAuthStart,
+  resolveGoogleOAuthCallback,
+  type GoogleOAuthEnv,
+  type GoogleOAuthProfile,
+} from "./google-oauth";
+
 const LOGIN_PATH = "/__login";
 const LOGOUT_PATH = "/__logout";
 const ACCOUNT_PATH = "/__account";
@@ -10,7 +21,7 @@ const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_SECONDS = 15 * 60;
 const encoder = new TextEncoder();
 
-type ProductionAuthEnv = {
+type ProductionAuthEnv = GoogleOAuthEnv & {
   DB: D1Database;
   CONTROL_OWNER_EMAILS?: string;
   APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD?: string;
@@ -173,27 +184,39 @@ function shell(title: string, body: string) {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${escapeHtml(title)} · Application Management</title>
 <style>
-:root{color-scheme:dark;font-family:Inter,system-ui,sans-serif;background:#07120f;color:#effaf6}*{box-sizing:border-box}body{min-height:100vh;margin:0;display:grid;place-items:center;padding:20px;background:radial-gradient(circle at 20% 0,#123e32 0,transparent 36%),#07120f}.card{width:min(560px,100%);background:#0b211b;border:1px solid #1f5748;border-radius:18px;padding:26px;box-shadow:0 28px 80px #0009}h1{font-size:24px;margin:0 0 8px}h2{font-size:16px;margin:24px 0 8px}p{color:#a8c8bd;line-height:1.55}label{display:block;margin:14px 0 6px;font-size:13px;font-weight:700}input{width:100%;padding:12px 13px;border:1px solid #2c6857;border-radius:9px;background:#071812;color:#fff}button,.button{display:inline-flex;align-items:center;justify-content:center;min-height:42px;margin-top:14px;padding:0 16px;border:1px solid #37a480;border-radius:9px;background:#167258;color:#fff;font-weight:800;text-decoration:none;cursor:pointer}.secondary{background:#102f27;border-color:#2b6857}.row{display:flex;gap:9px;flex-wrap:wrap}.error{padding:10px 12px;border:1px solid #9e4242;border-radius:9px;background:#401d1d;color:#ffd5d5}.success{padding:10px 12px;border:1px solid #29815f;border-radius:9px;background:#123d30;color:#caffec}.note{font-size:12px;color:#779d90}.field{padding:10px 12px;border:1px solid #244f43;border-radius:9px;background:#0a1915}.field span,.field strong{display:block}.field span{font-size:11px;color:#7ea596}.field strong{margin-top:4px;overflow-wrap:anywhere}</style>
+:root{color-scheme:dark;font-family:Inter,system-ui,sans-serif;background:#07120f;color:#effaf6}*{box-sizing:border-box}body{min-height:100vh;margin:0;display:grid;place-items:center;padding:20px;background:radial-gradient(circle at 20% 0,#123e32 0,transparent 36%),#07120f}.card{width:min(560px,100%);background:#0b211b;border:1px solid #1f5748;border-radius:18px;padding:26px;box-shadow:0 28px 80px #0009}h1{font-size:24px;margin:0 0 8px}h2{font-size:16px;margin:24px 0 8px}p{color:#a8c8bd;line-height:1.55}label{display:block;margin:14px 0 6px;font-size:13px;font-weight:700}input{width:100%;padding:12px 13px;border:1px solid #2c6857;border-radius:9px;background:#071812;color:#fff}button,.button{display:inline-flex;align-items:center;justify-content:center;min-height:42px;margin-top:14px;padding:0 16px;border:1px solid #37a480;border-radius:9px;background:#167258;color:#fff;font-weight:800;text-decoration:none;cursor:pointer}.secondary{background:#102f27;border-color:#2b6857}.row{display:flex;gap:9px;flex-wrap:wrap}.error{padding:10px 12px;border:1px solid #9e4242;border-radius:9px;background:#401d1d;color:#ffd5d5}.success{padding:10px 12px;border:1px solid #29815f;border-radius:9px;background:#123d30;color:#caffec}.note{font-size:12px;color:#779d90}.field{padding:10px 12px;border:1px solid #244f43;border-radius:9px;background:#0a1915}.field span,.field strong{display:block}.field span{font-size:11px;color:#7ea596}.field strong{margin-top:4px;overflow-wrap:anywhere}.google{width:100%;background:#fff;color:#1f1f1f;border-color:#d8dadd}.divider{display:flex;align-items:center;gap:10px;margin:18px 0;color:#688f82;font-size:12px}.divider:before,.divider:after{content:"";height:1px;background:#244f43;flex:1}details{margin-top:12px;padding-top:4px}summary{cursor:pointer;color:#9bc4b6;font-size:13px;font-weight:700}</style>
 </head>
 <body><main class="card">${body}</main></body>
 </html>`;
 }
 
-function loginPage(message = "", email = "") {
+function loginPage(message = "", email = "", googleEnabled = false) {
   const notice = message ? `<p class="error">${escapeHtml(message)}</p>` : "";
+  const google = googleEnabled
+    ? `<a class="button google" href="${googleOAuthStartPath()}">G&nbsp;&nbsp;Tiếp tục với Google</a>
+       <div class="divider"><span>hoặc tài khoản khôi phục</span></div>`
+    : "";
   return shell("Đăng nhập", `
     <h1>Application Management</h1>
-    <p>Đăng nhập quản trị Production. Đây là tài khoản riêng của Application Management, không phải Preview secret.</p>
+    <p>Đăng nhập quản trị Production bằng Google. Mật khẩu nội bộ chỉ được giữ làm phương án khôi phục trong giai đoạn chuyển đổi.</p>
     ${notice}
-    <form method="post" action="${LOGIN_PATH}">
-      <label for="email">Email quản trị</label>
-      <input id="email" name="email" type="email" autocomplete="username" required value="${escapeHtml(email)}">
-      <label for="password">Mật khẩu</label>
-      <input id="password" name="password" type="password" autocomplete="current-password" required minlength="12">
-      <button type="submit">Đăng nhập</button>
-    </form>
-    <p class="note">Phiên đăng nhập dùng cookie HttpOnly + Secure + SameSite=Strict. Mật khẩu không được lưu dạng rõ.</p>
+    ${google}
+    <details ${googleEnabled ? "" : "open"}>
+      <summary>Đăng nhập bằng mật khẩu khôi phục</summary>
+      <form method="post" action="${LOGIN_PATH}">
+        <label for="email">Email quản trị</label>
+        <input id="email" name="email" type="email" autocomplete="username" required value="${escapeHtml(email)}">
+        <label for="password">Mật khẩu</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required minlength="12">
+        <button class="secondary" type="submit">Đăng nhập khôi phục</button>
+      </form>
+    </details>
+    <p class="note">Google chỉ dùng để xác thực danh tính. Quyền Owner/Reviewer/Viewer vẫn do Application Management quyết định.</p>
   `);
+}
+
+function loginPageForEnv(env: ProductionAuthEnv, message = "", email = "") {
+  return loginPage(message, email, googleOAuthConfigured(env));
 }
 
 function accountPage(identity: ProductionIdentity, profile: { phone?: string | null }, notice = "") {
@@ -241,10 +264,11 @@ function responseHtml(html: string, status = 200) {
   return new Response(html, { status, headers: secureHeaders() });
 }
 
-function redirect(path: string, cookie?: string) {
+function redirect(path: string, cookie?: string | readonly string[]) {
   const headers = new Headers(secureHeaders("text/plain; charset=utf-8"));
   headers.set("location", path);
-  if (cookie) headers.append("set-cookie", cookie);
+  const cookies = Array.isArray(cookie) ? cookie : cookie ? [cookie] : [];
+  for (const item of cookies) headers.append("set-cookie", item);
   return new Response("Redirecting", { status: 303, headers });
 }
 
@@ -338,6 +362,103 @@ async function markFailedLogin(env: ProductionAuthEnv, email: string, failedAtte
   ).bind(email, next, lockedUntil).run();
 }
 
+async function linkedGoogleAccountEmail(env: ProductionAuthEnv, subject: string) {
+  const row = await env.DB.prepare(
+    "SELECT account_email FROM control_auth_identities WHERE provider='google' AND provider_subject=?1 LIMIT 1",
+  ).bind(subject).first<{ account_email: string }>();
+  return normalizeEmail(row?.account_email);
+}
+
+async function ensureGoogleAccount(env: ProductionAuthEnv, profile: GoogleOAuthProfile) {
+  const linkedEmail = await linkedGoogleAccountEmail(env, profile.subject);
+  if (linkedEmail) {
+    const linked = await accountByEmail(env, linkedEmail);
+    if (!linked || linked.status !== "active") return null;
+    await env.DB.prepare(
+      "UPDATE control_auth_identities SET provider_email=?2,email_verified=1,updated_at=CURRENT_TIMESTAMP WHERE provider='google' AND provider_subject=?1",
+    ).bind(profile.subject, profile.email).run();
+    return linked;
+  }
+
+  let account = await accountByEmail(env, profile.email);
+  if (!account && ownerEmails(env.CONTROL_OWNER_EMAILS).includes(profile.email)) {
+    const recoverySecret = base64Url(crypto.getRandomValues(new Uint8Array(48)));
+    const record = await newPasswordRecord(recoverySecret);
+    await env.DB.prepare(
+      "INSERT OR IGNORE INTO control_accounts (email,display_name,phone,role,password_salt,password_hash,password_iterations,must_change_password,failed_attempts,locked_until,status,created_at,updated_at) VALUES (?1,?2,NULL,'owner',?3,?4,?5,0,0,NULL,'active',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)",
+    ).bind(profile.email, profile.displayName, record.salt, record.hash, record.iterations).run();
+    account = await accountByEmail(env, profile.email);
+  }
+
+  if (!account || account.status !== "active") return null;
+
+  await env.DB.prepare(
+    "INSERT INTO control_auth_identities (provider,provider_subject,account_email,provider_email,email_verified,created_at,updated_at) VALUES ('google',?1,?2,?3,1,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) ON CONFLICT(provider,provider_subject) DO UPDATE SET provider_email=excluded.provider_email,email_verified=1,updated_at=CURRENT_TIMESTAMP",
+  ).bind(profile.subject, account.email, profile.email).run();
+  return account;
+}
+
+export function productionGoogleStartPath() {
+  return googleOAuthStartPath();
+}
+
+export function productionGoogleCallbackPath() {
+  return googleOAuthCallbackPath();
+}
+
+export function productionGoogleAuthConfigured(env: ProductionAuthEnv) {
+  return googleOAuthConfigured(env);
+}
+
+export function handleProductionGoogleStart(request: Request, env: ProductionAuthEnv) {
+  return handleGoogleOAuthStart(request, env);
+}
+
+export async function handleProductionGoogleCallback(request: Request, env: ProductionAuthEnv) {
+  const clearCookies = clearGoogleOAuthCookies();
+  let profile: GoogleOAuthProfile;
+  try {
+    profile = await resolveGoogleOAuthCallback(request, env);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "google_oauth_failed";
+    console.error(`[production-auth:google-callback] ${message}`);
+    const response = responseHtml(loginPageForEnv(env, "Không thể xác thực tài khoản Google. Hãy thử lại hoặc dùng phương án khôi phục."), 401);
+    const headers = new Headers(response.headers);
+    for (const cookie of clearCookies) headers.append("set-cookie", cookie);
+    return new Response(response.body, { status: response.status, headers });
+  }
+
+  let account: Awaited<ReturnType<typeof accountByEmail>> = null;
+  try {
+    account = await ensureGoogleAccount(env, profile);
+  } catch (error) {
+    return productionAuthFailure("google-account-link", error);
+  }
+
+  if (!account) {
+    const response = responseHtml(
+      loginPageForEnv(env, "Tài khoản Google này chưa được cấp quyền quản trị Application Management.", profile.email),
+      403,
+    );
+    const headers = new Headers(response.headers);
+    for (const cookie of clearCookies) headers.append("set-cookie", cookie);
+    return new Response(response.body, { status: response.status, headers });
+  }
+
+  let session: Awaited<ReturnType<typeof createSession>>;
+  try {
+    session = await createSession(env, account.email);
+  } catch (error) {
+    return productionAuthFailure("google-session-create", error);
+  }
+
+  await env.DB.prepare(
+    "UPDATE control_accounts SET display_name=?2,failed_attempts=0,locked_until=NULL,updated_at=CURRENT_TIMESTAMP WHERE email=?1",
+  ).bind(account.email, profile.displayName).run();
+
+  return redirect("/", [session.cookie, ...clearCookies]);
+}
+
 function productionAuthFailure(stage: string, error: unknown) {
   const detail = error instanceof Error
     ? `${error.name}: ${error.message}`
@@ -391,7 +512,7 @@ export async function productionIdentity(request: Request, env: ProductionAuthEn
 export async function handleProductionLogin(request: Request, env: ProductionAuthEnv) {
   if (request.method === "GET") {
     const changed = new URL(request.url).searchParams.get("changed");
-    return responseHtml(loginPage(changed === "email" ? "Email đăng nhập đã đổi. Hãy đăng nhập lại bằng email mới." : ""));
+    return responseHtml(loginPageForEnv(env, changed === "email" ? "Email đăng nhập đã đổi. Hãy đăng nhập lại bằng email mới." : ""));
   }
   if (request.method !== "POST") return new Response("Method Not Allowed", { status: 405, headers: secureHeaders("text/plain; charset=utf-8") });
   if (!sameOriginPost(request, true)) return new Response("Forbidden", { status: 403, headers: secureHeaders("text/plain; charset=utf-8") });
@@ -405,7 +526,7 @@ export async function handleProductionLogin(request: Request, env: ProductionAut
 
   const email = normalizeEmail(form.get("email"));
   const password = text(form.get("password"));
-  if (!email || password.length < 12 || password.length > 256) return responseHtml(loginPage("Email hoặc mật khẩu không hợp lệ.", email), 400);
+  if (!email || password.length < 12 || password.length > 256) return responseHtml(loginPageForEnv(env, "Email hoặc mật khẩu không hợp lệ.", email), 400);
 
   let account: Awaited<ReturnType<typeof accountByEmail>> = null;
   try {
@@ -424,11 +545,11 @@ export async function handleProductionLogin(request: Request, env: ProductionAut
       return productionAuthFailure("owner-bootstrap", error);
     }
   }
-  if (!account || account.status !== "active") return responseHtml(loginPage("Email hoặc mật khẩu không đúng.", email), 401);
+  if (!account || account.status !== "active") return responseHtml(loginPageForEnv(env, "Email hoặc mật khẩu không đúng.", email), 401);
 
   const now = Math.floor(Date.now() / 1000);
   if (account.locked_until && account.locked_until > now) {
-    return responseHtml(loginPage("Tài khoản đang tạm khóa do đăng nhập sai nhiều lần. Hãy thử lại sau.", email), 429);
+    return responseHtml(loginPageForEnv(env, "Tài khoản đang tạm khóa do đăng nhập sai nhiều lần. Hãy thử lại sau.", email), 429);
   }
 
   let ok = false;
@@ -443,7 +564,7 @@ export async function handleProductionLogin(request: Request, env: ProductionAut
     } catch (error) {
       return productionAuthFailure("failed-login-record", error);
     }
-    return responseHtml(loginPage("Email hoặc mật khẩu không đúng.", email), 401);
+    return responseHtml(loginPageForEnv(env, "Email hoặc mật khẩu không đúng.", email), 401);
   }
 
   try {
