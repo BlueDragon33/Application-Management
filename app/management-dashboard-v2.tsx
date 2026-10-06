@@ -157,7 +157,6 @@ const navItems: Array<{ view: View; label: string; icon: string }> = [
   { view: "access", label: "Thanh toán & Quyền", icon: "◈" },
   { view: "alerts", label: "Cảnh báo", icon: "△" },
   { view: "audit", label: "Nhật ký", icon: "≣" },
-  { view: "settings", label: "Cài đặt", icon: "⚙" },
 ];
 
 const viewTitles: Record<View, { title: string; subtitle: string }> = {
