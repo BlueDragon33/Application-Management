@@ -351,10 +351,11 @@ async function createSession(env: ProductionAuthEnv, email: string, authMethod: 
   await env.DB.prepare(
     "INSERT INTO control_sessions (session_id_hash,email,expires_at,created_at,last_seen_at,auth_method,step_up_at) VALUES (?1,?2,?3,?4,?4,?5,NULL)",
   ).bind(sessionHash, email, expiresAt, now, authMethod).run();
+  const sameSite = authMethod === "google" ? "Lax" : "Strict";
   return {
     token,
     sessionHash,
-    cookie: `${SESSION_COOKIE}=${token}; Max-Age=${SESSION_TTL_SECONDS}; Path=/; HttpOnly; Secure; SameSite=Strict`,
+    cookie: `${SESSION_COOKIE}=${token}; Max-Age=${SESSION_TTL_SECONDS}; Path=/; HttpOnly; Secure; SameSite=${sameSite}`,
   };
 }
 
