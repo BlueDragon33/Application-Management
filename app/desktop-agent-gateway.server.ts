@@ -370,10 +370,12 @@ async function verifyAgentProof(payload: Record<string, unknown>, action: "heart
     ["verify"],
   );
   const message = encoder.encode(`${DESKTOP_AGENT_PROTOCOL}:${action}:${deviceId}:${challenge}`);
+  const normalizedSignature = normalizeP256Signature(fromBase64Url(signature));
+  const signatureBuffer = Uint8Array.from(normalizedSignature).buffer;
   const valid = await crypto.subtle.verify(
     { name: "ECDSA", hash: "SHA-256" },
     key,
-    normalizeP256Signature(fromBase64Url(signature)),
+    signatureBuffer,
     message,
   );
   if (!valid) {
