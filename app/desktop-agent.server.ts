@@ -318,16 +318,8 @@ export async function registerDesktopAgent(payloadValue: unknown) {
       )
       .bind(deviceId, JSON.stringify({ appId: PC_MANAGER_IDENTITY.appId, releaseChannel: channel }))
       .run();
-  } else {
-    if (existing.public_key_jwk !== serialized) {
-      throw new DesktopAgentError("Khóa thiết bị không khớp registry.", 403, "AGENT_KEY_MISMATCH");
-    }
-    await database
-      .prepare(
-        "UPDATE desktop_agent_devices SET app_version = ?, release_channel = ? WHERE device_id = ?",
-      )
-      .bind(version, channel, deviceId)
-      .run();
+  } else if (existing.public_key_jwk !== serialized) {
+    throw new DesktopAgentError("Khóa thiết bị không khớp registry.", 403, "AGENT_KEY_MISMATCH");
   }
 
   const device = await rowFor(deviceId);
@@ -430,7 +422,14 @@ export async function heartbeatDesktopAgent(payloadValue: unknown) {
 export async function submitDesktopAgentResult(payloadValue: unknown) {
   const payload = record(payloadValue);
   const deviceId = text(payload.deviceId);
-  await verifyProof(deviceId, "result", payload.proof);
+  const device = await verifyProof(deviceId, "result", payload.proof);
+  if (device.status !== "approved") {
+    throw new DesktopAgentError(
+      "Thiết bị không còn được phép gửi kết quả remote command.",
+      403,
+      "AGENT_NOT_APPROVED",
+    );
+  }
   const commandId = text(payload.commandId);
   const status = payload.status === "completed" || payload.status === "failed" ? payload.status : "";
   if (!/^[0-9a-fA-F-]{36}$/.test(commandId) || !status) {
