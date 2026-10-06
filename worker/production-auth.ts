@@ -440,11 +440,15 @@ async function ensureGoogleAccount(env: ProductionAuthEnv, profile: GoogleOAuthP
 
   let account = await accountByEmail(env, profile.email);
   if (!account && ownerEmails(env.CONTROL_OWNER_EMAILS).includes(profile.email)) {
-    const recoverySecret = base64Url(crypto.getRandomValues(new Uint8Array(48)));
+    const bootstrapRecovery = text(env.APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD);
+    const recoverySecret = bootstrapRecovery.length >= 14
+      ? bootstrapRecovery
+      : base64Url(crypto.getRandomValues(new Uint8Array(48)));
+    const mustChangePassword = bootstrapRecovery.length >= 14 ? 1 : 0;
     const record = await newPasswordRecord(recoverySecret);
     await env.DB.prepare(
-      "INSERT OR IGNORE INTO control_accounts (email,display_name,phone,role,password_salt,password_hash,password_iterations,must_change_password,failed_attempts,locked_until,status,created_at,updated_at) VALUES (?1,?2,NULL,'owner',?3,?4,?5,0,0,NULL,'active',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)",
-    ).bind(profile.email, profile.displayName, record.salt, record.hash, record.iterations).run();
+      "INSERT OR IGNORE INTO control_accounts (email,display_name,phone,role,password_salt,password_hash,password_iterations,must_change_password,failed_attempts,locked_until,status,created_at,updated_at) VALUES (?1,?2,NULL,'owner',?3,?4,?5,?6,0,NULL,'active',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)",
+    ).bind(profile.email, profile.displayName, record.salt, record.hash, record.iterations, mustChangePassword).run();
     account = await accountByEmail(env, profile.email);
   }
 
