@@ -1,0 +1,172 @@
+{
+  "schemaVersion": "1.0.0",
+  "project": "BlueDragon33/Application-Management",
+  "constitutionPolicy": "blueprint-os:universal-century-grade@1.2.0",
+  "defaultPrinciple": "LOCAL_FIRST_OFFLINE_CAPABLE_PROVIDER_REPLACEABLE",
+  "canonicalAuthorityRule": "Application Management owns only central management policy/device-role/audit state. Client domain data remains in each client.",
+  "dependencies": [
+    {
+      "id": "local-runtime",
+      "provider": "Local Vite/Worker runtime + local D1",
+      "runtimeClass": "LOCAL_CORE",
+      "costClass": "local-free",
+      "purpose": [
+        "admin UI",
+        "local control-plane testing",
+        "local client orchestration"
+      ],
+      "dataBoundary": "loopback/private local only",
+      "canonicalState": "local development/control-plane state only; never production state by implication",
+      "degradedBehavior": "baseline execution path",
+      "exportPath": [
+        "SQLite/D1 export where applicable",
+        "JSON reports"
+      ],
+      "replacementPath": "equivalent local runtime preserving contracts"
+    },
+    {
+      "id": "chatgpt-sites",
+      "provider": "ChatGPT Sites",
+      "runtimeClass": "OPTIONAL_PUBLISH",
+      "costClass": "user-selected",
+      "purpose": [
+        "hosted production UI",
+        "platform-authenticated identity headers"
+      ],
+      "dataBoundary": "central management metadata and explicitly configured bridge calls",
+      "canonicalState": "not required for local-first development",
+      "degradedBehavior": "local control-plane remains available; hosted access unavailable",
+      "exportPath": [
+        "source-controlled app",
+        "portable D1/schema exports"
+      ],
+      "replacementPath": "Cloudflare Worker or another authenticated host behind same app contracts"
+    },
+    {
+      "id": "cloudflare-workers-d1",
+      "provider": "Cloudflare Workers / D1",
+      "runtimeClass": "OPTIONAL_PUBLISH",
+      "costClass": "free-tier-or-paid-optional",
+      "purpose": [
+        "preview/alternative hosting",
+        "managed D1 runtime"
+      ],
+      "dataBoundary": "central management state only; no direct client domain database access",
+      "canonicalState": "provider-specific persistence must remain exportable",
+      "degradedBehavior": "local runtime remains available; managed environment unavailable",
+      "exportPath": [
+        "D1 export/SQL",
+        "portable audit/report exports"
+      ],
+      "replacementPath": "local D1/SQLite-compatible runtime or another managed adapter"
+    },
+    {
+      "id": "github",
+      "provider": "GitHub",
+      "runtimeClass": "OPTIONAL_PUBLISH",
+      "costClass": "free-or-user-plan",
+      "purpose": [
+        "source",
+        "CI",
+        "review",
+        "release provenance"
+      ],
+      "dataBoundary": "source/evidence only",
+      "canonicalState": "source/version history; not end-user management database",
+      "degradedBehavior": "checked-out local system remains usable; collaboration/CI unavailable",
+      "exportPath": [
+        "git clone/mirror"
+      ],
+      "replacementPath": "Git-compatible forge"
+    },
+    {
+      "id": "client-bridge-secrets",
+      "provider": "Per-client signed bridge bindings",
+      "runtimeClass": "EXTERNAL_ESSENTIAL",
+      "costClass": "local-or-provider-managed",
+      "purpose": [
+        "authorized remote management of independently owned client control APIs"
+      ],
+      "dataBoundary": "app-scoped command/status metadata only",
+      "canonicalState": "secret values never canonical business state and never committed",
+      "degradedBehavior": "only affected remote client management becomes unavailable; core center/local registry remains usable",
+      "exportPath": [
+        "binding names/contracts only; secret values intentionally non-exported"
+      ],
+      "replacementPath": "rotate/rebind per client under same signed contract"
+    },
+    {
+      "id": "google-drive",
+      "provider": "Google Drive",
+      "runtimeClass": "OPTIONAL_SYNC",
+      "costClass": "free-tier-or-user-plan",
+      "purpose": [
+        "optional encrypted backup/export of non-secret admin reports/config snapshots"
+      ],
+      "dataBoundary": "sanitized or encrypted exports only",
+      "canonicalState": "forbidden as sole control-plane/device/session authority",
+      "degradedBehavior": "no effect on core local/hosted admin operation",
+      "exportPath": [
+        "native files",
+        "JSON/ZIP"
+      ],
+      "replacementPath": "local export or another storage adapter",
+      "status": "planned-optional"
+    },
+    {
+      "id": "google-sheets",
+      "provider": "Google Sheets",
+      "runtimeClass": "OPTIONAL_SYNC",
+      "costClass": "free-tier-or-user-plan",
+      "purpose": [
+        "optional human-readable reporting/catalog projections"
+      ],
+      "dataBoundary": "non-secret, low-risk projection only",
+      "canonicalState": "forbidden for sessions, private keys, bearer tokens, device approval truth, passport/health/child raw data",
+      "degradedBehavior": "reporting projection unavailable only",
+      "exportPath": [
+        "CSV/XLSX/JSON projection"
+      ],
+      "replacementPath": "local report/export or another projection provider",
+      "status": "planned-optional"
+    },
+    {
+      "id": "google-apps-script",
+      "provider": "Google Apps Script",
+      "runtimeClass": "OPTIONAL_SYNC",
+      "costClass": "free-tier-or-user-plan",
+      "purpose": [
+        "lightweight optional coordination/backup webhook"
+      ],
+      "dataBoundary": "least-privilege sanitized payloads only",
+      "canonicalState": "forbidden",
+      "degradedBehavior": "queue/manual sync; management core remains available",
+      "exportPath": [
+        "portable sync protocol/journal"
+      ],
+      "replacementPath": "another webhook/sync adapter",
+      "status": "planned-optional"
+    }
+  ],
+  "forbiddenRemoteData": [
+    "private keys",
+    "bearer/session tokens",
+    "raw bridge secrets",
+    "device approval canonical state in Sheets",
+    "health records from Health_Care",
+    "child records from GrowUP_MyChildren",
+    "raw passport/visa intake data in Sheets",
+    "client domain databases"
+  ],
+  "acceptance": {
+    "sovereigntyGateRequires": [
+      "local control-plane path remains usable without optional cloud providers",
+      "each client retains its own domain database and authority",
+      "remote provider failure is isolated to that provider/client capability",
+      "data export/restore path exists for central state",
+      "no raw secret/private-key/session material is written to Drive/Sheets",
+      "paid hosting is optional unless separately justified and approved"
+    ],
+    "productionAuthority": "separate-explicit-release-gate"
+  }
+}
