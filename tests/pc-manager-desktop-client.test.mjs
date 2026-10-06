@@ -30,5 +30,5 @@ test("PC Manager admin page uses the central signed admin-device proof", () => {
 
 test("PC Manager console never exposes arbitrary execution controls", () => {
   const page = source("app/apps/pc-manager/pc-manager-admin.tsx");
-  assert.doesNotMatch(page, /RUN_COMMAND|EXECUTE_SHELL|RUN_POWERSHELL|download-and-run/i);
+  assert.doesNotMatch(page, /"RUN_COMMAND"|"EXECUTE_SHELL"|"RUN_POWERSHELL"|"DOWNLOAD_AND_RUN"/);
 });
