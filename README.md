@@ -150,6 +150,12 @@ CAD CAM 3D là client kỹ thuật cấp 1. Trung tâm chỉ quản lý readines
 
 Remote registry `CAD-`, signed Device Gate và Control API chưa tồn tại nên mọi mutation CAD vẫn bị khóa có chủ đích.
 
+## PC Manager Desktop
+
+PC Manager kết nối Application Management bằng **Desktop Agent Gateway v1** theo mô hình outbound-only. Máy Windows không mở cổng nhận lệnh; client chủ động đăng ký, ký challenge P-256, heartbeat và nhận một allow-list command kiểu hóa cố định. Registry dùng namespace `PC-`, tách khỏi thiết bị quản trị `QT-` và mọi registry client khác.
+
+P8 chỉ cho phép `CHECK_UPDATE`, `RUN_HEALTH_SCAN`, `REFRESH_DEVICE_STATUS`, `DISABLE_LICENSE`. Không có primitive shell/PowerShell/process/registry/download-and-run tùy ý. Chi tiết: `docs/PC_MANAGER_DESKTOP_AGENT_GATEWAY_V1.md`.
+
 ## Trạng thái hiện tại
 
 | Client | Runtime | Admin code | Production contract |
