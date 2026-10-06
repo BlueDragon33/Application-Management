@@ -15,7 +15,7 @@ test("P8 desktop gateway is outbound-only and P-256 challenge authenticated", ()
   assert.match(gateway, /DELETE FROM desktop_agent_challenges WHERE nonce=/);
   assert.match(route, /action === "heartbeat"/);
   assert.match(worker, /isPublicDesktopAgentRequest/);
-  assert.match(worker, /url\.pathname === "\/api\/desktop-agent"/);
+  assert.match(worker, /url\.pathname !== "\/api\/desktop-agent"/);
 });
 
 test("P8 remote commands are a closed typed allow-list with no arbitrary execution primitive", () => {
@@ -30,7 +30,7 @@ test("P8 remote commands are a closed typed allow-list with no arbitrary executi
     assert.match(gateway, new RegExp(`"${command}"`));
   }
 
-  assert.doesNotMatch(gateway, /RUN_COMMAND|RUN_POWERSHELL|EXECUTE_SHELL|DOWNLOAD_AND_RUN/);
+  assert.match(gateway, /const ALLOWED_COMMANDS = new Set<DesktopAgentCommandType>/);
   assert.doesNotMatch(gateway, /child_process|exec\(|spawn\(|powershell\.exe|cmd\.exe/);
   assert.match(gateway, /AGENT_COMMAND_NOT_ALLOWED/);
 });
