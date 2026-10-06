@@ -159,3 +159,58 @@ export const visaIntakeResults = sqliteTable("visa_intake_results", {
 }, (table) => [
   index("visa_intake_results_link_idx").on(table.linkId, table.uploadedAt),
 ]);
+
+
+export const desktopAgentDevices = sqliteTable("desktop_agent_devices", {
+  deviceId: text("device_id").primaryKey(),
+  deviceCode: text("device_code").notNull().unique(),
+  appId: text("app_id").notNull(),
+  publicKeyJwk: text("public_key_jwk").notNull(),
+  status: text("status").notNull().default("pending"),
+  deviceType: text("device_type").notNull().default("desktop-native"),
+  appVersion: text("app_version").notNull().default("unknown"),
+  releaseChannel: text("release_channel").notNull().default("stable"),
+  entitlementState: text("entitlement_state").notNull().default("pending"),
+  updatePolicy: text("update_policy").notNull().default("notify"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  approvedAt: text("approved_at"),
+  blockedAt: text("blocked_at"),
+  lastSeenAt: text("last_seen_at"),
+}, (table) => [
+  index("desktop_agent_devices_status_seen_idx").on(table.status, table.lastSeenAt),
+]);
+
+export const desktopAgentChallenges = sqliteTable("desktop_agent_challenges", {
+  nonce: text("nonce").primaryKey(),
+  deviceId: text("device_id").notNull(),
+  expiresAt: integer("expires_at").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("desktop_agent_challenges_device_idx").on(table.deviceId, table.expiresAt),
+]);
+
+export const desktopAgentCommands = sqliteTable("desktop_agent_commands", {
+  commandId: text("command_id").primaryKey(),
+  deviceId: text("device_id").notNull(),
+  commandType: text("command_type").notNull(),
+  state: text("state").notNull().default("queued"),
+  issuedBy: text("issued_by").notNull(),
+  issuedAt: text("issued_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  expiresAt: integer("expires_at").notNull(),
+  deliveredAt: text("delivered_at"),
+  completedAt: text("completed_at"),
+  resultJson: text("result_json").notNull().default("{}"),
+}, (table) => [
+  index("desktop_agent_commands_device_state_idx").on(table.deviceId, table.state, table.issuedAt),
+]);
+
+export const desktopAgentAudit = sqliteTable("desktop_agent_audit", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  actor: text("actor").notNull(),
+  action: text("action").notNull(),
+  target: text("target").notNull(),
+  detailJson: text("detail_json").notNull().default("{}"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("desktop_agent_audit_target_idx").on(table.target, table.createdAt),
+]);
