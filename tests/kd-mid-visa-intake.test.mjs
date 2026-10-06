@@ -25,12 +25,15 @@ test("visa intake has isolated link and submission tables", () => {
   assert.match(schema, /export const visaIntakeResults/);
 });
 
-test("only public intake page and public intake API bypass Production admin login", () => {
+test("public intake and P8 native agent routes bypass only their dedicated authentication boundaries", () => {
   assert.match(worker, /function isPublicVisaIntakeRequest/);
   assert.match(worker, /url\.pathname === "\/visa-intake"/);
   assert.match(worker, /publicVisaIntakePage\(\)/);
   assert.match(worker, /url\.pathname === "\/api\/kd-mid-visa-intake\/public"/);
+  assert.match(worker, /function isPublicDesktopAgentRequest/);
+  assert.match(worker, /url\.pathname !== "\/api\/desktop-agent"/);
   assert.doesNotMatch(worker, /url\.pathname === "\/api\/kd-mid-visa-intake\/admin".*return true/s);
+  assert.doesNotMatch(worker, /url\.pathname === "\/api\/desktop-agent-admin".*return true/s);
 });
 
 test("public intake form is Vietnamese and covers required visa profile fields", () => {
