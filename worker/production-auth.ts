@@ -734,12 +734,12 @@ export async function handleProductionAccount(request: Request, env: ProductionA
   if (url.pathname === `${ACCOUNT_PATH}/profile`) {
     const displayName = text(form.get("displayName")).slice(0, 80);
     const phone = text(form.get("phone")).slice(0, 32);
-    if (!displayName) return responseHtml(accountPage(identity, { phone }, "Lỗi: Tên hiển thị không được để trống."), 400);
-    if (phone && !/^[+0-9().\-\s]{6,32}$/.test(phone)) return responseHtml(accountPage(identity, { phone }, "Lỗi: Số điện thoại không hợp lệ."), 400);
+    if (!displayName) return responseHtml(accountPage(identity, { ...(await accountPageData(env, identity)), phone }, "Lỗi: Tên hiển thị không được để trống."), 400);
+    if (phone && !/^[+0-9().\-\s]{6,32}$/.test(phone)) return responseHtml(accountPage(identity, { ...(await accountPageData(env, identity)), phone }, "Lỗi: Số điện thoại không hợp lệ."), 400);
     await env.DB.prepare(
       "UPDATE control_accounts SET display_name=?2,phone=?3,updated_at=CURRENT_TIMESTAMP WHERE email=?1",
     ).bind(identity.email, displayName, phone || null).run();
-    return responseHtml(accountPage({ ...identity, displayName }, { phone }, "Đã lưu thông tin tài khoản."));
+    return responseHtml(accountPage({ ...identity, displayName }, { ...(await accountPageData(env, identity)), phone }, "Đã lưu thông tin tài khoản."));
   }
 
   if (url.pathname === `${ACCOUNT_PATH}/email`) {
@@ -748,17 +748,17 @@ export async function handleProductionAccount(request: Request, env: ProductionA
     }
     const newEmail = normalizeEmail(form.get("newEmail"));
     const currentPassword = text(form.get("currentPassword"));
-    const profile = await env.DB.prepare("SELECT phone FROM control_accounts WHERE email=?1").bind(identity.email).first<{ phone: string | null }>();
-    if (!newEmail) return responseHtml(accountPage(identity, profile ?? {}, "Lỗi: Email mới không hợp lệ."), 400);
-    if (newEmail === identity.email) return responseHtml(accountPage(identity, profile ?? {}, "Lỗi: Email mới đang trùng email hiện tại."), 400);
+    const accountData = await accountPageData(env, identity);
+    if (!newEmail) return responseHtml(accountPage(identity, accountData, "Lỗi: Email mới không hợp lệ."), 400);
+    if (newEmail === identity.email) return responseHtml(accountPage(identity, accountData, "Lỗi: Email mới đang trùng email hiện tại."), 400);
     const account = await accountByEmail(env, identity.email);
     if (!account || !(await passwordMatches(currentPassword, account.password_salt, account.password_hash, account.password_iterations))) {
-      return responseHtml(accountPage(identity, profile ?? {}, "Lỗi: Mật khẩu hiện tại không đúng."), 401);
+      return responseHtml(accountPage(identity, accountData, "Lỗi: Mật khẩu hiện tại không đúng."), 401);
     }
     const existing = await accountByEmail(env, newEmail);
-    if (existing) return responseHtml(accountPage(identity, profile ?? {}, "Lỗi: Email mới đã được sử dụng."), 409);
+    if (existing) return responseHtml(accountPage(identity, accountData, "Lỗi: Email mới đã được sử dụng."), 409);
     const memberConflict = await env.DB.prepare("SELECT email FROM control_members WHERE email=?1 LIMIT 1").bind(newEmail).first<{ email: string }>();
-    if (memberConflict) return responseHtml(accountPage(identity, profile ?? {}, "Lỗi: Email mới đã tồn tại trong danh sách quản trị."), 409);
+    if (memberConflict) return responseHtml(accountPage(identity, accountData, "Lỗi: Email mới đã tồn tại trong danh sách quản trị."), 409);
 
     await env.DB.batch([
       env.DB.prepare("UPDATE control_devices SET email=?2 WHERE email=?1").bind(identity.email, newEmail),
@@ -776,19 +776,19 @@ export async function handleProductionAccount(request: Request, env: ProductionA
     const currentPassword = text(form.get("currentPassword"));
     const newPassword = text(form.get("newPassword"));
     const confirmPassword = text(form.get("confirmPassword"));
-    const profile = await env.DB.prepare("SELECT phone FROM control_accounts WHERE email=?1").bind(identity.email).first<{ phone: string | null }>();
-    if (newPassword.length < 12 || newPassword.length > 256) return responseHtml(accountPage(identity, profile ?? {}, "Lỗi: Mật khẩu mới phải từ 12 đến 256 ký tự."), 400);
-    if (newPassword !== confirmPassword) return responseHtml(accountPage(identity, profile ?? {}, "Lỗi: Hai lần nhập mật khẩu mới không khớp."), 400);
+    const accountData = await accountPageData(env, identity);
+    if (newPassword.length < 12 || newPassword.length > 256) return responseHtml(accountPage(identity, accountData, "Lỗi: Mật khẩu mới phải từ 12 đến 256 ký tự."), 400);
+    if (newPassword !== confirmPassword) return responseHtml(accountPage(identity, accountData, "Lỗi: Hai lần nhập mật khẩu mới không khớp."), 400);
     const account = await accountByEmail(env, identity.email);
     if (!account || !(await passwordMatches(currentPassword, account.password_salt, account.password_hash, account.password_iterations))) {
-      return responseHtml(accountPage(identity, profile ?? {}, "Lỗi: Mật khẩu hiện tại không đúng."), 401);
+      return responseHtml(accountPage(identity, accountData, "Lỗi: Mật khẩu hiện tại không đúng."), 401);
     }
     const record = await newPasswordRecord(newPassword);
     await env.DB.prepare(
       "UPDATE control_accounts SET password_salt=?2,password_hash=?3,password_iterations=?4,must_change_password=0,failed_attempts=0,locked_until=NULL,updated_at=CURRENT_TIMESTAMP WHERE email=?1",
     ).bind(identity.email, record.salt, record.hash, record.iterations).run();
     await env.DB.prepare("DELETE FROM control_sessions WHERE email=?1 AND session_id_hash<>?2").bind(identity.email, identity.sessionHash).run();
-    return responseHtml(accountPage({ ...identity, mustChangePassword: false }, profile ?? {}, "Đã đổi mật khẩu. Các phiên đăng nhập khác đã bị thu hồi."));
+    return responseHtml(accountPage({ ...identity, mustChangePassword: false }, await accountPageData(env, identity), "Đã đổi mật khẩu. Các phiên đăng nhập khác đã bị thu hồi."));
   }
 
   return new Response("Not Found", { status: 404, headers: secureHeaders("text/plain; charset=utf-8") });
