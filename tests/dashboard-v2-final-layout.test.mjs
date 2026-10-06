@@ -70,6 +70,14 @@ test("minimal reference styling mounts after launcher styles and keeps flat stat
   assert.match(css, /\.amv2-metrics > button,[\s\S]*?background:\s*#131b19\s*!important/);
   assert.match(css, /\.amv2-metrics > button\[data-tone="teal"\],[\s\S]*?background:\s*#131b19\s*!important/);
   assert.match(css, /grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\)\s*!important/);
-  assert.match(css, /grid-template-columns:\s*252px minmax\(0, 1fr\)\s*!important/);
+  assert.match(css, /grid-template-columns:\s*268px minmax\(0, 1fr\)\s*!important/);
   assert.doesNotMatch(css, /radial-gradient|linear-gradient/);
+});
+
+
+test("pass 3 removes duplicate device title and keeps Giao diện visually neutral", () => {
+  const css = source("app/management-dashboard-minimal-reference.css");
+  assert.match(css, /\.amv2-devices-panel \.amv2-panel-title h2::after\s*\{[\s\S]*?content:\s*none\s*!important/);
+  assert.match(css, /\.amv2-quick-grid > button:nth-child\(8\)\s*\{[\s\S]*?background:\s*#141d1b\s*!important/);
+  assert.match(css, /\.amv2-brand strong\s*\{[\s\S]*?font-size:\s*14px\s*!important/);
 });
