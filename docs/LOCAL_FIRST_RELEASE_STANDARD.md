@@ -2,6 +2,28 @@
 
 ## Mục tiêu
 
+## Constitution 1.2 · Operational Sovereignty
+
+Repository authority: `blueprint-os:universal-century-grade@1.2.0`.
+
+Machine-readable dependency budget:
+
+`docs/DEPENDENCY_BUDGET.json`
+
+Application Management must preserve these rules:
+
+- local control-plane operation is the baseline when the required client runtime is locally available;
+- hosted ChatGPT Sites / Cloudflare tracks are publish adapters, not automatic canonical owners;
+- client domain data remains in each client repository/runtime; Central owns only management policy/device-role/audit state;
+- Google Drive may be used only for optional sanitized/encrypted backup or export;
+- Google Sheets may be used only for low-risk reporting/catalog projections;
+- Google Apps Script may be used only as a replaceable lightweight coordination bridge;
+- private keys, bearer/session tokens, raw bridge secrets and canonical device-approval state must never be stored in Drive/Sheets;
+- Health_Care health records, GrowUP child records and raw KD-MID passport/visa data must never be projected into Sheets by default;
+- failure of an optional provider must disable only that optional capability, not the local management core;
+- recurring paid hosting remains optional unless a specific capability gap is documented and explicitly approved.
+
+
 Giảm vòng lặp tốn quota/credit bằng cách tách ba môi trường rõ ràng:
 
 1. **GitHub** = nguồn mã chuẩn.
