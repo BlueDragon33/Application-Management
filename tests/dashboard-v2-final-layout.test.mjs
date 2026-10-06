@@ -58,3 +58,16 @@ test("whole dashboard stays in one desktop viewport and tab changes do not anima
   assert.match(css, /\.amv2-overview-grid\s*\{[\s\S]*?height:\s*100%\s*!important;[\s\S]*?overflow:\s*hidden\s*!important;/);
   assert.match(css, /\.amv2-stage,[\s\S]*animation:\s*none\s*!important/);
 });
+
+
+test("minimal reference styling mounts after launcher styles and keeps flat status surfaces", () => {
+  const page = source("app/page.tsx");
+  const launcher = page.indexOf('management-app-launcher.css');
+  const minimal = page.indexOf('management-dashboard-minimal-reference.css');
+  const css = source("app/management-dashboard-minimal-reference.css");
+  assert.ok(launcher >= 0 && minimal > launcher);
+  assert.match(css, /\.amv2-panel\s*\{[\s\S]*?background:\s*#10231e/);
+  assert.match(css, /\.amv2-metrics > button\s*\{[\s\S]*?background:\s*#142622/);
+  assert.match(css, /grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\)/);
+  assert.doesNotMatch(css, /radial-gradient|linear-gradient/);
+});

@@ -11,21 +11,15 @@ const css = source("app/management-dashboard-v2.css");
 const manifest = JSON.parse(source("public/manifest.webmanifest"));
 const sw = source("public/sw.js");
 
-test("dashboard v2 owns the PWA install lifecycle natively", () => {
-  assert.match(dashboard, /type InstallPromptEvent/);
+test("dashboard keeps PWA runtime without surfacing install prompts", () => {
   assert.match(dashboard, /navigator\.serviceWorker\.register\("\/sw\.js"\)/);
-  assert.match(dashboard, /beforeinstallprompt/);
-  assert.match(dashboard, /appinstalled/);
-  assert.match(dashboard, /installWebApp/);
-  assert.match(dashboard, /Cài Web-App/);
-  assert.match(dashboard, /amv2-install-fab/);
-});
-
-test("install action remains visible even when Chromium has not emitted beforeinstallprompt", () => {
-  assert.match(dashboard, /!appInstalled \? <button className="amv2-install-fab"/);
-  assert.match(dashboard, /appInstalled \? <span className="amv2-installed-note">✓ Đã cài Web-App<\/span> : <button onClick=\{\(\) => void installWebApp\(\)\}>⇩ Cài Web-App<\/button>/);
-  assert.match(dashboard, /if \(!installPrompt\) \{\s*setInstallHelpOpen\(true\)/);
-  assert.match(dashboard, /Chrome chưa phát hộp thoại cài tự động/);
+  assert.doesNotMatch(dashboard, /type InstallPromptEvent/);
+  assert.doesNotMatch(dashboard, /beforeinstallprompt/);
+  assert.doesNotMatch(dashboard, /appinstalled/);
+  assert.doesNotMatch(dashboard, /installWebApp/);
+  assert.doesNotMatch(dashboard, /Cài Web-App/);
+  assert.doesNotMatch(dashboard, /amv2-install-fab/);
+  assert.doesNotMatch(dashboard, /installHelpOpen/);
 });
 
 test("manifest exposes installable PNG sizes plus scalable identity", () => {
@@ -46,9 +40,9 @@ test("service worker keeps an offline fetch handler and has the current cache id
   assert.match(sw, /offline\.html/);
 });
 
-test("install controls are styled above the dashboard without changing page geometry", () => {
-  assert.match(css, /\.amv2-install-fab/);
-  assert.match(css, /position: fixed/);
-  assert.match(css, /\.amv2-installed-note/);
-  assert.match(css, /\.amv2-install-dialog/);
+test("legacy install styles cannot re-enable an install control without dashboard markup", () => {
+  assert.equal(dashboard.includes("amv2-install-fab"), false);
+  assert.equal(dashboard.includes("amv2-install-dialog"), false);
+  assert.equal(dashboard.includes("amv2-installed-note"), false);
+  assert.ok(css.length > 0);
 });
