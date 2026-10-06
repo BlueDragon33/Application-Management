@@ -10,7 +10,8 @@
 
 ## Dashboard
 - Header gọn: search, bộ lọc, kiểm duyệt truy cập, cảnh báo, trạng thái, tài khoản.
-- Sidebar: Tổng quan, Hộp việc, Ứng dụng, Thiết bị mới, Thanh toán & Quyền, Cảnh báo, Nhật ký, Cài đặt.
+- Sidebar: Tổng quan, Hộp việc, Ứng dụng, Thiết bị mới, Thanh toán & Quyền, Cảnh báo, Nhật ký.
+- Cài đặt tiếp tục thuộc menu tài khoản và nút Giao diện trong Thao tác nhanh; không tạo tab sidebar riêng.
 - 4 KPI cùng hàng.
 - Desktop 16:9:
   - trái trên: Ứng dụng đang quản lý;
