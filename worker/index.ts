@@ -24,6 +24,7 @@ import {
   productionLoginPath,
   productionLogoutPath,
   productionReadbackAuthorized,
+  productionStepUpGate,
   productionUnauthorized,
   withProductionIdentity,
 } from "./production-auth";
@@ -278,6 +279,8 @@ const worker = {
         if (url.pathname === productionAccountPath() || url.pathname.startsWith(`${productionAccountPath()}/`)) {
           return handleProductionAccount(request, env, identity);
         }
+        const stepUpResponse = await productionStepUpGate(request, env, identity);
+        if (stepUpResponse) return stepUpResponse;
         request = withProductionIdentity(request, identity);
       }
     }
