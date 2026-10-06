@@ -280,8 +280,8 @@ export async function registerDesktopAgent(payload: Record<string, unknown>) {
       .prepare(
         `INSERT INTO desktop_agent_devices
           (device_id,device_code,app_id,public_key_jwk,status,device_type,app_version,
-           release_channel,entitlement_state,update_policy,last_seen_at)
-         VALUES (?1,?2,?3,?4,'pending','desktop-native',?5,?6,'pending','notify',CURRENT_TIMESTAMP)`,
+           release_channel,entitlement_state,update_policy)
+         VALUES (?1,?2,?3,?4,'pending','desktop-native',?5,?6,'pending','notify')`,
       )
       .bind(deviceId, displayCodeFor(deviceId), DESKTOP_AGENT_APP_ID, serialized, appVersion, releaseChannel)
       .run();
@@ -291,7 +291,7 @@ export async function registerDesktopAgent(payload: Record<string, unknown>) {
   } else {
     await db
       .prepare(
-        "UPDATE desktop_agent_devices SET app_version=?2,last_seen_at=CURRENT_TIMESTAMP WHERE device_id=?1",
+        "UPDATE desktop_agent_devices SET app_version=?2 WHERE device_id=?1",
       )
       .bind(deviceId, appVersion)
       .run();
