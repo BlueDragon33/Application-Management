@@ -146,7 +146,7 @@ test("intake batches keep a recoverable stable public link after reset", () => {
   assert.match(publicApi, /function linkByAccess/);
   assert.match(publicApi, /WHERE id=\? LIMIT 1/);
   assert.match(tool, /function intakePublicUrl/);
-  assert.match(tool, /item\.publicPath/);
+  assert.match(tool, /link\.publicPath/);
   assert.match(tool, /intakeLinks\.filter\(\(item\) => item\.status === "active"\)/);
 });
 
@@ -183,7 +183,7 @@ test("admin can delete only pending or rejected submissions from the verificatio
   assert.match(tool, /function deleteIntakeSubmission\(submission: IntakeSubmission\)/);
   assert.match(tool, /Xóa khỏi hàng chờ/);
   assert.match(tool, /window\.confirm/);
-  assert.match(tool, /action: "delete-submission"/);
+  assert.match(tool, /action: completed \? "archive-submission" : "delete-submission"/);
   assert.match(adminApi, /SUBMISSION_DELETE_LOCKED/);
   assert.match(adminApi, /\["pending", "rejected"\]\.includes\(existing\.status\)/);
 });
