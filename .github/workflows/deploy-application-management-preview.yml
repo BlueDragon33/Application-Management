@@ -74,19 +74,23 @@ jobs:
         if: steps.config.outputs.ready == 'true'
         run: npm ci --no-audit --no-fund
 
+      - name: Preview regression gate
+        if: steps.config.outputs.ready == 'true'
+        run: npm test
+
       - name: Package preview
         if: steps.config.outputs.ready == 'true'
         run: npm run cloudflare:preview:prepare
-
-      - name: Apply preview migrations
-        if: steps.config.outputs.ready == 'true'
-        run: npx wrangler d1 migrations apply application-management-preview-db --remote --config wrangler.cloudflare.jsonc
 
       - name: Build preview
         if: steps.config.outputs.ready == 'true'
         env:
           CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH: wrangler.cloudflare.jsonc
         run: npm run build
+
+      - name: Apply preview migrations
+        if: steps.config.outputs.ready == 'true'
+        run: npx wrangler d1 migrations apply application-management-preview-db --remote --config wrangler.cloudflare.jsonc
 
       - name: Verify generated preview artifact
         if: steps.config.outputs.ready == 'true'
