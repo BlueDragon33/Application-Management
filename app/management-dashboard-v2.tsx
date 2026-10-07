@@ -536,7 +536,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
     return live ? live !== "ready" && live !== "metadata" : app.contractState !== "connected";
   }).length;
   const highAlerts = workItems.filter((item) => item.priority === "high").length;
-  const offline = !approvalGateEnabled || !operationsVerified;
+  const offline = !operationsVerified;
   const notificationCount = offline ? 0 : workItems.length;
   const approvalCount = approvalDevices.length;
   const onlineApps = activeApps.filter((app) => connectionFor(app, summaryMap.get(app.id)) === "connected").length;
