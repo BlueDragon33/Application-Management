@@ -35,11 +35,9 @@ jobs:
           node --check scripts/validate-cloudflare-preview.mjs
           node -e "JSON.parse(require('fs').readFileSync('package.json','utf8'))"
       - name: Development mode summary
-        run: echo "Fast CI only. Heavy validation is manual during active development."
+        run: echo "Fast sanity PASS; full regression runs in the mandatory regression-check job."
 
-
-  release-check:
-    if: ${{ github.event_name == 'pull_request' && startsWith(github.head_ref, 'release/') }}
+  regression-check:
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -50,7 +48,7 @@ jobs:
           cache: npm
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
-      - name: Release regression suite
+      - name: Mandatory full regression suite
         run: npm test
-      - name: Release policy summary
-        run: echo "Release branch full npm test PASS before merge."
+      - name: Regression policy summary
+        run: echo "Full npm test PASS for every pull request and every main revision."
