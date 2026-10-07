@@ -18,7 +18,7 @@ test("overview matches the approved panel order", () => {
   assert.match(ui, /title="Cảnh báo nhanh"/);
   assert.match(ui, /Thao tác nhanh/);
   assert.match(ui, />Ứng dụng đang quản lý<\/h2>/);
-  assert.match(ui, /title="Thiết bị mới theo ứng dụng"/);
+  assert.match(ui, /title="Thiết bị chờ kiểm duyệt"/);
 });
 
 test("application table uses separate Website and Quản Trị columns with short actions", () => {

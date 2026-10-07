@@ -153,7 +153,7 @@ test("requested operations controls are real, grouped, and contract-gated", () =
   assert.doesNotMatch(route, /operation === "approve"[\s\S]{0,700}action: "grant-free"/);
   assert.match(route, /AUTO_APPROVE_SUPPORTED_APP_IDS/);
   assert.match(settings, /hashWorkItem/);
-  assert.doesNotMatch(settings, /deviceCode|userLabel|learner|health/i);
+  assert.doesNotMatch(settings, /deviceCode|userLabel|learner|medicalRecord|patientData/i);
 });
 
 test("operations shell paints cached data before bounded background refresh", () => {
