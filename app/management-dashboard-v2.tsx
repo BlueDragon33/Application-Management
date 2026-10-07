@@ -364,6 +364,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   const [syncError, setSyncError] = useState("");
   const notificationListRef = useRef<HTMLDivElement>(null);
   const automationSaveLockRef = useRef(false);
+  const actionLocksRef = useRef<Set<string>>(new Set());
   const operationsRefreshPromiseRef = useRef<Promise<OperationsBootstrap | null> | null>(null);
   const [clock, setClock] = useState<Date | null>(null);
   const [webMenu, setWebMenu] = useState(false);
@@ -571,6 +572,16 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
     if (content) content.scrollTop = 0;
   }
 
+  function acquireActionLock(key: string) {
+    if (actionLocksRef.current.has(key)) return false;
+    actionLocksRef.current.add(key);
+    return true;
+  }
+
+  function releaseActionLock(key: string) {
+    actionLocksRef.current.delete(key);
+  }
+
   async function manageDevice(device: OperationsDevice, operation: "approve" | "remove") {
     if (!requireManagedAccess("Kiểm duyệt thiết bị")) return;
     if (device.status !== "pending") {
@@ -604,6 +615,8 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       }
     }
 
+    const actionKey = `device:${device.appId}:${device.deviceId}`;
+    if (!acquireActionLock(actionKey)) return;
     setActionBusy(`${device.appId}:${device.deviceId}`);
     setNotice("");
     try {
@@ -643,6 +656,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
         setNotice(caught instanceof Error ? caught.message : "Không thể cập nhật thiết bị.");
       }
     } finally {
+      releaseActionLock(actionKey);
       setActionBusy("");
     }
   }
@@ -664,7 +678,9 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
     ].filter(Boolean).join("\n");
     if (!window.confirm(summary)) return;
 
-    setActionBusy("bulk-pending");
+    const actionKey = "bulk-pending";
+    if (!acquireActionLock(actionKey)) return;
+    setActionBusy(actionKey);
     setNotice("");
     let succeeded = 0;
     const failed: string[] = [];
@@ -688,6 +704,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
     setNotice(failed.length
       ? `Đã từ chối/khóa ${succeeded}/${targets.length} thiết bị. Lỗi: ${failed.slice(0, 5).join(", ")}${failed.length > 5 ? ` và ${failed.length - 5} thiết bị khác` : ""}. Danh sách đã được đồng bộ lại.`
       : `Đã từ chối và khóa ${succeeded} thiết bị.${boiTargets.length ? ` Bỏ qua ${boiTargets.length} thiết bị Bơi ếch để kiểm duyệt riêng.` : ""}`);
+    releaseActionLock(actionKey);
     setActionBusy("");
   }
 
@@ -703,6 +720,8 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       setNotice("Ứng dụng chưa công bố URL website hợp lệ.");
       return;
     }
+    const actionKey = `web:${appId}`;
+    if (!acquireActionLock(actionKey)) return;
     setWebBusy(appId);
     setNotice("");
     try {
@@ -725,6 +744,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
     } catch (caught) {
       setNotice(caught instanceof Error ? caught.message : "Không thể mở website ứng dụng.");
     } finally {
+      releaseActionLock(actionKey);
       setWebBusy("");
     }
   }
@@ -737,6 +757,8 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       return;
     }
     if (!window.confirm(`Xóa ${ids.length} mục khỏi danh sách hiển thị? Dữ liệu nghiệp vụ gốc không bị xóa.`)) return;
+    const actionKey = "clear-notifications";
+    if (!acquireActionLock(actionKey)) return;
     setActionBusy("clear");
     try {
       await operationsAction({ action: "dismiss-notifications", workItemIds: ids });
@@ -745,6 +767,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
     } catch (caught) {
       setNotice(caught instanceof Error ? caught.message : "Không thể xóa thông báo.");
     } finally {
+      releaseActionLock(actionKey);
       setActionBusy("");
     }
   }
@@ -978,7 +1001,9 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       const confirmation = window.prompt(`Nhập chính xác email để xóa tài khoản đã thu hồi:\n${device.email}`);
       if (confirmation?.trim().toLowerCase() !== device.email.toLowerCase()) return;
     }
-    setActionBusy(`control:${device.deviceId}`);
+    const actionKey = `control:${device.deviceId}`;
+    if (!acquireActionLock(actionKey)) return;
+    setActionBusy(actionKey);
     try {
       const result = await centerAdminAction({ action: "manage-control-device", operation, targetDeviceId: device.deviceId, role: selectedRole ?? "reviewer", displayName: device.displayName });
       setCenter((current) => current ? { ...current, controlDevices: result.controlDevices ?? current.controlDevices, auditLog: result.auditLog ?? current.auditLog } : current);
@@ -986,6 +1011,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
     } catch (caught) {
       setNotice(caught instanceof Error ? caught.message : "Không thể cập nhật thiết bị quản trị.");
     } finally {
+      releaseActionLock(actionKey);
       setActionBusy("");
     }
   }
