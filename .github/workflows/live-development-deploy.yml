@@ -15,7 +15,7 @@ concurrency:
 jobs:
   deploy-live:
     runs-on: ubuntu-24.04
-    timeout-minutes: 18
+    timeout-minutes: 30
     environment: application-management-production
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -66,6 +66,10 @@ jobs:
       - name: Install dependencies
         if: steps.ready.outputs.deploy == 'true'
         run: npm ci --no-audit --no-fund
+
+      - name: Production regression gate
+        if: steps.ready.outputs.deploy == 'true'
+        run: npm test
 
       - name: Materialize standalone live config
         if: steps.ready.outputs.deploy == 'true'
