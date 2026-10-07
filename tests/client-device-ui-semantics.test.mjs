@@ -4,11 +4,33 @@ import test from "node:test";
 
 const dashboard = fs.readFileSync("app/management-dashboard-v2.tsx", "utf8");
 
-test("client device actions distinguish Boi deletion from non-destructive blocking", () => {
-  assert.match(dashboard, /const destructive = device\.appId === "boi-ech"/);
-  assert.match(dashboard, /Xóa vĩnh viễn thiết bị/);
-  assert.match(dashboard, /Khóa thiết bị/);
-  assert.match(dashboard, /device\.appId === "boi-ech" \? "Xóa" : "Khóa"/);
+test("device review tab is explicitly named and only receives pending devices", () => {
+  assert.match(dashboard, /label: "Kiểm duyệt thiết bị"/);
+  assert.match(dashboard, /title: "Kiểm duyệt thiết bị"/);
+  assert.match(dashboard, /const filteredPendingDevices = filteredDevices\.filter\(\(device\) => device\.status === "pending"\)/);
+  assert.match(dashboard, /<DevicesView devices=\{filteredPendingDevices\}/);
+  assert.match(dashboard, /pendingDevices\.slice\(0, 4\)\.map/);
+});
+
+test("client device mutation is guarded by pending state and advertised capability", () => {
+  const start = dashboard.indexOf("async function manageDevice");
+  const end = dashboard.indexOf("async function bulkRemovePendingDevices", start);
+  assert.ok(start >= 0 && end > start);
+  const block = dashboard.slice(start, end);
+  assert.match(block, /device\.status !== "pending"/);
+  assert.match(block, /operation === "approve" && !device\.canApprove/);
+  assert.match(block, /operation === "remove" && !device\.canRemove/);
+  assert.match(block, /Không gửi lệnh lên client/);
+});
+
+test("Boi permanent deletion requires two-step confirmation with exact device code", () => {
+  const start = dashboard.indexOf("async function manageDevice");
+  const end = dashboard.indexOf("async function bulkRemovePendingDevices", start);
+  const block = dashboard.slice(start, end);
+  assert.match(block, /Xóa vĩnh viễn thiết bị/);
+  assert.match(block, /window\.prompt\(\`Nhập chính xác mã thiết bị để xác nhận xóa vĩnh viễn/);
+  assert.match(block, /confirmation\?\.trim\(\)\.toUpperCase\(\) !== device\.deviceCode\.trim\(\)\.toUpperCase\(\)/);
+  assert.match(block, /Từ chối và khóa thiết bị/);
 });
 
 test("client actions use verified API mutation then read-only refresh", () => {
@@ -22,31 +44,34 @@ test("client actions use verified API mutation then read-only refresh", () => {
   assert.doesNotMatch(block, /setOperations\(\(current\)/);
 });
 
-test("device view keeps direct app administration separate from registry mutation", () => {
-  assert.match(dashboard, /function DevicesView/);
-  assert.match(dashboard, /<Link href=\{device\.href\}>Quản trị<\/Link>/);
-  assert.match(dashboard, /device\.canApprove/);
-  assert.match(dashboard, /device\.canRemove && device\.status === "pending"/);
+test("device view keeps direct app administration separate from review mutation", () => {
+  const start = dashboard.indexOf("function DevicesView");
+  const end = dashboard.indexOf("function AlertsView", start);
+  const block = dashboard.slice(start, end);
+  assert.match(block, /<Link href=\{device\.href\}>Quản trị<\/Link>/);
+  assert.match(block, /device\.canApprove/);
+  assert.match(block, /device\.canRemove/);
+  assert.match(block, /Bơi ếch là xóa vĩnh viễn nên không được xử lý hàng loạt/);
 });
 
-test("approved and blocked devices cannot be removed from the central dashboard", () => {
-  const manageStart = dashboard.indexOf("async function manageDevice");
-  const manageEnd = dashboard.indexOf("async function bulkRemovePendingDevices", manageStart);
-  const manageBlock = dashboard.slice(manageStart, manageEnd);
-  assert.match(manageBlock, /operation === "remove" && device\.status !== "pending"/);
-  assert.match(manageBlock, /hãy vào Quản trị của/);
-
-  const viewStart = dashboard.indexOf("function DevicesView");
-  const viewEnd = dashboard.indexOf("function AlertsView", viewStart);
-  const viewBlock = dashboard.slice(viewStart, viewEnd);
-  assert.match(viewBlock, /device\.canRemove && device\.status === "pending"/);
-  assert.match(viewBlock, /Thiết bị đã duyệt\/đã khóa phải vào Quản trị của từng app/);
+test("non-pending environment cases in work queue route to app administration instead of dead mutation buttons", () => {
+  const start = dashboard.indexOf("function ApprovalView");
+  const end = dashboard.indexOf("function ApplicationsView", start);
+  const block = dashboard.slice(start, end);
+  assert.match(block, /const pending = device\.status === "pending"/);
+  assert.match(block, /pending && device\.canApprove/);
+  assert.match(block, /pending && device\.canRemove/);
+  assert.match(block, /!pending \? <Link href=\{device\.href\}>Quản trị<\/Link>/);
 });
 
-test("full device tab uses the complete filtered device set while overview stays compact", () => {
-  assert.match(dashboard, /const filteredDevices = devices\.filter/);
-  assert.match(dashboard, /<DevicesView devices=\{filteredDevices\}/);
-  assert.match(dashboard, /pendingDevices\.slice\(0, 4\)\.map/);
+test("state conflicts and stale registries force a read-only resync", () => {
+  const start = dashboard.indexOf("async function manageDevice");
+  const end = dashboard.indexOf("async function bulkRemovePendingDevices", start);
+  const block = dashboard.slice(start, end);
+  assert.match(block, /GROWUP_REGISTRY_INSTANCE_MISMATCH/);
+  assert.match(block, /DEVICE_STATE_CONFLICT/);
+  assert.match(block, /DEVICE_NOT_FOUND/);
+  assert.match(block, /await refreshOperations\(true\)/);
 });
 
 test("returning to the center triggers a read-only operations resync", () => {
@@ -69,20 +94,9 @@ test("clear-all notifications only dismisses central work items and preserves cl
   assert.match(dashboard, /dữ liệu gốc được giữ nguyên/);
 });
 
-
 test("dashboard notices remain in the inline board until manually dismissed", () => {
   assert.doesNotMatch(dashboard, /window\.setTimeout\(\(\) => setNotice\(""\), 5_500\)/);
   assert.match(dashboard, /aria-label="Đóng thông báo"/);
   assert.match(dashboard, /role="status"/);
   assert.match(dashboard, /aria-live="polite"/);
-});
-
-test("GrowUP stale device errors trigger a read-only resync instead of persisting as raw errors", () => {
-  const start = dashboard.indexOf("async function manageDevice");
-  const end = dashboard.indexOf("async function bulkRemovePendingDevices", start);
-  const block = dashboard.slice(start, end);
-  assert.match(block, /GROWUP_REGISTRY_INSTANCE_MISMATCH/);
-  assert.match(block, /DEVICE_NOT_FOUND/);
-  assert.match(block, /await refreshOperations\(true\)/);
-  assert.match(block, /dòng dữ liệu cũ đã được loại khỏi danh sách/);
 });

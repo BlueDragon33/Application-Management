@@ -11,7 +11,7 @@ test("dashboard v2 keeps every management view reachable on narrow screens", () 
   const dashboard = source("app/management-dashboard-v2.tsx");
   const css = source("app/management-dashboard-v2.css");
   assert.match(page, /management-dashboard-v2\.css/);
-  for (const label of ["Tổng quan", "Hộp việc", "Ứng dụng", "Thiết bị mới", "Cảnh báo", "Nhật ký", "Cấu hình"]) {
+  for (const label of ["Tổng quan", "Hộp việc", "Ứng dụng", "Kiểm duyệt thiết bị", "Cảnh báo", "Nhật ký", "Cấu hình"]) {
     assert.match(dashboard, new RegExp(label));
   }
   assert.match(css, /@media \(max-width: 700px\)/);
