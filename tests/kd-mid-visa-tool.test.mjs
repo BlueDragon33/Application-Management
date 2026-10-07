@@ -186,7 +186,7 @@ test("v0.9.32 handles the visit information page with exact field semantics", ()
 });
 
 test("the first visit-page select is Organization and is never treated as a yes/no field", () => {
-  assert.match(companion, /ensureSelectAfterLabel\("В какое учреждение направляетесь\?", \["ОРГАНИЗАЦИЯ","ORGANIZATION"\]\)/);
+  assert.match(companion, /ensureSelectAfterLabel\("В какое учреждение направляетесь\?", \[payload\.destinationType \|\| "ОРГАНИЗАЦИЯ","ОРГАНИЗАЦИЯ","ORGANIZATION"\]\)/);
   assert.match(companion, /It must remain "Организация", never "НЕТ"/);
   const visit = companion.slice(companion.indexOf("function fillVisitInfoPage"), companion.indexOf("function setText"));
   assert.doesNotMatch(visit, /setYesNo\("В какое учреждение направляетесь/);
