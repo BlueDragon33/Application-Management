@@ -51,7 +51,7 @@ test("one save verifies each changed policy field independently with one confirm
   assert.match(block, /field: "autoBlockPending"/);
   assert.match(block, /targetAppIds: \[appId\]/);
   assert.match(block, /Promise\.allSettled/);
-  assert.match(block, /synced\.settings\.automationPolicies/);
+  assert.match(block, /mergedSettings\.automationPolicies/);
   assert.match(block, /policy\?\.verification\.state === "live"/);
   assert.match(block, /failedFields/);
   assert.equal((block.match(/window\.confirm/g) ?? []).length, 1);
