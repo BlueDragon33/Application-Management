@@ -8,7 +8,7 @@ test("operations bootstrap publishes a per-app policy snapshot for the merged ma
   const operations = source("app/api/operations/route.ts");
   const settings = source("app/operations-settings.server.ts");
   const client = source("app/admin-device-client.ts");
-  assert.match(operations, /readAutoApprovalSettings\(AUTO_APPROVE_SUPPORTED_APP_IDS, \[\.\.\.new Set\(\[\.\.\.applicationRegistry\.map/);
+  assert.match(operations, /readAutoApprovalSettings\([\s\S]*AUTO_APPROVE_SUPPORTED_APP_IDS[\s\S]*dynamicSnapshots/);
   assert.match(settings, /automationPolicies/);
   assert.match(settings, /state: "live"/);
   assert.match(settings, /state: hasFallback \? "fallback" : "unavailable"/);
@@ -42,4 +42,17 @@ test("policy editor keeps unsupported managed apps visible but read-only", () =>
   assert.match(editor, /Không hỗ trợ/);
   assert.match(editor, /disabled=\{busy \|\| !approveWritable\}/);
   assert.match(editor, /disabled=\{busy \|\| !blockWritable\}/);
+});
+
+
+test("dynamic automation snapshots override read-only inventory only after live readback", () => {
+  const settings = source("app/operations-settings.server.ts");
+  assert.match(settings, /for \(const snapshot of dynamicSnapshots\)/);
+  assert.match(settings, /manifest\.capabilities\.deviceAutoApproval === true/);
+  assert.match(settings, /manifest\.capabilities\.deviceAutoBlockPending === true/);
+  assert.match(settings, /snapshot\.automation/);
+  assert.match(settings, /Universal Contract \$\{manifest\.endpoints\.automation\}/);
+  assert.match(settings, /automationIdempotentCommands === true/);
+  assert.match(settings, /automationOptimisticConcurrency === true/);
+  assert.match(settings, /không cho phép ghi mù/);
 });

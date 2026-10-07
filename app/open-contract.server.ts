@@ -45,8 +45,15 @@ export type UniversalContractManifest = {
     status?: string;
     devices?: string;
     deviceCommands?: string;
+    automation?: string;
     web?: string;
   };
+};
+
+export type UniversalAutomationPolicy = {
+  autoApproveDevices?: boolean;
+  autoBlockPendingDevices?: boolean;
+  pendingBlockAfterHours?: number;
 };
 
 export type UniversalContractDevice = {
@@ -78,6 +85,8 @@ export type DynamicContractSnapshot = {
   remoteAdminReady: boolean;
   managementMode: ManagedContractMode;
   metadataVerified: boolean;
+  automation: UniversalAutomationPolicy | null;
+  automationError?: string;
   note: string;
   issueCode?: string;
 };
@@ -370,6 +379,7 @@ function parseManifest(raw: Record<string, unknown>, expectedId: string, expecte
       status: endpoint(endpointsRaw.status),
       devices: endpoint(endpointsRaw.devices),
       deviceCommands: endpoint(endpointsRaw.deviceCommands),
+      automation: endpoint(endpointsRaw.automation),
       web: endpoint(endpointsRaw.web),
     },
   };
@@ -405,6 +415,8 @@ function normalizeLegacyContract(
     ?? (routes.includes("/api/control/devices") ? "/api/control/devices" : undefined);
   const deviceCommandsPath = endpoint(endpointsRaw.deviceCommands)
     ?? (routes.includes("/api/control/device-commands") ? "/api/control/device-commands" : undefined);
+  const automationPath = endpoint(endpointsRaw.automation)
+    ?? (routes.includes("/api/control/automation") ? "/api/control/automation" : undefined);
 
   const capsObject = record(raw.capabilities);
   const capsList = capabilitySet(raw.capabilities);
@@ -434,6 +446,10 @@ function normalizeLegacyContract(
     deviceEditPermission: explicit("deviceEditPermission", "device-edit-permission"),
     deviceIdempotentCommands: explicit("deviceIdempotentCommands", "device-idempotent-commands"),
     optimisticConcurrency: explicit("optimisticConcurrency", "optimistic-concurrency"),
+    deviceAutoApproval: explicit("deviceAutoApproval", "device-auto-approval"),
+    deviceAutoBlockPending: explicit("deviceAutoBlockPending", "device-auto-block-pending"),
+    automationIdempotentCommands: explicit("automationIdempotentCommands", "automation-idempotent-commands"),
+    automationOptimisticConcurrency: explicit("automationOptimisticConcurrency", "automation-optimistic-concurrency"),
     sessions: explicit("sessions", "session-revocation", "revocable-device-sessions")
       || capsObject.sessionRevocation === true
       || capsObject.revocableDeviceSessions === true,
@@ -467,6 +483,7 @@ function normalizeLegacyContract(
       status: statusPath,
       devices: devicesPath,
       deviceCommands: deviceCommandsPath,
+      automation: automationPath,
       web: endpoint(endpointsRaw.web),
     },
   };
@@ -579,6 +596,10 @@ function capabilityLabels(capabilities: Record<string, boolean>) {
     deviceBlock: "Khóa thiết bị",
     deviceUnblock: "Mở khóa thiết bị",
     deviceEditPermission: "Quyền chỉnh sửa",
+    deviceAutoApproval: "Tự động duyệt",
+    deviceAutoBlockPending: "Tự động khóa pending",
+    automationIdempotentCommands: "Automation idempotent",
+    automationOptimisticConcurrency: "Automation concurrency",
     sessions: "Phiên & thu hồi",
     audit: "Audit",
     contentReview: "Kiểm duyệt nội dung",
@@ -587,6 +608,25 @@ function capabilityLabels(capabilities: Record<string, boolean>) {
     webLaunch: "Mở Website",
   };
   return Object.entries(capabilities).filter(([, enabled]) => enabled).map(([key]) => labels[key] ?? key);
+}
+
+function automationPolicyFromPayload(payload: Record<string, unknown>, capabilities: Record<string, boolean>): UniversalAutomationPolicy {
+  const automation = record(payload.automation);
+  const result: UniversalAutomationPolicy = {};
+  if (capabilities.deviceAutoApproval === true) {
+    if (typeof automation.autoApproveDevices !== "boolean") throw new Error("AUTOMATION_READBACK_AUTO_APPROVE_INVALID");
+    result.autoApproveDevices = automation.autoApproveDevices;
+  }
+  if (capabilities.deviceAutoBlockPending === true) {
+    if (typeof automation.autoBlockPendingDevices !== "boolean") throw new Error("AUTOMATION_READBACK_AUTO_BLOCK_INVALID");
+    result.autoBlockPendingDevices = automation.autoBlockPendingDevices;
+    const hours = Math.round(Number(automation.pendingBlockAfterHours));
+    if (automation.autoBlockPendingDevices && ![24, 168, 720].includes(hours)) {
+      throw new Error("AUTOMATION_READBACK_THRESHOLD_INVALID");
+    }
+    if ([24, 168, 720].includes(hours)) result.pendingBlockAfterHours = hours;
+  }
+  return result;
 }
 
 export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<DynamicContractSnapshot> {
@@ -605,6 +645,22 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
       const devicePayload = await fetchJson(row.origin, manifest.endpoints.devices, credential);
       const rawDevices = Array.isArray(devicePayload.devices) ? devicePayload.devices : [];
       devices = rawDevices.map(universalDevice).filter((item): item is UniversalContractDevice => Boolean(item));
+    }
+    let automation: UniversalAutomationPolicy | null = null;
+    let automationError: string | undefined;
+    const automationAdvertised = Boolean(
+      manifest.endpoints.automation
+      && (manifest.capabilities.deviceAutoApproval === true || manifest.capabilities.deviceAutoBlockPending === true),
+    );
+    if (credential && automationAdvertised && manifest.endpoints.automation) {
+      try {
+        automation = automationPolicyFromPayload(
+          await fetchJson(row.origin, manifest.endpoints.automation, credential),
+          manifest.capabilities,
+        );
+      } catch (error) {
+        automationError = error instanceof Error ? error.message : "AUTOMATION_READ_FAILED";
+      }
     }
     const capabilities = capabilityLabels(manifest.capabilities);
     const repositoryMetadataOnly = metadataOnlyRepositoryOrigin(row.origin);
@@ -645,6 +701,8 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
       remoteAdminReady,
       managementMode,
       metadataVerified,
+      automation,
+      ...(automationError ? { automationError } : {}),
       note: config.contractNote,
       ...(repositoryMetadataOnly ? { issueCode: "REPOSITORY_METADATA_ONLY" } : {}),
     };
@@ -673,6 +731,7 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
       remoteAdminReady: false,
       managementMode: "observe-only",
       metadataVerified: false,
+      automation: null,
       note: config.contractNote,
       issueCode: "OPEN_CONTRACT_PENDING",
     };
@@ -682,6 +741,67 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
 export async function probeDynamicManagedApplications() {
   const rows = (await listManagedCatalog()).filter((row) => row.enabled === 1);
   return Promise.all(rows.map((row) => probeManagedCatalogEntry(row)));
+}
+
+export async function executeUniversalAutomationCommand(input: {
+  appId: string;
+  commandId: string;
+  expected: UniversalAutomationPolicy;
+  desired: UniversalAutomationPolicy;
+}, actor: ControlDeviceState) {
+  if (actor.role !== "owner") throw new Error("Chỉ Chủ hệ thống được thay đổi automation policy.");
+  const rows = await listManagedCatalog();
+  const row = rows.find((item) => item.id === input.appId && item.enabled === 1);
+  if (!row) throw new Error("Ứng dụng không nằm trong catalog động.");
+  const snapshot = await probeManagedCatalogEntry(row);
+  const manifest = snapshot.manifest;
+  if (!manifest || manifest.policy?.remoteAdminReady === false) throw new Error("Universal automation contract chưa sẵn sàng.");
+  if (!manifest.endpoints.automation) throw new Error("Client chưa công bố automation endpoint.");
+  if (!manifest.capabilities.automationIdempotentCommands || !manifest.capabilities.automationOptimisticConcurrency) {
+    throw new Error("Automation contract chưa xác nhận idempotent commands và optimistic concurrency.");
+  }
+  if (input.desired.autoApproveDevices !== undefined && manifest.capabilities.deviceAutoApproval !== true) {
+    throw new Error("Client chưa công bố capability tự động duyệt thiết bị.");
+  }
+  if (input.desired.autoBlockPendingDevices !== undefined && manifest.capabilities.deviceAutoBlockPending !== true) {
+    throw new Error("Client chưa công bố capability tự động khóa pending.");
+  }
+  if (input.desired.pendingBlockAfterHours !== undefined && ![24, 168, 720].includes(input.desired.pendingBlockAfterHours)) {
+    throw new Error("Ngưỡng pending chỉ chấp nhận 24, 168 hoặc 720 giờ.");
+  }
+  const credential = await decryptCredential(row);
+  if (!credential) throw new Error("Credential quản trị chưa được cấu hình.");
+
+  const response = await fetch(`${row.origin}${manifest.endpoints.automation}`, {
+    method: "POST",
+    cache: "no-store",
+    headers: {
+      authorization: `Bearer ${credential}`,
+      "content-type": "application/json",
+      "x-control-actor": actor.email,
+      "x-control-role": actor.role,
+      "x-control-device": actor.deviceId,
+    },
+    body: JSON.stringify({
+      commandId: input.commandId,
+      operation: "set-device-automation",
+      expected: input.expected,
+      desired: input.desired,
+    }),
+  });
+  const data = await response.json().catch(() => ({})) as Record<string, unknown>;
+  if (!response.ok) throw new Error(text(data.error) || `HTTP_${response.status}`);
+
+  const readback = automationPolicyFromPayload(
+    await fetchJson(row.origin, manifest.endpoints.automation, credential),
+    manifest.capabilities,
+  );
+  for (const [key, desired] of Object.entries(input.desired)) {
+    if (desired !== undefined && readback[key as keyof UniversalAutomationPolicy] !== desired) {
+      throw new Error(`AUTOMATION_READBACK_MISMATCH_${key}`);
+    }
+  }
+  return { ok: true, commandReplayed: data.replayed === true, automation: readback };
 }
 
 export async function executeUniversalDeviceCommand(input: {

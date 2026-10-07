@@ -1,5 +1,6 @@
 import { readClientAutoApprovalStates } from "./automation-policy-read.server";
 import { getControlDatabase } from "./control-device.server";
+import type { DynamicContractSnapshot } from "./open-contract.server";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -150,7 +151,11 @@ export async function dismissedNotificationHashes(actor: string) {
  * and is explicitly labeled fallback; unsupported apps are never presented
  * as writable merely because they exist in the management inventory.
  */
-export async function readAutoApprovalSettings(supportedAppIds: readonly string[], allAppIds: readonly string[] = supportedAppIds) {
+export async function readAutoApprovalSettings(
+  supportedAppIds: readonly string[],
+  allAppIds: readonly string[] = supportedAppIds,
+  dynamicSnapshots: readonly DynamicContractSnapshot[] = [],
+) {
   const effectiveAppIds = [...new Set([...supportedAppIds, "bauman-master-ai", "ru-life"])] as string[];
   const inventoryAppIds = [...new Set([...allAppIds, ...effectiveAppIds])];
   const [approvalFallback, blockFallback, probes] = await Promise.all([
@@ -222,6 +227,80 @@ export async function readAutoApprovalSettings(supportedAppIds: readonly string[
       },
     });
   });
+
+  for (const snapshot of dynamicSnapshots) {
+    const appId = snapshot.config.id;
+    // Bơi ếch has domain-specific Free/Paid state that generic automation
+    // intentionally does not model.
+    if (appId === "boi-ech") continue;
+    const manifest = snapshot.manifest;
+    if (!manifest?.endpoints.automation) continue;
+    const autoApprove = manifest.capabilities.deviceAutoApproval === true;
+    const autoBlockPending = manifest.capabilities.deviceAutoBlockPending === true;
+    if (!autoApprove && !autoBlockPending) continue;
+
+    const mutationFoundation = Boolean(
+      snapshot.credentialConfigured
+      && manifest.policy?.remoteAdminReady !== false
+      && manifest.capabilities.automationIdempotentCommands === true
+      && manifest.capabilities.automationOptimisticConcurrency === true,
+    );
+
+    if (snapshot.automation) {
+      policies.set(appId, {
+        appId,
+        support: {
+          autoApprove,
+          autoBlockPending,
+          freeAccessPolicy: false,
+        },
+        current: {
+          autoApprove: autoApprove ? snapshot.automation.autoApproveDevices : undefined,
+          autoBlockPending: autoBlockPending ? snapshot.automation.autoBlockPendingDevices : undefined,
+          pendingBlockAfterHours: autoBlockPending ? snapshot.automation.pendingBlockAfterHours : undefined,
+        },
+        verification: {
+          state: "live",
+          source: `Universal Contract ${manifest.endpoints.automation}`,
+          lastVerifiedAt: verifiedAt,
+        },
+        mutation: {
+          autoApprove: autoApprove && mutationFoundation,
+          autoBlockPending: autoBlockPending && mutationFoundation,
+          ...(!mutationFoundation ? {
+            reason: "Automation endpoint đọc được nhưng contract chưa xác nhận credential + idempotency + optimistic concurrency để ghi.",
+          } : {}),
+        },
+      });
+      continue;
+    }
+
+    if (!policies.has(appId)) {
+      const savedApproval = approvalFallback.get(appId);
+      const savedBlock = blockFallback.get(appId);
+      const hasFallback = Boolean(savedApproval || savedBlock);
+      policies.set(appId, {
+        appId,
+        support: { autoApprove, autoBlockPending, freeAccessPolicy: false },
+        current: {
+          autoApprove: savedApproval?.enabled,
+          autoBlockPending: savedBlock?.enabled,
+          pendingBlockAfterHours: savedBlock?.pendingBlockAfterHours,
+        },
+        verification: {
+          state: hasFallback ? "fallback" : "unavailable",
+          source: hasFallback ? "control_audit_log · last known" : `Universal Contract ${manifest.endpoints.automation}`,
+          lastVerifiedAt: savedApproval?.createdAt ?? savedBlock?.createdAt,
+          errorCode: snapshot.automationError ?? "AUTOMATION_CONTRACT_READBACK_UNAVAILABLE",
+        },
+        mutation: {
+          autoApprove: false,
+          autoBlockPending: false,
+          reason: "Automation contract đã công bố nhưng chưa đọc được trạng thái live; không cho phép ghi mù.",
+        },
+      });
+    }
+  }
 
   for (const appId of inventoryAppIds) {
     if (policies.has(appId)) continue;

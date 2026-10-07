@@ -47,17 +47,23 @@ test("automation policy reader uses a bounded read-only service identity", () =>
   assert.match(reader, /"0"\.repeat\(64\)/);
 });
 
-test("central auto-block mutation is owner-only and requires live Health capability", () => {
+test("central auto-block mutation is owner-only, generic-first and readback-gated", () => {
   const route = source("app/api/operations/route.ts");
+  const contract = source("app/open-contract.server.ts");
   const start = route.indexOf('if (action === "set-auto-block-pending")');
   const end = route.indexOf('if (action === "manage-client-device")', start);
   assert.ok(start >= 0 && end > start);
   const block = route.slice(start, end);
   assert.match(block, /actor\.role !== "owner"/);
-  assert.match(block, /appId !== "health-care"/);
-  assert.match(block, /autoBlockPendingSupportedAppIds\.includes\(appId\)/);
-  assert.match(block, /\[24, 168, 720\]\.includes\(pendingBlockAfterHours\)/);
-  assert.match(block, /\/api\/control\/automation/);
+  assert.match(block, /probeDynamicManagedApplications/);
+  assert.match(block, /policy\?\.support\.autoBlockPending/);
+  assert.match(block, /policy\.mutation\.autoBlockPending/);
+  assert.match(block, /executeUniversalAutomationCommand/);
+  assert.match(block, /automationIdempotentCommands/);
+  assert.match(block, /automationOptimisticConcurrency/);
+  assert.match(block, /else if \(appId === "health-care"\)/);
   assert.match(block, /AUTO_BLOCK_READBACK_MISMATCH/);
   assert.match(block, /rememberAutoBlockPending/);
+  assert.match(contract, /AUTOMATION_READBACK_MISMATCH_/);
+  assert.match(contract, /operation: "set-device-automation"/);
 });

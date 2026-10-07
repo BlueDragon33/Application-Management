@@ -40,6 +40,10 @@ application-management.contract/v1
     "deviceEditPermission": false,
     "deviceIdempotentCommands": true,
     "optimisticConcurrency": true,
+    "deviceAutoApproval": true,
+    "deviceAutoBlockPending": true,
+    "automationIdempotentCommands": true,
+    "automationOptimisticConcurrency": true,
     "sessions": false,
     "audit": true,
     "contentReview": false,
@@ -51,6 +55,7 @@ application-management.contract/v1
     "status": "/api/control/status",
     "devices": "/api/control/devices",
     "deviceCommands": "/api/control/device-commands",
+    "automation": "/api/control/automation",
     "web": "/api/control/web"
   }
 }
@@ -63,6 +68,48 @@ application-management.contract/v1
 - Mọi endpoint phải là path dưới `/api/`, không nhận URL ngoài origin đã đăng ký.
 - Client không được tự cấp quyền cho Trung tâm. Capability chỉ mô tả khả năng; credential riêng mới cho phép đọc/mutate protected endpoint.
 - Capability không công bố hoặc `false` được hiểu là **không hỗ trợ**.
+
+## Automation endpoint
+
+Automation là capability độc lập với device commands. Client chỉ được bật các capability sau khi endpoint thật đã hỗ trợ readback và concurrency:
+
+- `deviceAutoApproval=true`: cho phép đọc/đổi `autoApproveDevices`.
+- `deviceAutoBlockPending=true`: cho phép đọc/đổi `autoBlockPendingDevices` và `pendingBlockAfterHours`.
+- `automationIdempotentCommands=true`: cùng `commandId` không được gây mutation lặp.
+- `automationOptimisticConcurrency=true`: client phải kiểm tra snapshot `expected` trước khi ghi.
+
+GET `endpoints.automation` trả state hiện tại:
+
+```json
+{
+  "automation": {
+    "autoApproveDevices": false,
+    "autoBlockPendingDevices": true,
+    "pendingBlockAfterHours": 168
+  }
+}
+```
+
+POST dùng một command có expected/desired rõ ràng:
+
+```json
+{
+  "commandId": "uuid-or-stable-command-id",
+  "operation": "set-device-automation",
+  "expected": {
+    "autoApproveDevices": false,
+    "autoBlockPendingDevices": true,
+    "pendingBlockAfterHours": 168
+  },
+  "desired": {
+    "autoApproveDevices": true
+  }
+}
+```
+
+Sau POST, Application Management **không tin transport response**. Trung tâm gọi lại GET cùng endpoint và chỉ báo thành công khi các trường trong `desired` khớp readback. Nếu GET lỗi hoặc mismatch, UI giữ trạng thái fail-closed và không tự suy diễn rằng policy đã được lưu.
+
+Bơi ếch vẫn giữ contract nghiệp vụ riêng cho phân loại Miễn phí/Trả phí. Universal automation không được tự suy diễn payment state, access class, thời hạn trả phí hoặc bằng chứng thanh toán.
 
 ## Device endpoint
 

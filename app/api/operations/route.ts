@@ -979,43 +979,13 @@ export async function POST(request: Request) {
     }
 
     if (action === "set-auto-approval") {
-      if (actor.role !== "owner") return json({ error: "Chỉ Chủ hệ thống được đổi quy tắc duyệt tự động.", code: "OWNER_REQUIRED" }, 403);
-      const appIds = Array.isArray(payload.appIds) ? [...new Set(payload.appIds.filter((item): item is string => typeof item === "string"))] : [];
-      const known = new Set<string>(applicationRegistry.map((item) => item.id));
-      if (appIds.some((id) => !known.has(id))) return json({ error: "Danh sách ứng dụng không hợp lệ.", code: "INVALID_APPLICATIONS" }, 400);
-      const unsupported = appIds.filter((id) => !AUTO_APPROVE_SUPPORTED_APP_IDS.includes(id as typeof AUTO_APPROVE_SUPPORTED_APP_IDS[number]));
-      if (unsupported.length) return json({ error: "Một số ứng dụng chưa công bố contract duyệt tự động.", code: "AUTO_APPROVAL_CONTRACT_MISSING" }, 409);
-      if (appIds.includes("boi-ech")) {
-        return json({
-          error: "Bơi ếch đang dùng phân loại quyền Miễn phí/Trả phí nên không được bật duyệt tự động từ Trung tâm.",
-          code: "BOI_AUTO_APPROVAL_DISABLED_FOR_ACCESS_CLASSIFICATION",
-        }, 409);
-      }
-
-      const current = await readAutoApprovalSettings(AUTO_APPROVE_SUPPORTED_APP_IDS);
-      const enabledBefore = new Set(current.autoApproveAppIds);
-      const boiEnabled = appIds.includes("boi-ech");
-      const healthEnabled = appIds.includes("health-care");
-
-      if (enabledBefore.has("boi-ech") !== boiEnabled) {
-        const bridge = await issueBoiBrowserBridge(actor.email, actor.role);
-        await bridgeJson(bridge, "/api/control/overview", {
-          method: "POST",
-          body: { action: "update-automation", enabled: boiEnabled, defaultAccessDays: 60, defaultDeviceLimit: 100 },
-        });
-        await rememberAutoApproval(actor.email, "boi-ech", boiEnabled);
-      }
-
-      if (enabledBefore.has("health-care") !== healthEnabled) {
-        const bridge = await issueHealthBrowserBridge(actor.email, actor.role, actor.deviceId);
-        await bridgeJson(bridge, "/api/control/automation", {
-          method: "POST",
-          body: { autoApproveDevices: healthEnabled },
-        });
-        await rememberAutoApproval(actor.email, "health-care", healthEnabled);
-      }
-
-      return json({ ok: true, settings: await readAutoApprovalSettings(AUTO_APPROVE_SUPPORTED_APP_IDS) });
+      // Single mutation authority: admin-device-client routes this action to
+      // /api/operations-auto-approval. Keeping a second writer here previously
+      // allowed policy semantics to drift between local and Cloudflare paths.
+      return json({
+        error: "Duyệt tự động chỉ được ghi qua endpoint chuyên trách để bắt buộc readback thống nhất.",
+        code: "AUTO_APPROVAL_ROUTE_MOVED",
+      }, 409);
     }
 
     if (action === "set-auto-block-pending") {

@@ -108,6 +108,10 @@ export const universalContractCapabilityKeys = [
   "deviceEditPermission",
   "deviceIdempotentCommands",
   "optimisticConcurrency",
+  "deviceAutoApproval",
+  "deviceAutoBlockPending",
+  "automationIdempotentCommands",
+  "automationOptimisticConcurrency",
   "sessions",
   "audit",
   "contentReview",
@@ -135,6 +139,7 @@ export function contractStarterForCategory(input: {
       status: "/api/control/status",
       devices: "/api/control/devices",
       deviceCommands: "/api/control/device-commands",
+      automation: "/api/control/automation",
     },
     onboarding: {
       recommendedCapabilities: profile.recommendedContractCapabilities,

@@ -78,7 +78,7 @@ test("free auto mode is explicit and paid access still requires verified proof a
   const saveBlock = dashboard.slice(saveStart, saveEnd);
   assert.equal((saveBlock.match(/window\.confirm/g) ?? []).length, 1);
   assert.match(saveBlock, /targetAppIds: \[appId\]/);
-  assert.match(operations, /BOI_AUTO_APPROVAL_DISABLED_FOR_ACCESS_CLASSIFICATION/);
+  assert.match(operations, /AUTO_APPROVAL_ROUTE_MOVED/);
   assert.match(nativeAutomation, /await setBoi\(actor, desired, defaultAccessDays, defaultDeviceLimit\)/);
   assert.match(editor, /Luồng trả phí vẫn phải xác minh thanh toán/);
   assert.match(api, /paymentReviewReady\(current\)/);

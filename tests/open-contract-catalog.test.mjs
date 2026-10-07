@@ -35,6 +35,11 @@ test("Universal Contract v1 is schema-driven and fail-closed", () => {
   assert.ok(contract.includes("manifest.capabilities.deviceRegistry"));
   assert.ok(contract.includes("manifest.capabilities.deviceIdempotentCommands"));
   assert.ok(contract.includes("manifest.capabilities.optimisticConcurrency"));
+  assert.ok(contract.includes("deviceAutoApproval"));
+  assert.ok(contract.includes("deviceAutoBlockPending"));
+  assert.ok(contract.includes("automationIdempotentCommands"));
+  assert.ok(contract.includes("automationOptimisticConcurrency"));
+  assert.ok(contract.includes("endpoints.automation"));
   assert.ok(contract.includes("OPEN_CONTRACT_PENDING"));
   assert.ok(contract.includes("Universal Contract chưa sẵn sàng cho thao tác từ xa."));
   assert.ok(contract.includes("manifest.policy?.remoteAdminReady !== false"));
@@ -79,6 +84,7 @@ test("operations dashboard is dynamic-first with safe legacy fallback", () => {
   assert.ok(operations.includes("Adapter legacy đang làm fallback"));
   assert.ok(operations.includes("deviceFromUniversal"));
   assert.ok(operations.includes("executeUniversalDeviceCommand"));
+  assert.ok(operations.includes("executeUniversalAutomationCommand"));
   assert.ok(operations.includes("dynamicMutationReady"));
   assert.ok(operations.includes('contractPath: "universal"'));
   assert.ok(operations.includes("managedApps: dynamicConfigs"));

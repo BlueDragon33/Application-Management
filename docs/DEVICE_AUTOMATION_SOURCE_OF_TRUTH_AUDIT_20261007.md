@@ -46,3 +46,17 @@ The editor must render the merged managed-app inventory from the dashboard, not 
 A saved field is successful only after fresh bootstrap readback matches the intended value. Transport result alone is not authoritative.
 
 Partial success is verified **per policy field**. An app-level error cannot hide a field that actually persisted and read back successfully.
+
+
+## Phase 2 · Universal automation contract
+
+Sau root-cause repair, Universal Contract v1 được mở rộng theo hướng zero-code onboarding:
+
+- manifest có `endpoints.automation`;
+- capability chuẩn: `deviceAutoApproval`, `deviceAutoBlockPending`, `automationIdempotentCommands`, `automationOptimisticConcurrency`;
+- Dynamic Catalog đọc policy live trực tiếp từ owning client;
+- automation read failure không hạ toàn bộ app contract;
+- mutation generic chỉ được bật khi credential + endpoint + capability + idempotency + concurrency đều live;
+- mọi POST bắt buộc GET readback và so sánh `desired`;
+- adapter Bơi ếch/Health/RU/Bauman tiếp tục làm fallback trong giai đoạn chuyển đổi;
+- app chưa công bố automation capability vẫn hiển thị READ-ONLY, không có nút giả.

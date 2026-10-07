@@ -4,6 +4,7 @@ import { issueBoiBrowserBridge } from "../../boi-ech.server";
 import { verifyControlProof } from "../../control-device.server";
 import { issueHealthBrowserBridge } from "../../health-care.server";
 import { readAutoApprovalSettings, rememberAutoApproval } from "../../operations-settings.server";
+import { executeUniversalAutomationCommand, probeDynamicManagedApplications } from "../../open-contract.server";
 import { issueRuLifeBrowserBridge } from "../../ru-life.server";
 
 export const dynamic = "force-dynamic";
@@ -96,27 +97,40 @@ export async function POST(request: Request) {
     if (actor.role !== "owner") return json({ error: "Chỉ Chủ hệ thống được đổi quy tắc duyệt tự động.", code: "OWNER_REQUIRED" }, 403);
     if (payload.action !== "set-auto-approval") return json({ error: "Thao tác duyệt tự động không hợp lệ.", code: "INVALID_AUTO_APPROVAL_ACTION" }, 400);
 
+    const dynamicSnapshots = await probeDynamicManagedApplications();
+    const allAppIds = [...new Set([
+      ...applicationRegistry.map((item) => item.id),
+      ...dynamicSnapshots.map((item) => item.config.id),
+    ])];
+    const known = new Set(allAppIds);
     const requested = Array.isArray(payload.appIds)
       ? [...new Set(payload.appIds.filter((item): item is string => typeof item === "string"))]
       : [];
-    const known = new Set<string>(applicationRegistry.map((item) => item.id));
-    if (requested.some((id) => !known.has(id))) return json({ error: "Danh sách ứng dụng không hợp lệ.", code: "INVALID_APPLICATIONS" }, 400);
-    const unsupportedRequested = requested.filter((id) => !CANDIDATE_APP_IDS.includes(id as CandidateAppId));
-    if (unsupportedRequested.length) {
-      return json({ error: "Một số ứng dụng chưa công bố contract duyệt tự động.", code: "AUTO_APPROVAL_CONTRACT_MISSING", appIds: unsupportedRequested }, 409);
-    }
     const targets = Array.isArray(payload.targetAppIds)
       ? [...new Set(payload.targetAppIds.filter((item): item is string => typeof item === "string"))]
       : [...CANDIDATE_APP_IDS];
-    if (targets.some((id) => !CANDIDATE_APP_IDS.includes(id as CandidateAppId)) || !targets.length) {
+
+    if (requested.some((id) => !known.has(id))) {
+      return json({ error: "Danh sách ứng dụng không hợp lệ.", code: "INVALID_APPLICATIONS" }, 400);
+    }
+    if (!targets.length || targets.some((id) => !known.has(id))) {
       return json({ error: "Danh sách ứng dụng cần sửa không hợp lệ.", code: "INVALID_AUTO_APPROVAL_TARGETS" }, 400);
     }
-    const current = await readAutoApprovalSettings(["boi-ech", "health-care"]);
-    const enabledBefore = new Set(current.autoApproveAppIds);
-    const liveSupported = new Set(current.autoApproveSupportedAppIds);
-    if (targets.some((id) => !liveSupported.has(id))) {
-      return json({ error: "Cần đọc được contract hiện tại của từng ứng dụng trước khi sửa.", code: "AUTO_APPROVAL_CONTRACT_NOT_LIVE" }, 409);
+
+    const current = await readAutoApprovalSettings(["boi-ech", "health-care"], allAppIds, dynamicSnapshots);
+    const policyMap = new Map(current.automationPolicies.map((policy) => [policy.appId, policy]));
+    const blockedTarget = targets.find((appId) => {
+      const policy = policyMap.get(appId);
+      return !policy?.support.autoApprove || !policy.mutation.autoApprove || policy.verification.state !== "live";
+    });
+    if (blockedTarget) {
+      return json({
+        error: "Cần đọc được automation contract live và mutation capability của từng ứng dụng trước khi sửa.",
+        code: "AUTO_APPROVAL_CONTRACT_NOT_LIVE",
+        appId: blockedTarget,
+      }, 409);
     }
+
     const defaultAccessDays = payload.defaultAccessDays === undefined
       ? current.freeAccessDaysByApp?.["boi-ech"] ?? 60 : Number(payload.defaultAccessDays);
     const defaultDeviceLimit = payload.defaultDeviceLimit === undefined
@@ -126,31 +140,65 @@ export async function POST(request: Request) {
       return json({ error: "Thời hạn miễn phí phải từ 1–365 ngày và hạn mức từ 1–1.000 thiết bị.", code: "INVALID_BOI_FREE_POLICY" }, 400);
     }
 
-    for (const appId of CANDIDATE_APP_IDS.filter((id) => targets.includes(id))) {
+    for (const appId of targets) {
       const desired = requested.includes(appId);
-      const changed = enabledBefore.has(appId) !== desired || appId === "boi-ech" && desired &&
-        (current.freeAccessDaysByApp?.[appId] !== defaultAccessDays || current.freeDeviceLimitByApp?.[appId] !== defaultDeviceLimit);
+      const policy = policyMap.get(appId)!;
+      const changed = policy.current.autoApprove !== desired || appId === "boi-ech" && desired && (
+        current.freeAccessDaysByApp?.[appId] !== defaultAccessDays
+        || current.freeDeviceLimitByApp?.[appId] !== defaultDeviceLimit
+      );
       if (!changed) continue;
+
+      const dynamicSnapshot = dynamicSnapshots.find((item) => item.config.id === appId);
+      const manifest = dynamicSnapshot?.manifest;
+      const genericReady = appId !== "boi-ech" && Boolean(
+        dynamicSnapshot?.automation
+        && manifest?.endpoints.automation
+        && manifest.capabilities.deviceAutoApproval === true
+        && manifest.capabilities.automationIdempotentCommands === true
+        && manifest.capabilities.automationOptimisticConcurrency === true
+      );
+
+      if (genericReady) {
+        await executeUniversalAutomationCommand({
+          appId,
+          commandId: crypto.randomUUID(),
+          expected: { autoApproveDevices: policy.current.autoApprove },
+          desired: { autoApproveDevices: desired },
+        }, actor);
+        await rememberAutoApproval(actor.email, appId, desired);
+        continue;
+      }
+
       if (appId === "boi-ech") {
-        // Explicit Free mode applies only to unassigned registrations; requests already
-        // awaiting or proving payment remain pending until payment verification.
-        if (desired && !liveSupported.has(appId)) {
-          return json({ error: "Contract duyệt miễn phí của Bơi ếch chưa hoạt động.", code: "AUTO_APPROVAL_CONTRACT_NOT_LIVE", appId }, 409);
-        }
+        // Bơi ếch keeps its domain-specific Free/Paid policy. Generic automation
+        // intentionally does not infer access class or payment state.
         await setBoi(actor, desired, defaultAccessDays, defaultDeviceLimit);
         await rememberAutoApproval(actor.email, appId, desired, { defaultAccessDays, defaultDeviceLimit });
         continue;
       }
-      if (!liveSupported.has(appId)) {
-        return json({ error: `Contract duyệt tự động của ${appId} chưa hoạt động.`, code: "AUTO_APPROVAL_CONTRACT_NOT_LIVE", appId }, 409);
-      }
       if (appId === "health-care") await setHealth(actor, desired);
       else if (appId === "ru-life") await setRuLife(actor, desired);
-      else await setBauman(actor, desired);
+      else if (appId === "bauman-master-ai") await setBauman(actor, desired);
+      else {
+        return json({
+          error: `Ứng dụng ${appId} chưa có Universal automation mutation contract hoàn chỉnh.`,
+          code: "AUTO_APPROVAL_CONTRACT_MISSING",
+          appId,
+        }, 409);
+      }
       await rememberAutoApproval(actor.email, appId, desired);
     }
 
-    return json({ ok: true, settings: await readAutoApprovalSettings(["boi-ech", "health-care"]) });
+    const refreshed = await probeDynamicManagedApplications();
+    return json({
+      ok: true,
+      settings: await readAutoApprovalSettings(
+        ["boi-ech", "health-care"],
+        [...new Set([...applicationRegistry.map((item) => item.id), ...refreshed.map((item) => item.config.id)])],
+        refreshed,
+      ),
+    });
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : "Không thể cập nhật duyệt tự động.", code: "AUTO_APPROVAL_UPDATE_FAILED" }, 500);
   }

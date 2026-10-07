@@ -19,24 +19,26 @@ test("Bauman auto approval is promoted only from a live client-owned contract", 
   assert.equal(settings.includes("autoApproveSupportedAppIds: [...supportedAppIds]"), false);
 });
 
-test("native auto approval endpoint verifies owner and writes through each client contract", () => {
+test("native auto approval endpoint is dynamic-first with verified legacy fallbacks", () => {
   assert.match(endpoint, /verifyControlProof/);
   assert.match(endpoint, /actor\.role !== "owner"/);
+  assert.match(endpoint, /probeDynamicManagedApplications/);
+  assert.match(endpoint, /policyMap/);
+  assert.match(endpoint, /policy\.mutation\.autoApprove/);
+  assert.match(endpoint, /executeUniversalAutomationCommand/);
+  assert.match(endpoint, /automationIdempotentCommands/);
+  assert.match(endpoint, /automationOptimisticConcurrency/);
   assert.match(endpoint, /setBoi/);
   assert.match(endpoint, /defaultAccessDays/);
   assert.match(endpoint, /defaultDeviceLimit/);
   assert.match(endpoint, /await setBoi\(actor, desired, defaultAccessDays, defaultDeviceLimit\)/);
-  assert.match(endpoint, /!liveSupported\.has\(appId\)/);
   assert.match(endpoint, /setHealth/);
   assert.match(endpoint, /setBauman/);
-  assert.match(endpoint, /deviceAutoApproval !== true/);
-  assert.match(endpoint, /\/api\/control\/automation/);
+  assert.match(endpoint, /setRuLife/);
   assert.match(endpoint, /AUTO_APPROVAL_CONTRACT_NOT_LIVE/);
   assert.match(endpoint, /rememberAutoApproval\(actor\.email, appId, desired, \{ defaultAccessDays, defaultDeviceLimit \}\)/);
   assert.match(endpoint, /rememberAutoApproval\(actor\.email, appId, desired\)/);
   assert.match(endpoint, /readAutoApprovalSettings/);
-  assert.match(endpoint, /setRuLife/);
-  assert.equal(endpoint.includes("growup-mychildren"), false);
 });
 
 test("existing UI action is transparently routed to the native auto approval endpoint", () => {
