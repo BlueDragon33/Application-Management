@@ -55,7 +55,7 @@ jobs:
       GROWUP_BASE_URL: ${{ vars.GROWUP_PRODUCTION_ORIGIN }}
       GROWUP_CONTROL_BASE_URL: ${{ vars.GROWUP_CONTROL_PRODUCTION_ORIGIN }}
       GROWUP_CONTROL_SERVICE_SECRET: ${{ secrets.GROWUP_CONTROL_SERVICE_SECRET }}
-      PRICE_REPORT_CONTROL_BASE_URL: ${{ vars.PRICE_REPORT_CONTROL_PRODUCTION_ORIGIN }}
+      PRICE_REPORT_CONTROL_BASE_URL: ${{ vars.PRICE_REPORT_CONTROL_PRODUCTION_ORIGIN || 'https://price-report-control-service.boiech-ai.workers.dev' }}
       PRICE_REPORT_CONTROL_SERVICE_SECRET: ${{ secrets.PRICE_REPORT_CONTROL_SERVICE_SECRET }}
       CONTROL_SERVICE_SECRET: ${{ secrets.CONTROL_SERVICE_SECRET }}
       HEALTH_CONTROL_SERVICE_SECRET: ${{ secrets.HEALTH_CONTROL_SERVICE_SECRET }}
@@ -298,16 +298,19 @@ jobs:
           fi
           printf '%s' "$GROWUP_CONTROL_SERVICE_SECRET" | npx wrangler secret put GROWUP_CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
 
-      - name: Install PriceReport bridge secret
+      - name: Install or preserve PriceReport bridge secret
         if: ${{ env.PRICE_REPORT_CONTROL_BASE_URL != '' }}
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -z "${PRICE_REPORT_CONTROL_SERVICE_SECRET:-}" ]]; then
-            echo '::error::PRICE_REPORT_CONTROL_SERVICE_SECRET is required when PRICE_REPORT_CONTROL_BASE_URL is configured.'
+          if [[ -n "${PRICE_REPORT_CONTROL_SERVICE_SECRET:-}" ]]; then
+            printf '%s' "$PRICE_REPORT_CONTROL_SERVICE_SECRET" | npx wrangler secret put PRICE_REPORT_CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
+          elif npx wrangler secret list --config wrangler.production.jsonc | grep -q 'PRICE_REPORT_CONTROL_SERVICE_SECRET'; then
+            echo 'PriceReport bridge secret already exists on the Worker; preserving it.'
+          else
+            echo '::error::PriceReport control origin is configured but no Worker bridge secret exists. Run Bootstrap PriceReport Control Service first.'
             exit 1
           fi
-          printf '%s' "$PRICE_REPORT_CONTROL_SERVICE_SECRET" | npx wrangler secret put PRICE_REPORT_CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
 
       - name: Restore generated Production artifact after secret versions
         run: npx wrangler deploy

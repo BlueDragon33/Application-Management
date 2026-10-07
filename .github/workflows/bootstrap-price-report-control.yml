@@ -1,0 +1,266 @@
+name: Bootstrap PriceReport Control Service
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/bootstrap-price-report-control.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bootstrap-price-report-control
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: application-management-production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID: ${{ secrets.APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID }}
+      APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID: ${{ secrets.APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID }}
+      CONTROL_OWNER_EMAILS: ${{ vars.CONTROL_OWNER_EMAILS }}
+      APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN: ${{ vars.APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN }}
+      APPLICATION_MANAGEMENT_ACCESS_MODE: standalone
+      BOI_ECH_BASE_URL: ${{ vars.BOI_ECH_PRODUCTION_ORIGIN }}
+      HEALTH_CARE_BASE_URL: ${{ vars.HEALTH_CARE_PRODUCTION_ORIGIN }}
+      RU_LIFE_BASE_URL: ${{ vars.RU_LIFE_PRODUCTION_ORIGIN }}
+      BAUMAN_CONTROL_BASE_URL: ${{ vars.BAUMAN_CONTROL_PRODUCTION_ORIGIN }}
+      BAUMAN_APP_ORIGIN: ${{ vars.BAUMAN_RUNTIME_PRODUCTION_ORIGIN }}
+      GROWUP_BASE_URL: ${{ vars.GROWUP_PRODUCTION_ORIGIN }}
+      GROWUP_CONTROL_BASE_URL: ${{ vars.GROWUP_CONTROL_PRODUCTION_ORIGIN }}
+      PRICE_REPORT_APP_ORIGIN: https://bluedragon33.github.io
+
+    steps:
+      - name: Checkout Application Management
+        uses: actions/checkout@v4
+
+      - name: Checkout PriceReport
+        uses: actions/checkout@v4
+        with:
+          repository: BlueDragon33/PriceReport_Tunggiabao
+          ref: main
+          path: _price-report
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+
+      - name: Validate central Production prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          for key in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID CONTROL_OWNER_EMAILS APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN; do
+            [[ -n "${!key:-}" ]] || missing+=("$key")
+          done
+          if (( ${#missing[@]} )); then
+            echo "::error::Application Management Production thiếu: ${missing[*]}"
+            exit 1
+          fi
+          case "$APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN" in https://*) ;; *) echo "::error::APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN phải là HTTPS."; exit 1;; esac
+
+      - name: Derive PriceReport control origin
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE' >> "$GITHUB_ENV"
+          const origin = new URL(process.env.APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN);
+          const prefix = "application-management.";
+          if (!origin.hostname.startsWith(prefix) || !origin.hostname.endsWith(".workers.dev")) {
+            throw new Error("Không thể suy ra workers.dev account suffix từ Application Management origin.");
+          }
+          const suffix = origin.hostname.slice(prefix.length);
+          const control = `https://price-report-control-service.${suffix}`;
+          console.log(`PRICE_REPORT_CONTROL_BASE_URL=${control}`);
+          console.log(`PRICE_REPORT_CONTROL_ORIGIN=${control}`);
+          console.log(`APPLICATION_MANAGEMENT_ORIGIN=${origin.origin}`);
+          NODE
+
+      - name: Install PriceReport control dependencies
+        working-directory: _price-report/control-service
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify PriceReport control code
+        working-directory: _price-report/control-service
+        run: npm run gate
+
+      - name: Ensure PriceReport D1 database
+        working-directory: _price-report/control-service
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 list --json > /tmp/price-report-d1-list.json
+          DB_ID="$(node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          const raw = JSON.parse(fs.readFileSync("/tmp/price-report-d1-list.json", "utf8"));
+          const rows = Array.isArray(raw) ? raw : (raw.result ?? raw.databases ?? []);
+          const item = rows.find((entry) => entry?.name === "price-report-control-db");
+          process.stdout.write(String(item?.uuid ?? item?.id ?? item?.database_id ?? ""));
+          NODE
+          )"
+          if [[ -z "$DB_ID" ]]; then
+            npx wrangler d1 create price-report-control-db > /tmp/price-report-d1-create.txt 2>&1
+            cat /tmp/price-report-d1-create.txt
+            DB_ID="$(node --input-type=module <<'NODE'
+            import fs from "node:fs";
+            const text = fs.readFileSync("/tmp/price-report-d1-create.txt", "utf8");
+            const match = text.match(/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i);
+            process.stdout.write(match?.[0] ?? "");
+            NODE
+            )"
+          fi
+          if [[ ! "$DB_ID" =~ ^[0-9a-fA-F-]{36}$ ]]; then
+            echo "::error::Không xác định được D1 database ID của price-report-control-db."
+            exit 1
+          fi
+          echo "PRICE_REPORT_CONTROL_D1_DATABASE_ID=$DB_ID" >> "$GITHUB_ENV"
+
+      - name: Materialize PriceReport production config
+        working-directory: _price-report/control-service
+        run: node scripts/prepare-production.mjs
+
+      - name: Apply PriceReport D1 migrations
+        working-directory: _price-report/control-service
+        run: npx wrangler d1 migrations apply price-report-control-db --remote --config wrangler.production.jsonc
+
+      - name: Deploy PriceReport control Worker
+        working-directory: _price-report/control-service
+        run: npx wrangler deploy --config wrangler.production.jsonc
+
+      - name: Generate shared bridge secret
+        shell: bash
+        run: |
+          set -euo pipefail
+          BRIDGE_SECRET="$(node --input-type=module -e "import crypto from 'node:crypto'; process.stdout.write(crypto.randomBytes(48).toString('base64url'))")"
+          echo "::add-mask::$BRIDGE_SECRET"
+          echo "PRICE_REPORT_CONTROL_SERVICE_SECRET=$BRIDGE_SECRET" >> "$GITHUB_ENV"
+
+      - name: Install PriceReport control secret
+        working-directory: _price-report/control-service
+        shell: bash
+        run: printf '%s' "$PRICE_REPORT_CONTROL_SERVICE_SECRET" | npx wrangler secret put PRICE_REPORT_CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
+
+      - name: Verify PriceReport control health
+        shell: bash
+        run: |
+          set -euo pipefail
+          READY=0
+          for attempt in {1..12}; do
+            CODE="$(curl --silent --show-error --output /tmp/price-report-health.json --write-out '%{http_code}' --max-time 20 "$PRICE_REPORT_CONTROL_BASE_URL/health" || true)"
+            if [[ "$CODE" == "200" ]]; then READY=1; break; fi
+            echo "PriceReport health not ready yet (HTTP $CODE, attempt $attempt/12)"
+            sleep 5
+          done
+          [[ "$READY" == "1" ]] || { cat /tmp/price-report-health.json || true; exit 1; }
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          const value = JSON.parse(fs.readFileSync("/tmp/price-report-health.json", "utf8"));
+          if (value.application !== "price-report-tunggiabao") throw new Error("PriceReport application mismatch.");
+          if (value.protocol !== "price-report-control-v1") throw new Error("PriceReport protocol mismatch.");
+          if (!value.databaseReady) throw new Error("PriceReport D1 is not ready.");
+          if (!value.appOriginConfigured) throw new Error("PriceReport app origin is not configured.");
+          if (!value.applicationManagementOriginConfigured) throw new Error("Application Management origin is not configured in PriceReport.");
+          if (!value.controlSecretConfigured) throw new Error("PriceReport bridge secret is not configured.");
+          console.log("PriceReport Control health PASS");
+          NODE
+
+      - name: Install Application Management dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Materialize Application Management with PriceReport control origin
+        run: npm run cloudflare:production:prepare
+
+      - name: Build Application Management
+        env:
+          CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH: wrangler.production.jsonc
+        run: npm run build
+
+      - name: Install matching PriceReport secret on Application Management
+        shell: bash
+        run: printf '%s' "$PRICE_REPORT_CONTROL_SERVICE_SECRET" | npx wrangler secret put PRICE_REPORT_CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
+
+      - name: Restore Application Management asset-bearing Worker
+        run: npx wrangler deploy
+
+      - name: Create short-lived owner catalog session
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE' >> "$GITHUB_ENV"
+          import crypto from "node:crypto";
+          const token = crypto.randomBytes(32).toString("base64url");
+          const hash = crypto.createHash("sha256").update(token).digest("base64url");
+          console.log(`CATALOG_QA_SESSION_TOKEN=${token}`);
+          console.log(`CATALOG_QA_SESSION_HASH=${hash}`);
+          NODE
+          source "$GITHUB_ENV"
+          NOW="$(date +%s)"
+          EXPIRES="$((NOW + 600))"
+          npx wrangler d1 execute application-management-production-db --remote --config wrangler.production.jsonc --command "INSERT INTO control_sessions (session_id_hash,email,expires_at,created_at,last_seen_at) SELECT '$CATALOG_QA_SESSION_HASH', email, $EXPIRES, $NOW, $NOW FROM control_accounts WHERE role='owner' AND status='active' ORDER BY created_at ASC LIMIT 1;"
+          COUNT="$(npx wrangler d1 execute application-management-production-db --remote --config wrangler.production.jsonc --json --command "SELECT COUNT(*) AS count FROM control_sessions WHERE session_id_hash='$CATALOG_QA_SESSION_HASH';" | node --input-type=module -e 'let raw=""; for await (const c of process.stdin) raw+=c; const d=JSON.parse(raw); const rows=d?.[0]?.results ?? d?.[0]?.result ?? []; process.stdout.write(String(rows?.[0]?.count ?? 0));')"
+          if [[ "$COUNT" != "1" ]]; then echo "::error::Không tạo được owner session tạm để reconcile Dynamic Catalog."; exit 1; fi
+
+      - name: Reconcile PriceReport into Dynamic Catalog
+        shell: bash
+        run: |
+          set -euo pipefail
+          READY=0
+          for attempt in {1..8}; do
+            CODE="$(curl --silent --show-error --output /tmp/catalog-sync.json --write-out '%{http_code}' --max-time 120 -X POST -H "Origin: $APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN" -H "Referer: $APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/tools/managed-apps" -H "Sec-Fetch-Site: same-origin" -H "Content-Type: application/json" -H "Cookie: __Host-am_prod_session=$CATALOG_QA_SESSION_TOKEN" --data '{"action":"sync-existing"}' "$APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/api/managed-apps" || true)"
+            if [[ "$CODE" == "200" ]]; then READY=1; break; fi
+            echo "Catalog sync not ready yet (HTTP $CODE, attempt $attempt/8)"
+            sleep 5
+          done
+          [[ "$READY" == "1" ]] || { cat /tmp/catalog-sync.json || true; exit 1; }
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          const value = JSON.parse(fs.readFileSync("/tmp/catalog-sync.json", "utf8"));
+          if (!value.ok) throw new Error(value.error || "Catalog sync failed.");
+          const rows = [...(value.migrated ?? []), ...(value.existing ?? [])];
+          const item = rows.find((row) => row.id === "price-report-tunggiabao");
+          const blocked = (value.needsOrigin ?? []).find((row) => row.id === "price-report-tunggiabao");
+          if (blocked) throw new Error(`PriceReport still needs origin: ${blocked.reason ?? "unknown"}`);
+          if (!item) throw new Error("PriceReport missing from catalog reconciliation.");
+          console.log(`PriceReport catalog source=${item.source ?? "existing"}`);
+          NODE
+
+      - name: Verify PriceReport live Universal Contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          CODE="$(curl --silent --show-error --output /tmp/catalog-probe.json --write-out '%{http_code}' --max-time 120 -X POST -H "Origin: $APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN" -H "Referer: $APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/tools/managed-apps" -H "Sec-Fetch-Site: same-origin" -H "Content-Type: application/json" -H "Cookie: __Host-am_prod_session=$CATALOG_QA_SESSION_TOKEN" --data '{"action":"probe-all"}' "$APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/api/managed-apps")"
+          [[ "$CODE" == "200" ]] || { cat /tmp/catalog-probe.json || true; exit 1; }
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          const value = JSON.parse(fs.readFileSync("/tmp/catalog-probe.json", "utf8"));
+          if (!value.ok || !Array.isArray(value.probes)) throw new Error(value.error || "Invalid catalog probe.");
+          const item = value.probes.find((row) => row.id === "price-report-tunggiabao");
+          if (!item) throw new Error("PriceReport missing from live probe.");
+          if (!item.contractConnected || !item.runtimeConnected || !item.remoteAdminReady || !item.credentialConfigured) {
+            throw new Error(`PriceReport is not live remote-admin: ${JSON.stringify(item)}`);
+          }
+          console.log(`PriceReport LIVE connection=${item.connection} protocol=${item.protocol ?? "none"}`);
+          NODE
+
+      - name: Delete short-lived owner catalog session
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          if [[ -n "${CATALOG_QA_SESSION_HASH:-}" ]]; then
+            npx wrangler d1 execute application-management-production-db --remote --config wrangler.production.jsonc --command "DELETE FROM control_sessions WHERE session_id_hash='$CATALOG_QA_SESSION_HASH';"
+          fi
+
+      - name: Bootstrap summary
+        if: success()
+        run: |
+          echo "PriceReport Control Service bootstrap completed."
+          echo "Control origin: $PRICE_REPORT_CONTROL_BASE_URL"
+          echo "Dynamic Catalog: live remote-admin verified."

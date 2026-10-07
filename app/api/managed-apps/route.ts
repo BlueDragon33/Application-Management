@@ -261,24 +261,25 @@ export async function POST(request: Request) {
 
         const probe = await probeManagedCatalogEntry(current);
         if (!probe.contractConnected && recoverablePublicBootstrapRow(current, application)) {
-          const repositoryCandidate = await repositoryCatalogCandidate(application);
-          if (repositoryCandidate.origin) {
+          const liveCandidate = await transportCatalogCandidate(application);
+          const recoveryCandidate = liveCandidate.origin ? liveCandidate : await repositoryCatalogCandidate(application);
+          if (recoveryCandidate.origin) {
             const id = await upsertManagedCatalog({
               id: application.id,
               name: application.name,
               shortName: application.shortName,
               category: application.category,
-              origin: repositoryCandidate.origin,
+              origin: recoveryCandidate.origin,
               publicUrl: application.publicUrl ?? "",
               repository: application.repository,
-              contractPath: repositoryCandidate.contractPath,
-              credential: "",
+              contractPath: recoveryCandidate.contractPath,
+              credential: recoveryCandidate.credential,
             }, actor);
             const recovered = (await listManagedCatalog()).find((item) => item.id === id);
             const recoveredProbe = recovered ? await probeManagedCatalogEntry(recovered) : null;
             existing.push({
               id,
-              source: "public-bootstrap-recovered-from-repository",
+              source: liveCandidate.origin ? "public-bootstrap-upgraded-to-live" : "public-bootstrap-recovered-from-repository",
               probe: recoveredProbe ? probeSummary(recoveredProbe) : null,
             });
             continue;

@@ -280,11 +280,14 @@ test("repository bootstrap metadata never masquerades as a live control origin",
 });
 
 
-test("failed credential-free public bootstrap rows can recover from the canonical repository contract", () => {
+test("failed credential-free public bootstrap rows prefer a real live transport before repository metadata", () => {
   assert.ok(catalogApi.includes("recoverablePublicBootstrapRow"));
+  assert.ok(catalogApi.includes("public-bootstrap-upgraded-to-live"));
   assert.ok(catalogApi.includes("public-bootstrap-recovered-from-repository"));
   assert.ok(catalogApi.includes("!probe.contractConnected"));
   assert.ok(catalogApi.includes("row.origin === fallback"));
   assert.ok(catalogApi.includes("row.repository?.toLowerCase() === application.repository.toLowerCase()"));
-  assert.ok(catalogApi.includes("repositoryCatalogCandidate(application)"));
+  assert.ok(catalogApi.includes("transportCatalogCandidate(application)"));
+  assert.ok(catalogApi.includes("liveCandidate.origin ? liveCandidate : await repositoryCatalogCandidate(application)"));
+  assert.ok(catalogApi.includes("credential: recoveryCandidate.credential"));
 });
