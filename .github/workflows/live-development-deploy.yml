@@ -150,30 +150,39 @@ jobs:
           set -euo pipefail
           rm -f /tmp/application-management-live.json
           code=""
+          verified="false"
           for attempt in 1 2 3 4 5 6; do
             code="$(curl --silent --show-error --output /tmp/application-management-live.json --write-out '%{http_code}' --max-time 20 \
               -H "Authorization: Bearer $APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET" \
               "$APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/__deployment" || true)"
-            if [[ "$code" == "200" ]]; then break; fi
-            sleep 3
-          done
-          if [[ "$code" != "200" ]]; then
-            echo "::error::Live deployment readback failed with HTTP $code."
-            exit 1
-          fi
-          node --input-type=module - "$GITHUB_SHA" /tmp/application-management-live.json <<'NODE'
+            if [[ "$code" == "200" ]] && node --input-type=module - "$GITHUB_SHA" /tmp/application-management-live.json <<'NODE'
           import fs from "node:fs";
           const expected = process.argv[2];
           const payloadPath = process.argv[3];
           const value = JSON.parse(fs.readFileSync(payloadPath, "utf8"));
-          if (value.application !== "application-management") throw new Error("Live deployment application identity mismatch.");
-          if (value.runtime !== "control-plane") throw new Error("Live deployment runtime identity mismatch.");
-          if (value.channel !== "cloudflare-production") throw new Error("Live deployment channel mismatch.");
-          if (value.revision !== expected) throw new Error("Live deployment revision mismatch: expected " + expected + ", got " + value.revision);
-          if (value.databaseReady !== true) throw new Error("Live deployment database is not ready.");
-          if (value.assetsReady !== true) throw new Error("Live deployment static assets are not ready.");
+          const failures = [];
+          if (value.application !== "application-management") failures.push("application");
+          if (value.runtime !== "control-plane") failures.push("runtime");
+          if (value.channel !== "cloudflare-production") failures.push("channel");
+          if (value.revision !== expected) failures.push("revision:" + value.revision);
+          if (value.databaseReady !== true) failures.push("database");
+          if (value.assetsReady !== true) failures.push("assets");
+          if (failures.length) {
+            console.error("Live deployment readback not converged: " + failures.join(", "));
+            process.exit(1);
+          }
           console.log("Live deployment readback PASS for revision " + value.revision);
           NODE
+            then
+              verified="true"
+              break
+            fi
+            sleep 3
+          done
+          if [[ "$verified" != "true" ]]; then
+            echo "::error::Live deployment readback did not converge after 6 attempts (last HTTP $code)."
+            exit 1
+          fi
 
       - name: Development live summary
         if: always()
