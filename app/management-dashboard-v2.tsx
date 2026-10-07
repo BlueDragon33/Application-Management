@@ -689,28 +689,31 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
     setNotice("");
     let succeeded = 0;
     const failed: string[] = [];
-    for (const device of targets) {
-      try {
-        await operationsAction({
-          action: "manage-client-device",
-          operation: "remove",
-          appId: device.appId,
-          deviceId: device.deviceId,
-          deviceCode: device.deviceCode,
-          expectedStatus: device.status,
-          registryInstanceId: device.registryInstanceId ?? undefined,
-        });
-        succeeded += 1;
-      } catch {
-        failed.push(device.deviceCode);
+    try {
+      for (const device of targets) {
+        try {
+          await operationsAction({
+            action: "manage-client-device",
+            operation: "remove",
+            appId: device.appId,
+            deviceId: device.deviceId,
+            deviceCode: device.deviceCode,
+            expectedStatus: device.status,
+            registryInstanceId: device.registryInstanceId ?? undefined,
+          });
+          succeeded += 1;
+        } catch {
+          failed.push(device.deviceCode);
+        }
       }
+      await refreshOperations(true);
+      setNotice(failed.length
+        ? `Đã từ chối/khóa ${succeeded}/${targets.length} thiết bị. Lỗi: ${failed.slice(0, 5).join(", ")}${failed.length > 5 ? ` và ${failed.length - 5} thiết bị khác` : ""}. Danh sách đã được đồng bộ lại.`
+        : `Đã từ chối và khóa ${succeeded} thiết bị.${boiTargets.length ? ` Bỏ qua ${boiTargets.length} thiết bị Bơi ếch để kiểm duyệt riêng.` : ""}`);
+    } finally {
+      releaseActionLock(actionKey);
+      setActionBusy("");
     }
-    await refreshOperations(true);
-    setNotice(failed.length
-      ? `Đã từ chối/khóa ${succeeded}/${targets.length} thiết bị. Lỗi: ${failed.slice(0, 5).join(", ")}${failed.length > 5 ? ` và ${failed.length - 5} thiết bị khác` : ""}. Danh sách đã được đồng bộ lại.`
-      : `Đã từ chối và khóa ${succeeded} thiết bị.${boiTargets.length ? ` Bỏ qua ${boiTargets.length} thiết bị Bơi ếch để kiểm duyệt riêng.` : ""}`);
-    releaseActionLock(actionKey);
-    setActionBusy("");
   }
 
   async function launchWeb(appId: string) {
