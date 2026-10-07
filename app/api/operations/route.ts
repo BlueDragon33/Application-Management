@@ -1087,7 +1087,7 @@ export async function POST(request: Request) {
       const deviceCode = text(payload.deviceCode).toUpperCase();
       if (operation !== "approve" && operation !== "remove") return json({ error: "Thao tác thiết bị không hợp lệ.", code: "INVALID_DEVICE_OPERATION" }, 400);
 
-      const dynamicSnapshot = (await probeDynamicManagedApplications()).find((snapshot) => snapshot.config.id === appId);
+      const dynamicSnapshot = (await probeDynamicManagedApplications([appId])).find((snapshot) => snapshot.config.id === appId);
       const dynamicCapabilities = dynamicSnapshot?.manifest?.capabilities ?? {};
       const dynamicMutationReady = Boolean(
         dynamicSnapshot?.connection === "connected"
