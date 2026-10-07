@@ -28,7 +28,7 @@ test("visa intake has isolated link and submission tables", () => {
 test("only public intake page and public intake API bypass Production admin login", () => {
   assert.match(worker, /function isPublicVisaIntakeRequest/);
   assert.match(worker, /url\.pathname === "\/visa-intake"/);
-  assert.match(worker, /publicVisaIntakePage\(\)/);
+  assert.match(worker, /publicVisaIntakePage\(request, env\)/);
   assert.match(worker, /url\.pathname === "\/api\/kd-mid-visa-intake\/public"/);
   assert.doesNotMatch(worker, /url\.pathname === "\/api\/kd-mid-visa-intake\/admin".*return true/s);
 });
@@ -114,10 +114,10 @@ test("approved intake submission is mapped into the local KD-MID applicant model
 });
 
 test("intake link snapshots the current common work and embassy defaults", () => {
-  assert.match(tool, /employer: store\.common\.employer/);
-  assert.match(tool, /workPhone: fixedWorkPhone/);
-  assert.match(tool, /permanentAddress: fixedPermanentAddress/);
-  assert.match(tool, /preferredEmbassy: store\.common\.embassy/);
+  assert.match(tool, /employer: student \? store\.common\.employer : ""/);
+  assert.match(tool, /workPhone: student \? fixedWorkPhone : ""/);
+  assert.match(tool, /permanentAddress: student \? fixedPermanentAddress : ""/);
+  assert.match(tool, /preferredEmbassy: student \? store\.common\.embassy : ""/);
 });
 
 test("applicant preferred embassy overrides common embassy in the KD-MID payload", () => {
@@ -175,7 +175,7 @@ test("closing an intake link removes its admin card while preserving server-side
   assert.match(tool, /intakeLinks\.filter\(\(item\) => item\.status === "active"\)/);
   assert.match(tool, /setShareUrl\(\(current\) => current\.includes/);
   assert.match(tool, /Tab đợt này đã được ẩn khỏi danh sách/);
-  assert.match(publicApi, /Người đã gửi hồ sơ vẫn có thể mở lại link/);
+  assert.match(publicApi, /Link này không còn cho phép người nhận mở lại hồ sơ hoặc nhận kết quả/);
 });
 
 
@@ -184,8 +184,8 @@ test("admin can delete only pending or rejected submissions from the verificatio
   assert.match(tool, /Xóa khỏi hàng chờ/);
   assert.match(tool, /window\.confirm/);
   assert.match(tool, /action: "delete-submission"/);
-  assert.match(api, /SUBMISSION_DELETE_LOCKED/);
-  assert.match(api, /\["pending", "rejected"\]\.includes\(existing\.status\)/);
+  assert.match(adminApi, /SUBMISSION_DELETE_LOCKED/);
+  assert.match(adminApi, /\["pending", "rejected"\]\.includes\(existing\.status\)/);
 });
 
 
@@ -193,11 +193,11 @@ test("completed submissions including those with PDF can be removed from the adm
   assert.match(tool, /completed = \["approved", "imported"\]\.includes\(submission\.status\)/);
   assert.match(tool, /action: completed \? "archive-submission" : "delete-submission"/);
   assert.match(tool, /PDF kết quả vẫn được giữ trên server/);
-  assert.match(api, /action === "archive-submission"/);
-  assert.match(api, /adminHidden: true/);
-  assert.match(api, /preservedResult: true/);
-  assert.match(api, /validation\.adminHidden===true/);
-  assert.match(api, /\["approved", "imported"\]\.includes\(existing\.status\)/);
+  assert.match(adminApi, /action === "archive-submission"/);
+  assert.match(adminApi, /adminHidden: true/);
+  assert.match(adminApi, /preservedResult: true/);
+  assert.match(adminApi, /validation\.adminHidden===true/);
+  assert.match(adminApi, /\["approved", "imported"\]\.includes\(existing\.status\)/);
 });
 
 
