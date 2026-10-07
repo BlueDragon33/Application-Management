@@ -794,16 +794,25 @@ export async function executeUniversalAutomationCommand(input: {
   const data = await response.json().catch(() => ({})) as Record<string, unknown>;
   if (!response.ok) throw new Error(text(data.error) || `HTTP_${response.status}`);
 
-  const readback = automationPolicyFromPayload(
-    await fetchJson(row.origin, manifest.endpoints.automation, credential),
-    manifest.capabilities,
+  const desiredMatches = (policy: UniversalAutomationPolicy) => Object.entries(input.desired).every(
+    ([key, desired]) => desired === undefined || policy[key as keyof UniversalAutomationPolicy] === desired,
   );
-  for (const [key, desired] of Object.entries(input.desired)) {
-    if (desired !== undefined && readback[key as keyof UniversalAutomationPolicy] !== desired) {
-      throw new Error(`AUTOMATION_READBACK_MISMATCH_${key}`);
+  const delays = [0, 120, 280, 600, 1_000] as const;
+  let readback: UniversalAutomationPolicy = {};
+  for (const delay of delays) {
+    if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
+    readback = automationPolicyFromPayload(
+      await fetchJson(row.origin, manifest.endpoints.automation, credential),
+      manifest.capabilities,
+    );
+    if (desiredMatches(readback)) {
+      return { ok: true, commandReplayed: data.replayed === true, automation: readback };
     }
   }
-  return { ok: true, commandReplayed: data.replayed === true, automation: readback };
+  const mismatch = Object.entries(input.desired).find(
+    ([key, desired]) => desired !== undefined && readback[key as keyof UniversalAutomationPolicy] !== desired,
+  );
+  throw new Error(`AUTOMATION_READBACK_MISMATCH_${mismatch?.[0] ?? "UNKNOWN"}`);
 }
 
 export async function executeUniversalDeviceCommand(input: {

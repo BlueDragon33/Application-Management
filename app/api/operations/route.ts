@@ -257,6 +257,22 @@ async function bridgeCommandJson(bridge: Bridge, path: string, body: UnknownReco
   throw lastError;
 }
 
+async function waitForAutomationReadback(
+  bridge: Bridge,
+  path: string,
+  matches: (automation: UnknownRecord) => boolean,
+) {
+  const delays = [0, 120, 280, 600, 1_000] as const;
+  let last: UnknownRecord = {};
+  for (const delay of delays) {
+    if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
+    const readback = await bridgeReadJson(bridge, path);
+    last = record(readback.automation);
+    if (matches(last)) return last;
+  }
+  throw new Error("Client đã nhận lệnh nhưng readback automation chưa hội tụ.");
+}
+
 function app(id: string) {
   const item = applicationRegistry.find((candidate) => candidate.id === id);
   if (!item) throw new Error(`UNKNOWN_APPLICATION_${id}`);
@@ -1032,13 +1048,23 @@ export async function POST(request: Request) {
         }, actor);
       } else if (appId === "health-care") {
         const bridge = await issueHealthBrowserBridge(actor.email, actor.role, actor.deviceId);
-        const updated = await bridgeJson(bridge, "/api/control/automation", {
-          method: "POST",
-          body: { autoBlockPendingDevices: payload.enabled, pendingBlockAfterHours },
+        const updated = await bridgeCommandJson(bridge, "/api/control/automation", {
+          autoBlockPendingDevices: payload.enabled,
+          pendingBlockAfterHours,
         });
         const automation = record(updated.automation);
         if (automation.autoBlockPendingDevices !== payload.enabled || Number(automation.pendingBlockAfterHours) !== pendingBlockAfterHours) {
-          return json({ error: "Client chưa xác nhận quy tắc tự động khóa sau khi cập nhật.", code: "AUTO_BLOCK_READBACK_MISMATCH" }, 502);
+          return json({ error: "Client không trả lại đúng quy tắc tự động khóa vừa ghi.", code: "AUTO_BLOCK_WRITE_RESPONSE_MISMATCH" }, 502);
+        }
+        try {
+          await waitForAutomationReadback(
+            bridge,
+            "/api/control/automation",
+            (state) => state.autoBlockPendingDevices === payload.enabled
+              && Number(state.pendingBlockAfterHours) === pendingBlockAfterHours,
+          );
+        } catch {
+          return json({ error: "Client đã nhận lệnh nhưng readback tự động khóa chưa hội tụ.", code: "AUTO_BLOCK_READBACK_MISMATCH" }, 502);
         }
       } else {
         return json({ error: "Ứng dụng chưa có Universal automation mutation contract hoàn chỉnh.", code: "AUTO_BLOCK_CONTRACT_MISSING" }, 409);

@@ -46,3 +46,14 @@ test("explicit automation save bypasses passive Standalone cache but still uses 
   assert.match(block, /refreshOperations\(true, true\)/);
   assert.match(dashboard, /connectOperationsDashboard\(\)/);
 });
+
+
+test("all specialized automation adapters use the same independent readback convergence rule", () => {
+  const route = source("app/api/operations-auto-approval/route.ts");
+  assert.match(route, /waitForBridgeAutomationReadback/);
+  assert.match(route, /Sức khỏe Y tế/);
+  assert.match(route, /Bauman/);
+  assert.match(route, /Hòa nhập Nga/);
+  assert.match(route, /AUTOMATION_READBACK_DELAYS = \[0, 120, 280, 600, 1_000\]/);
+  assert.match(route, /await waitForBridgeAutomationReadback\(bridge, "\/api\/control\/automation"/);
+});

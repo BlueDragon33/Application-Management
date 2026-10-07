@@ -46,11 +46,37 @@ async function bridgeJson(bridge: Bridge, path: string, init?: { method?: "GET" 
   }
 }
 
+const AUTOMATION_READBACK_DELAYS = [0, 120, 280, 600, 1_000] as const;
+
+function automationState(value: unknown) {
+  return record(record(value).automation);
+}
+
+function autoApproveMatches(value: unknown, enabled: boolean) {
+  return automationState(value).autoApproveDevices === enabled;
+}
+
 function boiAutomationMatches(value: unknown, enabled: boolean, defaultAccessDays: number, defaultDeviceLimit: number) {
-  const state = record(record(value).automation);
+  const state = automationState(value);
   return state.enabled === enabled
     && Number(state.defaultAccessDays) === defaultAccessDays
     && Number(state.defaultDeviceLimit) === defaultDeviceLimit;
+}
+
+async function waitForBridgeAutomationReadback(
+  bridge: Bridge,
+  path: string,
+  matches: (value: UnknownRecord) => boolean,
+  label: string,
+) {
+  let observed: UnknownRecord = {};
+  for (const delay of AUTOMATION_READBACK_DELAYS) {
+    if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
+    const readback = await bridgeJson(bridge, path);
+    observed = automationState(readback);
+    if (matches(readback)) return observed;
+  }
+  throw new Error(label + " đã nhận lệnh nhưng readback độc lập chưa hội tụ.");
 }
 
 async function setBoi(actor: { email: string; role: "viewer" | "reviewer" | "publisher" | "owner" }, enabled: boolean, defaultAccessDays: number, defaultDeviceLimit: number) {
@@ -62,31 +88,19 @@ async function setBoi(actor: { email: string; role: "viewer" | "reviewer" | "pub
   if (!boiAutomationMatches(updated, enabled, defaultAccessDays, defaultDeviceLimit)) {
     throw new Error("Bơi ếch không trả lại đúng cấu hình vừa ghi.");
   }
-
-  // D1/read-replica convergence can make the first request after a successful
-  // write briefly expose the previous snapshot. Do not roll the UI back to a
-  // stale base value; wait for an independent GET to confirm persistence.
-  const delays = [0, 120, 280, 600, 1_000];
-  let observed: UnknownRecord = {};
-  for (const delay of delays) {
-    if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
-    const readback = await bridgeJson(bridge, "/api/control/overview?activityDays=0");
-    observed = record(readback.automation);
-    if (boiAutomationMatches(readback, enabled, defaultAccessDays, defaultDeviceLimit)) return;
-  }
-
-  throw new Error(
-    "Bơi ếch đã nhận lệnh nhưng readback chưa hội tụ: mong đợi "
-    + defaultAccessDays + " ngày / " + defaultDeviceLimit
-    + " thiết bị, hiện thấy " + Number(observed.defaultAccessDays || 0)
-    + " ngày / " + Number(observed.defaultDeviceLimit || 0) + " thiết bị.",
+  await waitForBridgeAutomationReadback(
+    bridge,
+    "/api/control/overview?activityDays=0",
+    (value) => boiAutomationMatches(value, enabled, defaultAccessDays, defaultDeviceLimit),
+    "Bơi ếch",
   );
 }
 
 async function setHealth(actor: { email: string; role: "viewer" | "reviewer" | "publisher" | "owner"; deviceId: string }, enabled: boolean) {
   const bridge = await issueHealthBrowserBridge(actor.email, actor.role, actor.deviceId);
   const updated = await bridgeJson(bridge, "/api/control/automation", { method: "POST", body: { autoApproveDevices: enabled } });
-  if (record(updated.automation).autoApproveDevices !== enabled) throw new Error("Sức khỏe Y tế chưa xác nhận quy tắc duyệt tự động sau cập nhật.");
+  if (!autoApproveMatches(updated, enabled)) throw new Error("Sức khỏe Y tế không trả lại đúng quy tắc vừa ghi.");
+  await waitForBridgeAutomationReadback(bridge, "/api/control/automation", (value) => autoApproveMatches(value, enabled), "Sức khỏe Y tế");
 }
 
 async function setBauman(actor: { email: string; role: "viewer" | "reviewer" | "publisher" | "owner"; deviceId: string }, enabled: boolean) {
@@ -98,7 +112,8 @@ async function setBauman(actor: { email: string; role: "viewer" | "reviewer" | "
     throw new Error("Contract duyệt tự động Bauman chưa sẵn sàng.");
   }
   const updated = await bridgeJson(bridge, "/api/control/automation", { method: "POST", body: { autoApproveDevices: enabled } });
-  if (record(updated.automation).autoApproveDevices !== enabled) throw new Error("Bauman chưa xác nhận quy tắc duyệt tự động sau cập nhật.");
+  if (!autoApproveMatches(updated, enabled)) throw new Error("Bauman không trả lại đúng quy tắc vừa ghi.");
+  await waitForBridgeAutomationReadback(bridge, "/api/control/automation", (value) => autoApproveMatches(value, enabled), "Bauman");
 }
 
 async function setRuLife(actor: { email: string; role: "viewer" | "reviewer" | "publisher" | "owner"; deviceId: string }, enabled: boolean) {
@@ -108,9 +123,12 @@ async function setRuLife(actor: { email: string; role: "viewer" | "reviewer" | "
       || record(status.endpoints).automation !== "/api/control/automation") {
     throw new Error("Contract duyệt tự động Hòa nhập Nga chưa sẵn sàng.");
   }
-  await bridgeJson(bridge, "/api/control/automation", { method: "POST", body: { autoApproveDevices: enabled } });
-  const readback = await bridgeJson(bridge, "/api/control/automation");
-  if (record(readback.automation).autoApproveDevices !== enabled) throw new Error("Hòa nhập Nga chưa xác nhận quy tắc duyệt tự động sau cập nhật.");
+  const updated = await bridgeJson(bridge, "/api/control/automation", { method: "POST", body: { autoApproveDevices: enabled } });
+  const returned = automationState(updated);
+  if (Object.keys(returned).length > 0 && returned.autoApproveDevices !== enabled) {
+    throw new Error("Hòa nhập Nga không trả lại đúng quy tắc vừa ghi.");
+  }
+  await waitForBridgeAutomationReadback(bridge, "/api/control/automation", (value) => autoApproveMatches(value, enabled), "Hòa nhập Nga");
 }
 
 export async function POST(request: Request) {
