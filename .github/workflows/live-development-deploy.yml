@@ -75,15 +75,15 @@ jobs:
         if: steps.ready.outputs.deploy == 'true'
         run: npm run cloudflare:production:prepare
 
-      - name: Apply D1 migrations
-        if: steps.ready.outputs.deploy == 'true'
-        run: npx wrangler d1 migrations apply application-management-production-db --remote --config wrangler.production.jsonc
-
       - name: Build live web-app
         if: steps.ready.outputs.deploy == 'true'
         env:
           CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH: wrangler.production.jsonc
         run: npm run build
+
+      - name: Apply D1 migrations
+        if: steps.ready.outputs.deploy == 'true'
+        run: npx wrangler d1 migrations apply application-management-production-db --remote --config wrangler.production.jsonc
 
       - name: Ensure provider Vault encryption key
         if: steps.ready.outputs.deploy == 'true'
