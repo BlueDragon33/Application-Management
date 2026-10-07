@@ -13,3 +13,9 @@ test("background focus refresh remains local-first in standalone mode", () => {
   assert.match(source, /const onFocus = \(\) => void refreshOperations\(true\)/);
   assert.doesNotMatch(source, /const onFocus = \(\) => void refreshOperations\(true, true\)/);
 });
+
+test("verified online state is independent from the standalone access gate", () => {
+  assert.match(source, /const offline = !operationsVerified;/);
+  assert.doesNotMatch(source, /const offline = !approvalGateEnabled \|\| !operationsVerified;/);
+  assert.match(source, /if \(approvalGateEnabled\) return true;/);
+});
