@@ -97,24 +97,11 @@ jobs:
         run: |
           set -euo pipefail
           npx wrangler d1 list --json > /tmp/price-report-d1-list.json
-          DB_ID="$(node --input-type=module <<'NODE'
-          import fs from "node:fs";
-          const raw = JSON.parse(fs.readFileSync("/tmp/price-report-d1-list.json", "utf8"));
-          const rows = Array.isArray(raw) ? raw : (raw.result ?? raw.databases ?? []);
-          const item = rows.find((entry) => entry?.name === "price-report-control-db");
-          process.stdout.write(String(item?.uuid ?? item?.id ?? item?.database_id ?? ""));
-          NODE
-          )"
+          DB_ID="$(node --input-type=module -e 'import fs from "node:fs"; const raw=JSON.parse(fs.readFileSync("/tmp/price-report-d1-list.json","utf8")); const rows=Array.isArray(raw)?raw:(raw.result??raw.databases??[]); const item=rows.find((entry)=>entry?.name==="price-report-control-db"); process.stdout.write(String(item?.uuid??item?.id??item?.database_id??""));')"
           if [[ -z "$DB_ID" ]]; then
             npx wrangler d1 create price-report-control-db > /tmp/price-report-d1-create.txt 2>&1
             cat /tmp/price-report-d1-create.txt
-            DB_ID="$(node --input-type=module <<'NODE'
-            import fs from "node:fs";
-            const text = fs.readFileSync("/tmp/price-report-d1-create.txt", "utf8");
-            const match = text.match(/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i);
-            process.stdout.write(match?.[0] ?? "");
-            NODE
-            )"
+            DB_ID="$(node --input-type=module -e 'import fs from "node:fs"; const text=fs.readFileSync("/tmp/price-report-d1-create.txt","utf8"); const match=text.match(/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i); process.stdout.write(match?.[0]??"");')"
           fi
           if [[ ! "$DB_ID" =~ ^[0-9a-fA-F-]{36}$ ]]; then
             echo "::error::Không xác định được D1 database ID của price-report-control-db."
