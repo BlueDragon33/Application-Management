@@ -740,8 +740,9 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
   }
 }
 
-export async function probeDynamicManagedApplications() {
-  const rows = (await listManagedCatalog()).filter((row) => row.enabled === 1);
+export async function probeDynamicManagedApplications(appIds?: readonly string[]) {
+  const allow = appIds?.length ? new Set(appIds) : null;
+  const rows = (await listManagedCatalog()).filter((row) => row.enabled === 1 && (!allow || allow.has(row.id)));
   return Promise.all(rows.map((row) => probeManagedCatalogEntry(row)));
 }
 

@@ -17,6 +17,7 @@ import {
   type CenterBootstrap,
   type ControlAdminDevice,
   type OperationsBootstrap,
+  type OperationsActionResponse,
   type OperationsDevice,
   type OperationsSummary,
   type OperationsWorkItem,
@@ -752,117 +753,158 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
     if (automationSaveLockRef.current) return null;
     automationSaveLockRef.current = true;
     setActionBusy("auto-policy");
-    // Save is an explicit remote-admin intent. Standalone Mode controls passive
-    // access/sync behavior, but must not turn a visible Save button into a no-op.
-    // The API still requires an approved management session and owner authority.
+
     try {
-      const liveBefore = await refreshOperations(true, true);
-    const current = liveBefore?.settings ?? operations?.settings;
-    if (!current?.automationPolicies?.length) {
-      setNotice("Không lấy được snapshot policy online để lưu an toàn. Kiểm tra quyền quản trị/kết nối rồi thử lại.");
-      return null;
-    }
+      // The modal already owns a verified snapshot. Do not block a single-app
+      // mutation on a fresh full-dashboard bootstrap. The mutation endpoint
+      // reads that target live again before writing and returns its own readback.
+      const current = operations?.settings ?? (await refreshOperations(true, true))?.settings;
+      if (!current?.automationPolicies?.length) {
+        setNotice("Không lấy được snapshot policy để lưu an toàn. Kiểm tra quyền quản trị/kết nối rồi thử lại.");
+        return null;
+      }
 
-    const policyMap = new Map(current.automationPolicies.map((policy) => [policy.appId, policy]));
-    const approvalTargets = current.automationPolicies
-      .filter((policy) => {
-        if (!policy.mutation.autoApprove) return false;
-        const desired = selection.appIds.includes(policy.appId);
-        if (policy.current.autoApprove !== desired) return true;
-        return policy.appId === "boi-ech" && desired && (
-          policy.current.freeAccessDays !== selection.defaultAccessDays
-          || policy.current.freeDeviceLimit !== selection.defaultDeviceLimit
-        );
-      })
-      .map((policy) => policy.appId);
-    const blockTargets = current.automationPolicies
-      .filter((policy) => {
-        if (!policy.mutation.autoBlockPending) return false;
-        const desired = selection.autoBlockAppIds.includes(policy.appId);
-        if (policy.current.autoBlockPending !== desired) return true;
-        const desiredHours = selection.pendingBlockAfterHoursByApp[policy.appId] ?? 168;
-        return desired && policy.current.pendingBlockAfterHours !== desiredHours;
-      })
-      .map((policy) => policy.appId);
-    const changedAppIds = [...new Set([...approvalTargets, ...blockTargets])];
+      const policyMap = new Map(current.automationPolicies.map((policy) => [policy.appId, policy]));
+      const approvalTargets = current.automationPolicies
+        .filter((policy) => {
+          if (!policy.mutation.autoApprove) return false;
+          const desired = selection.appIds.includes(policy.appId);
+          if (policy.current.autoApprove !== desired) return true;
+          return policy.appId === "boi-ech" && desired && (
+            policy.current.freeAccessDays !== selection.defaultAccessDays
+            || policy.current.freeDeviceLimit !== selection.defaultDeviceLimit
+          );
+        })
+        .map((policy) => policy.appId);
+      const blockTargets = current.automationPolicies
+        .filter((policy) => {
+          if (!policy.mutation.autoBlockPending) return false;
+          const desired = selection.autoBlockAppIds.includes(policy.appId);
+          if (policy.current.autoBlockPending !== desired) return true;
+          const desiredHours = selection.pendingBlockAfterHoursByApp[policy.appId] ?? 168;
+          return desired && policy.current.pendingBlockAfterHours !== desiredHours;
+        })
+        .map((policy) => policy.appId);
+      const changedAppIds = [...new Set([...approvalTargets, ...blockTargets])];
 
-    if (!changedAppIds.length) {
-      setNotice("Không có thay đổi cấu hình kiểm duyệt cần lưu.");
-      return current;
-    }
+      if (!changedAppIds.length) {
+        setNotice("Không có thay đổi cấu hình kiểm duyệt cần lưu.");
+        return current;
+      }
 
-    const summaryLines = changedAppIds.map((appId) => {
-      const label = activeApps.find((app) => app.id === appId)?.shortName ?? appId;
-      const parts: string[] = [];
-      if (approvalTargets.includes(appId)) {
-        const automatic = selection.appIds.includes(appId);
-        if (appId === "boi-ech") {
-          parts.push(automatic
-            ? "Miễn phí · tự động duyệt (" + selection.defaultAccessDays + " ngày, tối đa " + selection.defaultDeviceLimit + " thiết bị)"
-            : "Có phí · xác minh thủ công");
-        } else {
-          parts.push(automatic ? "Tự động duyệt" : "Duyệt thủ công");
+      const summaryLines = changedAppIds.map((appId) => {
+        const label = activeApps.find((app) => app.id === appId)?.shortName ?? appId;
+        const parts: string[] = [];
+        if (approvalTargets.includes(appId)) {
+          const automatic = selection.appIds.includes(appId);
+          if (appId === "boi-ech") {
+            parts.push(automatic
+              ? "Miễn phí · tự động duyệt (" + selection.defaultAccessDays + " ngày, tối đa " + selection.defaultDeviceLimit + " thiết bị)"
+              : "Có phí · xác minh thủ công");
+          } else {
+            parts.push(automatic ? "Tự động duyệt" : "Duyệt thủ công");
+          }
         }
-      }
-      if (blockTargets.includes(appId)) {
-        const autoBlock = selection.autoBlockAppIds.includes(appId);
-        const hours = selection.pendingBlockAfterHoursByApp[appId] ?? 168;
-        parts.push(autoBlock ? "Từ chối & khóa yêu cầu quá hạn sau " + hours + " giờ" : "Giữ yêu cầu quá hạn để xử lý thủ công");
-      }
-      return "• " + label + ": " + parts.join(" · ");
-    });
-    const confirmation = [
-      "Lưu " + changedAppIds.length + " cấu hình kiểm duyệt?",
-      "",
-      ...summaryLines,
-      "",
-      "Mỗi policy được ghi vào đúng client và chỉ được coi là thành công sau readback.",
-    ].join("\n");
-    if (!window.confirm(confirmation)) return;
-
-    type PolicySaveTask = {
-      appId: string;
-      field: "autoApprove" | "autoBlockPending";
-      promise: Promise<unknown>;
-    };
-    const tasks: PolicySaveTask[] = [];
-
-    for (const appId of approvalTargets) {
-      tasks.push({
-        appId,
-        field: "autoApprove",
-        promise: operationsAction({
-          action: "set-auto-approval",
-          appIds: selection.appIds.includes(appId) ? [appId] : [],
-          targetAppIds: [appId],
-          ...(appId === "boi-ech" ? {
-            defaultAccessDays: selection.defaultAccessDays,
-            defaultDeviceLimit: selection.defaultDeviceLimit,
-          } : {}),
-        }),
+        if (blockTargets.includes(appId)) {
+          const autoBlock = selection.autoBlockAppIds.includes(appId);
+          const hours = selection.pendingBlockAfterHoursByApp[appId] ?? 168;
+          parts.push(autoBlock ? "Từ chối & khóa yêu cầu quá hạn sau " + hours + " giờ" : "Giữ yêu cầu quá hạn để xử lý thủ công");
+        }
+        return "• " + label + ": " + parts.join(" · ");
       });
-    }
-    for (const appId of blockTargets) {
-      tasks.push({
-        appId,
-        field: "autoBlockPending",
-        promise: operationsAction({
-          action: "set-auto-block-pending",
+      const confirmation = [
+        "Lưu " + changedAppIds.length + " cấu hình kiểm duyệt?",
+        "",
+        ...summaryLines,
+        "",
+        "Mỗi policy được ghi vào đúng client và chỉ được coi là thành công sau readback.",
+      ].join("\n");
+      if (!window.confirm(confirmation)) return current;
+
+      type PolicySaveTask = {
+        appId: string;
+        field: "autoApprove" | "autoBlockPending";
+        run: () => Promise<OperationsActionResponse>;
+      };
+      const tasks: PolicySaveTask[] = [];
+
+      for (const appId of approvalTargets) {
+        tasks.push({
           appId,
-          enabled: selection.autoBlockAppIds.includes(appId),
-          pendingBlockAfterHours: selection.pendingBlockAfterHoursByApp[appId] ?? policyMap.get(appId)?.current.pendingBlockAfterHours ?? 168,
-        }),
-      });
-    }
+          field: "autoApprove",
+          run: () => operationsAction({
+            action: "set-auto-approval",
+            appIds: selection.appIds.includes(appId) ? [appId] : [],
+            targetAppIds: [appId],
+            ...(appId === "boi-ech" ? {
+              defaultAccessDays: selection.defaultAccessDays,
+              defaultDeviceLimit: selection.defaultDeviceLimit,
+            } : {}),
+          }),
+        });
+      }
+      for (const appId of blockTargets) {
+        tasks.push({
+          appId,
+          field: "autoBlockPending",
+          run: () => operationsAction({
+            action: "set-auto-block-pending",
+            appId,
+            enabled: selection.autoBlockAppIds.includes(appId),
+            pendingBlockAfterHours: selection.pendingBlockAfterHoursByApp[appId] ?? policyMap.get(appId)?.current.pendingBlockAfterHours ?? 168,
+          }),
+        });
+      }
 
       setNotice("");
-      const settled = await Promise.allSettled(tasks.map((task) => task.promise));
-      const transportErrors = new Map<string, string>();
-      settled.forEach((result, index) => {
-        if (result.status !== "rejected") return;
-        const task = tasks[index];
-        transportErrors.set(task.appId + ":" + task.field, result.reason instanceof Error ? result.reason.message : "Lệnh cập nhật thất bại.");
+
+      // Same app = sequential writes. Different apps may proceed in parallel.
+      const chains = new Map<string, Promise<unknown>>();
+      const executions = tasks.map((task) => {
+        const previous = chains.get(task.appId) ?? Promise.resolve();
+        const execution = previous.then(() => task.run());
+        chains.set(task.appId, execution.catch(() => undefined));
+        return execution;
       });
+      const settled = await Promise.allSettled(executions);
+
+      const transportErrors = new Map<string, string>();
+      const responseSettings: NonNullable<OperationsBootstrap["settings"]>[] = [];
+      settled.forEach((result, index) => {
+        const task = tasks[index];
+        if (result.status === "rejected") {
+          transportErrors.set(task.appId + ":" + task.field, result.reason instanceof Error ? result.reason.message : "Lệnh cập nhật thất bại.");
+          return;
+        }
+        if (result.value.settings) responseSettings.push(result.value.settings);
+      });
+
+      const mergedPolicies = new Map(current.automationPolicies.map((policy) => [policy.appId, policy]));
+      for (const patch of responseSettings) {
+        for (const policy of patch.automationPolicies ?? []) mergedPolicies.set(policy.appId, policy);
+      }
+      const automationPolicies = [...mergedPolicies.values()];
+      const mergedSettings: NonNullable<OperationsBootstrap["settings"]> = {
+        ...current,
+        automationPolicies,
+        autoApproveAppIds: automationPolicies.filter((policy) => policy.current.autoApprove === true).map((policy) => policy.appId),
+        autoApproveSupportedAppIds: automationPolicies
+          .filter((policy) => policy.verification.state === "live" && policy.support.autoApprove)
+          .map((policy) => policy.appId),
+        autoBlockPendingAppIds: automationPolicies.filter((policy) => policy.current.autoBlockPending === true).map((policy) => policy.appId),
+        autoBlockPendingSupportedAppIds: automationPolicies
+          .filter((policy) => policy.verification.state === "live" && policy.support.autoBlockPending)
+          .map((policy) => policy.appId),
+        pendingBlockAfterHoursByApp: Object.fromEntries(automationPolicies
+          .filter((policy) => typeof policy.current.pendingBlockAfterHours === "number")
+          .map((policy) => [policy.appId, policy.current.pendingBlockAfterHours!])),
+        freeAccessDaysByApp: Object.fromEntries(automationPolicies
+          .filter((policy) => typeof policy.current.freeAccessDays === "number")
+          .map((policy) => [policy.appId, policy.current.freeAccessDays!])),
+        freeDeviceLimitByApp: Object.fromEntries(automationPolicies
+          .filter((policy) => typeof policy.current.freeDeviceLimit === "number")
+          .map((policy) => [policy.appId, policy.current.freeDeviceLimit!])),
+      };
 
       function taskMatchesReadback(settings: NonNullable<OperationsBootstrap["settings"]>, task: PolicySaveTask) {
         const policy = settings.automationPolicies?.find((item) => item.appId === task.appId);
@@ -883,25 +925,12 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
         return Boolean(verified);
       }
 
-      let synced = await refreshOperations(true, true);
-      for (const delay of [180, 360, 720]) {
-        if (synced?.settings.automationPolicies?.length && tasks.every((task) => taskMatchesReadback(synced!.settings, task))) break;
-        await new Promise((resolve) => setTimeout(resolve, delay));
-        synced = await refreshOperations(true, true);
-      }
-      if (!synced?.settings.automationPolicies?.length) {
-        setNotice("Đã gửi thay đổi nhưng chưa đọc lại được snapshot policy. Không đánh dấu là đã lưu; hãy đồng bộ lại trước khi thao tác tiếp.");
-        return null;
-      }
-
-      const syncedPolicies = new Map(synced.settings.automationPolicies.map((policy) => [policy.appId, policy]));
       const failedFields: string[] = [];
       const failedApps = new Set<string>();
-
       for (const task of tasks) {
-        const policy = syncedPolicies.get(task.appId);
+        const policy = mergedSettings.automationPolicies?.find((item) => item.appId === task.appId);
         const label = activeApps.find((app) => app.id === task.appId)?.shortName ?? task.appId;
-        const verified = taskMatchesReadback(synced.settings, task);
+        const verified = !transportErrors.has(task.appId + ":" + task.field) && taskMatchesReadback(mergedSettings, task);
         if (!verified) {
           failedApps.add(task.appId);
           const fieldLabel = task.field === "autoApprove" ? "kiểm duyệt" : "quá hạn";
@@ -910,19 +939,28 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
         }
       }
 
+      setOperations((previous) => previous ? {
+        ...previous,
+        settings: mergedSettings,
+        generatedAt: new Date().toISOString(),
+      } : previous);
+
       const succeededApps = changedAppIds.filter((appId) => !failedApps.has(appId));
       if (failedFields.length) {
         setNotice(
           "Đã xác minh " + succeededApps.length + "/" + changedAppIds.length + " ứng dụng. Chưa khớp readback: "
           + failedFields.join("; ")
-          + ". Giá trị hiển thị sau đồng bộ là trạng thái client thực tế, không phải bản nháp.",
+          + ". Giá trị hiển thị là readback của đúng client vừa thao tác.",
         );
       } else {
-        setNotice("Đã lưu và đọc lại chính xác " + changedAppIds.length + " ứng dụng. Các ô thiết lập đã đồng bộ về trạng thái client.");
+        setNotice("Đã lưu và readback chính xác " + changedAppIds.length + " ứng dụng.");
       }
-      return synced.settings;
+
+      // Full inventory refresh is eventual consistency only. It must never keep
+      // the Save button locked after target-app readback already succeeded.
+      window.setTimeout(() => void refreshOperations(true, true), 1_200);
+      return mergedSettings;
     } catch (caught) {
-      void refreshOperations(true, true);
       setNotice(caught instanceof Error ? caught.message : "Không thể cập nhật quy tắc tự động.");
       return null;
     } finally {

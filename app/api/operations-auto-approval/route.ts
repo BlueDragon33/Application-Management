@@ -139,27 +139,36 @@ export async function POST(request: Request) {
     if (actor.role !== "owner") return json({ error: "Chỉ Chủ hệ thống được đổi quy tắc duyệt tự động.", code: "OWNER_REQUIRED" }, 403);
     if (payload.action !== "set-auto-approval") return json({ error: "Thao tác duyệt tự động không hợp lệ.", code: "INVALID_AUTO_APPROVAL_ACTION" }, 400);
 
-    const dynamicSnapshots = await probeDynamicManagedApplications();
-    const allAppIds = [...new Set([
-      ...applicationRegistry.map((item) => item.id),
-      ...dynamicSnapshots.map((item) => item.config.id),
-    ])];
-    const known = new Set(allAppIds);
     const requested = Array.isArray(payload.appIds)
       ? [...new Set(payload.appIds.filter((item): item is string => typeof item === "string"))]
       : [];
     const targets = Array.isArray(payload.targetAppIds)
       ? [...new Set(payload.targetAppIds.filter((item): item is string => typeof item === "string"))]
       : [...CANDIDATE_APP_IDS];
-
-    if (requested.some((id) => !known.has(id))) {
-      return json({ error: "Danh sách ứng dụng không hợp lệ.", code: "INVALID_APPLICATIONS" }, 400);
-    }
-    if (!targets.length || targets.some((id) => !known.has(id))) {
+    if (!targets.length) {
       return json({ error: "Danh sách ứng dụng cần sửa không hợp lệ.", code: "INVALID_AUTO_APPROVAL_TARGETS" }, 400);
     }
 
-    const current = await readAutoApprovalSettings(["boi-ech", "health-care"], allAppIds, dynamicSnapshots);
+    const specializedTargets = targets.filter((appId): appId is CandidateAppId =>
+      CANDIDATE_APP_IDS.includes(appId as CandidateAppId),
+    );
+    const needsDynamicProbe = specializedTargets.length !== targets.length;
+    const dynamicSnapshots = needsDynamicProbe ? await probeDynamicManagedApplications(targets) : [];
+    const known = new Set([
+      ...applicationRegistry.map((item) => item.id),
+      ...CANDIDATE_APP_IDS,
+      ...dynamicSnapshots.map((item) => item.config.id),
+    ]);
+    if (requested.some((id) => !known.has(id))) {
+      return json({ error: "Danh sách ứng dụng không hợp lệ.", code: "INVALID_APPLICATIONS" }, 400);
+    }
+    if (targets.some((id) => !known.has(id))) {
+      return json({ error: "Danh sách ứng dụng cần sửa không hợp lệ.", code: "INVALID_AUTO_APPROVAL_TARGETS" }, 400);
+    }
+
+    // Mutation is a single-app transaction in normal UI usage. Read only the
+    // requested targets so a slow unrelated client cannot block this save.
+    const current = await readAutoApprovalSettings([], targets, dynamicSnapshots, specializedTargets);
     const policyMap = new Map(current.automationPolicies.map((policy) => [policy.appId, policy]));
     const blockedTarget = targets.find((appId) => {
       const policy = policyMap.get(appId);
@@ -167,7 +176,7 @@ export async function POST(request: Request) {
     });
     if (blockedTarget) {
       return json({
-        error: "Cần đọc được automation contract live và mutation capability của từng ứng dụng trước khi sửa.",
+        error: "Cần đọc được automation contract live và mutation capability của ứng dụng trước khi sửa.",
         code: "AUTO_APPROVAL_CONTRACT_NOT_LIVE",
         appId: blockedTarget,
       }, 409);
@@ -213,8 +222,6 @@ export async function POST(request: Request) {
       }
 
       if (appId === "boi-ech") {
-        // Bơi ếch keeps its domain-specific Free/Paid policy. Generic automation
-        // intentionally does not infer access class or payment state.
         await setBoi(actor, desired, defaultAccessDays, defaultDeviceLimit);
         await rememberAutoApproval(actor.email, appId, desired, { defaultAccessDays, defaultDeviceLimit });
         continue;
@@ -232,15 +239,9 @@ export async function POST(request: Request) {
       await rememberAutoApproval(actor.email, appId, desired);
     }
 
-    const refreshed = await probeDynamicManagedApplications();
-    return json({
-      ok: true,
-      settings: await readAutoApprovalSettings(
-        ["boi-ech", "health-care"],
-        [...new Set([...applicationRegistry.map((item) => item.id), ...refreshed.map((item) => item.config.id)])],
-        refreshed,
-      ),
-    });
+    const refreshedDynamic = needsDynamicProbe ? await probeDynamicManagedApplications(targets) : [];
+    const settings = await readAutoApprovalSettings([], targets, refreshedDynamic, specializedTargets);
+    return json({ ok: true, settings });
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : "Không thể cập nhật duyệt tự động.", code: "AUTO_APPROVAL_UPDATE_FAILED" }, 500);
   }

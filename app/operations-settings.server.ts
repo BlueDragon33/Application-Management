@@ -155,8 +155,11 @@ export async function readAutoApprovalSettings(
   supportedAppIds: readonly string[],
   allAppIds: readonly string[] = supportedAppIds,
   dynamicSnapshots: readonly DynamicContractSnapshot[] = [],
+  probeAppIds?: readonly string[],
 ) {
-  const effectiveAppIds = [...new Set([...supportedAppIds, "bauman-master-ai", "ru-life"])] as string[];
+  const effectiveAppIds = probeAppIds
+    ? [...new Set(probeAppIds)] as string[]
+    : [...new Set([...supportedAppIds, "bauman-master-ai", "ru-life"])] as string[];
   const inventoryAppIds = [...new Set([...allAppIds, ...effectiveAppIds])];
   const [approvalFallback, blockFallback, probes] = await Promise.all([
     auditAutoApprovalFallback(effectiveAppIds),

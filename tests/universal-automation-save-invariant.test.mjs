@@ -31,15 +31,17 @@ test("auto-block follows write-response plus independent readback invariant too"
   assert.match(block, /AUTO_BLOCK_READBACK_MISMATCH/);
 });
 
-test("explicit Save has one invariant for static and dynamic apps", () => {
+test("explicit Save has one targeted readback invariant for static and dynamic apps", () => {
   const dashboard = source("app/management-dashboard-v2.tsx");
   const start = dashboard.indexOf("async function saveAutomation");
   const end = dashboard.indexOf("async function manageControlDevice", start);
   const block = dashboard.slice(start, end);
 
-  assert.match(block, /const liveBefore = await refreshOperations\(true, true\)/);
   assert.match(block, /Promise\.allSettled/);
+  assert.match(block, /const chains = new Map/);
+  assert.match(block, /responseSettings/);
   assert.match(block, /taskMatchesReadback/);
-  assert.match(block, /for \(const delay of \[180, 360, 720\]\)/);
-  assert.match(block, /return synced\.settings/);
+  assert.match(block, /return mergedSettings/);
+  assert.doesNotMatch(block, /return synced\.settings/);
+  assert.doesNotMatch(block, /for \(const delay of \[180, 360, 720\]\)/);
 });

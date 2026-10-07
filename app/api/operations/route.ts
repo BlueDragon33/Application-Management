@@ -1017,9 +1017,9 @@ export async function POST(request: Request) {
       const pendingBlockAfterHours = Math.round(Number(payload.pendingBlockAfterHours));
       if (![24, 168, 720].includes(pendingBlockAfterHours)) return json({ error: "Ngưỡng tự động khóa phải là 24 giờ, 7 ngày hoặc 30 ngày.", code: "INVALID_AUTO_BLOCK_THRESHOLD" }, 400);
 
-      const dynamicSnapshots = await probeDynamicManagedApplications();
-      const allAppIds = [...new Set([...applicationRegistry.map((item) => item.id), ...dynamicSnapshots.map((item) => item.config.id)])];
-      const current = await readAutoApprovalSettings(AUTO_APPROVE_SUPPORTED_APP_IDS, allAppIds, dynamicSnapshots);
+      const specializedTargets = appId === "health-care" ? ["health-care"] : [];
+      const dynamicSnapshots = specializedTargets.length ? [] : await probeDynamicManagedApplications([appId]);
+      const current = await readAutoApprovalSettings([], [appId], dynamicSnapshots, specializedTargets);
       const policy = current.automationPolicies.find((item) => item.appId === appId);
       if (!policy?.support.autoBlockPending || !policy.mutation.autoBlockPending || policy.verification.state !== "live") {
         return json({ error: "Contract automation live chưa xác nhận tự động khóa pending an toàn.", code: "AUTO_BLOCK_CONTRACT_NOT_LIVE" }, 409);
@@ -1073,14 +1073,10 @@ export async function POST(request: Request) {
       }
 
       await rememberAutoBlockPending(actor.email, appId, payload.enabled, pendingBlockAfterHours);
-      const refreshed = await probeDynamicManagedApplications();
+      const refreshed = specializedTargets.length ? [] : await probeDynamicManagedApplications([appId]);
       return json({
         ok: true,
-        settings: await readAutoApprovalSettings(
-          AUTO_APPROVE_SUPPORTED_APP_IDS,
-          [...new Set([...applicationRegistry.map((item) => item.id), ...refreshed.map((item) => item.config.id)])],
-          refreshed,
-        ),
+        settings: await readAutoApprovalSettings([], [appId], refreshed, specializedTargets),
       });
     }
 
