@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { OperationsAutomationPolicy, OperationsSettings } from "./admin-device-client";
 import styles from "./automatic-device-policies.module.css";
 
@@ -108,6 +108,9 @@ export default function AutomaticDevicePolicies({ apps, settings, busy, close, s
 }) {
   const [drafts, setDrafts] = useState<Record<string, AutomationAppDraft>>(() => initialDrafts(apps, settings));
   const submitLockRef = useRef(false);
+  const dialogRef = useRef<HTMLElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const boiPolicy = policyFor(settings, "boi-ech");
   const [days, setDays] = useState(boiPolicy.current.freeAccessDays ?? settings?.freeAccessDaysByApp?.["boi-ech"] ?? 60);
@@ -126,6 +129,44 @@ export default function AutomaticDevicePolicies({ apps, settings, busy, close, s
   const canSave = Boolean(settings) && !locked && hasWritablePolicy && hasChanges
     && Number.isInteger(days) && days >= 1 && days <= 365
     && Number.isInteger(limit) && limit >= 1 && limit <= 1_000;
+
+  useEffect(() => {
+    openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    closeButtonRef.current?.focus();
+    return () => {
+      openerRef.current?.focus();
+    };
+  }, []);
+
+  function handleDialogKeyDown(event: KeyboardEvent<HTMLElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      if (!locked) close();
+      return;
+    }
+    if (event.key !== "Tab") return;
+
+    const root = dialogRef.current;
+    if (!root) return;
+    const focusable = [...root.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+    )].filter((element) => element.getAttribute("aria-hidden") !== "true");
+    if (!focusable.length) {
+      event.preventDefault();
+      root.focus();
+      return;
+    }
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
 
   function updateDraft(appId: string, patch: Partial<AutomationAppDraft>) {
     setDrafts((current) => ({
@@ -158,10 +199,10 @@ export default function AutomaticDevicePolicies({ apps, settings, busy, close, s
   }
 
   return <div className={styles.scrim} onMouseDown={(event) => { if (event.currentTarget === event.target && !locked) close(); }}>
-    <section className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="device-auto-title">
+    <section ref={dialogRef} className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="device-auto-title" tabIndex={-1} onKeyDown={handleDialogKeyDown}>
       <header className={styles.dialogHeader}>
         <div><small>KIỂM DUYỆT THIẾT BỊ</small><h2 id="device-auto-title">Quy tắc theo từng ứng dụng</h2></div>
-        <button onClick={close} disabled={locked} aria-label="Đóng">×</button>
+        <button ref={closeButtonRef} onClick={close} disabled={locked} aria-label="Đóng">×</button>
       </header>
       <p className={styles.intro}><strong>Đang áp dụng</strong> là dữ liệu readback. Các ô bên dưới là bản nháp; sau khi lưu thành công chúng tự đồng bộ lại đúng trạng thái client.</p>
       {hasUnverifiedPolicy ? <p className={styles.warning}>Ứng dụng LAST KNOWN/UNAVAILABLE chỉ hiển thị tham chiếu và không được ghi mù. READ-ONLY là app chưa công bố automation contract an toàn.</p> : null}
