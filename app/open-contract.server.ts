@@ -522,21 +522,34 @@ async function discoverContract(
     if (basePath) add(joinContractPath(basePath, "/api/control/status"), credential);
   }
 
-  const failures: string[] = [];
-  for (const candidate of candidates) {
+  // Contract discovery is GET-only. Probe candidate paths concurrently so one
+  // stale/missing endpoint cannot serialize several 5-second timeouts. We still
+  // select the valid result with the lowest candidate index, preserving the
+  // existing discovery priority deterministically.
+  const attempts = await Promise.all(candidates.map(async (candidate, index) => {
     try {
       const raw = await fetchJson(row.origin, candidate.path, candidate.credential);
       if (text(raw.schema) === CONTRACT_SCHEMA) {
-        return parseManifest(raw, row.id, category, candidate.path);
+        return { index, manifest: parseManifest(raw, row.id, category, candidate.path), failure: "" };
       }
       const normalized = normalizeLegacyContract(raw, row.id, category, candidate.path, row.public_url);
-      if (normalized) return normalized;
-      failures.push(`${candidate.path}: schema/id không khớp`);
+      if (normalized) return { index, manifest: normalized, failure: "" };
+      return { index, manifest: null, failure: `${candidate.path}: schema/id không khớp` };
     } catch (error) {
-      failures.push(`${candidate.path}: ${error instanceof Error ? error.message : "không đọc được"}`);
+      return {
+        index,
+        manifest: null,
+        failure: `${candidate.path}: ${error instanceof Error ? error.message : "không đọc được"}`,
+      };
     }
-  }
+  }));
 
+  const winner = attempts
+    .filter((attempt): attempt is typeof attempts[number] & { manifest: UniversalContractManifest } => Boolean(attempt.manifest))
+    .sort((left, right) => left.index - right.index)[0];
+  if (winner) return winner.manifest;
+
+  const failures = attempts.sort((left, right) => left.index - right.index).map((attempt) => attempt.failure);
   throw new Error(`Không phát hiện contract tương thích. ${failures.join(" · ").slice(0, 900)}`);
 }
 
@@ -642,28 +655,33 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
       && manifest.capabilities.deviceRegistry
       && manifest.endpoints.devices,
     );
-    let devices: UniversalContractDevice[] = [];
-    if (remoteAdminReady && manifest.endpoints.devices) {
-      const devicePayload = await fetchJson(row.origin, manifest.endpoints.devices, credential);
-      const rawDevices = Array.isArray(devicePayload.devices) ? devicePayload.devices : [];
-      devices = rawDevices.map(universalDevice).filter((item): item is UniversalContractDevice => Boolean(item));
-    }
-    let automation: UniversalAutomationPolicy | null = null;
-    let automationError: string | undefined;
     const automationAdvertised = Boolean(
       manifest.endpoints.automation
       && (manifest.capabilities.deviceAutoApproval === true || manifest.capabilities.deviceAutoBlockPending === true),
     );
-    if (credential && automationAdvertised && manifest.endpoints.automation) {
-      try {
-        automation = automationPolicyFromPayload(
-          await fetchJson(row.origin, manifest.endpoints.automation, credential),
-          manifest.capabilities,
-        );
-      } catch (error) {
-        automationError = error instanceof Error ? error.message : "AUTOMATION_READ_FAILED";
-      }
-    }
+    const deviceRead = remoteAdminReady && manifest.endpoints.devices
+      ? fetchJson(row.origin, manifest.endpoints.devices, credential).then((devicePayload) => {
+          const rawDevices = Array.isArray(devicePayload.devices) ? devicePayload.devices : [];
+          return rawDevices.map(universalDevice).filter((item): item is UniversalContractDevice => Boolean(item));
+        })
+      : Promise.resolve([] as UniversalContractDevice[]);
+    const automationRead = credential && automationAdvertised && manifest.endpoints.automation
+      ? fetchJson(row.origin, manifest.endpoints.automation, credential)
+          .then((payload) => ({
+            policy: automationPolicyFromPayload(payload, manifest.capabilities),
+            error: undefined as string | undefined,
+          }))
+          .catch((error) => ({
+            policy: null,
+            error: error instanceof Error ? error.message : "AUTOMATION_READ_FAILED",
+          }))
+      : Promise.resolve({ policy: null as UniversalAutomationPolicy | null, error: undefined as string | undefined });
+
+    // Device and automation reads are independent GETs. Keep device failure
+    // fail-closed as before, while automation failure remains a read-only signal.
+    const [devices, automationResult] = await Promise.all([deviceRead, automationRead]);
+    const automation = automationResult.policy;
+    const automationError = automationResult.error;
     const capabilities = capabilityLabels(manifest.capabilities);
     const repositoryMetadataOnly = metadataOnlyRepositoryOrigin(row.origin);
     const managementMode = contractManagementMode(manifest, repositoryMetadataOnly, remoteAdminReady);
