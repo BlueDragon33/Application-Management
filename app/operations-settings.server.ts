@@ -247,7 +247,10 @@ export async function readAutoApprovalSettings(
     );
 
     if (snapshot.automation) {
-      policies.set(appId, {
+      const existingLive = policies.get(appId);
+      const dynamicApproveWritable = autoApprove && mutationFoundation;
+      const dynamicBlockWritable = autoBlockPending && mutationFoundation;
+      const dynamicPolicy: AppAutomationPolicySnapshot = {
         appId,
         support: {
           autoApprove,
@@ -265,13 +268,65 @@ export async function readAutoApprovalSettings(
           lastVerifiedAt: verifiedAt,
         },
         mutation: {
-          autoApprove: autoApprove && mutationFoundation,
-          autoBlockPending: autoBlockPending && mutationFoundation,
+          autoApprove: dynamicApproveWritable,
+          autoBlockPending: dynamicBlockWritable,
           ...(!mutationFoundation ? {
             reason: "Automation endpoint đọc được nhưng contract chưa xác nhận credential + idempotency + optimistic concurrency để ghi.",
           } : {}),
         },
-      });
+      };
+
+      // A generic Universal snapshot may be less expressive than a verified
+      // first-party adapter. Never downgrade a live writable field merely
+      // because the generic manifest omits mutation metadata. Generic data may
+      // add capabilities that the specialized adapter does not own.
+      if (existingLive?.verification.state === "live") {
+        const addsDynamicCapability = (
+          autoApprove && !existingLive.support.autoApprove
+        ) || (
+          autoBlockPending && !existingLive.support.autoBlockPending
+        );
+        const mergedApproveWritable = existingLive.mutation.autoApprove || dynamicApproveWritable;
+        const mergedBlockWritable = existingLive.mutation.autoBlockPending || dynamicBlockWritable;
+        policies.set(appId, {
+          appId,
+          support: {
+            autoApprove: existingLive.support.autoApprove || autoApprove,
+            autoBlockPending: existingLive.support.autoBlockPending || autoBlockPending,
+            freeAccessPolicy: existingLive.support.freeAccessPolicy,
+          },
+          current: {
+            autoApprove: existingLive.current.autoApprove !== undefined
+              ? existingLive.current.autoApprove
+              : dynamicPolicy.current.autoApprove,
+            autoBlockPending: existingLive.current.autoBlockPending !== undefined
+              ? existingLive.current.autoBlockPending
+              : dynamicPolicy.current.autoBlockPending,
+            pendingBlockAfterHours: existingLive.current.pendingBlockAfterHours !== undefined
+              ? existingLive.current.pendingBlockAfterHours
+              : dynamicPolicy.current.pendingBlockAfterHours,
+            freeAccessDays: existingLive.current.freeAccessDays,
+            freeDeviceLimit: existingLive.current.freeDeviceLimit,
+          },
+          verification: {
+            state: "live",
+            source: addsDynamicCapability
+              ? `${existingLive.verification.source} + ${dynamicPolicy.verification.source}`
+              : existingLive.verification.source,
+            lastVerifiedAt: verifiedAt,
+          },
+          mutation: {
+            autoApprove: mergedApproveWritable,
+            autoBlockPending: mergedBlockWritable,
+            ...(!mergedApproveWritable && !mergedBlockWritable ? {
+              reason: existingLive.mutation.reason ?? dynamicPolicy.mutation.reason,
+            } : {}),
+          },
+        });
+        continue;
+      }
+
+      policies.set(appId, dynamicPolicy);
       continue;
     }
 

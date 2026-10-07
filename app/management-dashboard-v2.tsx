@@ -740,13 +740,13 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   }
 
   async function saveAutomation(selection: AutomationSelection) {
-    if (!requireManagedAccess("Lưu quy tắc tự động")) return;
+    if (!requireManagedAccess("Lưu quy tắc tự động")) return null;
     const current = operations?.settings;
-    if (!current) return;
+    if (!current) return null;
     if (!current.automationPolicies?.length) {
       setNotice("Snapshot policy chưa sẵn sàng. Hãy đồng bộ lại trước khi lưu để tránh ghi sai trạng thái.");
       void refreshOperations(true);
-      return;
+      return null;
     }
 
     const policyMap = new Map(current.automationPolicies.map((policy) => [policy.appId, policy]));
@@ -773,9 +773,8 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
     const changedAppIds = [...new Set([...approvalTargets, ...blockTargets])];
 
     if (!changedAppIds.length) {
-      setAutoPolicyOpen(false);
       setNotice("Không có thay đổi cấu hình kiểm duyệt cần lưu.");
-      return;
+      return current;
     }
 
     const summaryLines = changedAppIds.map((appId) => {
@@ -854,10 +853,9 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       });
 
       const synced = await refreshOperations(true);
-      setAutoPolicyOpen(false);
       if (!synced?.settings.automationPolicies?.length) {
         setNotice("Đã gửi thay đổi nhưng chưa đọc lại được snapshot policy. Không đánh dấu là đã lưu; hãy đồng bộ lại trước khi thao tác tiếp.");
-        return;
+        return null;
       }
 
       const syncedPolicies = new Map(synced.settings.automationPolicies.map((policy) => [policy.appId, policy]));
@@ -897,12 +895,13 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
           + ". Giá trị hiển thị sau đồng bộ là trạng thái client thực tế, không phải bản nháp.",
         );
       } else {
-        setNotice("Đã lưu và đọc lại chính xác " + changedAppIds.length + " ứng dụng. Cấu hình hiển thị là trạng thái client đã xác minh.");
+        setNotice("Đã lưu và đọc lại chính xác " + changedAppIds.length + " ứng dụng. Các ô thiết lập đã đồng bộ về trạng thái client.");
       }
+      return synced.settings;
     } catch (caught) {
       void refreshOperations(true);
-      setAutoPolicyOpen(false);
       setNotice(caught instanceof Error ? caught.message : "Không thể cập nhật quy tắc tự động.");
+      return null;
     } finally {
       setActionBusy("");
     }
@@ -937,7 +936,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
 
   return <main className="amv2-shell" data-font-scale={fontScale}>
     {accountSecurityOpen ? <AccountSecurityDialog user={user} role={roleLabels[access.role]} authMode={authMode} close={() => setAccountSecurityOpen(false)}/> : null}
-    {autoPolicyOpen ? <AutomaticDevicePolicies apps={activeApps} settings={operations?.settings} busy={actionBusy === "auto-policy"} close={() => setAutoPolicyOpen(false)} save={(selection) => void saveAutomation(selection)}/> : null}
+    {autoPolicyOpen ? <AutomaticDevicePolicies apps={activeApps} settings={operations?.settings} busy={actionBusy === "auto-policy"} close={() => setAutoPolicyOpen(false)} save={saveAutomation}/> : null}
     <aside className="amv2-sidebar">
       <div className="amv2-brand"><div>QT</div><span><small>TRUNG TÂM ĐIỀU PHỐI</small><strong>QUẢN TRỊ ỨNG DỤNG</strong><em>Kết nối · Kiểm soát · Phát triển</em></span></div>
       <nav aria-label="Điều hướng quản trị">{navItems.map((item) => <button key={item.view} data-active={view === item.view} onClick={() => switchView(item.view)}><i>{item.icon}</i><span>{item.label}</span>{!offline && item.view === "devices" && pendingDevices.length ? <b>{pendingDevices.length}</b> : null}{!offline && item.view === "approvals" && approvalCount ? <b>{approvalCount}</b> : null}</button>)}</nav>

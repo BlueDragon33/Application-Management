@@ -89,12 +89,22 @@ function expirationLabel(policy: OperationsAutomationPolicy) {
   return hours === 24 ? "Từ chối & khóa sau 24 giờ" : hours === 720 ? "Từ chối & khóa sau 30 ngày" : "Từ chối & khóa sau 7 ngày";
 }
 
+function draftChanged(policy: OperationsAutomationPolicy, draft: AutomationAppDraft, appId: string, days: number, limit: number) {
+  if (policy.mutation.autoApprove && policy.current.autoApprove !== draft.autoApprove) return true;
+  if (policy.mutation.autoBlockPending && policy.current.autoBlockPending !== draft.autoBlock) return true;
+  if (policy.mutation.autoBlockPending && draft.autoBlock && policy.current.pendingBlockAfterHours !== draft.pendingBlockAfterHours) return true;
+  return appId === "boi-ech"
+    && policy.mutation.autoApprove
+    && draft.autoApprove
+    && (policy.current.freeAccessDays !== days || policy.current.freeDeviceLimit !== limit);
+}
+
 export default function AutomaticDevicePolicies({ apps, settings, busy, close, save }: {
   apps: readonly AutomationApp[];
   settings: OperationsSettings | undefined;
   busy: boolean;
   close: () => void;
-  save: (selection: AutomationSelection) => void;
+  save: (selection: AutomationSelection) => Promise<OperationsSettings | null | undefined>;
 }) {
   const [drafts, setDrafts] = useState<Record<string, AutomationAppDraft>>(() => initialDrafts(apps, settings));
   const boiPolicy = policyFor(settings, "boi-ech");
@@ -103,7 +113,14 @@ export default function AutomaticDevicePolicies({ apps, settings, busy, close, s
   const policies = apps.map((app) => policyFor(settings, app.id));
   const hasWritablePolicy = policies.some((policy) => policy.mutation.autoApprove || policy.mutation.autoBlockPending);
   const hasUnverifiedPolicy = policies.some((policy) => policy.verification.state === "fallback" || policy.verification.state === "unavailable");
-  const canSave = Boolean(settings) && !busy && hasWritablePolicy
+  const hasChanges = apps.some((app) => draftChanged(
+    policyFor(settings, app.id),
+    drafts[app.id] ?? { autoApprove: false, autoBlock: false, pendingBlockAfterHours: 168 },
+    app.id,
+    days,
+    limit,
+  ));
+  const canSave = Boolean(settings) && !busy && hasWritablePolicy && hasChanges
     && Number.isInteger(days) && days >= 1 && days <= 365
     && Number.isInteger(limit) && limit >= 1 && limit <= 1_000;
 
@@ -114,102 +131,130 @@ export default function AutomaticDevicePolicies({ apps, settings, busy, close, s
     }));
   }
 
-  function submit() {
+  async function submit() {
+    if (!canSave) return;
     const appIds = apps.filter((app) => drafts[app.id]?.autoApprove).map((app) => app.id);
     const autoBlockAppIds = apps.filter((app) => drafts[app.id]?.autoBlock).map((app) => app.id);
     const pendingBlockAfterHoursByApp = Object.fromEntries(
       apps.map((app) => [app.id, drafts[app.id]?.pendingBlockAfterHours ?? 168]),
     ) as Record<string, number>;
-    save({ appIds, autoBlockAppIds, pendingBlockAfterHoursByApp, defaultAccessDays: days, defaultDeviceLimit: limit });
+    const readback = await save({ appIds, autoBlockAppIds, pendingBlockAfterHoursByApp, defaultAccessDays: days, defaultDeviceLimit: limit });
+    if (!readback) return;
+
+    setDrafts(initialDrafts(apps, readback));
+    const nextBoi = policyFor(readback, "boi-ech");
+    setDays(nextBoi.current.freeAccessDays ?? readback.freeAccessDaysByApp?.["boi-ech"] ?? days);
+    setLimit(nextBoi.current.freeDeviceLimit ?? readback.freeDeviceLimitByApp?.["boi-ech"] ?? limit);
   }
 
   return <div className={styles.scrim} onMouseDown={(event) => { if (event.currentTarget === event.target && !busy) close(); }}>
     <section className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="device-auto-title">
-      <header><div><small>KIỂM DUYỆT THIẾT BỊ</small><h2 id="device-auto-title">Quy tắc theo từng ứng dụng</h2></div><button onClick={close} disabled={busy} aria-label="Đóng">×</button></header>
-      <p><strong>Đang áp dụng</strong> luôn lấy từ policy đã được client xác minh hoặc được ghi rõ là bản gần nhất. Phần <strong>Thay đổi</strong> chỉ là bản nháp cho tới khi bạn bấm Lưu thay đổi.</p>
-      {hasUnverifiedPolicy ? <p className={styles.warning}>Một số ứng dụng chưa đọc được policy live. Giá trị LAST KNOWN chỉ để tham chiếu và bị khóa chỉnh sửa cho tới khi contract live được xác minh lại.</p> : null}
+      <header className={styles.dialogHeader}>
+        <div><small>KIỂM DUYỆT THIẾT BỊ</small><h2 id="device-auto-title">Quy tắc theo từng ứng dụng</h2></div>
+        <button onClick={close} disabled={busy} aria-label="Đóng">×</button>
+      </header>
+      <p className={styles.intro}><strong>Đang áp dụng</strong> là dữ liệu readback. Các ô bên dưới là bản nháp; sau khi lưu thành công chúng tự đồng bộ lại đúng trạng thái client.</p>
+      {hasUnverifiedPolicy ? <p className={styles.warning}>Ứng dụng LAST KNOWN/UNAVAILABLE chỉ hiển thị tham chiếu và không được ghi mù. READ-ONLY là app chưa công bố automation contract an toàn.</p> : null}
+
       <div className={styles.list}>
         {apps.map((app) => {
           const policy = policyFor(settings, app.id);
           const draft = drafts[app.id] ?? { autoApprove: false, autoBlock: false, pendingBlockAfterHours: 168 };
           const approveWritable = policy.mutation.autoApprove;
           const blockWritable = policy.mutation.autoBlockPending;
-          return <article key={app.id} className={styles.app}>
-            <div className={styles.appTitle}>
-              <strong>{app.shortName}</strong>
-              <small>{policy.verification.source}</small>
-              <b className={styles.verificationBadge} data-state={policy.verification.state}>{verificationLabel(policy)}</b>
-            </div>
-            <div className={styles.choices}>
-              <div className={styles.applied}>
-                <div><span>Đang áp dụng · kiểm duyệt</span><strong>{approvalLabel(policy, app.id)}</strong></div>
-                <div><span>Đang áp dụng · quá hạn</span><strong>{expirationLabel(policy)}</strong></div>
-                {app.id === "boi-ech" && policy.support.freeAccessPolicy ? <div><span>Miễn phí hiện tại</span><strong>{policy.current.freeAccessDays ?? "—"} ngày · tối đa {policy.current.freeDeviceLimit ?? "—"} thiết bị</strong></div> : null}
-                <small>{policy.verification.state === "live"
-                  ? "Đã đọc trực tiếp từ client."
-                  : policy.mutation.reason ?? policy.verification.errorCode ?? "Chưa có policy live để xác minh."}</small>
-              </div>
+          const approvalValue = !policy.support.autoApprove ? "unsupported" : draft.autoApprove ? "auto" : "manual";
+          const blockValue = !policy.support.autoBlockPending ? "unsupported" : draft.autoBlock ? "block" : "keep";
+          const timeValue = policy.support.autoBlockPending && draft.autoBlock ? draft.pendingBlockAfterHours : 0;
+          const changed = draftChanged(policy, draft, app.id, days, limit);
 
-              <div className={styles.sectionTitle}>Thay đổi</div>
-              <div className={styles.policyGrid}>
-                <label className={styles.field}>
-                  <span>{app.id === "boi-ech" ? "Chế độ đăng ký mới" : "Kiểm duyệt thiết bị"}</span>
-                  <select
-                    aria-label={app.shortName + " - chế độ kiểm duyệt"}
-                    value={draft.autoApprove ? "auto" : "manual"}
-                    disabled={busy || !approveWritable}
-                    onChange={(event) => updateDraft(app.id, { autoApprove: event.target.value === "auto" })}
-                  >
+          return <article key={app.id} className={styles.app} data-changed={changed}>
+            <div className={styles.appHeader}>
+              <div className={styles.appIdentity}>
+                <strong>{app.shortName}</strong>
+                <small className={styles.source}>{policy.verification.source}</small>
+              </div>
+              <div className={styles.appMeta}>
+                {changed ? <span className={styles.changedBadge}>CHƯA LƯU</span> : null}
+                <b className={styles.verificationBadge} data-state={policy.verification.state}>{verificationLabel(policy)}</b>
+              </div>
+            </div>
+
+            <div className={styles.applied}>
+              <div><span>Đang áp dụng · kiểm duyệt</span><strong>{approvalLabel(policy, app.id)}</strong></div>
+              <div><span>Đang áp dụng · quá hạn</span><strong>{expirationLabel(policy)}</strong></div>
+              {app.id === "boi-ech" && policy.support.freeAccessPolicy
+                ? <div><span>Miễn phí hiện tại</span><strong>{policy.current.freeAccessDays ?? "—"} ngày · tối đa {policy.current.freeDeviceLimit ?? "—"} thiết bị</strong></div>
+                : null}
+            </div>
+
+            <div className={styles.sectionTitle}>Thiết lập</div>
+            <div className={styles.policyGrid}>
+              <label className={styles.field}>
+                <span>{app.id === "boi-ech" ? "Chế độ đăng ký mới" : "Kiểm duyệt thiết bị"}</span>
+                <select
+                  aria-label={app.shortName + " - chế độ kiểm duyệt"}
+                  value={approvalValue}
+                  disabled={busy || !approveWritable}
+                  onChange={(event) => updateDraft(app.id, { autoApprove: event.target.value === "auto" })}
+                >
+                  {!policy.support.autoApprove ? <option value="unsupported">Không hỗ trợ</option> : <>
                     <option value="manual">{app.id === "boi-ech" ? "Có phí · xác minh thủ công" : "Duyệt thủ công"}</option>
                     <option value="auto">{app.id === "boi-ech" ? "Miễn phí · tự động duyệt" : "Tự động duyệt"}</option>
-                  </select>
-                  <small>{approveWritable
-                    ? "Chỉ ghi khi bấm Lưu thay đổi; không ảnh hưởng ứng dụng khác."
-                    : policy.mutation.reason ?? "Client chưa công bố auto-approval có readback."}</small>
-                </label>
+                  </>}
+                </select>
+                <small>{approveWritable ? "Có thể thay đổi và readback." : policy.support.autoApprove ? "Chỉ đọc ở kết nối hiện tại." : "Client chưa hỗ trợ."}</small>
+              </label>
 
-                <label className={styles.field}>
-                  <span>Yêu cầu chờ quá hạn</span>
-                  <select
-                    aria-label={app.shortName + " - xử lý quá hạn"}
-                    value={draft.autoBlock ? "block" : "keep"}
-                    disabled={busy || !blockWritable}
-                    onChange={(event) => updateDraft(app.id, { autoBlock: event.target.value === "block" })}
-                  >
+              <label className={styles.field}>
+                <span>Yêu cầu chờ quá hạn</span>
+                <select
+                  aria-label={app.shortName + " - xử lý quá hạn"}
+                  value={blockValue}
+                  disabled={busy || !blockWritable}
+                  onChange={(event) => updateDraft(app.id, { autoBlock: event.target.value === "block" })}
+                >
+                  {!policy.support.autoBlockPending ? <option value="unsupported">Không hỗ trợ</option> : <>
                     <option value="keep">Giữ chờ · xử lý thủ công</option>
                     <option value="block">Tự động từ chối & khóa</option>
-                  </select>
-                  <small>{blockWritable
-                    ? "Chỉ áp dụng cho registry của ứng dụng này."
-                    : "Client chưa công bố auto-block pending an toàn có readback."}</small>
-                </label>
+                  </>}
+                </select>
+                <small>{blockWritable ? "Có thể thay đổi và readback." : policy.support.autoBlockPending ? "Chỉ đọc ở kết nối hiện tại." : "Client chưa hỗ trợ."}</small>
+              </label>
 
-                <label className={styles.field}>
-                  <span>Thời gian chờ</span>
-                  <select
-                    aria-label={app.shortName + " - thời gian chờ"}
-                    value={draft.pendingBlockAfterHours}
-                    disabled={busy || !blockWritable || !draft.autoBlock}
-                    onChange={(event) => updateDraft(app.id, { pendingBlockAfterHours: Number(event.target.value) })}
-                  >
-                    <option value={24}>24 giờ</option>
-                    <option value={168}>7 ngày</option>
-                    <option value={720}>30 ngày</option>
-                  </select>
-                  <small>{draft.autoBlock && blockWritable ? "Áp dụng riêng cho ứng dụng này." : "Không áp dụng khi đang giữ chờ thủ công hoặc contract chưa hỗ trợ."}</small>
-                </label>
-              </div>
-
-              {app.id === "boi-ech" ? <div className={styles.limits} data-disabled={!draft.autoApprove || !approveWritable}>
-                <label>Thời hạn miễn phí <select value={days} disabled={busy || !approveWritable || !draft.autoApprove} onChange={(event) => setDays(Number(event.target.value))}>{[30, 60, 90, 180, 365].map((value) => <option key={value} value={value}>{value} ngày</option>)}</select></label>
-                <label>Tối đa thiết bị <input type="number" min={1} max={1000} value={limit} disabled={busy || !approveWritable || !draft.autoApprove} onChange={(event) => setLimit(Number(event.target.value))}/></label>
-                <small>Chỉ áp dụng cho luồng Miễn phí · tự động duyệt. Luồng trả phí vẫn phải xác minh thanh toán.</small>
-              </div> : null}
+              <label className={styles.field}>
+                <span>Thời gian chờ</span>
+                <select
+                  aria-label={app.shortName + " - thời gian chờ"}
+                  value={timeValue}
+                  disabled={busy || !blockWritable || !draft.autoBlock}
+                  onChange={(event) => updateDraft(app.id, { pendingBlockAfterHours: Number(event.target.value) })}
+                >
+                  <option value={0}>{policy.support.autoBlockPending ? "Không áp dụng" : "Không hỗ trợ"}</option>
+                  <option value={24}>24 giờ</option>
+                  <option value={168}>7 ngày</option>
+                  <option value={720}>30 ngày</option>
+                </select>
+                <small>{draft.autoBlock && blockWritable ? "Áp dụng riêng cho app này." : "Chỉ dùng khi tự động xử lý quá hạn."}</small>
+              </label>
             </div>
+
+            {app.id === "boi-ech" ? <div className={styles.limits} data-disabled={!draft.autoApprove || !approveWritable}>
+              <label>Thời hạn miễn phí <select value={days} disabled={busy || !approveWritable || !draft.autoApprove} onChange={(event) => setDays(Number(event.target.value))}>{[30, 60, 90, 180, 365].map((value) => <option key={value} value={value}>{value} ngày</option>)}</select></label>
+              <label>Tối đa thiết bị <input type="number" min={1} max={1000} value={limit} disabled={busy || !approveWritable || !draft.autoApprove} onChange={(event) => setLimit(Number(event.target.value))}/></label>
+              <small>Chỉ áp dụng cho Miễn phí · tự động duyệt. Luồng trả phí vẫn phải xác minh thanh toán.</small>
+            </div> : null}
+
+            {(!approveWritable && !blockWritable) && policy.mutation.reason
+              ? <p className={styles.appReason}>{policy.mutation.reason}</p>
+              : null}
           </article>;
         })}
       </div>
-      <footer><button onClick={close} disabled={busy}>Đóng</button><button className={styles.save} disabled={!canSave} onClick={submit}>{busy ? "Đang lưu & đọc lại…" : "Lưu thay đổi"}</button></footer>
+
+      <footer className={styles.dialogFooter}>
+        <span className={styles.saveState}>{busy ? "Đang ghi và đọc lại client…" : hasChanges ? "Có thay đổi chưa lưu" : "Cấu hình đang khớp trạng thái đã đọc"}</span>
+        <div><button onClick={close} disabled={busy}>Đóng</button><button className={styles.save} disabled={!canSave} onClick={() => void submit()}>{busy ? "Đang lưu…" : "Lưu thay đổi"}</button></div>
+      </footer>
     </section>
   </div>;
 }
