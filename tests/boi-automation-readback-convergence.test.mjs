@@ -10,7 +10,7 @@ test("Boi automation save trusts the write response first and waits for independ
   assert.match(route, /boiAutomationMatches\(updated, enabled, defaultAccessDays, defaultDeviceLimit\)/);
   assert.match(route, /AUTOMATION_READBACK_DELAYS = \[0, 120, 280, 600, 1_000\]/);
   assert.match(route, /\/api\/control\/overview\?activityDays=0/);
-  assert.match(route, /readback chưa hội tụ/);
+  assert.match(route, /readback độc lập chưa hội tụ/);
 });
 
 test("dashboard consumes targeted mutation readback instead of blocking on a full bootstrap", () => {

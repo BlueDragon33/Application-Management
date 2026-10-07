@@ -15,9 +15,9 @@ test("KD-MID Visa is registered as an internal Tool", () => {
 });
 
 test("Companion v0.9.32 is active in script and UI", () => {
-  assert.match(companion, /@version\s+0\.9\.31/);
-  assert.match(companion, /const VERSION = "0\.9\.31"/);
-  assert.match(tool, /Companion v0\.9\.31/);
+  assert.match(companion, /@version\s+0\.9\.32/);
+  assert.match(companion, /const VERSION = "0\.9\.32"/);
+  assert.match(tool, /Companion v0\.9\.32/);
 });
 
 test("landing, password and official A4 flows remain intact", () => {
@@ -68,7 +68,7 @@ test("App-Manager normalizes profile dates before building the payload", () => {
   assert.match(tool, /function normalizeDmy/);
   assert.match(tool, /birthDate: normalizeDmy\(applicant\.birthDate\)/);
   assert.match(tool, /passportIssue: normalizeDmy\(applicant\.passportIssue\)/);
-  assert.match(tool, /entryDate: normalizeDmy\(common\.entryDate\)/);
+  assert.match(tool, /entryDate: normalizeDmy\(resolvedCommon\.entryDate\)/);
   assert.match(tool, /function DateTextInput/);
 });
 
@@ -143,8 +143,8 @@ test("generic fill no longer handles passport date fields", () => {
 
 test("passport date fields use dd/mm/yyyy and Russian month mapping before Next", () => {
   assert.match(tool, /Дата выдачи паспорта · dd\/mm\/yyyy/);
-  assert.match(tool, /Паспорт действителен до · dd\/mm\/yyyy/);
-  assert.match(tool, /đổi 06 thành Июнь/);
+  assert.match(tool, /Паспорт действителен до · tự động \+10 năm/);
+  assert.match(tool, /Tool tự chuẩn hóa ngày\/tháng và chọn đúng tháng tiếng Nga/);
   assert.match(companion, /findDateOption/);
   assert.match(companion, /isPassportInfoPage\(\) && recognized < 1/);
 });
@@ -186,8 +186,8 @@ test("v0.9.32 handles the visit information page with exact field semantics", ()
 });
 
 test("the first visit-page select is Organization and is never treated as a yes/no field", () => {
-  assert.match(companion, /ensureSelectAfterLabel\("В какое учреждение направляетесь\?", \["ОРГАНИЗАЦИЯ","ORGANIZATION"\]\)/);
-  assert.match(companion, /this first select is NOT a yes\/no question/);
+  assert.match(companion, /ensureSelectAfterLabel\("В какое учреждение направляетесь\?", \[payload\.destinationType \|\| "ОРГАНИЗАЦИЯ","ОРГАНИЗАЦИЯ","ORGANIZATION"\]\)/);
+  assert.match(companion, /It must remain "Организация", never "НЕТ"/);
   const visit = companion.slice(companion.indexOf("function fillVisitInfoPage"), companion.indexOf("function setText"));
   assert.doesNotMatch(visit, /setYesNo\("В какое учреждение направляетесь/);
 });
@@ -321,8 +321,8 @@ test("v0.9.32 maps KD-MID contact inputs by stable page order including fax slot
 test("v0.9.32 explicitly skips and clears both fax controls", () => {
   assert.match(companion, /personalFax: textInputs\[2\]/);
   assert.match(companion, /workFax: textInputs\[8\]/);
-  assert.match(companion, /clearFax\(C\.personalFax\)/);
-  assert.match(companion, /clearFax\(C\.workFax\)/);
+  assert.match(companion, /optionalText\(C\.personalFax, A\.personalFax\)/);
+  assert.match(companion, /optionalText\(C\.workFax, A\.worksOrStudies === false \? "" : A\.workFax\)/);
 });
 
 test("v0.9.32 personal email comes from applicant payload and no longer depends only on label lookup", () => {
@@ -332,11 +332,11 @@ test("v0.9.32 personal email comes from applicant payload and no longer depends 
 
 
 test("v0.9.32 payload falls back to saved common work defaults when applicant overrides are blank", () => {
-  assert.match(tool, /workStudyPlace: applicant\.workStudyPlace\.trim\(\) \|\| common\.employer/);
-  assert.match(tool, /position: applicant\.position\.trim\(\) \|\| common\.defaultPosition/);
-  assert.match(tool, /workAddress: applicant\.workAddress\.trim\(\) \|\| common\.employerAddress/);
+  assert.match(tool, /workStudyPlace: applicant\.workStudyPlace\.trim\(\) \|\| resolvedCommon\.employer/);
+  assert.match(tool, /position: applicant\.position\.trim\(\) \|\| resolvedCommon\.defaultPosition/);
+  assert.match(tool, /workAddress: applicant\.workAddress\.trim\(\) \|\| resolvedCommon\.employerAddress/);
   assert.match(tool, /workPhone: applicant\.workPhone\.trim\(\) \|\| fixedWorkPhone/);
-  assert.match(tool, /workEmail: applicant\.workEmail\.trim\(\) \|\| common\.employerEmail/);
+  assert.match(tool, /workEmail: applicant\.workEmail\.trim\(\) \|\| resolvedCommon\.employerEmail/);
 });
 
 test("v0.9.32 legacy blank work fields are hydrated from current common defaults", () => {
@@ -379,8 +379,8 @@ test("v0.9.32 preserves the complete canonical permanent address including ДО�
 });
 
 test("v0.9.32 contact autofill ignores stale truncated address payloads", () => {
-  assert.match(companion, /optionalText\(C\.permanentAddress, CANONICAL_PERMANENT_ADDRESS\)/);
-  assert.match(companion, /permanentAddress: CANONICAL_PERMANENT_ADDRESS/);
+  assert.match(companion, /optionalText\(C\.permanentAddress, A\.hasPermanentAddress === false \? "" : \(A\.personalAddress \|\| CANONICAL_PERMANENT_ADDRESS\)\)/);
+  assert.match(companion, /permanentAddress: A\.hasPermanentAddress === false \? "" : String\(A\.personalAddress \|\| CANONICAL_PERMANENT_ADDRESS\)/);
 });
 
 
@@ -411,12 +411,12 @@ test("record open button launches the dedicated KD-MID resume mode", () => {
 test("Companion v0.9.32 follows the official previously-filled application recovery sequence", () => {
   assert.match(companion, /function isResumeMode/);
   assert.match(companion, /function fillResumeFlow/);
-  assert.match(companion, /ОТКРЫТЬ РАНЕЕ ЗАПОЛНЕННУЮ АНКЕТУ/);
-  assert.match(companion, /НОМЕР АНКЕТЫ/);
-  assert.match(companion, /ВОССТАНОВИТЬ АНКЕТУ/);
-  assert.match(companion, /ПЕРВЫЕ 5 БУКВ ВАШЕЙ ФАМИЛИИ/);
-  assert.match(companion, /ГОД РОЖДЕНИЯ/);
-  assert.match(companion, /ПРОСМОТР АНКЕТЫ/);
+  assert.match(companion, /Открыть ранее заполненную анкету/i);
+  assert.match(companion, /Номер анкеты/i);
+  assert.match(companion, /Восстановить анкету/i);
+  assert.match(companion, /Первые 5 букв Вашей фамилии/i);
+  assert.match(companion, /Год рождения/i);
+  assert.match(companion, /ПРОСМОТР АНКЕТЫ|Просмотр анкеты/);
   assert.match(companion, /Companion đã dừng tự động/);
 });
 

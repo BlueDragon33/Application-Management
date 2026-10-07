@@ -84,7 +84,7 @@ test("automatic approval is limited to writable per-app snapshots and verified b
   assert.match(dashboard, /policy\.mutation\.autoApprove/);
   assert.match(dashboard, /targetAppIds: \[appId\]/);
   assert.match(dashboard, /field: "autoApprove"/);
-  assert.match(dashboard, /synced\.settings\.automationPolicies/);
+  assert.match(dashboard, /mergedSettings\.automationPolicies/);
   assert.match(dashboard, /policy\?\.verification\.state === "live"/);
   assert.match(dashboard, /<AutomaticDevicePolicies apps=\{activeApps\}/);
 });

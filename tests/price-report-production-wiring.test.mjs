@@ -21,14 +21,16 @@ test("PriceReport bridge secret remains a Worker secret and is wired fail-closed
   const live = source(".github/workflows/live-development-deploy.yml");
   const production = source(".github/workflows/deploy-application-management-production.yml");
   const preview = source(".github/workflows/deploy-application-management-preview.yml");
-  assert.match(live, /PRICE_REPORT_CONTROL_PRODUCTION_ORIGIN/);\n  assert.match(live, /price-report-control-service\\.boiech-ai\\.workers\\.dev/);
+  assert.match(live, /PRICE_REPORT_CONTROL_PRODUCTION_ORIGIN/);
+  assert.match(live, /price-report-control-service\.boiech-ai\.workers\.dev/);
   assert.match(production, /PRICE_REPORT_CONTROL_PRODUCTION_ORIGIN/);
   assert.match(preview, /PRICE_REPORT_CONTROL_PREVIEW_ORIGIN/);
   for (const workflow of [live, production, preview]) {
     assert.match(workflow, /PRICE_REPORT_CONTROL_SERVICE_SECRET/);
     assert.match(workflow, /wrangler secret put PRICE_REPORT_CONTROL_SERVICE_SECRET/);
   }
-  assert.match(production, /PriceReport bridge secret already exists on the Worker; preserving it/);\n  assert.match(production, /Run Bootstrap PriceReport Control Service first/);
+  assert.match(production, /PriceReport bridge secret already exists on the Worker; preserving it/);
+  assert.match(production, /Run Bootstrap PriceReport Control Service first/);
   assert.match(live, /PriceReport remains fail-closed\/read-only/);
   assert.match(preview, /PriceReport stays read-only/);
 });

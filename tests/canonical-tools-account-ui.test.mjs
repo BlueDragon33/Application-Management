@@ -42,8 +42,8 @@ test("all client automation cards use stable applied-state and isolated draft co
   assert.match(automation, /settings\?\.automationPolicies/);
   assert.match(automation, /apps\.map/);
   assert.match(automation, /className=\{styles\.policyGrid\}/);
-  assert.match(automation, /disabled=\{busy \|\| !approveWritable\}/);
-  assert.match(automation, /disabled=\{busy \|\| !blockWritable\}/);
+  assert.match(automation, /disabled=\{locked \|\| !approveWritable\}/);
+  assert.match(automation, /disabled=\{locked \|\| !blockWritable\}/);
   assert.match(automation, /Object\.fromEntries/);
   assert.doesNotMatch(automation, /type="radio"/);
 });

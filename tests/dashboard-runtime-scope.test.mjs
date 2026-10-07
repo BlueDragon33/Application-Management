@@ -7,7 +7,7 @@ const dashboard = fs.readFileSync("app/management-dashboard-v2.tsx", "utf8");
 test("localRuntime is explicitly threaded into child views that use it", () => {
   assert.match(
     dashboard,
-    /<Overview[\s\S]*?refreshOperations=\{refreshOperations\}[\s\S]*?localRuntime=\{localRuntime\}[\s\S]*?\/>/,
+    /<Overview[\s\S]*?syncOperations=\{syncOperationsNow\}[\s\S]*?localRuntime=\{localRuntime\}[\s\S]*?\/>/,
   );
   assert.match(
     dashboard,

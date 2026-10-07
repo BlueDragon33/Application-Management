@@ -18,12 +18,14 @@ test("Universal Contract starter publishes automation as disabled-by-default cap
 
 test("Universal automation read failure is isolated from the rest of the app contract", () => {
   const contract = source("app/open-contract.server.ts");
-  assert.match(contract, /let automation: UniversalAutomationPolicy \| null = null/);
-  assert.match(contract, /let automationError: string \| undefined/);
-  assert.match(contract, /automation = automationPolicyFromPayload/);
-  assert.match(contract, /automationError = error instanceof Error/);
-  assert.match(contract, /automation,/);
-  assert.match(contract, /automation: null/);
+  assert.match(contract, /const automationRead = credential && automationAdvertised/);
+  assert.match(contract, /\.catch\(\(error\) => \(\{/);
+  assert.match(contract, /policy: null/);
+  assert.match(contract, /error: error instanceof Error/);
+  assert.match(contract, /const \[devices, automationResult\] = await Promise\.all/);
+  assert.match(contract, /const automation = automationResult\.policy/);
+  assert.match(contract, /const automationError = automationResult\.error/);
+  assert.match(contract, /\.\.\.\(automationError \? \{ automationError \} : \{\}\)/);
 });
 
 test("Universal automation mutation requires dedicated idempotency and concurrency capabilities", () => {
@@ -45,6 +47,6 @@ test("Universal automation mutation requires dedicated idempotency and concurren
 test("generic automation never absorbs Boi free-paid domain semantics", () => {
   const endpoint = source("app/api/operations-auto-approval/route.ts");
   assert.match(endpoint, /genericReady = appId !== "boi-ech"/);
-  assert.match(endpoint, /Bơi ếch keeps its domain-specific Free\/Paid policy/);
+  assert.match(endpoint, /if \(appId === "boi-ech"\)/);
   assert.match(endpoint, /await setBoi\(actor, desired, defaultAccessDays, defaultDeviceLimit\)/);
 });
