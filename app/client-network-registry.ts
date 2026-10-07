@@ -5,6 +5,7 @@ export type ManagedClientId =
   | "bauman-master-ai"
   | "bauman-runtime"
   | "price-report-control"
+  | "growup-control"
   | "nc03-runtime";
 
 export type ClientNetworkEndpointKind = "control" | "runtime";
@@ -17,6 +18,7 @@ export type ClientNetworkSpec = {
     | "boi-ech"
     | "bauman-master-ai"
     | "price-report-tunggiabao"
+    | "growup-mychildren"
     | "nc03-modem";
   label: string;
   endpointKind: ClientNetworkEndpointKind;
@@ -110,6 +112,18 @@ export const clientNetworkRegistry = {
     localEnv: "NC03_LOCAL_BASE_URL",
     localDefault: "http://127.0.0.1:3010",
     probePath: "/_local/health",
+  },
+  "growup-control": {
+    id: "growup-control",
+    applicationId: "growup-mychildren",
+    label: "GrowUP Control Service",
+    endpointKind: "control",
+    productionEnv: "GROWUP_CONTROL_BASE_URL",
+    localEnv: "GROWUP_CONTROL_LOCAL_BASE_URL",
+    localDefault: "http://127.0.0.1:3007",
+    probePath: "/api/control/status",
+    bridgeSecretEnv: "GROWUP_CONTROL_SERVICE_SECRET",
+    localBridgeSecretEnv: "GROWUP_CONTROL_SERVICE_SECRET",
   },
   "price-report-control": {
     id: "price-report-control",

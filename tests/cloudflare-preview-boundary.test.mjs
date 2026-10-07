@@ -39,7 +39,9 @@ test("Cloudflare preview uses a materialized isolated D1 and production network 
   assert.ok(prepare.includes(LEGACY_D1));
   assert.ok(prepare.includes('required("APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID")'));
   assert.ok(prepare.includes(".chatgpt.site"));
+  assert.match(template, /"GROWUP_CONTROL_BASE_URL": "__GROWUP_CONTROL_BASE_URL__"/);
   assert.match(template, /"PRICE_REPORT_CONTROL_BASE_URL": "__PRICE_REPORT_CONTROL_BASE_URL__"/);
+  assert.match(prepare, /GROWUP_CONTROL_BASE_URL: exactHttpsOrigin\("GROWUP_CONTROL_BASE_URL"\)/);
   assert.match(prepare, /PRICE_REPORT_CONTROL_BASE_URL: exactHttpsOrigin\("PRICE_REPORT_CONTROL_BASE_URL"\)/);
 });
 
@@ -71,6 +73,8 @@ test("Cloudflare preview remains an explicit protected verification path while m
   assert.ok(deploy.includes("cancel-in-progress: true"));
   assert.ok(deploy.includes("Detect preview readiness"));
   assert.ok(deploy.includes("APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET"));
+  assert.ok(deploy.includes("GROWUP_CONTROL_PREVIEW_ORIGIN"));
+  assert.ok(deploy.includes("secret put GROWUP_CONTROL_SERVICE_SECRET"));
   assert.ok(deploy.includes("PRICE_REPORT_CONTROL_PREVIEW_ORIGIN"));
   assert.ok(deploy.includes("secret put PRICE_REPORT_CONTROL_SERVICE_SECRET"));
   assert.ok(deploy.includes("wrangler secret put APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET"));

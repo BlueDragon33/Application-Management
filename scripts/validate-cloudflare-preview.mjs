@@ -66,7 +66,7 @@ for (const marker of ["Authorization: Bearer <preview-secret>", "HMAC-SHA-256", 
 if (gate.includes("CF_ACCESS_") || chatAuth.includes("getCloudflareAccessUser")) throw new Error("Preview authentication vẫn còn phụ thuộc Cloudflare Access.");
 if (!resolver.includes('ControlPlaneNetworkMode = "production" | "local" | "hybrid"')) throw new Error("Client resolver thiếu network-mode boundary.");
 if (!resolver.includes("getClientNetworkSpec(applicationId)")) throw new Error("Client resolver chưa đọc shared network registry.");
-for (const marker of ["BAUMAN_CONTROL_BASE_URL", "BAUMAN_APP_ORIGIN", "BOI_ECH_BASE_URL", "HEALTH_CARE_BASE_URL", "RU_LIFE_BASE_URL", "PRICE_REPORT_CONTROL_BASE_URL"]) {
+for (const marker of ["BAUMAN_CONTROL_BASE_URL", "BAUMAN_APP_ORIGIN", "BOI_ECH_BASE_URL", "HEALTH_CARE_BASE_URL", "RU_LIFE_BASE_URL", "GROWUP_CONTROL_BASE_URL", "PRICE_REPORT_CONTROL_BASE_URL"]) {
   if (!networkRegistry.includes(marker)) throw new Error(`Client network registry thiếu: ${marker}`);
 }
 

@@ -76,6 +76,7 @@ const clients = {
   BAUMAN_CONTROL_BASE_URL: exactHttpsOrigin("BAUMAN_CONTROL_BASE_URL"),
   BAUMAN_APP_ORIGIN: exactHttpsOrigin("BAUMAN_APP_ORIGIN"),
   GROWUP_BASE_URL: exactHttpsOrigin("GROWUP_BASE_URL"),
+  GROWUP_CONTROL_BASE_URL: exactHttpsOrigin("GROWUP_CONTROL_BASE_URL"),
   PRICE_REPORT_CONTROL_BASE_URL: exactHttpsOrigin("PRICE_REPORT_CONTROL_BASE_URL"),
 };
 
@@ -102,7 +103,7 @@ for (const [token, rawValue] of Object.entries(replacements)) {
 if (/__[A-Z0-9_]+__/.test(source)) throw new Error("Cloudflare preview config still contains unresolved placeholders.");
 if (/"LOCAL_DEV_AUTH"\s*:/.test(source)) throw new Error("LOCAL_DEV_AUTH must never be materialized into Cloudflare preview.");
 if (source.includes("APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET")) throw new Error("Preview access secret must remain a Worker secret and never enter Wrangler vars.");
-for (const secretName of ["PRICE_REPORT_CONTROL_SERVICE_SECRET", "VERCEL_TOKEN", "NEON_API_KEY"]) {
+for (const secretName of ["GROWUP_CONTROL_SERVICE_SECRET", "PRICE_REPORT_CONTROL_SERVICE_SECRET", "VERCEL_TOKEN", "NEON_API_KEY"]) {
   if (source.includes(secretName)) throw new Error(`${secretName} must remain a Worker secret and never enter Wrangler vars.`);
 }
 if (source.includes(LEGACY_SITES_D1_ID) || source.includes(LOCAL_D1_ID)) throw new Error("Generated preview config references a forbidden D1 identity.");

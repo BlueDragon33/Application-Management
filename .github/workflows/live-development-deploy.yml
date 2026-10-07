@@ -30,6 +30,8 @@ jobs:
       BAUMAN_CONTROL_BASE_URL: ${{ vars.BAUMAN_CONTROL_PRODUCTION_ORIGIN }}
       BAUMAN_APP_ORIGIN: ${{ vars.BAUMAN_RUNTIME_PRODUCTION_ORIGIN }}
       GROWUP_BASE_URL: ${{ vars.GROWUP_PRODUCTION_ORIGIN }}
+      GROWUP_CONTROL_BASE_URL: ${{ vars.GROWUP_CONTROL_PRODUCTION_ORIGIN }}
+      GROWUP_CONTROL_SERVICE_SECRET: ${{ secrets.GROWUP_CONTROL_SERVICE_SECRET }}
       PRICE_REPORT_CONTROL_BASE_URL: ${{ vars.PRICE_REPORT_CONTROL_PRODUCTION_ORIGIN }}
       PRICE_REPORT_CONTROL_SERVICE_SECRET: ${{ secrets.PRICE_REPORT_CONTROL_SERVICE_SECRET }}
       APPLICATION_MANAGEMENT_ACCESS_MODE: standalone
@@ -113,6 +115,17 @@ jobs:
               echo "$key not supplied; existing Worker secret, if any, is left unchanged."
             fi
           done
+
+      - name: Install GrowUP bridge secret
+        if: steps.ready.outputs.deploy == 'true' && env.GROWUP_CONTROL_BASE_URL != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${GROWUP_CONTROL_SERVICE_SECRET:-}" ]]; then
+            echo "::notice::GrowUP control origin is configured but bridge secret is missing; GrowUP remains fail-closed/read-only."
+          else
+            printf '%s' "$GROWUP_CONTROL_SERVICE_SECRET" | npx wrangler secret put GROWUP_CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
+          fi
 
       - name: Install PriceReport bridge secret
         if: steps.ready.outputs.deploy == 'true' && env.PRICE_REPORT_CONTROL_BASE_URL != ''

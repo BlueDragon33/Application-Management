@@ -33,6 +33,8 @@ jobs:
       BAUMAN_CONTROL_BASE_URL: ${{ vars.BAUMAN_CONTROL_PREVIEW_ORIGIN }}
       BAUMAN_APP_ORIGIN: ${{ vars.BAUMAN_RUNTIME_PREVIEW_ORIGIN }}
       GROWUP_BASE_URL: ${{ vars.GROWUP_PREVIEW_ORIGIN }}
+      GROWUP_CONTROL_BASE_URL: ${{ vars.GROWUP_CONTROL_PREVIEW_ORIGIN }}
+      GROWUP_CONTROL_SERVICE_SECRET: ${{ secrets.GROWUP_CONTROL_SERVICE_SECRET }}
       PRICE_REPORT_CONTROL_BASE_URL: ${{ vars.PRICE_REPORT_CONTROL_PREVIEW_ORIGIN }}
       PRICE_REPORT_CONTROL_SERVICE_SECRET: ${{ secrets.PRICE_REPORT_CONTROL_SERVICE_SECRET }}
 
@@ -144,6 +146,17 @@ jobs:
               echo "$key not supplied by GitHub environment; existing Worker secret, if any, is left unchanged."
             fi
           done
+
+      - name: Install GrowUP bridge secret
+        if: steps.config.outputs.ready == 'true' && env.GROWUP_CONTROL_BASE_URL != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${GROWUP_CONTROL_SERVICE_SECRET:-}" ]]; then
+            echo "::notice::GrowUP Preview origin is configured without a bridge secret; GrowUP stays read-only."
+          else
+            printf '%s' "$GROWUP_CONTROL_SERVICE_SECRET" | npx wrangler secret put GROWUP_CONTROL_SERVICE_SECRET --config wrangler.cloudflare.jsonc
+          fi
 
       - name: Install PriceReport bridge secret
         if: steps.config.outputs.ready == 'true' && env.PRICE_REPORT_CONTROL_BASE_URL != ''
