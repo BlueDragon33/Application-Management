@@ -707,25 +707,27 @@ async function buildBootstrap(actor: ControlDeviceState) {
     { id: "nc03-modem", run: () => loadNc03Runtime() },
   ] as const;
 
-  const settled = await Promise.all(loaders.map(async (loader) => {
-    try { return { id: loader.id, ok: true as const, value: await loader.run() }; }
-    catch (error) {
-      const issueCode = error instanceof UpstreamError
-        ? text(record(error.payload).code)
-        : "";
-      return {
-        id: loader.id,
-        ok: false as const,
-        error: error instanceof Error ? error.message : "Không thể kết nối client.",
-        issueCode: issueCode || undefined,
-      };
-    }
-  }));
+  const [settled, dynamicSnapshots] = await Promise.all([
+    Promise.all(loaders.map(async (loader) => {
+      try { return { id: loader.id, ok: true as const, value: await loader.run() }; }
+      catch (error) {
+        const issueCode = error instanceof UpstreamError
+          ? text(record(error.payload).code)
+          : "";
+        return {
+          id: loader.id,
+          ok: false as const,
+          error: error instanceof Error ? error.message : "Không thể kết nối client.",
+          issueCode: issueCode || undefined,
+        };
+      }
+    })),
+    probeDynamicManagedApplications(),
+  ]);
 
   const devices: ClientDevice[] = [];
   const summaries: ClientSummary[] = [];
   const workItems: WorkItem[] = [];
-  const dynamicSnapshots = await probeDynamicManagedApplications();
   const dynamicById = new Map(dynamicSnapshots.map((snapshot) => [snapshot.config.id, snapshot]));
   const handledDynamicIds = new Set<string>();
 

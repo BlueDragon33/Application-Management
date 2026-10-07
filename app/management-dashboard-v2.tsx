@@ -363,6 +363,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   const [syncError, setSyncError] = useState("");
   const notificationListRef = useRef<HTMLDivElement>(null);
   const automationSaveLockRef = useRef(false);
+  const operationsRefreshPromiseRef = useRef<Promise<OperationsBootstrap | null> | null>(null);
   const [clock, setClock] = useState<Date | null>(null);
   const [webMenu, setWebMenu] = useState(false);
   const [autoPolicyOpen, setAutoPolicyOpen] = useState(false);
@@ -382,10 +383,17 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       return cached;
     }
     try {
-      const result = await connectOperationsDashboard();
-      if (result.bootstrap) setOperations(result.bootstrap);
-      setOperationsVerified(Boolean(result.bootstrap));
-      return result.bootstrap ?? null;
+      if (!operationsRefreshPromiseRef.current) {
+        operationsRefreshPromiseRef.current = (async () => {
+          const result = await connectOperationsDashboard();
+          if (result.bootstrap) setOperations(result.bootstrap);
+          setOperationsVerified(Boolean(result.bootstrap));
+          return result.bootstrap ?? null;
+        })().finally(() => {
+          operationsRefreshPromiseRef.current = null;
+        });
+      }
+      return await operationsRefreshPromiseRef.current;
     } catch (caught) {
       if (!forceOnline) setOperationsVerified(false);
       setSyncError(caught instanceof Error ? caught.message : "Không thể đồng bộ dữ liệu ứng dụng.");
