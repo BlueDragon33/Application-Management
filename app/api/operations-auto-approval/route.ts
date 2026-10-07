@@ -46,17 +46,41 @@ async function bridgeJson(bridge: Bridge, path: string, init?: { method?: "GET" 
   }
 }
 
+function boiAutomationMatches(value: unknown, enabled: boolean, defaultAccessDays: number, defaultDeviceLimit: number) {
+  const state = record(record(value).automation);
+  return state.enabled === enabled
+    && Number(state.defaultAccessDays) === defaultAccessDays
+    && Number(state.defaultDeviceLimit) === defaultDeviceLimit;
+}
+
 async function setBoi(actor: { email: string; role: "viewer" | "reviewer" | "publisher" | "owner" }, enabled: boolean, defaultAccessDays: number, defaultDeviceLimit: number) {
   const bridge = await issueBoiBrowserBridge(actor.email, actor.role);
-  await bridgeJson(bridge, "/api/control/overview", {
+  const updated = await bridgeJson(bridge, "/api/control/overview", {
     method: "POST",
     body: { action: "update-automation", enabled, defaultAccessDays, defaultDeviceLimit },
   });
-  const readback = await bridgeJson(bridge, "/api/control/overview?activityDays=0");
-  const state = record(readback.automation);
-  if (state.enabled !== enabled || state.defaultAccessDays !== defaultAccessDays || state.defaultDeviceLimit !== defaultDeviceLimit) {
-    throw new Error("Bơi ếch chưa xác nhận quy tắc duyệt tự động và thời hạn sau cập nhật.");
+  if (!boiAutomationMatches(updated, enabled, defaultAccessDays, defaultDeviceLimit)) {
+    throw new Error("Bơi ếch không trả lại đúng cấu hình vừa ghi.");
   }
+
+  // D1/read-replica convergence can make the first request after a successful
+  // write briefly expose the previous snapshot. Do not roll the UI back to a
+  // stale base value; wait for an independent GET to confirm persistence.
+  const delays = [0, 120, 280, 600, 1_000];
+  let observed: UnknownRecord = {};
+  for (const delay of delays) {
+    if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
+    const readback = await bridgeJson(bridge, "/api/control/overview?activityDays=0");
+    observed = record(readback.automation);
+    if (boiAutomationMatches(readback, enabled, defaultAccessDays, defaultDeviceLimit)) return;
+  }
+
+  throw new Error(
+    "Bơi ếch đã nhận lệnh nhưng readback chưa hội tụ: mong đợi "
+    + defaultAccessDays + " ngày / " + defaultDeviceLimit
+    + " thiết bị, hiện thấy " + Number(observed.defaultAccessDays || 0)
+    + " ngày / " + Number(observed.defaultDeviceLimit || 0) + " thiết bị.",
+  );
 }
 
 async function setHealth(actor: { email: string; role: "viewer" | "reviewer" | "publisher" | "owner"; deviceId: string }, enabled: boolean) {

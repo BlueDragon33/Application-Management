@@ -852,19 +852,8 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
         transportErrors.set(task.appId + ":" + task.field, result.reason instanceof Error ? result.reason.message : "Lệnh cập nhật thất bại.");
       });
 
-      const synced = await refreshOperations(true);
-      if (!synced?.settings.automationPolicies?.length) {
-        setNotice("Đã gửi thay đổi nhưng chưa đọc lại được snapshot policy. Không đánh dấu là đã lưu; hãy đồng bộ lại trước khi thao tác tiếp.");
-        return null;
-      }
-
-      const syncedPolicies = new Map(synced.settings.automationPolicies.map((policy) => [policy.appId, policy]));
-      const failedFields: string[] = [];
-      const failedApps = new Set<string>();
-
-      for (const task of tasks) {
-        const policy = syncedPolicies.get(task.appId);
-        const label = activeApps.find((app) => app.id === task.appId)?.shortName ?? task.appId;
+      function taskMatchesReadback(settings: NonNullable<OperationsBootstrap["settings"]>, task: PolicySaveTask) {
+        const policy = settings.automationPolicies?.find((item) => item.appId === task.appId);
         let verified = policy?.verification.state === "live";
         if (task.field === "autoApprove") {
           const desired = selection.appIds.includes(task.appId);
@@ -879,6 +868,28 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
           verified = verified && policy?.current.autoBlockPending === desired;
           if (desired) verified = verified && policy?.current.pendingBlockAfterHours === selection.pendingBlockAfterHoursByApp[task.appId];
         }
+        return Boolean(verified);
+      }
+
+      let synced = await refreshOperations(true);
+      for (const delay of [180, 360, 720]) {
+        if (synced?.settings.automationPolicies?.length && tasks.every((task) => taskMatchesReadback(synced!.settings, task))) break;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        synced = await refreshOperations(true);
+      }
+      if (!synced?.settings.automationPolicies?.length) {
+        setNotice("Đã gửi thay đổi nhưng chưa đọc lại được snapshot policy. Không đánh dấu là đã lưu; hãy đồng bộ lại trước khi thao tác tiếp.");
+        return null;
+      }
+
+      const syncedPolicies = new Map(synced.settings.automationPolicies.map((policy) => [policy.appId, policy]));
+      const failedFields: string[] = [];
+      const failedApps = new Set<string>();
+
+      for (const task of tasks) {
+        const policy = syncedPolicies.get(task.appId);
+        const label = activeApps.find((app) => app.id === task.appId)?.shortName ?? task.appId;
+        const verified = taskMatchesReadback(synced.settings, task);
         if (!verified) {
           failedApps.add(task.appId);
           const fieldLabel = task.field === "autoApprove" ? "kiểm duyệt" : "quá hạn";
