@@ -46,3 +46,14 @@ test("device bulk toolbar is explicit and responsive", () => {
   assert.match(css, /\.amv2-device-bulk-toolbar/);
   assert.match(css, /@media \(max-width: 700px\)[\s\S]*\.amv2-device-bulk-toolbar \{ align-items: stretch; flex-direction: column; \}/);
 });
+
+
+test("bulk action always releases its synchronous lock and busy state", () => {
+  const ui = source("app/management-dashboard-v2.tsx");
+  const start = ui.indexOf("async function bulkRemovePendingDevices");
+  const end = ui.indexOf("async function launchWeb", start);
+  const block = ui.slice(start, end);
+
+  assert.match(block, /try \{[\s\S]*await refreshOperations\(true\)[\s\S]*\} finally \{/);
+  assert.match(block, /finally \{\s*releaseActionLock\(actionKey\);\s*setActionBusy\("");\s*\}/);
+});
