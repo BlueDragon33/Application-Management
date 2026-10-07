@@ -945,7 +945,7 @@ async function buildBootstrap(actor: ControlDeviceState) {
     summaries,
     devices,
     workItems: visibleWorkItems,
-    settings: await readAutoApprovalSettings(AUTO_APPROVE_SUPPORTED_APP_IDS),
+    settings: await readAutoApprovalSettings(AUTO_APPROVE_SUPPORTED_APP_IDS, [...new Set([...applicationRegistry.map((item) => item.id), ...dynamicConfigs.map((item) => item.id)])]),
     metrics: {
       applications: applicationRegistry.length + dynamicConfigs.filter((item) => !applicationRegistry.some((existing) => existing.id === item.id)).length,
       pendingDevices: devices.filter((device) => device.status === "pending").length,

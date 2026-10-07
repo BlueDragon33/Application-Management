@@ -138,7 +138,7 @@ export async function POST(request: Request) {
           return json({ error: "Contract duyệt miễn phí của Bơi ếch chưa hoạt động.", code: "AUTO_APPROVAL_CONTRACT_NOT_LIVE", appId }, 409);
         }
         await setBoi(actor, desired, defaultAccessDays, defaultDeviceLimit);
-        await rememberAutoApproval(actor.email, appId, desired);
+        await rememberAutoApproval(actor.email, appId, desired, { defaultAccessDays, defaultDeviceLimit });
         continue;
       }
       if (!liveSupported.has(appId)) {

@@ -3,23 +3,123 @@ import { getControlDatabase } from "./control-device.server";
 
 type UnknownRecord = Record<string, unknown>;
 
+type AutoApprovalFallback = {
+  enabled: boolean;
+  defaultAccessDays?: number;
+  defaultDeviceLimit?: number;
+  createdAt?: string;
+};
+
+type AutoBlockFallback = {
+  enabled: boolean;
+  pendingBlockAfterHours: number;
+  createdAt?: string;
+};
+
+export type AppAutomationPolicySnapshot = {
+  appId: string;
+  support: {
+    autoApprove: boolean;
+    autoBlockPending: boolean;
+    freeAccessPolicy: boolean;
+  };
+  current: {
+    autoApprove?: boolean;
+    autoBlockPending?: boolean;
+    pendingBlockAfterHours?: number;
+    freeAccessDays?: number;
+    freeDeviceLimit?: number;
+  };
+  verification: {
+    state: "live" | "fallback" | "unavailable" | "unsupported";
+    source: string;
+    lastVerifiedAt?: string;
+    errorCode?: string;
+  };
+  mutation: {
+    autoApprove: boolean;
+    autoBlockPending: boolean;
+    reason?: string;
+  };
+};
+
 function record(value: unknown): UnknownRecord {
   return value && typeof value === "object" && !Array.isArray(value) ? value as UnknownRecord : {};
+}
+
+function validDays(value: unknown) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 365 ? parsed : undefined;
+}
+
+function validLimit(value: unknown) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 1_000 ? parsed : undefined;
+}
+
+function validHours(value: unknown) {
+  const parsed = Math.round(Number(value));
+  return [24, 168, 720].includes(parsed) ? parsed : 168;
+}
+
+function errorCode(error: unknown) {
+  if (error instanceof Error && error.message.trim()) return error.message.trim().slice(0, 160);
+  return "AUTOMATION_READ_UNAVAILABLE";
+}
+
+function liveSource(appId: string) {
+  if (appId === "boi-ech") return "Bơi ếch /api/control/overview";
+  if (appId === "health-care") return "Health_Care /api/control/automation";
+  if (appId === "bauman-master-ai") return "Bauman /api/control/automation";
+  if (appId === "ru-life") return "RU_LIFE /api/control/automation";
+  return "client automation contract";
 }
 
 async function auditAutoApprovalFallback(supportedAppIds: readonly string[]) {
   const database = await getControlDatabase();
   const rows = await database.prepare(
-    "SELECT target, detail_json FROM control_audit_log WHERE action = 'application_auto_approval_updated' ORDER BY id DESC LIMIT 100",
-  ).all<{ target: string; detail_json: string }>();
-  const decided = new Set<string>();
-  const enabled = new Set<string>();
+    "SELECT target, detail_json, created_at FROM control_audit_log WHERE action = 'application_auto_approval_updated' ORDER BY id DESC LIMIT 200",
+  ).all<{ target: string; detail_json: string; created_at: string }>();
+  const values = new Map<string, AutoApprovalFallback>();
   for (const row of rows.results) {
-    if (decided.has(row.target) || !supportedAppIds.includes(row.target)) continue;
-    decided.add(row.target);
-    try { if (record(JSON.parse(row.detail_json)).enabled === true) enabled.add(row.target); } catch { /* Historic audit metadata is only a resilience fallback. */ }
+    if (values.has(row.target) || !supportedAppIds.includes(row.target)) continue;
+    try {
+      const detail = record(JSON.parse(row.detail_json));
+      if (typeof detail.enabled !== "boolean") continue;
+      values.set(row.target, {
+        enabled: detail.enabled,
+        defaultAccessDays: validDays(detail.defaultAccessDays),
+        defaultDeviceLimit: validLimit(detail.defaultDeviceLimit),
+        createdAt: row.created_at,
+      });
+    } catch {
+      // Historic audit metadata is resilience-only and never overrides a live client read.
+    }
   }
-  return enabled;
+  return values;
+}
+
+async function auditAutoBlockFallback(supportedAppIds: readonly string[]) {
+  const database = await getControlDatabase();
+  const rows = await database.prepare(
+    "SELECT target, detail_json, created_at FROM control_audit_log WHERE action = 'application_auto_block_pending_updated' ORDER BY id DESC LIMIT 200",
+  ).all<{ target: string; detail_json: string; created_at: string }>();
+  const values = new Map<string, AutoBlockFallback>();
+  for (const row of rows.results) {
+    if (values.has(row.target) || !supportedAppIds.includes(row.target)) continue;
+    try {
+      const detail = record(JSON.parse(row.detail_json));
+      if (typeof detail.enabled !== "boolean") continue;
+      values.set(row.target, {
+        enabled: detail.enabled,
+        pendingBlockAfterHours: validHours(detail.pendingBlockAfterHours),
+        createdAt: row.created_at,
+      });
+    } catch {
+      // Historic audit metadata is resilience-only and never overrides a live client read.
+    }
+  }
+  return values;
 }
 
 export async function hashWorkItem(value: string) {
@@ -45,53 +145,131 @@ export async function dismissedNotificationHashes(actor: string) {
 }
 
 /**
- * Client-owned automation is the source of truth. A client is advertised as
- * supporting auto approval only after its live policy endpoint answers.
- * Bauman is included as a candidate even while the legacy operations route
- * keeps its older static candidate list, so support can be promoted solely
- * by a live Bauman capability probe. Historic central audit never fabricates support.
+ * Client-owned automation is the source of truth.
+ * A live client response always wins. Audit state is display resilience only
+ * and is explicitly labeled fallback; unsupported apps are never presented
+ * as writable merely because they exist in the management inventory.
  */
-export async function readAutoApprovalSettings(supportedAppIds: readonly string[]) {
+export async function readAutoApprovalSettings(supportedAppIds: readonly string[], allAppIds: readonly string[] = supportedAppIds) {
   const effectiveAppIds = [...new Set([...supportedAppIds, "bauman-master-ai", "ru-life"])] as string[];
-  const fallback = await auditAutoApprovalFallback(effectiveAppIds);
-  const autoApproveSupported = new Set<string>();
-  const autoApproveEnabled = new Set<string>();
-  const autoBlockSupported = new Set<string>();
-  const autoBlockEnabled = new Set<string>();
-  const pendingBlockAfterHoursByApp: Record<string, number> = {};
-  const freeAccessDaysByApp: Record<string, number> = {};
-  const freeDeviceLimitByApp: Record<string, number> = {};
-  const probes = await readClientAutoApprovalStates(effectiveAppIds);
+  const inventoryAppIds = [...new Set([...allAppIds, ...effectiveAppIds])];
+  const [approvalFallback, blockFallback, probes] = await Promise.all([
+    auditAutoApprovalFallback(effectiveAppIds),
+    auditAutoBlockFallback(effectiveAppIds),
+    readClientAutoApprovalStates(effectiveAppIds),
+  ]);
+  const verifiedAt = new Date().toISOString();
+  const policies = new Map<string, AppAutomationPolicySnapshot>();
 
   probes.forEach((probe, index) => {
     const appId = effectiveAppIds[index];
+    const savedApproval = approvalFallback.get(appId);
+    const savedBlock = blockFallback.get(appId);
     if (probe.status === "fulfilled") {
-      autoApproveSupported.add(appId);
-      if (probe.value.enabled) autoApproveEnabled.add(appId);
-      if (appId === "boi-ech") {
-        const days = probe.value.defaultAccessDays;
-        const limit = probe.value.defaultDeviceLimit;
-        if (typeof days === "number" && Number.isInteger(days) && days >= 1 && days <= 365) freeAccessDaysByApp[appId] = days;
-        if (typeof limit === "number" && Number.isInteger(limit) && limit >= 1 && limit <= 1_000) freeDeviceLimitByApp[appId] = limit;
-      }
-      if (probe.value.autoBlockSupported) {
-        autoBlockSupported.add(appId);
-        if (probe.value.autoBlockEnabled) autoBlockEnabled.add(appId);
-        pendingBlockAfterHoursByApp[appId] = probe.value.pendingBlockAfterHours ?? 168;
-      }
-    } else if (fallback.has(appId)) {
-      autoApproveEnabled.add(appId);
+      const value = probe.value;
+      policies.set(appId, {
+        appId,
+        support: {
+          autoApprove: true,
+          autoBlockPending: value.autoBlockSupported,
+          freeAccessPolicy: appId === "boi-ech",
+        },
+        current: {
+          autoApprove: value.enabled,
+          autoBlockPending: value.autoBlockSupported ? value.autoBlockEnabled : undefined,
+          pendingBlockAfterHours: value.autoBlockSupported ? value.pendingBlockAfterHours ?? 168 : undefined,
+          freeAccessDays: appId === "boi-ech" ? validDays(value.defaultAccessDays) : undefined,
+          freeDeviceLimit: appId === "boi-ech" ? validLimit(value.defaultDeviceLimit) : undefined,
+        },
+        verification: {
+          state: "live",
+          source: liveSource(appId),
+          lastVerifiedAt: verifiedAt,
+        },
+        mutation: {
+          autoApprove: true,
+          autoBlockPending: value.autoBlockSupported,
+        },
+      });
+      return;
     }
+
+    const hasFallback = Boolean(savedApproval || savedBlock);
+    policies.set(appId, {
+      appId,
+      support: {
+        autoApprove: true,
+        autoBlockPending: appId === "health-care" || Boolean(savedBlock),
+        freeAccessPolicy: appId === "boi-ech",
+      },
+      current: {
+        autoApprove: savedApproval?.enabled,
+        autoBlockPending: savedBlock?.enabled,
+        pendingBlockAfterHours: savedBlock?.pendingBlockAfterHours,
+        freeAccessDays: appId === "boi-ech" ? savedApproval?.defaultAccessDays : undefined,
+        freeDeviceLimit: appId === "boi-ech" ? savedApproval?.defaultDeviceLimit : undefined,
+      },
+      verification: {
+        state: hasFallback ? "fallback" : "unavailable",
+        source: hasFallback ? "control_audit_log · last known" : liveSource(appId),
+        lastVerifiedAt: savedApproval?.createdAt ?? savedBlock?.createdAt,
+        errorCode: errorCode(probe.reason),
+      },
+      mutation: {
+        autoApprove: false,
+        autoBlockPending: false,
+        reason: "Không đọc được contract automation live; giữ nguyên cấu hình client cho tới khi kết nối được xác minh.",
+      },
+    });
   });
 
+  for (const appId of inventoryAppIds) {
+    if (policies.has(appId)) continue;
+    policies.set(appId, {
+      appId,
+      support: { autoApprove: false, autoBlockPending: false, freeAccessPolicy: false },
+      current: {},
+      verification: {
+        state: "unsupported",
+        source: "managed-app inventory",
+        errorCode: "AUTOMATION_CONTRACT_NOT_PUBLISHED",
+      },
+      mutation: {
+        autoApprove: false,
+        autoBlockPending: false,
+        reason: "Ứng dụng chưa công bố contract automation có readback; Trung tâm chỉ hiển thị read-only.",
+      },
+    });
+  }
+
+  const automationPolicies = inventoryAppIds.map((appId) => policies.get(appId)!).filter(Boolean);
+  const autoApproveAppIds = automationPolicies.filter((policy) => policy.current.autoApprove === true).map((policy) => policy.appId);
+  const autoApproveSupportedAppIds = automationPolicies
+    .filter((policy) => policy.verification.state === "live" && policy.support.autoApprove)
+    .map((policy) => policy.appId);
+  const autoBlockPendingAppIds = automationPolicies.filter((policy) => policy.current.autoBlockPending === true).map((policy) => policy.appId);
+  const autoBlockPendingSupportedAppIds = automationPolicies
+    .filter((policy) => policy.verification.state === "live" && policy.support.autoBlockPending)
+    .map((policy) => policy.appId);
+  const pendingBlockAfterHoursByApp = Object.fromEntries(automationPolicies
+    .filter((policy) => typeof policy.current.pendingBlockAfterHours === "number")
+    .map((policy) => [policy.appId, policy.current.pendingBlockAfterHours!]));
+  const freeAccessDaysByApp = Object.fromEntries(automationPolicies
+    .filter((policy) => typeof policy.current.freeAccessDays === "number")
+    .map((policy) => [policy.appId, policy.current.freeAccessDays!]));
+  const freeDeviceLimitByApp = Object.fromEntries(automationPolicies
+    .filter((policy) => typeof policy.current.freeDeviceLimit === "number")
+    .map((policy) => [policy.appId, policy.current.freeDeviceLimit!]));
+
   return {
-    autoApproveAppIds: effectiveAppIds.filter((id) => autoApproveEnabled.has(id)),
-    autoApproveSupportedAppIds: effectiveAppIds.filter((id) => autoApproveSupported.has(id)),
-    autoBlockPendingAppIds: effectiveAppIds.filter((id) => autoBlockEnabled.has(id)),
-    autoBlockPendingSupportedAppIds: effectiveAppIds.filter((id) => autoBlockSupported.has(id)),
+    autoApproveAppIds,
+    autoApproveSupportedAppIds,
+    autoBlockPendingAppIds,
+    autoBlockPendingSupportedAppIds,
     pendingBlockAfterHoursByApp,
     freeAccessDaysByApp,
     freeDeviceLimitByApp,
+    automationPolicies,
   };
 }
 
@@ -109,8 +287,17 @@ export async function rememberDismissedNotifications(actor: string, workItemIds:
   await writeAudit(actor, "operations_notifications_cleared", actor, { hashes, count: hashes.length });
 }
 
-export async function rememberAutoApproval(actor: string, appId: string, enabled: boolean) {
-  await writeAudit(actor, "application_auto_approval_updated", appId, { enabled, defaultAccessDays: 60, defaultDeviceLimit: 100 });
+export async function rememberAutoApproval(
+  actor: string,
+  appId: string,
+  enabled: boolean,
+  policy?: { defaultAccessDays?: number; defaultDeviceLimit?: number },
+) {
+  await writeAudit(actor, "application_auto_approval_updated", appId, {
+    enabled,
+    ...(policy?.defaultAccessDays !== undefined ? { defaultAccessDays: policy.defaultAccessDays } : {}),
+    ...(policy?.defaultDeviceLimit !== undefined ? { defaultDeviceLimit: policy.defaultDeviceLimit } : {}),
+  });
 }
 
 export async function rememberAutoBlockPending(actor: string, appId: string, enabled: boolean, pendingBlockAfterHours: number) {

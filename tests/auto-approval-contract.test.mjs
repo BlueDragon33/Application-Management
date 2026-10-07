@@ -30,7 +30,8 @@ test("native auto approval endpoint verifies owner and writes through each clien
   assert.match(endpoint, /deviceAutoApproval !== true/);
   assert.match(endpoint, /\/api\/control\/automation/);
   assert.match(endpoint, /AUTO_APPROVAL_CONTRACT_NOT_LIVE/);
-  assert.match(endpoint, /rememberAutoApproval/);
+  assert.match(endpoint, /rememberAutoApproval\(actor\.email, appId, desired, \{ defaultAccessDays, defaultDeviceLimit \}\)/);
+  assert.match(endpoint, /rememberAutoApproval\(actor\.email, appId, desired\)/);
   assert.match(endpoint, /readAutoApprovalSettings/);
   assert.match(endpoint, /setRuLife/);
   assert.equal(endpoint.includes("growup-mychildren"), false);

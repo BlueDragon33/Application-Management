@@ -14,6 +14,16 @@
 .appTitle strong, .choices strong { font-size: .98rem; }
 .appTitle small, .choices small, .unavailable { font-size: .86rem; color: #a6c9b9; line-height: 1.45; }
 .choices { gap: 10px; }
+.applied { min-height: 94px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 12px; padding: 11px 12px; border: 1px solid rgba(123,174,154,.2); border-radius: 9px; background: rgba(0,18,13,.24); }
+.applied > div { display: grid; gap: 3px; min-width: 0; }
+.applied span { color: #8fb9a8; font-size: .76rem; }
+.applied strong { color: #f2f8f5; font-size: .9rem; line-height: 1.35; }
+.applied > small { grid-column: 1 / -1; color: #a6c9b9; }
+.sectionTitle { margin-top: 2px; color: #9fcbbb; font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.verificationBadge { width: fit-content; margin-top: 4px; padding: 3px 7px; border: 1px solid rgba(255,255,255,.15); border-radius: 999px; color: #cfe5dc; font-size: .68rem; letter-spacing: .05em; }
+.verificationBadge[data-state="live"] { border-color: rgba(89,194,153,.42); color: #bcebd8; }
+.verificationBadge[data-state="fallback"] { border-color: rgba(214,171,91,.42); color: #f0d49d; }
+.verificationBadge[data-state="unavailable"] { border-color: rgba(205,125,125,.4); color: #e7b0b0; }
 .policyGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; align-items: stretch; }
 .field { min-width: 0; min-height: 118px; display: grid !important; grid-template-rows: auto 40px 1fr; align-content: start; gap: 7px !important; padding: 10px 12px; border: 1px solid rgba(255,255,255,.08); border-radius: 9px; background: rgba(255,255,255,.025); cursor: default !important; }
 .field > span { color: #e8f5ef; font-size: .82rem; font-weight: 700; }
@@ -26,5 +36,5 @@
 .limits small { flex: 1 1 100%; }
 .dialog footer { position: sticky; bottom: -22px; padding: 12px 0 0; background: #073126; }
 .dialog .save { background: #187c5c; border-color: #34dca4; font-weight: 700; }
-@media (max-width: 900px) { .policyGrid { grid-template-columns: 1fr; } .field { min-height: 0; } }
+@media (max-width: 900px) { .policyGrid, .applied { grid-template-columns: 1fr; } .field { min-height: 0; } }
 @media (max-width: 700px) { .scrim { padding: 8px; } .dialog { padding: 14px; max-height: 96dvh; } .app { grid-template-columns: 1fr; } .dialog footer { bottom: -14px; } }

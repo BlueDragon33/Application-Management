@@ -196,6 +196,33 @@ export type OperationsSummary = {
   subclientInventoryLive?: boolean;
 };
 
+export type OperationsAutomationPolicy = {
+  appId: string;
+  support: {
+    autoApprove: boolean;
+    autoBlockPending: boolean;
+    freeAccessPolicy: boolean;
+  };
+  current: {
+    autoApprove?: boolean;
+    autoBlockPending?: boolean;
+    pendingBlockAfterHours?: number;
+    freeAccessDays?: number;
+    freeDeviceLimit?: number;
+  };
+  verification: {
+    state: "live" | "fallback" | "unavailable" | "unsupported";
+    source: string;
+    lastVerifiedAt?: string;
+    errorCode?: string;
+  };
+  mutation: {
+    autoApprove: boolean;
+    autoBlockPending: boolean;
+    reason?: string;
+  };
+};
+
 export type OperationsSettings = {
   autoApproveAppIds: string[];
   autoApproveSupportedAppIds: string[];
@@ -204,6 +231,7 @@ export type OperationsSettings = {
   pendingBlockAfterHoursByApp?: Record<string, number>;
   freeAccessDaysByApp?: Record<string, number>;
   freeDeviceLimitByApp?: Record<string, number>;
+  automationPolicies?: OperationsAutomationPolicy[];
 };
 
 export type OperationsWorkItem = {
