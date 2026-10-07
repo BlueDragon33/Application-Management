@@ -53,6 +53,8 @@ jobs:
       BAUMAN_CONTROL_BASE_URL: ${{ vars.BAUMAN_CONTROL_PRODUCTION_ORIGIN }}
       BAUMAN_APP_ORIGIN: ${{ vars.BAUMAN_RUNTIME_PRODUCTION_ORIGIN }}
       GROWUP_BASE_URL: ${{ vars.GROWUP_PRODUCTION_ORIGIN }}
+      PRICE_REPORT_CONTROL_BASE_URL: ${{ vars.PRICE_REPORT_CONTROL_PRODUCTION_ORIGIN }}
+      PRICE_REPORT_CONTROL_SERVICE_SECRET: ${{ secrets.PRICE_REPORT_CONTROL_SERVICE_SECRET }}
       CONTROL_SERVICE_SECRET: ${{ secrets.CONTROL_SERVICE_SECRET }}
       HEALTH_CONTROL_SERVICE_SECRET: ${{ secrets.HEALTH_CONTROL_SERVICE_SECRET }}
       RU_LIFE_CONTROL_SERVICE_SECRET: ${{ secrets.RU_LIFE_CONTROL_SERVICE_SECRET }}
@@ -282,6 +284,17 @@ jobs:
         if: ${{ env.BAUMAN_CONTROL_BASE_URL != '' }}
         shell: bash
         run: printf '%s' "$BAUMAN_CONTROL_SERVICE_SECRET" | npx wrangler secret put BAUMAN_CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
+
+      - name: Install PriceReport bridge secret
+        if: ${{ env.PRICE_REPORT_CONTROL_BASE_URL != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${PRICE_REPORT_CONTROL_SERVICE_SECRET:-}" ]]; then
+            echo '::error::PRICE_REPORT_CONTROL_SERVICE_SECRET is required when PRICE_REPORT_CONTROL_BASE_URL is configured.'
+            exit 1
+          fi
+          printf '%s' "$PRICE_REPORT_CONTROL_SERVICE_SECRET" | npx wrangler secret put PRICE_REPORT_CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
 
       - name: Restore generated Production artifact after secret versions
         run: npx wrangler deploy

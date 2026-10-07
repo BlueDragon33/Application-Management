@@ -33,6 +33,8 @@ jobs:
       BAUMAN_CONTROL_BASE_URL: ${{ vars.BAUMAN_CONTROL_PREVIEW_ORIGIN }}
       BAUMAN_APP_ORIGIN: ${{ vars.BAUMAN_RUNTIME_PREVIEW_ORIGIN }}
       GROWUP_BASE_URL: ${{ vars.GROWUP_PREVIEW_ORIGIN }}
+      PRICE_REPORT_CONTROL_BASE_URL: ${{ vars.PRICE_REPORT_CONTROL_PREVIEW_ORIGIN }}
+      PRICE_REPORT_CONTROL_SERVICE_SECRET: ${{ secrets.PRICE_REPORT_CONTROL_SERVICE_SECRET }}
 
     steps:
       - uses: actions/checkout@v4
@@ -142,6 +144,17 @@ jobs:
               echo "$key not supplied by GitHub environment; existing Worker secret, if any, is left unchanged."
             fi
           done
+
+      - name: Install PriceReport bridge secret
+        if: steps.config.outputs.ready == 'true' && env.PRICE_REPORT_CONTROL_BASE_URL != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${PRICE_REPORT_CONTROL_SERVICE_SECRET:-}" ]]; then
+            echo "::notice::PriceReport Preview origin is configured without a bridge secret; PriceReport stays read-only."
+          else
+            printf '%s' "$PRICE_REPORT_CONTROL_SERVICE_SECRET" | npx wrangler secret put PRICE_REPORT_CONTROL_SERVICE_SECRET --config wrangler.cloudflare.jsonc
+          fi
 
       - name: Restore exact Preview artifact after secret versions
         if: steps.config.outputs.ready == 'true'

@@ -72,6 +72,8 @@ test("production template is isolated, Worker-first, and secret-free", () => {
   assert.match(template, /"run_worker_first"\s*:\s*true/);
   assert.match(template, /"binding"\s*:\s*"ASSETS"/);
   assert.match(template, /"APPLICATION_MANAGEMENT_DEPLOYMENT_CHANNEL": "cloudflare-production"/);
+  assert.match(template, /"PRICE_REPORT_CONTROL_BASE_URL": "__PRICE_REPORT_CONTROL_BASE_URL__"/);
+  assert.match(prepare, /PRICE_REPORT_CONTROL_BASE_URL: exactHttpsOrigin\("PRICE_REPORT_CONTROL_BASE_URL"\)/);
   for (const forbidden of [
     "APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD",
     "APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET",
@@ -96,6 +98,8 @@ test("production deploy requires either manual confirmation or the owner-only PR
   assert.equal(deploy.includes("/deploy-production-qa-final"), false);
   assert.equal(deploy.includes("/deploy-production-bootstrap-e2e"), false);
   assert.ok(deploy.includes("DEPLOY_PRODUCTION"));
+  assert.ok(deploy.includes("PRICE_REPORT_CONTROL_PRODUCTION_ORIGIN"));
+  assert.ok(deploy.includes("secret put PRICE_REPORT_CONTROL_SERVICE_SECRET"));
   assert.ok(deploy.includes("APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD"));
   assert.ok(deploy.includes("APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET"));
   const finalArtifactRestore = deploy.indexOf("Restore generated Production artifact after secret versions");
@@ -106,6 +110,7 @@ test("production deploy requires either manual confirmation or the owner-only PR
     deploy.lastIndexOf("secret put HEALTH_CONTROL_SERVICE_SECRET"),
     deploy.lastIndexOf("secret put RU_LIFE_CONTROL_SERVICE_SECRET"),
     deploy.lastIndexOf("secret put BAUMAN_CONTROL_SERVICE_SECRET"),
+    deploy.lastIndexOf("secret put PRICE_REPORT_CONTROL_SERVICE_SECRET"),
   );
   const loginVerification = deploy.indexOf("Verify production login route and anonymous protection");
   assert.ok(lastSecretUpdate >= 0, "Production deploy must install at least one Worker secret.");

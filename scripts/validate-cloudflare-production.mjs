@@ -50,6 +50,7 @@ for (const secretName of [
   "HEALTH_CONTROL_SERVICE_SECRET",
   "RU_LIFE_CONTROL_SERVICE_SECRET",
   "BAUMAN_CONTROL_SERVICE_SECRET",
+  "PRICE_REPORT_CONTROL_SERVICE_SECRET",
 ]) {
   if (config.includes(secretName)) fail(`${secretName} must remain a Worker secret and never enter production vars.`);
 }
