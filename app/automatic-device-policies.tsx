@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { OperationsAutomationPolicy, OperationsSettings } from "./admin-device-client";
 import styles from "./automatic-device-policies.module.css";
 
@@ -107,6 +107,8 @@ export default function AutomaticDevicePolicies({ apps, settings, busy, close, s
   save: (selection: AutomationSelection) => Promise<OperationsSettings | null | undefined>;
 }) {
   const [drafts, setDrafts] = useState<Record<string, AutomationAppDraft>>(() => initialDrafts(apps, settings));
+  const submitLockRef = useRef(false);
+  const [submitting, setSubmitting] = useState(false);
   const boiPolicy = policyFor(settings, "boi-ech");
   const [days, setDays] = useState(boiPolicy.current.freeAccessDays ?? settings?.freeAccessDaysByApp?.["boi-ech"] ?? 60);
   const [limit, setLimit] = useState(boiPolicy.current.freeDeviceLimit ?? settings?.freeDeviceLimitByApp?.["boi-ech"] ?? 20);
@@ -120,7 +122,8 @@ export default function AutomaticDevicePolicies({ apps, settings, busy, close, s
     days,
     limit,
   ));
-  const canSave = Boolean(settings) && !busy && hasWritablePolicy && hasChanges
+  const locked = busy || submitting;
+  const canSave = Boolean(settings) && !locked && hasWritablePolicy && hasChanges
     && Number.isInteger(days) && days >= 1 && days <= 365
     && Number.isInteger(limit) && limit >= 1 && limit <= 1_000;
 
@@ -132,26 +135,33 @@ export default function AutomaticDevicePolicies({ apps, settings, busy, close, s
   }
 
   async function submit() {
-    if (!canSave) return;
-    const appIds = apps.filter((app) => drafts[app.id]?.autoApprove).map((app) => app.id);
-    const autoBlockAppIds = apps.filter((app) => drafts[app.id]?.autoBlock).map((app) => app.id);
-    const pendingBlockAfterHoursByApp = Object.fromEntries(
-      apps.map((app) => [app.id, drafts[app.id]?.pendingBlockAfterHours ?? 168]),
-    ) as Record<string, number>;
-    const readback = await save({ appIds, autoBlockAppIds, pendingBlockAfterHoursByApp, defaultAccessDays: days, defaultDeviceLimit: limit });
-    if (!readback) return;
+    if (!canSave || submitLockRef.current) return;
+    submitLockRef.current = true;
+    setSubmitting(true);
+    try {
+      const appIds = apps.filter((app) => drafts[app.id]?.autoApprove).map((app) => app.id);
+      const autoBlockAppIds = apps.filter((app) => drafts[app.id]?.autoBlock).map((app) => app.id);
+      const pendingBlockAfterHoursByApp = Object.fromEntries(
+        apps.map((app) => [app.id, drafts[app.id]?.pendingBlockAfterHours ?? 168]),
+      ) as Record<string, number>;
+      const readback = await save({ appIds, autoBlockAppIds, pendingBlockAfterHoursByApp, defaultAccessDays: days, defaultDeviceLimit: limit });
+      if (!readback) return;
 
-    setDrafts(initialDrafts(apps, readback));
-    const nextBoi = policyFor(readback, "boi-ech");
-    setDays(nextBoi.current.freeAccessDays ?? readback.freeAccessDaysByApp?.["boi-ech"] ?? days);
-    setLimit(nextBoi.current.freeDeviceLimit ?? readback.freeDeviceLimitByApp?.["boi-ech"] ?? limit);
+      setDrafts(initialDrafts(apps, readback));
+      const nextBoi = policyFor(readback, "boi-ech");
+      setDays(nextBoi.current.freeAccessDays ?? readback.freeAccessDaysByApp?.["boi-ech"] ?? days);
+      setLimit(nextBoi.current.freeDeviceLimit ?? readback.freeDeviceLimitByApp?.["boi-ech"] ?? limit);
+    } finally {
+      submitLockRef.current = false;
+      setSubmitting(false);
+    }
   }
 
-  return <div className={styles.scrim} onMouseDown={(event) => { if (event.currentTarget === event.target && !busy) close(); }}>
+  return <div className={styles.scrim} onMouseDown={(event) => { if (event.currentTarget === event.target && !locked) close(); }}>
     <section className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="device-auto-title">
       <header className={styles.dialogHeader}>
         <div><small>KIỂM DUYỆT THIẾT BỊ</small><h2 id="device-auto-title">Quy tắc theo từng ứng dụng</h2></div>
-        <button onClick={close} disabled={busy} aria-label="Đóng">×</button>
+        <button onClick={close} disabled={locked} aria-label="Đóng">×</button>
       </header>
       <p className={styles.intro}><strong>Đang áp dụng</strong> là dữ liệu readback. Các ô bên dưới là bản nháp; sau khi lưu thành công chúng tự đồng bộ lại đúng trạng thái client.</p>
       {hasUnverifiedPolicy ? <p className={styles.warning}>Ứng dụng LAST KNOWN/UNAVAILABLE chỉ hiển thị tham chiếu và không được ghi mù. READ-ONLY là app chưa công bố automation contract an toàn.</p> : null}
@@ -194,7 +204,7 @@ export default function AutomaticDevicePolicies({ apps, settings, busy, close, s
                 <select
                   aria-label={app.shortName + " - chế độ kiểm duyệt"}
                   value={approvalValue}
-                  disabled={busy || !approveWritable}
+                  disabled={locked || !approveWritable}
                   onChange={(event) => updateDraft(app.id, { autoApprove: event.target.value === "auto" })}
                 >
                   {!policy.support.autoApprove ? <option value="unsupported">Không hỗ trợ</option> : <>
@@ -210,7 +220,7 @@ export default function AutomaticDevicePolicies({ apps, settings, busy, close, s
                 <select
                   aria-label={app.shortName + " - xử lý quá hạn"}
                   value={blockValue}
-                  disabled={busy || !blockWritable}
+                  disabled={locked || !blockWritable}
                   onChange={(event) => updateDraft(app.id, { autoBlock: event.target.value === "block" })}
                 >
                   {!policy.support.autoBlockPending ? <option value="unsupported">Không hỗ trợ</option> : <>
@@ -226,7 +236,7 @@ export default function AutomaticDevicePolicies({ apps, settings, busy, close, s
                 <select
                   aria-label={app.shortName + " - thời gian chờ"}
                   value={timeValue}
-                  disabled={busy || !blockWritable || !draft.autoBlock}
+                  disabled={locked || !blockWritable || !draft.autoBlock}
                   onChange={(event) => updateDraft(app.id, { pendingBlockAfterHours: Number(event.target.value) })}
                 >
                   <option value={0}>{policy.support.autoBlockPending ? "Không áp dụng" : "Không hỗ trợ"}</option>
@@ -239,8 +249,8 @@ export default function AutomaticDevicePolicies({ apps, settings, busy, close, s
             </div>
 
             {app.id === "boi-ech" ? <div className={styles.limits} data-disabled={!draft.autoApprove || !approveWritable}>
-              <label>Thời hạn miễn phí <select value={days} disabled={busy || !approveWritable || !draft.autoApprove} onChange={(event) => setDays(Number(event.target.value))}>{[30, 60, 90, 180, 365].map((value) => <option key={value} value={value}>{value} ngày</option>)}</select></label>
-              <label>Tối đa thiết bị <input type="number" min={1} max={1000} value={limit} disabled={busy || !approveWritable || !draft.autoApprove} onChange={(event) => setLimit(Number(event.target.value))}/></label>
+              <label>Thời hạn miễn phí <select value={days} disabled={locked || !approveWritable || !draft.autoApprove} onChange={(event) => setDays(Number(event.target.value))}>{[30, 60, 90, 180, 365].map((value) => <option key={value} value={value}>{value} ngày</option>)}</select></label>
+              <label>Tối đa thiết bị <input type="number" min={1} max={1000} value={limit} disabled={locked || !approveWritable || !draft.autoApprove} onChange={(event) => setLimit(Number(event.target.value))}/></label>
               <small>Chỉ áp dụng cho Miễn phí · tự động duyệt. Luồng trả phí vẫn phải xác minh thanh toán.</small>
             </div> : null}
 
@@ -252,8 +262,8 @@ export default function AutomaticDevicePolicies({ apps, settings, busy, close, s
       </div>
 
       <footer className={styles.dialogFooter}>
-        <span className={styles.saveState}>{busy ? "Đang ghi và đọc lại client…" : hasChanges ? "Có thay đổi chưa lưu" : "Cấu hình đang khớp trạng thái đã đọc"}</span>
-        <div><button onClick={close} disabled={busy}>Đóng</button><button className={styles.save} disabled={!canSave} onClick={() => void submit()}>{busy ? "Đang lưu…" : "Lưu thay đổi"}</button></div>
+        <span className={styles.saveState}>{locked ? "Đang ghi và đọc lại client…" : hasChanges ? "Có thay đổi chưa lưu" : "Cấu hình đang khớp trạng thái đã đọc"}</span>
+        <div><button onClick={close} disabled={locked}>Đóng</button><button className={styles.save} disabled={!canSave} onClick={() => void submit()}>{locked ? "Đang lưu…" : "Lưu thay đổi"}</button></div>
       </footer>
     </section>
   </div>;

@@ -362,6 +362,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   const [notice, setNotice] = useState("");
   const [syncError, setSyncError] = useState("");
   const notificationListRef = useRef<HTMLDivElement>(null);
+  const automationSaveLockRef = useRef(false);
   const [clock, setClock] = useState<Date | null>(null);
   const [webMenu, setWebMenu] = useState(false);
   const [autoPolicyOpen, setAutoPolicyOpen] = useState(false);
@@ -740,10 +741,14 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   }
 
   async function saveAutomation(selection: AutomationSelection) {
+    if (automationSaveLockRef.current) return null;
+    automationSaveLockRef.current = true;
+    setActionBusy("auto-policy");
     // Save is an explicit remote-admin intent. Standalone Mode controls passive
     // access/sync behavior, but must not turn a visible Save button into a no-op.
     // The API still requires an approved management session and owner authority.
-    const liveBefore = await refreshOperations(true, true);
+    try {
+      const liveBefore = await refreshOperations(true, true);
     const current = liveBefore?.settings ?? operations?.settings;
     if (!current?.automationPolicies?.length) {
       setNotice("Không lấy được snapshot policy online để lưu an toàn. Kiểm tra quyền quản trị/kết nối rồi thử lại.");
@@ -842,9 +847,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       });
     }
 
-    setActionBusy("auto-policy");
-    setNotice("");
-    try {
+      setNotice("");
       const settled = await Promise.allSettled(tasks.map((task) => task.promise));
       const transportErrors = new Map<string, string>();
       settled.forEach((result, index) => {
@@ -915,6 +918,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       setNotice(caught instanceof Error ? caught.message : "Không thể cập nhật quy tắc tự động.");
       return null;
     } finally {
+      automationSaveLockRef.current = false;
       setActionBusy("");
     }
   }
