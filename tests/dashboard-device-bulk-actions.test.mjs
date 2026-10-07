@@ -57,3 +57,20 @@ test("bulk action always releases its synchronous lock and busy state", () => {
   assert.match(block, /try \{[\s\S]*await refreshOperations\(true\)[\s\S]*\} finally \{/);
   assert.match(block, /finally \{\s*releaseActionLock\(actionKey\);\s*setActionBusy\("");\s*\}/);
 });
+
+
+test("bulk operation locks every target device so other views cannot race the same resources", () => {
+  const ui = source("app/management-dashboard-v2.tsx");
+  const start = ui.indexOf("async function bulkRemovePendingDevices");
+  const end = ui.indexOf("async function launchWeb", start);
+  const block = ui.slice(start, end);
+
+  assert.match(block, /const targetActionKeys: string\[\] = \[\]/);
+  assert.match(block, /const deviceActionKey = `device:\$\{device\.appId\}:\$\{device\.deviceId\}`/);
+  assert.match(block, /if \(!acquireActionLock\(deviceActionKey\)\)/);
+  assert.match(block, /targetActionKeys\.forEach\(releaseActionLock\)/);
+  assert.ok(
+    block.indexOf("targetActionKeys.push(deviceActionKey)") < block.indexOf("await operationsAction"),
+    "all target resource locks must be acquired before sending mutations",
+  );
+});
