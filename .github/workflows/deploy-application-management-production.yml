@@ -142,49 +142,13 @@ jobs:
         run: npm ci --no-audit --no-fund
 
       - name: Production regression gate
-        shell: bash
-        run: |
-          set -euo pipefail
-          npm run typecheck
-          npm run build
-
-          mapfile -t TEST_FILES < <(
-            find tests -maxdepth 1 -name '*.test.mjs' \
-              ! -name 'kd-mid-visa-intake.test.mjs' \
-              ! -name 'kd-mid-visa-tool.test.mjs' \
-              ! -name 'preview-access-auth.test.mjs' \
-              -print | sort
-          )
-          if [[ ${#TEST_FILES[@]} -eq 0 ]]; then
-            echo '::error::Production regression gate resolved zero blocking tests.'
-            exit 1
-          fi
-          node --test "${TEST_FILES[@]}"
-
-          echo 'Recording known non-auth regressions without allowing them to hide new Production failures.'
-          set +e
-          node --test \
-            tests/kd-mid-visa-intake.test.mjs \
-            tests/kd-mid-visa-tool.test.mjs \
-            tests/preview-access-auth.test.mjs \
-            > /tmp/known-production-regressions.log 2>&1
-          KNOWN_STATUS=$?
-          set -e
-          if [[ "$KNOWN_STATUS" -ne 0 ]]; then
-            echo '::warning::Known KD-MID/Preview regressions remain and are isolated from the Production auth/deploy gate.'
-            grep -E '^(not ok|# fail )' /tmp/known-production-regressions.log || true
-          else
-            echo 'Known KD-MID/Preview regressions are now green.'
-          fi
+        run: npm test
 
       - name: Materialize isolated production config
         run: npm run cloudflare:production:prepare
 
       - name: Validate production boundary
         run: npm run cloudflare:production:check
-
-      - name: Apply migrations to production D1 only
-        run: npx wrangler d1 migrations apply application-management-production-db --remote --config wrangler.production.jsonc
 
       - name: Build with Cloudflare production bindings
         env:
@@ -193,6 +157,9 @@ jobs:
 
       - name: Verify generated production artifact
         run: npm run cloudflare:production:artifact:check
+
+      - name: Apply migrations to production D1 only
+        run: npx wrangler d1 migrations apply application-management-production-db --remote --config wrangler.production.jsonc
 
       - name: Deploy Application Management production Worker
         run: npx wrangler deploy
