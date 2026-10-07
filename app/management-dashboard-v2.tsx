@@ -370,13 +370,13 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   const [localRuntime, setLocalRuntime] = useState(false);
   const [approvalGateEnabled, setApprovalGateEnabled] = useState(defaultApprovalGate);
 
-  async function refreshOperations(silent = false) {
+  async function refreshOperations(silent = false, forceOnline = false) {
     if (!silent) setSyncing(true);
     setSyncError("");
-    if (!approvalGateEnabled) {
+    if (!approvalGateEnabled && !forceOnline) {
       const cached = readCachedOperations();
       if (cached) setOperations(cached);
-      if (!silent) setNotice("Standalone Mode: dữ liệu local được ưu tiên. Bật Kiểm duyệt truy cập khi cần đồng bộ quyền/thiết bị online.");
+      if (!silent) setNotice("Standalone Mode: dữ liệu local được ưu tiên. Các thao tác Lưu quản trị vẫn tự xác minh online.");
       if (!silent) setSyncing(false);
       return cached;
     }
@@ -386,7 +386,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       setOperationsVerified(Boolean(result.bootstrap));
       return result.bootstrap ?? null;
     } catch (caught) {
-      setOperationsVerified(false);
+      if (!forceOnline) setOperationsVerified(false);
       setSyncError(caught instanceof Error ? caught.message : "Không thể đồng bộ dữ liệu ứng dụng.");
       return null;
     } finally {
@@ -740,12 +740,13 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   }
 
   async function saveAutomation(selection: AutomationSelection) {
-    if (!requireManagedAccess("Lưu quy tắc tự động")) return null;
-    const current = operations?.settings;
-    if (!current) return null;
-    if (!current.automationPolicies?.length) {
-      setNotice("Snapshot policy chưa sẵn sàng. Hãy đồng bộ lại trước khi lưu để tránh ghi sai trạng thái.");
-      void refreshOperations(true);
+    // Save is an explicit remote-admin intent. Standalone Mode controls passive
+    // access/sync behavior, but must not turn a visible Save button into a no-op.
+    // The API still requires an approved management session and owner authority.
+    const liveBefore = await refreshOperations(true, true);
+    const current = liveBefore?.settings ?? operations?.settings;
+    if (!current?.automationPolicies?.length) {
+      setNotice("Không lấy được snapshot policy online để lưu an toàn. Kiểm tra quyền quản trị/kết nối rồi thử lại.");
       return null;
     }
 
@@ -871,11 +872,11 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
         return Boolean(verified);
       }
 
-      let synced = await refreshOperations(true);
+      let synced = await refreshOperations(true, true);
       for (const delay of [180, 360, 720]) {
         if (synced?.settings.automationPolicies?.length && tasks.every((task) => taskMatchesReadback(synced!.settings, task))) break;
         await new Promise((resolve) => setTimeout(resolve, delay));
-        synced = await refreshOperations(true);
+        synced = await refreshOperations(true, true);
       }
       if (!synced?.settings.automationPolicies?.length) {
         setNotice("Đã gửi thay đổi nhưng chưa đọc lại được snapshot policy. Không đánh dấu là đã lưu; hãy đồng bộ lại trước khi thao tác tiếp.");
@@ -910,7 +911,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       }
       return synced.settings;
     } catch (caught) {
-      void refreshOperations(true);
+      void refreshOperations(true, true);
       setNotice(caught instanceof Error ? caught.message : "Không thể cập nhật quy tắc tự động.");
       return null;
     } finally {

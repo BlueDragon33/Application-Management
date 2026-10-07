@@ -32,3 +32,17 @@ test("Boi free policy readback compares both days and device limit", () => {
   assert.match(route, /Number\(state\.defaultAccessDays\) === defaultAccessDays/);
   assert.match(route, /Number\(state\.defaultDeviceLimit\) === defaultDeviceLimit/);
 });
+
+
+test("explicit automation save bypasses passive Standalone cache but still uses server-side admin authorization", () => {
+  const dashboard = source("app/management-dashboard-v2.tsx");
+  const start = dashboard.indexOf("async function saveAutomation");
+  const end = dashboard.indexOf("async function manageControlDevice", start);
+  const block = dashboard.slice(start, end);
+  assert.match(dashboard, /async function refreshOperations\(silent = false, forceOnline = false\)/);
+  assert.match(dashboard, /if \(!approvalGateEnabled && !forceOnline\)/);
+  assert.match(block, /const liveBefore = await refreshOperations\(true, true\)/);
+  assert.doesNotMatch(block, /requireManagedAccess\("Lưu quy tắc tự động"\)/);
+  assert.match(block, /refreshOperations\(true, true\)/);
+  assert.match(dashboard, /connectOperationsDashboard\(\)/);
+});
