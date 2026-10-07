@@ -685,32 +685,47 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
 
     const actionKey = "bulk-pending";
     if (!acquireActionLock(actionKey)) return;
+    const targetActionKeys: string[] = [];
+    for (const device of targets) {
+      const deviceActionKey = `device:${device.appId}:${device.deviceId}`;
+      if (!acquireActionLock(deviceActionKey)) {
+        targetActionKeys.forEach(releaseActionLock);
+        releaseActionLock(actionKey);
+        setNotice(`Một thiết bị trong hàng đợi đang được xử lý ở cửa sổ khác. Đã hủy thao tác hàng loạt trước khi gửi lệnh.`);
+        return;
+      }
+      targetActionKeys.push(deviceActionKey);
+    }
     setActionBusy(actionKey);
     setNotice("");
     let succeeded = 0;
     const failed: string[] = [];
-    for (const device of targets) {
-      try {
-        await operationsAction({
-          action: "manage-client-device",
-          operation: "remove",
-          appId: device.appId,
-          deviceId: device.deviceId,
-          deviceCode: device.deviceCode,
-          expectedStatus: device.status,
-          registryInstanceId: device.registryInstanceId ?? undefined,
-        });
-        succeeded += 1;
-      } catch {
-        failed.push(device.deviceCode);
+    try {
+      for (const device of targets) {
+        try {
+          await operationsAction({
+            action: "manage-client-device",
+            operation: "remove",
+            appId: device.appId,
+            deviceId: device.deviceId,
+            deviceCode: device.deviceCode,
+            expectedStatus: device.status,
+            registryInstanceId: device.registryInstanceId ?? undefined,
+          });
+          succeeded += 1;
+        } catch {
+          failed.push(device.deviceCode);
+        }
       }
+      await refreshOperations(true);
+      setNotice(failed.length
+        ? `Đã từ chối/khóa ${succeeded}/${targets.length} thiết bị. Lỗi: ${failed.slice(0, 5).join(", ")}${failed.length > 5 ? ` và ${failed.length - 5} thiết bị khác` : ""}. Danh sách đã được đồng bộ lại.`
+        : `Đã từ chối và khóa ${succeeded} thiết bị.${boiTargets.length ? ` Bỏ qua ${boiTargets.length} thiết bị Bơi ếch để kiểm duyệt riêng.` : ""}`);
+    } finally {
+      targetActionKeys.forEach(releaseActionLock);
+      releaseActionLock(actionKey);
+      setActionBusy("");
     }
-    await refreshOperations(true);
-    setNotice(failed.length
-      ? `Đã từ chối/khóa ${succeeded}/${targets.length} thiết bị. Lỗi: ${failed.slice(0, 5).join(", ")}${failed.length > 5 ? ` và ${failed.length - 5} thiết bị khác` : ""}. Danh sách đã được đồng bộ lại.`
-      : `Đã từ chối và khóa ${succeeded} thiết bị.${boiTargets.length ? ` Bỏ qua ${boiTargets.length} thiết bị Bơi ếch để kiểm duyệt riêng.` : ""}`);
-    releaseActionLock(actionKey);
-    setActionBusy("");
   }
 
   async function launchWeb(appId: string) {
