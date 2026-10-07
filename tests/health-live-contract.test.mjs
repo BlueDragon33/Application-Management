@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 const healthBridge = fs.readFileSync("app/health-care.server.ts", "utf8");
 const networkRegistry = fs.readFileSync("app/client-network-registry.ts", "utf8");
 const operations = fs.readFileSync("app/api/operations/route.ts", "utf8");
+const autoApproval = fs.readFileSync("app/api/operations-auto-approval/route.ts", "utf8");
 const registry = fs.readFileSync("app/application-registry.ts", "utf8");
 const hub = fs.readFileSync("app/application-hub.tsx", "utf8");
 
@@ -81,15 +82,17 @@ test("central Health device actions use commandId expectedStatus retry-safe muta
 });
 
 test("global auto-approval dialog can safely control Health_Care", () => {
-  mustContain(operations, [
-    'const AUTO_APPROVE_SUPPORTED_APP_IDS = ["boi-ech", "health-care"] as const',
-    'appIds.includes("health-care")',
-    '"/api/control/automation"',
-    'autoApproveDevices: healthEnabled',
-    'rememberAutoApproval(actor.email, "health-care", healthEnabled)',
+  mustContain(autoApproval, [
+    'const CANDIDATE_APP_IDS = ["boi-ech", "health-care", "ru-life", "bauman-master-ai"] as const',
+    'for (const appId of targets)',
+    'if (appId === "health-care") await setHealth(actor, desired)',
+    'rememberAutoApproval(actor.email, appId, desired)',
+    'executeUniversalAutomationCommand',
   ]);
-  assert.match(operations, /if \(actor\.role !== "owner"\).*OWNER_REQUIRED/);
-  assert.match(operations, /enabledBefore\.has\("health-care"\) !== healthEnabled/);
+  assert.match(autoApproval, /actor\.role !== "owner".*OWNER_REQUIRED/);
+  assert.match(autoApproval, /policy\.mutation\.autoApprove/);
+  assert.match(autoApproval, /policy\.verification\.state !== "live"/);
+  assert.match(operations, /AUTO_APPROVAL_ROUTE_MOVED/);
 });
 
 test("Health direct web launch uses a purpose-scoped 60 second ticket in local or cloud transport", () => {

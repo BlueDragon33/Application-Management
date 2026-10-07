@@ -6,7 +6,7 @@ import { issueRuLifeBrowserBridge } from "../../ru-life.server";
 import { issueBaumanBrowserBridge } from "../../bauman.server";
 import { issueGrowUpBrowserBridge, probeGrowUpManagementContract } from "../../growup.server";
 import { issuePriceReportBrowserBridge, probePriceReportManagementContract } from "../../price-report.server";
-import { executeUniversalDeviceCommand, probeDynamicManagedApplications, type DynamicContractSnapshot } from "../../open-contract.server";
+import { executeUniversalAutomationCommand, executeUniversalDeviceCommand, probeDynamicManagedApplications, type DynamicContractSnapshot } from "../../open-contract.server";
 import { resolveClientOrigin } from "../../client-origin.server";
 import {
   dismissedNotificationHashes,
@@ -945,7 +945,11 @@ async function buildBootstrap(actor: ControlDeviceState) {
     summaries,
     devices,
     workItems: visibleWorkItems,
-    settings: await readAutoApprovalSettings(AUTO_APPROVE_SUPPORTED_APP_IDS, [...new Set([...applicationRegistry.map((item) => item.id), ...dynamicConfigs.map((item) => item.id)])]),
+    settings: await readAutoApprovalSettings(
+      AUTO_APPROVE_SUPPORTED_APP_IDS,
+      [...new Set([...applicationRegistry.map((item) => item.id), ...dynamicConfigs.map((item) => item.id)])],
+      dynamicSnapshots,
+    ),
     metrics: {
       applications: applicationRegistry.length + dynamicConfigs.filter((item) => !applicationRegistry.some((existing) => existing.id === item.id)).length,
       pendingDevices: devices.filter((device) => device.status === "pending").length,
@@ -991,27 +995,65 @@ export async function POST(request: Request) {
     if (action === "set-auto-block-pending") {
       if (actor.role !== "owner") return json({ error: "Chỉ Chủ hệ thống được đổi quy tắc tự động khóa thiết bị.", code: "OWNER_REQUIRED" }, 403);
       const appId = text(payload.appId);
-      if (appId !== "health-care") return json({ error: "Ứng dụng chưa công bố contract tự động khóa pending an toàn.", code: "AUTO_BLOCK_CONTRACT_MISSING" }, 409);
       if (typeof payload.enabled !== "boolean") return json({ error: "Trạng thái tự động khóa không hợp lệ.", code: "INVALID_AUTO_BLOCK_STATE" }, 400);
       const pendingBlockAfterHours = Math.round(Number(payload.pendingBlockAfterHours));
       if (![24, 168, 720].includes(pendingBlockAfterHours)) return json({ error: "Ngưỡng tự động khóa phải là 24 giờ, 7 ngày hoặc 30 ngày.", code: "INVALID_AUTO_BLOCK_THRESHOLD" }, 400);
 
-      const current = await readAutoApprovalSettings(AUTO_APPROVE_SUPPORTED_APP_IDS);
-      if (!current.autoBlockPendingSupportedAppIds.includes(appId)) {
-        return json({ error: "Contract production của Sức khỏe Y tế chưa xác nhận tự động khóa pending.", code: "AUTO_BLOCK_CONTRACT_NOT_LIVE" }, 409);
+      const dynamicSnapshots = await probeDynamicManagedApplications();
+      const allAppIds = [...new Set([...applicationRegistry.map((item) => item.id), ...dynamicSnapshots.map((item) => item.config.id)])];
+      const current = await readAutoApprovalSettings(AUTO_APPROVE_SUPPORTED_APP_IDS, allAppIds, dynamicSnapshots);
+      const policy = current.automationPolicies.find((item) => item.appId === appId);
+      if (!policy?.support.autoBlockPending || !policy.mutation.autoBlockPending || policy.verification.state !== "live") {
+        return json({ error: "Contract automation live chưa xác nhận tự động khóa pending an toàn.", code: "AUTO_BLOCK_CONTRACT_NOT_LIVE" }, 409);
       }
 
-      const bridge = await issueHealthBrowserBridge(actor.email, actor.role, actor.deviceId);
-      const updated = await bridgeJson(bridge, "/api/control/automation", {
-        method: "POST",
-        body: { autoBlockPendingDevices: payload.enabled, pendingBlockAfterHours },
-      });
-      const automation = record(updated.automation);
-      if (automation.autoBlockPendingDevices !== payload.enabled || Number(automation.pendingBlockAfterHours) !== pendingBlockAfterHours) {
-        return json({ error: "Client chưa xác nhận quy tắc tự động khóa sau khi cập nhật.", code: "AUTO_BLOCK_READBACK_MISMATCH" }, 502);
+      const dynamicSnapshot = dynamicSnapshots.find((item) => item.config.id === appId);
+      const manifest = dynamicSnapshot?.manifest;
+      const genericReady = Boolean(
+        dynamicSnapshot?.automation
+        && manifest?.endpoints.automation
+        && manifest.capabilities.deviceAutoBlockPending === true
+        && manifest.capabilities.automationIdempotentCommands === true
+        && manifest.capabilities.automationOptimisticConcurrency === true
+      );
+
+      if (genericReady) {
+        await executeUniversalAutomationCommand({
+          appId,
+          commandId: crypto.randomUUID(),
+          expected: {
+            autoBlockPendingDevices: policy.current.autoBlockPending,
+            ...(policy.current.pendingBlockAfterHours !== undefined ? { pendingBlockAfterHours: policy.current.pendingBlockAfterHours } : {}),
+          },
+          desired: {
+            autoBlockPendingDevices: payload.enabled,
+            pendingBlockAfterHours,
+          },
+        }, actor);
+      } else if (appId === "health-care") {
+        const bridge = await issueHealthBrowserBridge(actor.email, actor.role, actor.deviceId);
+        const updated = await bridgeJson(bridge, "/api/control/automation", {
+          method: "POST",
+          body: { autoBlockPendingDevices: payload.enabled, pendingBlockAfterHours },
+        });
+        const automation = record(updated.automation);
+        if (automation.autoBlockPendingDevices !== payload.enabled || Number(automation.pendingBlockAfterHours) !== pendingBlockAfterHours) {
+          return json({ error: "Client chưa xác nhận quy tắc tự động khóa sau khi cập nhật.", code: "AUTO_BLOCK_READBACK_MISMATCH" }, 502);
+        }
+      } else {
+        return json({ error: "Ứng dụng chưa có Universal automation mutation contract hoàn chỉnh.", code: "AUTO_BLOCK_CONTRACT_MISSING" }, 409);
       }
+
       await rememberAutoBlockPending(actor.email, appId, payload.enabled, pendingBlockAfterHours);
-      return json({ ok: true, settings: await readAutoApprovalSettings(AUTO_APPROVE_SUPPORTED_APP_IDS) });
+      const refreshed = await probeDynamicManagedApplications();
+      return json({
+        ok: true,
+        settings: await readAutoApprovalSettings(
+          AUTO_APPROVE_SUPPORTED_APP_IDS,
+          [...new Set([...applicationRegistry.map((item) => item.id), ...refreshed.map((item) => item.config.id)])],
+          refreshed,
+        ),
+      });
     }
 
     if (action === "manage-client-device") {
