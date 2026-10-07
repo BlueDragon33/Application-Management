@@ -161,10 +161,11 @@ jobs:
             echo "::error::Live deployment readback failed with HTTP $code."
             exit 1
           fi
-          node --input-type=module - "$GITHUB_SHA" < /tmp/application-management-live.json <<'NODE'
+          node --input-type=module - "$GITHUB_SHA" /tmp/application-management-live.json <<'NODE'
           import fs from "node:fs";
           const expected = process.argv[2];
-          const value = JSON.parse(fs.readFileSync(0, "utf8"));
+          const payloadPath = process.argv[3];
+          const value = JSON.parse(fs.readFileSync(payloadPath, "utf8"));
           if (value.application !== "application-management") throw new Error("Live deployment application identity mismatch.");
           if (value.runtime !== "control-plane") throw new Error("Live deployment runtime identity mismatch.");
           if (value.channel !== "cloudflare-production") throw new Error("Live deployment channel mismatch.");

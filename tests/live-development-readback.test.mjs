@@ -17,3 +17,10 @@ test("live main deployment verifies exact deployed revision and readiness", () =
   assert.match(workflow, /value\.databaseReady !== true/);
   assert.match(workflow, /value\.assetsReady !== true/);
 });
+
+test("live readback does not reuse stdin for both Node source and JSON payload", () => {
+  assert.doesNotMatch(workflow, /node --input-type=module - "\$GITHUB_SHA" < \/tmp\/application-management-live\.json/);
+  assert.match(workflow, /node --input-type=module - "\$GITHUB_SHA" \/tmp\/application-management-live\.json <<'NODE'/);
+  assert.match(workflow, /const payloadPath = process\.argv\[3\]/);
+  assert.match(workflow, /fs\.readFileSync\(payloadPath, "utf8"\)/);
+});
