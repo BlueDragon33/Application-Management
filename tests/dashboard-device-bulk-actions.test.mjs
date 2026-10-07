@@ -55,7 +55,7 @@ test("bulk action always releases its synchronous lock and busy state", () => {
   const block = ui.slice(start, end);
 
   assert.match(block, /try \{[\s\S]*await refreshOperations\(true\)[\s\S]*\} finally \{/);
-  assert.match(block, /finally \{\s*releaseActionLock\(actionKey\);\s*setActionBusy\("");\s*\}/);
+  assert.match(block, /finally \{\s*targetActionKeys\.forEach\(releaseActionLock\);\s*releaseActionLock\(actionKey\);\s*setActionBusy\(""\);\s*\}/);
 });
 
 
