@@ -5,8 +5,10 @@ import test from "node:test";
 const source = fs.readFileSync(new URL("../app/management-dashboard-v2.tsx", import.meta.url), "utf8");
 
 test("manual sync buttons force an online refresh even in standalone mode", () => {
-  const matches = source.match(/onClick=\{\(\) => void refreshOperations\(false, true\)\}/g) ?? [];
-  assert.equal(matches.length, 2, "both manual sync controls must force online verification");
+  assert.match(source, /async function syncOperationsNow\(\) \{\s*setOperationsVerified\(false\);\s*return refreshOperations\(false, true\);\s*\}/s);
+  assert.match(source, /syncOperations=\{syncOperationsNow\}/);
+  assert.match(source, /onClick=\{\(\) => void syncOperationsNow\(\)\}/);
+  assert.match(source, /onClick=\{\(\) => void syncOperations\(\)\}/);
 });
 
 test("background focus refresh remains local-first in standalone mode", () => {
