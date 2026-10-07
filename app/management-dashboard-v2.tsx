@@ -1126,9 +1126,49 @@ function AccountSecurityDialog({ user, role, authMode, close }: {
   authMode: "chatgpt-sites" | "cloudflare-preview" | "cloudflare-production" | "local";
   close: () => void;
 }) {
+  const dialogRef = useRef<HTMLElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    closeButtonRef.current?.focus();
+    return () => {
+      openerRef.current?.focus();
+    };
+  }, []);
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      close();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const root = dialogRef.current;
+    if (!root) return;
+    const focusable = [...root.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+    )].filter((element) => element.getAttribute("aria-hidden") !== "true");
+    if (!focusable.length) {
+      event.preventDefault();
+      root.focus();
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
   return <div className="amv2-account-scrim" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) close(); }}>
-    <section className="amv2-account-dialog" role="dialog" aria-modal="true" aria-labelledby="account-security-title">
-      <header><div><small>TÀI KHOẢN</small><h2 id="account-security-title">Tài khoản & bảo mật</h2></div><button onClick={close} aria-label="Đóng">×</button></header>
+    <section ref={dialogRef} className="amv2-account-dialog" role="dialog" aria-modal="true" aria-labelledby="account-security-title" tabIndex={-1} onKeyDown={handleKeyDown}>
+      <header><div><small>TÀI KHOẢN</small><h2 id="account-security-title">Tài khoản & bảo mật</h2></div><button ref={closeButtonRef} onClick={close} aria-label="Đóng">×</button></header>
       <div className="amv2-account-identity">
         <article><span>Tên hiển thị</span><strong>{user.displayName}</strong><small>{authMode === "cloudflare-preview" ? "Danh tính tạm của môi trường Cloudflare Preview." : authMode === "local" ? "Danh tính phát triển cục bộ." : "Danh tính do phiên đăng nhập ChatGPT Sites cung cấp."}</small></article>
         <article><span>Vai trò quản trị</span><strong>{role}</strong><small>Quyền nghiệp vụ của Application Management.</small></article>
