@@ -22,7 +22,7 @@ test("PriceReport bridge secret remains a Worker secret and is wired fail-closed
   const production = source(".github/workflows/deploy-application-management-production.yml");
   const preview = source(".github/workflows/deploy-application-management-preview.yml");
   assert.match(live, /PRICE_REPORT_CONTROL_PRODUCTION_ORIGIN/);
-  assert.match(live, /price-report-control-service\\.boiech-ai\\.workers\\.dev/);
+  assert.match(live, /price-report-control-service\.boiech-ai\.workers\.dev/);
   assert.match(production, /PRICE_REPORT_CONTROL_PRODUCTION_ORIGIN/);
   assert.match(preview, /PRICE_REPORT_CONTROL_PREVIEW_ORIGIN/);
   for (const workflow of [live, production, preview]) {
