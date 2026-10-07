@@ -260,6 +260,29 @@ export async function POST(request: Request) {
         }
 
         const probe = await probeManagedCatalogEntry(current);
+        if (!probe.contractConnected) {
+          const liveCandidate = await transportCatalogCandidate(application);
+          if (liveCandidate.origin && liveCandidate.origin === current.origin && liveCandidate.credential) {
+            const id = await upsertManagedCatalog({
+              id: application.id,
+              name: application.name,
+              shortName: application.shortName,
+              category: application.category,
+              origin: current.origin,
+              publicUrl: application.publicUrl ?? "",
+              repository: application.repository,
+              contractPath: liveCandidate.contractPath,
+              credential: liveCandidate.credential,
+            }, actor);
+            const refreshed = (await listManagedCatalog()).find((item) => item.id === id);
+            existing.push({
+              id,
+              source: "live-transport-credential-refreshed",
+              probe: refreshed ? probeSummary(await probeManagedCatalogEntry(refreshed)) : null,
+            });
+            continue;
+          }
+        }
         if (!probe.contractConnected && recoverablePublicBootstrapRow(current, application)) {
           const liveCandidate = await transportCatalogCandidate(application);
           const recoveryCandidate = liveCandidate.origin ? liveCandidate : await repositoryCatalogCandidate(application);

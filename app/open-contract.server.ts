@@ -504,8 +504,10 @@ async function discoverContract(
 
   const basePath = publicBasePath(row);
   add(row.contract_path, row.contract_path === "/api/control/status" ? credential : "");
+  add(DEFAULT_CONTRACT_PATH);
   if (basePath) {
     add(joinContractPath(basePath, row.contract_path), row.contract_path === "/api/control/status" ? credential : "");
+    add(joinContractPath(basePath, DEFAULT_CONTRACT_PATH));
   }
   add("/api/control/contract");
   add("/management-contract.json");

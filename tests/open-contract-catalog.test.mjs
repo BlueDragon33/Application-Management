@@ -177,6 +177,20 @@ test("legacy sync preserves owner config but can bootstrap from verified public 
   assert.equal(catalogApi.includes("upsertManagedCatalog({ ...current"), false);
 });
 
+
+test("contract discovery always tries the canonical public manifest even when a legacy row stores control status", () => {
+  assert.ok(contract.includes("add(DEFAULT_CONTRACT_PATH)"));
+  assert.ok(contract.includes("add(joinContractPath(basePath, DEFAULT_CONTRACT_PATH))"));
+});
+
+test("same-origin live catalog rows can refresh a stale bridge credential without overwriting owner-selected origins", () => {
+  assert.ok(catalogApi.includes('liveCandidate.origin === current.origin'));
+  assert.ok(catalogApi.includes('liveCandidate.credential'));
+  assert.ok(catalogApi.includes('"live-transport-credential-refreshed"'));
+  assert.ok(catalogApi.includes('contractPath: liveCandidate.contractPath'));
+  assert.ok(catalogApi.includes('credential: liveCandidate.credential'));
+});
+
 test("batch reprobe can recover pending contracts without deployment or source edits", () => {
   assert.ok(catalogApi.includes('if (action === "probe-all")'));
   assert.ok(catalogApi.includes("probeManagedCatalogEntry(row)"));

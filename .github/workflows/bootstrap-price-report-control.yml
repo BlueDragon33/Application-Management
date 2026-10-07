@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/bootstrap-price-report-control.yml"
+      - "app/open-contract.server.ts"
+      - "app/api/managed-apps/route.ts"
   workflow_dispatch:
 
 permissions:
