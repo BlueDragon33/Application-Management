@@ -12,8 +12,10 @@ test("Bauman auto approval is promoted only from a live client-owned contract", 
   assert.match(reader, /capabilities\.deviceAutoApproval !== true/);
   assert.match(reader, /endpoints\.automation !== "\/api\/control\/automation"/);
   assert.match(reader, /readBaumanAutomation/);
-  assert.match(settings, /autoApproveSupported\.add\(appId\)/);
-  assert.match(settings, /autoApproveSupportedAppIds: effectiveAppIds\.filter/);
+  assert.match(settings, /verification: \{/);
+  assert.match(settings, /state: "live"/);
+  assert.match(settings, /autoApproveSupportedAppIds = automationPolicies/);
+  assert.match(settings, /policy\.verification\.state === "live" && policy\.support\.autoApprove/);
   assert.equal(settings.includes("autoApproveSupportedAppIds: [...supportedAppIds]"), false);
 });
 

@@ -79,12 +79,14 @@ test("returning to the center triggers a read-only operations resync", () => {
   assert.match(dashboard, /const onFocus = \(\) => void refreshOperations\(true\)/);
 });
 
-test("automatic approval uses only server-advertised supported client ids", () => {
-  assert.match(dashboard, /new Set\(current\.autoApproveSupportedAppIds\)/);
-  assert.match(dashboard, /selection\.appIds\.some\(\(id\) => !supported\.has\(id\) && !current\.autoApproveAppIds\.includes\(id\)\)/);
-  assert.match(dashboard, /targetAppIds: current\.autoApproveSupportedAppIds/);
-  assert.match(dashboard, /action: "set-auto-approval", appIds: selection\.appIds/);
-  assert.match(dashboard, /<AutomaticDevicePolicies/);
+test("automatic approval is limited to writable per-app snapshots and verified by live readback", () => {
+  assert.match(dashboard, /current\.automationPolicies/);
+  assert.match(dashboard, /policy\.mutation\.autoApprove/);
+  assert.match(dashboard, /targetAppIds: \[appId\]/);
+  assert.match(dashboard, /field: "autoApprove"/);
+  assert.match(dashboard, /synced\.settings\.automationPolicies/);
+  assert.match(dashboard, /policy\?\.verification\.state === "live"/);
+  assert.match(dashboard, /<AutomaticDevicePolicies apps=\{activeApps\}/);
 });
 
 test("clear-all notifications only dismisses central work items and preserves client source data", () => {

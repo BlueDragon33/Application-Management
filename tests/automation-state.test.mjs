@@ -25,13 +25,17 @@ test("automation state is read from the owning clients before central audit fall
 
   assert.match(settings, /readClientAutoApprovalStates/);
   assert.match(settings, /auditAutoApprovalFallback/);
+  assert.match(settings, /auditAutoBlockFallback/);
   assert.match(settings, /probe\.status === "fulfilled"/);
-  assert.match(settings, /fallback\.has\(appId\)/);
+  assert.match(settings, /state: "live"/);
+  assert.match(settings, /state: hasFallback \? "fallback" : "unavailable"/);
+  assert.match(settings, /automationPolicies/);
   assert.match(settings, /autoBlockPendingSupportedAppIds/);
   assert.match(settings, /pendingBlockAfterHoursByApp/);
-  const fallbackBranch = settings.match(/else if \(fallback\.has\(appId\)\) \{([\s\S]*?)\n\s*\}/)?.[1] ?? "";
-  assert.match(fallbackBranch, /autoApproveEnabled\.add\(appId\)/);
-  assert.doesNotMatch(fallbackBranch, /autoBlockSupported|autoBlockEnabled|pendingBlockAfterHours/);
+  const fallbackBlock = settings.slice(settings.indexOf("const hasFallback"), settings.indexOf("for (const appId of inventoryAppIds"));
+  assert.match(fallbackBlock, /autoApprove: false/);
+  assert.match(fallbackBlock, /autoBlockPending: false/);
+  assert.match(fallbackBlock, /control_audit_log · last known/);
 });
 
 test("automation policy reader uses a bounded read-only service identity", () => {

@@ -123,13 +123,13 @@ test("dashboard v2 composition keeps every operational surface interactive", () 
   for (const label of [
     "Bảng điều phối",
     "Tổng ứng dụng",
-    "Thiết bị mới chờ duyệt",
+    "Thiết bị chờ kiểm duyệt",
     "Cảnh báo hôm nay",
     "Ca kiểm duyệt cần xử lý",
     "Hộp việc ưu tiên",
     "Ứng dụng đang quản lý",
     "Cảnh báo nhanh",
-    "Thiết bị mới theo ứng dụng",
+    "Thiết bị chờ kiểm duyệt",
   ]) assert.match(dashboard, new RegExp(label));
   assert.match(dashboard, /refreshOperations/);
   assert.match(dashboard, /operationsAction/);
@@ -142,7 +142,7 @@ test("requested operations controls are real, grouped, and contract-gated", () =
   const dashboard = source("app/management-dashboard-v2.tsx");
   const route = source("app/api/operations/route.ts");
   const settings = source("app/operations-settings.server.ts");
-  for (const label of ["Xóa hết thông báo", "Truy cập web", "Duyệt tự động", "Duyệt thiết bị", "Đồng bộ dữ liệu"]) {
+  for (const label of ["Xóa hết thông báo", "Truy cập web", "Duyệt tự động", "Kiểm duyệt thiết bị", "Đồng bộ dữ liệu"]) {
     assert.match(dashboard, new RegExp(label));
   }
   assert.match(dashboard, /action: "manage-client-device"/);

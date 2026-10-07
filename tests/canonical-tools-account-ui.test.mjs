@@ -35,13 +35,15 @@ test("account security explains upstream ChatGPT credential management without s
   assert.match(dashboard, /href="https:\/\/chatgpt\.com\/"/);
 });
 
-test("all client automation cards use a consistent explicit approval mode", () => {
+test("all client automation cards use stable applied-state and isolated draft controls", () => {
   assert.match(automation, /Duyệt thủ công/);
   assert.match(automation, /Tự động duyệt/);
-  assert.match(automation, /name=\{\x60auto-mode-\$\{app\.id\}\x60\}/);
-  assert.match(automation, /className=\{styles\.modeChoice\}/);
-  assert.match(automation, /className=\{styles\.secondaryRule\}/);
-  assert.match(automation, /hoursByApp/);
+  assert.match(automation, /Đang áp dụng/);
+  assert.match(automation, /settings\?\.automationPolicies/);
+  assert.match(automation, /apps\.map/);
+  assert.match(automation, /className=\{styles\.policyGrid\}/);
+  assert.match(automation, /disabled=\{busy \|\| !approveWritable\}/);
+  assert.match(automation, /disabled=\{busy \|\| !blockWritable\}/);
   assert.match(automation, /Object\.fromEntries/);
-  assert.doesNotMatch(automation, /pendingBlockAfterHoursByApp: \{ "health-care": hours \}/);
+  assert.doesNotMatch(automation, /type="radio"/);
 });

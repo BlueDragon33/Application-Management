@@ -76,9 +76,10 @@ test("operations client reserves the focused endpoint for Boi/Bauman and keeps P
 
 test("dashboard v2 preserves Boi permanent deletion versus non-destructive client blocking", () => {
   const ui = source("app/management-dashboard-v2.tsx");
-  assert.match(ui, /const destructive = device\.appId === "boi-ech"/);
+  assert.match(ui, /if \(device\.appId === "boi-ech"\)/);
   assert.match(ui, /Xóa vĩnh viễn thiết bị/);
-  assert.match(ui, /Khóa thiết bị/);
+  assert.match(ui, /Nhập chính xác mã thiết bị để xác nhận xóa vĩnh viễn/);
+  assert.match(ui, /Từ chối và khóa thiết bị/);
   assert.match(ui, /expectedStatus: device\.status/);
 });
 
