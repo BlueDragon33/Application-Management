@@ -24,3 +24,12 @@ test("live readback does not reuse stdin for both Node source and JSON payload",
   assert.match(workflow, /const payloadPath = process\.argv\[3\]/);
   assert.match(workflow, /fs\.readFileSync\(payloadPath, "utf8"\)/);
 });
+
+test("live readback retries until the exact deployment state converges", () => {
+  assert.match(workflow, /verified="false"/);
+  assert.match(workflow, /if \[\[ "\$code" == "200" \]\] && node --input-type=module/);
+  assert.match(workflow, /if \(value\.revision !== expected\) failures\.push\("revision:" \+ value\.revision\)/);
+  assert.match(workflow, /verified="true"/);
+  assert.match(workflow, /did not converge after 6 attempts/);
+  assert.doesNotMatch(workflow, /if \[\[ "\$code" == "200" \]\]; then break; fi/);
+});
