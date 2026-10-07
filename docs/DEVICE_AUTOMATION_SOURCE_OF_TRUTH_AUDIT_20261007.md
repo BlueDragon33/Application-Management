@@ -60,3 +60,36 @@ Sau root-cause repair, Universal Contract v1 được mở rộng theo hướng 
 - mọi POST bắt buộc GET readback và so sánh `desired`;
 - adapter Bơi ếch/Health/RU/Bauman tiếp tục làm fallback trong giai đoạn chuyển đổi;
 - app chưa công bố automation capability vẫn hiển thị READ-ONLY, không có nút giả.
+
+
+## Rollout status after Universal automation wiring · 2026-10-07
+
+The control plane code now supports Universal automation, but **code readiness is not deployment readiness**.
+
+### PriceReport
+
+- Client repository already owns a real KT Control Service with D1-backed automation policy, idempotent commands, optimistic concurrency and readback.
+- Application Management now has a dedicated `price-report-control` network spec and deployment wiring for `PRICE_REPORT_CONTROL_BASE_URL` + `PRICE_REPORT_CONTROL_SERVICE_SECRET`.
+- Live Development verification showed the PriceReport bridge-install step was **skipped**, which means `PRICE_REPORT_CONTROL_PRODUCTION_ORIGIN` is not currently configured in the `application-management-production` environment.
+- Until the client Control Service is actually deployed and the matching origin/secret are supplied, PriceReport must stay READ-ONLY for automation. A successful Pages/CI run is not evidence of a live Control Service.
+
+### GrowUP
+
+- GrowUP local Control Service already implements the Universal automation protocol, but the checked-in production contract deliberately advertises automation as local-control-only and `remoteAdminReady=false`.
+- Application Management now keeps GrowUP site origin and GrowUP control origin separate through `growup-control`, with `GROWUP_CONTROL_BASE_URL` + `GROWUP_CONTROL_SERVICE_SECRET`.
+- Live Development verification showed the GrowUP bridge-install step was **skipped**, which means `GROWUP_CONTROL_PRODUCTION_ORIGIN` is not currently configured.
+- GrowUP must therefore remain READ-ONLY remotely until a real Production Control Service is deployed and verified. Local capability must never be promoted to Production capability by inference.
+
+### Activation gate
+
+A client may leave READ-ONLY automation only when all of the following are true:
+
+1. a real HTTPS Control Origin is configured;
+2. the matching Worker secret is installed;
+3. Dynamic Catalog resolves the client to that control origin;
+4. the live manifest advertises automation + idempotency + optimistic concurrency;
+5. GET automation succeeds;
+6. POST mutation succeeds with expected-state protection;
+7. fresh GET readback matches the requested value.
+
+Missing any one gate keeps the client read-only.
