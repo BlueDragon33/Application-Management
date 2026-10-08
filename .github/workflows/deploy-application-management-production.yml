@@ -482,11 +482,18 @@ jobs:
           const value = JSON.parse(fs.readFileSync("/tmp/application-management-catalog-sync.json", "utf8"));
           if (!value.ok) throw new Error(value.error || "Invalid Production catalog reconciliation response.");
           const all = [...(value.migrated ?? []), ...(value.existing ?? [])];
-          const blueprint = all.find((item) => item.id === "software-blueprint-hub");
-          const blocked = (value.needsOrigin ?? []).find((item) => item.id === "software-blueprint-hub");
-          if (blocked) throw new Error(`Software Blueprint Hub was not enrolled: ${blocked.reason ?? "unknown"}`);
-          if (!blueprint) throw new Error("Software Blueprint Hub is missing from Production Dynamic Catalog reconciliation.");
-          console.log("CATALOG software-blueprint-hub enrolled source=" + (blueprint.source ?? "existing"));
+
+          const requireEnrolled = (id, label) => {
+            const item = all.find((candidate) => candidate.id === id);
+            const blocked = (value.needsOrigin ?? []).find((candidate) => candidate.id === id);
+            if (blocked) throw new Error(`${label} was not enrolled: ${blocked.reason ?? "unknown"}`);
+            if (!item) throw new Error(`${label} is missing from Production Dynamic Catalog reconciliation.`);
+            console.log(`CATALOG ${id} enrolled source=${item.source ?? "existing"}`);
+            return item;
+          };
+
+          requireEnrolled("software-blueprint-hub", "Software Blueprint Hub");
+          requireEnrolled("cad-cam-3d", "CAD CAM 3D");
           console.log("CATALOG_SYNC_TOTALS=" + JSON.stringify(value.totals ?? {}));
           NODE
 
@@ -512,6 +519,22 @@ jobs:
           if (!blueprint.contractConnected || blueprint.runtimeConnected || blueprint.remoteAdminReady) {
             throw new Error("Software Blueprint Hub repository metadata must have a verified contract without live runtime or remote-admin readiness.");
           }
+
+          const cad = value.probes.find((item) => item.id === "cad-cam-3d");
+          if (!cad) throw new Error("CAD CAM 3D is missing from the Production managed-app probe.");
+          if (!cad.contractConnected || !cad.runtimeConnected) {
+            throw new Error("CAD CAM 3D must have both a live Universal Contract handshake and live Production runtime.");
+          }
+          if (cad.managementMode !== "local-first") {
+            throw new Error(`CAD CAM 3D must remain local-first; received ${cad.managementMode ?? "unknown"}.`);
+          }
+          if (cad.remoteAdminReady || cad.credentialConfigured) {
+            throw new Error("CAD CAM 3D must remain observe/launch-only until a real app-scoped Remote Admin backend exists.");
+          }
+          if (cad.protocol !== "application-management.contract/v1") {
+            throw new Error(`CAD CAM 3D protocol mismatch: ${cad.protocol ?? "missing"}.`);
+          }
+
           console.log("POST_DEPLOY_CONTRACT_TOTALS=" + JSON.stringify(value.totals ?? {}));
           for (const item of value.probes) {
             console.log(`CONTRACT ${item.id} connection=${item.connection} contractConnected=${Boolean(item.contractConnected)} credential=${Boolean(item.credentialConfigured)} remoteAdminReady=${Boolean(item.remoteAdminReady)} protocol=${item.protocol ?? "none"} via=${item.discoveredVia ?? "none"}`);
