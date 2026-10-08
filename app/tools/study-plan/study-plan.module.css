@@ -4300,3 +4300,96 @@
     font-size:11px;
   }
 }
+
+
+/* Study Plan Survival: a single focused weekly panel, not another dashboard. */
+.survivalSelector{
+  max-width:1440px;margin:0 auto;padding:14px 28px 8px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  color:#2b456b;font-size:13px;font-weight:700;scroll-margin-top:24px;
+}
+.survivalSelector>div{display:flex;flex-wrap:wrap;gap:7px}
+.survivalSelector button{
+  border:1px solid #d7e0ed;background:#fff;color:#40546e;border-radius:9px;
+  padding:9px 12px;font:inherit;cursor:pointer;
+}
+.survivalSelector button[data-active="true"]{
+  background:#eaf1ff;border-color:#97b5f2;color:#2459ba;
+}
+.survivalSelector button:focus-visible,.survivalWeek button:focus-visible,
+.survivalWeek input:focus-visible,.survivalWeek textarea:focus-visible,
+.survivalWeek select:focus-visible{outline:3px solid #4f83d9;outline-offset:2px}
+.survivalWeek{
+  max-width:1440px;margin:0 auto;padding:0 28px 20px;color:#283c57;
+}
+.survivalWeekHeader{
+  background:#fff;border:1px solid #dfe6f3;border-radius:15px 15px 0 0;
+  padding:18px;display:flex;justify-content:space-between;gap:16px;align-items:flex-start;
+}
+.survivalWeekHeader>div:first-child{min-width:0}
+.survivalWeekHeader span{color:#5071a2;font-size:10px;font-weight:800;letter-spacing:.04em}
+.survivalWeekHeader h2{font-size:21px;line-height:1.25;margin:5px 0}
+.survivalWeekHeader p{font-size:12px;color:#63748d;line-height:1.5;margin:0}
+.survivalStats{display:flex;gap:9px;flex-shrink:0}
+.survivalStats>span{
+  background:#f3f6fb;border-radius:10px;padding:11px 12px;
+  font-size:18px;font-weight:800;white-space:nowrap;
+}
+.survivalStats small{display:block;white-space:normal;font-size:10px;font-weight:500}
+.survivalSettings{
+  display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;
+  background:#f7f9fd;border:1px solid #dfe6f3;border-top:0;padding:12px 18px;
+}
+.survivalSettings label,.survivalWeekAside label{
+  display:flex;flex-direction:column;gap:5px;font-weight:600;font-size:11px;color:#536986;
+}
+.survivalSettings label:first-child{flex:1 1 250px;min-width:0}
+.survivalSettings select,.survivalSettings input,.survivalWeekAside textarea{
+  min-height:38px;max-width:100%;width:100%;box-sizing:border-box;
+  border:1px solid #ced8e7;border-radius:8px;background:#fff;color:#2d466a;
+  padding:8px;font:inherit;font-size:12px;
+}
+.survivalSettings label:last-child{max-width:220px}
+.survivalWeekBody{
+  display:grid;grid-template-columns:minmax(0,1.3fr) minmax(280px,.7fr);gap:12px;
+  background:#f8faff;border:1px solid #dfe6f3;border-top:0;padding:12px;
+}
+.survivalWeekPrimary,.survivalWeekAside{
+  padding:17px;border:1px solid #e1e7f1;border-radius:12px;background:#fff;min-width:0;
+}
+.survivalWeekPrimary>small{color:#5071a2;font-size:11px;font-weight:800}
+.survivalWeekPrimary h3{font-size:18px;margin:5px 0 12px;line-height:1.35}
+.survivalWeekPrimary h4{font-size:12px;margin:14px 0 5px;color:#2f5589}
+.survivalWeekPrimary p,.survivalWeekAside p{font-size:12px;line-height:1.55;margin:5px 0;color:#4c607b}
+.survivalWeekAside>strong{display:block;font-size:12px;margin-bottom:6px}
+.survivalWeekAside textarea{resize:vertical;line-height:1.5}
+.survivalTerms{background:#f5f8fd;border-radius:8px;padding:8px}
+.survivalPractice{display:flex;align-items:center;gap:9px;font-weight:700;font-size:12px;margin-top:18px}
+.survivalPractice input{width:17px;height:17px;accent-color:#2c74b8}
+.survivalEvidenceActions{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
+.survivalEvidenceActions button,.survivalCourseLinks button,.survivalPager button{
+  background:#f5f8fd;color:#315787;border:1px solid #d4deed;
+  border-radius:8px;padding:9px 10px;font-weight:650;font-size:11px;cursor:pointer;
+}
+.survivalEvidenceActions button:disabled,.survivalPager button:disabled{opacity:.48;cursor:default}
+.survivalWeekAside .survivalCaution{font-size:11px;color:#718095;margin:10px 0 15px}
+.survivalWeekAside .survivalWarning{
+  color:#845d18;background:#fff8e7;border:1px solid #e7d39d;border-radius:8px;padding:8px;
+}
+.survivalCourseLinks{display:flex;flex-wrap:wrap;gap:6px}
+.survivalCourseLinks button{text-align:left}
+.survivalPager{
+  display:flex;justify-content:space-between;gap:8px;padding:10px 12px;
+  border:1px solid #dfe6f3;border-top:0;border-radius:0 0 14px 14px;background:#fff;
+}
+@media(max-width:800px){
+  .survivalWeekHeader{flex-direction:column}
+  .survivalWeekBody{grid-template-columns:minmax(0,1fr)}
+  .survivalStats{width:100%}
+  .survivalStats>span{flex:1}
+}
+@media(max-width:540px){
+  .survivalSelector,.survivalWeek{padding-left:12px;padding-right:12px}
+  .survivalSettings label:last-child{max-width:none;width:100%}
+  .survivalWeekHeader,.survivalWeekPrimary,.survivalWeekAside{padding:12px}
+}
