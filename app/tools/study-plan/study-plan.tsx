@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { BaumanRegistryStatus, BaumanStudyModule } from "./bauman-module-registry";
 import styles from "./study-plan.module.css";
-import { courseAssessmentParts, defaultSurvivalState, parseSurvivalState, personalDeadlineCollisions, survivalPhases, survivalStorageKey, survivalWeeks, weekEvidenceSummary, type SurvivalPersonalState, type AssessmentKind } from "./study-plan-survival-data";
+import { courseAssessmentParts, defaultSurvivalState, parseSurvivalState, personalDeadlineCollisions, prerequisiteEvidenceGaps, survivalPhases, survivalStorageKey, survivalWeeks, weekEvidenceSummary, type SurvivalPersonalState, type AssessmentKind } from "./study-plan-survival-data";
 import {
   courses,
   preBaumanRoadmap,
@@ -1042,6 +1042,7 @@ function StandardSurvivalRoadmap({
   const phase = survivalPhases[week.phase];
   const evidence = progress.evidence[week.id] ?? { state: "not_assessed" as const, note: "" };
   const summary = weekEvidenceSummary(progress);
+  const gapPhases = prerequisiteEvidenceGaps(week.phase, progress);
   const isVi = lang === "vi";
   const linkedCourses = week.targetCourseIds.map(id => courses.find(c => c.id === id))
     .filter((course): course is Course => Boolean(course));
@@ -1128,6 +1129,11 @@ function StandardSurvivalRoadmap({
         {progress.availableHoursPerWeek < week.recommendedHours && <p className={styles.survivalWarning} role="status">
           {isVi ? "Tải đề xuất cao hơn thời gian bạn có. Hãy kéo dài giai đoạn hoặc giảm bài bổ trợ." : "Recommended effort exceeds available time. Extend the phase or reduce optional practice."}
         </p>}
+        {gapPhases.length > 0 && <div className={styles.survivalPrerequisites}>
+          <strong>{isVi ? "Chưa ghi minh chứng giai đoạn nên học trước" : "Earlier phase evidence not yet recorded"}</strong>
+          <p>{gapPhases.map(id => survivalPhases[id].label[lang]).join(" · ")}</p>
+          <small>{isVi ? "Đây là lời nhắc theo lộ trình, không phải kết luận bạn thiếu năng lực hay điều kiện chính thức của trường." : "Planning reminder only, not an official requirement or diagnosis of inability."}</small>
+        </div>}
         <strong>{isVi ? "Môn chính khóa liên quan" : "Related IU5 courses"}</strong>
         <div className={styles.survivalCourseLinks}>
           {linkedCourses.map(course => <button key={course.id} type="button" onClick={() => onOpenCourse(course)}>
@@ -1647,7 +1653,7 @@ export default function StudyPlanTool({
             {visibleCourses.map((course) => <CourseRow key={course.id} course={course} lang={lang} selected={selectedCourseId === course.id} onSelect={() => setSelectedCourseId(course.id)} />)}
           </div>
         </> : null}
-        <PersonalAssessmentPlanner lang={lang} semester={semester} progress={survival} onProgressChange={setSurvival} />
+        {mode !== "year" && <PersonalAssessmentPlanner lang={lang} semester={semester} progress={survival} onProgressChange={setSurvival} />}
       </div>
 
       <DetailPanel
