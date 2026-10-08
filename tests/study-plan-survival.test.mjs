@@ -85,3 +85,30 @@ test("planner keeps official counts separate and UI supports both roadmap modes"
   assert.match(uiSource, /survivalOwner !== user.email/);
   assert.match(uiSource, /No authorized external assessor/);
 });
+
+
+test("composite coursework and examination remain distinct personal tasks", () => {
+  assert.deepEqual(survival.courseAssessmentParts({id:"oop", assessment:"exam-coursework"}), ["exam", "coursework"]);
+  assert.deepEqual(survival.courseAssessmentParts({id:"analytical-models", assessment:"credit-coursework"}), ["credit", "coursework"]);
+  assert.deepEqual(survival.courseAssessmentParts({id:"ml", assessment:"rating-exam"}), ["rating-exam"]);
+  assert.deepEqual(survival.courseAssessmentParts({id:"nir-1", assessment:"graded-credit"}), ["graded-credit"]);
+  assert.deepEqual(survival.courseAssessmentParts({id:"thesis", assessment:"defense"}), ["defense"]);
+  assert.deepEqual(survival.courseAssessmentParts({id:"unknown", assessment:"none"}), []);
+});
+
+test("dates remain user-entered and collisions ignore completed or empty tasks", () => {
+  const plans = {
+    "oop:exam": {dueDate:"2027-12-10", status:"planned",note:""},
+    "oop:coursework": {dueDate:"2027-12-10", status:"working",note:""},
+    "ml:rating-exam": {dueDate:"2027-12-12", status:"planned",note:""},
+    "thesis:defense": {dueDate:"2027-12-10", status:"self_done",note:""},
+  };
+  assert.deepEqual(survival.personalDeadlineCollisions(plans), ["2027-12-10"]);
+  assert.deepEqual(survival.personalDeadlineCollisions({}), []);
+  const parsed = survival.parseSurvivalState(JSON.stringify({...survival.defaultSurvivalState(),assessmentPlans:plans}));
+  assert.equal(parsed.assessmentPlans["oop:exam"].dueDate,"2027-12-10");
+  assert.equal(parsed.assessmentPlans["thesis:defense"].status,"self_done");
+  assert.equal(parsed.assessmentPlans["thesis:defense"].note,"");
+  assert.match(uiSource,/PersonalAssessmentPlanner/);
+  assert.match(uiSource,/user supplied, not an official Bauman timetable/);
+});
