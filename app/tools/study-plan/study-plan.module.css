@@ -4393,3 +4393,41 @@
   .survivalSettings label:last-child{max-width:none;width:100%}
   .survivalWeekHeader,.survivalWeekPrimary,.survivalWeekAside{padding:12px}
 }
+
+
+/* Optional personal assessment planner: sourced dates are never implied. */
+.personalAssessment{
+  margin:15px 0 0;border:1px solid #d9e2f0;background:#fff;border-radius:12px;
+  padding:12px;min-width:0;
+}
+.personalAssessment summary{
+  cursor:pointer;font-size:13px;font-weight:800;color:#31517c;line-height:1.4;
+}
+.personalAssessment summary small{font-weight:500;color:#6e829b;margin-left:8px}
+.personalAssessmentDisclaimer{
+  font-size:11px;color:#61728d;line-height:1.5;margin:11px 0;
+}
+.personalAssessmentAlert{
+  padding:9px;border:1px solid #dfce9c;border-radius:8px;
+  background:#fff8e7;color:#7b5a19;font-size:12px;
+}
+.personalAssessmentItems{display:grid;gap:7px;max-height:400px;overflow:auto}
+.personalAssessmentItems article{
+  display:grid;grid-template-columns:minmax(130px,1fr) minmax(135px,.6fr) minmax(160px,.7fr);
+  gap:9px;align-items:center;border:1px solid #e4e9f2;border-radius:9px;padding:9px;min-width:0;
+}
+.personalAssessmentItems article>div{min-width:0}
+.personalAssessmentItems strong,.personalAssessmentItems small{display:block;overflow-wrap:anywhere}
+.personalAssessmentItems strong{font-size:11px;color:#385272;line-height:1.35}
+.personalAssessmentItems small{color:#71839b;font-size:10px;margin-top:4px}
+.personalAssessmentItems label{font-size:10px;color:#65748d;display:flex;flex-direction:column;gap:4px}
+.personalAssessmentItems input,.personalAssessmentItems select{
+  min-width:0;width:100%;min-height:35px;box-sizing:border-box;
+  padding:6px;border:1px solid #d3dce9;border-radius:7px;
+  background:#fff;color:#324c6e;font-size:12px;
+}
+.personalAssessment button:focus-visible,.personalAssessment select:focus-visible,
+.personalAssessment input:focus-visible{outline:3px solid #4f83d9;outline-offset:2px}
+@media(max-width:710px){
+  .personalAssessmentItems article{grid-template-columns:minmax(0,1fr)}
+}
