@@ -12,7 +12,9 @@ test("automation state is read from the owning clients before central audit fall
 
   assert.match(reader, /issueBoiBrowserBridge/);
   assert.match(reader, /\/api\/control\/automation/);
-  assert.match(reader, /record\(payload\.automation\)\.enabled === true/);
+  assert.match(reader, /autoApproveEnabled: automation\.enabled/);
+  assert.match(reader, /typeof automation\.enabled !== "boolean"/);
+  assert.match(reader, /BOI_AUTOMATION_READBACK_INVALID/);
   assert.match(reader, /issueHealthBrowserBridge/);
   assert.match(reader, /probeHealthManagementContract/);
   assert.match(reader, /\/api\/control\/automation/);
