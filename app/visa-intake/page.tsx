@@ -406,7 +406,8 @@ export default function VisaIntakePage() {
               }
             }
           }
-          merged.passportExpiry = passportExpiryFromIssue(String(merged.passportIssue ?? ""));
+          const recoveredExpiry = String(recovered.passportExpiry ?? "").trim();
+          merged.passportExpiry = recoveredExpiry || passportExpiryFromIssue(String(merged.passportIssue ?? ""));
           return merged;
         });
         if (data.submission) setReceipt((current) => current ? { ...current, ...data.submission } : data.submission ?? null);
@@ -582,7 +583,7 @@ export default function VisaIntakePage() {
             const keepManualExpiry = Boolean(current.passportExpiry) && current.passportExpiry !== previousAuto;
             return { ...current, passportIssue: value, passportExpiry: keepManualExpiry ? current.passportExpiry : nextAuto };
           })} /></Field>
-          <Field fieldKey="passportExpiry" correctionFields={correctionFields} label="Ngày hết hạn hộ chiếu" ru="Действителен до" hint="Mặc định cùng ngày/tháng ngày cấp và năm +10; vẫn có thể sửa theo hộ chiếu thực tế."><DateFields required value={applicant.passportExpiry} onChange={(value) => set("passportExpiry", value)} /></Field>
+          <Field fieldKey="passportExpiry" correctionFields={correctionFields} label="Ngày hết hạn hộ chiếu"><DateFields required value={applicant.passportExpiry} onChange={(value) => set("passportExpiry", value)} /></Field>
         </div>
       </section>
 
