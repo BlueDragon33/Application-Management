@@ -11,7 +11,7 @@ test("automation state is read from the owning clients before central audit fall
   const settings = source("app/operations-settings.server.ts");
 
   assert.match(reader, /issueBoiBrowserBridge/);
-  assert.match(reader, /\/api\/control\/overview\?activityDays=0/);
+  assert.match(reader, /\/api\/control\/automation/);
   assert.match(reader, /record\(payload\.automation\)\.enabled === true/);
   assert.match(reader, /issueHealthBrowserBridge/);
   assert.match(reader, /probeHealthManagementContract/);
