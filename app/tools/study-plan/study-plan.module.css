@@ -4437,3 +4437,11 @@
 @media(max-width:710px){
   .personalAssessmentItems article{grid-template-columns:minmax(0,1fr)}
 }
+
+.survivalPrerequisites{
+  background:#f5f8fc;border-left:3px solid #92a8c8;
+  padding:10px;border-radius:8px;margin:12px 0;
+}
+.survivalPrerequisites strong{display:block;font-size:11px;line-height:1.45}
+.survivalPrerequisites p{margin:5px 0}
+.survivalPrerequisites small{font-size:10px;color:#75859d;line-height:1.5}
