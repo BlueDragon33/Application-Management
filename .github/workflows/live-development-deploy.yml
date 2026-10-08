@@ -129,8 +129,16 @@ jobs:
           set -euo pipefail
           bridge_secret="${CONTROL_SERVICE_SECRET:-}"
           if [[ ${#bridge_secret} -lt 32 ]]; then
-            bridge_secret="$(node --input-type=module -e "import crypto from 'node:crypto'; process.stdout.write(crypto.randomBytes(32).toString('base64url'))")"
-            echo "Generated a fresh Bơi ếch bridge secret because the protected environment did not supply one."
+            bridge_secret="$(node --input-type=module <<'NODE'
+          import crypto from "node:crypto";
+          const root = process.env.APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET ?? "";
+          if (root.length < 32) process.exit(2);
+          process.stdout.write(crypto.createHmac("sha256", root)
+            .update("application-management/boi-ech/control-service/v1")
+            .digest("base64url"));
+          NODE
+          )"
+            echo "Using the stable domain-separated Bơi ếch bridge key derived from the protected Production secret."
           else
             echo "Using the protected Bơi ếch bridge secret from the deployment environment."
           fi
