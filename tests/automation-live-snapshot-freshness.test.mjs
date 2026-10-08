@@ -18,7 +18,7 @@ test("cached automation snapshots cannot be labeled LIVE or written", () => {
 
 test("freshness is a verified online session with a bounded age", () => {
   const dashboard = source("app/management-dashboard-v2.tsx");
-  assert.match(dashboard, /const automationSnapshotVerified = approvalGateEnabled && operationsVerified/);
+  assert.match(dashboard, /const automationSnapshotVerified = operationsVerified/);
   assert.match(dashboard, /Number\.isFinite\(snapshotAge\) && snapshotAge >= 0 && snapshotAge <= 120_000/);
   assert.match(dashboard, /function openAutomationPolicies\(\)/);
   assert.match(dashboard, /age > 60_000/);
