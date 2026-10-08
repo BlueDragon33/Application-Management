@@ -143,7 +143,8 @@ test("generic fill no longer handles passport date fields", () => {
 
 test("passport date fields use dd/mm/yyyy and Russian month mapping before Next", () => {
   assert.match(tool, /Дата выдачи паспорта · dd\/mm\/yyyy/);
-  assert.match(tool, /Паспорт действителен до · tự động \+10 năm/);
+  assert.match(tool, /Паспорт действителен до · dd\/mm\/yyyy/);
+  assert.match(tool, /Mặc định \+10 năm nhưng có thể sửa theo hộ chiếu thực tế/);
   assert.match(tool, /Tool tự chuẩn hóa ngày\/tháng và chọn đúng tháng tiếng Nga/);
   assert.match(companion, /findDateOption/);
   assert.match(companion, /isPassportInfoPage\(\) && recognized < 1/);
@@ -439,14 +440,14 @@ test("Companion v0.9.32 has structural fallbacks for surname5, birth year and pa
 });
 
 
-test("KD-MID applicant model carries complete visa request/contact fields and derives passport expiry", () => {
+test("KD-MID applicant model carries complete visa request/contact fields and preserves manual passport expiry", () => {
   for (const field of ["citizenship","purposeSection","purpose","visaType","entries","entryDate","exitDate","destinationType","organization","organizationAddress","tin","telex","invitation","hasOtherNames","otherNames","bornInRussia","hasPermanentAddress","personalFax","worksOrStudies","workFax"]) {
     assert.match(tool, new RegExp(field + ":"));
   }
   assert.match(tool, /function passportExpiryFromIssue/);
   assert.match(tool, /Number\(match\[3\]\) \+ 10/);
-  assert.match(tool, /passportExpiry: passportExpiryFromIssue\(applicant\.passportIssue\)/);
-  assert.match(tool, /passportExpiry: passportExpiryFromIssue\(next\.passportIssue\)/);
+  assert.match(tool, /passportExpiry: normalizeDmy\(applicant\.passportExpiry\) \|\| passportExpiryFromIssue\(applicant\.passportIssue\)/);
+  assert.match(tool, /passportExpiry: normalizeDmy\(next\.passportExpiry\) \|\| passportExpiryFromIssue\(next\.passportIssue\)/);
 });
 
 
