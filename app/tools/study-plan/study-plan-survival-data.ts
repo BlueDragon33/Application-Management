@@ -1,4 +1,4 @@
-import type { LocalizedText } from "./study-plan-data";
+import type { Course, LocalizedText } from "./study-plan-data";
 
 /**
  * Personal IU5 preparation guidance, NOT an official BMSTU syllabus, prerequisite
@@ -23,6 +23,8 @@ export type SurvivalEvidence = {
   state: SurvivalEvidenceState;
   note: string;
 };
+export type PersonalAssessment = { dueDate: string; status: "planned" | "working" | "self_done"; note: string };
+export type AssessmentKind = "exam" | "rating-exam" | "credit" | "graded-credit" | "coursework" | "defense";
 export type SurvivalPersonalState = {
   version: 2;
   variant: "compact12" | "standard24";
@@ -30,6 +32,7 @@ export type SurvivalPersonalState = {
   availableHoursPerWeek: number;
   exerciseDone: Record<string, boolean>;
   evidence: Record<string, SurvivalEvidence>;
+  assessmentPlans: Record<string, PersonalAssessment>;
 };
 
 export const survivalStorageKey = "application-management:study-plan-survival:v2";
@@ -118,7 +121,7 @@ export const survivalWeeks: readonly SurvivalWeek[] = seeds.map((seed, index) =>
 });
 
 export function defaultSurvivalState(): SurvivalPersonalState {
-  return { version: 2, variant: "compact12", selectedWeek: 1, availableHoursPerWeek: 8, exerciseDone: {}, evidence: {} };
+  return { version: 2, variant: "compact12", selectedWeek: 1, availableHoursPerWeek: 8, exerciseDone: {}, evidence: {}, assessmentPlans: {} };
 }
 
 /** Defensive parsing; existing legacy 12-week data stays in its original v1 key. */
@@ -144,6 +147,18 @@ export function parseSurvivalState(raw: string | null): SurvivalPersonalState {
         evidence[id] = {state: e.state, note: typeof e.note === "string" ? e.note.slice(0, 1000) : ""};
       });
     }
+    const assessmentPlans: Record<string, PersonalAssessment> = {};
+    if (data.assessmentPlans && typeof data.assessmentPlans === "object") {
+      Object.entries(data.assessmentPlans).forEach(([key, value]) => {
+        if (!/^[a-z0-9-]{1,80}:(exam|rating-exam|credit|graded-credit|coursework|defense)$/.test(key) || !value || typeof value !== "object") return;
+        const p = value as PersonalAssessment;
+        assessmentPlans[key] = {
+          dueDate: typeof p.dueDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p.dueDate) ? p.dueDate : "",
+          status: p.status === "working" || p.status === "self_done" ? p.status : "planned",
+          note: typeof p.note === "string" ? p.note.slice(0, 300) : "",
+        };
+      });
+    }
     return {
       version: 2,
       variant: data.variant === "standard24" ? "standard24" : "compact12",
@@ -152,6 +167,7 @@ export function parseSurvivalState(raw: string | null): SurvivalPersonalState {
         ? Math.min(40, Math.max(1, data.availableHoursPerWeek as number)) : 8,
       exerciseDone,
       evidence,
+      assessmentPlans,
     };
   } catch {
     return fallback;
@@ -164,4 +180,30 @@ export function weekEvidenceSummary(state: SurvivalPersonalState) {
     evidenceSubmitted: survivalWeeks.filter(w => state.evidence[w.id]?.state === "submitted").length,
     verified: 0, // This tool has no authorized independent assessment verifier.
   };
+}
+
+
+/** Required assessment deliverables from existing curriculum entries (not actual exam dates). */
+export function courseAssessmentParts(course: Pick<Course, "id" | "assessment">): readonly AssessmentKind[] {
+  switch (course.assessment) {
+    case "exam": return ["exam"];
+    case "rating-exam": return ["rating-exam"];
+    case "credit": return ["credit"];
+    case "graded-credit": return ["graded-credit"];
+    case "exam-coursework": return ["exam", "coursework"];
+    case "credit-coursework": return ["credit", "coursework"];
+    case "coursework": return ["coursework"];
+    case "defense": return ["defense"];
+    default: return [];
+  }
+}
+
+/** Personal-date collision only. No official Bauman timetable source is implied. */
+export function personalDeadlineCollisions(plans: Record<string, PersonalAssessment>): readonly string[] {
+  const dates = new Map<string, number>();
+  for (const item of Object.values(plans)) {
+    if (!item.dueDate || item.status === "self_done") continue;
+    dates.set(item.dueDate, (dates.get(item.dueDate) || 0) + 1);
+  }
+  return [...dates].filter(([, count]) => count >= 2).map(([date]) => date).sort();
 }
