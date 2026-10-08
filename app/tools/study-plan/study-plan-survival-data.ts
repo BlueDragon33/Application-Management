@@ -88,7 +88,7 @@ export const survivalPhaseDependencies: Readonly<Record<SurvivalPhaseId, readonl
 /** An absent submitted reference is an evidence gap, not proof of poor ability. */
 export function prerequisiteEvidenceGaps(phase: SurvivalPhaseId, state: SurvivalPersonalState) {
   return survivalPhaseDependencies[phase].filter(dependency => {
-    const terminal = survivalWeeks.findLast(w => w.phase === dependency);
+    const terminal = [...survivalWeeks].reverse().find(w => w.phase === dependency);
     return !terminal || state.evidence[terminal.id]?.state !== "submitted";
   });
 }
