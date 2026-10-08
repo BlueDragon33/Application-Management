@@ -74,6 +74,25 @@ export const survivalPhases: Readonly<Record<SurvivalPhaseId, {
   },
 };
 
+
+/** Recommended, *not official*, cross-phase foundation dependencies. */
+export const survivalPhaseDependencies: Readonly<Record<SurvivalPhaseId, readonly SurvivalPhaseId[]>> = {
+  python: [],
+  oop: ["python"],
+  database: [],
+  data: ["python"],
+  ml: ["python", "data"],
+  integration: ["oop", "database", "ml"],
+};
+
+/** An absent submitted reference is an evidence gap, not proof of poor ability. */
+export function prerequisiteEvidenceGaps(phase: SurvivalPhaseId, state: SurvivalPersonalState) {
+  return survivalPhaseDependencies[phase].filter(dependency => {
+    const terminal = survivalWeeks.findLast(w => w.phase === dependency);
+    return !terminal || state.evidence[terminal.id]?.state !== "submitted";
+  });
+}
+
 type WeekSeed = readonly [
   SurvivalPhaseId, string, string, string, string, string, string, string, string, string
 ];
