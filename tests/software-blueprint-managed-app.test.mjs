@@ -54,7 +54,8 @@ test("repository contract discovery supports Blueprint OS without app-specific b
 test("Production reconciliation enrolls Blueprint OS in Dynamic Catalog before probing", () => {
   assert.match(productionWorkflow, /"action":"sync-existing"/);
   assert.match(productionWorkflow, /software-blueprint-hub/);
-  assert.match(productionWorkflow, /Software Blueprint Hub is missing from Production Dynamic Catalog reconciliation/);
+  assert.match(productionWorkflow, /requireEnrolled\\("software-blueprint-hub", "Software Blueprint Hub"\\)/);
+  assert.match(productionWorkflow, /is missing from Production Dynamic Catalog reconciliation/);
   assert.match(productionWorkflow, /blueprint\.metadataVerified/);
   assert.match(productionWorkflow, /blueprint\.managementMode !== "metadata-only"/);
   assert.match(productionWorkflow, /!blueprint\.contractConnected \|\| blueprint\.runtimeConnected \|\| blueprint\.remoteAdminReady/);
