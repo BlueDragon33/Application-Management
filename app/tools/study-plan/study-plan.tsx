@@ -1269,8 +1269,8 @@ export default function StudyPlanTool({
       if (file.size > 2_000_000) throw new Error("BACKUP_TOO_LARGE");
       const restored = parseStudyPlanBackup(await file.text());
       const ok = window.confirm(lang === "vi"
-        ? "Nhập bản sao sẽ thay thế cả checklist 12 tuần và tiến độ 24 tuần của tài khoản hiện tại. Tiếp tục?"
-        : "Importing this backup replaces both the 12-week checklist and 24-week progress for the current account. Continue?");
+        ? "Nhập bản sao sẽ thay thế checklist 12 tuần dùng chung trên trình duyệt này và tiến độ 24 tuần của tài khoản hiện tại. Tiếp tục?"
+        : "Importing this backup replaces the device-shared 12-week checklist and this account\'s 24-week progress. Continue?");
       if (!ok) {
         setBackupMessage(lang === "vi" ? "Đã hủy nhập bản sao." : "Backup import cancelled.");
         return;
