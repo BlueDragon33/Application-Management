@@ -34,11 +34,19 @@ async function automationJson(bridge: Bridge, path: string) {
 
 async function readBoiAutomation() {
   const bridge = await issueBoiBrowserBridge(AUTOMATION_READ_ACTOR, "viewer");
-  const payload = await automationJson(bridge, "/api/control/overview?activityDays=0");
+  const payload = await automationJson(bridge, "/api/control/automation");
+  const automation = record(payload.automation);
+  const defaultAccessDays = Number(automation.defaultAccessDays);
+  const defaultDeviceLimit = Number(automation.defaultDeviceLimit);
+  if (typeof automation.enabled !== "boolean"
+    || !Number.isInteger(defaultAccessDays) || defaultAccessDays < 1 || defaultAccessDays > 365
+    || !Number.isInteger(defaultDeviceLimit) || defaultDeviceLimit < 1 || defaultDeviceLimit > 1_000) {
+    throw new Error("BOI_AUTOMATION_READBACK_INVALID");
+  }
   return {
-    autoApproveEnabled: record(payload.automation).enabled === true,
-    defaultAccessDays: Number(record(payload.automation).defaultAccessDays),
-    defaultDeviceLimit: Number(record(payload.automation).defaultDeviceLimit),
+    autoApproveEnabled: automation.enabled,
+    defaultAccessDays,
+    defaultDeviceLimit,
     autoBlockSupported: false,
     autoBlockEnabled: false,
     pendingBlockAfterHours: null as number | null,
