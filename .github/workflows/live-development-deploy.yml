@@ -227,7 +227,7 @@ jobs:
           process.stdout.write(signedInput + "." + signature);
           NODE
           )"
-          CODE="$(curl --silent --show-error --output /tmp/boi-live-automation.json --write-out '%{http_code}' --max-time 20             -H "Authorization: Bearer $TOKEN"             "$BOI_ECH_BASE_URL/api/control/overview?activityDays=0" || true)"
+          CODE="$(curl --silent --show-error --output /tmp/boi-live-automation.json --write-out '%{http_code}' --max-time 20             -H "Authorization: Bearer $TOKEN"             "$BOI_ECH_BASE_URL/api/control/automation" || true)"
           if [[ "$CODE" != "200" ]]; then
             echo "::error::Bơi ếch live automation bridge returned HTTP $CODE."
             cat /tmp/boi-live-automation.json || true
