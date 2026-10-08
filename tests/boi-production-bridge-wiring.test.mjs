@@ -19,7 +19,7 @@ test("live deploy installs the Boi bridge secret and verifies real automation re
   assert.match(live, /secret put CONTROL_SERVICE_SECRET --config wrangler\.production\.jsonc/);
   assert.match(live, /secret put CONTROL_SERVICE_SECRET --name boi-ech/);
   assert.match(live, /- name: Verify Bơi ếch live automation bridge/);
-  assert.match(live, /\/api\/control\/overview\?activityDays=0/);
+  assert.match(live, /\/api\/control\/automation/);
   assert.match(live, /Bơi ếch live automation bridge PASS/);
 });
 
