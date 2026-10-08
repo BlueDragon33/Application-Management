@@ -1579,7 +1579,7 @@ export default function StudyPlanTool({
             void importProgress(file);
           }}/>
       </div>
-      {backupMessage && <p className={styles.survivalBackupMessage} role="status">{backupMessage}</p>
+      {backupMessage && <p className={styles.survivalBackupMessage} role="status">{backupMessage}</p>}
       <div>
         <button type="button" data-active={survival.variant === "compact12"}
           aria-pressed={survival.variant === "compact12"}
