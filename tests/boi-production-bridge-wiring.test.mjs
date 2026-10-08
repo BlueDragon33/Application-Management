@@ -12,8 +12,12 @@ test("live deploy always materializes the canonical Boi production origin", () =
 
 test("live deploy installs the Boi bridge secret and verifies real automation readback", () => {
   assert.match(live, /CONTROL_SERVICE_SECRET: \$\{\{ secrets\.CONTROL_SERVICE_SECRET \}\}/);
-  assert.match(live, /- name: Install Bơi ếch bridge secret/);
+  assert.match(live, /- name: Establish shared Bơi ếch bridge secret/);
+  assert.match(live, /crypto\.randomBytes\(32\)\.toString\('base64url'\)/);
+  assert.match(live, /::add-mask::\$bridge_secret/);
+  assert.match(live, /BOI_RUNTIME_BRIDGE_SECRET/);
   assert.match(live, /secret put CONTROL_SERVICE_SECRET --config wrangler\.production\.jsonc/);
+  assert.match(live, /secret put CONTROL_SERVICE_SECRET --name boi-ech/);
   assert.match(live, /- name: Verify Bơi ếch live automation bridge/);
   assert.match(live, /\/api\/control\/overview\?activityDays=0/);
   assert.match(live, /Bơi ếch live automation bridge PASS/);
@@ -24,4 +28,12 @@ test("Boi bridge smoke happens only after the Application Management worker is d
   const revisionReadback = live.indexOf("- name: Read back live deployment revision");
   const boiSmoke = live.indexOf("- name: Verify Bơi ếch live automation bridge");
   assert.ok(deploy >= 0 && revisionReadback > deploy && boiSmoke > revisionReadback);
+});
+
+
+test("live Boi bridge can self-heal without a manually configured GitHub secret", () => {
+  assert.match(live, /bridge_secret="\$\{CONTROL_SERVICE_SECRET:-\}"/);
+  assert.match(live, /if \[\[ \$\{#bridge_secret\} -lt 32 \]\]/);
+  assert.match(live, /Generated a fresh Bơi ếch bridge secret/);
+  assert.doesNotMatch(live, /CONTROL_SERVICE_SECRET is required when Bơi ếch production is configured/);
 });
