@@ -208,7 +208,7 @@ test("public intake exposes complete visa request fields and server derives pass
   }
   assert.match(publicApi, /function passportExpiryFromIssue/);
   assert.match(publicApi, /passportExpiry: passportExpiryFromIssue\(passportIssue\)/);
-  assert.match(publicPage, /readOnly value=\{applicant\.passportExpiry\}/);
+  assert.match(publicPage, /value=\{applicant\.passportExpiry\} onChange=\{\(value\) => set\("passportExpiry", value\)\}/);
 });
 
 
@@ -217,7 +217,7 @@ test("production standalone intake exposes the same complete KD-MID field set", 
     assert.match(publicWorkerPage, new RegExp('name="' + field + '"|data-date="' + field + '"'));
   }
   assert.match(publicWorkerPage, /passportExpiryFromIssue/);
-  assert.match(publicWorkerPage, /readonly required/);
+  assert.doesNotMatch(publicWorkerPage, /data-date="passportExpiry"[\s\S]{0,500}readonly required/);
 });
 
 test("payload and bookmarklet no longer overwrite editable address and fax profile fields", () => {
@@ -352,4 +352,14 @@ test("production visa intake server-renders Link 1 defaults into input value att
   assert.match(publicWorkerPage, /name="telex" value="\$\{htmlAttr\(serverDefaults\.telex\)\}"/);
   assert.match(publicWorkerPage, /value="\$\{entryDate\.day\}"/);
   assert.match(publicWorkerPage, /STUDENT_SERVER_DEFAULTS/);
+});
+
+
+test("passport expiry defaults to issue date plus ten years but remains editable end-to-end", () => {
+  assert.match(publicPage, /keepManualExpiry/);
+  assert.match(publicApi, /text\(source\.passportExpiry, 10\) \|\| passportExpiryFromIssue\(passportIssue\)/);
+  assert.match(publicWorkerPage, /passportExpiryManuallyEdited/);
+  assert.match(publicWorkerPage, /passportExpiry:value\("passportExpiry"\) \|\| passportExpiryFromIssue/);
+  assert.match(tool, /normalizeDmy\(applicant\.passportExpiry\) \|\| passportExpiryFromIssue/);
+  assert.match(tool, /normalizeDmy\(next\.passportExpiry\) \|\| passportExpiryFromIssue/);
 });

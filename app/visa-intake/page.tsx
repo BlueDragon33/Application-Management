@@ -523,8 +523,13 @@ export default function VisaIntakePage() {
         <header><b>03</b><div><h2>Hộ chiếu</h2><p>Mỗi ngày dùng 3 ô Ngày · Tháng · Năm để tránh nhập sai. Ngày cấp không được ở tương lai; ngày hết hạn phải sau ngày cấp và hộ chiếu phải còn hạn.</p></div></header>
         <div className={styles.grid}>
           <Field fieldKey="passportNo" correctionFields={correctionFields} label="Số hộ chiếu" ru="Номер паспорта"><input required value={applicant.passportNo} onChange={(e) => set("passportNo", upperPlain(e.target.value))} /></Field>
-          <Field fieldKey="passportIssue" correctionFields={correctionFields} label="Ngày cấp hộ chiếu" ru="Дата выдачи"><DateFields required value={applicant.passportIssue} onChange={(value) => setApplicant((current) => ({ ...current, passportIssue: value, passportExpiry: passportExpiryFromIssue(value) }))} /></Field>
-          <Field fieldKey="passportExpiry" correctionFields={correctionFields} label="Ngày hết hạn hộ chiếu" ru="Действителен до" hint="Tự động: cùng ngày/tháng của ngày cấp, năm +10."><DateFields required readOnly value={applicant.passportExpiry} onChange={() => undefined} /></Field>
+          <Field fieldKey="passportIssue" correctionFields={correctionFields} label="Ngày cấp hộ chiếu" ru="Дата выдачи"><DateFields required value={applicant.passportIssue} onChange={(value) => setApplicant((current) => {
+            const previousAuto = passportExpiryFromIssue(current.passportIssue);
+            const nextAuto = passportExpiryFromIssue(value);
+            const keepManualExpiry = Boolean(current.passportExpiry) && current.passportExpiry !== previousAuto;
+            return { ...current, passportIssue: value, passportExpiry: keepManualExpiry ? current.passportExpiry : nextAuto };
+          })} /></Field>
+          <Field fieldKey="passportExpiry" correctionFields={correctionFields} label="Ngày hết hạn hộ chiếu" ru="Действителен до" hint="Mặc định cùng ngày/tháng ngày cấp và năm +10; vẫn có thể sửa theo hộ chiếu thực tế."><DateFields required value={applicant.passportExpiry} onChange={(value) => set("passportExpiry", value)} /></Field>
         </div>
       </section>
 

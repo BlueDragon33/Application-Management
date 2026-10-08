@@ -149,7 +149,7 @@ export async function publicVisaIntakePage(request: Request, env: VisaIntakePage
 <section class="section"><header><b>03</b><div><h2>Hộ chiếu</h2><p>Mỗi ngày dùng 3 ô Ngày · Tháng · Năm để tránh nhập sai. Ngày cấp không được ở tương lai; ngày hết hạn phải sau ngày cấp và hộ chiếu phải còn hạn.</p></div></header><div class="grid">
 <label class="field" data-field="passportNo">Số hộ chiếu <small>Номер паспорта</small><input name="passportNo" required></label>
 <label class="field" data-field="passportIssue">Ngày cấp hộ chiếu <small>Дата выдачи</small><div class="date-fields" data-date="passportIssue"><input data-part="day" aria-label="Ngày" title="Ngày" placeholder="NGÀY" inputmode="numeric" maxlength="2" list="day-options" required><input data-part="month" aria-label="Tháng" title="Tháng" placeholder="THÁNG" inputmode="numeric" maxlength="2" list="month-options" required><input data-part="year" aria-label="Năm" title="Năm" placeholder="NĂM" inputmode="numeric" maxlength="4" required><input type="hidden" name="passportIssue"></div></label>
-<label class="field" data-field="passportExpiry">Ngày hết hạn hộ chiếu <small>Действителен до · tự động cùng ngày/tháng, năm +10</small><div class="date-fields" data-date="passportExpiry"><input data-part="day" aria-label="Ngày" placeholder="NGÀY" inputmode="numeric" maxlength="2" readonly required><input data-part="month" aria-label="Tháng" placeholder="THÁNG" inputmode="numeric" maxlength="2" readonly required><input data-part="year" aria-label="Năm" placeholder="NĂM" inputmode="numeric" maxlength="4" readonly required><input type="hidden" name="passportExpiry"></div></label>
+<label class="field" data-field="passportExpiry">Ngày hết hạn hộ chiếu <small>Действителен до · mặc định cùng ngày/tháng, năm +10; có thể sửa</small><div class="date-fields" data-date="passportExpiry"><input data-part="day" aria-label="Ngày" placeholder="NGÀY" inputmode="numeric" maxlength="2" list="day-options" required><input data-part="month" aria-label="Tháng" placeholder="THÁNG" inputmode="numeric" maxlength="2" list="month-options" required><input data-part="year" aria-label="Năm" placeholder="NĂM" inputmode="numeric" maxlength="4" required><input type="hidden" name="passportExpiry"></div></label>
 </div></section>
 <section class="section"><header><b>04</b><div><h2>Liên hệ & địa chỉ</h2><p>Địa chỉ thường trú được nạp mặc định; Fax không có thì để trống.</p></div></header><div class="grid">
 <label class="field" data-field="hasPermanentAddress">Có địa chỉ thường trú? <small>Имеете ли Вы адрес постоянного проживания?</small><select name="hasPermanentAddress"><option value="ДА">Có</option><option value="НЕТ">Không</option></select></label>
@@ -286,9 +286,18 @@ export async function publicVisaIntakePage(request: Request, env: VisaIntakePage
     const match=String(value || "").match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
     return match ? match[1]+"/"+match[2]+"/"+(Number(match[3])+10) : "";
   };
-  const syncPassportExpiry = () => fillDate("passportExpiry",passportExpiryFromIssue(String(byName("passportIssue")?.value || "")));
+  let passportExpiryManuallyEdited = false;
+  let lastAutoPassportExpiry = "";
+  const syncPassportExpiry = () => {
+    if (passportExpiryManuallyEdited) return;
+    const next=passportExpiryFromIssue(String(byName("passportIssue")?.value || ""));
+    lastAutoPassportExpiry=next;
+    fillDate("passportExpiry",next);
+  };
   const issueWidget=document.querySelector('[data-date="passportIssue"]');
+  const expiryWidget=document.querySelector('[data-date="passportExpiry"]');
   issueWidget?.querySelectorAll("input[data-part]").forEach(input=>{input.addEventListener("input",syncPassportExpiry);input.addEventListener("blur",syncPassportExpiry);});
+  expiryWidget?.querySelectorAll("input[data-part]").forEach(input=>input.addEventListener("input",()=>{passportExpiryManuallyEdited=true;}));
 
   const fillApplicant = applicant => {
     if(!applicant) return;
@@ -306,7 +315,12 @@ export async function publicVisaIntakePage(request: Request, env: VisaIntakePage
     document.getElementById("insurance").checked=applicant.hasInsurance === true;
     document.getElementById("children").checked=applicant.childrenUnder16 === true;
     document.getElementById("relatives").checked=applicant.relativesInRussia === true;
-    syncPassportExpiry();
+    const providedExpiry=String(applicant.passportExpiry || "");
+    const automaticExpiry=passportExpiryFromIssue(String(applicant.passportIssue || ""));
+    passportExpiryManuallyEdited=Boolean(providedExpiry && providedExpiry !== automaticExpiry);
+    lastAutoPassportExpiry=automaticExpiry;
+    if (passportExpiryManuallyEdited) fillDate("passportExpiry",providedExpiry);
+    else syncPassportExpiry();
   };
   const applyCorrections = fields => {
     const selected=new Set(Array.isArray(fields)?fields:[]);
@@ -456,7 +470,7 @@ export async function publicVisaIntakePage(request: Request, env: VisaIntakePage
       purpose:upperPlain(value("purpose")), visaType:upperPlain(value("visaType")), entries:upperPlain(value("entries")), entryDate:value("entryDate"), exitDate:value("exitDate"),
       destinationType:upperPlain(value("destinationType")), organization:upperPlain(value("organization")), organizationAddress:upperPlain(value("organizationAddress")),
       tin:value("tin"), telex:value("telex"), invitation:value("invitation"), passportNo:upperPlain(value("passportNo")),
-      passportIssue:value("passportIssue"), passportExpiry:passportExpiryFromIssue(value("passportIssue")),
+      passportIssue:value("passportIssue"), passportExpiry:value("passportExpiry") || passportExpiryFromIssue(value("passportIssue")),
       hasPermanentAddress:value("hasPermanentAddress")!=="НЕТ", personalAddress:upperPlain(value("personalAddress")), phone:value("phone"), personalFax:value("personalFax"), email:value("email").toLowerCase(),
       routeCity:upperPlain(value("routeCity")), worksOrStudies:value("worksOrStudies")!=="НЕТ", workStudyPlace:upperPlain(value("workStudyPlace")), position:upperPlain(value("position")),
       workAddress:upperPlain(value("workAddress")), workPhone:value("workPhone"), workFax:value("workFax"), workEmail:value("workEmail").toLowerCase(),

@@ -246,7 +246,7 @@ export async function POST(request: Request) {
       invitation: text(source.invitation, 120) || text(defaults.invitation, 120),
       passportNo: upperPlain(source.passportNo, 40),
       passportIssue,
-      passportExpiry: passportExpiryFromIssue(passportIssue),
+      passportExpiry: text(source.passportExpiry, 10) || passportExpiryFromIssue(passportIssue),
       hasPermanentAddress: source.hasPermanentAddress !== false,
       personalAddress: upperPlain(source.personalAddress, 300) || upperPlain(defaults.permanentAddress, 300),
       phone: text(source.phone, 40),

@@ -417,7 +417,7 @@ function buildPayload(applicant: Applicant, common: CommonData, autoAdvance = fa
     workEmail: applicant.workEmail.trim() || resolvedCommon.employerEmail,
     birthDate: normalizeDmy(applicant.birthDate),
     passportIssue: normalizeDmy(applicant.passportIssue),
-    passportExpiry: passportExpiryFromIssue(applicant.passportIssue),
+    passportExpiry: normalizeDmy(applicant.passportExpiry) || passportExpiryFromIssue(applicant.passportIssue),
     formerCitizenshipLostDate: normalizeDmy(applicant.formerCitizenshipLostDate),
     lastVisitFrom: normalizeDmy(applicant.lastVisitFrom),
     lastVisitTo: normalizeDmy(applicant.lastVisitTo),
@@ -688,7 +688,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         birthDate: normalizeDmy(next.birthDate),
         birthPlace: next.birthPlace.trim().toUpperCase(),
         passportIssue: normalizeDmy(next.passportIssue),
-        passportExpiry: passportExpiryFromIssue(next.passportIssue),
+        passportExpiry: normalizeDmy(next.passportExpiry) || passportExpiryFromIssue(next.passportIssue),
         formerCitizenshipLostDate: normalizeDmy(next.formerCitizenshipLostDate),
         lastVisitFrom: normalizeDmy(next.lastVisitFrom),
         lastVisitTo: normalizeDmy(next.lastVisitTo),
@@ -872,7 +872,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       invitation: value("invitation"),
       passportNo: value("passportNo").toUpperCase(),
       passportIssue: normalizeDmy(value("passportIssue")),
-      passportExpiry: passportExpiryFromIssue(value("passportIssue")),
+      passportExpiry: normalizeDmy(value("passportExpiry")) || passportExpiryFromIssue(value("passportIssue")),
       hasPermanentAddress: source.hasPermanentAddress !== false,
       phone: value("phone"),
       personalFax: value("personalFax"),
@@ -1609,8 +1609,14 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
           <Field label="Nơi nộp hồ sơ · Место подачи заявления"><select value={editing.preferredEmbassy || store.common.embassy} onChange={(e) => setEditing({ ...editing, preferredEmbassy: e.target.value })}>{visaConsulates.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></Field>
           <Field label="Если Вы имели гражданство СССР или России... · Đã từng có quốc tịch Liên Xô/Nga?"><select value={editing.hadFormerRussianCitizenship ? "ДА" : "НЕТ"} onChange={(e) => setEditing({ ...editing, hadFormerRussianCitizenship: e.target.value === "ДА" })}><option value="НЕТ">НЕТ · Không</option><option value="ДА">ДА · Có</option></select></Field>
           <Field label="Номер паспорта"><TextInput value={editing.passportNo} onChange={(v) => setEditing({ ...editing, passportNo: v.toUpperCase() })} /></Field>
-          <Field label="Дата выдачи паспорта · dd/mm/yyyy" hint="Ngày hết hạn tự lấy cùng ngày/tháng và năm +10."><DateTextInput value={editing.passportIssue} onChange={(v) => setEditing({ ...editing, passportIssue: v, passportExpiry: passportExpiryFromIssue(v) })} placeholder="25/06/2025" /></Field>
-          <Field label="Паспорт действителен до · tự động +10 năm"><input value={editing.passportExpiry} readOnly /></Field>
+          <Field label="Дата выдачи паспорта · dd/mm/yyyy" hint="Ngày hết hạn mặc định lấy cùng ngày/tháng và năm +10."><DateTextInput value={editing.passportIssue} onChange={(v) => setEditing((current) => {
+            if (!current) return current;
+            const previousAuto = passportExpiryFromIssue(current.passportIssue);
+            const nextAuto = passportExpiryFromIssue(v);
+            const keepManualExpiry = Boolean(current.passportExpiry) && current.passportExpiry !== previousAuto;
+            return { ...current, passportIssue: v, passportExpiry: keepManualExpiry ? current.passportExpiry : nextAuto };
+          })} placeholder="25/06/2025" /></Field>
+          <Field label="Паспорт действителен до · dd/mm/yyyy" hint="Mặc định +10 năm nhưng có thể sửa theo hộ chiếu thực tế."><DateTextInput value={editing.passportExpiry} onChange={(v) => setEditing({ ...editing, passportExpiry: v })} placeholder="25/06/2035" /></Field>
           <Field label="Có địa chỉ thường trú?"><select value={editing.hasPermanentAddress ? "ДА" : "НЕТ"} onChange={(e) => setEditing({ ...editing, hasPermanentAddress: e.target.value === "ДА" })}><option value="ДА">ДА · Có</option><option value="НЕТ">НЕТ · Không</option></select></Field>
           <Field label="Адрес вашего постоянного проживания · Địa chỉ thường trú"><TextInput value={editing.personalAddress} onChange={(v) => setEditing({ ...editing, personalAddress: v.toUpperCase() })} /></Field>
           <Field label="Điện thoại cá nhân" hint="Không có thì để trống."><TextInput value={editing.phone} onChange={(v) => setEditing({ ...editing, phone: v })} /></Field>
