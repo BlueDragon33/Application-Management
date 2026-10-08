@@ -297,9 +297,9 @@ function ensureDeviceId() {
   }
 }
 
-function Field({ label, ru, hint, children, fieldKey, correctionFields = [] }: { label: string; ru?: string; hint?: string; children: React.ReactNode; fieldKey?: string; correctionFields?: string[] }) {
-  return <label className={styles.field} data-correction={fieldKey ? correctionFields.includes(fieldKey) : false}>
-    <span>{label}</span>
+function Field({ label, ru, hint, children, fieldKey, correctionFields = [], personalRequired = false }: { label: string; ru?: string; hint?: string; children: React.ReactNode; fieldKey?: string; correctionFields?: string[]; personalRequired?: boolean }) {
+  return <label className={styles.field} data-correction={fieldKey ? correctionFields.includes(fieldKey) : false} data-personal-required={personalRequired}>
+    <span>{label}{personalRequired ? <b className={styles.requiredMark} aria-label="Bắt buộc"> *</b> : null}</span>
     {ru ? <small className={styles.ru} title={russianTranslation(ru)}>{ru}</small> : null}
     {children}
     {hint ? <small className={styles.hint}>{hint}</small> : null}
@@ -528,7 +528,7 @@ export default function VisaIntakePage() {
       <details className={styles.guide} open>
         <summary>Hướng dẫn điền hồ sơ</summary>
         <div className={styles.guideGrid}>
-          <article><strong>Thông tin theo hộ chiếu</strong><p>Họ, tên, nơi sinh và số hộ chiếu nhập đúng giấy tờ. Chữ tiếng Việt sẽ tự chuyển sang IN HOA không dấu; email giữ chữ thường.</p></article>
+          <article><strong>Thông tin theo hộ chiếu</strong><p>Họ, tên, nơi sinh và số hộ chiếu nhập đúng giấy tờ. Chữ tiếng Việt sẽ tự chuyển sang IN HOA không dấu; email giữ chữ thường. <b>Dấu * là trường cá nhân bắt buộc; ô còn thiếu sẽ được tô nổi bật cho tới khi điền đủ.</b></p></article>
           <article><strong>Ngày tháng</strong><p>Nhập riêng Ngày · Tháng · Năm. Ngày hết hạn hộ chiếu tự động lấy cùng ngày/tháng ngày cấp và cộng 10 năm.</p></article>
           <article><strong>Các mục Có / Không</strong><p>Chỉ chọn Có khi đúng thực tế. Khi chọn Có, các ô chi tiết liên quan sẽ xuất hiện và cần điền đầy đủ.</p></article>
           <article><strong>Khi hồ sơ bị trả về</strong><p>Ô sai sẽ màu đỏ. Sửa xong gửi lại, ô đó chuyển xanh để admin xác minh lại. Không cần tạo hồ sơ mới.</p></article>
@@ -561,13 +561,13 @@ export default function VisaIntakePage() {
       <section className={styles.section}>
         <header><b>02</b><div><h2>Thông tin cá nhân</h2><p>Nhập đúng như hộ chiếu. Họ và tên dùng chữ Latin không dấu.</p></div></header>
         <div className={styles.grid}>
-          <Field fieldKey="surname" correctionFields={correctionFields} label="Họ" ru="Фамилия" hint="Ví dụ: NGUYEN"><input required value={applicant.surname} onChange={(e) => set("surname", upperPlain(e.target.value))} /></Field>
-          <Field fieldKey="givenNames" correctionFields={correctionFields} label="Tên và tên đệm" ru="Имя, другие имена, отчество" hint="Ví dụ: DINH NAM"><input required value={applicant.givenNames} onChange={(e) => set("givenNames", upperPlain(e.target.value))} /></Field>
-          <Field fieldKey="birthDate" correctionFields={correctionFields} label="Ngày sinh" ru="Дата рождения" hint="Ngày và tháng có thể gõ hoặc chọn; năm nhập 4 chữ số."><DateFields required value={applicant.birthDate} onChange={(value) => set("birthDate", value)} /></Field>
-          <Field fieldKey="birthPlace" correctionFields={correctionFields} label="Nơi sinh" ru="Место рождения"><input required value={applicant.birthPlace} onChange={(e) => set("birthPlace", upperPlain(e.target.value))} /></Field>
-          <Field fieldKey="sex" correctionFields={correctionFields} label="Giới tính" ru="Пол"><select value={applicant.sex} onChange={(e) => set("sex", e.target.value)}><option value="МУЖСКОЙ">Nam</option><option value="ЖЕНСКИЙ">Nữ</option></select></Field>
+          <Field fieldKey="surname" correctionFields={correctionFields} personalRequired label="Họ" ru="Фамилия" hint="Ví dụ: NGUYEN"><input required value={applicant.surname} onChange={(e) => set("surname", upperPlain(e.target.value))} /></Field>
+          <Field fieldKey="givenNames" correctionFields={correctionFields} personalRequired label="Tên và tên đệm" ru="Имя, другие имена, отчество" hint="Ví dụ: DINH NAM"><input required value={applicant.givenNames} onChange={(e) => set("givenNames", upperPlain(e.target.value))} /></Field>
+          <Field fieldKey="birthDate" correctionFields={correctionFields} personalRequired label="Ngày sinh" ru="Дата рождения" hint="Ngày và tháng có thể gõ hoặc chọn; năm nhập 4 chữ số."><DateFields required value={applicant.birthDate} onChange={(value) => set("birthDate", value)} /></Field>
+          <Field fieldKey="birthPlace" correctionFields={correctionFields} personalRequired label="Nơi sinh" ru="Место рождения"><input required value={applicant.birthPlace} onChange={(e) => set("birthPlace", upperPlain(e.target.value))} /></Field>
+          <Field fieldKey="sex" correctionFields={correctionFields} personalRequired label="Giới tính" ru="Пол"><select value={applicant.sex} onChange={(e) => set("sex", e.target.value)}><option value="МУЖСКОЙ">Nam</option><option value="ЖЕНСКИЙ">Nữ</option></select></Field>
           <Field fieldKey="hasOtherNames" correctionFields={correctionFields} label="Đã từng dùng tên khác?" ru="Есть ли у Вас другие когда-либо использовавшиеся имена"><select value={applicant.hasOtherNames ? "ДА" : "НЕТ"} onChange={(e) => set("hasOtherNames", e.target.value === "ДА")}><option value="НЕТ">Không</option><option value="ДА">Có</option></select></Field>
-          {applicant.hasOtherNames ? <Field fieldKey="otherNames" correctionFields={correctionFields} label="Tên khác đã từng dùng"><input required value={applicant.otherNames} onChange={(e) => set("otherNames", upperPlain(e.target.value))} /></Field> : null}
+          {applicant.hasOtherNames ? <Field fieldKey="otherNames" correctionFields={correctionFields} personalRequired label="Tên khác đã từng dùng"><input required value={applicant.otherNames} onChange={(e) => set("otherNames", upperPlain(e.target.value))} /></Field> : null}
           <Field fieldKey="bornInRussia" correctionFields={correctionFields} label="Sinh tại Nga?" ru="Вы родились в России?"><select value={applicant.bornInRussia ? "ДА" : "НЕТ"} onChange={(e) => set("bornInRussia", e.target.value === "ДА")}><option value="НЕТ">Không</option><option value="ДА">Có</option></select></Field>
           <Field fieldKey="routeCity" correctionFields={correctionFields} label="Nơi đến tại Nga" ru="Маршрут (населенные пункты)" hint="Thông thường là МОСКВА"><input required value={applicant.routeCity} onChange={(e) => set("routeCity", upperPlain(e.target.value))} /></Field>
         </div>
@@ -576,14 +576,14 @@ export default function VisaIntakePage() {
       <section className={styles.section}>
         <header><b>03</b><div><h2>Hộ chiếu</h2><p>Mỗi ngày dùng 3 ô Ngày · Tháng · Năm để tránh nhập sai. Ngày cấp không được ở tương lai; ngày hết hạn phải sau ngày cấp và hộ chiếu phải còn hạn.</p></div></header>
         <div className={styles.grid}>
-          <Field fieldKey="passportNo" correctionFields={correctionFields} label="Số hộ chiếu" ru="Номер паспорта"><input required value={applicant.passportNo} onChange={(e) => set("passportNo", upperPlain(e.target.value))} /></Field>
-          <Field fieldKey="passportIssue" correctionFields={correctionFields} label="Ngày cấp hộ chiếu" ru="Дата выдачи"><DateFields required value={applicant.passportIssue} onChange={(value) => setApplicant((current) => {
+          <Field fieldKey="passportNo" correctionFields={correctionFields} personalRequired label="Số hộ chiếu" ru="Номер паспорта"><input required value={applicant.passportNo} onChange={(e) => set("passportNo", upperPlain(e.target.value))} /></Field>
+          <Field fieldKey="passportIssue" correctionFields={correctionFields} personalRequired label="Ngày cấp hộ chiếu" ru="Дата выдачи"><DateFields required value={applicant.passportIssue} onChange={(value) => setApplicant((current) => {
             const previousAuto = passportExpiryFromIssue(current.passportIssue);
             const nextAuto = passportExpiryFromIssue(value);
             const keepManualExpiry = Boolean(current.passportExpiry) && current.passportExpiry !== previousAuto;
             return { ...current, passportIssue: value, passportExpiry: keepManualExpiry ? current.passportExpiry : nextAuto };
           })} /></Field>
-          <Field fieldKey="passportExpiry" correctionFields={correctionFields} label="Ngày hết hạn hộ chiếu"><DateFields required value={applicant.passportExpiry} onChange={(value) => set("passportExpiry", value)} /></Field>
+          <Field fieldKey="passportExpiry" correctionFields={correctionFields} personalRequired label="Ngày hết hạn hộ chiếu"><DateFields required value={applicant.passportExpiry} onChange={(value) => set("passportExpiry", value)} /></Field>
         </div>
       </section>
 
@@ -592,9 +592,9 @@ export default function VisaIntakePage() {
         <div className={styles.grid}>
           <Field fieldKey="hasPermanentAddress" correctionFields={correctionFields} label="Có địa chỉ thường trú?" ru="Имеете ли Вы адрес постоянного проживания?"><select value={applicant.hasPermanentAddress ? "ДА" : "НЕТ"} onChange={(e) => set("hasPermanentAddress", e.target.value === "ДА")}><option value="ДА">Có</option><option value="НЕТ">Không</option></select></Field>
           {applicant.hasPermanentAddress ? <Field fieldKey="personalAddress" correctionFields={correctionFields} label="Địa chỉ thường trú" ru="Адрес вашего постоянного проживания"><input required value={applicant.personalAddress || permanentAddress} onChange={(e) => set("personalAddress", upperPlain(e.target.value))} /></Field> : null}
-          <Field fieldKey="phone" correctionFields={correctionFields} label="Điện thoại cá nhân" ru="Ваш личный телефон"><input required value={applicant.phone} onChange={(e) => set("phone", e.target.value)} /></Field>
+          <Field fieldKey="phone" correctionFields={correctionFields} personalRequired label="Điện thoại cá nhân" ru="Ваш личный телефон"><input required value={applicant.phone} onChange={(e) => set("phone", e.target.value)} /></Field>
           <Field fieldKey="personalFax" correctionFields={correctionFields} label="Fax cá nhân" ru="Ваш личный факс" hint="Không có thì để trống."><input value={applicant.personalFax} onChange={(e) => set("personalFax", e.target.value)} /></Field>
-          <Field fieldKey="email" correctionFields={correctionFields} label="Email cá nhân" ru="Ваш личный E-mail"><input type="email" required value={applicant.email} onChange={(e) => set("email", e.target.value.toLowerCase())} /></Field>
+          <Field fieldKey="email" correctionFields={correctionFields} personalRequired label="Email cá nhân" ru="Ваш личный E-mail"><input type="email" required value={applicant.email} onChange={(e) => set("email", e.target.value.toLowerCase())} /></Field>
         </div>
       </section>
 

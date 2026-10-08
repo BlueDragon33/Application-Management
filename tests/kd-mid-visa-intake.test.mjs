@@ -394,3 +394,29 @@ test("passport expiry UI has no extra subtitle, auto-fills +10, stays editable, 
   assert.match(publicPage, /const recoveredExpiry = String\(recovered\.passportExpiry \?\? ""\)\.trim\(\)/);
   assert.match(publicPage, /merged\.passportExpiry = recoveredExpiry \|\| passportExpiryFromIssue/);
 });
+
+
+test("five marked personal text fields normalize Vietnamese accents and uppercase immediately", () => {
+  for (const field of ["surname","givenNames","birthPlace","otherNames","routeCity"]) {
+    assert.match(publicPage, new RegExp('set\\("' + field + '", upperPlain\\(e\\.target\\.value\\)\\)'));
+  }
+  assert.match(publicWorkerPage, /const plainNames = \[[^\]]*"surname"[^\]]*"givenNames"[^\]]*"otherNames"[^\]]*"birthPlace"[^\]]*"routeCity"/s);
+  assert.match(publicWorkerPage, /el\.value=upperPlain\(el\.value\)/);
+});
+
+test("personal required fields show a star and stay visually highlighted until valid", () => {
+  for (const field of ["surname","givenNames","birthDate","birthPlace","sex","passportNo","passportIssue","passportExpiry","phone","email"]) {
+    assert.match(publicWorkerPage, new RegExp('data-field="' + field + '" data-personal-required="true"'));
+  }
+  assert.match(publicPage, /personalRequired \? <b className=\{styles\.requiredMark\}/);
+  assert.match(publicPage, /data-personal-required=\{personalRequired\}/);
+  assert.match(publicWorkerPage, /data-personal-required="true"/);
+  assert.match(publicWorkerPage, /:has\(input:required:invalid\)/);
+  assert.match(publicWorkerPage, /class="required-mark">\*<\/b>/);
+});
+
+test("other names is marked required only when the applicant says they used another name", () => {
+  assert.match(publicPage, /applicant\.hasOtherNames \? <Field fieldKey="otherNames"[^>]*personalRequired/);
+  assert.match(publicWorkerPage, /syncOtherNamesRequired/);
+  assert.match(publicWorkerPage, /otherNamesInput\.required=otherNamesSelect\?\.value==="ДА"/);
+});
