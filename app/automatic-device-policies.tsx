@@ -67,7 +67,8 @@ function initialDrafts(apps: readonly AutomationApp[], settings: OperationsSetti
   })) as Record<string, AutomationAppDraft>;
 }
 
-function verificationLabel(policy: OperationsAutomationPolicy) {
+function verificationLabel(policy: OperationsAutomationPolicy, verified: boolean) {
+  if (!verified && policy.verification.state === "live") return "CACHED";
   if (policy.verification.state === "live") return "LIVE";
   if (policy.verification.state === "fallback") return "LAST KNOWN";
   if (policy.verification.state === "unavailable") return "UNAVAILABLE";
@@ -99,15 +100,18 @@ function draftChanged(policy: OperationsAutomationPolicy, draft: AutomationAppDr
     && (policy.current.freeAccessDays !== days || policy.current.freeDeviceLimit !== limit);
 }
 
-export default function AutomaticDevicePolicies({ apps, settings, busy, close, save }: {
+export default function AutomaticDevicePolicies({ apps, settings, verified, busy, close, sync, save }: {
   apps: readonly AutomationApp[];
   settings: OperationsSettings | undefined;
+  verified: boolean;
   busy: boolean;
+  sync: () => Promise<unknown>;
   close: () => void;
   save: (selection: AutomationSelection) => Promise<OperationsSettings | null | undefined>;
 }) {
   const [drafts, setDrafts] = useState<Record<string, AutomationAppDraft>>(() => initialDrafts(apps, settings));
   const submitLockRef = useRef(false);
+  const draftEditedRef = useRef(false);
   const dialogRef = useRef<HTMLElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const openerRef = useRef<HTMLElement | null>(null);
@@ -116,7 +120,7 @@ export default function AutomaticDevicePolicies({ apps, settings, busy, close, s
   const [days, setDays] = useState(boiPolicy.current.freeAccessDays ?? settings?.freeAccessDaysByApp?.["boi-ech"] ?? 60);
   const [limit, setLimit] = useState(boiPolicy.current.freeDeviceLimit ?? settings?.freeDeviceLimitByApp?.["boi-ech"] ?? 20);
   const policies = apps.map((app) => policyFor(settings, app.id));
-  const hasWritablePolicy = policies.some((policy) => policy.mutation.autoApprove || policy.mutation.autoBlockPending);
+  const hasWritablePolicy = verified && policies.some((policy) => policy.mutation.autoApprove || policy.mutation.autoBlockPending);
   const hasUnverifiedPolicy = policies.some((policy) => policy.verification.state === "fallback" || policy.verification.state === "unavailable");
   const hasChanges = apps.some((app) => draftChanged(
     policyFor(settings, app.id),
@@ -126,9 +130,19 @@ export default function AutomaticDevicePolicies({ apps, settings, busy, close, s
     limit,
   ));
   const locked = busy || submitting;
-  const canSave = Boolean(settings) && !locked && hasWritablePolicy && hasChanges
+  const canSave = Boolean(settings) && verified && !locked && hasWritablePolicy && hasChanges
     && Number.isInteger(days) && days >= 1 && days <= 365
     && Number.isInteger(limit) && limit >= 1 && limit <= 1_000;
+
+  // A modal may be opened on a cached snapshot while live bootstrap is in flight.
+  // Rebase only untouched drafts; never overwrite an actual user edit.
+  useEffect(() => {
+    if (draftEditedRef.current) return;
+    setDrafts(initialDrafts(apps, settings));
+    const latestBoi = policyFor(settings, "boi-ech");
+    setDays(latestBoi.current.freeAccessDays ?? settings?.freeAccessDaysByApp?.["boi-ech"] ?? 60);
+    setLimit(latestBoi.current.freeDeviceLimit ?? settings?.freeDeviceLimitByApp?.["boi-ech"] ?? 20);
+  }, [apps, settings]);
 
   useEffect(() => {
     openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -169,6 +183,7 @@ export default function AutomaticDevicePolicies({ apps, settings, busy, close, s
   }
 
   function updateDraft(appId: string, patch: Partial<AutomationAppDraft>) {
+    draftEditedRef.current = true;
     setDrafts((current) => ({
       ...current,
       [appId]: { ...(current[appId] ?? { autoApprove: false, autoBlock: false, pendingBlockAfterHours: 168 }), ...patch },
@@ -188,6 +203,7 @@ export default function AutomaticDevicePolicies({ apps, settings, busy, close, s
       const readback = await save({ appIds, autoBlockAppIds, pendingBlockAfterHoursByApp, defaultAccessDays: days, defaultDeviceLimit: limit });
       if (!readback) return;
 
+      draftEditedRef.current = false;
       setDrafts(initialDrafts(apps, readback));
       const nextBoi = policyFor(readback, "boi-ech");
       setDays(nextBoi.current.freeAccessDays ?? readback.freeAccessDaysByApp?.["boi-ech"] ?? days);
@@ -205,14 +221,15 @@ export default function AutomaticDevicePolicies({ apps, settings, busy, close, s
         <button ref={closeButtonRef} onClick={close} disabled={locked} aria-label="Đóng">×</button>
       </header>
       <p className={styles.intro}><strong>Đang áp dụng</strong> là dữ liệu readback. Các ô bên dưới là bản nháp; sau khi lưu thành công chúng tự đồng bộ lại đúng trạng thái client.</p>
+      {!verified ? <p className={styles.warning}>Dữ liệu đang hiển thị chưa được xác minh LIVE trong phiên này. Đồng bộ online trước khi thay đổi quy tắc.</p> : null}
       {hasUnverifiedPolicy ? <p className={styles.warning}>Ứng dụng LAST KNOWN/UNAVAILABLE chỉ hiển thị tham chiếu và không được ghi mù. READ-ONLY là app chưa công bố automation contract an toàn.</p> : null}
 
       <div className={styles.list}>
         {apps.map((app) => {
           const policy = policyFor(settings, app.id);
           const draft = drafts[app.id] ?? { autoApprove: false, autoBlock: false, pendingBlockAfterHours: 168 };
-          const approveWritable = policy.mutation.autoApprove;
-          const blockWritable = policy.mutation.autoBlockPending;
+          const approveWritable = verified && policy.mutation.autoApprove;
+          const blockWritable = verified && policy.mutation.autoBlockPending;
           const approvalValue = !policy.support.autoApprove ? "unsupported" : draft.autoApprove ? "auto" : "manual";
           const blockValue = !policy.support.autoBlockPending ? "unsupported" : draft.autoBlock ? "block" : "keep";
           const timeValue = policy.support.autoBlockPending && draft.autoBlock ? draft.pendingBlockAfterHours : 0;
@@ -226,7 +243,7 @@ export default function AutomaticDevicePolicies({ apps, settings, busy, close, s
               </div>
               <div className={styles.appMeta}>
                 {changed ? <span className={styles.changedBadge}>CHƯA LƯU</span> : null}
-                <b className={styles.verificationBadge} data-state={policy.verification.state}>{verificationLabel(policy)}</b>
+                <b className={styles.verificationBadge} data-state={policy.verification.state}>{verificationLabel(policy, verified)}</b>
               </div>
             </div>
 
@@ -290,8 +307,8 @@ export default function AutomaticDevicePolicies({ apps, settings, busy, close, s
             </div>
 
             {app.id === "boi-ech" ? <div className={styles.limits} data-disabled={!draft.autoApprove || !approveWritable}>
-              <label>Thời hạn miễn phí <select value={days} disabled={locked || !approveWritable || !draft.autoApprove} onChange={(event) => setDays(Number(event.target.value))}>{[30, 60, 90, 180, 365].map((value) => <option key={value} value={value}>{value} ngày</option>)}</select></label>
-              <label>Tối đa thiết bị <input type="number" min={1} max={1000} value={limit} disabled={locked || !approveWritable || !draft.autoApprove} onChange={(event) => setLimit(Number(event.target.value))}/></label>
+              <label>Thời hạn miễn phí <select value={days} disabled={locked || !approveWritable || !draft.autoApprove} onChange={(event) => { draftEditedRef.current = true; setDays(Number(event.target.value)); }}>{[30, 60, 90, 180, 365].map((value) => <option key={value} value={value}>{value} ngày</option>)}</select></label>
+              <label>Tối đa thiết bị <input type="number" min={1} max={1000} value={limit} disabled={locked || !approveWritable || !draft.autoApprove} onChange={(event) => { draftEditedRef.current = true; setLimit(Number(event.target.value)); }}/></label>
               <small>Chỉ áp dụng cho Miễn phí · tự động duyệt. Luồng trả phí vẫn phải xác minh thanh toán.</small>
             </div> : null}
 
@@ -303,8 +320,8 @@ export default function AutomaticDevicePolicies({ apps, settings, busy, close, s
       </div>
 
       <footer className={styles.dialogFooter}>
-        <span className={styles.saveState}>{locked ? "Đang ghi và đọc lại client…" : hasChanges ? "Có thay đổi chưa lưu" : "Cấu hình đang khớp trạng thái đã đọc"}</span>
-        <div><button onClick={close} disabled={locked}>Đóng</button><button className={styles.save} disabled={!canSave} onClick={() => void submit()}>{locked ? "Đang lưu…" : "Lưu thay đổi"}</button></div>
+        <span className={styles.saveState}>{locked ? "Đang ghi và đọc lại client…" : !verified ? "Chưa xác minh LIVE" : hasChanges ? "Có thay đổi chưa lưu" : "Cấu hình đang khớp trạng thái đã đọc"}</span>
+        <div><button type="button" onClick={() => void sync()} disabled={locked}>Đồng bộ LIVE</button><button onClick={close} disabled={locked}>Đóng</button><button className={styles.save} disabled={!canSave} onClick={() => void submit()}>{locked ? "Đang lưu…" : "Lưu thay đổi"}</button></div>
       </footer>
     </section>
   </div>;
