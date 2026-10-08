@@ -381,3 +381,16 @@ test("Russian labels show Vietnamese translations on hover without an online tra
   assert.match(publicWorkerPage, /const russianTranslations = \{/);
   assert.match(publicWorkerPage, /el\.setAttribute\("title", translated\)/);
 });
+
+
+test("passport expiry UI has no extra subtitle, auto-fills +10, stays editable, and preserves a recovered manual value", () => {
+  assert.doesNotMatch(publicWorkerPage, /Ngày hết hạn hộ chiếu\s*<small>/);
+  assert.doesNotMatch(publicPage, /label="Ngày hết hạn hộ chiếu"\s+ru=/);
+  assert.match(publicWorkerPage, /const syncPassportExpiry = \(\) =>/);
+  assert.match(publicWorkerPage, /fillDate\("passportExpiry",next\)/);
+  assert.match(publicWorkerPage, /passportExpiryManuallyEdited=true/);
+  assert.match(publicPage, /const previousAuto = passportExpiryFromIssue\(current\.passportIssue\)/);
+  assert.match(publicPage, /keepManualExpiry/);
+  assert.match(publicPage, /const recoveredExpiry = String\(recovered\.passportExpiry \?\? ""\)\.trim\(\)/);
+  assert.match(publicPage, /merged\.passportExpiry = recoveredExpiry \|\| passportExpiryFromIssue/);
+});
