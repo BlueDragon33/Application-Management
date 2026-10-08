@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { BaumanRegistryStatus, BaumanStudyModule } from "./bauman-module-registry";
 import styles from "./study-plan.module.css";
-import { courseAssessmentParts, defaultSurvivalState, parseSurvivalState, personalDeadlineCollisions, prerequisiteEvidenceGaps, survivalPhases, survivalStorageKey, survivalWeeks, weekEvidenceSummary, type SurvivalPersonalState, type AssessmentKind } from "./study-plan-survival-data";
+import { courseAssessmentParts, createStudyPlanBackup, parseStudyPlanBackup, defaultSurvivalState, parseSurvivalState, personalDeadlineCollisions, prerequisiteEvidenceGaps, survivalPhases, survivalStorageKey, survivalWeeks, weekEvidenceSummary, type SurvivalPersonalState, type AssessmentKind } from "./study-plan-survival-data";
 import {
   courses,
   preBaumanRoadmap,
@@ -1183,6 +1183,8 @@ export default function StudyPlanTool({
   const [survival, setSurvival] = useState<SurvivalPersonalState>(defaultSurvivalState);
   const [survivalOwner, setSurvivalOwner] = useState<string | null>(null);
   const [survivalSaved, setSurvivalSaved] = useState(true);
+  const backupInput = useRef<HTMLInputElement>(null);
+  const [backupMessage, setBackupMessage] = useState("");
 
   useEffect(() => {
     try {
@@ -1243,6 +1245,43 @@ export default function StudyPlanTool({
       setSurvivalSaved(false);
     }
   }, [survival, survivalOwner, user.email]);
+
+  const exportProgress = () => {
+    try {
+      const archive = createStudyPlanBackup(completed, survival);
+      const blob = new Blob([JSON.stringify(archive, null, 2)], {type:"application/json"});
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "bauman-iu5-study-progress.json";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setBackupMessage(lang === "vi" ? "Đã chuẩn bị tệp JSON để trình duyệt lưu." : "JSON backup prepared for your browser to save.");
+    } catch {
+      setBackupMessage(lang === "vi" ? "Không thể tạo bản sao tiến độ." : "Could not create the progress backup.");
+    }
+  };
+  const importProgress = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      if (file.size > 2_000_000) throw new Error("BACKUP_TOO_LARGE");
+      const restored = parseStudyPlanBackup(await file.text());
+      const ok = window.confirm(lang === "vi"
+        ? "Nhập bản sao sẽ thay thế checklist 12 tuần dùng chung trên trình duyệt này và tiến độ 24 tuần của tài khoản hiện tại. Tiếp tục?"
+        : "Importing this backup replaces the device-shared 12-week checklist and this account\'s 24-week progress. Continue?");
+      if (!ok) {
+        setBackupMessage(lang === "vi" ? "Đã hủy nhập bản sao." : "Backup import cancelled.");
+        return;
+      }
+      setCompleted(restored.compactChecklist);
+      setSurvival(restored.survival);
+      setBackupMessage(lang === "vi" ? "Đã nhập dữ liệu. Tiến độ vẫn là ghi nhận cá nhân, không phải điểm chính thức." : "Progress imported as personal records, not official grades.");
+    } catch {
+      setBackupMessage(lang === "vi" ? "Không thể nhập: JSON sai định dạng hoặc không đúng phiên bản." : "Import failed: invalid or unsupported backup JSON.");
+    }
+  };
 
   const toggleStep = (key: string) => setCompleted((current) => ({ ...current, [key]: !current[key] }));
   const resetProgress = () => setCompleted({});
@@ -1525,6 +1564,22 @@ export default function StudyPlanTool({
     <section className={styles.survivalSelector} id="pre-bauman-roadmap" aria-label={lang === "vi" ? "Chế độ lộ trình chuẩn bị" : "Preparation mode"}>
       {!survivalSaved && <p role="alert">{lang === "vi" ? "Không lưu được tiến độ 24 tuần trên thiết bị này. Hãy kiểm tra quyền lưu trữ của trình duyệt." : "Could not save 24-week progress on this device. Check browser storage permissions."}</p>}
       <span>{lang === "vi" ? "Lộ trình chuẩn bị" : "Preparation roadmap"}</span>
+      <div className={styles.survivalBackupActions}>
+        <button type="button" disabled={survivalOwner !== user.email} onClick={exportProgress}>
+          {lang === "vi" ? "Xuất tiến độ JSON" : "Export progress JSON"}
+        </button>
+        <button type="button" disabled={survivalOwner !== user.email} onClick={() => backupInput.current?.click()}>
+          {lang === "vi" ? "Nhập bản sao" : "Import backup"}
+        </button>
+        <input ref={backupInput} type="file" accept=".json,application/json" hidden
+          aria-label={lang === "vi" ? "Chọn tệp sao lưu JSON" : "Choose JSON backup file"}
+          onChange={event => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            void importProgress(file);
+          }}/>
+      </div>
+      {backupMessage && <p className={styles.survivalBackupMessage} role="status">{backupMessage}</p>}
       <div>
         <button type="button" data-active={survival.variant === "compact12"}
           aria-pressed={survival.variant === "compact12"}

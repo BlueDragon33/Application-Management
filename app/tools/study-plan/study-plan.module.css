@@ -4445,3 +4445,17 @@
 .survivalPrerequisites strong{display:block;font-size:11px;line-height:1.45}
 .survivalPrerequisites p{margin:5px 0}
 .survivalPrerequisites small{font-size:10px;color:#75859d;line-height:1.5}
+
+
+.survivalBackupActions{
+  display:flex;gap:7px;flex-wrap:wrap;align-items:center;
+}
+.survivalBackupActions button{
+  font-size:11px;background:#f7f9fc;color:#3c597f;border:1px solid #d9e2ee;
+  padding:8px 10px;border-radius:9px;cursor:pointer;
+}
+.survivalBackupActions button:disabled{opacity:.55;cursor:default}
+.survivalBackupActions button:focus-visible{outline:3px solid #4f83d9;outline-offset:2px}
+.survivalSelector .survivalBackupMessage{
+  width:100%;font-size:11px;font-weight:500;margin:0;color:#566c8a;
+}

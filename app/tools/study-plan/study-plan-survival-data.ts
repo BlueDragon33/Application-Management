@@ -226,3 +226,47 @@ export function personalDeadlineCollisions(plans: Record<string, PersonalAssessm
   }
   return [...dates].filter(([, count]) => count >= 2).map(([date]) => date).sort();
 }
+
+
+/** Explicit user-owned, device-independent backup; never uploads data to App Manager. */
+export type PortableStudyPlanBackup = {
+  format: "bauman-study-plan-progress";
+  version: 1;
+  exportedAt: string;
+  compactChecklist: Record<string, boolean>;
+  survival: SurvivalPersonalState;
+};
+export function createStudyPlanBackup(
+  compactChecklist: Record<string, boolean>,
+  survival: SurvivalPersonalState,
+  exportedAt = new Date().toISOString(),
+): PortableStudyPlanBackup {
+  const safeChecklist: Record<string, boolean> = {};
+  Object.entries(compactChecklist).slice(0, 5000).forEach(([key, value]) => {
+    if (key.length > 0 && key.length <= 120 && !["__proto__","constructor","prototype"].includes(key) && typeof value === "boolean") {
+      safeChecklist[key] = value;
+    }
+  });
+  return {
+    format: "bauman-study-plan-progress",
+    version: 1,
+    exportedAt,
+    compactChecklist: safeChecklist,
+    survival: parseSurvivalState(JSON.stringify(survival)),
+  };
+}
+export function parseStudyPlanBackup(text: string): PortableStudyPlanBackup {
+  if (text.length > 2_000_000) throw new Error("BACKUP_TOO_LARGE");
+  let raw: unknown;
+  try { raw = JSON.parse(text); } catch { throw new Error("INVALID_JSON"); }
+  if (!raw || typeof raw !== "object") throw new Error("INVALID_FORMAT");
+  const data = raw as Partial<PortableStudyPlanBackup>;
+  if (data.format !== "bauman-study-plan-progress" || data.version !== 1 ||
+      !data.survival || data.survival.version !== 2 ||
+      !data.compactChecklist || typeof data.compactChecklist !== "object" || Array.isArray(data.compactChecklist)) {
+    throw new Error("INVALID_FORMAT");
+  }
+  const backup = createStudyPlanBackup(data.compactChecklist, data.survival,
+    typeof data.exportedAt === "string" ? data.exportedAt.slice(0, 40) : "");
+  return backup;
+}

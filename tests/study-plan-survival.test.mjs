@@ -126,3 +126,31 @@ test("cross-phase recommendations report missing evidence, never failure or conf
   assert.deepEqual(survival.prerequisiteEvidenceGaps("oop", withEvidence), []);
   assert.equal(survival.weekEvidenceSummary(withEvidence).verified, 0);
 });
+
+
+test("portable backup round-trip preserves old checklist and new personal planning independently", () => {
+  const original = survival.parseSurvivalState(JSON.stringify({
+    ...survival.defaultSurvivalState(),
+    variant:"standard24",
+    exerciseDone: {"iu5-pre24-w01":true},
+    evidence: {"iu5-pre24-w01":{state:"submitted",note:"local test"}},
+    assessmentPlans: {"oop:exam":{dueDate:"2028-01-10",status:"working",note:"personal"}},
+  }));
+  const legacy = {"prebauman:python-oop:0": true,"prep:oop:0":false};
+  const exportData = survival.createStudyPlanBackup(legacy, original, "2026-10-08T00:00:00.000Z");
+  assert.equal(exportData.format, "bauman-study-plan-progress");
+  assert.equal(exportData.version, 1);
+  const restored = survival.parseStudyPlanBackup(JSON.stringify(exportData));
+  assert.deepEqual(restored, exportData);
+  assert.equal(restored.survival.exerciseDone["iu5-pre24-w01"], true);
+  assert.equal(restored.survival.assessmentPlans["oop:exam"].dueDate, "2028-01-10");
+  assert.equal(survival.weekEvidenceSummary(restored.survival).verified, 0);
+});
+test("restore is fail closed on invalid files and filters polluted checklist keys", () => {
+  assert.throws(() => survival.parseStudyPlanBackup("{bad json"), /INVALID_JSON/);
+  assert.throws(() => survival.parseStudyPlanBackup("{}"), /INVALID_FORMAT/);
+  assert.throws(() => survival.parseStudyPlanBackup(" ".repeat(2_000_001)), /BACKUP_TOO_LARGE/);
+  const dirty = JSON.parse('{"legitimate":true,"__proto__":true,"constructor":true}');
+  const backup = survival.createStudyPlanBackup(dirty, survival.defaultSurvivalState());
+  assert.deepEqual(backup.compactChecklist,{legitimate:true});
+});
