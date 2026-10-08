@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { BaumanRegistryStatus, BaumanStudyModule } from "./bauman-module-registry";
 import styles from "./study-plan.module.css";
+import { defaultSurvivalState, parseSurvivalState, survivalPhases, survivalStorageKey, survivalWeeks, weekEvidenceSummary, type SurvivalPersonalState } from "./study-plan-survival-data";
 import {
   courses,
   preBaumanRoadmap,
@@ -163,14 +164,14 @@ const copy = {
     navCoursesSub: "Tìm và lọc 33 học phần",
     navSkillsSub: "6 nhóm năng lực chính",
     navAnalysisSub: "120 tín chỉ · 4.320 giờ",
-    navPreparationSub: "Kế hoạch chuẩn bị 12 tuần",
+    navPreparationSub: "Kế hoạch chuẩn bị 12 hoặc 24 tuần",
     workspaceTitle: "Chọn khu vực làm việc",
     workspaceHint: "Bấm một mục để mở đúng phần cần xem — không phải cuộn cả trang.",
     quickFind: "Tìm nhanh môn học",
     quickFindPlaceholder: "Gõ tên môn bằng Việt / English / Русский...",
     quickFindHint: "Enter để mở danh sách kết quả",
     quickExplore: "Khám phá",
-    quickRoadmap: "Lộ trình 12 tuần",
+    quickRoadmap: "Lộ trình 12/24 tuần",
     quickCoverage: "Độ phủ học liệu",
     quickSkills: "Năng lực",
     baumanAdmin: "Bauman Admin",
@@ -324,14 +325,14 @@ const copy = {
     navCoursesSub: "Search and filter 33 entries",
     navSkillsSub: "6 core competency areas",
     navAnalysisSub: "120 credits · 4,320 hours",
-    navPreparationSub: "12-week preparation plan",
+    navPreparationSub: "12- or 24-week preparation plan",
     workspaceTitle: "Choose a workspace",
     workspaceHint: "Open only the section you need instead of scrolling through the full page.",
     quickFind: "Quick course search",
     quickFindPlaceholder: "Type a course in Vietnamese / English / Русский...",
     quickFindHint: "Press Enter to open the result list",
     quickExplore: "Explore",
-    quickRoadmap: "12-week roadmap",
+    quickRoadmap: "12/24-week roadmap",
     quickCoverage: "Learning coverage",
     quickSkills: "Skills",
     baumanAdmin: "Bauman Admin",
@@ -631,18 +632,19 @@ const readinessLabels: Record<ReadinessLevel, { vi: string; en: string }> = {
 
 const readinessLegend = {
   vi: {
-    title: "Mức nền cá nhân",
-    note: "Đánh dấu theo nền Điều khiển & Tự động hóa hiện có và các khoảng cần bù trước khi vào IU-5. Đây không phải điểm số của môn.",
+    title: "Định hướng bù nền (chưa kiểm chứng)",
+    note: "Phân loại tham khảo được biên soạn trước, không phải điểm thi, kết quả chẩn đoán hay bằng chứng đã nắm vững.",
     priority: "Ưu tiên bù",
   },
   en: {
-    title: "Personal readiness",
-    note: "Tagged from the existing Control & Automation foundation and identified preparation gaps before IU-5. This is not a course grade.",
+    title: "Suggested preparation (unverified)",
+    note: "Authored preparation categories, not exam grades, diagnostic results or evidence of mastery.",
     priority: "Priority",
   },
 } as const;
 
 const assessmentLabels: Record<Assessment, { vi: string; en: string }> = {
+  "rating-exam": { vi: "РЭкз · Thi theo rating", en: "РЭкз · Rating exam" },
   credit: { vi: "Zachyot", en: "Credit / pass" },
   exam: { vi: "Thi", en: "Exam" },
   "exam-coursework": { vi: "Thi + coursework", en: "Exam + coursework" },
@@ -865,7 +867,7 @@ function PreStudyRoadmap({
     }, 0) / 12,
   );
 
-  return <section className={styles.preBaumanRoadmap} id="pre-bauman-roadmap">
+  return <section className={styles.preBaumanRoadmap}>
     <header className={styles.preBaumanHeader}>
       <div>
         <span>{t.eyebrow}</span>
@@ -959,6 +961,121 @@ function PreStudyRoadmap({
   </section>;
 }
 
+/** Preparation-only view: never claims an official BMSTU grade or externally verified mastery. */
+function StandardSurvivalRoadmap({
+  lang, progress, onProgressChange, onOpenCourse,
+}: {
+  lang: Language;
+  progress: SurvivalPersonalState;
+  onProgressChange: (update: (prior: SurvivalPersonalState) => SurvivalPersonalState) => void;
+  onOpenCourse: (course: Course) => void;
+}) {
+  const week = survivalWeeks[progress.selectedWeek - 1] ?? survivalWeeks[0];
+  const phase = survivalPhases[week.phase];
+  const evidence = progress.evidence[week.id] ?? { state: "not_assessed" as const, note: "" };
+  const summary = weekEvidenceSummary(progress);
+  const isVi = lang === "vi";
+  const linkedCourses = week.targetCourseIds.map(id => courses.find(c => c.id === id))
+    .filter((course): course is Course => Boolean(course));
+  const editEvidence = (note: string) => onProgressChange(prior => ({
+    ...prior,
+    evidence: { ...prior.evidence, [week.id]: { state: "not_assessed", note: note.slice(0, 1000) } },
+  }));
+  const setEvidenceState = (state: "self_reported" | "submitted") => onProgressChange(prior => ({
+    ...prior,
+    evidence: { ...prior.evidence, [week.id]: { state, note: prior.evidence[week.id]?.note ?? "" } },
+  }));
+  const evidenceStatus = evidence.state === "submitted"
+    ? (isVi ? "Đã ghi minh chứng · chờ kiểm tra" : "Evidence recorded · awaiting review")
+    : evidence.state === "self_reported"
+      ? (isVi ? "Tự đánh giá · chưa xác minh" : "Self-reported · not verified")
+      : (isVi ? "Chưa được đánh giá" : "Not assessed");
+  return <section className={styles.survivalWeek} aria-label={isVi ? "Chuẩn bị 24 tuần" : "24-week preparation"}>
+    <header className={styles.survivalWeekHeader}>
+      <div>
+        <span>{isVi ? "LỘ TRÌNH CHUẨN BỊ · KHÔNG PHẢI LỊCH CHÍNH THỨC" : "PERSONAL PREPARATION · NOT AN OFFICIAL TIMETABLE"}</span>
+        <h2>{isVi ? "24 tuần xây nền IU5" : "IU5 24-week foundations"}</h2>
+        <p>{isVi ? "Mỗi tuần một bài thực hành và một tiêu chí kiểm tra. Đã làm không đồng nghĩa đã nắm vững." : "Each week has practice and a checkpoint. Completed practice does not imply verified mastery."}</p>
+      </div>
+      <div className={styles.survivalStats}>
+        <span>{summary.practiced}/24 <small>{isVi ? "đã thực hành" : "practiced"}</small></span>
+        <span>{summary.evidenceSubmitted}/24 <small>{isVi ? "minh chứng" : "evidence"}</small></span>
+      </div>
+    </header>
+    <div className={styles.survivalSettings}>
+      <label>{isVi ? "Tuần đang xem" : "Selected week"}
+        <select value={week.number} onChange={e => onProgressChange(p => ({ ...p, selectedWeek: Number(e.target.value) }))}>
+          {survivalWeeks.map(w => <option key={w.id} value={w.number}>
+            {isVi ? "Tuần" : "Week"} {w.number} · {w.title[lang]}
+          </option>)}
+        </select>
+      </label>
+      <label>{isVi ? "Thời gian học có thể dành (giờ/tuần)" : "Available study time (hours/week)"}
+        <input type="number" min={1} max={40} step={1}
+          value={progress.availableHoursPerWeek}
+          onChange={e => {
+            const hours = Number(e.target.value);
+            if (Number.isFinite(hours) && hours >= 1 && hours <= 40)
+              onProgressChange(p => ({ ...p, availableHoursPerWeek: hours }));
+          }} />
+      </label>
+    </div>
+    <div className={styles.survivalWeekBody}>
+      <div className={styles.survivalWeekPrimary}>
+        <small>{survivalPhases[week.phase].label[lang]} · {isVi ? "Tuần" : "Week"} {week.number}/24</small>
+        <h3>{week.title[lang]}</h3>
+        <p>{phase.purpose[lang]}</p>
+        <h4>{isVi ? "Bài thực hành" : "Practical exercise"}</h4>
+        <p>{week.exercise[lang]}</p>
+        <h4>{isVi ? "Cổng kiểm tra đề xuất" : "Suggested checkpoint"}</h4>
+        <p>{week.checkpoint[lang]}</p>
+        <h4>{isVi ? "Sản phẩm cần có" : "Expected artifact"}</h4>
+        <p>{week.artifact[lang]}</p>
+        <p className={styles.survivalTerms}><b>{isVi ? "Từ Nga" : "Russian terms"}:</b> {week.russianTerms.join(" · ")}</p>
+        <label className={styles.survivalPractice}>
+          <input type="checkbox" checked={progress.exerciseDone[week.id] === true}
+            onChange={e => { const checked = e.target.checked; onProgressChange(p => ({ ...p, exerciseDone: { ...p.exerciseDone, [week.id]: checked } })); }} />
+          {isVi ? "Tôi đã làm bài thực hành (chưa chứng nhận năng lực)" : "I completed the practice (not a mastery certificate)"}
+        </label>
+      </div>
+      <aside className={styles.survivalWeekAside}>
+        <strong>{isVi ? "Bằng chứng và mức sẵn sàng" : "Evidence and readiness"}</strong>
+        <p>{evidenceStatus}</p>
+        <label>{isVi ? "Ghi chú kết quả / đường dẫn minh chứng cá nhân" : "Result note / personal evidence reference"}
+          <textarea rows={3} maxLength={1000} value={evidence.note}
+            onChange={e => editEvidence(e.target.value)}
+            placeholder={isVi ? "Ví dụ: tên repo, bài test đã chạy, lỗi còn tồn tại..." : "Example: repository, test result, remaining errors..."} />
+        </label>
+        <div className={styles.survivalEvidenceActions}>
+          <button type="button" onClick={() => setEvidenceState("self_reported")}>
+            {isVi ? "Tự đánh giá" : "Self-report"}
+          </button>
+          <button type="button" disabled={!evidence.note.trim()} onClick={() => setEvidenceState("submitted")}>
+            {isVi ? "Ghi nhận minh chứng" : "Record evidence"}
+          </button>
+        </div>
+        <p className={styles.survivalCaution}>
+          {isVi ? "Ứng dụng chưa có người/bộ kiểm tra độc lập được ủy quyền. Không tự cấp trạng thái 'đạt chuẩn', điểm hay kết quả thi Bauman." : "No authorized external assessor is connected; the tool cannot award verified mastery or official BMSTU grades."}
+        </p>
+        {progress.availableHoursPerWeek < week.recommendedHours && <p className={styles.survivalWarning} role="status">
+          {isVi ? "Tải đề xuất cao hơn thời gian bạn có. Hãy kéo dài giai đoạn hoặc giảm bài bổ trợ." : "Recommended effort exceeds available time. Extend the phase or reduce optional practice."}
+        </p>}
+        <strong>{isVi ? "Môn chính khóa liên quan" : "Related IU5 courses"}</strong>
+        <div className={styles.survivalCourseLinks}>
+          {linkedCourses.map(course => <button key={course.id} type="button" onClick={() => onOpenCourse(course)}>
+            {course.title[lang]} · {isVi ? "HK" : "S"}{course.semester}
+          </button>)}
+        </div>
+        <p className={styles.survivalCaution}>{isVi ? "Liên kết mang tính khuyến nghị sư phạm, không phải điều kiện tiên quyết chính thức." : "These are pedagogical links, not official academic prerequisites."}</p>
+      </aside>
+    </div>
+    <footer className={styles.survivalPager}>
+      <button type="button" disabled={week.number === 1} onClick={() => onProgressChange(p => ({ ...p, selectedWeek: Math.max(1, p.selectedWeek - 1) }))}>← {isVi ? "Tuần trước" : "Previous week"}</button>
+      <button type="button" disabled={week.number === 24} onClick={() => onProgressChange(p => ({ ...p, selectedWeek: Math.min(24, p.selectedWeek + 1) }))}>{isVi ? "Tuần sau" : "Next week"} →</button>
+    </footer>
+  </section>;
+}
+
 export default function StudyPlanTool({
   user,
   baumanModules,
@@ -985,6 +1102,8 @@ export default function StudyPlanTool({
   const [courseSort, setCourseSort] = useState<ExplorerSort>("semester");
   const [completed, setCompleted] = useState<Record<string, boolean>>({});
   const [progressLoaded, setProgressLoaded] = useState(false);
+  const [survival, setSurvival] = useState<SurvivalPersonalState>(defaultSurvivalState);
+  const [survivalLoaded, setSurvivalLoaded] = useState(false);
 
   useEffect(() => {
     try {
@@ -1023,6 +1142,26 @@ export default function StudyPlanTool({
     }
   }, [completed, progressLoaded]);
 
+  useEffect(() => {
+    setSurvivalLoaded(false);
+    try {
+      setSurvival(parseSurvivalState(window.localStorage.getItem(survivalStorageKey + ":" + encodeURIComponent(user.email.toLowerCase()))));
+    } catch {
+      setSurvival(defaultSurvivalState());
+    } finally {
+      setSurvivalLoaded(true);
+    }
+  }, [user.email]);
+
+  useEffect(() => {
+    if (!survivalLoaded) return;
+    try {
+      window.localStorage.setItem(survivalStorageKey + ":" + encodeURIComponent(user.email.toLowerCase()), JSON.stringify(survival));
+    } catch {
+      // Offline/browser-local persistence is optional: never fabricate a successful sync.
+    }
+  }, [survival, survivalLoaded, user.email]);
+
   const toggleStep = (key: string) => setCompleted((current) => ({ ...current, [key]: !current[key] }));
   const resetProgress = () => setCompleted({});
   const printStudyPlan = () => window.print();
@@ -1033,7 +1172,7 @@ export default function StudyPlanTool({
     { id: "courses", label: t.navCourses, sub: t.navCoursesSub, badge: String(courses.length) },
     { id: "skills", label: t.navSkills, sub: t.navSkillsSub, badge: String(skillClusterDefinitions.length) },
     { id: "analysis", label: t.navAnalysis, sub: t.navAnalysisSub, badge: String(program.credits) },
-    { id: "roadmap", label: t.navPreparation, sub: t.navPreparationSub, badge: "12" },
+    { id: "roadmap", label: t.navPreparation, sub: t.navPreparationSub, badge: survival.variant === "compact12" ? "12" : "24" },
   ];
   const meta = semesterMeta[semester];
   const selectedCourse = courses.find((course) => course.id === selectedCourseId) ?? null;
@@ -1261,7 +1400,7 @@ export default function StudyPlanTool({
         <button type="button" onClick={jumpToCourseExplorer}>{t.quickExplore} →</button>
       </label>
       <div className={styles.commandShortcuts}>
-        <a href="#pre-bauman-roadmap"><span>12</span><small>{t.quickRoadmap}</small></a>
+        <a href="#pre-bauman-roadmap"><span>{survival.variant === "compact12" ? "12" : "24"}</span><small>{t.quickRoadmap}</small></a>
         <a href="#learning-coverage"><span>{moduleCoverage.percent}%</span><small>{t.quickCoverage}</small></a>
         <a href="#skills-direction"><span>{skillAnalysis.length}</span><small>{t.quickSkills}</small></a>
       </div>
@@ -1301,13 +1440,24 @@ export default function StudyPlanTool({
       </div>
     </section>
 
-    <PreStudyRoadmap
-      lang={lang}
-      completed={completed}
-      toggleStep={toggleStep}
-      onOpenCourse={openCoverageCourse}
-      onReset={resetProgress}
-    />
+    <section className={styles.survivalSelector} id="pre-bauman-roadmap" aria-label={lang === "vi" ? "Chế độ lộ trình chuẩn bị" : "Preparation mode"}>
+      <span>{lang === "vi" ? "Lộ trình chuẩn bị" : "Preparation roadmap"}</span>
+      <div>
+        <button type="button" data-active={survival.variant === "compact12"}
+          aria-pressed={survival.variant === "compact12"}
+          onClick={() => setSurvival(p => ({ ...p, variant: "compact12" }))}>
+          {lang === "vi" ? "12 tuần · Rút gọn" : "12 weeks · Compact"}
+        </button>
+        <button type="button" data-active={survival.variant === "standard24"}
+          aria-pressed={survival.variant === "standard24"}
+          onClick={() => setSurvival(p => ({ ...p, variant: "standard24" }))}>
+          {lang === "vi" ? "24 tuần · Chi tiết" : "24 weeks · Detailed"}
+        </button>
+      </div>
+    </section>
+    {survival.variant === "compact12"
+      ? <PreStudyRoadmap lang={lang} completed={completed} toggleStep={toggleStep} onOpenCourse={openCoverageCourse} onReset={resetProgress} />
+      : <StandardSurvivalRoadmap lang={lang} progress={survival} onProgressChange={setSurvival} onOpenCourse={openCoverageCourse} />}
 
     <section className={styles.controls}>
       <div className={styles.modeGroup}>
