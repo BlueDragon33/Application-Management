@@ -201,13 +201,13 @@ test("completed submissions including those with PDF can be removed from the adm
 });
 
 
-test("public intake exposes complete visa request fields and server derives passport expiry from issue date", () => {
+test("public intake exposes complete visa request fields and only defaults passport expiry from issue date", () => {
   for (const field of ["citizenship","purposeSection","purpose","visaType","entries","entryDate","exitDate","destinationType","organization","organizationAddress","tin","telex","invitation","hasOtherNames","otherNames","bornInRussia","hasPermanentAddress","personalAddress","personalFax","worksOrStudies","workFax","passwordOverride","applicationId"]) {
     assert.match(publicPage, new RegExp(field));
     assert.match(publicApi, new RegExp(field));
   }
   assert.match(publicApi, /function passportExpiryFromIssue/);
-  assert.match(publicApi, /passportExpiry: passportExpiryFromIssue\(passportIssue\)/);
+  assert.match(publicApi, /passportExpiry: text\(source\.passportExpiry, 10\) \|\| passportExpiryFromIssue\(passportIssue\)/);
   assert.match(publicPage, /value=\{applicant\.passportExpiry\} onChange=\{\(value\) => set\("passportExpiry", value\)\}/);
 });
 
