@@ -37,3 +37,14 @@ test("live Boi bridge can self-heal without a manually configured GitHub secret"
   assert.match(live, /Generated a fresh Bơi ếch bridge secret/);
   assert.doesNotMatch(live, /CONTROL_SERVICE_SECRET is required when Bơi ếch production is configured/);
 });
+
+
+test("manual production deploy self-heals the same shared Boi bridge secret", () => {
+  assert.match(production, /- name: Establish shared Bơi ếch bridge secret/);
+  assert.match(production, /crypto\.randomBytes\(32\)\.toString\('base64url'\)/);
+  assert.match(production, /secret put CONTROL_SERVICE_SECRET --config wrangler\.production\.jsonc/);
+  assert.match(production, /secret put CONTROL_SERVICE_SECRET --name boi-ech/);
+  assert.match(production, /- name: Verify Bơi ếch live automation bridge/);
+  assert.match(production, /Bơi ếch Production automation bridge PASS/);
+  assert.doesNotMatch(production, /CONTROL_SERVICE_SECRET is required when Bơi ếch production is configured/);
+});
