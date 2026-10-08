@@ -19,7 +19,7 @@ Nguồn chuẩn để đối chiếu các repo thuộc tài khoản `BlueDragon3
 | `BlueDragon33/ROS-1-2` | Robot / ROS / LiDAR | Theo dõi dự án kỹ thuật |
 | `BlueDragon33/Hardware_Simulation` | Virtual Hardware Lab | Theo dõi dự án kỹ thuật |
 | `BlueDragon33/MPC_PID_System` | Control Research Workbench | Theo dõi dự án kỹ thuật |
-| `BlueDragon33/CAD_CAM_3D` | CAD/CAM cho chi tiết in 3D | Có khu quản trị fail-closed |
+| `BlueDragon33/CAD_CAM_3D` | CAD/CAM cho chi tiết in 3D | v1.0.0 Production · Universal Contract live · local-first observe/launch · Remote Admin fail-closed |
 
 Tổng: **14 repo hiện hữu**.
 
