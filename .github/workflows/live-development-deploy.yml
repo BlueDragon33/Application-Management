@@ -122,16 +122,22 @@ jobs:
             fi
           done
 
-      - name: Install Bơi ếch bridge secret
+      - name: Establish shared Bơi ếch bridge secret
         if: steps.ready.outputs.deploy == 'true' && env.BOI_ECH_BASE_URL != ''
         shell: bash
         run: |
           set -euo pipefail
-          if [[ ${#CONTROL_SERVICE_SECRET} -lt 32 ]]; then
-            echo "::error::CONTROL_SERVICE_SECRET is required when Bơi ếch production is configured."
-            exit 1
+          bridge_secret="${CONTROL_SERVICE_SECRET:-}"
+          if [[ ${#bridge_secret} -lt 32 ]]; then
+            bridge_secret="$(node --input-type=module -e "import crypto from 'node:crypto'; process.stdout.write(crypto.randomBytes(32).toString('base64url'))")"
+            echo "Generated a fresh Bơi ếch bridge secret because the protected environment did not supply one."
+          else
+            echo "Using the protected Bơi ếch bridge secret from the deployment environment."
           fi
-          printf '%s' "$CONTROL_SERVICE_SECRET" | npx wrangler secret put CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
+          echo "::add-mask::$bridge_secret"
+          printf 'BOI_RUNTIME_BRIDGE_SECRET=%s\n' "$bridge_secret" >> "$GITHUB_ENV"
+          printf '%s' "$bridge_secret" | npx wrangler secret put CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
+          printf '%s' "$bridge_secret" | npx wrangler secret put CONTROL_SERVICE_SECRET --name boi-ech
 
       - name: Install GrowUP bridge secret
         if: steps.ready.outputs.deploy == 'true' && env.GROWUP_CONTROL_BASE_URL != ''
@@ -207,7 +213,7 @@ jobs:
           set -euo pipefail
           TOKEN="$(node --input-type=module <<'NODE'
           import crypto from "node:crypto";
-          const secret = process.env.CONTROL_SERVICE_SECRET ?? "";
+          const secret = process.env.BOI_RUNTIME_BRIDGE_SECRET ?? "";
           if (secret.length < 32) process.exit(2);
           const payload = Buffer.from(JSON.stringify({
             iss: "quan-ly-hoc-tap",

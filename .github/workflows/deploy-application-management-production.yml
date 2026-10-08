@@ -125,9 +125,6 @@ jobs:
             echo '::error::Cloudflare Production must not use ChatGPT Sites origin.'
             exit 1
           fi
-          if [[ -n "${BOI_ECH_BASE_URL:-}" && ${#CONTROL_SERVICE_SECRET} -lt 32 ]]; then
-            echo '::error::CONTROL_SERVICE_SECRET is required when Bơi ếch production is configured.'; exit 1
-          fi
           if [[ -n "${HEALTH_CARE_BASE_URL:-}" && ${#HEALTH_CONTROL_SERVICE_SECRET} -lt 32 ]]; then
             echo '::error::HEALTH_CONTROL_SERVICE_SECRET is required when Health production is configured.'; exit 1
           fi
@@ -234,10 +231,22 @@ jobs:
             fi
           done
 
-      - name: Install Bơi ếch bridge secret
+      - name: Establish shared Bơi ếch bridge secret
         if: ${{ env.BOI_ECH_BASE_URL != '' }}
         shell: bash
-        run: printf '%s' "$CONTROL_SERVICE_SECRET" | npx wrangler secret put CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
+        run: |
+          set -euo pipefail
+          bridge_secret="${CONTROL_SERVICE_SECRET:-}"
+          if [[ ${#bridge_secret} -lt 32 ]]; then
+            bridge_secret="$(node --input-type=module -e "import crypto from 'node:crypto'; process.stdout.write(crypto.randomBytes(32).toString('base64url'))")"
+            echo "Generated a fresh Bơi ếch bridge secret because the protected environment did not supply one."
+          else
+            echo "Using the protected Bơi ếch bridge secret from the deployment environment."
+          fi
+          echo "::add-mask::$bridge_secret"
+          printf 'BOI_RUNTIME_BRIDGE_SECRET=%s\n' "$bridge_secret" >> "$GITHUB_ENV"
+          printf '%s' "$bridge_secret" | npx wrangler secret put CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
+          printf '%s' "$bridge_secret" | npx wrangler secret put CONTROL_SERVICE_SECRET --name boi-ech
 
       - name: Install Health bridge secret
         if: ${{ env.HEALTH_CARE_BASE_URL != '' }}
@@ -380,6 +389,45 @@ jobs:
           if (!value.ownerPolicyConfigured) throw new Error('Production owner policy is missing.');
           if (value.networkMode !== 'production') throw new Error('Production must use production network resolution.');
           console.log('Application Management Cloudflare production read-back PASS.');
+          NODE
+
+      - name: Verify Bơi ếch live automation bridge
+        if: ${{ env.BOI_ECH_BASE_URL != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TOKEN="$(node --input-type=module <<'NODE'
+          import crypto from "node:crypto";
+          const secret = process.env.BOI_RUNTIME_BRIDGE_SECRET ?? "";
+          if (secret.length < 32) process.exit(2);
+          const payload = Buffer.from(JSON.stringify({
+            iss: "quan-ly-hoc-tap",
+            aud: "boi-ech-control",
+            actor: "automation-state@application-management.local",
+            role: "viewer",
+            exp: Date.now() + 5 * 60 * 1000,
+          })).toString("base64url");
+          const signedInput = "v1." + payload;
+          const signature = crypto.createHmac("sha256", secret).update(signedInput).digest("base64url");
+          process.stdout.write(signedInput + "." + signature);
+          NODE
+          )"
+          CODE="$(curl --silent --show-error --output /tmp/boi-production-automation.json --write-out '%{http_code}' --max-time 20 \
+            -H "Authorization: Bearer $TOKEN" \
+            "$BOI_ECH_BASE_URL/api/control/overview?activityDays=0" || true)"
+          if [[ "$CODE" != "200" ]]; then
+            echo "::error::Bơi ếch Production automation bridge returned HTTP $CODE."
+            cat /tmp/boi-production-automation.json || true
+            exit 1
+          fi
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          const value = JSON.parse(fs.readFileSync("/tmp/boi-production-automation.json", "utf8"));
+          const automation = value?.automation ?? {};
+          if (typeof automation.enabled !== "boolean") throw new Error("Bơi ếch automation.enabled missing.");
+          if (!Number.isInteger(Number(automation.defaultAccessDays))) throw new Error("Bơi ếch defaultAccessDays missing.");
+          if (!Number.isInteger(Number(automation.defaultDeviceLimit))) throw new Error("Bơi ếch defaultDeviceLimit missing.");
+          console.log("Bơi ếch Production automation bridge PASS.");
           NODE
 
       - name: Create short-lived owner contract probe session
