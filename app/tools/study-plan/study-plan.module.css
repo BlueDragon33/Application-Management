@@ -3755,6 +3755,8 @@
   .shell[data-workspace] .stats,
   .shell[data-workspace] .readinessLegend,
   .shell[data-workspace] .preBaumanRoadmap,
+  .shell[data-workspace] .survivalSelector,
+  .shell[data-workspace] .survivalWeek,
   .shell[data-workspace] .controls,
   .shell[data-workspace] .contentGrid,
   .shell[data-workspace] .courseExplorer,
@@ -3797,8 +3799,12 @@
     display:block;
   }
 
-  .shell[data-workspace="roadmap"] .preBaumanRoadmap{
+  .shell[data-workspace="roadmap"] .preBaumanRoadmap,
+  .shell[data-workspace="roadmap"] .survivalWeek{
     display:block;
+  }
+  .shell[data-workspace="roadmap"] .survivalSelector{
+    display:flex;
   }
 
   .readinessLegend{
