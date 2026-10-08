@@ -363,3 +363,21 @@ test("passport expiry defaults to issue date plus ten years but remains editable
   assert.match(tool, /normalizeDmy\(applicant\.passportExpiry\) \|\| passportExpiryFromIssue/);
   assert.match(tool, /normalizeDmy\(next\.passportExpiry\) \|\| passportExpiryFromIssue/);
 });
+
+
+test("public intake mirrors KD-MID select controls for canonical choice fields", () => {
+  for (const field of ["citizenship","purposeSection","purpose","visaType","entries","destinationType"]) {
+    assert.match(publicWorkerPage, new RegExp('<select name="' + field + '"'));
+  }
+  assert.match(publicPage, /function SelectRussian/);
+  assert.match(publicPage, /ОДНОКРАТНАЯ/);
+  assert.match(publicPage, /ДВУКРАТНАЯ/);
+  assert.match(publicPage, /МНОГОКРАТНАЯ/);
+  assert.match(publicPage, /ФИЗИЧЕСКОЕ ЛИЦО/);
+});
+
+test("Russian labels show Vietnamese translations on hover without an online translation dependency", () => {
+  assert.match(publicPage, /title=\{russianTranslation\(ru\)\}/);
+  assert.match(publicWorkerPage, /const russianTranslations = \{/);
+  assert.match(publicWorkerPage, /el\.setAttribute\("title", translated\)/);
+});

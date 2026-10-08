@@ -132,6 +132,59 @@ function upperPlain(value: string) {
 const dayOptions = Array.from({ length: 31 }, (_, index) => String(index + 1).padStart(2, "0"));
 const monthOptions = Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, "0"));
 
+const citizenshipOptions = [["ВЬЕТНАМ", "Việt Nam"]] as const;
+const purposeSectionOptions = [
+  ["УЧЕБА", "Học tập"], ["РАБОТА", "Lao động"], ["ДЕЛОВАЯ", "Công vụ / thương mại"],
+  ["ГУМАНИТАРНАЯ", "Nhân đạo"], ["ЧАСТНАЯ", "Cá nhân / thăm thân"], ["ТУРИЗМ", "Du lịch"], ["ТРАНЗИТ", "Quá cảnh"],
+] as const;
+const purposeOptions = purposeSectionOptions;
+const visaTypeOptions = [
+  ["ОБЫКНОВЕННАЯ УЧЕБНАЯ", "Visa học tập thông thường"],
+  ["ОБЫКНОВЕННАЯ РАБОЧАЯ", "Visa lao động thông thường"],
+  ["ОБЫКНОВЕННАЯ ДЕЛОВАЯ", "Visa công vụ / thương mại"],
+  ["ОБЫКНОВЕННАЯ ГУМАНИТАРНАЯ", "Visa nhân đạo"],
+  ["ОБЫКНОВЕННАЯ ЧАСТНАЯ", "Visa cá nhân"],
+  ["ОБЫКНОВЕННАЯ ТУРИСТИЧЕСКАЯ", "Visa du lịch"],
+  ["ТРАНЗИТНАЯ", "Visa quá cảnh"],
+] as const;
+const entriesOptions = [["ОДНОКРАТНАЯ", "Một lần"], ["ДВУКРАТНАЯ", "Hai lần"], ["МНОГОКРАТНАЯ", "Nhiều lần"]] as const;
+const destinationTypeOptions = [["ОРГАНИЗАЦИЯ", "Tổ chức"], ["ФИЗИЧЕСКОЕ ЛИЦО", "Cá nhân"]] as const;
+
+const russianFieldTranslations: Record<string, string> = {
+  "Гражданство":"Quốc tịch","Цель поездки (раздел)":"Nhóm mục đích chuyến đi","Цель поездки":"Mục đích chuyến đi",
+  "Категория и вид визы":"Loại / hạng visa","Кратность визы":"Số lần nhập cảnh","Дата въезда в Россию":"Ngày nhập cảnh vào Nga",
+  "Дата выезда из России":"Ngày rời Nga","В какое учреждение направляетесь?":"Bạn đến cơ quan / đơn vị nào?","Наименование организации":"Tên tổ chức",
+  "Адрес":"Địa chỉ","ИНН организации":"Mã số thuế INN của tổ chức","Номер указания (телекса)":"Số chỉ thị / mã Telex",
+  "Номер приглашения":"Số giấy mời","Фамилия":"Họ","Имя, другие имена, отчество":"Tên, tên khác và tên đệm",
+  "Дата рождения":"Ngày sinh","Место рождения":"Nơi sinh","Пол":"Giới tính",
+  "Есть ли у Вас другие когда-либо использовавшиеся имена":"Bạn đã từng sử dụng tên khác chưa?","Вы родились в России?":"Bạn có sinh tại Nga không?",
+  "Маршрут":"Nơi / thành phố đến tại Nga","Номер паспорта":"Số hộ chiếu","Дата выдачи":"Ngày cấp hộ chiếu","Действителен до":"Hộ chiếu có giá trị đến",
+  "Имеете ли Вы адрес постоянного проживания?":"Bạn có địa chỉ thường trú không?","Адрес вашего постоянного проживания":"Địa chỉ thường trú",
+  "Ваш личный телефон":"Điện thoại cá nhân","Ваш личный факс":"Fax cá nhân","Ваш личный E-mail":"Email cá nhân",
+  "Вы работаете (работали ранее), учитесь (учились ранее)?":"Bạn đang / đã làm việc hoặc học tập?","Место работы (учебы)":"Nơi làm việc / học tập",
+  "Должность":"Chức vụ / tư cách","Рабочий адрес":"Địa chỉ cơ quan","Рабочий телефон":"Điện thoại cơ quan","Рабочий факс":"Fax cơ quan",
+  "Рабочий E-mail":"Email cơ quan","Место подачи заявления":"Nơi nộp hồ sơ",
+};
+
+function russianTranslation(value: string) {
+  const normalized = value.split("·")[0].trim();
+  return russianFieldTranslations[normalized] || "Nội dung tiếng Nga trên mẫu KD-MID";
+}
+
+function SelectRussian({ value, onChange, options, required = false }: {
+  value: string;
+  onChange: (value: string) => void;
+  options: readonly (readonly [string, string])[];
+  required?: boolean;
+}) {
+  const known = options.some(([option]) => option === value);
+  return <select required={required} value={value} onChange={(event) => onChange(event.target.value)}>
+    <option value="">-- Chọn như trên KD-MID --</option>
+    {!known && value ? <option value={value}>{value} · Giá trị đã lưu</option> : null}
+    {options.map(([option, label]) => <option key={option} value={option}>{option} · {label}</option>)}
+  </select>;
+}
+
 function composeDmy(day: string, month: string, year: string) {
   return day || month || year ? `${day}/${month}/${year}` : "";
 }
@@ -247,7 +300,7 @@ function ensureDeviceId() {
 function Field({ label, ru, hint, children, fieldKey, correctionFields = [] }: { label: string; ru?: string; hint?: string; children: React.ReactNode; fieldKey?: string; correctionFields?: string[] }) {
   return <label className={styles.field} data-correction={fieldKey ? correctionFields.includes(fieldKey) : false}>
     <span>{label}</span>
-    {ru ? <small className={styles.ru}>{ru}</small> : null}
+    {ru ? <small className={styles.ru} title={russianTranslation(ru)}>{ru}</small> : null}
     {children}
     {hint ? <small className={styles.hint}>{hint}</small> : null}
   </label>;
@@ -488,14 +541,14 @@ export default function VisaIntakePage() {
       <section className={styles.section}>
         <header><b>01</b><div><h2>Thông tin visa & thư mời</h2><p>{formType === "student" ? "Dữ liệu nhập học dùng chung đã được điền sẵn; kiểm tra Mã Telex trước khi gửi." : "Mẫu người thường chỉ điền sẵn dữ liệu an toàn. Mục đích, loại visa, lịch trình và thông tin thư mời phải nhập theo hồ sơ thực tế."}</p></div></header>
         <div className={styles.grid}>
-          <Field fieldKey="citizenship" correctionFields={correctionFields} label="Quốc tịch" ru="Гражданство"><input required value={applicant.citizenship} onChange={(e) => set("citizenship", upperPlain(e.target.value))} /></Field>
-          <Field fieldKey="purposeSection" correctionFields={correctionFields} label="Nhóm mục đích" ru="Цель поездки (раздел)"><input required value={applicant.purposeSection} onChange={(e) => set("purposeSection", upperPlain(e.target.value))} /></Field>
-          <Field fieldKey="purpose" correctionFields={correctionFields} label="Mục đích chuyến đi" ru="Цель поездки"><input required value={applicant.purpose} onChange={(e) => set("purpose", upperPlain(e.target.value))} /></Field>
-          <Field fieldKey="visaType" correctionFields={correctionFields} label="Loại visa" ru="Категория и вид визы"><input required value={applicant.visaType} onChange={(e) => set("visaType", upperPlain(e.target.value))} /></Field>
-          <Field fieldKey="entries" correctionFields={correctionFields} label="Số lần nhập cảnh" ru="Кратность визы"><input required value={applicant.entries} onChange={(e) => set("entries", upperPlain(e.target.value))} /></Field>
+          <Field fieldKey="citizenship" correctionFields={correctionFields} label="Quốc tịch" ru="Гражданство"><SelectRussian required value={applicant.citizenship} options={citizenshipOptions} onChange={(value) => set("citizenship", value)} /></Field>
+          <Field fieldKey="purposeSection" correctionFields={correctionFields} label="Nhóm mục đích" ru="Цель поездки (раздел)"><SelectRussian required value={applicant.purposeSection} options={purposeSectionOptions} onChange={(value) => set("purposeSection", value)} /></Field>
+          <Field fieldKey="purpose" correctionFields={correctionFields} label="Mục đích chuyến đi" ru="Цель поездки"><SelectRussian required value={applicant.purpose} options={purposeOptions} onChange={(value) => set("purpose", value)} /></Field>
+          <Field fieldKey="visaType" correctionFields={correctionFields} label="Loại visa" ru="Категория и вид визы"><SelectRussian required value={applicant.visaType} options={visaTypeOptions} onChange={(value) => set("visaType", value)} /></Field>
+          <Field fieldKey="entries" correctionFields={correctionFields} label="Số lần nhập cảnh" ru="Кратность визы"><SelectRussian required value={applicant.entries} options={entriesOptions} onChange={(value) => set("entries", value)} /></Field>
           <Field fieldKey="entryDate" correctionFields={correctionFields} label="Ngày vào Nga" ru="Дата въезда в Россию"><DateFields required value={applicant.entryDate} onChange={(value) => set("entryDate", value)} /></Field>
           <Field fieldKey="exitDate" correctionFields={correctionFields} label="Ngày ra Nga" ru="Дата выезда из России"><DateFields required value={applicant.exitDate} onChange={(value) => set("exitDate", value)} /></Field>
-          <Field fieldKey="destinationType" correctionFields={correctionFields} label="Loại nơi đến" ru="В какое учреждение направляетесь?"><input required value={applicant.destinationType} onChange={(e) => set("destinationType", upperPlain(e.target.value))} /></Field>
+          <Field fieldKey="destinationType" correctionFields={correctionFields} label="Loại nơi đến" ru="В какое учреждение направляетесь?"><SelectRussian required value={applicant.destinationType} options={destinationTypeOptions} onChange={(value) => set("destinationType", value)} /></Field>
           <Field fieldKey="organization" correctionFields={correctionFields} label="Tên tổ chức tiếp nhận" ru="Наименование организации"><input required={formType === "student"} value={applicant.organization} onChange={(e) => set("organization", upperPlain(e.target.value))} /></Field>
           <Field fieldKey="organizationAddress" correctionFields={correctionFields} label="Địa chỉ tổ chức" ru="Адрес"><input required={formType === "student"} value={applicant.organizationAddress} onChange={(e) => set("organizationAddress", upperPlain(e.target.value))} /></Field>
           <Field fieldKey="tin" correctionFields={correctionFields} label="INN tổ chức" ru="ИНН организации"><input required={formType === "student"} value={applicant.tin} onChange={(e) => set("tin", e.target.value.replace(/\D/g, ""))} /></Field>
@@ -562,9 +615,9 @@ export default function VisaIntakePage() {
       <section className={styles.section}>
         <header><b>06</b><div><h2>Lịch sử liên quan đến Nga</h2><p>Chọn Có chỉ khi đúng với trường hợp của bạn; các trường chi tiết sẽ tự xuất hiện.</p></div></header>
         <div className={styles.checks}>
-          <label data-correction={correctionFields.includes("hadFormerRussianCitizenship")}><input type="checkbox" checked={applicant.hadFormerRussianCitizenship} onChange={(e) => set("hadFormerRussianCitizenship", e.target.checked)} /><span><strong>Đã từng có quốc tịch Liên Xô hoặc Nga</strong><small>Если Вы имели гражданство СССР или России</small></span></label>
-          <label data-correction={correctionFields.includes("visitedRussia")}><input type="checkbox" checked={applicant.visitedRussia} onChange={(e) => set("visitedRussia", e.target.checked)} /><span><strong>Đã từng đến Nga</strong><small>Были ли Вы когда-нибудь в России?</small></span></label>
-          <label data-correction={correctionFields.includes("hasInsurance")}><input type="checkbox" checked={applicant.hasInsurance} onChange={(e) => set("hasInsurance", e.target.checked)} /><span><strong>Có bảo hiểm có hiệu lực tại Nga</strong><small>Документ о медицинском страховании</small></span></label>
+          <label data-correction={correctionFields.includes("hadFormerRussianCitizenship")}><input type="checkbox" checked={applicant.hadFormerRussianCitizenship} onChange={(e) => set("hadFormerRussianCitizenship", e.target.checked)} /><span><strong>Đã từng có quốc tịch Liên Xô hoặc Nga</strong><small title="Bạn đã từng có quốc tịch Liên Xô hoặc Nga?">Если Вы имели гражданство СССР или России</small></span></label>
+          <label data-correction={correctionFields.includes("visitedRussia")}><input type="checkbox" checked={applicant.visitedRussia} onChange={(e) => set("visitedRussia", e.target.checked)} /><span><strong>Đã từng đến Nga</strong><small title="Bạn đã từng đến Nga chưa?">Были ли Вы когда-нибудь в России?</small></span></label>
+          <label data-correction={correctionFields.includes("hasInsurance")}><input type="checkbox" checked={applicant.hasInsurance} onChange={(e) => set("hasInsurance", e.target.checked)} /><span><strong>Có bảo hiểm có hiệu lực tại Nga</strong><small title="Giấy tờ / hợp đồng bảo hiểm y tế">Документ о медицинском страховании</small></span></label>
         </div>
         {applicant.hadFormerRussianCitizenship ? <div className={styles.grid}>
           <Field fieldKey="formerCitizenshipLostDate" correctionFields={correctionFields} label="Ngày mất quốc tịch"><DateFields required value={applicant.formerCitizenshipLostDate} onChange={(value) => set("formerCitizenshipLostDate", value)} /></Field>
@@ -581,8 +634,8 @@ export default function VisaIntakePage() {
       <section className={styles.section}>
         <header><b>07</b><div><h2>Gia đình & nơi nộp hồ sơ</h2><p>Nếu không đánh dấu hai mục đầu thì hệ thống hiểu là Không.</p></div></header>
         <div className={styles.checks}>
-          <label data-correction={correctionFields.includes("childrenUnder16")}><input type="checkbox" checked={applicant.childrenUnder16} onChange={(e) => set("childrenUnder16", e.target.checked)} /><span><strong>Có trẻ em dưới 16 tuổi đi cùng / ghi trong hộ chiếu</strong><small>Дети до 16 лет...</small></span></label>
-          <label data-correction={correctionFields.includes("relativesInRussia")}><input type="checkbox" checked={applicant.relativesInRussia} onChange={(e) => set("relativesInRussia", e.target.checked)} /><span><strong>Có người thân hiện đang ở Nga</strong><small>Родственники на территории России</small></span></label>
+          <label data-correction={correctionFields.includes("childrenUnder16")}><input type="checkbox" checked={applicant.childrenUnder16} onChange={(e) => set("childrenUnder16", e.target.checked)} /><span><strong>Có trẻ em dưới 16 tuổi đi cùng / ghi trong hộ chiếu</strong><small title="Trẻ em dưới 16 tuổi đi cùng / ghi trong hộ chiếu">Дети до 16 лет...</small></span></label>
+          <label data-correction={correctionFields.includes("relativesInRussia")}><input type="checkbox" checked={applicant.relativesInRussia} onChange={(e) => set("relativesInRussia", e.target.checked)} /><span><strong>Có người thân hiện đang ở Nga</strong><small title="Người thân đang ở trên lãnh thổ Nga">Родственники на территории России</small></span></label>
         </div>
         <div className={styles.grid}>
           <Field fieldKey="preferredEmbassy" correctionFields={correctionFields} label="Nơi dự kiến nộp hồ sơ" ru="Место подачи заявления"><select required value={applicant.preferredEmbassy} onChange={(e) => set("preferredEmbassy", e.target.value)}><option value="">-- Chọn nơi nộp hồ sơ --</option>{embassies.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
