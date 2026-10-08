@@ -1103,7 +1103,8 @@ export default function StudyPlanTool({
   const [completed, setCompleted] = useState<Record<string, boolean>>({});
   const [progressLoaded, setProgressLoaded] = useState(false);
   const [survival, setSurvival] = useState<SurvivalPersonalState>(defaultSurvivalState);
-  const [survivalLoaded, setSurvivalLoaded] = useState(false);
+  const [survivalOwner, setSurvivalOwner] = useState<string | null>(null);
+  const [survivalSaved, setSurvivalSaved] = useState(true);
 
   useEffect(() => {
     try {
@@ -1143,24 +1144,27 @@ export default function StudyPlanTool({
   }, [completed, progressLoaded]);
 
   useEffect(() => {
-    setSurvivalLoaded(false);
+    setSurvivalOwner(null);
     try {
       setSurvival(parseSurvivalState(window.localStorage.getItem(survivalStorageKey + ":" + encodeURIComponent(user.email.toLowerCase()))));
+      setSurvivalSaved(true);
     } catch {
       setSurvival(defaultSurvivalState());
+      setSurvivalSaved(false);
     } finally {
-      setSurvivalLoaded(true);
+      setSurvivalOwner(user.email);
     }
   }, [user.email]);
 
   useEffect(() => {
-    if (!survivalLoaded) return;
+    if (survivalOwner !== user.email) return; // Never write another account's progress on account switch.
     try {
       window.localStorage.setItem(survivalStorageKey + ":" + encodeURIComponent(user.email.toLowerCase()), JSON.stringify(survival));
+      setSurvivalSaved(true);
     } catch {
-      // Offline/browser-local persistence is optional: never fabricate a successful sync.
+      setSurvivalSaved(false);
     }
-  }, [survival, survivalLoaded, user.email]);
+  }, [survival, survivalOwner, user.email]);
 
   const toggleStep = (key: string) => setCompleted((current) => ({ ...current, [key]: !current[key] }));
   const resetProgress = () => setCompleted({});
@@ -1441,6 +1445,7 @@ export default function StudyPlanTool({
     </section>
 
     <section className={styles.survivalSelector} id="pre-bauman-roadmap" aria-label={lang === "vi" ? "Chế độ lộ trình chuẩn bị" : "Preparation mode"}>
+      {!survivalSaved && <p role="alert">{lang === "vi" ? "Không lưu được tiến độ 24 tuần trên thiết bị này. Hãy kiểm tra quyền lưu trữ của trình duyệt." : "Could not save 24-week progress on this device. Check browser storage permissions."}</p>}
       <span>{lang === "vi" ? "Lộ trình chuẩn bị" : "Preparation roadmap"}</span>
       <div>
         <button type="button" data-active={survival.variant === "compact12"}
