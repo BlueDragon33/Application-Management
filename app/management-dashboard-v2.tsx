@@ -397,7 +397,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       }
       return await operationsRefreshPromiseRef.current;
     } catch (caught) {
-      if (!forceOnline) setOperationsVerified(false);
+      setOperationsVerified(false);
       setSyncError(caught instanceof Error ? caught.message : "Không thể đồng bộ dữ liệu ứng dụng.");
       return null;
     } finally {
@@ -408,6 +408,16 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   async function syncOperationsNow() {
     setOperationsVerified(false);
     return refreshOperations(false, true);
+  }
+
+  function openAutomationPolicies() {
+    setAutoPolicyOpen(true);
+    // Avoid a full bootstrap for a fresh snapshot, but never treat an old
+    // cached policy as live simply because its original source was live.
+    const age = operations?.generatedAt ? Date.now() - Date.parse(operations.generatedAt) : Infinity;
+    if (approvalGateEnabled && (!operationsVerified || !Number.isFinite(age) || age > 60_000)) {
+      void syncOperationsNow();
+    }
   }
 
   async function initialize() {
@@ -542,6 +552,11 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   }).length;
   const highAlerts = workItems.filter((item) => item.priority === "high").length;
   const offline = !operationsVerified;
+  const snapshotAge = operations?.generatedAt
+    ? (clock?.getTime() ?? Date.now()) - Date.parse(operations.generatedAt)
+    : Infinity;
+  const automationSnapshotVerified = approvalGateEnabled && operationsVerified
+    && Number.isFinite(snapshotAge) && snapshotAge >= 0 && snapshotAge <= 120_000;
   const notificationCount = offline ? 0 : workItems.length;
   const approvalCount = approvalDevices.length;
   const onlineApps = activeApps.filter((app) => connectionFor(app, summaryMap.get(app.id)) === "connected").length;
@@ -794,6 +809,10 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
 
   async function saveAutomation(selection: AutomationSelection) {
     if (automationSaveLockRef.current) return null;
+    if (!automationSnapshotVerified) {
+      setNotice("Cấu hình automation chưa được xác minh LIVE với quyền quản trị. Hãy đồng bộ trước khi lưu.");
+      return null;
+    }
     automationSaveLockRef.current = true;
     setActionBusy("auto-policy");
 
@@ -1044,7 +1063,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
 
   return <main className="amv2-shell" data-font-scale={fontScale}>
     {accountSecurityOpen ? <AccountSecurityDialog user={user} role={roleLabels[access.role]} authMode={authMode} close={() => setAccountSecurityOpen(false)}/> : null}
-    {autoPolicyOpen ? <AutomaticDevicePolicies apps={activeApps} settings={operations?.settings} busy={actionBusy === "auto-policy"} close={() => setAutoPolicyOpen(false)} save={saveAutomation}/> : null}
+    {autoPolicyOpen ? <AutomaticDevicePolicies apps={activeApps} settings={operations?.settings} verified={automationSnapshotVerified} busy={actionBusy === "auto-policy"} close={() => setAutoPolicyOpen(false)} sync={syncOperationsNow} save={saveAutomation}/> : null}
     <aside className="amv2-sidebar">
       <div className="amv2-brand"><div>QT</div><span><small>TRUNG TÂM ĐIỀU PHỐI</small><strong>QUẢN TRỊ ỨNG DỤNG</strong><em>Kết nối · Kiểm soát · Phát triển</em></span></div>
       <nav aria-label="Điều hướng quản trị">{navItems.map((item) => <button key={item.view} data-active={view === item.view} onClick={() => switchView(item.view)}><i>{item.icon}</i><span>{item.label}</span>{!offline && item.view === "devices" && pendingDevices.length ? <b>{pendingDevices.length}</b> : null}{!offline && item.view === "approvals" && approvalCount ? <b>{approvalCount}</b> : null}</button>)}</nav>
@@ -1103,13 +1122,13 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
             launchWeb={launchWeb}
             manageDevice={manageDevice}
             clearNotifications={clearNotifications}
-            enableAutoApproval={() => setAutoPolicyOpen(true)}
+            enableAutoApproval={openAutomationPolicies}
             syncOperations={syncOperationsNow}
             localRuntime={localRuntime}
           /> : null}
           {view === "approvals" ? <ApprovalView devices={filteredApprovalDevices} actionBusy={actionBusy} manageDevice={manageDevice}/> : null}
           {view === "applications" ? <ApplicationsView apps={filteredApps} tools={filteredTools} summaryMap={summaryMap} devices={devices} webBusy={webBusy} launchWeb={launchWeb} localRuntime={localRuntime} offline={offline} lastUpdatedAt={operations?.generatedAt}/> : null}
-          {view === "devices" ? <DevicesView devices={filteredPendingDevices} actionBusy={actionBusy} manageDevice={manageDevice} bulkRemovePendingDevices={bulkRemovePendingDevices} openAutomation={() => setAutoPolicyOpen(true)}/> : null}
+          {view === "devices" ? <DevicesView devices={filteredPendingDevices} actionBusy={actionBusy} manageDevice={manageDevice} bulkRemovePendingDevices={bulkRemovePendingDevices} openAutomation={openAutomationPolicies}/> : null}
           {view === "access" ? <BoiAccessView query={search}/> : null}
           {view === "alerts" ? <AlertsView apps={filteredApps} summaryMap={summaryMap} workItems={filteredWork} lastUpdated={lastUpdated} offline={offline}/> : null}
           {view === "audit" ? <AuditView center={center}/> : null}
