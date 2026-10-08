@@ -112,3 +112,17 @@ test("dates remain user-entered and collisions ignore completed or empty tasks",
   assert.match(uiSource,/PersonalAssessmentPlanner/);
   assert.match(uiSource,/user supplied, not an official Bauman timetable/);
 });
+
+
+test("cross-phase recommendations report missing evidence, never failure or confirmed mastery", () => {
+  const defaultState = survival.defaultSurvivalState();
+  assert.deepEqual(survival.prerequisiteEvidenceGaps("oop", defaultState), ["python"]);
+  assert.deepEqual(survival.prerequisiteEvidenceGaps("integration", defaultState), ["oop","database","ml"]);
+  const phaseEnd = survival.survivalWeeks.find(w => w.number === 4);
+  const withEvidence = survival.parseSurvivalState(JSON.stringify({
+    ...defaultState,
+    evidence: {[phaseEnd.id]: {state:"submitted",note:"Python test record"}},
+  }));
+  assert.deepEqual(survival.prerequisiteEvidenceGaps("oop", withEvidence), []);
+  assert.equal(survival.weekEvidenceSummary(withEvidence).verified, 0);
+});
