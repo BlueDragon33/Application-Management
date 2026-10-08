@@ -415,7 +415,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
     // Avoid a full bootstrap for a fresh snapshot, but never treat an old
     // cached policy as live simply because its original source was live.
     const age = operations?.generatedAt ? Date.now() - Date.parse(operations.generatedAt) : Infinity;
-    if (approvalGateEnabled && (!operationsVerified || !Number.isFinite(age) || age > 60_000)) {
+    if (!operationsVerified || !Number.isFinite(age) || age > 60_000) {
       void syncOperationsNow();
     }
   }
@@ -555,7 +555,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   const snapshotAge = operations?.generatedAt
     ? (clock?.getTime() ?? Date.now()) - Date.parse(operations.generatedAt)
     : Infinity;
-  const automationSnapshotVerified = approvalGateEnabled && operationsVerified
+  const automationSnapshotVerified = operationsVerified
     && Number.isFinite(snapshotAge) && snapshotAge >= 0 && snapshotAge <= 120_000;
   const notificationCount = offline ? 0 : workItems.length;
   const approvalCount = approvalDevices.length;
