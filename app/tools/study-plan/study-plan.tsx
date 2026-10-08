@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { BaumanRegistryStatus, BaumanStudyModule } from "./bauman-module-registry";
 import styles from "./study-plan.module.css";
-import { defaultSurvivalState, parseSurvivalState, survivalPhases, survivalStorageKey, survivalWeeks, weekEvidenceSummary, type SurvivalPersonalState } from "./study-plan-survival-data";
+import { courseAssessmentParts, defaultSurvivalState, parseSurvivalState, personalDeadlineCollisions, survivalPhases, survivalStorageKey, survivalWeeks, weekEvidenceSummary, type SurvivalPersonalState, type AssessmentKind } from "./study-plan-survival-data";
 import {
   courses,
   preBaumanRoadmap,
@@ -961,6 +961,74 @@ function PreStudyRoadmap({
   </section>;
 }
 
+
+const personalAssessmentLabels: Record<AssessmentKind, {vi: string; en: string}> = {
+  exam: {vi: "Экз · Thi", en: "Экз · Exam"},
+  "rating-exam": {vi: "РЭкз · Thi rating", en: "РЭкз · Rating exam"},
+  credit: {vi: "Зчт · Đạt/không đạt", en: "Зчт · Pass/fail credit"},
+  "graded-credit": {vi: "ДЗчт · Zачёт có điểm", en: "ДЗчт · Graded credit"},
+  coursework: {vi: "КуР · Bài tập lớn", en: "КуР · Coursework"},
+  defense: {vi: "ГЭК · Bảo vệ tốt nghiệp", en: "ГЭК · Thesis defense"},
+};
+
+function PersonalAssessmentPlanner({
+  lang, semester, progress, onProgressChange,
+}: {
+  lang: Language;
+  semester: 1 | 2 | 3 | 4;
+  progress: SurvivalPersonalState;
+  onProgressChange: (update: (prior: SurvivalPersonalState) => SurvivalPersonalState) => void;
+}) {
+  const vi = lang === "vi";
+  const items = semesterCourses(semester).flatMap(course =>
+    courseAssessmentParts(course).map(kind => ({course, kind, key: course.id + ":" + kind})));
+  const conflicts = personalDeadlineCollisions(progress.assessmentPlans);
+  const update = (key: string, patch: Partial<{dueDate: string; status: "planned" | "working" | "self_done"; note: string}>) =>
+    onProgressChange(prior => ({
+      ...prior,
+      assessmentPlans: {
+        ...prior.assessmentPlans,
+        [key]: {dueDate: "", status: "planned", note: "", ...prior.assessmentPlans[key], ...patch},
+      },
+    }));
+  return <details className={styles.personalAssessment}>
+    <summary>
+      {vi ? "Lập kế hoạch ôn thi và Курсовая cá nhân" : "Personal exam and coursework planner"}
+      <small>{items.length} {vi ? "đầu việc · HK" : "deliverables · S"}{semester}</small>
+    </summary>
+    <p className={styles.personalAssessmentDisclaimer}>
+      {vi
+        ? "Chỉ là lịch cá nhân. Kế hoạch đào tạo không có ngày thi/hạn nộp cụ thể. Mọi ngày dưới đây do bạn nhập, không phải lịch chính thức Bauman."
+        : "Personal dates only. The curriculum contains no exact examination or submission dates. Entries below are user supplied, not an official Bauman timetable."}
+    </p>
+    {conflicts.length > 0 && <p className={styles.personalAssessmentAlert} role="status">
+      {vi ? "Nhiều đầu việc chưa hoàn tất trùng ngày: " : "Unfinished personal deadlines fall on the same day: "}
+      {conflicts.join(", ")}
+    </p>}
+    <div className={styles.personalAssessmentItems}>
+      {items.map(({course,kind,key}) => {
+        const value = progress.assessmentPlans[key] ?? {dueDate: "", status: "planned" as const, note: ""};
+        return <article key={key}>
+          <div><strong>{course.title[lang]}</strong><small>{personalAssessmentLabels[kind][lang]}</small></div>
+          <label>{vi ? "Ngày dự kiến (bạn tự nhập)" : "Expected date (your entry)"}
+            <input type="date" value={value.dueDate} onChange={e => update(key,{dueDate:e.target.value})} />
+          </label>
+          <label>{vi ? "Tiến độ cá nhân" : "Personal status"}
+            <select value={value.status} onChange={e => update(key,{status:e.target.value as typeof value.status})}>
+              <option value="planned">{vi ? "Chưa bắt đầu" : "Not started"}</option>
+              <option value="working">{vi ? "Đang chuẩn bị" : "Preparing"}</option>
+              <option value="self_done">{vi ? "Tự báo cáo hoàn thành" : "Self-reported completion"}</option>
+            </select>
+          </label>
+        </article>;
+      })}
+    </div>
+    <p className={styles.personalAssessmentDisclaimer}>
+      {vi ? "Chọn hoàn thành không tạo điểm thi hay chứng nhận. Khi trường công bố lịch thật, phải đối chiếu lại nguồn chính thức." : "Self-completion is not an official grade. Reconcile your plans with the actual university schedule when released."}
+    </p>
+  </details>;
+}
+
 /** Preparation-only view: never claims an official BMSTU grade or externally verified mastery. */
 function StandardSurvivalRoadmap({
   lang, progress, onProgressChange, onOpenCourse,
@@ -1579,6 +1647,7 @@ export default function StudyPlanTool({
             {visibleCourses.map((course) => <CourseRow key={course.id} course={course} lang={lang} selected={selectedCourseId === course.id} onSelect={() => setSelectedCourseId(course.id)} />)}
           </div>
         </> : null}
+        <PersonalAssessmentPlanner lang={lang} semester={semester} progress={survival} onProgressChange={setSurvival} />
       </div>
 
       <DetailPanel
