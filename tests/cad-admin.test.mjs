@@ -11,7 +11,7 @@ test("CAD CAM 3D is a first-level managed application", () => {
   assert.match(registry, /id: "cad-cam-3d"/);
   assert.match(registry, /repository: "BlueDragon33\/CAD_CAM_3D"/);
   assert.match(registry, /Namespace CAD-/);
-  assert.match(registry, /publicUrl: "https:\\/\\/bluedragon33\\.github\\.io\\/CAD_CAM_3D\\/"/);
+  assert.ok(registry.includes('publicUrl: "https://bluedragon33.github.io/CAD_CAM_3D/"'));
   assert.match(registry, /status: "online", contractState: "migrating"/);
   assert.match(registry, /Không sao chép CAD project vào Trung tâm/);
 });
