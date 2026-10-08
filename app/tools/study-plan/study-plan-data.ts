@@ -1,7 +1,7 @@
 export type Language = "vi" | "en";
 export type ViewMode = "week" | "month" | "semester" | "year";
 export type CourseKind = "course" | "research" | "practice" | "thesis" | "elective";
-export type Assessment = "credit" | "exam" | "exam-coursework" | "credit-coursework" | "graded-credit" | "coursework" | "none" | "defense";
+export type Assessment = "credit" | "exam" | "rating-exam" | "exam-coursework" | "credit-coursework" | "graded-credit" | "coursework" | "none" | "defense";
 
 export type LocalizedText = {
   vi: string;
@@ -183,7 +183,7 @@ export const courses: readonly Course[] = [
     credits: 3,
     hours: 108,
     contactHours: 68,
-    assessment: "exam",
+    assessment: "rating-exam",
     kind: "course",
     analysis: { vi: "Học các mô hình ML nền tảng và cách tích hợp chúng vào hệ thống tự động.", en: "Covers core ML models and their use inside automated systems." },
     prepare: { vi: "Python, NumPy/Pandas, xác suất thống kê, đại số tuyến tính và đánh giá mô hình.", en: "Python, NumPy/Pandas, probability/statistics, linear algebra and model evaluation." },
