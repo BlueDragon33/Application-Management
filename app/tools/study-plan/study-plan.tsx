@@ -988,7 +988,11 @@ function PersonalAssessmentPlanner({
       ...prior,
       assessmentPlans: {
         ...prior.assessmentPlans,
-        [key]: {dueDate: "", status: "planned", note: "", ...prior.assessmentPlans[key], ...patch},
+        [key]: {
+          dueDate: patch.dueDate ?? prior.assessmentPlans[key]?.dueDate ?? "",
+          status: patch.status ?? prior.assessmentPlans[key]?.status ?? "planned",
+          note: patch.note ?? prior.assessmentPlans[key]?.note ?? "",
+        },
       },
     }));
   return <details className={styles.personalAssessment}>
