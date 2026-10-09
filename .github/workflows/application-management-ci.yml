@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      browser_only:
+        description: "Run only browser QA; full regressions remain mandatory on PR/main."
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -38,6 +43,7 @@ jobs:
         run: echo "Fast sanity PASS; full regression runs in the mandatory regression-check job."
 
   regression-check:
+    if: github.event_name != 'workflow_dispatch' || !inputs.browser_only
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:

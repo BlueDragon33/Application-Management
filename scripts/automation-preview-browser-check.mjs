@@ -44,10 +44,10 @@ await context.route("**/api/**", async route => {
   if (request.method() !== "POST") return route.continue();
   const body = request.postDataJSON();
   const allowed = url.pathname === "/api/device"
-    ? ["register", "challenge", "bootstrap"].includes(body?.action)
+    ? ["session", "register", "challenge", "bootstrap"].includes(body?.action)
     : url.pathname === "/api/operations" && body?.action === "bootstrap";
   if (!allowed) {
-    checks.push({ name: "read-only request boundary", pass: false, path: url.pathname });
+    checks.push({ name: "read-only request boundary", pass: false, path: url.pathname, action: body?.action });
     return route.abort("blockedbyclient");
   }
   return route.continue();
