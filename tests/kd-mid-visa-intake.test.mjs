@@ -58,7 +58,8 @@ test("public intake form is Vietnamese and covers required visa profile fields",
   assert.match(publicWorkerPage, /data-part="day"/);
   assert.match(publicWorkerPage, /data-part="month"/);
   assert.match(publicWorkerPage, /data-part="year"/);
-  assert.match(publicWorkerPage, /localStorage\.setItem\(storageKey/);
+  assert.match(publicWorkerPage, /const writeDraft = \(storage,key,payload\) =>/);
+  assert.match(publicWorkerPage, /writeDraft\(localStorage,storageKey,\{ applicant: currentApplicant, receipt \}\)/);
   assert.match(publicWorkerPage, /submissionId:receipt\?\.status==="rejected"/);
   assert.match(publicWorkerPage, /setInterval\(\(\)=>void checkStatus\(\),15000\)/);
   assert.match(publicWorkerPage, /data-correction/);
