@@ -304,8 +304,8 @@ test("sender browser keeps a stable device id and automatically recovers the ser
 test("student common defaults are written directly into empty production form fields and old blank drafts cannot erase them", () => {
   assert.match(publicWorkerPage, /const mergeCommonDefaultsIntoDraft = draft/);
   assert.match(publicWorkerPage, /if\(!String\(merged\[key\] \?\? ""\)\.trim\(\) && String\(value \?\? ""\)\.trim\(\)\) merged\[key\]=String\(value\)/);
-  assert.match(publicWorkerPage, /currentApplicant=mergeCommonDefaultsIntoDraft\(currentApplicant\)/);
-  assert.match(publicWorkerPage, /currentApplicant=mergeCommonDefaultsIntoDraft\(\{\}\)/);
+  assert.match(publicWorkerPage, /currentApplicant=normalizePersonalApplicant\(mergeCommonDefaultsIntoDraft\(currentApplicant\)\)/);
+  assert.match(publicWorkerPage, /currentApplicant=normalizePersonalApplicant\(mergeCommonDefaultsIntoDraft\(\{\}\)\)/);
   assert.match(publicWorkerPage, /được điền sẵn trực tiếp trong từng ô/);
 });
 
@@ -400,8 +400,9 @@ test("five marked personal text fields normalize Vietnamese accents and uppercas
   for (const field of ["surname","givenNames","birthPlace","otherNames","routeCity"]) {
     assert.match(publicPage, new RegExp('set\\("' + field + '", upperPlain\\(e\\.target\\.value\\)\\)'));
   }
-  assert.match(publicWorkerPage, /const plainNames = \[[^\]]*"surname"[^\]]*"givenNames"[^\]]*"otherNames"[^\]]*"birthPlace"[^\]]*"routeCity"/s);
-  assert.match(publicWorkerPage, /el\.value=upperPlain\(el\.value\)/);
+  assert.match(publicWorkerPage, /const personalUpperPlainNames = \["surname","givenNames","birthPlace","otherNames","routeCity"\]/);
+  assert.match(publicWorkerPage, /const normalizePlainElement = el =>/);
+  assert.match(publicWorkerPage, /el\.value=normalized/);
 });
 
 test("personal required fields show a star and stay visually highlighted until valid", () => {
