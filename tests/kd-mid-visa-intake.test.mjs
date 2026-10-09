@@ -420,3 +420,33 @@ test("other names is marked required only when the applicant says they used anot
   assert.match(publicWorkerPage, /syncOtherNamesRequired/);
   assert.match(publicWorkerPage, /otherNamesInput\.required=otherNamesSelect\?\.value==="ДА"/);
 });
+
+
+test("production inline visa-intake script is valid JavaScript", () => {
+  const script = publicWorkerPage.match(/<script>\n([\s\S]*?)\n<\/script>/)?.[1];
+  assert.ok(script, "inline worker script");
+  assert.doesNotThrow(() => new Function(script));
+});
+
+test("personal uppercase normalization survives restored drafts and runs on input/change/blur/compositionend", () => {
+  assert.match(publicWorkerPage, /const personalUpperPlainNames = \["surname","givenNames","birthPlace","otherNames","routeCity"\]/);
+  assert.match(publicWorkerPage, /const normalizePersonalApplicant = applicant =>/);
+  assert.match(publicWorkerPage, /applicant=normalizePersonalApplicant\(applicant\)/);
+  assert.match(publicWorkerPage, /"input","change","blur","compositionend"/);
+  assert.match(publicWorkerPage, /normalizePlainElement\(el\)/);
+  assert.match(publicPage, /PERSONAL_UPPER_PLAIN_KEYS/);
+});
+
+test("standalone form submit cannot be silently blocked by native validation", () => {
+  assert.match(publicWorkerPage, /<form id="form" novalidate>/);
+  assert.match(publicWorkerPage, /const collectClientInvalid = \(\) =>/);
+  assert.match(publicWorkerPage, /Còn trường bắt buộc chưa điền hoặc chưa hợp lệ/);
+  assert.match(publicWorkerPage, /normalizePersonalApplicant\(readApplicant\(\)\)/);
+  assert.match(publicWorkerPage, /form\.addEventListener\("invalid"/);
+});
+
+test("autosave is resilient and stores normalized personal fields", () => {
+  assert.match(publicWorkerPage, /const persistFormDraft = \(\) =>/);
+  assert.match(publicWorkerPage, /saveLocal\(normalizePersonalApplicant\(readApplicant\(\)\)\)/);
+  assert.match(publicWorkerPage, /visa-intake autosave skipped/);
+});

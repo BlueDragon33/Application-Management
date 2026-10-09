@@ -107,7 +107,7 @@ export async function publicVisaIntakePage(request: Request, env: VisaIntakePage
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Form hồ sơ Visa Nga</title>
 <style>
-:root{color-scheme:dark;font-family:Inter,system-ui,sans-serif;background:#07120f;color:#effaf6}*{box-sizing:border-box}body{margin:0;background:#07120f;color:#effaf6}.page{width:min(1080px,calc(100% - 24px));margin:24px auto 64px}.hero,.section,.confirm,.success{border:1px solid #214f42;border-radius:18px;background:#0b211b}.hero{padding:26px;background:linear-gradient(135deg,#0b211b,#0a1714)}.hero span,.section header b{color:#e1d252;font-weight:900;letter-spacing:.1em;font-size:12px}.hero h1{font-size:clamp(28px,5vw,44px);margin:8px 0}.hero p,.section p,.hint{color:#95b7ab}.batch,.error,.return-alert{margin:16px 0;padding:12px 14px;border-radius:10px}.batch{border:1px solid #2b6955;background:#0d2b22}.error{border:1px solid #8f4747;background:#3a1b1b;color:#ffdada;display:none}.return-alert{display:none;border:2px solid #e66d6d;background:#411b1b;color:#ffe0e0;box-shadow:0 0 0 4px rgba(230,109,109,.08)}.return-alert strong{font-size:16px}.return-alert p{margin:6px 0}.return-alert button,.success button{margin-top:12px;border:1px solid #4c7668;border-radius:10px;background:#10261f;color:#effaf6;padding:10px 14px;font:inherit;font-weight:850;cursor:pointer}.return-alert button:disabled,.success button:disabled{opacity:.55;cursor:wait}.field[data-correction="true"],.checks label[data-correction="true"]{border:2px solid #e66d6d!important;background:rgba(230,109,109,.12)!important;border-radius:10px;padding:8px}.field[data-correction="true"] input,.field[data-correction="true"] select,.field[data-correction="true"] textarea{border-color:#e66d6d}.section{margin-top:16px;padding:20px}.section header{display:flex;gap:12px;align-items:flex-start}.section header b{display:grid;place-items:center;width:38px;height:38px;border:1px solid #756c27;border-radius:10px}.section h2{margin:0 0 4px}.section header p{margin:0}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:16px}.field{display:grid;gap:5px;font-weight:800;font-size:14px}.field small{font-weight:500;color:#89aa9f}.required-mark{color:#ffcf66;font-size:15px;font-weight:950}.field small[title],.checks small[title]{cursor:help;text-decoration:underline dotted rgba(137,170,159,.65);text-underline-offset:3px}.field[data-personal-required="true"]:not([data-correction="true"]):has(input:required:invalid),.field[data-personal-required="true"]:not([data-correction="true"]):has(select:required:invalid),.field[data-personal-required="true"]:not([data-correction="true"]):has(textarea:required:invalid){padding:8px;border:1px solid #b9832f;border-radius:10px;background:rgba(185,131,47,.12)}.field[data-personal-required="true"]:not([data-correction="true"]):has(input:required:invalid) input,.field[data-personal-required="true"]:not([data-correction="true"]):has(select:required:invalid) select,.field[data-personal-required="true"]:not([data-correction="true"]):has(textarea:required:invalid) textarea{border-color:#d9a13f;background:#171407}.field input,.field select,.field textarea{width:100%;padding:11px 12px;border:1px solid #2b6354;border-radius:9px;background:#071510;color:#fff;font:inherit}.date-fields{display:grid;grid-template-columns:minmax(72px,.9fr) minmax(82px,1fr) minmax(108px,1.25fr);gap:8px}.date-fields input{text-align:center;min-width:0;padding-left:8px;padding-right:8px}.date-fields input::placeholder{font-size:12px;color:#6f9186}.field input[readonly]{color:#b8d0c7;background:#10251f}.checks{display:grid;gap:10px;margin-top:16px}.checks label,.confirm label{display:flex;gap:10px;padding:12px;border:1px solid #2a5648;border-radius:10px;background:#0a1c17}.checks input,.confirm input{width:18px;height:18px;margin-top:2px}.checks span,.confirm span{display:grid;gap:3px}.checks small,.confirm small{color:#89aa9f}.conditional{display:none}.confirm{margin-top:16px;padding:18px}.confirm button{width:100%;min-height:52px;margin-top:14px;border:0;border-radius:11px;background:#e1d252;color:#15130a;font-weight:950;font-size:16px}.confirm button:disabled{opacity:.5}.success{margin-top:28px;padding:32px;text-align:center;display:none}.success>strong{display:block;color:#e1d252;font-size:36px;margin-top:10px}.result-box{margin:18px auto 0;max-width:560px;padding:16px;border:1px solid #2d6b57;border-radius:14px;background:#071510}.result-box strong{display:block;font-size:17px}.result-box p{color:#9fc0b5;margin:7px 0 12px}.result-box a{display:none;text-decoration:none;border-radius:10px;background:#e1d252;color:#15130a;padding:10px 14px;font-weight:950}@media(max-width:720px){.grid{grid-template-columns:1fr}.page{width:min(100% - 16px,1080px);margin-top:8px}.hero,.section{padding:16px}.date-fields{grid-template-columns:minmax(64px,.85fr) minmax(74px,1fr) minmax(92px,1.2fr);gap:6px}}
+:root{color-scheme:dark;font-family:Inter,system-ui,sans-serif;background:#07120f;color:#effaf6}*{box-sizing:border-box}body{margin:0;background:#07120f;color:#effaf6}.page{width:min(1080px,calc(100% - 24px));margin:24px auto 64px}.hero,.section,.confirm,.success{border:1px solid #214f42;border-radius:18px;background:#0b211b}.hero{padding:26px;background:linear-gradient(135deg,#0b211b,#0a1714)}.hero span,.section header b{color:#e1d252;font-weight:900;letter-spacing:.1em;font-size:12px}.hero h1{font-size:clamp(28px,5vw,44px);margin:8px 0}.hero p,.section p,.hint{color:#95b7ab}.batch,.error,.return-alert{margin:16px 0;padding:12px 14px;border-radius:10px}.batch{border:1px solid #2b6955;background:#0d2b22}.error{border:1px solid #8f4747;background:#3a1b1b;color:#ffdada;display:none}.return-alert{display:none;border:2px solid #e66d6d;background:#411b1b;color:#ffe0e0;box-shadow:0 0 0 4px rgba(230,109,109,.08)}.return-alert strong{font-size:16px}.return-alert p{margin:6px 0}.return-alert button,.success button{margin-top:12px;border:1px solid #4c7668;border-radius:10px;background:#10261f;color:#effaf6;padding:10px 14px;font:inherit;font-weight:850;cursor:pointer}.return-alert button:disabled,.success button:disabled{opacity:.55;cursor:wait}.field[data-correction="true"],.checks label[data-correction="true"]{border:2px solid #e66d6d!important;background:rgba(230,109,109,.12)!important;border-radius:10px;padding:8px}.field[data-correction="true"] input,.field[data-correction="true"] select,.field[data-correction="true"] textarea{border-color:#e66d6d}.section{margin-top:16px;padding:20px}.section header{display:flex;gap:12px;align-items:flex-start}.section header b{display:grid;place-items:center;width:38px;height:38px;border:1px solid #756c27;border-radius:10px}.section h2{margin:0 0 4px}.section header p{margin:0}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:16px}.field{display:grid;gap:5px;font-weight:800;font-size:14px}.field small{font-weight:500;color:#89aa9f}.required-mark{color:#ffcf66;font-size:15px;font-weight:950}.field small[title],.checks small[title]{cursor:help;text-decoration:underline dotted rgba(137,170,159,.65);text-underline-offset:3px}.field[data-personal-required="true"]:not([data-correction="true"]):has(input:required:invalid),.field[data-personal-required="true"]:not([data-correction="true"]):has(select:required:invalid),.field[data-personal-required="true"]:not([data-correction="true"]):has(textarea:required:invalid){padding:8px;border:1px solid #b9832f;border-radius:10px;background:rgba(185,131,47,.12)}.field[data-personal-required="true"]:not([data-correction="true"]):has(input:required:invalid) input,.field[data-personal-required="true"]:not([data-correction="true"]):has(select:required:invalid) select,.field[data-personal-required="true"]:not([data-correction="true"]):has(textarea:required:invalid) textarea{border-color:#d9a13f;background:#171407}.field:has(input:user-invalid),.field:has(select:user-invalid),.field:has(textarea:user-invalid){outline:2px solid rgba(230,109,109,.45);outline-offset:2px}.field input,.field select,.field textarea{width:100%;padding:11px 12px;border:1px solid #2b6354;border-radius:9px;background:#071510;color:#fff;font:inherit}.date-fields{display:grid;grid-template-columns:minmax(72px,.9fr) minmax(82px,1fr) minmax(108px,1.25fr);gap:8px}.date-fields input{text-align:center;min-width:0;padding-left:8px;padding-right:8px}.date-fields input::placeholder{font-size:12px;color:#6f9186}.field input[readonly]{color:#b8d0c7;background:#10251f}.checks{display:grid;gap:10px;margin-top:16px}.checks label,.confirm label{display:flex;gap:10px;padding:12px;border:1px solid #2a5648;border-radius:10px;background:#0a1c17}.checks input,.confirm input{width:18px;height:18px;margin-top:2px}.checks span,.confirm span{display:grid;gap:3px}.checks small,.confirm small{color:#89aa9f}.conditional{display:none}.confirm{margin-top:16px;padding:18px}.confirm button{width:100%;min-height:52px;margin-top:14px;border:0;border-radius:11px;background:#e1d252;color:#15130a;font-weight:950;font-size:16px}.confirm button:disabled{opacity:.5}.success{margin-top:28px;padding:32px;text-align:center;display:none}.success>strong{display:block;color:#e1d252;font-size:36px;margin-top:10px}.result-box{margin:18px auto 0;max-width:560px;padding:16px;border:1px solid #2d6b57;border-radius:14px;background:#071510}.result-box strong{display:block;font-size:17px}.result-box p{color:#9fc0b5;margin:7px 0 12px}.result-box a{display:none;text-decoration:none;border-radius:10px;background:#e1d252;color:#15130a;padding:10px 14px;font-weight:950}@media(max-width:720px){.grid{grid-template-columns:1fr}.page{width:min(100% - 16px,1080px);margin-top:8px}.hero,.section{padding:16px}.date-fields{grid-template-columns:minmax(64px,.85fr) minmax(74px,1fr) minmax(92px,1.2fr);gap:6px}}
 .guide{margin:16px 0;border:1px solid #315f50;border-radius:14px;background:#0b211b;overflow:hidden}.guide summary{cursor:pointer;padding:14px 16px;font-weight:900;color:#e1d252}.guide-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:0 16px 16px}.guide-grid article{padding:12px;border:1px solid #244d40;border-radius:10px;background:#081713}.guide-grid strong{font-size:13px}.guide-grid p{margin:5px 0 0;color:#91b3a7;font-size:12px;line-height:1.55}.prefill-notice{display:none;margin:16px 0;padding:14px 16px;border:1px solid #756c27;border-radius:12px;background:#25220c;color:#d8d3a0}.prefill-notice strong{color:#f2e87f}.prefill-notice p{margin:5px 0 0;font-size:12px;line-height:1.55}@media(max-width:720px){.guide-grid{grid-template-columns:1fr}}
 </style>
 </head>
@@ -126,7 +126,7 @@ export async function publicVisaIntakePage(request: Request, env: VisaIntakePage
 <article><strong id="guideTypeTitle">Loại mẫu</strong><p id="guideTypeText"></p></article>
 </div></details>
 <div id="prefillNotice" class="prefill-notice"><strong>Thông tin chung Link 1 đã nạp sẵn</strong><p>Quốc tịch · nhóm/mục đích học tập · loại visa · số lần nhập cảnh · ngày vào/ra · loại nơi đến · tổ chức tiếp nhận · địa chỉ tổ chức · INN · Mã Telex · số giấy mời nếu có · Moscow · địa chỉ thường trú · nơi học · STUDENT · địa chỉ/điện thoại/email đơn vị · nơi nộp · mật khẩu KD-MID. Nếu khác giấy tờ của bạn, sửa trực tiếp trong ô tương ứng.</p></div>
-<form id="form">
+<form id="form" novalidate>
 <datalist id="day-options"><option value="01"></option><option value="02"></option><option value="03"></option><option value="04"></option><option value="05"></option><option value="06"></option><option value="07"></option><option value="08"></option><option value="09"></option><option value="10"></option><option value="11"></option><option value="12"></option><option value="13"></option><option value="14"></option><option value="15"></option><option value="16"></option><option value="17"></option><option value="18"></option><option value="19"></option><option value="20"></option><option value="21"></option><option value="22"></option><option value="23"></option><option value="24"></option><option value="25"></option><option value="26"></option><option value="27"></option><option value="28"></option><option value="29"></option><option value="30"></option><option value="31"></option></datalist>
 <datalist id="month-options"><option value="01"></option><option value="02"></option><option value="03"></option><option value="04"></option><option value="05"></option><option value="06"></option><option value="07"></option><option value="08"></option><option value="09"></option><option value="10"></option><option value="11"></option><option value="12"></option></datalist>
 <section class="section"><header><b>01</b><div><h2>Thông tin visa & thư mời</h2><p>Các trường có thể mặc định theo đợt đã được điền sẵn. Chỉ sửa khi giấy tờ của bạn khác.</p></div></header><div class="grid">
@@ -283,6 +283,12 @@ export async function publicVisaIntakePage(request: Request, env: VisaIntakePage
     try { localStorage.setItem(storageKey, JSON.stringify({ applicant: currentApplicant, receipt })); } catch {}
   };
   const upperPlain = value => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[đĐ]/g, letter => letter === "đ" ? "d" : "D").toUpperCase();
+  const personalUpperPlainNames = ["surname","givenNames","birthPlace","otherNames","routeCity"];
+  const normalizePersonalApplicant = applicant => {
+    const normalized={...(applicant || {})};
+    personalUpperPlainNames.forEach(name=>{normalized[name]=upperPlain(normalized[name] || "");});
+    return normalized;
+  };
   const normalizeTwoDigits = (value,max) => {
     if (!value) return "";
     const number=Number(value);
@@ -300,9 +306,22 @@ export async function publicVisaIntakePage(request: Request, env: VisaIntakePage
     sync();
   });
   const emailNames = ["email","workEmail"];
-  const plainNames = ["surname","givenNames","otherNames","birthPlace","citizenship","purposeSection","purpose","visaType","entries","destinationType","organization","organizationAddress","routeCity","passportNo","personalAddress","workStudyPlace","position","workAddress","formerCitizenshipLossReason","insurancePolicy","specialNotes"];
-  emailNames.forEach(name => { const el=byName(name); if(el) el.addEventListener("input",()=>{el.value=el.value.toLowerCase();}); });
-  plainNames.forEach(name => { const el=byName(name); if(el) el.addEventListener("input",()=>{el.value=upperPlain(el.value);}); });
+  const plainNames = ["citizenship","purposeSection","purpose","visaType","entries","destinationType","organization","organizationAddress","passportNo","personalAddress","workStudyPlace","position","workAddress","formerCitizenshipLossReason","insurancePolicy","specialNotes"];
+  const normalizePlainElement = el => {
+    if(!el || typeof el.value !== "string") return;
+    const normalized=upperPlain(el.value);
+    if(el.value!==normalized) el.value=normalized;
+  };
+  emailNames.forEach(name => { const el=byName(name); if(el) ["input","change","blur"].forEach(type=>el.addEventListener(type,()=>{el.value=el.value.toLowerCase();})); });
+  plainNames.forEach(name => { const el=byName(name); if(el) ["input","change","blur","compositionend"].forEach(type=>el.addEventListener(type,()=>normalizePlainElement(el))); });
+  personalUpperPlainNames.forEach(name => {
+    const el=byName(name);
+    if(!el) return;
+    ["input","change","blur","compositionend"].forEach(type=>el.addEventListener(type,event=>{
+      if(type==="input" && event.isComposing) return;
+      normalizePlainElement(el);
+    }));
+  });
   const fillDate = (key,value) => {
     const widget=document.querySelector('[data-date="'+key+'"]');
     if(!widget) return;
@@ -330,6 +349,7 @@ export async function publicVisaIntakePage(request: Request, env: VisaIntakePage
 
   const fillApplicant = applicant => {
     if(!applicant) return;
+    applicant=normalizePersonalApplicant(applicant);
     Object.entries(applicant).forEach(([key,value]) => {
       if(["birthDate","entryDate","exitDate","passportIssue","passportExpiry","formerCitizenshipLostDate","lastVisitFrom","lastVisitTo"].includes(key)){ fillDate(key,String(value || "")); return; }
       const el=byName(key);
@@ -474,15 +494,15 @@ export async function publicVisaIntakePage(request: Request, env: VisaIntakePage
     };
 
     if(data.submission?.applicant){
-      currentApplicant=student ? mergeCommonDefaultsIntoDraft(data.submission.applicant) : data.submission.applicant;
+      currentApplicant=normalizePersonalApplicant(student ? mergeCommonDefaultsIntoDraft(data.submission.applicant) : data.submission.applicant);
       fillApplicant(currentApplicant);
       saveLocal(currentApplicant);
     } else if(currentApplicant) {
-      currentApplicant=mergeCommonDefaultsIntoDraft(currentApplicant);
+      currentApplicant=normalizePersonalApplicant(mergeCommonDefaultsIntoDraft(currentApplicant));
       fillApplicant(currentApplicant);
       saveLocal(currentApplicant);
     } else {
-      currentApplicant=mergeCommonDefaultsIntoDraft({});
+      currentApplicant=normalizePersonalApplicant(mergeCommonDefaultsIntoDraft({}));
       fillApplicant(currentApplicant);
       saveLocal(currentApplicant);
     }
@@ -515,13 +535,47 @@ export async function publicVisaIntakePage(request: Request, env: VisaIntakePage
       specialNotes:upperPlain(value("specialNotes"))
     });
 
-  form.addEventListener("input",()=>saveLocal(readApplicant()));
-  form.addEventListener("change",()=>saveLocal(readApplicant()));
+  const persistFormDraft = () => {
+    try { saveLocal(normalizePersonalApplicant(readApplicant())); }
+    catch (cause) { console.warn("visa-intake autosave skipped", cause); }
+  };
+  form.addEventListener("input",persistFormDraft);
+  form.addEventListener("change",persistFormDraft);
+  form.addEventListener("blur",persistFormDraft,true);
   if(receipt?.id) { void checkStatus(); setInterval(()=>void checkStatus(),15000); }
 
+  const fieldLabel = element => {
+    const field=element?.closest?.("[data-field]");
+    if(!field) return "Trường bắt buộc";
+    const clone=field.cloneNode(true);
+    clone.querySelectorAll("input,select,textarea,small,.date-fields").forEach(node=>node.remove());
+    return String(clone.textContent || "Trường bắt buộc").replace("*","").trim() || "Trường bắt buộc";
+  };
+  const collectClientInvalid = () => {
+    const invalid=Array.from(form.querySelectorAll("input,select,textarea")).filter(el=>el.willValidate && !el.checkValidity());
+    return { invalid, labels:[...new Set(invalid.map(fieldLabel))] };
+  };
+
+  form.addEventListener("invalid", event => {
+    event.preventDefault();
+    const target=event.target;
+    setError("Trường có dấu * hoặc trường điều kiện này chưa hợp lệ.", [fieldLabel(target)]);
+  }, true);
+
   form.addEventListener("submit", async event => {
-    event.preventDefault(); setError(""); submit.disabled=true; submit.textContent="Đang gửi…";
-    const applicant = readApplicant();
+    event.preventDefault(); setError("");
+    const clientValidation=collectClientInvalid();
+    if(clientValidation.invalid.length){
+      setError("Còn trường bắt buộc chưa điền hoặc chưa hợp lệ.", clientValidation.labels);
+      const first=clientValidation.invalid[0];
+      first?.focus?.();
+      first?.closest?.("[data-field]")?.scrollIntoView?.({behavior:"smooth",block:"center"});
+      submit.disabled=!confirmed.checked;
+      submit.textContent="Hoàn thành & gửi hồ sơ";
+      return;
+    }
+    submit.disabled=true; submit.textContent="Đang gửi…";
+    const applicant = normalizePersonalApplicant(readApplicant());
     saveLocal(applicant);
     try {
       const r = await fetch("/api/kd-mid-visa-intake/public", {method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({token,batch:batchId,deviceId,applicant,confirmedAccurate:confirmed.checked,submissionId:receipt?.status==="rejected" ? receipt.id : undefined})});
