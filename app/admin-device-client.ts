@@ -393,7 +393,7 @@ async function proof(credential: Credential, access: AdminAccess) {
   if (!challenge.challenge || typeof challenge.challenge !== "string" || !credential.privateKey) throw new AdminApiError("Không thể tạo thử thách thiết bị.", challenge);
   const message = new TextEncoder().encode(`learning-control:${access.deviceId}:${challenge.challenge}`);
   const signature = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, credential.privateKey, message);
-  return { deviceId: access.deviceId, challenge: challenge.challenge, signature: base64Url(new Uint8Array(signature)) };
+  return { proofDeviceId: access.deviceId, challenge: challenge.challenge, signature: base64Url(new Uint8Array(signature)) };
 }
 
 function isProductionSessionAccess(access: AdminAccess) {
@@ -594,3 +594,4 @@ export const roleLabels: Record<ControlRole, string> = {
   publisher: "Người xuất bản",
   owner: "Chủ hệ thống",
 };
+

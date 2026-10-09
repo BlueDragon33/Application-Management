@@ -522,11 +522,10 @@ async function discoverContract(
     if (basePath) add(joinContractPath(basePath, "/api/control/status"), credential);
   }
 
-  // Contract discovery is GET-only. Probe candidate paths concurrently so one
-  // stale/missing endpoint cannot serialize several 5-second timeouts. We still
-  // select the valid result with the lowest candidate index, preserving the
-  // existing discovery priority deterministically.
-  const attempts = await Promise.all(candidates.map(async (candidate, index) => {
+  // Read the configured path first. Exhaustive fan-out for every healthy app
+  // consumes the Worker's subrequest budget before device/policy readback.
+  // Only missing/invalid configured contracts need parallel fallback discovery.
+  const probe = async (candidate: typeof candidates[number], index: number) => {
     try {
       const raw = await fetchJson(row.origin, candidate.path, candidate.credential);
       if (text(raw.schema) === CONTRACT_SCHEMA) {
@@ -542,8 +541,14 @@ async function discoverContract(
         failure: `${candidate.path}: ${error instanceof Error ? error.message : "không đọc được"}`,
       };
     }
-  }));
+  };
+  const preferred = await probe(candidates[0], 0);
+  if (preferred.manifest) return preferred.manifest;
 
+  const attempts = [
+    preferred,
+    ...await Promise.all(candidates.slice(1).map((candidate, index) => probe(candidate, index + 1))),
+  ];
   const winner = attempts
     .filter((attempt): attempt is typeof attempts[number] & { manifest: UniversalContractManifest } => Boolean(attempt.manifest))
     .sort((left, right) => left.index - right.index)[0];
@@ -880,3 +885,4 @@ export async function executeUniversalDeviceCommand(input: {
   if (!current || current.status !== expected) throw new Error(`Client chưa read-back trạng thái ${expected} sau command.`);
   return { ok: true, commandReplayed: data.replayed === true, device: current };
 }
+
