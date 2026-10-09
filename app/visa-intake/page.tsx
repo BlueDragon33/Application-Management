@@ -283,6 +283,7 @@ const STUDENT_FORM_DEFAULTS: Partial<ApplicantForm> & Record<string, string> = {
   preferredEmbassy: "ПОСОЛЬСТВО РФ ВО ВЬЕТНАМЕ",
 };
 const STUDENT_SHARED_KEYS = Object.keys(STUDENT_FORM_DEFAULTS) as Array<keyof ApplicantForm>;
+const PERSONAL_UPPER_PLAIN_KEYS: Array<keyof ApplicantForm> = ["surname", "givenNames", "birthPlace", "otherNames", "routeCity"];
 
 const deviceStorageKey = "visa-intake:device-id:v1";
 function ensureDeviceId() {
@@ -406,6 +407,9 @@ export default function VisaIntakePage() {
               }
             }
           }
+          for (const key of PERSONAL_UPPER_PLAIN_KEYS) {
+            (merged as unknown as Record<string, unknown>)[key] = upperPlain(String(merged[key] ?? ""));
+          }
           const recoveredExpiry = String(recovered.passportExpiry ?? "").trim();
           merged.passportExpiry = recoveredExpiry || passportExpiryFromIssue(String(merged.passportIssue ?? ""));
           return merged;
@@ -476,7 +480,21 @@ export default function VisaIntakePage() {
       const response = await fetch("/api/kd-mid-visa-intake/public", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ token, batch, deviceId, applicant, confirmedAccurate: confirmed, submissionId: receipt?.status === "rejected" ? receipt.id : undefined }),
+        body: JSON.stringify({
+          token,
+          batch,
+          deviceId,
+          applicant: {
+            ...applicant,
+            surname: upperPlain(applicant.surname),
+            givenNames: upperPlain(applicant.givenNames),
+            birthPlace: upperPlain(applicant.birthPlace),
+            otherNames: upperPlain(applicant.otherNames),
+            routeCity: upperPlain(applicant.routeCity),
+          },
+          confirmedAccurate: confirmed,
+          submissionId: receipt?.status === "rejected" ? receipt.id : undefined,
+        }),
       });
       const data = await response.json() as {
         ok?: boolean;

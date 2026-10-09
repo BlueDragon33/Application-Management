@@ -52,3 +52,41 @@ jobs:
         run: npm test
       - name: Regression policy summary
         run: echo "Full npm test PASS for every pull request and every main revision."
+
+  preview-browser-readonly:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: application-management-preview
+    env:
+      APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET: ${{ secrets.APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET }}
+      APPLICATION_MANAGEMENT_PREVIEW_ORIGIN: ${{ vars.APPLICATION_MANAGEMENT_PREVIEW_ORIGIN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+      - name: Identify the already verified deployed repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          REVISION="$(git log -1 --format=%H -- app/open-contract.server.ts)"
+          test "${#REVISION}" -eq 40
+          echo "AUTOMATION_PREVIEW_REVISION=$REVISION" >> "$GITHUB_ENV"
+      - name: Install pinned browser QA runtime
+        run: |
+          npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.55.1
+          npx playwright install --with-deps chromium
+      - name: Authenticate and verify Preview UI without manual secret entry
+        run: node scripts/automation-preview-browser-check.mjs
+      - name: Save browser QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: automation-preview-browser-readonly
+          path: qa-artifacts/
+          if-no-files-found: ignore
+          retention-days: 7
+

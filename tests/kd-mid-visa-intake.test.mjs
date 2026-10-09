@@ -304,8 +304,8 @@ test("sender browser keeps a stable device id and automatically recovers the ser
 test("student common defaults are written directly into empty production form fields and old blank drafts cannot erase them", () => {
   assert.match(publicWorkerPage, /const mergeCommonDefaultsIntoDraft = draft/);
   assert.match(publicWorkerPage, /if\(!String\(merged\[key\] \?\? ""\)\.trim\(\) && String\(value \?\? ""\)\.trim\(\)\) merged\[key\]=String\(value\)/);
-  assert.match(publicWorkerPage, /currentApplicant=mergeCommonDefaultsIntoDraft\(currentApplicant\)/);
-  assert.match(publicWorkerPage, /currentApplicant=mergeCommonDefaultsIntoDraft\(\{\}\)/);
+  assert.match(publicWorkerPage, /currentApplicant=normalizePersonalApplicant\(mergeCommonDefaultsIntoDraft\(currentApplicant\)\)/);
+  assert.match(publicWorkerPage, /currentApplicant=normalizePersonalApplicant\(mergeCommonDefaultsIntoDraft\(\{\}\)\)/);
   assert.match(publicWorkerPage, /được điền sẵn trực tiếp trong từng ô/);
 });
 
@@ -333,7 +333,7 @@ test("student intake links always expose complete shared defaults, including old
 test("Link 1 client has its own complete fallback defaults and recovered blank data cannot clear them", () => {
   assert.match(publicWorkerPage, /const STUDENT_FORM_DEFAULTS = \{/);
   assert.match(publicWorkerPage, /withStudentFallbacks\(rawDefaults\)/);
-  assert.match(publicWorkerPage, /currentApplicant=student \? mergeCommonDefaultsIntoDraft\(data\.submission\.applicant\)/);
+  assert.match(publicWorkerPage, /currentApplicant=normalizePersonalApplicant\(student \? mergeCommonDefaultsIntoDraft\(data\.submission\.applicant\)/);
   assert.match(publicPage, /const STUDENT_FORM_DEFAULTS/);
   assert.match(publicPage, /const STUDENT_SHARED_KEYS/);
   assert.match(publicPage, /if \(resolvedFormType === "student"\)/);
@@ -400,8 +400,9 @@ test("five marked personal text fields normalize Vietnamese accents and uppercas
   for (const field of ["surname","givenNames","birthPlace","otherNames","routeCity"]) {
     assert.match(publicPage, new RegExp('set\\("' + field + '", upperPlain\\(e\\.target\\.value\\)\\)'));
   }
-  assert.match(publicWorkerPage, /const plainNames = \[[^\]]*"surname"[^\]]*"givenNames"[^\]]*"otherNames"[^\]]*"birthPlace"[^\]]*"routeCity"/s);
-  assert.match(publicWorkerPage, /el\.value=upperPlain\(el\.value\)/);
+  assert.match(publicWorkerPage, /const personalUpperPlainNames = \["surname","givenNames","birthPlace","otherNames","routeCity"\]/);
+  assert.match(publicWorkerPage, /const normalizePlainElement = el =>/);
+  assert.match(publicWorkerPage, /el\.value=normalized/);
 });
 
 test("personal required fields show a star and stay visually highlighted until valid", () => {
@@ -419,4 +420,34 @@ test("other names is marked required only when the applicant says they used anot
   assert.match(publicPage, /applicant\.hasOtherNames \? <Field fieldKey="otherNames"[^>]*personalRequired/);
   assert.match(publicWorkerPage, /syncOtherNamesRequired/);
   assert.match(publicWorkerPage, /otherNamesInput\.required=otherNamesSelect\?\.value==="ДА"/);
+});
+
+
+test("production inline visa-intake script is valid JavaScript", () => {
+  const script = publicWorkerPage.match(/<script>\n([\s\S]*?)\n<\/script>/)?.[1];
+  assert.ok(script, "inline worker script");
+  assert.doesNotThrow(() => new Function(script));
+});
+
+test("personal uppercase normalization survives restored drafts and runs on input/change/blur/compositionend", () => {
+  assert.match(publicWorkerPage, /const personalUpperPlainNames = \["surname","givenNames","birthPlace","otherNames","routeCity"\]/);
+  assert.match(publicWorkerPage, /const normalizePersonalApplicant = applicant =>/);
+  assert.match(publicWorkerPage, /applicant=normalizePersonalApplicant\(applicant\)/);
+  assert.match(publicWorkerPage, /"input","change","blur","compositionend"/);
+  assert.match(publicWorkerPage, /normalizePlainElement\(el\)/);
+  assert.match(publicPage, /PERSONAL_UPPER_PLAIN_KEYS/);
+});
+
+test("standalone form submit cannot be silently blocked by native validation", () => {
+  assert.match(publicWorkerPage, /<form id="form" novalidate>/);
+  assert.match(publicWorkerPage, /const collectClientInvalid = \(\) =>/);
+  assert.match(publicWorkerPage, /Còn trường bắt buộc chưa điền hoặc chưa hợp lệ/);
+  assert.match(publicWorkerPage, /normalizePersonalApplicant\(readApplicant\(\)\)/);
+  assert.match(publicWorkerPage, /form\.addEventListener\("invalid"/);
+});
+
+test("autosave is resilient and stores normalized personal fields", () => {
+  assert.match(publicWorkerPage, /const persistFormDraft = \(\) =>/);
+  assert.match(publicWorkerPage, /saveLocal\(normalizePersonalApplicant\(readApplicant\(\)\)\)/);
+  assert.match(publicWorkerPage, /visa-intake autosave skipped/);
 });
