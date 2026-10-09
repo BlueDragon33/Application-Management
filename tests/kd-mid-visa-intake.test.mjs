@@ -429,12 +429,14 @@ test("production inline visa-intake script is valid JavaScript", () => {
   assert.doesNotThrow(() => new Function(script));
 });
 
-test("personal uppercase normalization survives restored drafts and runs on input/change/blur/compositionend", () => {
+test("personal uppercase normalization survives restored drafts and uses one delegated capture path", () => {
   assert.match(publicWorkerPage, /const personalUpperPlainNames = \["surname","givenNames","birthPlace","otherNames","routeCity"\]/);
   assert.match(publicWorkerPage, /const normalizePersonalApplicant = applicant =>/);
   assert.match(publicWorkerPage, /applicant=normalizePersonalApplicant\(applicant\)/);
-  assert.match(publicWorkerPage, /"input","change","blur","compositionend"/);
-  assert.match(publicWorkerPage, /normalizePlainElement\(el\)/);
+  assert.match(publicWorkerPage, /const normalizeMarkedElement = element =>/);
+  assert.match(publicWorkerPage, /form\.addEventListener\(type,normalizeMarkedEvent,true\)/);
+  assert.match(publicWorkerPage, /const normalizeMarkedInputs = \(\) =>/);
+  assert.doesNotMatch(publicWorkerPage, /personalUpperPlainNames\.forEach\(name => \{\s*const el=byName\(name\)/);
   assert.match(publicPage, /PERSONAL_UPPER_PLAIN_KEYS/);
 });
 
@@ -446,8 +448,75 @@ test("standalone form submit cannot be silently blocked by native validation", (
   assert.match(publicWorkerPage, /form\.addEventListener\("invalid"/);
 });
 
-test("autosave is resilient and stores normalized personal fields", () => {
-  assert.match(publicWorkerPage, /const persistFormDraft = \(\) =>/);
-  assert.match(publicWorkerPage, /saveLocal\(normalizePersonalApplicant\(readApplicant\(\)\)\)/);
-  assert.match(publicWorkerPage, /visa-intake autosave skipped/);
+test("autosave uses the same normalized snapshot path and exposes localStorage failure", () => {
+  assert.match(publicWorkerPage, /const snapshotCurrentApplicant = \(\) =>/);
+  assert.match(publicWorkerPage, /normalizeMarkedInputs\(\)/);
+  assert.match(publicWorkerPage, /const persistFormDraft = \(\) => saveLocal\(snapshotCurrentApplicant\(\)\)/);
+  assert.match(publicWorkerPage, /const writeDraft = \(storage,key,payload\) =>/);
+  assert.match(publicWorkerPage, /Không lưu được bản nháp trên thiết bị/);
+  assert.doesNotMatch(publicWorkerPage, /localStorage\.setItem\(storageKey[\s\S]{0,120}catch \{\}/);
+});
+
+
+test("inline runtime upperPlain executes Vietnamese normalization on the exact worker script", () => {
+  const script = publicWorkerPage.match(/<script>\n([\s\S]*?)\n<\/script>/)?.[1];
+  assert.ok(script, "inline worker script");
+  const start = script.indexOf("const upperPlain =");
+  const end = script.indexOf("const normalizeTwoDigits", start);
+  assert.ok(start >= 0 && end > start, "upperPlain runtime block");
+  const runtime = new Function(
+    script.slice(start, end) + "; return { upperPlain, normalizePersonalApplicant };"
+  )();
+  assert.equal(runtime.upperPlain("Nguyễn Đình Nam"), "NGUYEN DINH NAM");
+  assert.equal(runtime.upperPlain("Đắk Lắk"), "DAK LAK");
+  assert.deepEqual(
+    runtime.normalizePersonalApplicant({
+      surname: "Nguyễn",
+      givenNames: "Đình Nam",
+      birthPlace: "Hà Nội",
+      otherNames: "Trần Văn A",
+      routeCity: "Москва",
+      untouched: "giữ nguyên",
+    }),
+    {
+      surname: "NGUYEN",
+      givenNames: "DINH NAM",
+      birthPlace: "HA NOI",
+      otherNames: "TRAN VAN A",
+      routeCity: "МОСКВА",
+      untouched: "giữ nguyên",
+    }
+  );
+});
+
+test("the five user-marked fields are explicitly bound to the unified upper-plain UI path", () => {
+  for (const name of ["surname","givenNames","birthPlace","otherNames","routeCity"]) {
+    assert.match(publicWorkerPage, new RegExp('name="' + name + '"[^>]*data-normalize="upper-plain"|data-normalize="upper-plain"[^>]*name="' + name + '"'));
+  }
+  assert.match(publicWorkerPage, /input\[data-normalize="upper-plain"\]\{text-transform:uppercase\}/);
+});
+
+test("draft persistence returns observable success or failure instead of swallowing storage errors", () => {
+  const script = publicWorkerPage.match(/<script>\n([\s\S]*?)\n<\/script>/)?.[1];
+  assert.ok(script, "inline worker script");
+  const match = script.match(/const writeDraft = \(storage,key,payload\) => \{([\s\S]*?)\n  \};/);
+  assert.ok(match, "writeDraft helper");
+  const writeDraft = new Function(
+    "return (storage,key,payload) => {" + match[1] + "\n};"
+  )();
+  const writes = [];
+  assert.deepEqual(
+    writeDraft({ setItem: (key, value) => writes.push([key, value]) }, "draft-key", { a: 1 }),
+    { ok: true, error: "" }
+  );
+  assert.equal(writes.length, 1);
+  const failed = writeDraft({ setItem: () => { throw new Error("quota"); } }, "draft-key", { a: 1 });
+  assert.equal(failed.ok, false);
+  assert.match(failed.error, /quota/);
+});
+
+test("submit and autosave share one normalized client snapshot", () => {
+  assert.match(publicWorkerPage, /const snapshotCurrentApplicant = \(\) => \{[\s\S]*?normalizeMarkedInputs\(\);[\s\S]*?normalizePersonalApplicant\(readApplicant\(\)\)/);
+  assert.match(publicWorkerPage, /const applicant = snapshotCurrentApplicant\(\)/);
+  assert.match(publicWorkerPage, /form\.addEventListener\("compositionend",persistFormDraft,true\)/);
 });
