@@ -333,7 +333,7 @@ test("student intake links always expose complete shared defaults, including old
 test("Link 1 client has its own complete fallback defaults and recovered blank data cannot clear them", () => {
   assert.match(publicWorkerPage, /const STUDENT_FORM_DEFAULTS = \{/);
   assert.match(publicWorkerPage, /withStudentFallbacks\(rawDefaults\)/);
-  assert.match(publicWorkerPage, /currentApplicant=student \? mergeCommonDefaultsIntoDraft\(data\.submission\.applicant\)/);
+  assert.match(publicWorkerPage, /currentApplicant=normalizePersonalApplicant\(student \? mergeCommonDefaultsIntoDraft\(data\.submission\.applicant\)/);
   assert.match(publicPage, /const STUDENT_FORM_DEFAULTS/);
   assert.match(publicPage, /const STUDENT_SHARED_KEYS/);
   assert.match(publicPage, /if \(resolvedFormType === "student"\)/);
