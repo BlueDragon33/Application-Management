@@ -14,6 +14,7 @@ assert.equal(process.env.CI, "true", "This fixture runner only runs in a disposa
 assert.equal(fs.existsSync(".dev.vars"), false, "Never overwrite an existing developer environment.");
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "am-automation-fixture-"));
 const secret = randomBytes(32).toString("hex");
+const encryptionKey = randomBytes(32);
 const statePath = path.join(temporary, "client-state.json");
 const checks = [];
 const traffic = [];
@@ -112,6 +113,7 @@ const localVars = {
   LOCAL_DEV_USER_EMAIL: "qa.owner@example.test", LOCAL_DEV_USER_NAME: "QA Fixture Owner",
   CONTROL_OWNER_EMAILS: "qa.owner@example.test", CONTROL_PLANE_NETWORK_MODE: "local",
   APPLICATION_MANAGEMENT_ACCESS_MODE: "standalone",
+  MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY: encryptionKey.toString("base64url"),
   BOI_ECH_LOCAL_BASE_URL: "http://127.0.0.1:3004", CONTROL_SERVICE_LOCAL_SECRET: secret,
   HEALTH_CARE_LOCAL_BASE_URL: "http://127.0.0.1:3001", HEALTH_CONTROL_SERVICE_LOCAL_SECRET: secret,
   RU_LIFE_LOCAL_BASE_URL: "http://127.0.0.1:3099", BAUMAN_CONTROL_LOCAL_BASE_URL: "http://127.0.0.1:3099",
@@ -135,6 +137,7 @@ try {
     const id = parts[3];
     if (!/^qa-contract-[1-9]$/.test(id || "")) return json(response, { error: "NOT_FOUND" }, 404);
     traffic.push({ client: id, path: parts[4], method: request.method, at: Date.now() });
+    if (request.headers.authorization !== "Bearer " + secret) return json(response, { error: "FIXTURE_CREDENTIAL_REQUIRED" }, 403);
     if (parts[4] === "contract") return json(response, {
       schema: "application-management.contract/v1", application: { id, name: id, category: "Kỹ thuật" },
       capabilities: { deviceRegistry: true, deviceAutoApproval: true },
@@ -149,9 +152,12 @@ try {
   fs.writeFileSync(".dev.vars", Object.entries(localVars).map(([key, value]) => key + "=" + value).join("\n"));
   execFileSync("npx", ["wrangler", "d1", "migrations", "apply", "learning-management-db", "--local", "--config", "wrangler.local.jsonc"], { env: runtimeEnv, stdio: "pipe" });
   let sql = "UPDATE managed_app_catalog SET enabled=0;\n";
+  const aesKey = await crypto.subtle.importKey("raw", encryptionKey, { name: "AES-GCM" }, false, ["encrypt"]);
   for (let index = 1; index <= 9; index++) {
     const id = "qa-contract-" + index;
-    sql += "INSERT INTO managed_app_catalog(id,name,short_name,category,origin,contract_path,enabled,created_by) VALUES ('" + id + "','" + id + "','" + id + "','Kỹ thuật','http://127.0.0.1:3050','/api/fixture/" + id + "/contract',1,'qa.owner@example.test');\n";
+    const iv = randomBytes(12);
+    const ciphertext = Buffer.from(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, aesKey, Buffer.from(secret))).toString("base64url");
+    sql += "INSERT INTO managed_app_catalog(id,name,short_name,category,origin,contract_path,enabled,credential_ciphertext,credential_iv,created_by) VALUES ('" + id + "','" + id + "','" + id + "','Kỹ thuật','http://127.0.0.1:3050','/api/fixture/" + id + "/contract',1,'" + ciphertext + "','" + iv.toString("base64url") + "','qa.owner@example.test');\n";
   }
   const sqlPath = path.join(temporary, "seed.sql");
   fs.writeFileSync(sqlPath, sql);
@@ -186,6 +192,12 @@ try {
   const initial = await bootstrap(() => page.getByRole("button", { name: "⚙ Duyệt tự động", exact: true }).click());
   const policies = initial.settings.automationPolicies;
   for (const id of ["boi-ech", "health-care"]) assert.equal(policies.find(item => item.appId === id).verification.state, "live");
+  for (let index = 1; index <= 9; index++) {
+    const id = "qa-contract-" + index;
+    assert.equal(policies.find(item => item.appId === id).verification.state, "live", id + " must read policy with its encrypted catalog credential.");
+    assert.equal(traffic.filter(item => item.client === id && item.path === "contract").length, 1, "A valid preferred contract must not fan out fallback probes.");
+    assert.ok(traffic.some(item => item.client === id && item.path === "automation"), id + " must independently read automation.");
+  }
   await expect(row("Blueprint OS").locator("b[data-state]")).toHaveText("READ-ONLY");
   await expect(row("Bơi ếch").getByRole("combobox").first()).toBeEnabled();
   checks.push("Boi + Health LIVE; Blueprint READ-ONLY and unavailable apps do not block valid apps; nine shared contracts bootstrap");
@@ -244,7 +256,7 @@ try {
   flags.readDelay = 0;
   await bootstrap(() => modal().getByRole("button", { name: "Đồng bộ LIVE", exact: true }).click());
   await expect(row("Bơi ếch").locator("b[data-state]")).toHaveText("LIVE");
-  await modal().getByRole("button", { name: "Đóng", exact: true }).click();
+  await modal().getByText("Đóng", { exact: true }).click();
   await page.getByRole("button", { name: "▣ Kiểm duyệt thiết bị", exact: true }).first().click();
   const bulk = page.getByRole("button", { name: "Từ chối và khóa các thiết bị chờ kiểm duyệt đang hiển thị", exact: true });
   await expect(bulk).toBeEnabled();
