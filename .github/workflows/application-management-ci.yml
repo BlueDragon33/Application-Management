@@ -82,7 +82,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          REVISION="$(git log -1 --format=%H -- app/open-contract.server.ts)"
+          REVISION="$(git log -1 --format=%H -- app worker)"
           test "${#REVISION}" -eq 40
           echo "AUTOMATION_PREVIEW_REVISION=$REVISION" >> "$GITHUB_ENV"
       - name: Install pinned browser QA runtime
