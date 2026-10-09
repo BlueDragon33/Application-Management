@@ -217,7 +217,8 @@ export async function verifyControlProof(payload: Record<string, unknown>, user?
   const productionSession = await productionSessionState(identity);
   if (productionSession) return productionSession;
 
-  const deviceId = typeof payload.deviceId === "string" ? payload.deviceId : "";
+  const proofDeviceId = payload.proofDeviceId ?? payload.deviceId;
+  const deviceId = typeof proofDeviceId === "string" ? proofDeviceId : "";
   const challenge = typeof payload.challenge === "string" ? payload.challenge : "";
   const signature = typeof payload.signature === "string" ? payload.signature : "";
   if (!/^[a-f0-9]{64}$/.test(deviceId) || !/^[A-Za-z0-9_-]{40,100}$/.test(challenge)) throw new ControlAccessError("Bằng chứng thiết bị không hợp lệ.", 400, "INVALID_DEVICE_PROOF");
