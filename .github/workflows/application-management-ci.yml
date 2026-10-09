@@ -90,7 +90,7 @@ jobs:
           npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.55.1
           npx playwright install --with-deps chromium
       - name: Authenticate and verify Preview UI without manual secret entry
-        if: !inputs.fixture_only
+        if: ${{ !inputs.fixture_only }}
         run: node scripts/automation-preview-browser-check.mjs
       - name: Verify real backend Save/readback and bulk against isolated fixture clients
         env:
