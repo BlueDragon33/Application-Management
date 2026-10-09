@@ -137,13 +137,13 @@ try {
     const id = parts[3];
     if (!/^qa-contract-[1-9]$/.test(id || "")) return json(response, { error: "NOT_FOUND" }, 404);
     traffic.push({ client: id, path: parts[4], method: request.method, at: Date.now() });
-    if (request.headers.authorization !== "Bearer " + secret) return json(response, { error: "FIXTURE_CREDENTIAL_REQUIRED" }, 403);
     if (parts[4] === "contract") return json(response, {
       schema: "application-management.contract/v1", application: { id, name: id, category: "Kỹ thuật" },
       capabilities: { deviceRegistry: true, deviceAutoApproval: true },
-      policy: { credentialRequired: false, remoteAdminReady: true },
+      policy: { credentialRequired: true, remoteAdminReady: true },
       endpoints: { status: "/api/fixture/" + id + "/status", devices: "/api/fixture/" + id + "/devices", automation: "/api/fixture/" + id + "/automation" },
     });
+    if (request.headers.authorization !== "Bearer " + secret) return json(response, { error: "FIXTURE_CREDENTIAL_REQUIRED" }, 403);
     if (parts[4] === "automation") return json(response, { automation: { autoApproveDevices: false } });
     if (parts[4] === "devices") return json(response, { devices: [] });
     if (parts[4] === "status") return json(response, { online: true });
@@ -266,7 +266,9 @@ try {
   checks.push("Standalone device action gate denies bulk without changing fixture devices");
   // Exercise the normal permission gate in the disposable fixture environment.
   // No Production settings or real device role/status is changed.
+  const managedBootstrap = page.waitForResponse(response => new URL(response.url()).pathname === "/api/operations" && response.request().postDataJSON()?.action === "bootstrap", { timeout: 45_000 });
   await page.getByRole("button", { name: /Kiểm duyệt truy cập/ }).click();
+  assert.equal((await managedBootstrap).status(), 200);
   await expect(page.getByRole("button", { name: /Kiểm duyệt truy cập/ })).toContainText("BẬT", { timeout: 45_000 });
   await expect(bulk).toBeEnabled();
   const bulkDone = page.waitForResponse(response => new URL(response.url()).pathname === "/api/operations" && response.request().postDataJSON()?.action === "bootstrap", { timeout: 45_000 });
