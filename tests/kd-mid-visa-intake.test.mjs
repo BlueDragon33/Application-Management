@@ -521,3 +521,63 @@ test("submit and autosave share one normalized client snapshot", () => {
   assert.match(publicWorkerPage, /const applicant = snapshotCurrentApplicant\(\)/);
   assert.match(publicWorkerPage, /form\.addEventListener\("compositionend",persistFormDraft,true\)/);
 });
+
+
+test("normalized draft round-trips through storage with the five personal fields intact", () => {
+  const script = publicWorkerPage.match(/<script>\n([\s\S]*?)\n<\/script>/)?.[1];
+  assert.ok(script, "inline worker script");
+
+  const upperStart = script.indexOf("const upperPlain =");
+  const upperEnd = script.indexOf("const normalizeTwoDigits", upperStart);
+  const runtime = new Function(
+    script.slice(upperStart, upperEnd) + "; return { normalizePersonalApplicant };"
+  )();
+
+  const writeMatch = script.match(/const writeDraft = \(storage,key,payload\) => \{([\s\S]*?)\n  \};/);
+  assert.ok(writeMatch, "writeDraft helper");
+  const writeDraft = new Function(
+    "return (storage,key,payload) => {" + writeMatch[1] + "\n};"
+  )();
+
+  const memory = new Map();
+  const storage = {
+    setItem(key, value) { memory.set(key, value); },
+    getItem(key) { return memory.get(key) ?? null; },
+  };
+  const normalized = runtime.normalizePersonalApplicant({
+    surname: "Nguyễn",
+    givenNames: "Đình Nam",
+    birthPlace: "Hà Nội",
+    otherNames: "Trần Văn A",
+    routeCity: "Москва",
+    email: "Example@Test.Com",
+  });
+
+  assert.deepEqual(writeDraft(storage, "visa-intake:test", { applicant: normalized, receipt: null }), { ok: true, error: "" });
+  const readback = JSON.parse(storage.getItem("visa-intake:test"));
+  assert.deepEqual(
+    {
+      surname: readback.applicant.surname,
+      givenNames: readback.applicant.givenNames,
+      birthPlace: readback.applicant.birthPlace,
+      otherNames: readback.applicant.otherNames,
+      routeCity: readback.applicant.routeCity,
+    },
+    {
+      surname: "NGUYEN",
+      givenNames: "DINH NAM",
+      birthPlace: "HA NOI",
+      otherNames: "TRAN VAN A",
+      routeCity: "МОСКВА",
+    }
+  );
+});
+
+test("submit payload source uses the same normalized snapshot that autosave persists", () => {
+  const snapshotDeclaration = publicWorkerPage.match(/const snapshotCurrentApplicant = \(\) => \{([\s\S]*?)\n  \};/)?.[0] ?? "";
+  assert.match(snapshotDeclaration, /normalizeMarkedInputs\(\)/);
+  assert.match(snapshotDeclaration, /normalizePersonalApplicant\(readApplicant\(\)\)/);
+  assert.match(publicWorkerPage, /const persistFormDraft = \(\) => saveLocal\(snapshotCurrentApplicant\(\)\)/);
+  assert.match(publicWorkerPage, /const applicant = snapshotCurrentApplicant\(\);\n    saveLocal\(applicant\);/);
+  assert.match(publicWorkerPage, /body:JSON\.stringify\(\{token,batch:batchId,deviceId,applicant,/);
+});
