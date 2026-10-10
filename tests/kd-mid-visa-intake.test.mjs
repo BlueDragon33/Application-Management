@@ -33,6 +33,14 @@ test("only public intake page and public intake API bypass Production admin logi
   assert.doesNotMatch(worker, /url\.pathname === "\/api\/kd-mid-visa-intake\/admin".*return true/s);
 });
 
+test("Preview uses the same standalone intake renderer only after its access gate", () => {
+  const start = worker.indexOf('    if (isPreview) {');
+  const end = worker.indexOf('    if (isProduction) {', start);
+  const preview = worker.slice(start, end);
+  assert.ok(preview.indexOf('previewRequestAuthorized') >= 0);
+  assert.ok(preview.indexOf('publicVisaIntakePage(request, env)') > preview.indexOf('previewRequestAuthorized'));
+});
+
 test("public intake form is Vietnamese and covers required visa profile fields", () => {
   const formSource = publicWorkerPage + "\n" + publicPage;
   for (const phrase of [
@@ -58,7 +66,8 @@ test("public intake form is Vietnamese and covers required visa profile fields",
   assert.match(publicWorkerPage, /data-part="day"/);
   assert.match(publicWorkerPage, /data-part="month"/);
   assert.match(publicWorkerPage, /data-part="year"/);
-  assert.match(publicWorkerPage, /localStorage\.setItem\(storageKey/);
+  assert.match(publicWorkerPage, /const writeDraft = \(storage,key,payload\) =>/);
+  assert.match(publicWorkerPage, /writeDraft\(\(\)=>localStorage,storageKey,\{ applicant: currentApplicant, receipt \}\)/);
   assert.match(publicWorkerPage, /submissionId:receipt\?\.status==="rejected"/);
   assert.match(publicWorkerPage, /setInterval\(\(\)=>void checkStatus\(\),15000\)/);
   assert.match(publicWorkerPage, /data-correction/);
@@ -301,9 +310,9 @@ test("sender browser keeps a stable device id and automatically recovers the ser
 });
 
 
-test("student common defaults are written directly into empty production form fields and old blank drafts cannot erase them", () => {
+test("student common defaults fill missing draft keys without overwriting explicit user edits", () => {
   assert.match(publicWorkerPage, /const mergeCommonDefaultsIntoDraft = draft/);
-  assert.match(publicWorkerPage, /if\(!String\(merged\[key\] \?\? ""\)\.trim\(\) && String\(value \?\? ""\)\.trim\(\)\) merged\[key\]=String\(value\)/);
+  assert.match(publicWorkerPage, /if\(!Object\.prototype\.hasOwnProperty\.call\(merged,key\) && String\(value \?\? ""\)\.trim\(\)\) merged\[key\]=String\(value\)/);
   assert.match(publicWorkerPage, /currentApplicant=normalizePersonalApplicant\(mergeCommonDefaultsIntoDraft\(currentApplicant\)\)/);
   assert.match(publicWorkerPage, /currentApplicant=normalizePersonalApplicant\(mergeCommonDefaultsIntoDraft\(\{\}\)\)/);
   assert.match(publicWorkerPage, /được điền sẵn trực tiếp trong từng ô/);
@@ -330,10 +339,10 @@ test("student intake links always expose complete shared defaults, including old
 });
 
 
-test("Link 1 client has its own complete fallback defaults and recovered blank data cannot clear them", () => {
+test("Link 1 has complete defaults and preserves an existing rejected local draft", () => {
   assert.match(publicWorkerPage, /const STUDENT_FORM_DEFAULTS = \{/);
   assert.match(publicWorkerPage, /withStudentFallbacks\(rawDefaults\)/);
-  assert.match(publicWorkerPage, /currentApplicant=normalizePersonalApplicant\(student \? mergeCommonDefaultsIntoDraft\(data\.submission\.applicant\)/);
+  assert.match(publicWorkerPage, /currentApplicant=normalizePersonalApplicant\(keepReturnedDraft && currentApplicant \? currentApplicant : data\.submission\.applicant\)/);
   assert.match(publicPage, /const STUDENT_FORM_DEFAULTS/);
   assert.match(publicPage, /const STUDENT_SHARED_KEYS/);
   assert.match(publicPage, /if \(resolvedFormType === "student"\)/);
@@ -429,12 +438,14 @@ test("production inline visa-intake script is valid JavaScript", () => {
   assert.doesNotThrow(() => new Function(script));
 });
 
-test("personal uppercase normalization survives restored drafts and runs on input/change/blur/compositionend", () => {
+test("personal uppercase normalization survives restored drafts and uses one delegated capture path", () => {
   assert.match(publicWorkerPage, /const personalUpperPlainNames = \["surname","givenNames","birthPlace","otherNames","routeCity"\]/);
   assert.match(publicWorkerPage, /const normalizePersonalApplicant = applicant =>/);
   assert.match(publicWorkerPage, /applicant=normalizePersonalApplicant\(applicant\)/);
-  assert.match(publicWorkerPage, /"input","change","blur","compositionend"/);
-  assert.match(publicWorkerPage, /normalizePlainElement\(el\)/);
+  assert.match(publicWorkerPage, /const normalizeMarkedElement = element =>/);
+  assert.match(publicWorkerPage, /form\.addEventListener\(type,normalizeMarkedEvent,true\)/);
+  assert.match(publicWorkerPage, /const normalizeMarkedInputs = \(\) =>/);
+  assert.doesNotMatch(publicWorkerPage, /personalUpperPlainNames\.forEach\(name => \{\s*const el=byName\(name\)/);
   assert.match(publicPage, /PERSONAL_UPPER_PLAIN_KEYS/);
 });
 
@@ -446,8 +457,135 @@ test("standalone form submit cannot be silently blocked by native validation", (
   assert.match(publicWorkerPage, /form\.addEventListener\("invalid"/);
 });
 
-test("autosave is resilient and stores normalized personal fields", () => {
-  assert.match(publicWorkerPage, /const persistFormDraft = \(\) =>/);
-  assert.match(publicWorkerPage, /saveLocal\(normalizePersonalApplicant\(readApplicant\(\)\)\)/);
-  assert.match(publicWorkerPage, /visa-intake autosave skipped/);
+test("autosave uses the same normalized snapshot path and exposes localStorage failure", () => {
+  assert.match(publicWorkerPage, /const snapshotCurrentApplicant = \(\) =>/);
+  assert.match(publicWorkerPage, /normalizeMarkedInputs\(\)/);
+  assert.match(publicWorkerPage, /return saveLocal\(snapshotCurrentApplicant\(\)\)/);
+  assert.match(publicWorkerPage, /const writeDraft = \(storage,key,payload\) =>/);
+  assert.match(publicWorkerPage, /Không lưu được bản nháp trên thiết bị/);
+  assert.doesNotMatch(publicWorkerPage, /localStorage\.setItem\(storageKey[\s\S]{0,120}catch \{\}/);
+});
+
+
+test("inline runtime upperPlain executes Vietnamese normalization on the exact worker script", () => {
+  const script = publicWorkerPage.match(/<script>\n([\s\S]*?)\n<\/script>/)?.[1];
+  assert.ok(script, "inline worker script");
+  const start = script.indexOf("const upperPlain =");
+  const end = script.indexOf("const normalizeTwoDigits", start);
+  assert.ok(start >= 0 && end > start, "upperPlain runtime block");
+  const runtime = new Function(
+    script.slice(start, end) + "; return { upperPlain, normalizePersonalApplicant };"
+  )();
+  assert.equal(runtime.upperPlain("Nguyễn Đình Nam"), "NGUYEN DINH NAM");
+  assert.equal(runtime.upperPlain("Đắk Lắk"), "DAK LAK");
+  assert.deepEqual(
+    runtime.normalizePersonalApplicant({
+      surname: "Nguyễn",
+      givenNames: "Đình Nam",
+      birthPlace: "Hà Nội",
+      otherNames: "Trần Văn A",
+      routeCity: "Москва",
+      untouched: "giữ nguyên",
+    }),
+    {
+      surname: "NGUYEN",
+      givenNames: "DINH NAM",
+      birthPlace: "HA NOI",
+      otherNames: "TRAN VAN A",
+      routeCity: "МОСКВА",
+      untouched: "giữ nguyên",
+    }
+  );
+});
+
+test("the five user-marked fields are explicitly bound to the unified upper-plain UI path", () => {
+  for (const name of ["surname","givenNames","birthPlace","otherNames","routeCity"]) {
+    assert.match(publicWorkerPage, new RegExp('name="' + name + '"[^>]*data-normalize="upper-plain"|data-normalize="upper-plain"[^>]*name="' + name + '"'));
+  }
+  assert.match(publicWorkerPage, /input\[data-normalize="upper-plain"\]\{text-transform:uppercase\}/);
+});
+
+test("draft persistence returns observable success or failure instead of swallowing storage errors", () => {
+  const script = publicWorkerPage.match(/<script>\n([\s\S]*?)\n<\/script>/)?.[1];
+  assert.ok(script, "inline worker script");
+  const match = script.match(/const writeDraft = \(storage,key,payload\) => \{([\s\S]*?)\n  \};/);
+  assert.ok(match, "writeDraft helper");
+  const writeDraft = new Function(
+    "return (storage,key,payload) => {" + match[1] + "\n};"
+  )();
+  const writes = [];
+  assert.deepEqual(
+    writeDraft({ setItem: (key, value) => writes.push([key, value]) }, "draft-key", { a: 1 }),
+    { ok: true, error: "" }
+  );
+  assert.equal(writes.length, 1);
+  const failed = writeDraft({ setItem: () => { throw new Error("quota"); } }, "draft-key", { a: 1 });
+  assert.equal(failed.ok, false);
+  assert.match(failed.error, /quota/);
+});
+
+test("submit and autosave share one normalized client snapshot", () => {
+  assert.match(publicWorkerPage, /const snapshotCurrentApplicant = \(\) => \{[\s\S]*?normalizeMarkedInputs\(\);[\s\S]*?normalizePersonalApplicant\(readApplicant\(\)\)/);
+  assert.match(publicWorkerPage, /const applicant = snapshotCurrentApplicant\(\)/);
+  assert.match(publicWorkerPage, /form\.addEventListener\("compositionend",persistFormDraft,true\)/);
+});
+
+
+test("normalized draft round-trips through storage with the five personal fields intact", () => {
+  const script = publicWorkerPage.match(/<script>\n([\s\S]*?)\n<\/script>/)?.[1];
+  assert.ok(script, "inline worker script");
+
+  const upperStart = script.indexOf("const upperPlain =");
+  const upperEnd = script.indexOf("const normalizeTwoDigits", upperStart);
+  const runtime = new Function(
+    script.slice(upperStart, upperEnd) + "; return { normalizePersonalApplicant };"
+  )();
+
+  const writeMatch = script.match(/const writeDraft = \(storage,key,payload\) => \{([\s\S]*?)\n  \};/);
+  assert.ok(writeMatch, "writeDraft helper");
+  const writeDraft = new Function(
+    "return (storage,key,payload) => {" + writeMatch[1] + "\n};"
+  )();
+
+  const memory = new Map();
+  const storage = {
+    setItem(key, value) { memory.set(key, value); },
+    getItem(key) { return memory.get(key) ?? null; },
+  };
+  const normalized = runtime.normalizePersonalApplicant({
+    surname: "Nguyễn",
+    givenNames: "Đình Nam",
+    birthPlace: "Hà Nội",
+    otherNames: "Trần Văn A",
+    routeCity: "Москва",
+    email: "Example@Test.Com",
+  });
+
+  assert.deepEqual(writeDraft(storage, "visa-intake:test", { applicant: normalized, receipt: null }), { ok: true, error: "" });
+  const readback = JSON.parse(storage.getItem("visa-intake:test"));
+  assert.deepEqual(
+    {
+      surname: readback.applicant.surname,
+      givenNames: readback.applicant.givenNames,
+      birthPlace: readback.applicant.birthPlace,
+      otherNames: readback.applicant.otherNames,
+      routeCity: readback.applicant.routeCity,
+    },
+    {
+      surname: "NGUYEN",
+      givenNames: "DINH NAM",
+      birthPlace: "HA NOI",
+      otherNames: "TRAN VAN A",
+      routeCity: "МОСКВА",
+    }
+  );
+});
+
+test("submit payload source uses the same normalized snapshot that autosave persists", () => {
+  const snapshotDeclaration = publicWorkerPage.match(/const snapshotCurrentApplicant = \(\) => \{([\s\S]*?)\n  \};/)?.[0] ?? "";
+  assert.match(snapshotDeclaration, /normalizeMarkedInputs\(\)/);
+  assert.match(snapshotDeclaration, /normalizePersonalApplicant\(readApplicant\(\)\)/);
+  assert.match(publicWorkerPage, /return saveLocal\(snapshotCurrentApplicant\(\)\)/);
+  assert.match(publicWorkerPage, /const applicant = snapshotCurrentApplicant\(\);\n    saveLocal\(applicant\);/);
+  assert.match(publicWorkerPage, /body:JSON\.stringify\(\{token,batch:batchId,deviceId,applicant,/);
 });
