@@ -494,6 +494,7 @@ export default function VisaIntakePage() {
           },
           confirmedAccurate: confirmed,
           submissionId: receipt?.status === "rejected" ? receipt.id : undefined,
+          expectedRevision: receipt?.status === "rejected" ? (receipt.revision || 0) : undefined,
         }),
       });
       const data = await response.json() as {

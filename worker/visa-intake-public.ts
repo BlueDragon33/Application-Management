@@ -100,7 +100,7 @@ export async function publicVisaIntakePage(request: Request, env: VisaIntakePage
   const entryDate = dateParts(serverDefaults.entryDate);
   const exitDate = dateParts(serverDefaults.exitDate);
   const selectedEmbassy = String(serverDefaults.preferredEmbassy ?? "");
-  const html = `<!doctype html>
+  const html = String.raw`<!doctype html>
 <html lang="vi">
 <head>
 <meta charset="utf-8">
@@ -240,6 +240,10 @@ export async function publicVisaIntakePage(request: Request, env: VisaIntakePage
     if(!/^[A-Za-z0-9_-]{20,120}$/.test(deviceId)){ deviceId=crypto.randomUUID(); localStorage.setItem(deviceStorageKey,deviceId); }
   } catch { deviceId=crypto.randomUUID(); }
   let linkClosed = false;
+  let linkReady = false;
+  let submitting = false;
+  let draftEditedDuringInit = false;
+  const updateSubmitState = () => { submit.disabled=!linkReady || linkClosed || submitting || !confirmed.checked; };
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem(storageKey) || "null"); } catch {}
   let receipt = saved?.receipt || null;
@@ -280,7 +284,7 @@ export async function publicVisaIntakePage(request: Request, env: VisaIntakePage
   let lastStatus = receipt?.status || "";
   const draftStatus=document.getElementById("draftStatus");
   const writeDraft = (storage,key,payload) => {
-    try { storage.setItem(key,JSON.stringify(payload)); return {ok:true,error:""}; }
+    try { (typeof storage==="function" ? storage() : storage).setItem(key,JSON.stringify(payload)); return {ok:true,error:""}; }
     catch (cause) { return {ok:false,error:cause instanceof Error ? cause.message : String(cause || "storage-error")}; }
   };
   const setDraftStatus = (message,state="ok") => {
@@ -290,7 +294,7 @@ export async function publicVisaIntakePage(request: Request, env: VisaIntakePage
   };
   const saveLocal = (applicant=currentApplicant) => {
     currentApplicant = applicant || currentApplicant;
-    const result=writeDraft(localStorage,storageKey,{ applicant: currentApplicant, receipt });
+    const result=writeDraft(()=>localStorage,storageKey,{ applicant: currentApplicant, receipt });
     if(result.ok) setDraftStatus("✓ Bản nháp đã lưu trên thiết bị này.","ok");
     else setDraftStatus("⚠ Không lưu được bản nháp trên thiết bị. Bạn vẫn có thể gửi hồ sơ; không đóng trang trước khi gửi.","error");
     return result.ok;
@@ -323,12 +327,21 @@ export async function publicVisaIntakePage(request: Request, env: VisaIntakePage
   const normalizePlainElement = el => {
     if(!el || typeof el.value !== "string") return;
     const normalized=upperPlain(el.value);
-    if(el.value!==normalized) el.value=normalized;
+    if(el.value!==normalized) {
+      const start=el.selectionStart,end=el.selectionEnd,direction=el.selectionDirection;
+      const nextStart=typeof start==="number" ? upperPlain(el.value.slice(0,start)).length : null;
+      const nextEnd=typeof end==="number" ? upperPlain(el.value.slice(0,end)).length : null;
+      el.value=normalized;
+      if(nextStart!==null && nextEnd!==null) el.setSelectionRange(nextStart,nextEnd,direction || "none");
+    }
   };
-  emailNames.forEach(name => { const el=byName(name); if(el) ["input","change","blur"].forEach(type=>el.addEventListener(type,()=>{el.value=el.value.toLowerCase();})); });
-  plainNames.forEach(name => { const el=byName(name); if(el) ["input","change","blur","compositionend"].forEach(type=>el.addEventListener(type,()=>normalizePlainElement(el))); });
+  const composingElements=new Set();
+  form.addEventListener("compositionstart",event=>composingElements.add(event.target),true);
+  form.addEventListener("compositionend",event=>composingElements.delete(event.target),true);
+  emailNames.forEach(name => { const el=byName(name); if(el) ["input","change","blur","compositionend"].forEach(type=>el.addEventListener(type,event=>{if(!event.isComposing && !composingElements.has(el)) el.value=el.value.toLowerCase();})); });
+  plainNames.forEach(name => { const el=byName(name); if(el) el.dataset.normalize="upper-plain"; });
   const normalizeMarkedElement = element => {
-    if(!element || element.dataset?.normalize!=="upper-plain") return false;
+    if(!element || element.dataset?.normalize!=="upper-plain" || composingElements.has(element)) return false;
     normalizePlainElement(element);
     return true;
   };
@@ -389,6 +402,7 @@ export async function publicVisaIntakePage(request: Request, env: VisaIntakePage
     if (passportExpiryManuallyEdited) fillDate("passportExpiry",providedExpiry);
     else syncPassportExpiry();
     normalizeMarkedInputs();
+    syncConditionalFields();
   };
   const applyCorrections = fields => {
     const selected=new Set(Array.isArray(fields)?fields:[]);
@@ -425,34 +439,50 @@ export async function publicVisaIntakePage(request: Request, env: VisaIntakePage
   const toggle = (checkboxId, fieldsId) => {
     const c = document.getElementById(checkboxId), box = document.getElementById(fieldsId);
     const run = () => { box.style.display = c.checked ? "grid" : "none"; box.querySelectorAll("input").forEach(i => i.required = c.checked); };
-    c.addEventListener("change", run); run();
+    c.addEventListener("change", run); run(); return run;
   };
-  toggle("former","formerFields"); toggle("visited","visitFields"); toggle("insurance","insuranceFields");
+  const syncFormer=toggle("former","formerFields"),syncVisited=toggle("visited","visitFields"),syncInsurance=toggle("insurance","insuranceFields");
   const syncSelectSection = (name, fieldId, yes="ДА") => {
     const select=byName(name), box=document.getElementById(fieldId);
     const run=()=>{const active=select?.value===yes; if(box) box.style.display=active?"grid":"none"; if(box) box.querySelectorAll("input,select,textarea").forEach(el=>{if(el.name!=="personalFax"&&el.name!=="workFax") el.required=active;});};
-    select?.addEventListener("change",run); run();
+    select?.addEventListener("change",run); run(); return run;
   };
-  syncSelectSection("hasPermanentAddress","personalAddressField");
-  syncSelectSection("worksOrStudies","workFields");
+  const syncAddress=syncSelectSection("hasPermanentAddress","personalAddressField");
+  const syncWork=syncSelectSection("worksOrStudies","workFields");
   const otherNamesSelect=byName("hasOtherNames"), otherNamesInput=byName("otherNames");
   const syncOtherNamesRequired=()=>{if(otherNamesInput) otherNamesInput.required=otherNamesSelect?.value==="ДА";};
   otherNamesSelect?.addEventListener("change",syncOtherNamesRequired); syncOtherNamesRequired();
-  confirmed.addEventListener("change", () => submit.disabled = !confirmed.checked);
+  confirmed.addEventListener("change", updateSubmitState);
   const children = document.getElementById("children"), relatives = document.getElementById("relatives"), notes = byName("specialNotes");
   const syncSpecialNotes = () => { if (notes) notes.required = children.checked || relatives.checked; };
   children.addEventListener("change", syncSpecialNotes); relatives.addEventListener("change", syncSpecialNotes); syncSpecialNotes();
-  if(currentApplicant) { fillApplicant(currentApplicant); document.getElementById("former").dispatchEvent(new Event("change")); document.getElementById("visited").dispatchEvent(new Event("change")); document.getElementById("insurance").dispatchEvent(new Event("change")); syncSpecialNotes(); }
+  const syncConditionalFields = () => { syncFormer(); syncVisited(); syncInsurance(); syncAddress(); syncWork(); syncOtherNamesRequired(); syncSpecialNotes(); };
+  if(currentApplicant) fillApplicant(currentApplicant);
 
   const statusUrl = () => "/api/kd-mid-visa-intake/public?"+apiAccess()+(receipt?.id ? "&submissionId="+encodeURIComponent(receipt.id) : "")+"&deviceId="+encodeURIComponent(deviceId);
   const refreshButtons=[document.getElementById("refreshWaiting"),document.getElementById("refreshReturned")].filter(Boolean);
   const checkStatus = async (manual=false) => {
-    if(!receipt?.id || linkClosed) return;
+    if(!receipt?.id || linkClosed || !linkReady || submitting || composingElements.size) return;
+    const expectedReceipt=receipt;
+    const replaceOutdatedDraft=manual && refreshButtons.some(button=>button.dataset.replaceDraft==="true");
     if(manual) refreshButtons.forEach(button=>{button.disabled=true;button.textContent="↻ Đang cập nhật…";});
     try {
       const r=await fetch(statusUrl(),{cache:"no-store"}); const data=await r.json();
+      if(receipt!==expectedReceipt || submitting || composingElements.size) return;
       if(r.status===410){linkClosed=true;try{localStorage.removeItem(storageKey)}catch{}receipt=null;form.style.display="none";document.getElementById("success").style.display="none";batch.style.display="none";setError(data.error||"Đợt thu hồ sơ đã đóng.");return;}
       if(!r.ok || !data.ok || !data.submission) return;
+      if((receipt.revision || 0)!==(data.submission.revision || 0)) {
+        if(!replaceOutdatedDraft) {
+          setError("Hồ sơ trên server đã có phiên bản mới. Bản nháp này vẫn được giữ. Chọn Tải phiên bản mới để thay bản nháp bằng hồ sơ mới trước khi sửa tiếp.");
+          refreshButtons.forEach(button=>{button.dataset.replaceDraft="true";button.textContent="↻ Tải phiên bản mới (thay bản nháp)";});
+          return;
+        }
+        if(!data.submission.applicant) {setError("Không đọc được nội dung phiên bản mới. Bản nháp vẫn được giữ.");return;}
+        currentApplicant=normalizePersonalApplicant(data.submission.applicant);
+        fillApplicant(currentApplicant);
+        refreshButtons.forEach(button=>delete button.dataset.replaceDraft);
+        setError("");
+      }
       if(data.submission.status==="rejected") {
         const becameRejected=lastStatus!=="rejected";
         showReturned(data.submission);
@@ -463,14 +493,20 @@ export async function publicVisaIntakePage(request: Request, env: VisaIntakePage
       }
     } catch {}
     finally {
-      if(manual) refreshButtons.forEach(button=>{button.disabled=false;button.textContent="↻ Cập nhật trạng thái";});
+      if(manual) refreshButtons.forEach(button=>{button.disabled=false;button.textContent=button.dataset.replaceDraft==="true" ? "↻ Tải phiên bản mới (thay bản nháp)" : "↻ Cập nhật trạng thái";});
     }
   };
   refreshButtons.forEach(button=>button.addEventListener("click",()=>void checkStatus(true)));
+  let statusTimer=null;
+  const startStatusPolling=()=>{if(receipt?.id && statusTimer===null) statusTimer=setInterval(()=>void checkStatus(),15000);};
 
   fetch("/api/kd-mid-visa-intake/public?"+apiAccess()+(receipt?.id ? "&submissionId="+encodeURIComponent(receipt.id) : "")+"&deviceId="+encodeURIComponent(deviceId), {cache:"no-store"}).then(async r => {
     const data = await r.json();
     if (!r.ok || !data.ok) { if(r.status===410){linkClosed=true;try{localStorage.removeItem(storageKey)}catch{}} throw new Error(data.error || "Link không hợp lệ."); }
+    if(composingElements.size) await new Promise(resolve=>{
+      const afterComposition=()=>{if(composingElements.size) return;form.removeEventListener("compositionend",afterComposition);resolve();};
+      form.addEventListener("compositionend",afterComposition);
+    });
     const rawDefaults = data.defaults || {};
     formType = data.link?.formType === "general" || rawDefaults.formType === "general" ? "general" : "student";
     const student = formType === "student";
@@ -505,15 +541,16 @@ export async function publicVisaIntakePage(request: Request, env: VisaIntakePage
     const mergeCommonDefaultsIntoDraft = draft => {
       const merged={...(draft || {})};
       Object.entries(values).forEach(([key,value]) => {
-        if(!String(merged[key] ?? "").trim() && String(value ?? "").trim()) merged[key]=String(value);
+        if(!Object.prototype.hasOwnProperty.call(merged,key) && String(value ?? "").trim()) merged[key]=String(value);
       });
-      if(!String(merged.entryDate || "").trim() && d.entryDate) merged.entryDate=String(d.entryDate);
-      if(!String(merged.exitDate || "").trim() && d.exitDate) merged.exitDate=String(d.exitDate);
+      if(!Object.prototype.hasOwnProperty.call(merged,"entryDate") && d.entryDate) merged.entryDate=String(d.entryDate);
+      if(!Object.prototype.hasOwnProperty.call(merged,"exitDate") && d.exitDate) merged.exitDate=String(d.exitDate);
       return merged;
     };
 
     if(data.submission?.applicant){
-      currentApplicant=normalizePersonalApplicant(student ? mergeCommonDefaultsIntoDraft(data.submission.applicant) : data.submission.applicant);
+      const keepReturnedDraft=data.submission.status==="rejected" && receipt?.id===data.submission.id && (receipt?.status==="rejected" || draftEditedDuringInit) && (receipt.revision || 0)===(data.submission.revision || 0);
+      currentApplicant=normalizePersonalApplicant(keepReturnedDraft && currentApplicant ? currentApplicant : data.submission.applicant);
       fillApplicant(currentApplicant);
       saveLocal(currentApplicant);
     } else if(currentApplicant) {
@@ -531,6 +568,8 @@ export async function publicVisaIntakePage(request: Request, env: VisaIntakePage
       saveLocal(currentApplicant);
       if(data.submission.status==="rejected") showReturned(data.submission); else showWaiting(data.submission);
     }
+    linkReady=true; updateSubmitState();
+    startStatusPolling();
   }).catch(e => { setError(e.message || "Không thể mở form."); form.style.display="none"; batch.style.display="none"; });
 
   const value = name => String(byName(name)?.value || "").trim();
@@ -558,12 +597,15 @@ export async function publicVisaIntakePage(request: Request, env: VisaIntakePage
     normalizeMarkedInputs();
     return normalizePersonalApplicant(readApplicant());
   };
-  const persistFormDraft = () => saveLocal(snapshotCurrentApplicant());
+  const persistFormDraft = event => {
+    if(!linkReady && event) draftEditedDuringInit=true;
+    if(event?.isComposing || composingElements.size) return false;
+    return saveLocal(snapshotCurrentApplicant());
+  };
   form.addEventListener("input",persistFormDraft);
   form.addEventListener("change",persistFormDraft);
-  form.addEventListener("blur",persistFormDraft,true);
+  form.addEventListener("blur",()=>queueMicrotask(()=>persistFormDraft()),true);
   form.addEventListener("compositionend",persistFormDraft,true);
-  if(receipt?.id) { void checkStatus(); setInterval(()=>void checkStatus(),15000); }
 
   const fieldLabel = element => {
     const field=element?.closest?.("[data-field]");
@@ -584,7 +626,9 @@ export async function publicVisaIntakePage(request: Request, env: VisaIntakePage
   }, true);
 
   form.addEventListener("submit", async event => {
-    event.preventDefault(); setError("");
+    event.preventDefault();
+    if(submitting || !linkReady || linkClosed || composingElements.size || (receipt?.id && receipt.status!=="rejected")) return;
+    setError("");
     normalizeMarkedInputs();
     const clientValidation=collectClientInvalid();
     if(clientValidation.invalid.length){
@@ -592,25 +636,32 @@ export async function publicVisaIntakePage(request: Request, env: VisaIntakePage
       const first=clientValidation.invalid[0];
       first?.focus?.();
       first?.closest?.("[data-field]")?.scrollIntoView?.({behavior:"smooth",block:"center"});
-      submit.disabled=!confirmed.checked;
+      updateSubmitState();
       submit.textContent="Hoàn thành & gửi hồ sơ";
       return;
     }
-    submit.disabled=true; submit.textContent="Đang gửi…";
+    if(!confirmed.checked){setError("Hãy xác nhận thông tin trước khi gửi hồ sơ.");return;}
+    submitting=true; updateSubmitState(); submit.textContent="Đang gửi…";
     const applicant = snapshotCurrentApplicant();
     saveLocal(applicant);
+    const pendingControls=Array.from(form.elements).filter(element=>!element.disabled);
+    pendingControls.forEach(element=>element.disabled=true);
     try {
-      const r = await fetch("/api/kd-mid-visa-intake/public", {method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({token,batch:batchId,deviceId,applicant,confirmedAccurate:confirmed.checked,submissionId:receipt?.status==="rejected" ? receipt.id : undefined})});
+      const r = await fetch("/api/kd-mid-visa-intake/public", {method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({token,batch:batchId,deviceId,applicant,confirmedAccurate:confirmed.checked,submissionId:receipt?.status==="rejected" ? receipt.id : undefined,expectedRevision:receipt?.status==="rejected" ? (receipt.revision || 0) : undefined})});
       const data = await r.json();
       if (!r.ok || !data.ok) { setError(data.error || "Chưa thể gửi hồ sơ.", data.missing || []); throw new Error("validation"); }
       receipt={...data.submission,status:data.submission?.status || "pending",correctionFields:data.submission?.correctionFields || []};
       lastStatus=receipt.status;
       saveLocal(applicant);
       showWaiting(receipt);
+      startStatusPolling();
       scrollTo({top:0,behavior:"smooth"});
     } catch(e) {
       if (e?.message !== "validation") setError("Không thể gửi hồ sơ lúc này. Vui lòng thử lại.");
-      submit.disabled=!confirmed.checked; submit.textContent="Hoàn thành & gửi hồ sơ";
+      submit.textContent="Hoàn thành & gửi hồ sơ";
+    } finally {
+      pendingControls.forEach(element=>element.disabled=false);
+      submitting=false; updateSubmitState();
     }
   });
 })();

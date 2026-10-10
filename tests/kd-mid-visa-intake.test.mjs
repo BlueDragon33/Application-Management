@@ -33,6 +33,14 @@ test("only public intake page and public intake API bypass Production admin logi
   assert.doesNotMatch(worker, /url\.pathname === "\/api\/kd-mid-visa-intake\/admin".*return true/s);
 });
 
+test("Preview uses the same standalone intake renderer only after its access gate", () => {
+  const start = worker.indexOf('    if (isPreview) {');
+  const end = worker.indexOf('    if (isProduction) {', start);
+  const preview = worker.slice(start, end);
+  assert.ok(preview.indexOf('previewRequestAuthorized') >= 0);
+  assert.ok(preview.indexOf('publicVisaIntakePage(request, env)') > preview.indexOf('previewRequestAuthorized'));
+});
+
 test("public intake form is Vietnamese and covers required visa profile fields", () => {
   const formSource = publicWorkerPage + "\n" + publicPage;
   for (const phrase of [
@@ -59,7 +67,7 @@ test("public intake form is Vietnamese and covers required visa profile fields",
   assert.match(publicWorkerPage, /data-part="month"/);
   assert.match(publicWorkerPage, /data-part="year"/);
   assert.match(publicWorkerPage, /const writeDraft = \(storage,key,payload\) =>/);
-  assert.match(publicWorkerPage, /writeDraft\(localStorage,storageKey,\{ applicant: currentApplicant, receipt \}\)/);
+  assert.match(publicWorkerPage, /writeDraft\(\(\)=>localStorage,storageKey,\{ applicant: currentApplicant, receipt \}\)/);
   assert.match(publicWorkerPage, /submissionId:receipt\?\.status==="rejected"/);
   assert.match(publicWorkerPage, /setInterval\(\(\)=>void checkStatus\(\),15000\)/);
   assert.match(publicWorkerPage, /data-correction/);
@@ -302,9 +310,9 @@ test("sender browser keeps a stable device id and automatically recovers the ser
 });
 
 
-test("student common defaults are written directly into empty production form fields and old blank drafts cannot erase them", () => {
+test("student common defaults fill missing draft keys without overwriting explicit user edits", () => {
   assert.match(publicWorkerPage, /const mergeCommonDefaultsIntoDraft = draft/);
-  assert.match(publicWorkerPage, /if\(!String\(merged\[key\] \?\? ""\)\.trim\(\) && String\(value \?\? ""\)\.trim\(\)\) merged\[key\]=String\(value\)/);
+  assert.match(publicWorkerPage, /if\(!Object\.prototype\.hasOwnProperty\.call\(merged,key\) && String\(value \?\? ""\)\.trim\(\)\) merged\[key\]=String\(value\)/);
   assert.match(publicWorkerPage, /currentApplicant=normalizePersonalApplicant\(mergeCommonDefaultsIntoDraft\(currentApplicant\)\)/);
   assert.match(publicWorkerPage, /currentApplicant=normalizePersonalApplicant\(mergeCommonDefaultsIntoDraft\(\{\}\)\)/);
   assert.match(publicWorkerPage, /được điền sẵn trực tiếp trong từng ô/);
@@ -331,10 +339,10 @@ test("student intake links always expose complete shared defaults, including old
 });
 
 
-test("Link 1 client has its own complete fallback defaults and recovered blank data cannot clear them", () => {
+test("Link 1 has complete defaults and preserves an existing rejected local draft", () => {
   assert.match(publicWorkerPage, /const STUDENT_FORM_DEFAULTS = \{/);
   assert.match(publicWorkerPage, /withStudentFallbacks\(rawDefaults\)/);
-  assert.match(publicWorkerPage, /currentApplicant=normalizePersonalApplicant\(student \? mergeCommonDefaultsIntoDraft\(data\.submission\.applicant\)/);
+  assert.match(publicWorkerPage, /currentApplicant=normalizePersonalApplicant\(keepReturnedDraft && currentApplicant \? currentApplicant : data\.submission\.applicant\)/);
   assert.match(publicPage, /const STUDENT_FORM_DEFAULTS/);
   assert.match(publicPage, /const STUDENT_SHARED_KEYS/);
   assert.match(publicPage, /if \(resolvedFormType === "student"\)/);
@@ -452,7 +460,7 @@ test("standalone form submit cannot be silently blocked by native validation", (
 test("autosave uses the same normalized snapshot path and exposes localStorage failure", () => {
   assert.match(publicWorkerPage, /const snapshotCurrentApplicant = \(\) =>/);
   assert.match(publicWorkerPage, /normalizeMarkedInputs\(\)/);
-  assert.match(publicWorkerPage, /const persistFormDraft = \(\) => saveLocal\(snapshotCurrentApplicant\(\)\)/);
+  assert.match(publicWorkerPage, /return saveLocal\(snapshotCurrentApplicant\(\)\)/);
   assert.match(publicWorkerPage, /const writeDraft = \(storage,key,payload\) =>/);
   assert.match(publicWorkerPage, /Không lưu được bản nháp trên thiết bị/);
   assert.doesNotMatch(publicWorkerPage, /localStorage\.setItem\(storageKey[\s\S]{0,120}catch \{\}/);
@@ -577,7 +585,7 @@ test("submit payload source uses the same normalized snapshot that autosave pers
   const snapshotDeclaration = publicWorkerPage.match(/const snapshotCurrentApplicant = \(\) => \{([\s\S]*?)\n  \};/)?.[0] ?? "";
   assert.match(snapshotDeclaration, /normalizeMarkedInputs\(\)/);
   assert.match(snapshotDeclaration, /normalizePersonalApplicant\(readApplicant\(\)\)/);
-  assert.match(publicWorkerPage, /const persistFormDraft = \(\) => saveLocal\(snapshotCurrentApplicant\(\)\)/);
+  assert.match(publicWorkerPage, /return saveLocal\(snapshotCurrentApplicant\(\)\)/);
   assert.match(publicWorkerPage, /const applicant = snapshotCurrentApplicant\(\);\n    saveLocal\(applicant\);/);
   assert.match(publicWorkerPage, /body:JSON\.stringify\(\{token,batch:batchId,deviceId,applicant,/);
 });

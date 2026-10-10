@@ -182,7 +182,8 @@ export async function GET(request:Request){
     const recoveredDefaults = fillStudentDefaults(link.defaults);
     for (const [key, value] of Object.entries(recoveredDefaults)) {
       if (key === "formType") continue;
-      if (!String(applicant[key] ?? "").trim() && String(value ?? "").trim()) applicant[key] = value;
+      const applicantKey = key === "employer" ? "workStudyPlace" : key === "permanentAddress" ? "personalAddress" : key === "password" ? "passwordOverride" : key;
+      if (!Object.prototype.hasOwnProperty.call(applicant, applicantKey) && String(value ?? "").trim()) applicant[applicantKey] = value;
     }
     const correctionFields=Array.isArray(validation.correctionFields)?validation.correctionFields.filter((value):value is string=>typeof value==="string"):[];
     const resubmittedFields=Array.isArray(validation.resubmittedFields)?validation.resubmittedFields.filter((value):value is string=>typeof value==="string"):[];
@@ -221,6 +222,7 @@ export async function POST(request: Request) {
     const defaults = link.defaults ?? {};
     const formType = defaults.formType === "general" ? "general" : "student";
     const student = formType === "student";
+    const withDefault = (key: string, fallback: unknown) => Object.prototype.hasOwnProperty.call(source, key) ? source[key] : fallback;
     const passportIssue = text(source.passportIssue, 10);
     const applicant = {
       surname: upperPlain(source.surname, 80),
@@ -231,37 +233,37 @@ export async function POST(request: Request) {
       hasOtherNames: bool(source.hasOtherNames),
       otherNames: upperPlain(source.otherNames, 240),
       bornInRussia: bool(source.bornInRussia),
-      citizenship: upperPlain(source.citizenship, 80) || upperPlain(defaults.citizenship, 80) || "ВЬЕТНАМ",
-      purposeSection: upperPlain(source.purposeSection, 120) || upperPlain(defaults.purposeSection, 120) || (student ? "УЧЕБА" : ""),
-      purpose: upperPlain(source.purpose, 120) || upperPlain(defaults.purpose, 120) || (student ? "УЧЕБА" : ""),
-      visaType: upperPlain(source.visaType, 160) || upperPlain(defaults.visaType, 160) || (student ? "ОБЫКНОВЕННАЯ УЧЕБНАЯ" : ""),
-      entries: upperPlain(source.entries, 80) || upperPlain(defaults.entries, 80) || (student ? "ОДНОКРАТНАЯ" : ""),
-      entryDate: text(source.entryDate, 10) || text(defaults.entryDate, 10),
-      exitDate: text(source.exitDate, 10) || text(defaults.exitDate, 10),
-      destinationType: upperPlain(source.destinationType, 80) || upperPlain(defaults.destinationType, 80) || (student ? "ОРГАНИЗАЦИЯ" : ""),
-      organization: upperPlain(source.organization, 300) || upperPlain(defaults.organization, 300),
-      organizationAddress: upperPlain(source.organizationAddress, 400) || upperPlain(defaults.organizationAddress, 400),
-      tin: text(source.tin, 40) || text(defaults.tin, 40),
-      telex: text(source.telex, 80) || text(defaults.telex, 80),
-      invitation: text(source.invitation, 120) || text(defaults.invitation, 120),
+      citizenship: upperPlain(withDefault("citizenship", defaults.citizenship || "ВЬЕТНАМ"), 80),
+      purposeSection: upperPlain(withDefault("purposeSection", defaults.purposeSection || (student ? "УЧЕБА" : "")), 120),
+      purpose: upperPlain(withDefault("purpose", defaults.purpose || (student ? "УЧЕБА" : "")), 120),
+      visaType: upperPlain(withDefault("visaType", defaults.visaType || (student ? "ОБЫКНОВЕННАЯ УЧЕБНАЯ" : "")), 160),
+      entries: upperPlain(withDefault("entries", defaults.entries || (student ? "ОДНОКРАТНАЯ" : "")), 80),
+      entryDate: text(withDefault("entryDate", defaults.entryDate), 10),
+      exitDate: text(withDefault("exitDate", defaults.exitDate), 10),
+      destinationType: upperPlain(withDefault("destinationType", defaults.destinationType || (student ? "ОРГАНИЗАЦИЯ" : "")), 80),
+      organization: upperPlain(withDefault("organization", defaults.organization), 300),
+      organizationAddress: upperPlain(withDefault("organizationAddress", defaults.organizationAddress), 400),
+      tin: text(withDefault("tin", defaults.tin), 40),
+      telex: text(withDefault("telex", defaults.telex), 80),
+      invitation: text(withDefault("invitation", defaults.invitation), 120),
       passportNo: upperPlain(source.passportNo, 40),
       passportIssue,
       passportExpiry: text(source.passportExpiry, 10) || passportExpiryFromIssue(passportIssue),
       hasPermanentAddress: source.hasPermanentAddress !== false,
-      personalAddress: upperPlain(source.personalAddress, 300) || upperPlain(defaults.permanentAddress, 300),
+      personalAddress: upperPlain(withDefault("personalAddress", defaults.permanentAddress), 300),
       phone: text(source.phone, 40),
       personalFax: text(source.personalFax, 40),
       email: text(source.email, 160).toLowerCase(),
-      routeCity: upperPlain(source.routeCity, 80) || upperPlain(defaults.routeCity, 80) || (student ? "МОСКВА" : ""),
+      routeCity: upperPlain(withDefault("routeCity", defaults.routeCity || (student ? "МОСКВА" : "")), 80),
       worksOrStudies: source.worksOrStudies !== false,
-      workStudyPlace: upperPlain(source.workStudyPlace, 240) || upperPlain(defaults.employer, 240),
-      position: upperPlain(source.position, 120) || upperPlain(defaults.position, 120),
-      workAddress: upperPlain(source.workAddress, 300) || upperPlain(defaults.workAddress, 300),
-      workPhone: text(source.workPhone, 40) || text(defaults.workPhone, 40),
+      workStudyPlace: upperPlain(withDefault("workStudyPlace", defaults.employer), 240),
+      position: upperPlain(withDefault("position", defaults.position), 120),
+      workAddress: upperPlain(withDefault("workAddress", defaults.workAddress), 300),
+      workPhone: text(withDefault("workPhone", defaults.workPhone), 40),
       workFax: text(source.workFax, 40),
-      workEmail: (text(source.workEmail, 160) || text(defaults.workEmail, 160)).toLowerCase(),
-      preferredEmbassy: text(source.preferredEmbassy, 120) || text(defaults.preferredEmbassy, 120),
-      passwordOverride: text(source.passwordOverride, 120) || text(defaults.password, 120),
+      workEmail: text(withDefault("workEmail", defaults.workEmail), 160).toLowerCase(),
+      preferredEmbassy: text(withDefault("preferredEmbassy", defaults.preferredEmbassy), 120),
+      passwordOverride: text(withDefault("passwordOverride", defaults.password), 120),
       applicationId: text(source.applicationId, 30).replace(/\D/g, ""),
       hadFormerRussianCitizenship: bool(source.hadFormerRussianCitizenship),
       formerCitizenshipLostDate: text(source.formerCitizenshipLostDate, 10),
@@ -377,49 +379,62 @@ export async function POST(request: Request) {
       }
       let previousValidation: Record<string, unknown> = {};
       try { previousValidation = JSON.parse(existing.validation_json || "{}") as Record<string, unknown>; } catch {}
-      const revision = (typeof previousValidation.revision === "number" ? previousValidation.revision : 0) + 1;
+      const previousRevision = typeof previousValidation.revision === "number" ? previousValidation.revision : 0;
+      if (!Number.isInteger(body.expectedRevision) || body.expectedRevision !== previousRevision) {
+        return json({ ok: false, error: "Phiên bản hồ sơ đã thay đổi. Hãy cập nhật trạng thái trước khi gửi lại." }, 409);
+      }
+      const revision = previousRevision + 1;
       const resubmittedFields = Array.isArray(previousValidation.correctionFields)
         ? previousValidation.correctionFields.filter((value): value is string => typeof value === "string")
         : [];
       const validation = { complete: true, checkedAt: new Date().toISOString(), revision, correctionFields: [], resubmittedFields };
-      await database.prepare(
+      const updated = await database.prepare(
         `UPDATE visa_intake_submissions
             SET status='pending', applicant_name=?, passport_no=?, email=?, phone=?, device_hash=?, device_code=?, payload_json=?, validation_json=?,
                 submitted_at=CURRENT_TIMESTAMP, reviewed_by=NULL, reviewed_at=NULL, review_note=NULL
-          WHERE id=? AND link_id=?`,
+          WHERE id=? AND link_id=? AND status='rejected' AND validation_json=?`,
       ).bind(
         applicantName, applicant.passportNo, applicant.email, applicant.phone, device.hash, device.code,
-        JSON.stringify(applicant), JSON.stringify(validation), submissionId, link.id,
+        JSON.stringify(applicant), JSON.stringify(validation), submissionId, link.id, existing.validation_json,
       ).run();
+      if (updated.meta.changes !== 1) return json({ ok: false, error: "Hồ sơ đã thay đổi. Hãy cập nhật trạng thái trước khi gửi lại." }, 409);
       return json({
         ok: true,
         submission: { id: existing.id, queueNo: existing.queue_no, applicantName, status: "pending", revision, correctionFields: [], resubmittedFields, deviceCode: device.code, applicant },
       });
     }
 
-    const existingForDevice = await database.prepare(
-      "SELECT id,queue_no,status,applicant_name,payload_json,validation_json,device_code FROM visa_intake_submissions WHERE link_id=? AND device_hash=? ORDER BY queue_no DESC LIMIT 1"
-    ).bind(link.id, device.hash).first<{ id:string; queue_no:number; status:string; applicant_name:string; payload_json:string; validation_json:string; device_code:string|null }>();
-    if (existingForDevice) {
-      let existingApplicant:Record<string,unknown>={};
-      let existingValidation:Record<string,unknown>={};
-      try{existingApplicant=JSON.parse(existingForDevice.payload_json||"{}")}catch{}
-      try{existingValidation=JSON.parse(existingForDevice.validation_json||"{}")}catch{}
-      return json({ok:true,recovered:true,submission:{
-        id:existingForDevice.id,queueNo:existingForDevice.queue_no,applicantName:existingForDevice.applicant_name,status:existingForDevice.status,
-        revision:typeof existingValidation.revision==="number"?existingValidation.revision:0,
-        correctionFields:Array.isArray(existingValidation.correctionFields)?existingValidation.correctionFields:[],
-        resubmittedFields:Array.isArray(existingValidation.resubmittedFields)?existingValidation.resubmittedFields:[],
-        deviceCode:existingForDevice.device_code,applicant:existingApplicant
-      }});
-    }
+    const recoverDeviceSubmission = async () => {
+      const existingForDevice = await database.prepare(
+        "SELECT id,queue_no,status,applicant_name,payload_json,validation_json,device_code FROM visa_intake_submissions WHERE link_id=? AND device_hash=? ORDER BY queue_no DESC LIMIT 1"
+      ).bind(link.id, device.hash).first<{ id:string; queue_no:number; status:string; applicant_name:string; payload_json:string; validation_json:string; device_code:string|null }>();
+      if (existingForDevice) {
+        let existingApplicant:Record<string,unknown>={};
+        let existingValidation:Record<string,unknown>={};
+        try{existingApplicant=JSON.parse(existingForDevice.payload_json||"{}")}catch{}
+        try{existingValidation=JSON.parse(existingForDevice.validation_json||"{}")}catch{}
+        return json({ok:true,recovered:true,submission:{
+          id:existingForDevice.id,queueNo:existingForDevice.queue_no,applicantName:existingForDevice.applicant_name,status:existingForDevice.status,
+          revision:typeof existingValidation.revision==="number"?existingValidation.revision:0,
+          correctionFields:Array.isArray(existingValidation.correctionFields)?existingValidation.correctionFields:[],
+          resubmittedFields:Array.isArray(existingValidation.resubmittedFields)?existingValidation.resubmittedFields:[],
+          deviceCode:existingForDevice.device_code,applicant:existingApplicant
+        }});
+      }
+      return null;
+    };
+    const recovered = await recoverDeviceSubmission();
+    if (recovered) return recovered;
 
     const id = crypto.randomUUID();
     const validation = { complete: true, checkedAt: new Date().toISOString(), revision: 0, correctionFields: [], resubmittedFields: [], deviceCode: device.code };
     const result = await database.prepare(
       `INSERT INTO visa_intake_submissions
         (id,link_id,status,applicant_name,passport_no,email,phone,device_hash,device_code,payload_json,validation_json)
-       VALUES (?,?, 'pending', ?,?,?,?,?,?,?,?,?) RETURNING queue_no`,
+       SELECT ?,?, 'pending', ?,?,?,?,?,?,?,?
+       WHERE NOT EXISTS (
+         SELECT 1 FROM visa_intake_submissions WHERE link_id=? AND device_hash=?
+       ) RETURNING queue_no`,
     ).bind(
       id,
       link.id,
@@ -431,7 +446,15 @@ export async function POST(request: Request) {
       device.code,
       JSON.stringify(applicant),
       JSON.stringify(validation),
+      link.id,
+      device.hash,
     ).first<{ queue_no: number }>();
+
+    if (!result) {
+      const concurrent = await recoverDeviceSubmission();
+      if (concurrent) return concurrent;
+      return json({ ok: false, error: "Chưa xác minh được hồ sơ đã lưu. Hãy cập nhật trạng thái trước khi gửi lại." }, 409);
+    }
 
     return json({
       ok: true,

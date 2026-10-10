@@ -6,6 +6,19 @@
   "canonicalAuthorityRule": "Application Management owns only central management policy/device-role/audit state. Client domain data remains in each client.",
   "dependencies": [
     {
+      "id": "intake-dom-tests",
+      "provider": "jsdom@26.1.0 (dev dependency)",
+      "runtimeClass": "LOCAL_TEST_ONLY",
+      "costClass": "local-free",
+      "purpose": ["execute emitted intake HTML, DOM events and persistence regression scenarios"],
+      "dataBoundary": "synthetic fixtures only; no external calls or real applicant data",
+      "canonicalState": "test fixtures only, never product state or gate authority",
+      "degradedBehavior": "product runtime unaffected; DOM verification unavailable without test dependency",
+      "exportPath": ["source-controlled tests", "test logs"],
+      "replacementPath": "equivalent browser regression runner",
+      "removalTrigger": "equivalent emitted-page browser coverage replaces these DOM tests"
+    },
+    {
       "id": "local-runtime",
       "provider": "Local Vite/Worker runtime + local D1",
       "runtimeClass": "LOCAL_CORE",

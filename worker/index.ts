@@ -280,6 +280,9 @@ const worker = {
       if (url.pathname === previewLoginPath()) return handlePreviewLogin(request, env.APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET);
       if (url.pathname === previewLogoutPath()) return handlePreviewLogout();
       if (!(await previewRequestAuthorized(request, env.APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET))) return previewUnauthorized(request);
+      if (request.method === "GET" && url.pathname === "/visa-intake") {
+        return await publicVisaIntakePage(request, env);
+      }
     }
 
     if (isProduction) {

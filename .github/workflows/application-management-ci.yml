@@ -6,6 +6,15 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      browser_only:
+        description: "Run only browser QA; full regressions remain mandatory on PR/main."
+        type: boolean
+        default: false
+      fixture_only:
+        description: "Reuse the verified Preview read-only result and run isolated mutation fixtures."
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -38,6 +47,7 @@ jobs:
         run: echo "Fast sanity PASS; full regression runs in the mandatory regression-check job."
 
   regression-check:
+    if: github.event_name != 'workflow_dispatch' || !inputs.browser_only
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -52,3 +62,46 @@ jobs:
         run: npm test
       - name: Regression policy summary
         run: echo "Full npm test PASS for every pull request and every main revision."
+
+  preview-browser-readonly:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: application-management-preview
+    env:
+      APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET: ${{ secrets.APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET }}
+      APPLICATION_MANAGEMENT_PREVIEW_ORIGIN: ${{ vars.APPLICATION_MANAGEMENT_PREVIEW_ORIGIN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+      - name: Identify the already verified deployed repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          REVISION="$(git log -1 --format=%H -- app worker)"
+          test "${#REVISION}" -eq 40
+          echo "AUTOMATION_PREVIEW_REVISION=$REVISION" >> "$GITHUB_ENV"
+      - name: Install pinned browser QA runtime
+        run: |
+          npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.55.1
+          npx playwright install --with-deps chromium
+      - name: Authenticate and verify Preview UI without manual secret entry
+        if: ${{ !inputs.fixture_only }}
+        run: node scripts/automation-preview-browser-check.mjs
+      - name: Verify real backend Save/readback and bulk against isolated fixture clients
+        env:
+          CI: "true"
+        run: node scripts/automation-fixture-browser-check.mjs
+      - name: Save browser QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: automation-preview-browser-readonly
+          path: qa-artifacts/
+          if-no-files-found: ignore
+          retention-days: 7
+
