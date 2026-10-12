@@ -52,3 +52,14 @@ test("overview icon buttons open their own web while heading remains the app-tab
   assert.match(block, /window\.location\.assign\(item\.href\)/);
   assert.match(block, /disabled=\{!item\.canOpen \|\| webBusy === item\.id\}/);
 });
+
+test("Boi free limits are editable and read back even when auto approval is disabled", () => {
+  const editor = read("app/automatic-device-policies.tsx");
+  const dashboard = read("app/management-dashboard-v2.tsx");
+  const endpoint = read("app/api/operations-auto-approval/route.ts");
+  assert.match(editor, /appId === "boi-ech"[\s\S]*policy\.mutation\.autoApprove[\s\S]*policy\.current\.freeAccessDays !== days/);
+  assert.doesNotMatch(editor, /disabled=\{locked \|\| !approveWritable \|\| !draft\.autoApprove\}/);
+  assert.match(dashboard, /return policy\.appId === "boi-ech" && \(/);
+  assert.match(dashboard, /if \(task\.appId === "boi-ech"\) \{/);
+  assert.match(endpoint, /const changed = policy\.current\.autoApprove !== desired \|\| appId === "boi-ech" && \(/);
+});
