@@ -832,7 +832,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
           if (!policy.mutation.autoApprove) return false;
           const desired = selection.appIds.includes(policy.appId);
           if (policy.current.autoApprove !== desired) return true;
-          return policy.appId === "boi-ech" && desired && (
+          return policy.appId === "boi-ech" && (
             policy.current.freeAccessDays !== selection.defaultAccessDays
             || policy.current.freeDeviceLimit !== selection.defaultDeviceLimit
           );
@@ -974,7 +974,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
         if (task.field === "autoApprove") {
           const desired = selection.appIds.includes(task.appId);
           verified = verified && policy?.current.autoApprove === desired;
-          if (task.appId === "boi-ech" && desired) {
+          if (task.appId === "boi-ech") {
             verified = verified
               && policy?.current.freeAccessDays === selection.defaultAccessDays
               && policy?.current.freeDeviceLimit === selection.defaultDeviceLimit;
@@ -1299,6 +1299,7 @@ function Overview({ apps, tools, summaryMap, devices, pendingDevices, approvalDe
         name: app.shortName,
         iconAppId: app.id,
         kind: "app" as const,
+        canOpen: webAccessAvailable(app, summary, localRuntime),
         online: offline ? null : counts.online,
         connection,
         status: offline ? "Chưa xác minh" : connectionLabel(connection, summary),
@@ -1313,6 +1314,8 @@ function Overview({ apps, tools, summaryMap, devices, pendingDevices, approvalDe
         name: tool.name,
         iconAppId: tool.id,
         kind: "tool" as const,
+        href: tool.href,
+        canOpen: Boolean(tool.href),
         online: null,
         connection,
         status: offline ? "Chưa xác minh" : tool.parentAppId ? connected ? `${tool.parentLabel ?? "Ứng dụng cha"} · live` : `${tool.parentLabel ?? "Ứng dụng cha"} · fallback` : "Sẵn sàng",
@@ -1335,30 +1338,33 @@ function Overview({ apps, tools, summaryMap, devices, pendingDevices, approvalDe
 
       <section className="amv2-panel amv2-quick-panel"><header><h2>⚡ Thao tác nhanh</h2></header><div className="amv2-quick-grid"><button onClick={() => switchView("applications")}>◇<span>Quản trị ứng dụng</span></button><button data-active={webMenu} onClick={() => setWebMenu((current) => !current)}>◎<span>Truy cập web</span></button><button onClick={() => switchView("devices")}>▣<span>Kiểm duyệt thiết bị</span></button><button onClick={() => switchView("approvals")}>⬡<span>Yêu cầu chờ duyệt</span></button><button data-danger="true" disabled={Boolean(actionBusy)} onClick={() => void clearNotifications()}>⌫<span>{actionBusy === "clear" ? "Đang xóa…" : "Xóa hết thông báo"}</span></button><button disabled={Boolean(actionBusy)} onClick={() => void enableAutoApproval()}>⚙<span>{actionBusy === "auto" ? "Đang lưu…" : "Duyệt tự động"}</span></button><button disabled={syncing} onClick={() => void syncOperations()}>↻<span>{syncing ? "Đang đồng bộ…" : "Đồng bộ dữ liệu"}</span></button><button onClick={() => switchView("settings")}>▦<span>Giao diện</span></button><button onClick={() => switchView("audit")}>▤<span>Xem nhật ký</span></button></div>{webMenu ? <div className="amv2-web-menu">{apps.map((app) => { const summary = summaryMap.get(app.id); const hasWeb = webAccessAvailable(app, summary, localRuntime); return <button key={app.id} disabled={!hasWeb || webBusy === app.id} onClick={() => void launchWeb(app.id)}><span className="amv2-web-menu-app"><AppIcon appId={app.id}/><span>{app.shortName}</span></span><b>{webBusy === app.id ? "Đang mở…" : hasWeb ? "Mở ↗" : webActionLabel(summary, false)}</b></button>; })}</div> : null}</section>
 
-      <section
-        className="amv2-panel amv2-apps-panel amv2-overview-apps-launcher"
-        role="button"
-        tabIndex={0}
-        aria-label="Mở tab Ứng dụng"
-        onClick={() => switchView("applications")}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            switchView("applications");
-          }
-        }}
-      >
+      <section className="amv2-panel amv2-apps-panel amv2-overview-apps-launcher">
         <header className="amv2-overview-apps-title">
           <div><span>◇</span><h2>Ứng dụng đang quản lý</h2></div>
-          <span>Xem tất cả →</span>
+          <button type="button" onClick={() => switchView("applications")}>Xem tất cả →</button>
         </header>
         <div className="amv2-overview-app-screen">
-          {overviewItems.map((item) => <div className="amv2-overview-app-tile" data-kind={item.kind} key={item.id}>
+          {overviewItems.map((item) => <button
+            type="button"
+            className="amv2-overview-app-tile"
+            data-kind={item.kind}
+            key={item.id}
+            disabled={!item.canOpen || webBusy === item.id}
+            title={item.canOpen ? `Mở ${item.name}` : `${item.name} chưa có đường dẫn hợp lệ`}
+            aria-label={`Mở web ${item.name}`}
+            onClick={() => {
+              if (item.kind === "tool") {
+                if (item.href) window.location.assign(item.href);
+              } else {
+                void launchWeb(item.id);
+              }
+            }}
+          >
             <span className="amv2-overview-app-icon"><AppIcon appId={item.iconAppId}/></span>
             <strong title={item.name}>{item.name}</strong>
             <small><b>Online</b><em>{item.online === null ? "—" : item.online}</em></small>
             <small data-state={item.connection}><i/>{item.status}</small>
-          </div>)}
+          </button>)}
           {!overviewItems.length ? <div className="amv2-empty compact"><strong>Không có ứng dụng hoặc Tool phù hợp.</strong></div> : null}
         </div>
       </section>

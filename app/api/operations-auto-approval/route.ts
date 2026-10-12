@@ -1,3 +1,4 @@
+import { resolveAutomationChange, stageAutomationChange } from "../../automation-policy-changes.server";
 import { applicationRegistry } from "../../application-registry";
 import { issueBaumanBrowserBridge } from "../../bauman.server";
 import { issueBoiBrowserBridge } from "../../boi-ech.server";
@@ -183,18 +184,21 @@ export async function POST(request: Request) {
     }
 
     const defaultAccessDays = payload.defaultAccessDays === undefined
-      ? current.freeAccessDaysByApp?.["boi-ech"] ?? 60 : Number(payload.defaultAccessDays);
+      ? current.freeAccessDaysByApp?.["boi-ech"] : Number(payload.defaultAccessDays);
     const defaultDeviceLimit = payload.defaultDeviceLimit === undefined
-      ? current.freeDeviceLimitByApp?.["boi-ech"] ?? 20 : Number(payload.defaultDeviceLimit);
-    if (!Number.isInteger(defaultAccessDays) || defaultAccessDays < 1 || defaultAccessDays > 365
-      || !Number.isInteger(defaultDeviceLimit) || defaultDeviceLimit < 1 || defaultDeviceLimit > 1_000) {
+      ? current.freeDeviceLimitByApp?.["boi-ech"] : Number(payload.defaultDeviceLimit);
+    if (targets.includes("boi-ech") && (
+      !Number.isInteger(defaultAccessDays) || !defaultAccessDays || defaultAccessDays < 1 || defaultAccessDays > 365
+      || !Number.isInteger(defaultDeviceLimit) || !defaultDeviceLimit || defaultDeviceLimit < 1 || defaultDeviceLimit > 1_000
+    )) {
       return json({ error: "Thời hạn miễn phí phải từ 1–365 ngày và hạn mức từ 1–1.000 thiết bị.", code: "INVALID_BOI_FREE_POLICY" }, 400);
     }
 
+    const staged: { changeId: string; appId: string; desired: boolean }[] = [];
     for (const appId of targets) {
       const desired = requested.includes(appId);
       const policy = policyMap.get(appId)!;
-      const changed = policy.current.autoApprove !== desired || appId === "boi-ech" && desired && (
+      const changed = policy.current.autoApprove !== desired || appId === "boi-ech" && (
         current.freeAccessDaysByApp?.[appId] !== defaultAccessDays
         || current.freeDeviceLimitByApp?.[appId] !== defaultDeviceLimit
       );
@@ -209,38 +213,71 @@ export async function POST(request: Request) {
         && manifest.capabilities.automationIdempotentCommands === true
         && manifest.capabilities.automationOptimisticConcurrency === true
       );
-
-      if (genericReady) {
-        await executeUniversalAutomationCommand({
-          appId,
-          commandId: crypto.randomUUID(),
-          expected: { autoApproveDevices: policy.current.autoApprove },
-          desired: { autoApproveDevices: desired },
-        }, actor);
-        await rememberAutoApproval(actor.email, appId, desired);
-        continue;
+      const desiredState = {
+        autoApprove: desired,
+        ...(appId === "boi-ech" ? { defaultAccessDays: defaultAccessDays!, defaultDeviceLimit: defaultDeviceLimit! } : {}),
+      };
+      // Persist the intended change centrally before touching the owning client.
+      // This is a ledger, never the authoritative LIVE device policy.
+      const changeId = await stageAutomationChange({
+        appId, field: "autoApprove", requestedBy: actor.email, desired: desiredState,
+      });
+      try {
+        if (genericReady) {
+          await executeUniversalAutomationCommand({
+            appId,
+            commandId: changeId,
+            expected: { autoApproveDevices: policy.current.autoApprove },
+            desired: { autoApproveDevices: desired },
+          }, actor);
+        } else if (appId === "boi-ech") {
+          await setBoi(actor, desired, defaultAccessDays!, defaultDeviceLimit!);
+        } else if (appId === "health-care") {
+          await setHealth(actor, desired);
+        } else if (appId === "ru-life") {
+          await setRuLife(actor, desired);
+        } else if (appId === "bauman-master-ai") {
+          await setBauman(actor, desired);
+        } else {
+          throw new Error("AUTO_APPROVAL_CONTRACT_MISSING_" + appId);
+        }
+        await rememberAutoApproval(actor.email, appId, desired,
+          appId === "boi-ech" ? { defaultAccessDays: defaultAccessDays!, defaultDeviceLimit: defaultDeviceLimit! } : undefined);
+        staged.push({ changeId, appId, desired });
+      } catch (error) {
+        await resolveAutomationChange(changeId, "failed", undefined,
+          error instanceof Error ? error.message.slice(0, 160) : "AUTOMATION_UPDATE_FAILED").catch(() => undefined);
+        throw error;
       }
-
-      if (appId === "boi-ech") {
-        await setBoi(actor, desired, defaultAccessDays, defaultDeviceLimit);
-        await rememberAutoApproval(actor.email, appId, desired, { defaultAccessDays, defaultDeviceLimit });
-        continue;
-      }
-      if (appId === "health-care") await setHealth(actor, desired);
-      else if (appId === "ru-life") await setRuLife(actor, desired);
-      else if (appId === "bauman-master-ai") await setBauman(actor, desired);
-      else {
-        return json({
-          error: `Ứng dụng ${appId} chưa có Universal automation mutation contract hoàn chỉnh.`,
-          code: "AUTO_APPROVAL_CONTRACT_MISSING",
-          appId,
-        }, 409);
-      }
-      await rememberAutoApproval(actor.email, appId, desired);
     }
 
     const refreshedDynamic = needsDynamicProbe ? await probeDynamicManagedApplications(targets) : [];
     const settings = await readAutoApprovalSettings([], targets, refreshedDynamic, specializedTargets);
+    const mismatches: string[] = [];
+    for (const change of staged) {
+      const observed = settings.automationPolicies.find((policy) => policy.appId === change.appId);
+      const matches = observed?.verification.state === "live"
+        && observed.current.autoApprove === change.desired
+        && (change.appId !== "boi-ech" || (
+          observed.current.freeAccessDays === defaultAccessDays
+          && observed.current.freeDeviceLimit === defaultDeviceLimit
+        ));
+      const observedState = observed?.verification.state === "live"
+        ? {
+            autoApprove: observed.current.autoApprove === true,
+            ...(change.appId === "boi-ech" ? {
+              defaultAccessDays: observed.current.freeAccessDays ?? 0,
+              defaultDeviceLimit: observed.current.freeDeviceLimit ?? 0,
+            } : {}),
+          } : undefined;
+      await resolveAutomationChange(change.changeId, matches ? "applied" : "failed",
+        observedState, matches ? undefined : "AUTOMATION_READBACK_MISMATCH");
+      if (!matches) mismatches.push(change.appId);
+    }
+    if (mismatches.length) {
+      return json({ error: "Readback chưa khớp cấu hình vừa ghi: " + mismatches.join(", "),
+        code: "AUTO_APPROVAL_READBACK_MISMATCH", settings }, 502);
+    }
     return json({ ok: true, settings });
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : "Không thể cập nhật duyệt tự động.", code: "AUTO_APPROVAL_UPDATE_FAILED" }, 500);

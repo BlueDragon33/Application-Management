@@ -85,8 +85,8 @@ test("global auto-approval dialog can safely control Health_Care", () => {
   mustContain(autoApproval, [
     'const CANDIDATE_APP_IDS = ["boi-ech", "health-care", "ru-life", "bauman-master-ai"] as const',
     'for (const appId of targets)',
-    'if (appId === "health-care") await setHealth(actor, desired)',
-    'rememberAutoApproval(actor.email, appId, desired)',
+    'else if (appId === "health-care") {',
+    'await rememberAutoApproval(actor.email, appId, desired,',
     'executeUniversalAutomationCommand',
   ]);
   assert.match(autoApproval, /actor\.role !== "owner".*OWNER_REQUIRED/);

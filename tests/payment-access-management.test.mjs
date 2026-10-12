@@ -79,7 +79,7 @@ test("free auto mode is explicit and paid access still requires verified proof a
   assert.equal((saveBlock.match(/window\.confirm/g) ?? []).length, 1);
   assert.match(saveBlock, /targetAppIds: \[appId\]/);
   assert.match(operations, /AUTO_APPROVAL_ROUTE_MOVED/);
-  assert.match(nativeAutomation, /await setBoi\(actor, desired, defaultAccessDays, defaultDeviceLimit\)/);
+  assert.match(nativeAutomation, /await setBoi\(actor, desired, defaultAccessDays!, defaultDeviceLimit!\)/);
   assert.match(editor, /Luồng trả phí vẫn phải xác minh thanh toán/);
   assert.match(api, /paymentReviewReady\(current\)/);
   assert.match(api, /Number\(updated\.accessDaysRemaining\) !== paidAccessDays/);

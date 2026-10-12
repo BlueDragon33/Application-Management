@@ -1,3 +1,4 @@
+import { resolveAutomationChange, stageAutomationChange } from "../../automation-policy-changes.server";
 import { applicationRegistry, type ApplicationConfig } from "../../application-registry";
 import { verifyControlProof, type ControlDeviceState } from "../../control-device.server";
 import { UpstreamError, issueBoiBrowserBridge } from "../../boi-ech.server";
@@ -1035,49 +1036,62 @@ export async function POST(request: Request) {
         && manifest.capabilities.automationOptimisticConcurrency === true
       );
 
-      if (genericReady) {
-        await executeUniversalAutomationCommand({
-          appId,
-          commandId: crypto.randomUUID(),
-          expected: {
-            autoBlockPendingDevices: policy.current.autoBlockPending,
-            ...(policy.current.pendingBlockAfterHours !== undefined ? { pendingBlockAfterHours: policy.current.pendingBlockAfterHours } : {}),
-          },
-          desired: {
+      const changeId = await stageAutomationChange({
+        appId, field: "autoBlockPending", requestedBy: actor.email,
+        desired: { autoBlockPending: payload.enabled, pendingBlockAfterHours },
+      });
+      try {
+        if (genericReady) {
+          await executeUniversalAutomationCommand({
+            appId,
+            commandId: changeId,
+            expected: {
+              autoBlockPendingDevices: policy.current.autoBlockPending,
+              ...(policy.current.pendingBlockAfterHours !== undefined ? { pendingBlockAfterHours: policy.current.pendingBlockAfterHours } : {}),
+            },
+            desired: { autoBlockPendingDevices: payload.enabled, pendingBlockAfterHours },
+          }, actor);
+        } else if (appId === "health-care") {
+          const bridge = await issueHealthBrowserBridge(actor.email, actor.role, actor.deviceId);
+          const updated = await bridgeCommandJson(bridge, "/api/control/automation", {
             autoBlockPendingDevices: payload.enabled,
             pendingBlockAfterHours,
-          },
-        }, actor);
-      } else if (appId === "health-care") {
-        const bridge = await issueHealthBrowserBridge(actor.email, actor.role, actor.deviceId);
-        const updated = await bridgeCommandJson(bridge, "/api/control/automation", {
-          autoBlockPendingDevices: payload.enabled,
-          pendingBlockAfterHours,
-        });
-        const automation = record(updated.automation);
-        if (automation.autoBlockPendingDevices !== payload.enabled || Number(automation.pendingBlockAfterHours) !== pendingBlockAfterHours) {
-          return json({ error: "Client không trả lại đúng quy tắc tự động khóa vừa ghi.", code: "AUTO_BLOCK_WRITE_RESPONSE_MISMATCH" }, 502);
-        }
-        try {
+          });
+          const automation = record(updated.automation);
+          if (automation.autoBlockPendingDevices !== payload.enabled || Number(automation.pendingBlockAfterHours) !== pendingBlockAfterHours) {
+            throw new Error("AUTO_BLOCK_WRITE_RESPONSE_MISMATCH");
+          }
           await waitForAutomationReadback(
-            bridge,
-            "/api/control/automation",
+            bridge, "/api/control/automation",
             (state) => state.autoBlockPendingDevices === payload.enabled
               && Number(state.pendingBlockAfterHours) === pendingBlockAfterHours,
           );
-        } catch {
-          return json({ error: "Client đã nhận lệnh nhưng readback tự động khóa chưa hội tụ.", code: "AUTO_BLOCK_READBACK_MISMATCH" }, 502);
+        } else {
+          throw new Error("AUTO_BLOCK_CONTRACT_MISSING");
         }
-      } else {
-        return json({ error: "Ứng dụng chưa có Universal automation mutation contract hoàn chỉnh.", code: "AUTO_BLOCK_CONTRACT_MISSING" }, 409);
-      }
 
-      await rememberAutoBlockPending(actor.email, appId, payload.enabled, pendingBlockAfterHours);
-      const refreshed = specializedTargets.length ? [] : await probeDynamicManagedApplications([appId]);
-      return json({
-        ok: true,
-        settings: await readAutoApprovalSettings([], [appId], refreshed, specializedTargets),
-      });
+        await rememberAutoBlockPending(actor.email, appId, payload.enabled, pendingBlockAfterHours);
+        const refreshed = specializedTargets.length ? [] : await probeDynamicManagedApplications([appId]);
+        const settings = await readAutoApprovalSettings([], [appId], refreshed, specializedTargets);
+        const observed = settings.automationPolicies.find((item) => item.appId === appId);
+        const matched = observed?.verification.state === "live"
+          && observed.current.autoBlockPending === payload.enabled
+          && (!payload.enabled || observed.current.pendingBlockAfterHours === pendingBlockAfterHours);
+        await resolveAutomationChange(changeId, matched ? "applied" : "failed",
+          observed?.verification.state === "live" ? {
+            autoBlockPending: observed.current.autoBlockPending === true,
+            pendingBlockAfterHours: observed.current.pendingBlockAfterHours ?? 0,
+          } : undefined, matched ? undefined : "AUTO_BLOCK_READBACK_MISMATCH");
+        if (!matched) return json({
+          error: "Readback tự động khóa chưa khớp dữ liệu đã ghi.",
+          code: "AUTO_BLOCK_READBACK_MISMATCH", settings,
+        }, 502);
+        return json({ ok: true, settings });
+      } catch (error) {
+        await resolveAutomationChange(changeId, "failed", undefined,
+          error instanceof Error ? error.message.slice(0, 160) : "AUTO_BLOCK_UPDATE_FAILED").catch(() => undefined);
+        throw error;
+      }
     }
 
     if (action === "manage-client-device") {

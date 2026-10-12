@@ -12,26 +12,29 @@ test("Applications view keeps launcher grid as the default mode", () => {
   assert.match(dashboard, /data-testid="app-launcher-list"/);
 });
 
-test("Overview managed-app box is one read-only screen that jumps to Applications", () => {
-  assert.match(dashboard, /className="amv2-panel amv2-apps-panel amv2-overview-apps-launcher"/);
-  assert.match(dashboard, /role="button"/);
-  assert.match(dashboard, /aria-label="Mở tab Ứng dụng"/);
-  assert.match(dashboard, /onClick=\{\(\) => switchView\("applications"\)\}/);
-  assert.match(dashboard, /className="amv2-overview-app-screen"/);
-  assert.match(dashboard, /<b>Online<\/b>/);
-  assert.match(dashboard, /item\.status/);
+test("Overview opens app and Tool websites directly, with one separate Applications navigation", () => {
+  const panelStart = dashboard.indexOf('className="amv2-panel amv2-apps-panel amv2-overview-apps-launcher"');
+  const panelEnd = dashboard.indexOf('className="amv2-panel amv2-devices-panel"', panelStart);
+  const panel = dashboard.slice(panelStart, panelEnd);
+  assert.ok(panelStart > 0 && panelEnd > panelStart);
+  assert.doesNotMatch(panel, /role="button"|aria-label="Mở tab Ứng dụng"/);
+  assert.match(panel, /<button type="button" onClick=\{\(\) => switchView\("applications"\)\}>Xem tất cả/);
+  assert.match(panel, /className="amv2-overview-app-screen"/);
+  assert.match(panel, /className="amv2-overview-app-tile"/);
+  assert.match(panel, /void launchWeb\(item\.id\)/);
+  assert.match(panel, /window\.location\.assign\(item\.href\)/);
+  assert.match(panel, /disabled=\{!item\.canOpen \|\| webBusy === item\.id\}/);
+  assert.match(panel, /<b>Online<\/b>/);
+  assert.match(panel, /item\.status/);
 });
 
-test("Overview orders application clients before Tools and contains no per-tile action buttons", () => {
+test("Overview keeps application clients before Tools without bypassing launch policy", () => {
   const start = dashboard.indexOf("const overviewItems = [");
   const end = dashboard.indexOf("return <>", start);
   const model = dashboard.slice(start, end);
   assert.ok(model.indexOf("...apps.map") < model.indexOf("...tools.map"));
-
-  const panelStart = dashboard.indexOf('className="amv2-panel amv2-apps-panel amv2-overview-apps-launcher"');
-  const panelEnd = dashboard.indexOf('className="amv2-panel amv2-devices-panel"', panelStart);
-  const panel = dashboard.slice(panelStart, panelEnd);
-  assert.doesNotMatch(panel, /amv2-web-action|amv2-manage-action|<button/);
+  assert.match(model, /canOpen: webAccessAvailable\(app, summary, localRuntime\)/);
+  assert.match(model, /href: tool\.href/);
 });
 
 test("Applications launcher defaults to manual app-first ordering", () => {

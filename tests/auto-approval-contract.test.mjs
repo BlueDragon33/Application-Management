@@ -31,13 +31,14 @@ test("native auto approval endpoint is dynamic-first with verified legacy fallba
   assert.match(endpoint, /setBoi/);
   assert.match(endpoint, /defaultAccessDays/);
   assert.match(endpoint, /defaultDeviceLimit/);
-  assert.match(endpoint, /await setBoi\(actor, desired, defaultAccessDays, defaultDeviceLimit\)/);
+  assert.match(endpoint, /await setBoi\(actor, desired, defaultAccessDays!, defaultDeviceLimit!\)/);
+  assert.match(endpoint, /targets\.includes\("boi-ech"\)/);
   assert.match(endpoint, /setHealth/);
   assert.match(endpoint, /setBauman/);
   assert.match(endpoint, /setRuLife/);
   assert.match(endpoint, /AUTO_APPROVAL_CONTRACT_NOT_LIVE/);
-  assert.match(endpoint, /rememberAutoApproval\(actor\.email, appId, desired, \{ defaultAccessDays, defaultDeviceLimit \}\)/);
-  assert.match(endpoint, /rememberAutoApproval\(actor\.email, appId, desired\)/);
+  assert.match(endpoint, /appId === "boi-ech" \? \{ defaultAccessDays: defaultAccessDays!, defaultDeviceLimit: defaultDeviceLimit! \} : undefined/);
+  assert.match(endpoint, /await rememberAutoApproval\(actor\.email, appId, desired,/);
   assert.match(endpoint, /readAutoApprovalSettings/);
 });
 
