@@ -24,7 +24,9 @@ test("fallback audit stores the exact Boi policy rather than hard-coded defaults
   assert.match(settings, /policy\?\.defaultAccessDays/);
   assert.match(settings, /policy\?\.defaultDeviceLimit/);
   assert.doesNotMatch(settings, /defaultAccessDays: 60, defaultDeviceLimit: 100/);
-  assert.match(endpoint, /rememberAutoApproval\(actor\.email, appId, desired, \{ defaultAccessDays, defaultDeviceLimit \}\)/);
+  assert.match(endpoint, /await rememberAutoApproval\(actor\.email, appId, desired,/);
+  assert.match(endpoint, /appId === "boi-ech" \? \{ defaultAccessDays: defaultAccessDays!, defaultDeviceLimit: defaultDeviceLimit! \} : undefined/);
+  assert.match(endpoint, /stageAutomationChange\(/);
 });
 
 test("fallback never masquerades as live mutation readiness", () => {
