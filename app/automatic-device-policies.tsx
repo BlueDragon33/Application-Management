@@ -310,7 +310,7 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
               </label>
             </div>
 
-            {app.id === "boi-ech" ? <div className={styles.limits} data-disabled={!draft.autoApprove || !approveWritable}>
+            {app.id === "boi-ech" ? <div className={styles.limits} data-disabled={!approveWritable}>
               <label>Thời hạn miễn phí <select value={days} disabled={locked || !approveWritable} onChange={(event) => { draftEditedRef.current = true; setDays(Number(event.target.value)); }}><option value={0}>Chưa xác minh</option>{[30, 60, 90, 180, 365].map((value) => <option key={value} value={value}>{value} ngày</option>)}</select></label>
               <label>Tối đa thiết bị <input type="number" min={1} max={1000} value={limit} disabled={locked || !approveWritable} onChange={(event) => { draftEditedRef.current = true; setLimit(Number(event.target.value)); }}/></label>
               <small>Chỉ áp dụng cho Miễn phí · tự động duyệt. Luồng trả phí vẫn phải xác minh thanh toán.</small>
