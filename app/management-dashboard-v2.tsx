@@ -832,7 +832,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
           if (!policy.mutation.autoApprove) return false;
           const desired = selection.appIds.includes(policy.appId);
           if (policy.current.autoApprove !== desired) return true;
-          return policy.appId === "boi-ech" && desired && (
+          return policy.appId === "boi-ech" && (
             policy.current.freeAccessDays !== selection.defaultAccessDays
             || policy.current.freeDeviceLimit !== selection.defaultDeviceLimit
           );
@@ -974,7 +974,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
         if (task.field === "autoApprove") {
           const desired = selection.appIds.includes(task.appId);
           verified = verified && policy?.current.autoApprove === desired;
-          if (task.appId === "boi-ech" && desired) {
+          if (task.appId === "boi-ech") {
             verified = verified
               && policy?.current.freeAccessDays === selection.defaultAccessDays
               && policy?.current.freeDeviceLimit === selection.defaultDeviceLimit;
