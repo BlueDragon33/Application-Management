@@ -96,7 +96,6 @@ function draftChanged(policy: OperationsAutomationPolicy, draft: AutomationAppDr
   if (policy.mutation.autoBlockPending && draft.autoBlock && policy.current.pendingBlockAfterHours !== draft.pendingBlockAfterHours) return true;
   return appId === "boi-ech"
     && policy.mutation.autoApprove
-    && draft.autoApprove
     && (policy.current.freeAccessDays !== days || policy.current.freeDeviceLimit !== limit);
 }
 
@@ -117,8 +116,8 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
   const openerRef = useRef<HTMLElement | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const boiPolicy = policyFor(settings, "boi-ech");
-  const [days, setDays] = useState(boiPolicy.current.freeAccessDays ?? settings?.freeAccessDaysByApp?.["boi-ech"] ?? 60);
-  const [limit, setLimit] = useState(boiPolicy.current.freeDeviceLimit ?? settings?.freeDeviceLimitByApp?.["boi-ech"] ?? 20);
+  const [days, setDays] = useState(boiPolicy.current.freeAccessDays ?? settings?.freeAccessDaysByApp?.["boi-ech"] ?? 0);
+  const [limit, setLimit] = useState(boiPolicy.current.freeDeviceLimit ?? settings?.freeDeviceLimitByApp?.["boi-ech"] ?? 0);
   const policies = apps.map((app) => policyFor(settings, app.id));
   const hasWritablePolicy = verified && policies.some((policy) => policy.mutation.autoApprove || policy.mutation.autoBlockPending);
   const hasUnverifiedPolicy = policies.some((policy) => policy.verification.state === "fallback" || policy.verification.state === "unavailable");
@@ -130,9 +129,14 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
     limit,
   ));
   const locked = busy || submitting;
-  const canSave = Boolean(settings) && verified && !locked && hasWritablePolicy && hasChanges
-    && Number.isInteger(days) && days >= 1 && days <= 365
-    && Number.isInteger(limit) && limit >= 1 && limit <= 1_000;
+  const boiDraft = drafts["boi-ech"] ?? { autoApprove: false, autoBlock: false, pendingBlockAfterHours: 168 };
+  const boiChanged = apps.some((app) => app.id === "boi-ech")
+    && draftChanged(boiPolicy, boiDraft, "boi-ech", days, limit);
+  const boiLimitsValid = !boiChanged || (
+    Number.isInteger(days) && days >= 1 && days <= 365
+    && Number.isInteger(limit) && limit >= 1 && limit <= 1_000
+  );
+  const canSave = Boolean(settings) && verified && !locked && hasWritablePolicy && hasChanges && boiLimitsValid;
 
   // A modal may be opened on a cached snapshot while live bootstrap is in flight.
   // Rebase only untouched drafts; never overwrite an actual user edit.
@@ -140,8 +144,8 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
     if (draftEditedRef.current) return;
     setDrafts(initialDrafts(apps, settings));
     const latestBoi = policyFor(settings, "boi-ech");
-    setDays(latestBoi.current.freeAccessDays ?? settings?.freeAccessDaysByApp?.["boi-ech"] ?? 60);
-    setLimit(latestBoi.current.freeDeviceLimit ?? settings?.freeDeviceLimitByApp?.["boi-ech"] ?? 20);
+    setDays(latestBoi.current.freeAccessDays ?? settings?.freeAccessDaysByApp?.["boi-ech"] ?? 0);
+    setLimit(latestBoi.current.freeDeviceLimit ?? settings?.freeDeviceLimitByApp?.["boi-ech"] ?? 0);
   }, [apps, settings]);
 
   useEffect(() => {
@@ -307,8 +311,8 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
             </div>
 
             {app.id === "boi-ech" ? <div className={styles.limits} data-disabled={!draft.autoApprove || !approveWritable}>
-              <label>Thời hạn miễn phí <select value={days} disabled={locked || !approveWritable || !draft.autoApprove} onChange={(event) => { draftEditedRef.current = true; setDays(Number(event.target.value)); }}>{[30, 60, 90, 180, 365].map((value) => <option key={value} value={value}>{value} ngày</option>)}</select></label>
-              <label>Tối đa thiết bị <input type="number" min={1} max={1000} value={limit} disabled={locked || !approveWritable || !draft.autoApprove} onChange={(event) => { draftEditedRef.current = true; setLimit(Number(event.target.value)); }}/></label>
+              <label>Thời hạn miễn phí <select value={days} disabled={locked || !approveWritable} onChange={(event) => { draftEditedRef.current = true; setDays(Number(event.target.value)); }}><option value={0}>Chưa xác minh</option>{[30, 60, 90, 180, 365].map((value) => <option key={value} value={value}>{value} ngày</option>)}</select></label>
+              <label>Tối đa thiết bị <input type="number" min={1} max={1000} value={limit} disabled={locked || !approveWritable} onChange={(event) => { draftEditedRef.current = true; setLimit(Number(event.target.value)); }}/></label>
               <small>Chỉ áp dụng cho Miễn phí · tự động duyệt. Luồng trả phí vẫn phải xác minh thanh toán.</small>
             </div> : null}
 
