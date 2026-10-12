@@ -48,5 +48,5 @@ test("generic automation never absorbs Boi free-paid domain semantics", () => {
   const endpoint = source("app/api/operations-auto-approval/route.ts");
   assert.match(endpoint, /genericReady = appId !== "boi-ech"/);
   assert.match(endpoint, /if \(appId === "boi-ech"\)/);
-  assert.match(endpoint, /await setBoi\(actor, desired, defaultAccessDays, defaultDeviceLimit\)/);
+  assert.match(endpoint, /await setBoi\(actor, desired, defaultAccessDays!, defaultDeviceLimit!\)/);
 });
