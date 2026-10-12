@@ -184,11 +184,13 @@ export async function POST(request: Request) {
     }
 
     const defaultAccessDays = payload.defaultAccessDays === undefined
-      ? current.freeAccessDaysByApp?.["boi-ech"] ?? 60 : Number(payload.defaultAccessDays);
+      ? current.freeAccessDaysByApp?.["boi-ech"] : Number(payload.defaultAccessDays);
     const defaultDeviceLimit = payload.defaultDeviceLimit === undefined
-      ? current.freeDeviceLimitByApp?.["boi-ech"] ?? 20 : Number(payload.defaultDeviceLimit);
-    if (!Number.isInteger(defaultAccessDays) || defaultAccessDays < 1 || defaultAccessDays > 365
-      || !Number.isInteger(defaultDeviceLimit) || defaultDeviceLimit < 1 || defaultDeviceLimit > 1_000) {
+      ? current.freeDeviceLimitByApp?.["boi-ech"] : Number(payload.defaultDeviceLimit);
+    if (targets.includes("boi-ech") && (
+      !Number.isInteger(defaultAccessDays) || !defaultAccessDays || defaultAccessDays < 1 || defaultAccessDays > 365
+      || !Number.isInteger(defaultDeviceLimit) || !defaultDeviceLimit || defaultDeviceLimit < 1 || defaultDeviceLimit > 1_000
+    )) {
       return json({ error: "Thời hạn miễn phí phải từ 1–365 ngày và hạn mức từ 1–1.000 thiết bị.", code: "INVALID_BOI_FREE_POLICY" }, 400);
     }
 
@@ -213,7 +215,7 @@ export async function POST(request: Request) {
       );
       const desiredState = {
         autoApprove: desired,
-        ...(appId === "boi-ech" ? { defaultAccessDays, defaultDeviceLimit } : {}),
+        ...(appId === "boi-ech" ? { defaultAccessDays: defaultAccessDays!, defaultDeviceLimit: defaultDeviceLimit! } : {}),
       };
       // Persist the intended change centrally before touching the owning client.
       // This is a ledger, never the authoritative LIVE device policy.
@@ -229,7 +231,7 @@ export async function POST(request: Request) {
             desired: { autoApproveDevices: desired },
           }, actor);
         } else if (appId === "boi-ech") {
-          await setBoi(actor, desired, defaultAccessDays, defaultDeviceLimit);
+          await setBoi(actor, desired, defaultAccessDays!, defaultDeviceLimit!);
         } else if (appId === "health-care") {
           await setHealth(actor, desired);
         } else if (appId === "ru-life") {
@@ -240,7 +242,7 @@ export async function POST(request: Request) {
           throw new Error("AUTO_APPROVAL_CONTRACT_MISSING_" + appId);
         }
         await rememberAutoApproval(actor.email, appId, desired,
-          appId === "boi-ech" ? { defaultAccessDays, defaultDeviceLimit } : undefined);
+          appId === "boi-ech" ? { defaultAccessDays: defaultAccessDays!, defaultDeviceLimit: defaultDeviceLimit! } : undefined);
         staged.push({ changeId, appId, desired });
       } catch (error) {
         await resolveAutomationChange(changeId, "failed", undefined,
