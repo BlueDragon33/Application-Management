@@ -8,7 +8,7 @@ type AdminRole = "reviewer" | "publisher" | "owner";
 const REVIEWABLE_FIELDS = new Set([
   "surname", "givenNames", "birthDate", "birthPlace", "sex", "hasOtherNames", "otherNames", "bornInRussia",
   "citizenship", "purposeSection", "purpose", "visaType", "entries", "entryDate", "exitDate", "destinationType",
-  "organization", "organizationAddress", "tin", "telex", "invitation", "invitationIssuer", "invitationDurationDays", "passportNo", "passportIssue", "passportExpiry",
+  "organization", "organizationAddress", "tin", "telex", "invitation", "invitationDurationDays", "passportNo", "passportIssue", "passportExpiry",
   "hasPermanentAddress", "personalAddress", "phone", "personalFax", "email", "routeCity", "worksOrStudies",
   "workStudyPlace", "position", "workAddress", "workPhone", "workFax", "workEmail", "passwordOverride", "applicationId",
   "preferredEmbassy", "hadFormerRussianCitizenship", "formerCitizenshipLostDate", "formerCitizenshipLossReason",
@@ -170,7 +170,7 @@ export async function POST(request: Request) {
         tin: text(defaults.tin, 40),
         telex: "", // No group Telex: only a value typed for an individual is retained.
         invitation: text(defaults.invitation, 120),
-        invitationIssuer: text(defaults.invitationIssuer, 300),
+        invitationIssuer: formType === "mvd_invitation" ? "" : text(defaults.invitationIssuer, 300),
         invitationDurationDays: formType === "mvd_invitation" ? "" : text(defaults.invitationDurationDays, 5),
         routeCity: text(defaults.routeCity, 80),
         employer: text(defaults.employer, 240),
