@@ -453,7 +453,7 @@ test("v0.9.35 bypasses empty Fax without blocking the contact page", () => {
 
 test("v0.9.35 personal email comes from applicant payload and no longer depends only on label lookup", () => {
   assert.match(companion, /\["E-mail cá nhân", \(\) => optionalText\(C\.personalEmail, A\.email\)\]/);
-  assert.match(companion, /payload email:/);
+  assert.doesNotMatch(companion, /payload email:/); // Do not echo personal data in status messages.
 });
 
 
