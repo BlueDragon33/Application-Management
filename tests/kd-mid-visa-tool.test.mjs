@@ -303,8 +303,8 @@ test("v0.9.36 contact handler uses applicant-specific work fields and leaves bla
   assert.match(companion, /A\.workAddress/);
   assert.match(companion, /A\.workPhone/);
   assert.match(companion, /A\.workEmail/);
-  assert.match(companion, /writeContactText\(control, ""\)/);
-  assert.match(companion, /if \(!String\(control\.value \|\| ""\)\) return "ready"/);
+  assert.match(companion, /if \(!text\) return "ready"/);
+  assert.match(companion, /if \(!value\) return true/);
 });
 
 test("v0.9.36 phone and email are no longer launch-required", () => {
