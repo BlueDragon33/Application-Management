@@ -14,3 +14,10 @@
 .field[data-personal-required="true"]:not([data-correction="true"]):has(textarea:required:invalid) textarea{
   border-color:#d9a13f;background:#171407;box-shadow:inset 0 0 0 1px rgba(217,161,63,.08)
 }
+
+/* Keep standalone mobile pages away from the native iOS status bar. */
+@supports (padding: env(safe-area-inset-top)) {
+  @media(max-width:760px) {
+    .page { padding-top: calc(14px + env(safe-area-inset-top)); }
+  }
+}
