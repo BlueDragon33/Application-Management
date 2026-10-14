@@ -2,9 +2,9 @@
 
 ## Mục tiêu
 
-## Constitution 1.2 · Operational Sovereignty
+## Constitution 1.3 · Operational Sovereignty
 
-Repository authority: `blueprint-os:universal-century-grade@1.2.0`.
+Repository authority: `blueprint-os:universal-century-grade@1.3.0`.
 
 Machine-readable dependency budget:
 

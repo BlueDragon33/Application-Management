@@ -14,7 +14,7 @@ jobs:
     uses: BlueDragon33/Software-Blueprint-Hub/.github/workflows/constitution-compliance.yml@main
 
   dependency-sovereignty:
-    name: Constitution 1.2 Application Management dependency sovereignty
+    name: Constitution 1.3 Application Management dependency sovereignty
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -26,9 +26,9 @@ jobs:
           from pathlib import Path
           a=json.loads(Path(".blueprint/constitution-adoption.json").read_text())
           b=json.loads(Path("docs/DEPENDENCY_BUDGET.json").read_text())
-          assert a["policyVersion"]=="1.2.0"
+          assert a["policyVersion"]=="1.3.0"
           assert "operational-sovereignty-dependency-minimization" in a["inheritedPillars"]
-          assert b["constitutionPolicy"]=="blueprint-os:universal-century-grade@1.2.0"
+          assert b["constitutionPolicy"]=="blueprint-os:universal-century-grade@1.3.0"
           assert "LOCAL_FIRST" in b["defaultPrinciple"]
           deps={d["id"]:d for d in b["dependencies"]}
           assert deps["local-runtime"]["runtimeClass"]=="LOCAL_CORE"
@@ -42,5 +42,5 @@ jobs:
           forbidden=set(b["forbiddenRemoteData"])
           assert {"private keys","bearer/session tokens","raw bridge secrets","health records from Health_Care","child records from GrowUP_MyChildren"} <= forbidden
           assert b["acceptance"]["productionAuthority"]=="separate-explicit-release-gate"
-          print("Application Management Constitution 1.2 dependency sovereignty: PASS")
+          print("Application Management Constitution 1.3 dependency sovereignty: PASS")
           PY

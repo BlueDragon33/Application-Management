@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.32
+// @version      0.9.34
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,12 +17,12 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.32";
+  const VERSION = "0.9.34";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
   const PRINT_KEY = "kd-mid-visa-vn:auto-print:v9";
-  const RETRY_MS = 450;
+  const RETRY_MS = 900;
   const RETRY_LIMIT = 160;
   const APP_HOST = "application-management.boiech-ai.workers.dev";
   const KD_HOST = "visa.kdmid.ru";
@@ -1137,53 +1137,45 @@
   }
 
   function contactInfoControls() {
-    // This KD-MID page has a stable visual/control order. Previous label-based
-    // lookup could miss "Ваш личный E-mail" even though the value exists in the
-    // payload. Use the page's actual control sequence and deliberately skip Fax.
+    // Prefer exact Russian field labels. Global input indices drift whenever KD-MID
+    // adds a visible auxiliary control; a stale index could overwrite Fax or miss E-mail.
+    // Keep the old ordered slots solely as a fallback for missing label matches.
     const textInputs = [...document.querySelectorAll(
-      'input:not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]):not([type="password"])'
+      'input:not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]):not([type="password"]),textarea'
     )].filter(visible);
     const selects = [...document.querySelectorAll("select")].filter(visible);
+    const addressAnchor = textControlForField("Адрес вашего постоянного проживания");
+    const addressStart = textInputs.indexOf(addressAnchor);
+    const index = (offset) => addressStart >= 0 && textInputs.length >= addressStart + 10 && selects.length >= 4
+      ? textInputs[addressStart + offset] : null;
+    const picked = new Set();
+    const byLabel = (labels, offset) => {
+      const labeled = textControlForField(labels);
+      if (labeled && textInputs.includes(labeled) && !picked.has(labeled)) {
+        picked.add(labeled);
+        return labeled;
+      }
+      const fallback = index(offset);
+      if (fallback && !picked.has(fallback)) {
+        picked.add(fallback);
+        return fallback;
+      }
+      return null; // Unknown/ambiguous input: never write into a guessed field.
+    };
 
-    if (textInputs.length >= 10 && selects.length >= 4) {
-      return {
-        hasPermanentAddress: selects[0],
-        permanentAddress: textInputs[0],
-        personalPhone: textInputs[1],
-        personalFax: textInputs[2],
-        personalEmail: textInputs[3],
-        worksOrStudies: selects[1],
-        employer: textInputs[4],
-        position: textInputs[5],
-        workAddress: textInputs[6],
-        workPhone: textInputs[7],
-        workFax: textInputs[8],
-        workEmail: textInputs[9],
-        children: yesNoSelectForQuestion([
-          "Дети до 16 лет и другие родственники, вписанные в Ваш паспорт и следующие с Вами",
-          "Дети до 16 лет"
-        ], 2),
-        relatives: yesNoSelectForQuestion([
-          "Имеете ли Вы в настоящее время родственников на территории России?",
-          "Имеете ли Вы в настоящее время родственников"
-        ], 1),
-      };
-    }
-
-    // Fallback for minor markup variations.
     return {
-      hasPermanentAddress: selectControlForField("Имеете ли Вы адрес постоянного проживания?"),
-      permanentAddress: textControlForField("Адрес вашего постоянного проживания"),
-      personalPhone: textControlForField("Ваш личный телефон"),
-      personalFax: textControlForField("Ваш личный факс"),
-      personalEmail: textControlForField(["Ваш личный E-mail", "Ваш личный Email"]),
-      worksOrStudies: selectControlForField("Вы работаете (работали ранее), учитесь (учились ранее)?"),
-      employer: textControlForField("Место работы (учебы)"),
-      position: textControlForField("Должность"),
-      workAddress: textControlForField("Рабочий адрес"),
-      workPhone: textControlForField("Рабочий телефон"),
-      workFax: textControlForField("Рабочий факс"),
-      workEmail: textControlForField(["Рабочий E-mail", "Рабочий Email"]),
+      hasPermanentAddress: selectControlForField("Имеете ли Вы адрес постоянного проживания?") || selects[0] || null,
+      permanentAddress: byLabel("Адрес вашего постоянного проживания", 0),
+      personalPhone: byLabel("Ваш личный телефон", 1),
+      personalFax: byLabel("Ваш личный факс", 2),
+      personalEmail: byLabel(["Ваш личный E-mail", "Ваш личный Email"], 3),
+      worksOrStudies: selectControlForField("Вы работаете (работали ранее), учитесь (учились ранее)?") || selects[1] || null,
+      employer: byLabel("Место работы (учебы)", 4),
+      position: byLabel("Должность", 5),
+      workAddress: byLabel("Рабочий адрес", 6),
+      workPhone: byLabel("Рабочий телефон", 7),
+      workFax: byLabel("Рабочий факс", 8),
+      workEmail: byLabel(["Рабочий E-mail", "Рабочий Email"], 9),
       children: yesNoSelectForQuestion([
         "Дети до 16 лет и другие родственники, вписанные в Ваш паспорт и следующие с Вами",
         "Дети до 16 лет"
@@ -1199,34 +1191,46 @@
     if (!isContactInfoPage()) return { handled: false, ready: false };
     const A = payload.applicant || {};
     const C = contactInfoControls();
+    // KD-MID Fax fields are optional: no value means no input, no validation and no wait.
+    const personalFax = String(A.personalFax ?? "").trim();
+    const workFax = A.worksOrStudies === false ? "" : String(A.workFax ?? "").trim();
+
+    // Text inputs on the contact page do not need a synthetic mouse click or
+    // scrolling for every field. Those operations cause flicker and can race
+    // ASP.NET's client validators, particularly on the E-mail field.
+    const writeContactText = (control, text) => {
+      if (!control) return "missing";
+      if (String(control.value ?? "") === text) return "ready";
+      if (control.disabled || control.readOnly) return "waiting";
+      setNativeControlValue(control, text);
+      control.dispatchEvent(new Event("input", { bubbles: true }));
+      control.dispatchEvent(new Event("change", { bubbles: true }));
+      return control.isConnected === false || String(control.value ?? "") !== text
+        ? "waiting" : "changed";
+    };
 
     const optionalText = (control, value) => {
       const text = String(value ?? "");
       if (!control) return text ? "missing" : "ready";
       if (!text) {
         if (!String(control.value || "")) return "ready";
-        activateControl(control);
-        setNativeControlValue(control, "");
-        control.dispatchEvent(new Event("input", { bubbles: true }));
-        control.dispatchEvent(new Event("change", { bubbles: true }));
-        try { control.blur(); } catch {}
-        return String(control.value || "") === "" ? "changed" : "waiting";
+        return writeContactText(control, "");
       }
-      return writeTextControl(control, text);
+      return writeContactText(control, text);
     };
 
     const steps = [
       ["Có địa chỉ thường trú", () => C.hasPermanentAddress ? writeSelectControl(C.hasPermanentAddress, A.hasPermanentAddress === false ? ["НЕТ","NO"] : ["ДА","YES"]) : "missing"],
       ["Địa chỉ thường trú", () => optionalText(C.permanentAddress, A.hasPermanentAddress === false ? "" : (A.personalAddress || CANONICAL_PERMANENT_ADDRESS))],
       ["Điện thoại cá nhân", () => optionalText(C.personalPhone, A.phone)],
-      ["Fax cá nhân", () => optionalText(C.personalFax, A.personalFax)],
+      ["Fax cá nhân (tùy chọn)", () => personalFax ? optionalText(C.personalFax, personalFax) : "ready"],
       ["E-mail cá nhân", () => optionalText(C.personalEmail, A.email)],
       ["Đang làm việc/học tập", () => C.worksOrStudies ? writeSelectControl(C.worksOrStudies, A.worksOrStudies === false ? ["НЕТ","NO"] : ["ДА","YES"]) : "missing"],
       ["Nơi làm việc/học tập", () => optionalText(C.employer, A.worksOrStudies === false ? "" : (A.workStudyPlace || payload.employer))],
       ["Chức vụ", () => optionalText(C.position, A.worksOrStudies === false ? "" : (A.position || payload.defaultPosition))],
       ["Địa chỉ cơ quan", () => optionalText(C.workAddress, A.worksOrStudies === false ? "" : (A.workAddress || payload.employerAddress))],
       ["Điện thoại cơ quan", () => optionalText(C.workPhone, A.worksOrStudies === false ? "" : (A.workPhone || payload.fixedWorkPhone))],
-      ["Fax cơ quan", () => optionalText(C.workFax, A.worksOrStudies === false ? "" : A.workFax)],
+      ["Fax cơ quan (tùy chọn)", () => workFax ? optionalText(C.workFax, workFax) : "ready"],
       ["E-mail cơ quan", () => optionalText(C.workEmail, A.worksOrStudies === false ? "" : (A.workEmail || payload.employerEmail))],
       ["Trẻ em dưới 16 tuổi", () => C.children ? writeSelectControl(C.children, A.childrenUnder16 ? ["ДА","YES"] : ["НЕТ","NO"]) : "missing"],
       ["Người thân tại Nga", () => {
@@ -1239,8 +1243,7 @@
       }],
     ];
 
-    // Fax fields are intentionally skipped. KD-MID does not require them and
-    // the profile does not store fax numbers.
+    // Blank Fax fields are intentionally skipped; supplied Fax values are still filled.
     for (const [label, fn] of steps) {
       const state = fn();
       if (state === "changed") {
@@ -1262,26 +1265,26 @@
     const expected = {
       permanentAddress: A.hasPermanentAddress === false ? "" : String(A.personalAddress || CANONICAL_PERMANENT_ADDRESS),
       personalPhone: String(A.phone || ""),
-      personalFax: String(A.personalFax || ""),
+      personalFax,
       personalEmail: String(A.email || ""),
       employer: A.worksOrStudies === false ? "" : String(A.workStudyPlace || payload.employer || ""),
       position: A.worksOrStudies === false ? "" : String(A.position || payload.defaultPosition || ""),
       workAddress: A.worksOrStudies === false ? "" : String(A.workAddress || payload.employerAddress || ""),
       workPhone: A.worksOrStudies === false ? "" : String(A.workPhone || payload.fixedWorkPhone || ""),
-      workFax: A.worksOrStudies === false ? "" : String(A.workFax || ""),
+      workFax,
       workEmail: A.worksOrStudies === false ? "" : String(A.workEmail || payload.employerEmail || ""),
     };
 
     const textPairs = [
       [finalC.permanentAddress, expected.permanentAddress],
       [finalC.personalPhone, expected.personalPhone],
-      [finalC.personalFax, expected.personalFax],
+      ...(personalFax ? [[finalC.personalFax, expected.personalFax]] : []),
       [finalC.personalEmail, expected.personalEmail],
       [finalC.employer, expected.employer],
       [finalC.position, expected.position],
       [finalC.workAddress, expected.workAddress],
       [finalC.workPhone, expected.workPhone],
-      [finalC.workFax, expected.workFax],
+      ...(workFax ? [[finalC.workFax, expected.workFax]] : []),
       [finalC.workEmail, expected.workEmail],
     ];
 
@@ -1312,7 +1315,7 @@
     }
 
     refreshAspNetValidators();
-    status("KD-MID Visa VN: trang liên hệ/cơ quan đã điền đúng, gồm cả Fax nếu hồ sơ có dữ liệu.");
+    status("KD-MID Visa VN: trang liên hệ/cơ quan đã điền đúng; Fax trống được tự động bỏ qua.");
     return { handled: true, ready: true };
   }
 
@@ -1990,23 +1993,32 @@
   }
 
   function status(message, tone = "ok") {
-    document.getElementById("kd-mid-vn-status")?.remove();
-    const box = document.createElement("div");
-    box.id = "kd-mid-vn-status";
+    // Reuse the same status element to avoid redraw/flicker and observer feedback.
+    let box = document.getElementById("kd-mid-vn-status");
+    if (box?.textContent === message && box.dataset.tone === tone) return;
+    if (!box) {
+      box = document.createElement("div");
+      box.id = "kd-mid-vn-status";
+      document.body.appendChild(box);
+    }
     const colors = tone === "wait"
       ? ["#b7791f","#fffbeb","#744210"]
       : ["#2f855a","#ecfdf5","#14532d"];
+    box.dataset.tone = tone;
     box.style.cssText = `position:fixed;right:14px;bottom:14px;z-index:2147483647;max-width:450px;padding:10px 12px;border:1px solid ${colors[0]};border-radius:10px;background:${colors[1]};color:${colors[2]};box-shadow:0 8px 30px rgba(0,0,0,.22);font:600 12px/1.45 Arial`;
     box.textContent = message;
-    document.body.appendChild(box);
   }
 
   let retryCount = 0;
   let retryTimer = 0;
   let lastRunSignature = "";
+  let hintsAppliedSignature = "";
   function run(payload) {
-    addHints();
     const currentSig = pageSignature();
+    if (currentSig !== hintsAppliedSignature) {
+      addHints();
+      hintsAppliedSignature = currentSig;
+    }
     if (lastRunSignature && currentSig !== lastRunSignature) {
       sessionStorage.removeItem(pendingNavigationKey);
     }
@@ -2117,6 +2129,7 @@
   }, true);
 
   function isOwnStatusMutation(mutation) {
+    if (mutation.target?.id === "kd-mid-vn-status" || mutation.target?.closest?.("#kd-mid-vn-status")) return true;
     const nodes = [...mutation.addedNodes, ...mutation.removedNodes];
     return nodes.length > 0 && nodes.every((node) => node?.id === "kd-mid-vn-status");
   }
@@ -2124,7 +2137,6 @@
   const observer = new MutationObserver((mutations) => {
     if (mutations.length && mutations.every(isOwnStatusMutation)) return;
     const current = currentPayload || readSharedPayload();
-    addHints();
     if (!current) return;
     window.clearTimeout(observer._kdmidTimer);
     observer._kdmidTimer = window.setTimeout(() => run(current), 180);
