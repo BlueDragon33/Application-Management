@@ -227,7 +227,7 @@ const defaultCommon: CommonData = {
   organization: "МИН-ВО НАУКИ И ВЫСШЕГО ОБРАЗОВАНИЯ РФ (МИНОБРНАУКИ РОССИИ)",
   organizationAddress: "125993, МОСКВА, УЛ. ТВЕРСКАЯ, Д.11, СТР.1, 4",
   tin: "7707740714",
-  telex: "321422",
+  telex: "",
   invitation: "",
   destinationType: "ОРГАНИЗАЦИЯ",
   city: "МОСКВА",
@@ -926,7 +926,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       setShareUrl(url);
       await navigator.clipboard.writeText(url).catch(() => undefined);
       setNotice(student
-        ? "Đã tạo Link 1 · Mẫu nhập học và sao chép URL. Telex được lấy từ Trường dùng chung."
+        ? "Đã tạo Link 1 · Mẫu nhập học và sao chép URL. Mỗi người chỉ nhập Telex nếu có, để trống thì hệ thống giữ trống."
         : mvdInvitation ? "Đã tạo Link 3 · Thư mời điện tử МВД. Trường chung đã chuyển sang link; số thư mời và giấy tờ cá nhân vẫn phải khai riêng."
         : "Đã tạo Link 2 · Người thường và sao chép URL. Các trường visa không chắc chắn được để trống.");
     } catch (reason) {
@@ -1419,7 +1419,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       <section className={styles.metrics}>
         <article><span>Hồ sơ cá nhân</span><strong>{store.applicants.length}</strong><small>{completeCount} đã có Application ID</small></article>
         <article><span>Bản ghi mở lại</span><strong>{store.records.length}</strong><small>ID · Surname5 · năm sinh · password</small></article>
-        <article><span>Telex mặc định</span><strong>{store.common.telex}</strong><small>{store.common.city}</small></article>
+        <article><span>Telex tham khảo (không tự áp dụng)</span><strong>{store.common.telex || "Không có"}</strong><small>{store.common.city}</small></article>
         <article><span>Lưu trữ</span><strong>Local + D1</strong><small>Form gửi ngoài lưu tạm để xác minh; hồ sơ đã duyệt lưu vào danh sách xử lý trên máy.</small></article>
       </section>
       <section className={styles.panel}>
