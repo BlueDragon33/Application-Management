@@ -8,7 +8,7 @@ type AdminRole = "reviewer" | "publisher" | "owner";
 const REVIEWABLE_FIELDS = new Set([
   "surname", "givenNames", "birthDate", "birthPlace", "sex", "hasOtherNames", "otherNames", "bornInRussia",
   "citizenship", "purposeSection", "purpose", "visaType", "entries", "entryDate", "exitDate", "destinationType",
-  "organization", "organizationAddress", "tin", "telex", "invitation", "passportNo", "passportIssue", "passportExpiry",
+  "organization", "organizationAddress", "tin", "telex", "invitation", "invitationIssuer", "invitationDurationDays", "passportNo", "passportIssue", "passportExpiry",
   "hasPermanentAddress", "personalAddress", "phone", "personalFax", "email", "routeCity", "worksOrStudies",
   "workStudyPlace", "position", "workAddress", "workPhone", "workFax", "workEmail", "passwordOverride", "applicationId",
   "preferredEmbassy", "hadFormerRussianCitizenship", "formerCitizenshipLostDate", "formerCitizenshipLossReason",
