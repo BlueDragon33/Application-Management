@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.34
+// @version      0.9.35
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,7 +17,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.34";
+  const VERSION = "0.9.35";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
@@ -1195,16 +1195,21 @@
     const personalFax = String(A.personalFax ?? "").trim();
     const workFax = A.worksOrStudies === false ? "" : String(A.workFax ?? "").trim();
 
-    // Text inputs on the contact page do not need a synthetic mouse click or
-    // scrolling for every field. Those operations cause flicker and can race
-    // ASP.NET's client validators, particularly on the E-mail field.
+    // KD-MID uses ASP.NET Web Forms RequiredFieldValidators. Merely setting
+    // input.value + firing "change" leaves those validators showing "empty".
+    // Commit each value using an actual focus/change/blur lifecycle (without
+    // fake mouse clicks or repeated scrollIntoView calls).
     const writeContactText = (control, text) => {
       if (!control) return "missing";
       if (String(control.value ?? "") === text) return "ready";
       if (control.disabled || control.readOnly) return "waiting";
+      if (control.isConnected === false) return "waiting";
+      try { control.focus({ preventScroll: true }); } catch { control.focus?.(); }
       setNativeControlValue(control, text);
       control.dispatchEvent(new Event("input", { bubbles: true }));
+      control.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: "Unidentified" }));
       control.dispatchEvent(new Event("change", { bubbles: true }));
+      try { control.blur(); } catch {}
       return control.isConnected === false || String(control.value ?? "") !== text
         ? "waiting" : "changed";
     };
@@ -1243,22 +1248,32 @@
       }],
     ];
 
-    // Blank Fax fields are intentionally skipped; supplied Fax values are still filled.
+    // Batch stable text fields in a single pass instead of rerunning the page
+    // after each input. A SELECT change can trigger a postback, so settle first.
+    // Blank Fax fields are intentionally skipped; supplied Fax values are filled.
+    const selectStepNames = new Set(["Có địa chỉ thường trú", "Đang làm việc/học tập", "Trẻ em dưới 16 tuổi", "Người thân tại Nga"]);
+    let textWasChanged = false;
     for (const [label, fn] of steps) {
       const state = fn();
       if (state === "changed") {
-        status(`KD-MID Visa VN: đã điền ${label}. Đang tiếp tục trang liên hệ…`, "wait");
-        continueAutofill(payload, 140);
-        return { handled: true, ready: false };
+        if (selectStepNames.has(label)) {
+          status(`KD-MID Visa VN: vừa chọn ${label}; chờ KD-MID cập nhật trang…`, "wait");
+          continueAutofill(payload, 320);
+          return { handled: true, ready: false };
+        }
+        textWasChanged = true;
+        continue;
       }
       if (state !== "ready") {
-        const detail = label === "E-mail cá nhân"
-          ? ` (payload email: ${String(A.email || "") || "trống"})`
-          : "";
-        status(`KD-MID Visa VN: đang chờ đúng trường ${label}${detail}; chưa được phép bấm Далее.`, "wait");
-        continueAutofill(payload, 220);
+        status(`KD-MID Visa VN: trường ${label} chưa nhận giá trị; chưa được phép bấm Далее.`, "wait");
+        continueAutofill(payload, 350);
         return { handled: true, ready: false };
       }
+    }
+    if (textWasChanged) {
+      status("KD-MID Visa VN: đã nhập các ô liên hệ; đang đồng bộ xác thực của KD-MID…", "wait");
+      continueAutofill(payload, 350);
+      return { handled: true, ready: false };
     }
 
     const finalC = contactInfoControls();
@@ -1314,8 +1329,23 @@
       return { handled: true, ready: false };
     }
 
+    // Validate only after text values are committed and stable. RequiredField-
+    // Validators must be refreshed before declaring the contact page complete.
     refreshAspNetValidators();
-    status("KD-MID Visa VN: trang liên hệ/cơ quan đã điền đúng; Fax trống được tự động bỏ qua.");
+    const requiredControls = [
+      finalC.permanentAddress, finalC.personalPhone, finalC.personalEmail,
+      finalC.employer, finalC.position, finalC.workAddress, finalC.workPhone,
+      finalC.workEmail,
+    ].filter(Boolean);
+    const requiredIds = new Set(requiredControls.map((control) => control.id).filter(Boolean));
+    const invalidRequired = [...(window.Page_Validators || [])].filter((validator) =>
+      requiredIds.has(validator.controltovalidate) && validator.isvalid === false
+    );
+    if (invalidRequired.length) {
+      status("KD-MID Visa VN: KD-MID vẫn báo ô bắt buộc chưa hợp lệ. Hãy kiểm tra cảnh báo đỏ; Companion sẽ không bấm Далее.", "wait");
+      return { handled: true, ready: false };
+    }
+    status("KD-MID Visa VN: dữ liệu liên hệ đã khớp và được kiểm tra; Fax trống được bỏ qua.");
     return { handled: true, ready: true };
   }
 
