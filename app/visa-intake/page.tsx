@@ -566,7 +566,7 @@ export default function VisaIntakePage() {
       {error ? <div className={styles.error}><strong>{error}</strong>{missing.length ? <ul>{missing.map((item) => <li key={item}>{item}</li>)}</ul> : null}</div> : null}
 
       <section className={styles.section}>
-        <header><b>01</b><div><h2>Thông tin visa & thư mời</h2><p>{formType === "student" ? "Dữ liệu nhập học dùng chung đã được điền sẵn; kiểm tra Mã Telex trước khi gửi." : "Mẫu người thường chỉ điền sẵn dữ liệu an toàn. Mục đích, loại visa, lịch trình và thông tin thư mời phải nhập theo hồ sơ thực tế."}</p></div></header>
+        <header><b>01</b><div><h2>Thông tin visa & thư mời</h2><p>{formType === "student" ? "Dữ liệu học tập chung đã điền sẵn; Telex chỉ điền khi cá nhân thực sự có mã." : "Mẫu người thường chỉ điền sẵn dữ liệu an toàn. Mục đích, loại visa, lịch trình và thông tin thư mời phải nhập theo hồ sơ thực tế."}</p></div></header>
         <div className={styles.grid}>
           <Field fieldKey="citizenship" correctionFields={correctionFields} label="Quốc tịch" ru="Гражданство"><SelectRussian required value={applicant.citizenship} options={citizenshipOptions} onChange={(value) => set("citizenship", value)} /></Field>
           <Field fieldKey="purposeSection" correctionFields={correctionFields} label="Nhóm mục đích" ru="Цель поездки (раздел)"><SelectRussian required value={applicant.purposeSection} options={purposeSectionOptions} onChange={(value) => set("purposeSection", value)} /></Field>
