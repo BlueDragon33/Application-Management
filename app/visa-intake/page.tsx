@@ -25,6 +25,8 @@ type ApplicantForm = {
   tin: string;
   telex: string;
   invitation: string;
+  invitationIssuer: string;
+  invitationIssuerCode: string;
   passportNo: string;
   passportIssue: string;
   passportExpiry: string;
@@ -87,6 +89,8 @@ function blank(): ApplicantForm {
     tin: "",
     telex: "",
     invitation: "",
+    invitationIssuer: "",
+    invitationIssuerCode: "",
     passportNo: "",
     passportIssue: "",
     passportExpiry: "",
@@ -315,7 +319,7 @@ export default function VisaIntakePage() {
   const [applicant, setApplicant] = useState<ApplicantForm>(blank());
   const [permanentAddress, setPermanentAddress] = useState("");
   const [linkLabel, setLinkLabel] = useState("");
-  const [formType, setFormType] = useState<"student" | "general">("student");
+  const [formType, setFormType] = useState<"student" | "general" | "electronic">("student");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [statusChecking, setStatusChecking] = useState(false);
@@ -353,7 +357,8 @@ export default function VisaIntakePage() {
           throw new Error(data.error || "Link không hợp lệ.");
         }
         const rawDefaults = data.defaults ?? {};
-        const resolvedFormType = data.link?.formType === "general" || rawDefaults.formType === "general" ? "general" : "student";
+        const resolvedFormType = data.link?.formType === "general" || rawDefaults.formType === "general" ? "general"
+          : data.link?.formType === "electronic" || rawDefaults.formType === "electronic" ? "electronic" : "student";
         const defaults: Record<string, unknown> = { ...rawDefaults };
         if (resolvedFormType === "student") {
           for (const [key, value] of Object.entries(STUDENT_FORM_DEFAULTS)) {
@@ -387,6 +392,8 @@ export default function VisaIntakePage() {
           tin: current.tin || String(defaults.tin ?? ""),
           telex: current.telex || String(defaults.telex ?? ""),
           invitation: current.invitation || String(defaults.invitation ?? ""),
+          invitationIssuer: current.invitationIssuer || upperPlain(String(defaults.invitationIssuer ?? "")),
+          invitationIssuerCode: current.invitationIssuerCode || String(defaults.invitationIssuerCode ?? ""),
           passwordOverride: current.passwordOverride || String(defaults.password ?? ""),
           personalAddress: current.personalAddress || upperPlain(String(defaults.permanentAddress ?? "")),
           routeCity: current.routeCity || upperPlain(String(defaults.routeCity ?? "")),
@@ -462,6 +469,7 @@ export default function VisaIntakePage() {
       applicant.passportNo, applicant.passportIssue, applicant.passportExpiry, applicant.phone, applicant.email, applicant.preferredEmbassy,
     ];
     if (formType === "student") fields.push(applicant.organization, applicant.organizationAddress, applicant.tin, applicant.telex);
+    if (formType === "electronic") fields.push(applicant.invitation, applicant.invitationIssuer, applicant.organization);
     return fields;
   }, [applicant, formType]);
 
@@ -535,7 +543,7 @@ export default function VisaIntakePage() {
   }
   return <main className={styles.page}>
     <header className={styles.hero}>
-      <div><span>{formType === "student" ? "LINK 1 · MẪU NHẬP HỌC" : "LINK 2 · MẪU VISA NGƯỜI THƯỜNG"}</span><h1>{formType === "student" ? "Điền hồ sơ nhập học để chuẩn bị KD-MID" : "Điền hồ sơ visa cá nhân để chuẩn bị KD-MID"}</h1><p>{formType === "student" ? "Các dữ liệu học tập dùng chung đã được nạp sẵn. Hãy kiểm tra Mã Telex và thông tin cá nhân trước khi gửi." : "Mẫu tổng quát không tự áp các giá trị visa học tập. Hãy nhập đúng thông tin theo mục đích chuyến đi của bạn."}</p></div>
+      <div><span>{formType === "student" ? "LINK 1 · MẪU NHẬP HỌC" : formType === "electronic" ? "LINK 3 · THƯ MỜI ĐIỆN TỬ" : "LINK 2 · MẪU VISA NGƯỜI THƯỜNG"}</span><h1>{formType === "student" ? "Điền hồ sơ nhập học để chuẩn bị KD-MID" : formType === "electronic" ? "Hồ sơ có thư mời nhập cảnh điện tử МВД Nga" : "Điền hồ sơ visa cá nhân để chuẩn bị KD-MID"}</h1><p>{formType === "student" ? "Các dữ liệu học tập dùng chung đã được nạp sẵn. Hãy kiểm tra Mã Telex và thông tin cá nhân trước khi gửi." : formType === "electronic" ? "Dựa vào thư mời điện tử МВД России để điền số thư mời, cơ quan phát hành, thời hạn, bên mời và dữ liệu hộ chiếu. Không dùng Telex làm số thư mời." : "Mẫu tổng quát không tự áp các giá trị visa học tập. Hãy nhập đúng thông tin theo mục đích chuyến đi của bạn."}</p></div>
       <div className={styles.progress}><small>Mức hoàn thành cơ bản</small><strong>{completion}%</strong><div><i style={{ width: `${completion}%` }} /></div></div>
     </header>
 
@@ -543,7 +551,7 @@ export default function VisaIntakePage() {
       {receipt?.status === "rejected" ? <div className={styles.returnAlert}><strong>⚠ HỒ SƠ BỊ TRẢ VỀ · CẦN SỬA</strong><p>{receipt.reviewNote || "Hãy sửa các ô được đánh dấu đỏ rồi gửi lại."}</p><small>Giữ nguyên số tiếp nhận #{receipt.queueNo ?? "—"} · {correctionFields.length} ô cần sửa.</small><button className={styles.statusRefresh} type="button" disabled={statusChecking} onClick={() => void refreshSubmissionStatus(true)}>{statusChecking ? "↻ Đang cập nhật…" : "↻ Cập nhật trạng thái"}</button></div> : null}
       <datalist id="visa-day-options">{dayOptions.map((value) => <option key={value} value={value} />)}</datalist>
       <datalist id="visa-month-options">{monthOptions.map((value) => <option key={value} value={value} />)}</datalist>
-      {linkLabel ? <div className={styles.batch}>Đợt thu hồ sơ: <strong>{linkLabel}</strong> · <b>{formType === "student" ? "MẪU NHẬP HỌC" : "NGƯỜI THƯỜNG"}</b></div> : null}
+      {linkLabel ? <div className={styles.batch}>Đợt thu hồ sơ: <strong>{linkLabel}</strong> · <b>{formType === "student" ? "MẪU NHẬP HỌC" : formType === "electronic" ? "THƯ MỜI ĐIỆN TỬ" : "NGƯỜI THƯỜNG"}</b></div> : null}
       <details className={styles.guide} open>
         <summary>Hướng dẫn điền hồ sơ</summary>
         <div className={styles.guideGrid}>
@@ -552,14 +560,14 @@ export default function VisaIntakePage() {
           <article><strong>Các mục Có / Không</strong><p>Chỉ chọn Có khi đúng thực tế. Khi chọn Có, các ô chi tiết liên quan sẽ xuất hiện và cần điền đầy đủ.</p></article>
           <article><strong>Khi hồ sơ bị trả về</strong><p>Ô sai sẽ màu đỏ. Sửa xong gửi lại, ô đó chuyển xanh để admin xác minh lại. Không cần tạo hồ sơ mới.</p></article>
           <article><strong>Đóng tab và mở lại</strong><p>Thiết bị này có mã riêng. Sau khi đã gửi, mở lại đúng link trên cùng trình duyệt sẽ tự khôi phục hồ sơ/trạng thái cho đến khi admin đóng link.</p></article>
-          <article><strong>{formType === "student" ? "Mẫu nhập học" : "Mẫu người thường"}</strong><p>{formType === "student" ? "Các trường chung đã được điền sẵn theo đợt. Nếu giấy tờ của bạn khác, sửa trực tiếp trước khi gửi. Mã Telex là trường bắt buộc." : "Không dùng mặc định học tập. Hãy điền mục đích, loại visa, lịch trình và thông tin thư mời đúng trường hợp thực tế; Telex có thể để trống nếu không dùng."}</p></article>
+          <article><strong>{formType === "student" ? "Mẫu nhập học" : formType === "electronic" ? "Mẫu thư mời điện tử МВД" : "Mẫu người thường"}</strong><p>{formType === "student" ? "Các trường chung đã được điền sẵn theo đợt. Nếu giấy tờ của bạn khác, sửa trực tiếp trước khi gửi. Mã Telex là trường bắt buộc." : formType === "electronic" ? "Nhập số thư mời điện tử (Номер приглашения), tên/mã cơ quan phát hành, bên mời. Ngày vào/ra, loại visa, số lần nhập cảnh phải khớp thư mời. Không cần Telex nếu giấy mời không có." : "Không dùng mặc định học tập. Hãy điền mục đích, loại visa, lịch trình và thông tin thư mời đúng trường hợp thực tế; Telex có thể để trống nếu không dùng."}</p></article>
         </div>
       </details>
       {formType === "student" ? <div className={styles.prefillNotice}><strong>Thông tin chung Link 1 đã nạp sẵn</strong><p>Quốc tịch · nhóm/mục đích học tập · loại visa · số lần nhập cảnh · ngày vào/ra · loại nơi đến · tổ chức tiếp nhận · địa chỉ tổ chức · INN · Mã Telex · số giấy mời nếu có · Moscow · địa chỉ thường trú · nơi học · STUDENT · địa chỉ/điện thoại/email đơn vị · nơi nộp · mật khẩu KD-MID. <b>Nếu thông tin nào không đúng với bạn, sửa trực tiếp trong ô tương ứng.</b></p></div> : null}
       {error ? <div className={styles.error}><strong>{error}</strong>{missing.length ? <ul>{missing.map((item) => <li key={item}>{item}</li>)}</ul> : null}</div> : null}
 
       <section className={styles.section}>
-        <header><b>01</b><div><h2>Thông tin visa & thư mời</h2><p>{formType === "student" ? "Dữ liệu nhập học dùng chung đã được điền sẵn; kiểm tra Mã Telex trước khi gửi." : "Mẫu người thường chỉ điền sẵn dữ liệu an toàn. Mục đích, loại visa, lịch trình và thông tin thư mời phải nhập theo hồ sơ thực tế."}</p></div></header>
+        <header><b>01</b><div><h2>Thông tin visa & thư mời</h2><p>{formType === "student" ? "Dữ liệu nhập học dùng chung đã được điền sẵn; kiểm tra Mã Telex trước khi gửi." : formType === "electronic" ? "Đối chiếu trực tiếp với thư mời điện tử МВД Nga; mỗi người có số thư mời và thời hạn riêng, không dùng số mẫu trong ảnh minh họa." : "Mẫu người thường chỉ điền sẵn dữ liệu an toàn. Mục đích, loại visa, lịch trình và thông tin thư mời phải nhập theo hồ sơ thực tế."}</p></div></header>
         <div className={styles.grid}>
           <Field fieldKey="citizenship" correctionFields={correctionFields} label="Quốc tịch" ru="Гражданство"><SelectRussian required value={applicant.citizenship} options={citizenshipOptions} onChange={(value) => set("citizenship", value)} /></Field>
           <Field fieldKey="purposeSection" correctionFields={correctionFields} label="Nhóm mục đích" ru="Цель поездки (раздел)"><SelectRussian required value={applicant.purposeSection} options={purposeSectionOptions} onChange={(value) => set("purposeSection", value)} /></Field>
@@ -569,11 +577,15 @@ export default function VisaIntakePage() {
           <Field fieldKey="entryDate" correctionFields={correctionFields} label="Ngày vào Nga" ru="Дата въезда в Россию"><DateFields required value={applicant.entryDate} onChange={(value) => set("entryDate", value)} /></Field>
           <Field fieldKey="exitDate" correctionFields={correctionFields} label="Ngày ra Nga" ru="Дата выезда из России"><DateFields required value={applicant.exitDate} onChange={(value) => set("exitDate", value)} /></Field>
           <Field fieldKey="destinationType" correctionFields={correctionFields} label="Loại nơi đến" ru="В какое учреждение направляетесь?"><SelectRussian required value={applicant.destinationType} options={destinationTypeOptions} onChange={(value) => set("destinationType", value)} /></Field>
-          <Field fieldKey="organization" correctionFields={correctionFields} label="Tên tổ chức tiếp nhận" ru="Наименование организации"><input required={formType === "student"} value={applicant.organization} onChange={(e) => set("organization", upperPlain(e.target.value))} /></Field>
+          <Field fieldKey="organization" correctionFields={correctionFields} label={formType === "electronic" ? "Bên mời / trường tại Nga" : "Tên tổ chức tiếp nhận"} ru="Наименование организации"><input required={formType !== "general"} value={applicant.organization} onChange={(e) => set("organization", upperPlain(e.target.value))} /></Field>
           <Field fieldKey="organizationAddress" correctionFields={correctionFields} label="Địa chỉ tổ chức" ru="Адрес"><input required={formType === "student"} value={applicant.organizationAddress} onChange={(e) => set("organizationAddress", upperPlain(e.target.value))} /></Field>
           <Field fieldKey="tin" correctionFields={correctionFields} label="INN tổ chức" ru="ИНН организации"><input required={formType === "student"} value={applicant.tin} onChange={(e) => set("tin", e.target.value.replace(/\D/g, ""))} /></Field>
-          <Field fieldKey="telex" correctionFields={correctionFields} label={formType === "student" ? "Mã Telex" : "Mã Telex / Số chỉ thị"} ru="Номер указания (телекса)" hint={formType === "student" ? "Bắt buộc đối với mẫu nhập học." : "Nếu hồ sơ không dùng Telex thì có thể để trống."}><input required={formType === "student"} value={applicant.telex} onChange={(e) => set("telex", e.target.value)} /></Field>
-          <Field fieldKey="invitation" correctionFields={correctionFields} label="Số giấy mời" ru="Номер приглашения" hint="Không có thì để trống."><input value={applicant.invitation} onChange={(e) => set("invitation", e.target.value)} /></Field>
+          <Field fieldKey="telex" correctionFields={correctionFields} label={formType === "student" ? "Mã Telex" : "Mã Telex / Số chỉ thị"} ru="Номер указания (телекса)" hint={formType === "student" ? "Bắt buộc đối với Link 1 nhập học." : "Không có Telex thì để trống; không sao chép số giấy mời sang Telex."}><input required={formType === "student"} value={applicant.telex} onChange={(e) => set("telex", e.target.value)} /></Field>
+          <Field fieldKey="invitation" correctionFields={correctionFields} personalRequired={formType === "electronic"} label={formType === "electronic" ? "Số thư mời nhập cảnh điện tử" : "Số giấy mời"} ru="Номер приглашения" hint={formType === "electronic" ? "Bắt buộc. Ghi đúng toàn bộ ký tự trên thư mời МВД." : "Không có thì để trống."}><input required={formType === "electronic"} value={applicant.invitation} onChange={(e) => set("invitation", upperPlain(e.target.value))} /></Field>
+          {formType === "electronic" ? <>
+            <Field fieldKey="invitationIssuer" correctionFields={correctionFields} personalRequired label="Cơ quan cấp thư mời" ru="Орган, оформивший приглашение" hint="Ghi theo dòng Invitation issuing authority."><input required value={applicant.invitationIssuer} onChange={(e) => set("invitationIssuer", upperPlain(e.target.value))} /></Field>
+            <Field fieldKey="invitationIssuerCode" correctionFields={correctionFields} label="Mã cơ quan cấp" ru="Код органа" hint="Ví dụ định dạng 000-000. Nếu không thể hiện trên giấy, để trống."><input value={applicant.invitationIssuerCode} onChange={(e) => set("invitationIssuerCode", e.target.value)} /></Field>
+          </> : null}
         </div>
       </section>
 

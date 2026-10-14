@@ -589,3 +589,42 @@ test("submit payload source uses the same normalized snapshot that autosave pers
   assert.match(publicWorkerPage, /const applicant = snapshotCurrentApplicant\(\);\n    saveLocal\(applicant\);/);
   assert.match(publicWorkerPage, /body:JSON\.stringify\(\{token,batch:batchId,deviceId,applicant,/);
 });
+
+test("Link 3 accepts electronic МВД invitations without inheriting Link 1 Telex", () => {
+  assert.match(tool, /formType: "student" \| "general" \| "electronic"/);
+  assert.match(tool, /Link 3 · Thư mời điện tử/);
+  assert.match(tool, /intakeFormType === "electronic"/);
+  assert.match(adminApi, /requestedType === "electronic"/);
+  assert.match(adminApi, /invitationIssuer: text\(defaults\.invitationIssuer, 300\)/);
+  assert.match(adminApi, /invitationIssuerCode: text\(defaults\.invitationIssuerCode, 40\)/);
+  assert.match(publicApi, /raw\.formType === "electronic"/);
+  assert.match(publicApi, /formType !== "student"/);
+  assert.match(publicWorkerPage, /formType !== "student"/);
+  assert.match(tool, /telex: student \? store\.common\.telex : ""/);
+  assert.match(tool, /telex: value\("telex"\) \|\| \(electronic \? "" : store\.common\.telex\)/);
+});
+
+test("electronic invitation number and issuing authority are required on the server, not Telex", () => {
+  assert.match(publicApi, /const electronic = formType === "electronic"/);
+  assert.match(publicApi, /\["invitation", "Số thư mời điện tử"\]/);
+  assert.match(publicApi, /\["invitationIssuer", "Cơ quan cấp thư mời"\]/);
+  assert.match(publicApi, /\["organization", "Tổ chức mời tại Nga"\]/);
+  assert.match(publicApi, /invitationIssuer: upperPlain\(withDefault\("invitationIssuer", defaults\.invitationIssuer\), 300\)/);
+  assert.match(publicApi, /invitationIssuerCode: text\(withDefault\("invitationIssuerCode", defaults\.invitationIssuerCode\), 40\)/);
+  assert.match(publicPage, /required=\{formType === "electronic"\} value=\{applicant\.invitation\}/);
+  assert.match(publicPage, /required value=\{applicant\.invitationIssuer\}/);
+  assert.match(publicWorkerPage, /\["invitation","invitationIssuer"\]\.forEach/);
+  assert.match(publicWorkerPage, /el\.required=student \|\| \(electronic && name==="organization"\)/);
+});
+
+test("electronic invitation fields survive review, corrections, draft recovery and production submission", () => {
+  assert.match(adminApi, /"invitationIssuer", "invitationIssuerCode"/);
+  assert.match(tool, /\["invitationIssuer","Cơ quan cấp thư mời điện tử"\]/);
+  assert.match(tool, /invitationIssuer: value\("invitationIssuer"\)/);
+  assert.match(publicPage, /invitationIssuer: current\.invitationIssuer/);
+  assert.match(publicPage, /invitationIssuerCode: current\.invitationIssuerCode/);
+  assert.match(publicWorkerPage, /invitationIssuer:upperPlain\(value\("invitationIssuer"\)\)/);
+  assert.match(publicWorkerPage, /name="invitationIssuer"/);
+  assert.match(publicWorkerPage, /name="invitationIssuerCode"/);
+  assert.doesNotMatch(tool.slice(tool.indexOf("async function createIntakeLink()"),tool.indexOf("function applicantFromIntake")), /7726002Y8858463|19\/10\/2026|16\/01\/2027/);
+});
