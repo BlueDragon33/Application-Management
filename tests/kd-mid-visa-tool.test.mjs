@@ -16,10 +16,10 @@ test("KD-MID Visa is registered as an internal Tool", () => {
   assert.match(page, /requireChatGPTUser\("\/tools\/kd-mid-visa"\)/);
 });
 
-test("Companion v0.9.34 is active in script and UI", () => {
-  assert.match(companion, /@version\s+0\.9\.34/);
-  assert.match(companion, /const VERSION = "0\.9\.34"/);
-  assert.match(tool, /Companion v0\.9\.34/);
+test("Companion v0.9.35 is active in script and UI", () => {
+  assert.match(companion, /@version\s+0\.9\.35/);
+  assert.match(companion, /const VERSION = "0\.9\.35"/);
+  assert.match(tool, /Companion v0\.9\.35/);
 });
 
 test("landing, password and official A4 flows remain intact", () => {
@@ -160,7 +160,7 @@ test("navigation clicks are latched so the same page is not clicked repeatedly w
 });
 
 
-test("v0.9.34 emulates real focus/edit/blur lifecycle so fields fill without user clicks", () => {
+test("v0.9.35 emulates real focus/edit/blur lifecycle so fields fill without user clicks", () => {
   assert.match(companion, /el\.focus\(\{ preventScroll: true \}\)/);
   assert.match(companion, /new FocusEvent\("focusin"/);
   assert.match(companion, /new FocusEvent\("focusout"/);
@@ -179,7 +179,7 @@ test("status-box DOM mutations do not recursively retrigger the runner", () => {
 });
 
 
-test("v0.9.34 handles the visit information page with exact field semantics", () => {
+test("v0.9.35 handles the visit information page with exact field semantics", () => {
   assert.match(companion, /function isVisitInfoPage/);
   assert.match(companion, /function fillVisitInfoPage/);
   assert.match(companion, /В КАКОЕ УЧРЕЖДЕНИЕ НАПРАВЛЯЕТЕСЬ/);
@@ -214,7 +214,7 @@ test("visit page cannot auto-advance until its dedicated handler is ready", () =
 });
 
 
-test("v0.9.34 resolves personal and passport fields from exact labels", () => {
+test("v0.9.35 resolves personal and passport fields from exact labels", () => {
   assert.match(companion, /function personalPageControls/);
   assert.match(companion, /textControlForField\("Фамилия \(согласно паспорту\)"\)/);
   assert.match(companion, /textControlForField\("Имя, другие имена, отчество \(согласно паспорту\)"\)/);
@@ -224,14 +224,14 @@ test("v0.9.34 resolves personal and passport fields from exact labels", () => {
   assert.match(companion, /dateControlsForField\("Действителен до"\)/);
 });
 
-test("v0.9.34 keeps personal text controls distinct before declaring the page ready", () => {
+test("v0.9.35 keeps personal text controls distinct before declaring the page ready", () => {
   assert.match(companion, /const distinctPersonalTextControls/);
   assert.match(companion, /finalC\.surname !== finalC\.givenNames/);
   assert.match(companion, /finalC\.givenNames !== finalC\.birthPlace/);
   assert.match(companion, /selector trùng ô giữa Фамилия \/ Имя \/ Место рождения/);
 });
 
-test("v0.9.34 writes dates month-first and day-year atomically", () => {
+test("v0.9.35 writes dates month-first and day-year atomically", () => {
   assert.match(companion, /function writeDateControls/);
   assert.match(companion, /Step 1: month only/);
   assert.match(companion, /Step 2: once the month is stable, write DAY \+ YEAR atomically/);
@@ -240,7 +240,7 @@ test("v0.9.34 writes dates month-first and day-year atomically", () => {
   assert.match(companion, /function parseDmyStrict/);
 });
 
-test("v0.9.34 targets the visible route field between the label and Delete button", () => {
+test("v0.9.35 targets the visible route field between the label and Delete button", () => {
   assert.match(companion, /function routeCityControl/);
   assert.match(companion, /function routeCityLabels/);
   assert.match(companion, /function routeDeleteButtons/);
@@ -248,7 +248,7 @@ test("v0.9.34 targets the visible route field between the label and Delete butto
   assert.match(companion, /exact "Населенный пункт" label -> text input -> "Удалить" button/);
 });
 
-test("v0.9.34 types МОСКВА through the browser editing pipeline and keeps focus for autocomplete", () => {
+test("v0.9.35 types МОСКВА through the browser editing pipeline and keeps focus for autocomplete", () => {
   assert.match(companion, /function typeRouteCityValue/);
   assert.match(companion, /execCommand\?\.\("insertText", false, text\)/);
   assert.match(companion, /setRangeText/);
@@ -256,7 +256,7 @@ test("v0.9.34 types МОСКВА through the browser editing pipeline and keeps 
   assert.match(companion, /second autocomplete list after typing МОСКВА/);
 });
 
-test("v0.9.34 selects an exact МОСКВА autocomplete item and waits for KD-MID acceptance", () => {
+test("v0.9.35 selects an exact МОСКВА autocomplete item and waits for KD-MID acceptance", () => {
   assert.match(companion, /function routeSuggestionNode/);
   assert.match(companion, /function chooseRouteSuggestion/);
   assert.match(companion, /ROUTE_SELECTED_AT_KEY/);
@@ -265,7 +265,7 @@ test("v0.9.34 selects an exact МОСКВА autocomplete item and waits for KD-M
   assert.match(companion, /không còn lỗi đỏ/);
 });
 
-test("v0.9.34 stores optional contact/work fields per applicant", () => {
+test("v0.9.35 stores optional contact/work fields per applicant", () => {
   assert.match(tool, /workStudyPlace: string/);
   assert.match(tool, /workAddress: string/);
   assert.match(tool, /workEmail: string/);
@@ -273,7 +273,7 @@ test("v0.9.34 stores optional contact/work fields per applicant", () => {
   assert.match(tool, /relativesInRussia: boolean/);
 });
 
-test("v0.9.34 applicant editor exposes optional contact/work inputs", () => {
+test("v0.9.35 applicant editor exposes optional contact/work inputs", () => {
   assert.match(tool, /Место работы \(учебы\) · Nơi làm việc \/ học tập/);
   assert.match(tool, /Рабочий адрес · Địa chỉ cơ quan/);
   assert.match(tool, /Рабочий телефон · Điện thoại cơ quan/);
@@ -281,7 +281,7 @@ test("v0.9.34 applicant editor exposes optional contact/work inputs", () => {
   assert.match(tool, /Không có thì để trống/);
 });
 
-test("v0.9.34 final two profile flags default to no when unchecked", () => {
+test("v0.9.35 final two profile flags default to no when unchecked", () => {
   assert.match(tool, /childrenUnder16: false/);
   assert.match(tool, /relativesInRussia: false/);
   assert.match(tool, /Có trẻ em dưới 16 tuổi đi cùng/);
@@ -290,14 +290,14 @@ test("v0.9.34 final two profile flags default to no when unchecked", () => {
   assert.match(companion, /A\.relativesInRussia \? \["ДА","YES"\] : \["НЕТ","NO"\]/);
 });
 
-test("v0.9.34 deliberately skips both fax fields", () => {
+test("v0.9.35 deliberately skips both fax fields", () => {
   const contact = companion.slice(companion.indexOf("function fillContactInfoPage"), companion.indexOf("function setText"));
   assert.match(contact, /Blank Fax fields are intentionally skipped/);
   assert.doesNotMatch(contact, /Ваш личный факс/);
   assert.doesNotMatch(contact, /Рабочий факс/);
 });
 
-test("v0.9.34 contact handler uses applicant-specific work fields and leaves blank values blank", () => {
+test("v0.9.35 contact handler uses applicant-specific work fields and leaves blank values blank", () => {
   assert.match(companion, /optionalText/);
   assert.match(companion, /A\.workStudyPlace/);
   assert.match(companion, /A\.workAddress/);
@@ -307,21 +307,21 @@ test("v0.9.34 contact handler uses applicant-specific work fields and leaves bla
   assert.match(companion, /if \(!String\(control\.value \|\| ""\)\) return "ready"/);
 });
 
-test("v0.9.34 phone and email are no longer launch-required", () => {
+test("v0.9.35 phone and email are no longer launch-required", () => {
   const missing = tool.slice(tool.indexOf("function applicantMissingFields"), tool.indexOf("function emitChange"));
   assert.doesNotMatch(missing, /Điện thoại cá nhân/);
   assert.doesNotMatch(missing, /Email cá nhân/);
 });
 
 
-test("v0.9.34 maps KD-MID contact inputs by stable page order including fax slots", () => {
+test("v0.9.35 maps KD-MID contact inputs by stable page order including fax slots", () => {
   assert.match(companion, /textInputs\.length >= addressStart \+ 10 && selects\.length >= 4/);
   assert.match(companion, /personalEmail: byLabel\(\["Ваш личный E-mail", "Ваш личный Email"\], 3\)/);
   assert.match(companion, /employer: byLabel\("Место работы \(учебы\)", 4\)/);
   assert.match(companion, /workEmail: byLabel\(\["Рабочий E-mail", "Рабочий Email"\], 9\)/);
 });
 
-test("v0.9.34 resolves Email by the Russian label despite auxiliary inputs before the contact form", () => {
+test("v0.9.35 resolves Email by the Russian label despite auxiliary inputs before the contact form", () => {
   const fields = [
     ["Адрес вашего постоянного проживания", "address"],
     ["Ваш личный телефон", "phone"],
@@ -369,7 +369,7 @@ test("v0.9.34 resolves Email by the Russian label despite auxiliary inputs befor
   assert.notEqual(C.personalEmail.id, "auxiliary-input");
 });
 
-test("v0.9.34 bypasses empty Fax without blocking the contact page", () => {
+test("v0.9.35 bypasses empty Fax without blocking the contact page", () => {
   const contact = companion.slice(companion.indexOf("function fillContactInfoPage"), companion.indexOf("function setText"));
   assert.ok(contact.includes('personalFax ? optionalText(C.personalFax, personalFax) : "ready"'));
   assert.ok(contact.includes('workFax ? optionalText(C.workFax, workFax) : "ready"'));
@@ -399,6 +399,8 @@ test("v0.9.34 bypasses empty Fax without blocking the contact page", () => {
     writeTextControl: (control, value) => control.value === value ? "ready" : "waiting",
     continueAutofill: () => { retries += 1; },
     refreshAspNetValidators: () => {},
+    window: { Page_Validators: [] },
+    KeyboardEvent: class KeyboardEvent { constructor(type) { this.type = type; } },
     status: () => {},
   };
   const fill = vm.runInNewContext(contact + "\nfillContactInfoPage", sandbox);
@@ -415,15 +417,32 @@ test("v0.9.34 bypasses empty Fax without blocking the contact page", () => {
   assert.equal(retries, 0);
 
   // Reproduce the screenshot: the personal E-mail is blank although the payload has it.
-  const emailControl = { value: "", dispatchEvent() { return true; }, isConnected: true };
+  const emailControl = { id: "email-personal", value: "", isConnected: true,
+    dispatchEvent() { return true; },
+    focus() { this.focused = true; }, blur() { this.blurred = true; },
+  };
   C.personalEmail = emailControl;
   sandbox.setNativeControlValue = (control, value) => { control.value = value; };
   sandbox.Event = class Event { constructor(type) { this.type = type; } };
   const firstEmailPass = fill({ applicant });
   assert.equal(firstEmailPass.ready, false);
   assert.equal(emailControl.value, applicant.email);
+  const validator = { controltovalidate: "email-personal", isvalid: false };
+  sandbox.window.Page_Validators = [validator];
+  sandbox.refreshAspNetValidators = () => {
+    validator.isvalid = emailControl.value === applicant.email && Boolean(emailControl.blurred);
+  };
   const secondEmailPass = fill({ applicant });
   assert.equal(secondEmailPass.ready, true);
+  assert.equal(emailControl.blurred, true);
+  assert.equal(validator.isvalid, true);
+
+  // No false success when KD-MID still rejects a required value.
+  validator.isvalid = false;
+  sandbox.refreshAspNetValidators = () => {};
+  const rejectedBySite = fill({ applicant });
+  assert.equal(rejectedBySite.ready, false);
+  sandbox.window.Page_Validators = [];
 
   // Fax supplied in a profile is not silently dropped if its form control is unavailable.
   C.personalFax = null;
@@ -432,13 +451,13 @@ test("v0.9.34 bypasses empty Fax without blocking the contact page", () => {
   assert.ok(retries > 0);
 });
 
-test("v0.9.34 personal email comes from applicant payload and no longer depends only on label lookup", () => {
+test("v0.9.35 personal email comes from applicant payload and no longer depends only on label lookup", () => {
   assert.match(companion, /\["E-mail cá nhân", \(\) => optionalText\(C\.personalEmail, A\.email\)\]/);
-  assert.match(companion, /payload email:/);
+  assert.doesNotMatch(companion, /payload email:/); // Do not echo personal data in status messages.
 });
 
 
-test("v0.9.34 payload falls back to saved common work defaults when applicant overrides are blank", () => {
+test("v0.9.35 payload falls back to saved common work defaults when applicant overrides are blank", () => {
   assert.match(tool, /workStudyPlace: applicant\.workStudyPlace\.trim\(\) \|\| resolvedCommon\.employer/);
   assert.match(tool, /position: applicant\.position\.trim\(\) \|\| resolvedCommon\.defaultPosition/);
   assert.match(tool, /workAddress: applicant\.workAddress\.trim\(\) \|\| resolvedCommon\.employerAddress/);
@@ -446,14 +465,14 @@ test("v0.9.34 payload falls back to saved common work defaults when applicant ov
   assert.match(tool, /workEmail: applicant\.workEmail\.trim\(\) \|\| resolvedCommon\.employerEmail/);
 });
 
-test("v0.9.34 legacy blank work fields are hydrated from current common defaults", () => {
+test("v0.9.35 legacy blank work fields are hydrated from current common defaults", () => {
   assert.match(tool, /String\(item\.workStudyPlace \?\? ""\)\.trim\(\) \|\| common\.employer/);
   assert.match(tool, /String\(item\.position \?\? ""\)\.trim\(\) \|\| common\.defaultPosition/);
   assert.match(tool, /String\(item\.workAddress \?\? ""\)\.trim\(\) \|\| common\.employerAddress/);
   assert.match(tool, /String\(item\.workEmail \?\? ""\)\.trim\(\) \|\| common\.employerEmail/);
 });
 
-test("v0.9.34 companion uses common work defaults when applicant-specific values are blank", () => {
+test("v0.9.35 companion uses common work defaults when applicant-specific values are blank", () => {
   assert.match(companion, /A\.workStudyPlace \|\| payload\.employer/);
   assert.match(companion, /A\.position \|\| payload\.defaultPosition/);
   assert.match(companion, /A\.workAddress \|\| payload\.employerAddress/);
@@ -462,30 +481,30 @@ test("v0.9.34 companion uses common work defaults when applicant-specific values
 });
 
 
-test("v0.9.34 resolves the final relatives-in-Russia dropdown explicitly", () => {
+test("v0.9.35 resolves the final relatives-in-Russia dropdown explicitly", () => {
   assert.match(companion, /function yesNoSelectForQuestion/);
   assert.match(companion, /Имеете ли Вы в настоящее время родственников на территории России\?/);
   assert.match(companion, /fallbackFromEnd = 1/);
 });
 
-test("v0.9.34 defaults the final relatives dropdown to НЕТ when the profile checkbox is off", () => {
+test("v0.9.35 defaults the final relatives dropdown to НЕТ when the profile checkbox is off", () => {
   assert.match(companion, /A\.relativesInRussia \? \["ДА","YES"\] : \["НЕТ","NO"\]/);
   assert.match(companion, /đã chọn НЕТ ở dòng cuối 'người thân tại Nga'/);
 });
 
-test("v0.9.34 uses the last yes-no dropdown as the final relatives fallback", () => {
+test("v0.9.35 uses the last yes-no dropdown as the final relatives fallback", () => {
   assert.match(companion, /return allYesNo\.at\(-fallbackFromEnd\) \|\| null/);
   assert.match(companion, /\], 1\)/);
 });
 
 
-test("v0.9.34 preserves the complete canonical permanent address including ДОМ Ш9", () => {
+test("v0.9.35 preserves the complete canonical permanent address including ДОМ Ш9", () => {
   const full = "ВЬЕТНАМ, Г. ХАНОЙ, УЛИЦА НГИА ДО, ДОРОГА ХОАНГ КУОК ВЬЕТ, ДОМ Ш9";
   assert.ok(tool.includes(full));
   assert.ok(companion.includes(full));
 });
 
-test("v0.9.34 contact autofill ignores stale truncated address payloads", () => {
+test("v0.9.35 contact autofill ignores stale truncated address payloads", () => {
   assert.match(companion, /optionalText\(C\.permanentAddress, A\.hasPermanentAddress === false \? "" : \(A\.personalAddress \|\| CANONICAL_PERMANENT_ADDRESS\)\)/);
   assert.match(companion, /permanentAddress: A\.hasPermanentAddress === false \? "" : String\(A\.personalAddress \|\| CANONICAL_PERMANENT_ADDRESS\)/);
 });
@@ -515,7 +534,7 @@ test("record open button launches the dedicated KD-MID resume mode", () => {
   assert.doesNotMatch(tool.slice(tool.indexOf("function renderRecords"), tool.indexOf("function renderConnect")), /href="https:\/\/visa\.kdmid\.ru\/"/);
 });
 
-test("Companion v0.9.34 follows the official previously-filled application recovery sequence", () => {
+test("Companion v0.9.35 follows the official previously-filled application recovery sequence", () => {
   assert.match(companion, /function isResumeMode/);
   assert.match(companion, /function fillResumeFlow/);
   assert.match(companion, /Открыть ранее заполненную анкету/i);
@@ -528,7 +547,7 @@ test("Companion v0.9.34 follows the official previously-filled application recov
 });
 
 
-test("Companion v0.9.34 detects the real restore page structurally and fills the visible application ID input", () => {
+test("Companion v0.9.35 detects the real restore page structurally and fills the visible application ID input", () => {
   assert.match(companion, /function resumeActionButton/);
   assert.match(companion, /function resumeControlNearLabel/);
   assert.match(companion, /function resumeApplicationIdControl/);
@@ -537,7 +556,7 @@ test("Companion v0.9.34 detects the real restore page structurally and fills the
   assert.match(companion, /writeTextControl\(applicationIdInput, id\)/);
 });
 
-test("Companion v0.9.34 has structural fallbacks for surname5, birth year and password on resume credentials", () => {
+test("Companion v0.9.35 has structural fallbacks for surname5, birth year and password on resume credentials", () => {
   assert.match(companion, /function resumeCredentialControls/);
   assert.match(companion, /allText\.length >= 3 \? allText\.slice\(-2\) : allText/);
   assert.match(companion, /writeTextControl\(controls\.surname, surname5\)/);
@@ -557,8 +576,8 @@ test("KD-MID applicant model carries complete visa request/contact fields and pr
 });
 
 
-test("Companion v0.9.34 uses profile values for previously hard-coded KD-MID fields", () => {
-  assert.match(companion, /@version\s+0\.9\.34/);
+test("Companion v0.9.35 uses profile values for previously hard-coded KD-MID fields", () => {
+  assert.match(companion, /@version\s+0\.9\.35/);
   assert.match(companion, /A\.hasOtherNames/);
   assert.match(companion, /A\.bornInRussia/);
   assert.match(companion, /payload\.destinationType/);
