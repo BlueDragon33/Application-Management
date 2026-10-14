@@ -542,7 +542,7 @@ export default function VisaIntakePage() {
   }
   return <main className={styles.page}>
     <header className={styles.hero}>
-      <div><span>{formType === "student" ? "LINK 1 · MẪU NHẬP HỌC" : formType === "mvd_invitation" ? "LINK 3 · THƯ MỜI МВД" : "LINK 2 · MẪU VISA NGƯỜI THƯỜNG"}</span><h1>{formType === "student" ? "Điền hồ sơ nhập học để chuẩn bị KD-MID" : formType === "mvd_invitation" ? "Hồ sơ theo thư mời nhập cảnh điện tử МВД" : "Điền hồ sơ visa cá nhân để chuẩn bị KD-MID"}</h1><p>{formType === "student" ? "Các dữ liệu học tập dùng chung đã được nạp sẵn. Hãy kiểm tra Mã Telex và thông tin cá nhân trước khi gửi." : "Mẫu tổng quát không tự áp các giá trị visa học tập. Hãy nhập đúng thông tin theo mục đích chuyến đi của bạn."}</p></div>
+      <div><span>{formType === "student" ? "LINK 1 · MẪU NHẬP HỌC" : formType === "mvd_invitation" ? "LINK 3 · THƯ MỜI МВД" : "LINK 2 · MẪU VISA NGƯỜI THƯỜNG"}</span><h1>{formType === "student" ? "Điền hồ sơ nhập học để chuẩn bị KD-MID" : formType === "mvd_invitation" ? "Hồ sơ theo thư mời nhập cảnh điện tử МВД" : "Điền hồ sơ visa cá nhân để chuẩn bị KD-MID"}</h1><p>{formType === "student" ? "Các dữ liệu học tập dùng chung đã được nạp sẵn. Hãy kiểm tra Mã Telex và thông tin cá nhân trước khi gửi." : formType === "mvd_invitation" ? "Dựa trên thư mời nhập cảnh điện tử của Bộ Nội vụ Nga. Điền số thư mời, cơ quan cấp, thời hạn và thông tin từng người; không dùng mã Telex." : "Mẫu tổng quát không tự áp các giá trị visa học tập. Hãy nhập đúng thông tin theo mục đích chuyến đi của bạn."}</p></div>
       <div className={styles.progress}><small>Mức hoàn thành cơ bản</small><strong>{completion}%</strong><div><i style={{ width: `${completion}%` }} /></div></div>
     </header>
 
