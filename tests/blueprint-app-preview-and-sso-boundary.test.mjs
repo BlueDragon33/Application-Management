@@ -16,8 +16,10 @@ test("Blueprint launch uses the verified latest development Preview without over
   assert.match(blueprint, /publicUrl: "https:\/\/software-blueprint-hub\.vercel\.app\/"/);
   assert.match(blueprint, /previewUrl: "https:\/\/software-blueprint-hub-git-main-dinhnam3391-4708\.vercel\.app\/"/);
   assert.match(workspace, /Mở giao diện mới \(Preview\)/);
+  assert.match(workspace, /Mở qua App-Manage \(SSO\)/);
+  assert.match(blueprint, /ssoStartUrl: "https:\/\/software-blueprint-hub-git-main-dinhnam3391-4708\.vercel\.app\/api\/sso\/start"/);
   assert.match(workspace, /Mở Website/);
-  assert.match(dashboard, /app\?\.previewUrl \?\? summary\?\.webHref \?\? fallback/);
+  assert.match(dashboard, /app\?\.ssoStartUrl \?\? app\?\.previewUrl \?\? summary\?\.webHref \?\? fallback/);
   assert.match(dashboard, /if \(summary\?\.webAccessPolicy === "deny"\)/);
   assert.match(dashboard, /if \(summary\?\.managedWebLaunch && approvalGateEnabled\)/);
 });
@@ -28,5 +30,5 @@ test("App-Manage launch is not yet falsely presented as completed cross-domain S
   assert.match(ssoContract, /Chưa kết nối đăng nhập một lần/);
   assert.match(ssoContract, /Không được làm/);
   assert.match(ssoContract, /chống replay/);
-  assert.doesNotMatch(blueprint, /browserSso: true|managedWebLaunch: true/);
+  assert.doesNotMatch(blueprint, /managedWebLaunch: true/);
 });
