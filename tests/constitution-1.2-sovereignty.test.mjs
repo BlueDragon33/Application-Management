@@ -5,13 +5,13 @@ import fs from "node:fs";
 const read = path => fs.readFileSync(path,"utf8");
 const json = path => JSON.parse(read(path));
 
-test("Constitution 1.2 sovereignty adoption and dependency budget stay explicit", () => {
+test("Constitution 1.3 sovereignty adoption and dependency budget stay explicit", () => {
   const adoption=json(".blueprint/constitution-adoption.json");
   const budget=json("docs/DEPENDENCY_BUDGET.json");
   const standard=read("docs/LOCAL_FIRST_RELEASE_STANDARD.md");
 
   assert.equal(adoption.policyId,"blueprint-os:universal-century-grade");
-  assert.equal(adoption.policyVersion,"1.2.0");
+  assert.equal(adoption.policyVersion,"1.3.0");
   assert.ok(
     adoption.inheritedPillars.includes("operational-sovereignty-dependency-minimization")
   );
@@ -20,7 +20,7 @@ test("Constitution 1.2 sovereignty adoption and dependency budget stay explicit"
 
   assert.equal(
     budget.constitutionPolicy,
-    "blueprint-os:universal-century-grade@1.2.0"
+    "blueprint-os:universal-century-grade@1.3.0"
   );
   assert.equal(
     budget.defaultPrinciple,
