@@ -16,7 +16,7 @@ test("Blueprint launch uses the verified latest development Preview without over
   assert.match(blueprint, /publicUrl: "https:\/\/software-blueprint-hub\.vercel\.app\/"/);
   assert.match(blueprint, /previewUrl: "https:\/\/software-blueprint-hub-git-main-dinhnam3391-4708\.vercel\.app\/"/);
   assert.match(workspace, /Mở giao diện mới \(Preview\)/);
-  assert.match(workspace, /Mở Production/);
+  assert.match(workspace, /Mở Website/);
   assert.match(dashboard, /app\?\.previewUrl \?\? summary\?\.webHref \?\? fallback/);
   assert.match(dashboard, /if \(summary\?\.webAccessPolicy === "deny"\)/);
   assert.match(dashboard, /if \(summary\?\.managedWebLaunch && approvalGateEnabled\)/);
