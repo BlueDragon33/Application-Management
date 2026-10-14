@@ -93,6 +93,7 @@ type Applicant = {
   preferredEmbassy: string;
   intakeOrder?: number;
   intakeSubmissionId?: string;
+  intakeFormType?: "student" | "general" | "electronic";
   specialNotes?: string;
 };
 
@@ -287,10 +288,10 @@ function safeLoad(): Store {
           entryDate: item.entryDate || common.entryDate,
           exitDate: item.exitDate || common.exitDate,
           destinationType: item.destinationType || common.destinationType,
-          organization: item.organization || common.organization,
-          organizationAddress: item.organizationAddress || common.organizationAddress,
-          tin: item.tin || common.tin,
-          telex: item.telex || common.telex,
+          organization: item.intakeFormType === "electronic" ? (item.organization || "") : item.organization || common.organization,
+          organizationAddress: item.intakeFormType === "electronic" ? (item.organizationAddress || "") : item.organizationAddress || common.organizationAddress,
+          tin: item.intakeFormType === "electronic" ? (item.tin || "") : item.tin || common.tin,
+          telex: item.intakeFormType === "electronic" ? (item.telex || "") : item.telex || common.telex,
           invitation: item.invitation ?? common.invitation,
           hasPermanentAddress: item.hasPermanentAddress ?? true,
           personalFax: item.personalFax ?? "",
@@ -406,10 +407,10 @@ function buildPayload(applicant: Applicant, common: CommonData, autoAdvance = fa
     entryDate: applicant.entryDate || common.entryDate,
     exitDate: applicant.exitDate || common.exitDate,
     destinationType: applicant.destinationType || common.destinationType,
-    organization: applicant.organization || common.organization,
-    organizationAddress: applicant.organizationAddress || common.organizationAddress,
-    tin: applicant.tin || common.tin,
-    telex: applicant.telex || common.telex,
+    organization: applicant.intakeFormType === "electronic" ? (applicant.organization || "") : applicant.organization || common.organization,
+    organizationAddress: applicant.intakeFormType === "electronic" ? (applicant.organizationAddress || "") : applicant.organizationAddress || common.organizationAddress,
+    tin: applicant.intakeFormType === "electronic" ? (applicant.tin || "") : applicant.tin || common.tin,
+    telex: applicant.intakeFormType === "electronic" ? (applicant.telex || "") : applicant.telex || common.telex,
     invitation: applicant.invitation ?? common.invitation,
   };
   const normalizedApplicant = {
@@ -878,7 +879,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       organization: value("organization") || store.common.organization,
       organizationAddress: value("organizationAddress") || store.common.organizationAddress,
       tin: value("tin") || store.common.tin,
-      telex: value("telex") || (electronic ? "" : store.common.telex),
+      telex: electronic ? value("telex") : value("telex") || store.common.telex,
       invitation: value("invitation"),
       invitationIssuer: value("invitationIssuer"),
       invitationIssuerCode: value("invitationIssuerCode"),
@@ -915,6 +916,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       personalAddress: value("personalAddress") || fixedPermanentAddress,
       intakeOrder: submission.queueNo,
       intakeSubmissionId: submission.id,
+      intakeFormType: electronic ? "electronic" : "student",
     };
   }
 
