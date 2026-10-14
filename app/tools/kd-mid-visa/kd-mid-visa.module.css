@@ -83,3 +83,24 @@
 .inlineDeletePanel>button{margin-left:12px}
 .records article{grid-template-columns:repeat(5,minmax(110px,1fr)) auto auto}
 @media(max-width:900px){.deleteDetailsGrid,.inlineDeleteGrid{grid-template-columns:1fr}}
+
+/* Link 3: the reference is local-only; only editable group defaults are sent to the API. */
+.mvdSharedPanel{grid-column:1/-1;display:grid;gap:12px;padding:15px;border:1px solid rgba(213,201,90,.28);border-radius:12px;background:#0b1d17;min-width:0}
+.mvdSharedHeading{display:grid;gap:4px}
+.mvdSharedHeading strong{font-size:14px;color:#f0ebaf}
+.mvdSharedHeading small,.mvdPrivacyHint{font-size:11px;color:var(--muted);line-height:1.55}
+.mvdSharedToolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.mvdSharedToolbar button{width:auto!important;white-space:normal}
+.mvdImagePicker{display:grid;gap:6px;font-size:11px;font-weight:750;color:#d8e9e0;max-width:100%}
+.mvdImagePicker input{max-width:100%;color:#d8e9e0;font-size:11px}
+.mvdImagePreview{display:grid;grid-template-columns:minmax(0,240px) minmax(0,1fr);gap:12px;align-items:center;border-radius:10px;border:1px solid var(--line);padding:10px}
+.mvdImagePreview img{display:block;max-height:190px;max-width:100%;object-fit:contain;background:#fff;border-radius:6px}
+.mvdImagePreview>div{display:grid;gap:8px;justify-items:start;min-width:0}
+.mvdImagePreview small{overflow-wrap:anywhere}
+.mvdSharedGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.mvdSharedGrid label{min-width:0;display:grid;gap:5px;color:#d4e9df;font-weight:650;font-size:11px}
+.mvdSharedGrid input{min-width:0;width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:#071510;color:#e6fff2;font:inherit}
+.mvdSharedGrid input:focus-visible{outline:2px solid #d5c95a;outline-offset:1px}
+.mvdImageError{color:#ffd2ce;font-size:11px}
+@media(max-width:720px){.mvdSharedGrid,.mvdImagePreview{grid-template-columns:minmax(0,1fr)}.intakeTypeChoice{grid-template-columns:1fr!important}}
+@media(min-width:721px){.intakeTypeChoice{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
