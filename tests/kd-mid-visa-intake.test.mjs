@@ -381,8 +381,8 @@ test("sender browser keeps a stable device id and automatically recovers the ser
 test("student common defaults fill missing draft keys without overwriting explicit user edits", () => {
   assert.match(publicWorkerPage, /const mergeCommonDefaultsIntoDraft = draft/);
   assert.match(publicWorkerPage, /if\(!Object\.prototype\.hasOwnProperty\.call\(merged,key\) && String\(value \?\? ""\)\.trim\(\)\) merged\[key\]=String\(value\)/);
-  assert.match(publicWorkerPage, /currentApplicant=normalizePersonalApplicant\(mergeCommonDefaultsIntoDraft\(currentApplicant\)\)/);
-  assert.match(publicWorkerPage, /currentApplicant=normalizePersonalApplicant\(mergeCommonDefaultsIntoDraft\(\{\}\)\)/);
+  assert.ok(publicWorkerPage.includes("currentApplicant=normalizePersonalApplicant(mergeCommonDefaultsIntoDraft(currentApplicant), formType)"));
+  assert.ok(publicWorkerPage.includes("currentApplicant=normalizePersonalApplicant(mergeCommonDefaultsIntoDraft({}), formType)"));
   assert.match(publicWorkerPage, /được điền sẵn trực tiếp trong từng ô/);
 });
 
@@ -410,7 +410,7 @@ test("student intake links always expose complete shared defaults, including old
 test("Link 1 has complete defaults and preserves an existing rejected local draft", () => {
   assert.match(publicWorkerPage, /const STUDENT_FORM_DEFAULTS = \{/);
   assert.match(publicWorkerPage, /withStudentFallbacks\(rawDefaults\)/);
-  assert.match(publicWorkerPage, /currentApplicant=normalizePersonalApplicant\(keepReturnedDraft && currentApplicant \? currentApplicant : data\.submission\.applicant\)/);
+  assert.ok(publicWorkerPage.includes("currentApplicant=normalizePersonalApplicant(keepReturnedDraft && currentApplicant ? currentApplicant : data.submission.applicant, formType)"));
   assert.match(publicPage, /const STUDENT_FORM_DEFAULTS/);
   assert.match(publicPage, /const STUDENT_SHARED_KEYS/);
   assert.match(publicPage, /if \(resolvedFormType === "student"\)/);
@@ -508,8 +508,8 @@ test("production inline visa-intake script is valid JavaScript", () => {
 
 test("personal uppercase normalization survives restored drafts and uses one delegated capture path", () => {
   assert.match(publicWorkerPage, /const personalUpperPlainNames = \["surname","givenNames","birthPlace","otherNames","routeCity"\]/);
-  assert.match(publicWorkerPage, /const normalizePersonalApplicant = applicant =>/);
-  assert.match(publicWorkerPage, /applicant=normalizePersonalApplicant\(applicant\)/);
+  assert.ok(publicWorkerPage.includes('const normalizePersonalApplicant = (applicant, requestedFormType = "student") =>'));
+  assert.ok(publicWorkerPage.includes("applicant=normalizePersonalApplicant(applicant, formType)"));
   assert.match(publicWorkerPage, /const normalizeMarkedElement = element =>/);
   assert.match(publicWorkerPage, /form\.addEventListener\(type,normalizeMarkedEvent,true\)/);
   assert.match(publicWorkerPage, /const normalizeMarkedInputs = \(\) =>/);
@@ -521,7 +521,7 @@ test("standalone form submit cannot be silently blocked by native validation", (
   assert.match(publicWorkerPage, /<form id="form" novalidate>/);
   assert.match(publicWorkerPage, /const collectClientInvalid = \(\) =>/);
   assert.match(publicWorkerPage, /Còn trường bắt buộc chưa điền hoặc chưa hợp lệ/);
-  assert.match(publicWorkerPage, /normalizePersonalApplicant\(readApplicant\(\)\)/);
+  assert.ok(publicWorkerPage.includes("normalizePersonalApplicant(readApplicant(), formType)"));
   assert.match(publicWorkerPage, /form\.addEventListener\("invalid"/);
 });
 
@@ -593,7 +593,7 @@ test("draft persistence returns observable success or failure instead of swallow
 });
 
 test("submit and autosave share one normalized client snapshot", () => {
-  assert.match(publicWorkerPage, /const snapshotCurrentApplicant = \(\) => \{[\s\S]*?normalizeMarkedInputs\(\);[\s\S]*?normalizePersonalApplicant\(readApplicant\(\)\)/);
+  assert.match(publicWorkerPage, /const snapshotCurrentApplicant = \(\) => \{[\s\S]*?normalizeMarkedInputs\(\);[\s\S]*?normalizePersonalApplicant\(readApplicant\(\), formType\)/);
   assert.match(publicWorkerPage, /const applicant = snapshotCurrentApplicant\(\)/);
   assert.match(publicWorkerPage, /form\.addEventListener\("compositionend",persistFormDraft,true\)/);
 });
@@ -652,7 +652,7 @@ test("normalized draft round-trips through storage with the five personal fields
 test("submit payload source uses the same normalized snapshot that autosave persists", () => {
   const snapshotDeclaration = publicWorkerPage.match(/const snapshotCurrentApplicant = \(\) => \{([\s\S]*?)\n  \};/)?.[0] ?? "";
   assert.match(snapshotDeclaration, /normalizeMarkedInputs\(\)/);
-  assert.match(snapshotDeclaration, /normalizePersonalApplicant\(readApplicant\(\)\)/);
+  assert.ok(snapshotDeclaration.includes("normalizePersonalApplicant(readApplicant(), formType)"));
   assert.match(publicWorkerPage, /return saveLocal\(snapshotCurrentApplicant\(\)\)/);
   assert.match(publicWorkerPage, /const applicant = snapshotCurrentApplicant\(\);\n    saveLocal\(applicant\);/);
   assert.match(publicWorkerPage, /body:JSON\.stringify\(\{token,batch:batchId,deviceId,applicant,/);
