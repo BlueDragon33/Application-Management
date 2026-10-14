@@ -1224,26 +1224,23 @@
     const optionalText = (control, value) => {
       const text = String(value ?? "");
       if (!control) return text ? "missing" : "ready";
-      if (!text) {
-        if (!String(control.value || "")) return "ready";
-        return writeContactText(control, "");
-      }
+      if (!text) return "ready"; // Not supplied: leave the form field untouched.
       return writeContactText(control, text);
     };
 
     const steps = [
       ["Có địa chỉ thường trú", () => C.hasPermanentAddress ? writeSelectControl(C.hasPermanentAddress, A.hasPermanentAddress === false ? ["НЕТ","NO"] : ["ДА","YES"]) : "missing"],
-      ["Địa chỉ thường trú", () => optionalText(C.permanentAddress, A.hasPermanentAddress === false ? "" : (A.personalAddress || CANONICAL_PERMANENT_ADDRESS))],
+      ["Địa chỉ thường trú", () => optionalText(C.permanentAddress, A.hasPermanentAddress === false ? "" : A.personalAddress)],
       ["Điện thoại cá nhân", () => optionalText(C.personalPhone, A.phone)],
       ["Fax cá nhân (tùy chọn)", () => personalFax ? optionalText(C.personalFax, personalFax) : "ready"],
       ["E-mail cá nhân", () => optionalText(C.personalEmail, A.email)],
       ["Đang làm việc/học tập", () => C.worksOrStudies ? writeSelectControl(C.worksOrStudies, A.worksOrStudies === false ? ["НЕТ","NO"] : ["ДА","YES"]) : "missing"],
-      ["Nơi làm việc/học tập", () => optionalText(C.employer, A.worksOrStudies === false ? "" : (A.workStudyPlace || payload.employer))],
-      ["Chức vụ", () => optionalText(C.position, A.worksOrStudies === false ? "" : (A.position || payload.defaultPosition))],
-      ["Địa chỉ cơ quan", () => optionalText(C.workAddress, A.worksOrStudies === false ? "" : (A.workAddress || payload.employerAddress))],
-      ["Điện thoại cơ quan", () => optionalText(C.workPhone, A.worksOrStudies === false ? "" : (A.workPhone || payload.fixedWorkPhone))],
+      ["Nơi làm việc/học tập", () => optionalText(C.employer, A.worksOrStudies === false ? "" : A.workStudyPlace)],
+      ["Chức vụ", () => optionalText(C.position, A.worksOrStudies === false ? "" : A.position)],
+      ["Địa chỉ cơ quan", () => optionalText(C.workAddress, A.worksOrStudies === false ? "" : A.workAddress)],
+      ["Điện thoại cơ quan", () => optionalText(C.workPhone, A.worksOrStudies === false ? "" : A.workPhone)],
       ["Fax cơ quan (tùy chọn)", () => workFax ? optionalText(C.workFax, workFax) : "ready"],
-      ["E-mail cơ quan", () => optionalText(C.workEmail, A.worksOrStudies === false ? "" : (A.workEmail || payload.employerEmail))],
+      ["E-mail cơ quan", () => optionalText(C.workEmail, A.worksOrStudies === false ? "" : A.workEmail)],
       ["Trẻ em dưới 16 tuổi", () => C.children ? writeSelectControl(C.children, A.childrenUnder16 ? ["ДА","YES"] : ["НЕТ","NO"]) : "missing"],
       ["Người thân tại Nga", () => {
         if (!C.relatives) return "missing";
@@ -1285,16 +1282,16 @@
 
     const finalC = contactInfoControls();
     const expected = {
-      permanentAddress: A.hasPermanentAddress === false ? "" : String(A.personalAddress || CANONICAL_PERMANENT_ADDRESS),
+      permanentAddress: A.hasPermanentAddress === false ? "" : String(A.personalAddress || ""),
       personalPhone: String(A.phone || ""),
       personalFax,
       personalEmail: String(A.email || ""),
-      employer: A.worksOrStudies === false ? "" : String(A.workStudyPlace || payload.employer || ""),
-      position: A.worksOrStudies === false ? "" : String(A.position || payload.defaultPosition || ""),
-      workAddress: A.worksOrStudies === false ? "" : String(A.workAddress || payload.employerAddress || ""),
-      workPhone: A.worksOrStudies === false ? "" : String(A.workPhone || payload.fixedWorkPhone || ""),
+      employer: A.worksOrStudies === false ? "" : String(A.workStudyPlace || ""),
+      position: A.worksOrStudies === false ? "" : String(A.position || ""),
+      workAddress: A.worksOrStudies === false ? "" : String(A.workAddress || ""),
+      workPhone: A.worksOrStudies === false ? "" : String(A.workPhone || ""),
       workFax,
-      workEmail: A.worksOrStudies === false ? "" : String(A.workEmail || payload.employerEmail || ""),
+      workEmail: A.worksOrStudies === false ? "" : String(A.workEmail || ""),
     };
 
     const textPairs = [
@@ -1313,7 +1310,7 @@
     const usedControls = textPairs.filter(([control, value]) => Boolean(value) && control).map(([control]) => control);
     const uniqueTextCount = new Set(usedControls).size;
     const textReady = textPairs.every(([control, value]) => {
-      if (!value) return !control || String(control.value || "") === "";
+      if (!value) return true; // Missing optional values must not block or overwrite.
       return Boolean(control) && String(control.value) === String(value);
     });
 
