@@ -463,7 +463,7 @@ test("v0.9.36 keeps blank personal work data empty rather than importing common 
   }
   assert.doesNotMatch(tool, /workStudyPlace: applicant\.workStudyPlace\.trim\(\) \|\| resolvedCommon\.employer/);
   for (const property of ["workStudyPlace", "position", "workAddress", "workPhone", "workEmail"]) {
-    assert.match(tool, new RegExp("String\\(item\\." + property + " \\?\\? \\"\\"\\)"));
+    assert.ok(tool.includes('String(item.' + property + ' ?? "")'));
   }
 });
 
