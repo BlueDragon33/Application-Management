@@ -312,6 +312,16 @@ export async function POST(request: Request) {
         ["telex", "Mã Telex"],
       );
     }
+    if (formType === "mvd_invitation") {
+      required.push(
+        ["invitation", "Số thư mời nhập cảnh điện tử МВД"],
+        ["invitationIssuer", "Cơ quan cấp thư mời"],
+        ["invitationDurationDays", "Thời hạn thư mời (ngày)"],
+        ["organization", "Tổ chức mời"],
+        ["organizationAddress", "Địa chỉ tổ chức mời"],
+      );
+      if (applicant.invitationDurationDays && (!/^[0-9]{1,4}$/.test(applicant.invitationDurationDays) || Number(applicant.invitationDurationDays) <= 0)) missing.push("Thời hạn thư mời phải là số ngày hợp lệ");
+    }
     for (const [key, label] of required) if (!String(applicant[key] ?? "").trim()) missing.push(label);
 
     for (const [key, label] of [
