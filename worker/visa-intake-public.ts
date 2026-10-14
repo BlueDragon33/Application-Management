@@ -309,10 +309,10 @@ ${serverMvd ? `<label class="field" data-field="invitationIssuer">Cơ quan cấp
     const index = clean.search(/[A-ZА-ЯЁ]/);
     return index > 1 ? clean.slice(index - 1) : clean;
   };
-  const normalizePersonalApplicant = applicant => {
+  const normalizePersonalApplicant = (applicant, requestedFormType = "student") => {
     const normalized={...(applicant || {})};
     personalUpperPlainNames.forEach(name=>{normalized[name]=upperPlain(normalized[name] || "");});
-    if (formType === "mvd_invitation") {
+    if (requestedFormType === "mvd_invitation") {
       normalized.invitation = normalizeMvdInvitation(normalized.invitation || "");
       normalized.invitationDurationDays = "";
     }
@@ -392,7 +392,7 @@ ${serverMvd ? `<label class="field" data-field="invitationIssuer">Cơ quan cấp
 
   const fillApplicant = applicant => {
     if(!applicant) return;
-    applicant=normalizePersonalApplicant(applicant);
+    applicant=normalizePersonalApplicant(applicant, formType);
     Object.entries(applicant).forEach(([key,value]) => {
       if(["birthDate","entryDate","exitDate","passportIssue","passportExpiry","formerCitizenshipLostDate","lastVisitFrom","lastVisitTo"].includes(key)){ fillDate(key,String(value || "")); return; }
       const el=byName(key);
@@ -490,7 +490,7 @@ ${serverMvd ? `<label class="field" data-field="invitationIssuer">Cơ quan cấp
           return;
         }
         if(!data.submission.applicant) {setError("Không đọc được nội dung phiên bản mới. Bản nháp vẫn được giữ.");return;}
-        currentApplicant=normalizePersonalApplicant(data.submission.applicant);
+        currentApplicant=normalizePersonalApplicant(data.submission.applicant, formType);
         fillApplicant(currentApplicant);
         refreshButtons.forEach(button=>delete button.dataset.replaceDraft);
         setError("");
@@ -565,15 +565,15 @@ ${serverMvd ? `<label class="field" data-field="invitationIssuer">Cơ quan cấp
 
     if(data.submission?.applicant){
       const keepReturnedDraft=data.submission.status==="rejected" && receipt?.id===data.submission.id && (receipt?.status==="rejected" || draftEditedDuringInit) && (receipt.revision || 0)===(data.submission.revision || 0);
-      currentApplicant=normalizePersonalApplicant(keepReturnedDraft && currentApplicant ? currentApplicant : data.submission.applicant);
+      currentApplicant=normalizePersonalApplicant(keepReturnedDraft && currentApplicant ? currentApplicant : data.submission.applicant, formType);
       fillApplicant(currentApplicant);
       saveLocal(currentApplicant);
     } else if(currentApplicant) {
-      currentApplicant=normalizePersonalApplicant(mergeCommonDefaultsIntoDraft(currentApplicant));
+      currentApplicant=normalizePersonalApplicant(mergeCommonDefaultsIntoDraft(currentApplicant), formType);
       fillApplicant(currentApplicant);
       saveLocal(currentApplicant);
     } else {
-      currentApplicant=normalizePersonalApplicant(mergeCommonDefaultsIntoDraft({}));
+      currentApplicant=normalizePersonalApplicant(mergeCommonDefaultsIntoDraft({}), formType);
       fillApplicant(currentApplicant);
       saveLocal(currentApplicant);
     }
@@ -610,7 +610,7 @@ ${serverMvd ? `<label class="field" data-field="invitationIssuer">Cơ quan cấp
 
   const snapshotCurrentApplicant = () => {
     normalizeMarkedInputs();
-    return normalizePersonalApplicant(readApplicant());
+    return normalizePersonalApplicant(readApplicant(), formType);
   };
   const persistFormDraft = event => {
     if(!linkReady && event) draftEditedDuringInit=true;
