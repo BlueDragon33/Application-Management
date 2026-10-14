@@ -366,6 +366,7 @@ test("v0.9.33 bypasses empty Fax without blocking the contact page", () => {
   assert.equal(retries, 0);
 
   // Fax supplied in a profile is not silently dropped if its form control is unavailable.
+  C.personalFax = null;
   const withFax = fill({ applicant: { ...applicant, personalFax: "111" } });
   assert.equal(withFax.ready, false);
   assert.ok(retries > 0);
