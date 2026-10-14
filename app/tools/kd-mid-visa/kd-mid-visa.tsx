@@ -129,7 +129,6 @@ type MvdCommonFields = {
   destinationType: string;
   organization: string;
   organizationAddress: string;
-  invitationIssuer: string;
   tin: string;
   routeCity: string;
   preferredEmbassy: string;
@@ -141,7 +140,7 @@ const blankMvdCommon: MvdCommonFields = {
   citizenship: "ВЬЕТНАМ",
   purposeSection: "", purpose: "", visaType: "", entries: "",
   entryDate: "", exitDate: "", destinationType: "ОРГАНИЗАЦИЯ",
-  organization: "", organizationAddress: "", invitationIssuer: "",
+  organization: "", organizationAddress: "",
   tin: "", routeCity: "", preferredEmbassy: "",
 };
 const baumanInvitationReference: MvdCommonFields = {
@@ -155,7 +154,6 @@ const baumanInvitationReference: MvdCommonFields = {
   destinationType: "ОРГАНИЗАЦИЯ",
   organization: 'ФЕДЕРАЛЬНОЕ ГОСУДАРСТВЕННОЕ АВТОНОМНОЕ ОБРАЗОВАТЕЛЬНОЕ УЧРЕЖДЕНИЕ ВЫСШЕГО ОБРАЗОВАНИЯ "МОСКОВСКИЙ ГОСУДАРСТВЕННЫЙ ТЕХНИЧЕСКИЙ УНИВЕРСИТЕТ ИМЕНИ Н.Э. БАУМАНА (НАЦИОНАЛЬНЫЙ ИССЛЕДОВАТЕЛЬСКИЙ УНИВЕРСИТЕТ)"',
   organizationAddress: "105005, Г. МОСКВА, УЛ. 2-Я БАУМАНСКАЯ, Д. 5, СТР. 1",
-  invitationIssuer: "770-001 ОТДЕЛ ОФОРМЛЕНИЯ ВИЗ И ПРИГЛАШЕНИЙ УВМ ГУ МВД РОССИИ ПО Г. МОСКВЕ",
   tin: "7701002520",
   routeCity: "МОСКВА",
   preferredEmbassy: "ПОСОЛЬСТВО РФ ВО ВЬЕТНАМЕ",
@@ -168,7 +166,6 @@ const mvdSharedLabels: Array<{ field: keyof MvdCommonFields; label: string }> = 
   { field: "entries", label: "Số lần nhập cảnh" },
   { field: "entryDate", label: "Ngày vào Nga (dd/mm/yyyy)" },
   { field: "exitDate", label: "Hạn lưu trú (dd/mm/yyyy)" },
-  { field: "invitationIssuer", label: "Cơ quan cấp thư mời МВД" },
   { field: "destinationType", label: "Loại nơi đến" },
   { field: "organization", label: "Tên cơ quan/trường mời" },
   { field: "organizationAddress", label: "Địa chỉ bên mời" },
@@ -916,7 +913,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
           tin: student ? store.common.tin : mvdInvitation ? mvdCommon.tin.trim() : "",
           telex: "",
           invitation: student ? store.common.invitation : "",
-          invitationIssuer: mvdInvitation ? mvdCommon.invitationIssuer.trim() : "",
+          invitationIssuer: "", // No entry for issuing authority on Link 3.
           invitationDurationDays: "", // Obsolete for Link 3; preserve historic applicant records only.
           routeCity: student ? store.common.city : mvdInvitation ? mvdCommon.routeCity.trim() : "",
           employer: student || mvdInvitation ? store.common.employer : "",
@@ -1463,7 +1460,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       ["surname","Họ"],["givenNames","Tên + đệm"],["birthDate","Ngày sinh"],["birthPlace","Nơi sinh"],
       ["sex","Giới tính"],["hasOtherNames","Đã dùng tên khác"],["otherNames","Tên khác đã dùng"],["bornInRussia","Sinh tại Nga"],
       ["citizenship","Quốc tịch"],["purposeSection","Nhóm mục đích"],["purpose","Mục đích"],["visaType","Loại visa"],["entries","Số lần nhập cảnh"],["entryDate","Ngày vào Nga"],["exitDate","Ngày ra Nga"],
-      ["destinationType","Loại nơi đến"],["organization","Tổ chức mời"],["organizationAddress","Địa chỉ tổ chức"],["tin","INN"],["telex","Telex"],["invitation","Số giấy mời"],["invitationIssuer","Cơ quan cấp thư mời МВД"],
+      ["destinationType","Loại nơi đến"],["organization","Tổ chức mời"],["organizationAddress","Địa chỉ tổ chức"],["tin","INN"],["telex","Telex"],["invitation","Số giấy mời"],
       ["passportNo","Số hộ chiếu"],["passportIssue","Ngày cấp"],["passportExpiry","Hết hạn"],
       ["hasPermanentAddress","Có địa chỉ thường trú"],["personalAddress","Địa chỉ thường trú"],["phone","Điện thoại"],["personalFax","Fax cá nhân"],["email","Email"],["routeCity","Nơi đến Nga"],["worksOrStudies","Đang làm/học"],["workStudyPlace","Nơi làm việc/học tập"],
       ["position","Chức vụ"],["workAddress","Địa chỉ cơ quan"],["workPhone","Điện thoại cơ quan"],["workFax","Fax cơ quan"],["workEmail","Email cơ quan"],["passwordOverride","Mật khẩu KD-MID"],["applicationId","Application ID"],
