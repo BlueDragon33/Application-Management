@@ -856,7 +856,8 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
     const source = submission.applicant;
     const value = (key: string) => typeof source[key] === "string" ? String(source[key]) : "";
     const flag = (key: string) => source[key] === true;
-    const electronic = intakeLinks.some((link) => link.id === submission.linkId && link.formType === "electronic");
+    const intakeType = intakeLinks.find((link) => link.id === submission.linkId)?.formType || "student";
+    const electronic = intakeType === "electronic";
     return {
       ...emptyApplicant(),
       id: crypto.randomUUID(),
@@ -916,7 +917,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       personalAddress: value("personalAddress") || fixedPermanentAddress,
       intakeOrder: submission.queueNo,
       intakeSubmissionId: submission.id,
-      intakeFormType: electronic ? "electronic" : "student",
+      intakeFormType: intakeType,
     };
   }
 
