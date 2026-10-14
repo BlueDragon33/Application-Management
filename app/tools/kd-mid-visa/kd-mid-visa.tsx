@@ -284,8 +284,8 @@ function emptyApplicant(): Applicant {
     organization: defaultCommon.organization,
     organizationAddress: defaultCommon.organizationAddress,
     tin: defaultCommon.tin,
-    telex: defaultCommon.telex,
-    invitation: defaultCommon.invitation,
+    telex: "",
+    invitation: "",
     passportNo: "",
     passportIssue: "",
     passportExpiry: "",
@@ -330,26 +330,25 @@ function safeLoad(): Store {
       version: 1,
       common: { ...defaultCommon, ...(parsed.common ?? {}) },
       applicants: Array.isArray(parsed.applicants) ? parsed.applicants.map((item) => {
-        const common = { ...defaultCommon, ...(parsed.common ?? {}) };
         return {
           ...item,
-          routeCity: item.routeCity || "МОСКВА",
+          routeCity: item.routeCity ?? "",
           hasOtherNames: item.hasOtherNames ?? false,
           otherNames: item.otherNames ?? "",
           bornInRussia: item.bornInRussia ?? false,
-          citizenship: item.citizenship || common.citizenship,
-          purposeSection: item.purposeSection || common.purposeSection,
-          purpose: item.purpose || common.purpose,
-          visaType: item.visaType || common.visaType,
-          entries: item.entries || common.entries,
-          entryDate: item.entryDate || common.entryDate,
-          exitDate: item.exitDate || common.exitDate,
-          destinationType: item.destinationType || common.destinationType,
-          organization: item.organization || common.organization,
-          organizationAddress: item.organizationAddress || common.organizationAddress,
-          tin: item.tin || common.tin,
-          telex: item.telex || common.telex,
-          invitation: item.invitation ?? common.invitation,
+          citizenship: item.citizenship ?? "",
+          purposeSection: item.purposeSection ?? "",
+          purpose: item.purpose ?? "",
+          visaType: item.visaType ?? "",
+          entries: item.entries ?? "",
+          entryDate: item.entryDate ?? "",
+          exitDate: item.exitDate ?? "",
+          destinationType: item.destinationType ?? "",
+          organization: item.organization ?? "",
+          organizationAddress: item.organizationAddress ?? "",
+          tin: item.tin ?? "",
+          telex: item.telex ?? "",
+          invitation: item.invitation ?? "",
           hasPermanentAddress: item.hasPermanentAddress ?? true,
           personalFax: item.personalFax ?? "",
           worksOrStudies: item.worksOrStudies ?? true,
@@ -357,15 +356,15 @@ function safeLoad(): Store {
           hadFormerRussianCitizenship: item.hadFormerRussianCitizenship ?? false,
           formerCitizenshipLostDate: item.formerCitizenshipLostDate ?? "",
           formerCitizenshipLossReason: item.formerCitizenshipLossReason ?? "",
-          personalAddress: String(item.personalAddress ?? "").trim() || fixedPermanentAddress,
-          workStudyPlace: String(item.workStudyPlace ?? "").trim() || common.employer,
-          position: String(item.position ?? "").trim() || common.defaultPosition,
-          workAddress: String(item.workAddress ?? "").trim() || common.employerAddress,
-          workPhone: String(item.workPhone ?? "").trim() || fixedWorkPhone,
-          workEmail: String(item.workEmail ?? "").trim() || common.employerEmail,
+          personalAddress: String(item.personalAddress ?? ""),
+          workStudyPlace: String(item.workStudyPlace ?? ""),
+          position: String(item.position ?? ""),
+          workAddress: String(item.workAddress ?? ""),
+          workPhone: String(item.workPhone ?? ""),
+          workEmail: String(item.workEmail ?? ""),
           childrenUnder16: item.childrenUnder16 ?? false,
           relativesInRussia: item.relativesInRussia ?? false,
-          preferredEmbassy: item.preferredEmbassy || common.embassy,
+          preferredEmbassy: item.preferredEmbassy ?? "",
           specialNotes: item.specialNotes ?? "",
         };
       }) : [],
@@ -456,27 +455,27 @@ function emitChange(el: HTMLInputElement | HTMLSelectElement | HTMLTextAreaEleme
 function buildPayload(applicant: Applicant, common: CommonData, autoAdvance = false, revision = Date.now()) {
   const resolvedCommon: CommonData = {
     ...common,
-    citizenship: applicant.citizenship || common.citizenship,
-    purposeSection: applicant.purposeSection || common.purposeSection,
-    purpose: applicant.purpose || common.purpose,
-    visaType: applicant.visaType || common.visaType,
-    entries: applicant.entries || common.entries,
-    entryDate: applicant.entryDate || common.entryDate,
-    exitDate: applicant.exitDate || common.exitDate,
-    destinationType: applicant.destinationType || common.destinationType,
-    organization: applicant.organization || common.organization,
-    organizationAddress: applicant.organizationAddress || common.organizationAddress,
-    tin: applicant.tin || common.tin,
-    telex: applicant.telex || common.telex,
-    invitation: applicant.invitation ?? common.invitation,
+    citizenship: applicant.citizenship,
+    purposeSection: applicant.purposeSection,
+    purpose: applicant.purpose,
+    visaType: applicant.visaType,
+    entries: applicant.entries,
+    entryDate: applicant.entryDate,
+    exitDate: applicant.exitDate,
+    destinationType: applicant.destinationType,
+    organization: applicant.organization,
+    organizationAddress: applicant.organizationAddress,
+    tin: applicant.tin,
+    telex: applicant.telex ?? "",
+    invitation: applicant.invitation ?? "",
   };
   const normalizedApplicant = {
     ...applicant,
-    workStudyPlace: applicant.workStudyPlace.trim() || resolvedCommon.employer,
-    position: applicant.position.trim() || resolvedCommon.defaultPosition,
-    workAddress: applicant.workAddress.trim() || resolvedCommon.employerAddress,
-    workPhone: applicant.workPhone.trim() || fixedWorkPhone,
-    workEmail: applicant.workEmail.trim() || resolvedCommon.employerEmail,
+    workStudyPlace: applicant.workStudyPlace.trim(),
+    position: applicant.position.trim(),
+    workAddress: applicant.workAddress.trim(),
+    workPhone: applicant.workPhone.trim(),
+    workEmail: applicant.workEmail.trim(),
     birthDate: normalizeDmy(applicant.birthDate),
     passportIssue: normalizeDmy(applicant.passportIssue),
     passportExpiry: normalizeDmy(applicant.passportExpiry) || passportExpiryFromIssue(applicant.passportIssue),
@@ -488,14 +487,14 @@ function buildPayload(applicant: Applicant, common: CommonData, autoAdvance = fa
     ...resolvedCommon,
     entryDate: normalizeDmy(resolvedCommon.entryDate),
     exitDate: normalizeDmy(resolvedCommon.exitDate),
-    embassy: applicant.preferredEmbassy || common.embassy,
-    fixedPermanentAddress: "ВЬЕТНАМ, Г. ХАНОЙ, УЛИЦА НГИА ДО, ДОРОГА ХОАНГ КУОК ВЬЕТ, ДОМ Ш9",
-    fixedWorkPhone,
+    embassy: applicant.preferredEmbassy,
+    fixedPermanentAddress: "",
+    fixedWorkPhone: "",
     _automation: { autoAdvance, autoPrint: true },
     _payloadRevision: revision,
     applicant: {
       ...normalizedApplicant,
-      personalAddress: applicant.hasPermanentAddress === false ? "" : (applicant.personalAddress || fixedPermanentAddress),
+      personalAddress: applicant.hasPermanentAddress === false ? "" : applicant.personalAddress,
       password: applicant.passwordOverride || common.password,
       surname5: surname5(applicant.surname),
       birthYear: birthYear(normalizedApplicant.birthDate),
@@ -558,7 +557,7 @@ if(A.hasInsurance)setAnyText(["Название страховой компан�
 setYesNo("Были ли Вы когда-нибудь в России",A.visitedRussia);
 if(A.visitedRussia){setAnyText(["Сколько раз Вы были в России"],A.visitsCount);setDate("Дата въезда",A.lastVisitFrom);setDate("Дата выезда",A.lastVisitTo)}
 setYesNo("Имеете ли Вы адрес постоянного проживания",A.hasPermanentAddress!==false);
-setAnyText(["Адрес вашего постоянного проживания"],A.personalAddress||p.fixedPermanentAddress);
+setAnyText(["Адрес вашего постоянного проживания"],A.personalAddress);
 setAnyText(["Ваш личный телефон"],A.phone);setAnyText(["Ваш личный факс"],A.personalFax);setAnyText(["Ваш личный E-mail"],A.email);
 setYesNo("Вы работаете",A.worksOrStudies!==false);
 setAnyText(["Место работы (учебы)"],A.workStudyPlace);
@@ -758,7 +757,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         formerCitizenshipLostDate: normalizeDmy(next.formerCitizenshipLostDate),
         lastVisitFrom: normalizeDmy(next.lastVisitFrom),
         lastVisitTo: normalizeDmy(next.lastVisitTo),
-        personalAddress: fixedPermanentAddress,
+        personalAddress: next.personalAddress.trim(),
       };
       const applicants = exists ? current.applicants.map((item) => item.id === normalized.id ? normalized : item) : [normalized, ...current.applicants];
       const nextStore = { ...current, applicants, selectedId: normalized.id };
@@ -906,7 +905,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
           organization: student ? store.common.organization : mvdInvitation ? mvdCommon.organization.trim() : "",
           organizationAddress: student ? store.common.organizationAddress : mvdInvitation ? mvdCommon.organizationAddress.trim() : "",
           tin: student ? store.common.tin : "",
-          telex: student ? store.common.telex : "",
+          telex: "",
           invitation: student ? store.common.invitation : "",
           invitationIssuer: mvdInvitation ? mvdCommon.invitationIssuer.trim() : "",
           invitationDurationDays: mvdInvitation ? mvdCommon.invitationDurationDays.trim() : "",
@@ -936,7 +935,6 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
 
   function applicantFromIntake(submission: IntakeSubmission): Applicant {
     const source = submission.applicant;
-    const isMvd = intakeLinks.find((link) => link.id === submission.linkId)?.formType === "mvd_invitation";
     const value = (key: string) => typeof source[key] === "string" ? String(source[key]) : "";
     const flag = (key: string) => source[key] === true;
     return {
@@ -946,22 +944,22 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       givenNames: value("givenNames").toUpperCase(),
       birthDate: normalizeDmy(value("birthDate")),
       birthPlace: value("birthPlace").toUpperCase(),
-      sex: value("sex") || "МУЖСКОЙ",
+      sex: value("sex"),
       hasOtherNames: flag("hasOtherNames"),
       otherNames: value("otherNames"),
       bornInRussia: flag("bornInRussia"),
-      citizenship: value("citizenship") || store.common.citizenship,
-      purposeSection: value("purposeSection") || store.common.purposeSection,
-      purpose: value("purpose") || store.common.purpose,
-      visaType: value("visaType") || store.common.visaType,
-      entries: value("entries") || store.common.entries,
-      entryDate: normalizeDmy(value("entryDate")) || store.common.entryDate,
-      exitDate: normalizeDmy(value("exitDate")) || store.common.exitDate,
-      destinationType: value("destinationType") || store.common.destinationType,
-      organization: value("organization") || store.common.organization,
-      organizationAddress: value("organizationAddress") || store.common.organizationAddress,
-      tin: value("tin") || store.common.tin,
-      telex: value("telex") || (isMvd ? "" : store.common.telex),
+      citizenship: value("citizenship"),
+      purposeSection: value("purposeSection"),
+      purpose: value("purpose"),
+      visaType: value("visaType"),
+      entries: value("entries"),
+      entryDate: normalizeDmy(value("entryDate")),
+      exitDate: normalizeDmy(value("exitDate")),
+      destinationType: value("destinationType"),
+      organization: value("organization"),
+      organizationAddress: value("organizationAddress"),
+      tin: value("tin"),
+      telex: value("telex"),
       invitation: value("invitation"),
       invitationIssuer: value("invitationIssuer"),
       invitationDurationDays: value("invitationDurationDays"),
@@ -972,15 +970,15 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       phone: value("phone"),
       personalFax: value("personalFax"),
       email: value("email"),
-      routeCity: value("routeCity").toUpperCase() || store.common.city,
+      routeCity: value("routeCity").toUpperCase(),
       worksOrStudies: source.worksOrStudies !== false,
-      workStudyPlace: value("workStudyPlace") || store.common.employer,
-      position: value("position") || store.common.defaultPosition,
-      workAddress: value("workAddress") || store.common.employerAddress,
-      workPhone: value("workPhone") || fixedWorkPhone,
+      workStudyPlace: value("workStudyPlace"),
+      position: value("position"),
+      workAddress: value("workAddress"),
+      workPhone: value("workPhone"),
       workFax: value("workFax"),
-      workEmail: value("workEmail") || store.common.employerEmail,
-      preferredEmbassy: value("preferredEmbassy") || store.common.embassy,
+      workEmail: value("workEmail"),
+      preferredEmbassy: value("preferredEmbassy"),
       hadFormerRussianCitizenship: flag("hadFormerRussianCitizenship"),
       formerCitizenshipLostDate: normalizeDmy(value("formerCitizenshipLostDate")),
       formerCitizenshipLossReason: value("formerCitizenshipLossReason"),
@@ -995,7 +993,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       passwordOverride: value("passwordOverride"),
       applicationId: value("applicationId").replace(/\D/g, ""),
       specialNotes: value("specialNotes"),
-      personalAddress: value("personalAddress") || fixedPermanentAddress,
+      personalAddress: value("personalAddress"),
       intakeOrder: submission.queueNo,
       intakeSubmissionId: submission.id,
     };
@@ -1012,8 +1010,12 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
           const right = b.intakeOrder ?? Number.MAX_SAFE_INTEGER;
           return left - right;
         });
-        const next = { ...current, applicants, selectedId: current.selectedId || imported.id };
+        const next = { ...current, applicants, selectedId: imported.id };
         persistStoreSnapshot(next);
+        // The newly approved profile becomes the active KD-MID payload immediately.
+        const payload = buildPayload(imported, next.common, autoAdvance);
+        persistActivePayload(payload);
+        window.postMessage({ type: "KD_MID_SET_PAYLOAD", payload }, window.location.origin);
         return next;
       });
       await intakeAction({ action: "mark-imported", submissionId: submission.id, applicantId: imported.id });
