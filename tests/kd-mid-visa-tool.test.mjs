@@ -355,7 +355,7 @@ test("v0.9.34 resolves Email by the Russian label despite auxiliary inputs befor
   const { document, Node } = dom.window;
   const ctx = {
     document, Node, window: dom.window,
-    norm: (value) => String(value || "").replace(/\\s+/g, " ").trim().toUpperCase(),
+    norm: (value) => String(value || "").replace(/\s+/g, " ").trim().toUpperCase(),
     controls: (root = document) => [...root.querySelectorAll("input,select,textarea")],
     visible: (el) => !el.disabled && el.type !== "hidden",
   };
@@ -413,6 +413,17 @@ test("v0.9.34 bypasses empty Fax without blocking the contact page", () => {
   assert.equal(result.handled, true);
   assert.equal(result.ready, true);
   assert.equal(retries, 0);
+
+  // Reproduce the screenshot: the personal E-mail is blank although the payload has it.
+  const emailControl = { value: "", dispatchEvent() { return true; }, isConnected: true };
+  C.personalEmail = emailControl;
+  sandbox.setNativeControlValue = (control, value) => { control.value = value; };
+  sandbox.Event = class Event { constructor(type) { this.type = type; } };
+  const firstEmailPass = fill({ applicant });
+  assert.equal(firstEmailPass.ready, false);
+  assert.equal(emailControl.value, applicant.email);
+  const secondEmailPass = fill({ applicant });
+  assert.equal(secondEmailPass.ready, true);
 
   // Fax supplied in a profile is not silently dropped if its form control is unavailable.
   C.personalFax = null;
