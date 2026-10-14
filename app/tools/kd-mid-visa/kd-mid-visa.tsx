@@ -821,7 +821,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
           telex: student ? store.common.telex : "",
           invitation: student ? store.common.invitation : "",
           invitationIssuer: "",
-          invitationDurationDays: mvdInvitation ? "90" : "",
+          invitationDurationDays: "",
           routeCity: student ? store.common.city : "",
           employer: student ? store.common.employer : "",
           position: student ? store.common.defaultPosition : "",
