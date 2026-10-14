@@ -156,8 +156,9 @@ test('MVD invitation normalization is idempotent and does not affect non-MVD for
   let r = await f.post({ applicant: { ...applicant, invitation: '2Y8858461' } });
   assert.equal(r.status, 201);
   assert.equal((await r.json()).submission.applicant.invitation, '2Y8858461');
-  f.sqlite.prepare('UPDATE visa_intake_links SET defaults_json=?').run(JSON.stringify({ ...shared, formType: 'general' }));
-  r = await f.post({ applicant: { ...applicant, invitation: '7726002Y8858461' } });
+  const general = fixture(t);
+  general.sqlite.prepare('UPDATE visa_intake_links SET defaults_json=?').run(JSON.stringify({ ...shared, formType: 'general' }));
+  r = await general.post({ applicant: { ...applicant, invitation: '7726002Y8858461' } });
   assert.equal(r.status, 201);
   assert.equal((await r.json()).submission.applicant.invitation, '7726002Y8858461');
 });
