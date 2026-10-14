@@ -46,11 +46,17 @@ async function hashToken(value: string) {
 
 function mergeStudentServerDefaults(raw: Record<string, unknown>) {
   const formType = raw.formType === "general" ? "general" : raw.formType === "mvd_invitation" ? "mvd_invitation" : "student";
-  if (formType !== "student") return { ...raw, formType };
-  const merged: Record<string, unknown> = { ...raw, formType: "student" };
-  for (const [key, value] of Object.entries(STUDENT_SERVER_DEFAULTS)) {
+  if (formType === "general") return { ...raw, formType };
+  const merged: Record<string, unknown> = { ...raw, formType };
+  const fields = formType === "student" ? Object.keys(STUDENT_SERVER_DEFAULTS)
+    : ["employer", "position", "workAddress", "workPhone", "workEmail", "permanentAddress"];
+  for (const key of fields) {
+    const value = STUDENT_SERVER_DEFAULTS[key];
     if (!String(merged[key] ?? "").trim() && value) merged[key] = value;
   }
+  // Keep the inviting institution's INN when present. Only identify Bauman by name.
+  if (formType === "mvd_invitation" && !String(merged.tin ?? "").trim() &&
+    /БАУМАН|BAUMAN/i.test(String(merged.organization ?? ""))) merged.tin = "7701002520";
   return merged;
 }
 
@@ -252,6 +258,8 @@ ${serverMvd ? `<label class="field" data-field="invitationIssuer">Cơ quan cấp
   let receipt = saved?.receipt || null;
   let currentApplicant = saved?.applicant || null;
   let formType = "student";
+  const mvdSharedFields = ["personalAddress", "workStudyPlace", "position", "workAddress", "workPhone", "workEmail"];
+  const mvdManuallyCleared = new Set(Array.isArray(saved?.mvdManuallyCleared) ? saved.mvdManuallyCleared.filter(k=>mvdSharedFields.includes(k)) : []);
   const STUDENT_FORM_DEFAULTS = {
     password:"qllhs2025",
     citizenship:"ВЬЕТНАМ",
@@ -283,6 +291,16 @@ ${serverMvd ? `<label class="field" data-field="invitationIssuer">Cơ quan cấp
     }
     return merged;
   };
+  const withMvdContactFallbacks = raw => {
+    const merged={...(raw || {})};
+    const mapping={employer:"employer",position:"position",workAddress:"workAddress",
+      workPhone:"workPhone",workEmail:"workEmail",permanentAddress:"permanentAddress"};
+    for(const key of Object.keys(mapping)) {
+      if(!String(merged[key] ?? "").trim()) merged[key]=STUDENT_FORM_DEFAULTS[key];
+    }
+    if(!String(merged.tin ?? "").trim() && /БАУМАН|BAUMAN/i.test(String(merged.organization || ""))) merged.tin="7701002520";
+    return merged;
+  };
 
   let lastStatus = receipt?.status || "";
   const draftStatus=document.getElementById("draftStatus");
@@ -297,7 +315,7 @@ ${serverMvd ? `<label class="field" data-field="invitationIssuer">Cơ quan cấp
   };
   const saveLocal = (applicant=currentApplicant) => {
     currentApplicant = applicant || currentApplicant;
-    const result=writeDraft(()=>localStorage,storageKey,{ applicant: currentApplicant, receipt });
+    const result=writeDraft(()=>localStorage,storageKey,{ applicant: currentApplicant, receipt, mvdManuallyCleared: [...mvdManuallyCleared] });
     if(result.ok) setDraftStatus("✓ Bản nháp đã lưu trên thiết bị này.","ok");
     else setDraftStatus("⚠ Không lưu được bản nháp trên thiết bị. Bạn vẫn có thể gửi hồ sơ; không đóng trang trước khi gửi.","error");
     return result.ok;
@@ -523,7 +541,7 @@ ${serverMvd ? `<label class="field" data-field="invitationIssuer">Cơ quan cấp
     formType = data.link?.formType === "mvd_invitation" || rawDefaults.formType === "mvd_invitation" ? "mvd_invitation" : data.link?.formType === "general" || rawDefaults.formType === "general" ? "general" : "student";
     const student = formType === "student";
     const mvd = formType === "mvd_invitation";
-    const d = student ? withStudentFallbacks(rawDefaults) : rawDefaults;
+    const d = student ? withStudentFallbacks(rawDefaults) : mvd ? withMvdContactFallbacks(rawDefaults) : rawDefaults;
     batch.innerHTML = "Đợt thu hồ sơ: <strong>"+String(data.link?.label || "").replace(/[<>&]/g,"")+"</strong> · <b>"+(student ? "MẪU NHẬP HỌC" : mvd ? "THƯ MỜI МВД" : "NGƯỜI THƯỜNG")+"</b>";
     document.getElementById("formTypeBadge").textContent = student ? "LINK 1 · MẪU NHẬP HỌC" : mvd ? "LINK 3 · THƯ MỜI МВД" : "LINK 2 · MẪU VISA NGƯỜI THƯỜNG";
     document.getElementById("heroTitle").textContent = student ? "Điền hồ sơ nhập học để chuẩn bị KD-MID" : mvd ? "Điền hồ sơ theo thư mời điện tử của МВД Nga" : "Điền hồ sơ visa cá nhân để chuẩn bị KD-MID";
@@ -556,7 +574,10 @@ ${serverMvd ? `<label class="field" data-field="invitationIssuer">Cơ quan cấp
     const mergeCommonDefaultsIntoDraft = draft => {
       const merged={...(draft || {})};
       Object.entries(values).forEach(([key,value]) => {
-        if(!Object.prototype.hasOwnProperty.call(merged,key) && String(value ?? "").trim()) merged[key]=String(value);
+        if(!String(value ?? "").trim()) return;
+        if(formType==="mvd_invitation" && mvdSharedFields.includes(key)) {
+          if(!String(merged[key] ?? "").trim() && !mvdManuallyCleared.has(key)) merged[key]=String(value);
+        } else if(!Object.prototype.hasOwnProperty.call(merged,key)) merged[key]=String(value);
       });
       if(!Object.prototype.hasOwnProperty.call(merged,"entryDate") && d.entryDate) merged.entryDate=String(d.entryDate);
       if(!Object.prototype.hasOwnProperty.call(merged,"exitDate") && d.exitDate) merged.exitDate=String(d.exitDate);
@@ -615,6 +636,11 @@ ${serverMvd ? `<label class="field" data-field="invitationIssuer">Cơ quan cấp
   const persistFormDraft = event => {
     if(!linkReady && event) draftEditedDuringInit=true;
     if(event?.isComposing || composingElements.size) return false;
+    const field=event?.target;
+    if(formType==="mvd_invitation" && field && mvdSharedFields.includes(field.name) && event.type!=="blur") {
+      if(String(field.value ?? "").trim()) mvdManuallyCleared.delete(field.name);
+      else mvdManuallyCleared.add(field.name);
+    }
     return saveLocal(snapshotCurrentApplicant());
   };
   byName("invitation")?.addEventListener("input", event => {
