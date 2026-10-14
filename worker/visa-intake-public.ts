@@ -153,11 +153,9 @@ html{scroll-padding-top:60px;-webkit-text-size-adjust:100%;text-size-adjust:100%
 <label class="field" data-field="destinationType">Loại nơi đến <small>В какое учреждение направляетесь?</small><select name="destinationType" required>${selectOptions(serverDefaults.destinationType, [["ОРГАНИЗАЦИЯ","Tổ chức"],["ФИЗИЧЕСКОЕ ЛИЦО","Cá nhân"]])}</select></label>
 <label class="field" data-field="organization">Tên tổ chức tiếp nhận <small>Наименование организации</small><input name="organization" value="${htmlAttr(serverDefaults.organization)}" required></label>
 <label class="field" data-field="organizationAddress">Địa chỉ tổ chức <small>Адрес</small><input name="organizationAddress" value="${htmlAttr(serverDefaults.organizationAddress)}" required></label>
-<label class="field" data-field="tin">INN tổ chức <small>ИНН организации</small><input name="tin" value="${htmlAttr(serverDefaults.tin)}" required></label>
+<label class="field" data-field="tin">${serverMvd ? "INN Bauman / cơ quan mời" : "INN tổ chức"} <small>ИНН организации${serverMvd ? " · Bauman: 7701002520; sửa nếu đơn vị mời khác" : ""}</small><input name="tin" inputmode="numeric" value="${htmlAttr(serverDefaults.tin)}" ${serverStudent ? "required" : ""}></label>
 <label class="field" data-field="telex" id="telexField">Mã Telex / Số chỉ thị <small>Номер указания (телекса)</small><input name="telex" value=""></label>
 <label class="field" data-field="invitation">Số thư mời <small>Номер приглашения · khác mã Telex</small><input name="invitation" value="${htmlAttr(serverDefaults.invitation)}" ${serverMvd ? "required" : ""}></label>
-${serverMvd ? `<label class="field" data-field="invitationIssuer">Cơ quan cấp thư mời МВД <small>Орган, оформивший приглашение</small><input name="invitationIssuer" required value="${htmlAttr(serverDefaults.invitationIssuer)}"></label>
-` : ""}
 </div></section>
 <section class="section"><header><b>02</b><div><h2>Thông tin cá nhân</h2><p>Họ và tên nhập chữ Latin không dấu, đúng thứ tự trên hộ chiếu.</p></div></header><div class="grid">
 <label class="field" data-field="surname" data-personal-required="true">Họ <b class="required-mark">*</b> <small>Фамилия</small><input name="surname" data-normalize="upper-plain" required></label>
@@ -568,7 +566,7 @@ ${serverMvd ? `<label class="field" data-field="invitationIssuer">Cơ quan cấp
       entries:upperPlain(d.entries || (student ? "ОДНОКРАТНАЯ" : "")),
       destinationType:upperPlain(d.destinationType || (student ? "ОРГАНИЗАЦИЯ" : "")),
       organization:upperPlain(d.organization || ""), organizationAddress:upperPlain(d.organizationAddress || ""),
-      tin:String(d.tin || ""), telex:"", invitation:mvd ? normalizeMvdInvitation(d.invitation || "") : String(d.invitation || ""), invitationIssuer:upperPlain(d.invitationIssuer || ""), passwordOverride:String(d.password || ""),
+      tin:String(d.tin || ""), telex:"", invitation:mvd ? normalizeMvdInvitation(d.invitation || "") : String(d.invitation || ""), passwordOverride:String(d.password || ""),
       personalAddress:upperPlain(d.permanentAddress || ""), routeCity:upperPlain(d.routeCity || (student ? "МОСКВА" : "")),
       workStudyPlace:upperPlain(d.employer || ""), position:upperPlain(d.position || ""), workAddress:upperPlain(d.workAddress || ""),
       workPhone:d.workPhone || "", workEmail:String(d.workEmail || "").toLowerCase(), preferredEmbassy:d.preferredEmbassy || ""
@@ -621,7 +619,7 @@ ${serverMvd ? `<label class="field" data-field="invitationIssuer">Cơ quan cấp
       bornInRussia:value("bornInRussia")==="ДА", citizenship:upperPlain(value("citizenship")), purposeSection:upperPlain(value("purposeSection")),
       purpose:upperPlain(value("purpose")), visaType:upperPlain(value("visaType")), entries:upperPlain(value("entries")), entryDate:value("entryDate"), exitDate:value("exitDate"),
       destinationType:upperPlain(value("destinationType")), organization:upperPlain(value("organization")), organizationAddress:upperPlain(value("organizationAddress")),
-      tin:value("tin"), telex:value("telex"), invitation:formType==="mvd_invitation" ? normalizeMvdInvitation(value("invitation")) : value("invitation"), invitationIssuer:upperPlain(value("invitationIssuer")), passportNo:upperPlain(value("passportNo")),
+      tin:value("tin"), telex:value("telex"), invitation:formType==="mvd_invitation" ? normalizeMvdInvitation(value("invitation")) : value("invitation"), passportNo:upperPlain(value("passportNo")),
       passportIssue:value("passportIssue"), passportExpiry:value("passportExpiry") || passportExpiryFromIssue(value("passportIssue")),
       hasPermanentAddress:value("hasPermanentAddress")!=="НЕТ", personalAddress:upperPlain(value("personalAddress")), phone:value("phone"), personalFax:value("personalFax"), email:value("email").toLowerCase(),
       routeCity:upperPlain(value("routeCity")), worksOrStudies:value("worksOrStudies")!=="НЕТ", workStudyPlace:upperPlain(value("workStudyPlace")), position:upperPlain(value("position")),
