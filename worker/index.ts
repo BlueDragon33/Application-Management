@@ -10,6 +10,7 @@ import {
   withPreviewOwnerIdentity,
 } from "./preview-access";
 import { publicVisaIntakePage } from "./visa-intake-public";
+import { authorizeBlueprintSso, exchangeBlueprintSso } from "./blueprint-sso";
 import {
   handleProductionAccount,
   handleProductionGoogleCallback,
@@ -286,6 +287,9 @@ const worker = {
     }
 
     if (isProduction) {
+      // Public PKCE back-channel: no browser session, but a valid atomic code +
+      // verifier is mandatory; never routed into internal privileged app APIs.
+      if (url.pathname === "/__sso/token") return exchangeBlueprintSso(request, env);
       if (url.pathname === productionGoogleStartPath()) return handleProductionGoogleStart(request, env);
       if (url.pathname === productionGoogleCallbackPath()) return handleProductionGoogleCallback(request, env);
       if (url.pathname === productionLoginPath()) return handleProductionLogin(request, env);
@@ -298,6 +302,7 @@ const worker = {
       if (!readback) {
         const identity = await productionIdentity(request, env);
         if (!identity) return productionUnauthorized(request);
+        if (url.pathname === "/__sso/authorize") return authorizeBlueprintSso(request, env, identity);
         if (url.pathname === productionAccountPath() || url.pathname.startsWith(`${productionAccountPath()}/`)) {
           return handleProductionAccount(request, env, identity);
         }
