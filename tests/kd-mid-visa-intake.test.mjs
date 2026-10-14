@@ -34,14 +34,14 @@ test("MVD Link 3 supports private photo reference and explicit Bauman group-only
   assert.match(tool, /mvdInvitation \? mvdCommon\.invitationIssuer\.trim\(\) : ""/);
   assert.match(tool, /mvdInvitation \? mvdCommon\.invitationDurationDays\.trim\(\) : ""/);
   assert.match(tool, /invitation: student \? store\.common\.invitation : ""/);
-  assert.match(tool, /telex: student \? store\.common\.telex : ""/);
+  assert.match(tool, /telex: ""/);
   assert.doesNotMatch(adminApi, /imageDataUrl|mvdImagePreview|data:image\/|referenceImage/);
 });
 
 test("Link 3 accepts МВД electronic invitation details without inheriting student Telex", () => {
   assert.match(tool, /setIntakeFormType\("mvd_invitation"\)/);
   assert.match(tool, /invitationDurationDays: ""/);
-  assert.match(tool, /isMvd \? "" : store\.common\.telex/);
+  assert.match(tool, /telex: value\("telex"\)/);
   assert.match(publicPage, /formType === "mvd_invitation"/);
   assert.match(publicPage, /fieldKey="invitationIssuer"/);
   assert.match(publicPage, /fieldKey="invitationDurationDays"/);
@@ -56,6 +56,21 @@ test("Link 3 accepts МВД electronic invitation details without inheriting stu
   assert.match(publicWorkerPage, /data-field="invitationIssuer"/);
   assert.match(publicWorkerPage, /data-field="invitationDurationDays"/);
   assert.match(adminApi, /"invitationIssuer", "invitationDurationDays"/);
+});
+
+test("all intake modes preserve blank Telex through API, personal import and KD-MID launch", () => {
+  assert.match(adminApi, /telex: ""/);
+  assert.match(publicApi, /telex: text\(source\.telex, 80\)/);
+  assert.match(publicApi, /key === "formType" \|\| key === "telex"/);
+  assert.match(publicPage, /telex: current\.telex \?\? ""/);
+  assert.match(publicWorkerPage, /telex:""/);
+  assert.match(tool, /telex: value\("telex"\)/);
+  assert.match(tool, /telex: applicant\.telex \?\? ""/);
+  assert.match(tool, /selectedId: imported\.id/);
+  assert.match(tool, /persistActivePayload\(payload\)/);
+  assert.doesNotMatch(tool, /telex: applicant\.telex \|\| common\.telex/);
+  assert.doesNotMatch(tool, /telex: item\.telex \|\| common\.telex/);
+  assert.doesNotMatch(publicApi, /telex: text\(withDefault\(/);
 });
 
 test("visa intake has isolated link and submission tables", () => {
@@ -276,7 +291,7 @@ test("production standalone intake exposes the same complete KD-MID field set", 
 
 test("payload and bookmarklet no longer overwrite editable address and fax profile fields", () => {
   assert.match(tool, /personalAddress: applicant\.hasPermanentAddress === false/);
-  assert.match(tool, /A\.personalAddress\|\|p\.fixedPermanentAddress/);
+  assert.match(tool, /setAnyText\(\["Адрес вашего постоянного проживания"\],A\.personalAddress\)/);
   assert.match(tool, /Ваш личный факс/);
   assert.match(tool, /Рабочий факс/);
 });
@@ -291,19 +306,19 @@ test("admin creates two persistent intake form types and snapshots the type in d
   assert.match(adminApi, /defaults\.formType==="general"/);
 });
 
-test("general intake does not inherit study-only KD-MID defaults while student intake requires Telex", () => {
+test("general intake does not inherit study-only values and Telex is optional for all forms", () => {
   assert.match(tool, /purposeSection: student \? store\.common\.purposeSection : mvdInvitation \? mvdCommon\.purposeSection\.trim\(\) : ""/);
-  assert.match(tool, /telex: student \? store\.common\.telex : ""/);
+  assert.match(tool, /telex: ""/);
   assert.match(publicApi, /student \? "УЧЕБА" : ""/);
   assert.match(publicApi, /student \? "МОСКВА" : ""/);
-  assert.match(publicApi, /\["telex", "Mã Telex"\]/);
+  assert.doesNotMatch(publicApi, /\["telex", "Mã Telex"\]/);
 });
 
 
 test("React public intake visibly distinguishes student and general forms", () => {
   assert.match(publicPage, /LINK 1 · MẪU NHẬP HỌC/);
   assert.match(publicPage, /LINK 2 · MẪU VISA NGƯỜI THƯỜNG/);
-  assert.match(publicPage, /required=\{formType === "student"\} value=\{applicant\.telex\}/);
+  assert.match(publicPage, /<input value=\{applicant\.telex\} onChange=/);
   assert.match(publicPage, /-- Chọn nơi nộp hồ sơ --/);
   assert.match(publicPage, /purposeSection: ""/);
   assert.match(publicPage, /routeCity: ""/);
@@ -405,7 +420,7 @@ test("production visa intake server-renders Link 1 defaults into input value att
   assert.match(publicWorkerPage, /name="workAddress" value="\$\{htmlAttr\(serverDefaults\.workAddress\)\}"/);
   assert.match(publicWorkerPage, /name="workPhone" value="\$\{htmlAttr\(serverDefaults\.workPhone\)\}"/);
   assert.match(publicWorkerPage, /name="workEmail" type="email" value="\$\{htmlAttr\(serverDefaults\.workEmail\)\}"/);
-  assert.match(publicWorkerPage, /name="telex" value="\$\{htmlAttr\(serverDefaults\.telex\)\}"/);
+  assert.match(publicWorkerPage, /name="telex" value=""/);
   assert.match(publicWorkerPage, /value="\$\{entryDate\.day\}"/);
   assert.match(publicWorkerPage, /STUDENT_SERVER_DEFAULTS/);
 });
