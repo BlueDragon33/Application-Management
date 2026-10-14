@@ -83,7 +83,17 @@ test("auth code is issued to exact registered callback and can be redeemed once 
 });
 test("wrong verifier, malformed callback, wrong client or missing session privileges fail closed",async()=>{
  const f=fixture();f.url.searchParams.set("code_challenge",await challengeFor(verifier));
- assert.equal((await authorizeBlueprintSso(new Request(f.url),f,{...f.identity,mustChangePassword:true},10000)).status,403);
+ const incomplete = await authorizeBlueprintSso(new Request(f.url), f,
+   {...f.identity, mustChangePassword:true}, 10000);
+ assert.equal(incomplete.status,303,"browser must be guided to account setup");
+ assert.equal(incomplete.headers.get("location"),
+   "https://application-management.boiech-ai.workers.dev/__account?sso=setup");
+ assert.equal(incomplete.headers.get("cache-control"),"no-store, private");
+ assert.equal(f.codes.size,0,"no SSO grant issued to an incomplete account");
+ const wrongMethod = await authorizeBlueprintSso(new Request(f.url,{method:"POST"}),
+   f,f.identity,10000);
+ assert.equal(wrongMethod.status,405);
+ assert.equal(f.codes.size,0);
  const wrong=new URL(f.url);wrong.searchParams.set("redirect_uri","https://evil.example/callback");
  assert.equal((await authorizeBlueprintSso(new Request(wrong),f,f.identity,10000)).status,400);
  f.accounts.set("owner@example.com",{role:"owner",status:"suspended"});

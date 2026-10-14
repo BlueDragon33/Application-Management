@@ -36,8 +36,21 @@ export async function authorizeBlueprintSso(
   identity: ProductionIdentity,
   nowSeconds = Math.floor(Date.now() / 1000)
 ): Promise<Response> {
-  if (request.method !== "GET" || identity.mustChangePassword) {
-    return json({ error: "sso_session_not_ready" }, 403);
+  if (request.method !== "GET") return json({ error: "method_not_allowed" }, 405);
+  if (identity.mustChangePassword) {
+    // This is a real required account step, not a failed PKCE grant.
+    // Send human browser navigation to the existing protected account page,
+    // never expose bootstrap credentials or bypass must_change_password.
+    const accountSetup = new URL("/__account?sso=setup", request.url);
+    return new Response(null, {
+      status: 303,
+      headers: {
+        location: accountSetup.href,
+        "cache-control": "no-store, private",
+        "referrer-policy": "no-referrer",
+        "x-content-type-options": "nosniff"
+      }
+    });
   }
   const url = new URL(request.url);
   const client = url.searchParams.get("client_id");
