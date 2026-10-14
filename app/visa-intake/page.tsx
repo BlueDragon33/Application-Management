@@ -466,6 +466,7 @@ export default function VisaIntakePage() {
       applicant.passportNo, applicant.passportIssue, applicant.passportExpiry, applicant.phone, applicant.email, applicant.preferredEmbassy,
     ];
     if (formType === "student") fields.push(applicant.organization, applicant.organizationAddress, applicant.tin, applicant.telex);
+    if (formType === "mvd_invitation") fields.push(applicant.invitation, applicant.invitationIssuer, applicant.invitationDurationDays, applicant.organization, applicant.organizationAddress);
     return fields;
   }, [applicant, formType]);
 
@@ -577,7 +578,11 @@ export default function VisaIntakePage() {
           <Field fieldKey="organizationAddress" correctionFields={correctionFields} label="Địa chỉ tổ chức" ru="Адрес"><input required={formType === "student"} value={applicant.organizationAddress} onChange={(e) => set("organizationAddress", upperPlain(e.target.value))} /></Field>
           <Field fieldKey="tin" correctionFields={correctionFields} label="INN tổ chức" ru="ИНН организации"><input required={formType === "student"} value={applicant.tin} onChange={(e) => set("tin", e.target.value.replace(/\D/g, ""))} /></Field>
           <Field fieldKey="telex" correctionFields={correctionFields} label={formType === "student" ? "Mã Telex" : "Mã Telex / Số chỉ thị"} ru="Номер указания (телекса)" hint={formType === "student" ? "Bắt buộc đối với mẫu nhập học." : "Nếu hồ sơ không dùng Telex thì có thể để trống."}><input required={formType === "student"} value={applicant.telex} onChange={(e) => set("telex", e.target.value)} /></Field>
-          <Field fieldKey="invitation" correctionFields={correctionFields} label="Số giấy mời" ru="Номер приглашения" hint="Không có thì để trống."><input value={applicant.invitation} onChange={(e) => set("invitation", e.target.value)} /></Field>
+          <Field fieldKey="invitation" correctionFields={correctionFields} label={formType === "mvd_invitation" ? "Số thư mời điện tử МВД *" : "Số giấy mời"} ru="Номер приглашения" hint={formType === "mvd_invitation" ? "Ghi đúng số trên thư mời điện tử; không phải mã Telex." : "Không có thì để trống."}><input required={formType === "mvd_invitation"} value={applicant.invitation} onChange={(e) => set("invitation", upperPlain(e.target.value))} /></Field>
+          {formType === "mvd_invitation" ? <>
+            <Field fieldKey="invitationIssuer" correctionFields={correctionFields} label="Cơ quan cấp thư mời МВД *" ru="Орган, оформивший приглашение"><input required value={applicant.invitationIssuer} onChange={(e) => set("invitationIssuer", upperPlain(e.target.value))} /></Field>
+            <Field fieldKey="invitationDurationDays" correctionFields={correctionFields} label="Thời hạn thư mời (ngày) *" ru="На срок (дней)"><input required inputMode="numeric" value={applicant.invitationDurationDays} onChange={(e) => set("invitationDurationDays", e.target.value.replace(/\D/g, "").slice(0, 4))} /></Field>
+          </> : null>
         </div>
       </section>
 
