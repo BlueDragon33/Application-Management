@@ -773,7 +773,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
           throw caught;
         }
       } else {
-        window.open(app?.previewUrl ?? summary?.webHref ?? fallback, "_blank", "noopener,noreferrer");
+        window.open(app?.ssoStartUrl ?? app?.previewUrl ?? summary?.webHref ?? fallback, "_blank", "noopener,noreferrer");
       }
       setWebMenu(false);
     } catch (caught) {
