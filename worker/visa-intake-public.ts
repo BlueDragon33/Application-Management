@@ -114,7 +114,7 @@ export async function publicVisaIntakePage(request: Request, env: VisaIntakePage
 </head>
 <body>
 <main class="page">
-<section class="hero"><span id="formTypeBadge">${serverStudent ? "LINK 1 · MẪU NHẬP HỌC" : "LINK 2 · MẪU VISA NGƯỜI THƯỜNG"}</span><h1 id="heroTitle">${serverStudent ? "Điền hồ sơ nhập học để chuẩn bị KD-MID" : "Điền hồ sơ visa cá nhân để chuẩn bị KD-MID"}</h1><p id="heroIntro">${serverStudent ? "Các dữ liệu dùng chung đã được điền sẵn trực tiếp trong ô. Chỉ sửa nếu giấy tờ của bạn khác." : "Hãy nhập thông tin theo đúng mục đích chuyến đi của bạn."}</p></section>
+<section class="hero"><span id="formTypeBadge">${serverStudent ? "LINK 1 · MẪU NHẬP HỌC" : serverMvd ? "LINK 3 · THƯ MỜI МВД" : "LINK 2 · MẪU VISA NGƯỜI THƯỜNG"}</span><h1 id="heroTitle">${serverStudent ? "Điền hồ sơ nhập học để chuẩn bị KD-MID" : serverMvd ? "Hồ sơ thư mời điện tử МВД Nga" : "Điền hồ sơ visa cá nhân để chuẩn bị KD-MID"}</h1><p id="heroIntro">${serverStudent ? "Các dữ liệu dùng chung đã được điền sẵn trực tiếp trong ô. Chỉ sửa nếu giấy tờ của bạn khác." : "Hãy nhập thông tin theo đúng mục đích chuyến đi của bạn."}</p></section>
 <div id="batch" class="batch">Đang kiểm tra link thu hồ sơ…</div>
 <div id="error" class="error"></div>
 <div id="returnAlert" class="return-alert"><strong>⚠ HỒ SƠ BỊ TRẢ VỀ · CẦN SỬA</strong><p id="returnNote"></p><small id="returnMeta"></small><button id="refreshReturned" type="button">↻ Cập nhật trạng thái</button></div>
@@ -143,7 +143,7 @@ export async function publicVisaIntakePage(request: Request, env: VisaIntakePage
 <label class="field" data-field="organizationAddress">Địa chỉ tổ chức <small>Адрес</small><input name="organizationAddress" value="${htmlAttr(serverDefaults.organizationAddress)}" required></label>
 <label class="field" data-field="tin">INN tổ chức <small>ИНН организации</small><input name="tin" value="${htmlAttr(serverDefaults.tin)}" required></label>
 <label class="field" data-field="telex" id="telexField">Mã Telex / Số chỉ thị <small>Номер указания (телекса)</small><input name="telex" value="${htmlAttr(serverDefaults.telex)}" required></label>
-<label class="field" data-field="invitation">Số thư mời <small>Номер приглашения</small><input name="invitation" value="${htmlAttr(serverDefaults.invitation)}" ${serverMvd ? "required" : ""}></label>
+<label class="field" data-field="invitation">Số thư mời <small>Номер приглашения · khác mã Telex</small><input name="invitation" value="${htmlAttr(serverDefaults.invitation)}" ${serverMvd ? "required" : ""}></label>
 ${serverMvd ? `<label class="field" data-field="invitationIssuer">Cơ quan cấp thư mời МВД <small>Орган, оформивший приглашение</small><input name="invitationIssuer" required value="${htmlAttr(serverDefaults.invitationIssuer)}"></label>
 <label class="field" data-field="invitationDurationDays">Thời hạn thư mời (ngày) <small>На срок (дней)</small><input name="invitationDurationDays" inputmode="numeric" pattern="[0-9]{1,4}" required value="${htmlAttr(serverDefaults.invitationDurationDays)}"></label>` : ""}
 </div></section>
@@ -524,7 +524,8 @@ ${serverMvd ? `<label class="field" data-field="invitationIssuer">Cơ quan cấp
     document.getElementById("prefillNotice").style.display=student ? "block" : "none";
     const telexField=document.getElementById("telexField");
     if(telexField) telexField.childNodes[0].textContent=student ? "Mã Telex " : "Mã Telex / Số chỉ thị ";
-    ["organization","organizationAddress","tin","telex"].forEach(name=>{const el=byName(name);if(el) el.required=student;});
+    ["organization","organizationAddress"].forEach(name=>{const el=byName(name);if(el) el.required=student || mvd;});
+    ["tin","telex"].forEach(name=>{const el=byName(name);if(el) el.required=student;});
     const values = {
       citizenship:upperPlain(d.citizenship || "ВЬЕТНАМ"),
       purposeSection:upperPlain(d.purposeSection || (student ? "УЧЕБА" : "")),
@@ -533,7 +534,7 @@ ${serverMvd ? `<label class="field" data-field="invitationIssuer">Cơ quan cấp
       entries:upperPlain(d.entries || (student ? "ОДНОКРАТНАЯ" : "")),
       destinationType:upperPlain(d.destinationType || (student ? "ОРГАНИЗАЦИЯ" : "")),
       organization:upperPlain(d.organization || ""), organizationAddress:upperPlain(d.organizationAddress || ""),
-      tin:String(d.tin || ""), telex:String(d.telex || ""), invitation:String(d.invitation || ""), passwordOverride:String(d.password || ""),
+      tin:String(d.tin || ""), telex:String(d.telex || ""), invitation:String(d.invitation || ""), invitationIssuer:upperPlain(d.invitationIssuer || ""), invitationDurationDays:String(d.invitationDurationDays || ""), passwordOverride:String(d.password || ""),
       personalAddress:upperPlain(d.permanentAddress || ""), routeCity:upperPlain(d.routeCity || (student ? "МОСКВА" : "")),
       workStudyPlace:upperPlain(d.employer || ""), position:upperPlain(d.position || ""), workAddress:upperPlain(d.workAddress || ""),
       workPhone:d.workPhone || "", workEmail:String(d.workEmail || "").toLowerCase(), preferredEmbassy:d.preferredEmbassy || ""
