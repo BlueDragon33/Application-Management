@@ -59,7 +59,7 @@ const STUDENT_INTAKE_DEFAULTS = {
   organization: "МИН-ВО НАУКИ И ВЫСШЕГО ОБРАЗОВАНИЯ РФ (МИНОБРНАУКИ РОССИИ)",
   organizationAddress: "125993, МОСКВА, УЛ. ТВЕРСКАЯ, Д.11, СТР.1, 4",
   tin: "7707740714",
-  telex: "321422",
+  telex: "",
   invitation: "",
   routeCity: "МОСКВА",
   employer: "ГОСУДАРСТВЕННЫЙ ТЕХНИЧЕСКИЙ УНИВЕРСИТЕТ ИМЕНИ ЛЕ КУИ ДОНА",
@@ -181,7 +181,7 @@ export async function GET(request:Request){
     try{applicant=JSON.parse(row.payload_json||"{}")}catch{}
     const recoveredDefaults = fillStudentDefaults(link.defaults);
     for (const [key, value] of Object.entries(recoveredDefaults)) {
-      if (key === "formType") continue;
+      if (key === "formType" || key === "telex") continue;
       const applicantKey = key === "employer" ? "workStudyPlace" : key === "permanentAddress" ? "personalAddress" : key === "password" ? "passwordOverride" : key;
       if (!Object.prototype.hasOwnProperty.call(applicant, applicantKey) && String(value ?? "").trim()) applicant[applicantKey] = value;
     }
@@ -244,7 +244,7 @@ export async function POST(request: Request) {
       organization: upperPlain(withDefault("organization", defaults.organization), 300),
       organizationAddress: upperPlain(withDefault("organizationAddress", defaults.organizationAddress), 400),
       tin: text(withDefault("tin", defaults.tin), 40),
-      telex: text(withDefault("telex", defaults.telex), 80),
+      telex: text(source.telex, 80), // An omitted/empty Telex must never inherit a link default.
       invitation: text(withDefault("invitation", defaults.invitation), 120),
       invitationIssuer: upperPlain(withDefault("invitationIssuer", defaults.invitationIssuer), 300),
       invitationDurationDays: text(withDefault("invitationDurationDays", defaults.invitationDurationDays), 5),
@@ -309,7 +309,6 @@ export async function POST(request: Request) {
         ["organization", "Tên tổ chức mời/tiếp nhận"],
         ["organizationAddress", "Địa chỉ tổ chức"],
         ["tin", "INN tổ chức"],
-        ["telex", "Mã Telex"],
       );
     }
     if (formType === "mvd_invitation") {
