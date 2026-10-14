@@ -188,10 +188,10 @@ test("approved intake submission is mapped into the local KD-MID applicant model
   assert.match(tool, /action: "mark-imported"/);
 });
 
-test("intake link snapshots the current common work and embassy defaults", () => {
-  assert.match(tool, /employer: student \? store\.common\.employer : ""/);
-  assert.match(tool, /workPhone: student \? fixedWorkPhone : ""/);
-  assert.match(tool, /permanentAddress: student \? fixedPermanentAddress : ""/);
+test("intake link snapshots shared contact defaults for Link 1 and Link 3", () => {
+  assert.ok(tool.includes('employer: student || mvdInvitation ? store.common.employer : ""'));
+  assert.ok(tool.includes('workPhone: student || mvdInvitation ? fixedWorkPhone : ""'));
+  assert.ok(tool.includes('permanentAddress: student || mvdInvitation ? fixedPermanentAddress : ""'));
   assert.match(tool, /preferredEmbassy: student \? store\.common\.embassy : mvdInvitation \? mvdCommon\.preferredEmbassy\.trim\(\) : ""/);
 });
 
