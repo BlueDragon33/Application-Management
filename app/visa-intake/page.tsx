@@ -576,12 +576,13 @@ export default function VisaIntakePage() {
           <Field fieldKey="entryDate" correctionFields={correctionFields} label="Ngày vào Nga" ru="Дата въезда в Россию"><DateFields required value={applicant.entryDate} onChange={(value) => set("entryDate", value)} /></Field>
           <Field fieldKey="exitDate" correctionFields={correctionFields} label="Ngày ra Nga" ru="Дата выезда из России"><DateFields required value={applicant.exitDate} onChange={(value) => set("exitDate", value)} /></Field>
           <Field fieldKey="destinationType" correctionFields={correctionFields} label="Loại nơi đến" ru="В какое учреждение направляетесь?"><SelectRussian required value={applicant.destinationType} options={destinationTypeOptions} onChange={(value) => set("destinationType", value)} /></Field>
-          <Field fieldKey="organization" correctionFields={correctionFields} label="Tên tổ chức tiếp nhận" ru="Наименование организации"><input required={formType === "student"} value={applicant.organization} onChange={(e) => set("organization", upperPlain(e.target.value))} /></Field>
-          <Field fieldKey="organizationAddress" correctionFields={correctionFields} label="Địa chỉ tổ chức" ru="Адрес"><input required={formType === "student"} value={applicant.organizationAddress} onChange={(e) => set("organizationAddress", upperPlain(e.target.value))} /></Field>
+          <Field fieldKey="organization" correctionFields={correctionFields} label="Tên tổ chức tiếp nhận" ru="Наименование организации"><input required={formType !== "general"} value={applicant.organization} onChange={(e) => set("organization", upperPlain(e.target.value))} /></Field>
+          <Field fieldKey="organizationAddress" correctionFields={correctionFields} label="Địa chỉ tổ chức" ru="Адрес"><input required={formType !== "general"} value={applicant.organizationAddress} onChange={(e) => set("organizationAddress", upperPlain(e.target.value))} /></Field>
           <Field fieldKey="tin" correctionFields={correctionFields} label="INN tổ chức" ru="ИНН организации"><input required={formType === "student"} value={applicant.tin} onChange={(e) => set("tin", e.target.value.replace(/\D/g, ""))} /></Field>
           <Field fieldKey="telex" correctionFields={correctionFields} label={formType === "student" ? "Mã Telex" : "Mã Telex / Số chỉ thị"} ru="Номер указания (телекса)" hint={formType === "student" ? "Bắt buộc đối với mẫu nhập học." : "Nếu hồ sơ không dùng Telex thì có thể để trống."}><input required={formType === "student"} value={applicant.telex} onChange={(e) => set("telex", e.target.value)} /></Field>
           <Field fieldKey="invitation" correctionFields={correctionFields} label={formType === "mvd_invitation" ? "Số thư mời điện tử МВД *" : "Số giấy mời"} ru="Номер приглашения" hint={formType === "mvd_invitation" ? "Ghi đúng số trên thư mời điện tử; không phải mã Telex." : "Không có thì để trống."}><input required={formType === "mvd_invitation"} value={applicant.invitation} onChange={(e) => set("invitation", upperPlain(e.target.value))} /></Field>
-          {formType === "mvd_invitation" ? <>
+          {formType === "mvd_invitation" ? (
+            <>
             <Field fieldKey="invitationIssuer" correctionFields={correctionFields} label="Cơ quan cấp thư mời МВД *" ru="Орган, оформивший приглашение"><input required value={applicant.invitationIssuer} onChange={(e) => set("invitationIssuer", upperPlain(e.target.value))} /></Field>
             <Field fieldKey="invitationDurationDays" correctionFields={correctionFields} label="Thời hạn thư mời (ngày) *" ru="На срок (дней)"><input required inputMode="numeric" value={applicant.invitationDurationDays} onChange={(e) => set("invitationDurationDays", e.target.value.replace(/\D/g, "").slice(0, 4))} /></Field>
           </> : null>
@@ -639,7 +640,8 @@ export default function VisaIntakePage() {
           <Field fieldKey="workPhone" correctionFields={correctionFields} label="Điện thoại cơ quan" ru="Рабочий телефон"><input required value={applicant.workPhone} onChange={(e) => set("workPhone", e.target.value)} /></Field>
           <Field fieldKey="workFax" correctionFields={correctionFields} label="Fax cơ quan" ru="Рабочий факс" hint="Không có thì để trống."><input value={applicant.workFax} onChange={(e) => set("workFax", e.target.value)} /></Field>
           <Field fieldKey="workEmail" correctionFields={correctionFields} label="Email cơ quan" ru="Рабочий E-mail"><input type="email" required value={applicant.workEmail} onChange={(e) => set("workEmail", e.target.value.toLowerCase())} /></Field>
-          </> : null}
+            </>
+          ) : null}
         </div>
       </section>
 
