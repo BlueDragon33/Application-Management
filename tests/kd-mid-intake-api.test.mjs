@@ -100,11 +100,15 @@ test('server preserves deliberately cleared optional defaults in POST and readba
   assert.equal(read.submission.applicant.invitation, '');
 });
 
-test('server rejects an explicitly cleared required Telex instead of silently substituting it', async t => {
+test('server accepts a blank Telex and keeps it blank through submission readback', async t => {
   const f = fixture(t);
+  f.sqlite.prepare('UPDATE visa_intake_links SET defaults_json=?').run(JSON.stringify({ formType: 'student', telex: 'OLD-COMMON-TELEX' }));
   const response = await f.post({ applicant: { ...applicant, telex: '' } });
-  assert.equal(response.status, 400);
-  assert.ok((await response.json()).missing.includes('Mã Telex'));
+  assert.equal(response.status, 201);
+  const sent = await response.json();
+  assert.equal(sent.submission.applicant.telex, '');
+  const read = await (await f.get(sent.submission.id)).json();
+  assert.equal(read.submission.applicant.telex, '');
 });
 
 test('stale rejected tab cannot revert a newer corrected revision', async t => {
