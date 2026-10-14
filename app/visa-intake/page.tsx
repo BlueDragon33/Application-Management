@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import styles from "./visa-intake.module.css";
 
 type ApplicantForm = {
@@ -292,6 +292,15 @@ function normalizeMvdInvitation(value: string): string {
   return letter > 1 ? clean.slice(letter - 1) : clean;
 }
 
+const MVD_SHARED_FIELD_NAMES = ["personalAddress", "workStudyPlace", "position", "workAddress", "workPhone", "workEmail"] as const;
+const MVD_SHARED_DEFAULT_MAP = {
+  personalAddress: "permanentAddress",
+  workStudyPlace: "employer",
+  position: "position",
+  workAddress: "workAddress",
+  workPhone: "workPhone",
+  workEmail: "workEmail",
+} as const;
 const STUDENT_SHARED_KEYS = Object.keys(STUDENT_FORM_DEFAULTS) as Array<keyof ApplicantForm>;
 const PERSONAL_UPPER_PLAIN_KEYS: Array<keyof ApplicantForm> = ["surname", "givenNames", "birthPlace", "otherNames", "routeCity"];
 
@@ -323,6 +332,7 @@ export default function VisaIntakePage() {
   const [accessKey, setAccessKey] = useState("");
   const [deviceId, setDeviceId] = useState("");
   const [applicant, setApplicant] = useState<ApplicantForm>(blank());
+  const mvdManuallyClearedRef = useRef<Set<string>>(new Set());
   const [permanentAddress, setPermanentAddress] = useState("");
   const [linkLabel, setLinkLabel] = useState("");
   const [formType, setFormType] = useState<"student" | "general" | "mvd_invitation">("student");
@@ -342,10 +352,11 @@ export default function VisaIntakePage() {
     const key = batchValue ? `batch:${batchValue}` : tokenValue ? `token:${tokenValue}` : "";
     const deviceValue = ensureDeviceId();
     setToken(tokenValue); setBatch(batchValue); setAccessKey(key); setDeviceId(deviceValue);
-    let saved: { applicant?: ApplicantForm; receipt?: typeof receipt } | null = null;
+    let saved: { applicant?: ApplicantForm; receipt?: typeof receipt; mvdManuallyCleared?: string[] } | null = null;
     try {
       const raw = key ? window.localStorage.getItem(`visa-intake:draft:${key}`) : null;
-      saved = raw ? JSON.parse(raw) as { applicant?: ApplicantForm; receipt?: typeof receipt } : null;
+      saved = raw ? JSON.parse(raw) as { applicant?: ApplicantForm; receipt?: typeof receipt; mvdManuallyCleared?: string[] } : null;
+      mvdManuallyClearedRef.current = new Set((saved?.mvdManuallyCleared ?? []).filter((key) => MVD_SHARED_FIELD_NAMES.some((name) => name === key)));
       if (saved?.applicant) setApplicant({ ...blank(), ...saved.applicant });
       if (saved?.receipt) setReceipt(saved.receipt);
     } catch {}
@@ -411,6 +422,16 @@ export default function VisaIntakePage() {
           workEmail: current.workEmail || String(defaults.workEmail ?? "").toLowerCase(),
           preferredEmbassy: current.preferredEmbassy || String(defaults.preferredEmbassy ?? ""),
           };
+          if (resolvedFormType === "mvd_invitation") {
+            // Legacy Link 3 drafts contain empty keys; keep explicit clears from the editor.
+            for (const field of MVD_SHARED_FIELD_NAMES) {
+              const serverKey = MVD_SHARED_DEFAULT_MAP[field];
+              if (mvdManuallyClearedRef.current.has(field)) withDefaults[field] = "";
+              else if (!String(withDefaults[field] ?? "").trim()) {
+                withDefaults[field] = String(defaults[serverKey] ?? "");
+              }
+            }
+          }
           const recovered = data.submission?.applicant;
           if (!recovered) return withDefaults;
           const merged = { ...withDefaults, ...recovered } as ApplicantForm;
@@ -439,7 +460,7 @@ export default function VisaIntakePage() {
   }, []);
   useEffect(() => {
     if (!accessKey) return;
-    try { window.localStorage.setItem(`visa-intake:draft:${accessKey}`, JSON.stringify({ applicant, receipt })); } catch {}
+    try { window.localStorage.setItem(`visa-intake:draft:${accessKey}`, JSON.stringify({ applicant, receipt, mvdManuallyCleared: [...mvdManuallyClearedRef.current] })); } catch {}
   }, [accessKey, applicant, receipt]);
 
   async function refreshSubmissionStatus(manual = false) {
@@ -487,6 +508,10 @@ export default function VisaIntakePage() {
   const completion = Math.round((baseFields.filter((value) => value.trim()).length / baseFields.length) * 100);
 
   function set<K extends keyof ApplicantForm>(key: K, value: ApplicantForm[K]) {
+    if (formType === "mvd_invitation" && MVD_SHARED_FIELD_NAMES.some((name) => name === key)) {
+      if (!String(value ?? "").trim()) mvdManuallyClearedRef.current.add(String(key));
+      else mvdManuallyClearedRef.current.delete(String(key));
+    }
     setApplicant((current) => ({ ...current, [key]: value }));
   }
 
