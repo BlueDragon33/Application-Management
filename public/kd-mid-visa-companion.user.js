@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.35
+// @version      0.9.36
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,7 +17,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.35";
+  const VERSION = "0.9.36";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
@@ -879,7 +879,9 @@
 
     // IMPORTANT: this first select is NOT a yes/no question.
     // It must remain "Организация", never "НЕТ".
-    let state = ensureSelectAfterLabel("В какое учреждение направляетесь?", [payload.destinationType || "ОРГАНИЗАЦИЯ","ОРГАНИЗАЦИЯ","ORGANIZATION"]);
+    let state = payload.destinationType
+      ? ensureSelectAfterLabel("В какое учреждение направляетесь?", [payload.destinationType])
+      : "ready";
     if (state === "changed") {
       status("KD-MID Visa VN: đã chọn nơi hướng đến = Организация. Đang điền thông tin tổ chức…", "wait");
       continueAutofill(payload);
@@ -900,7 +902,8 @@
     ];
 
     for (const [label, value] of textSteps) {
-      if (!value && label === "Номер приглашения") continue;
+      // Never populate missing values, especially Telex or invitation numbers.
+      if (value == null || !String(value).trim()) continue;
       state = ensureTextAfterLabel(label, value);
       if (state === "changed") {
         refreshAspNetValidators();
@@ -915,7 +918,11 @@
       }
     }
 
-    const routeValue = A.routeCity || payload.city || "МОСКВА";
+    const routeValue = String(A.routeCity || payload.city || "").trim();
+    if (!routeValue) {
+      status("KD-MID Visa VN: hồ sơ chưa có thành phố đến. Bỏ qua tự điền ô Маршрут; cần nhập và xác nhận thủ công trước khi tiếp tục.", "wait");
+      return { handled: true, ready: false };
+    }
     const routeInput = routeCityControl();
     if (!routeInput || !routeCityControlLooksRight(routeInput)) {
       status("KD-MID Visa VN: chưa khóa đúng ô Маршрут / Населенный пункт hiển thị trên màn hình; đang tự dò lại.", "wait");
@@ -1084,7 +1091,7 @@
     if (
       !finalRoute ||
       !routeCityControlLooksRight(finalRoute) ||
-      String(finalRoute.value).trim() !== "МОСКВА" ||
+      String(finalRoute.value).trim() !== routeValue ||
       routeValidationErrorVisible(finalRoute)
     ) {
       status("KD-MID Visa VN: Маршрут chưa khớp payload; chưa được phép bấm Далее.", "wait");
