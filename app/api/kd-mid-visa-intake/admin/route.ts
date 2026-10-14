@@ -67,8 +67,8 @@ const STUDENT_INTAKE_DEFAULTS = {
 } as const;
 
 function fillStudentDefaults(raw: Record<string, unknown>) {
-  const formType = raw.formType === "general" ? "general" : "student";
-  if (formType === "general") return { ...raw, formType };
+  const formType = raw.formType === "general" ? "general" : raw.formType === "mvd_invitation" ? "mvd_invitation" : "student";
+  if (formType !== "student") return { ...raw, formType };
   const merged: Record<string, unknown> = { ...raw, formType: "student" };
   for (const [key, value] of Object.entries(STUDENT_INTAKE_DEFAULTS)) {
     if (!String(merged[key] ?? "").trim() && String(value ?? "").trim()) merged[key] = value;
@@ -113,7 +113,7 @@ async function snapshot() {
   return {
     links: links.results.map((row)=>{
       let defaults:Record<string,unknown>={};try{defaults=JSON.parse(row.defaults_json||"{}")}catch{}
-      const formType=defaults.formType==="general"?"general":"student";
+      const formType=defaults.formType==="general"?"general":defaults.formType==="mvd_invitation"?"mvd_invitation":"student";
       return {id:row.id,label:row.label,status:row.status,createdBy:row.created_by,createdAt:row.created_at,expiresAt:row.expires_at,publicPath:`/visa-intake?batch=${encodeURIComponent(row.id)}`,submissionCount:submissionCount.get(row.id)??0,resultCount:resultCount.get(row.id)??0,formType};
     }),
     submissions: submissions.results.flatMap((row)=>{
@@ -151,7 +151,7 @@ export async function POST(request: Request) {
       const token = base64Url(crypto.getRandomValues(new Uint8Array(32)));
       const id = crypto.randomUUID();
       const label = text(body.label, 120) || `Đợt thu hồ sơ ${new Date().toLocaleDateString("vi-VN")}`;
-      const formType = text(body.formType, 20) === "general" ? "general" : "student";
+      const formType = text(body.formType, 20) === "general" ? "general" : text(body.formType, 20) === "mvd_invitation" ? "mvd_invitation" : "student";
       const student = formType === "student";
       const defaults = body.defaults && typeof body.defaults === "object" ? body.defaults as Record<string, unknown> : {};
       const submittedDefaults: Record<string, unknown> = {
@@ -170,6 +170,8 @@ export async function POST(request: Request) {
         tin: text(defaults.tin, 40),
         telex: text(defaults.telex, 80),
         invitation: text(defaults.invitation, 120),
+        invitationIssuer: text(defaults.invitationIssuer, 300),
+        invitationDurationDays: text(defaults.invitationDurationDays, 5),
         routeCity: text(defaults.routeCity, 80),
         employer: text(defaults.employer, 240),
         position: text(defaults.position, 120),
