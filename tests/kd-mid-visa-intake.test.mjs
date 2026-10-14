@@ -171,7 +171,7 @@ test("intake link snapshots the current common work and embassy defaults", () =>
   assert.match(tool, /employer: student \? store\.common\.employer : ""/);
   assert.match(tool, /workPhone: student \? fixedWorkPhone : ""/);
   assert.match(tool, /permanentAddress: student \? fixedPermanentAddress : ""/);
-  assert.match(tool, /preferredEmbassy: student \? store\.common\.embassy : ""/);
+  assert.match(tool, /preferredEmbassy: student \? store\.common\.embassy : mvdInvitation \? mvdCommon\.preferredEmbassy\.trim\(\) : ""/);
 });
 
 test("applicant preferred embassy overrides common embassy in the KD-MID payload", () => {
@@ -292,7 +292,7 @@ test("admin creates two persistent intake form types and snapshots the type in d
 });
 
 test("general intake does not inherit study-only KD-MID defaults while student intake requires Telex", () => {
-  assert.match(tool, /purposeSection: student \? store\.common\.purposeSection : ""/);
+  assert.match(tool, /purposeSection: student \? store\.common\.purposeSection : mvdInvitation \? mvdCommon\.purposeSection\.trim\(\) : ""/);
   assert.match(tool, /telex: student \? store\.common\.telex : ""/);
   assert.match(publicApi, /student \? "УЧЕБА" : ""/);
   assert.match(publicApi, /student \? "МОСКВА" : ""/);
