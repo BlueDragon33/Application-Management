@@ -50,7 +50,7 @@ test("Constitution 1.3 sovereignty adoption and dependency budget stay explicit"
     assert.ok(budget.forbiddenRemoteData.includes(required),required);
   }
 
-  assert.match(standard,/Constitution 1\.2 · Operational Sovereignty/);
+  assert.match(standard,/Constitution 1\.3 · Operational Sovereignty/);
   assert.match(standard,/docs\/DEPENDENCY_BUDGET\.json/);
   assert.match(standard,/private keys, bearer\/session tokens, raw bridge secrets/);
   assert.match(standard,/Google Drive may be used only for optional sanitized\/encrypted backup/);
