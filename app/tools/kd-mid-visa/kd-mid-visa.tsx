@@ -59,6 +59,8 @@ type Applicant = {
   tin: string;
   telex: string;
   invitation: string;
+  invitationIssuer?: string;
+  invitationDurationDays?: string;
   passportNo: string;
   passportIssue: string;
   passportExpiry: string;
@@ -848,6 +850,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
 
   function applicantFromIntake(submission: IntakeSubmission): Applicant {
     const source = submission.applicant;
+    const isMvd = intakeLinks.find((link) => link.id === submission.linkId)?.formType === "mvd_invitation";
     const value = (key: string) => typeof source[key] === "string" ? String(source[key]) : "";
     const flag = (key: string) => source[key] === true;
     return {
@@ -872,8 +875,10 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       organization: value("organization") || store.common.organization,
       organizationAddress: value("organizationAddress") || store.common.organizationAddress,
       tin: value("tin") || store.common.tin,
-      telex: value("telex") || store.common.telex,
+      telex: value("telex") || (isMvd ? "" : store.common.telex),
       invitation: value("invitation"),
+      invitationIssuer: value("invitationIssuer"),
+      invitationDurationDays: value("invitationDurationDays"),
       passportNo: value("passportNo").toUpperCase(),
       passportIssue: normalizeDmy(value("passportIssue")),
       passportExpiry: normalizeDmy(value("passportExpiry")) || passportExpiryFromIssue(value("passportIssue")),
