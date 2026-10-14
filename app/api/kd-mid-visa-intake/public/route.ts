@@ -72,8 +72,8 @@ const STUDENT_INTAKE_DEFAULTS = {
 } as const;
 
 function fillStudentDefaults(raw: Record<string, unknown>) {
-  const formType = raw.formType === "general" ? "general" : "student";
-  if (formType === "general") return { ...raw, formType };
+  const formType = raw.formType === "general" ? "general" : raw.formType === "mvd_invitation" ? "mvd_invitation" : "student";
+  if (formType !== "student") return { ...raw, formType };
   const merged: Record<string, unknown> = { ...raw, formType: "student" };
   for (const [key, value] of Object.entries(STUDENT_INTAKE_DEFAULTS)) {
     if (!String(merged[key] ?? "").trim() && String(value ?? "").trim()) merged[key] = value;
@@ -189,7 +189,7 @@ export async function GET(request:Request){
     const resubmittedFields=Array.isArray(validation.resubmittedFields)?validation.resubmittedFields.filter((value):value is string=>typeof value==="string"):[];
     const accessQuery=publicAccessQuery(token,batch);
     const deviceQuery=deviceId?`&deviceId=${encodeURIComponent(deviceId)}`:"";
-    const formType=link.defaults.formType==="general"?"general":"student";
+    const formType=link.defaults.formType==="general"?"general":link.defaults.formType==="mvd_invitation"?"mvd_invitation":"student";
     return json({ok:true,link:{id:link.id,label:link.label,status:link.status,formType},defaults:link.defaults,submission:{
       id:row.id,queueNo:row.queue_no,status:row.status,applicantName:row.applicant_name,reviewNote:row.review_note,reviewedAt:row.reviewed_at,
       correctionFields,resubmittedFields,revision:typeof validation.revision==="number"?validation.revision:0,deviceCode:row.device_code,
@@ -199,7 +199,7 @@ export async function GET(request:Request){
   }
 
   if(wantsResult)return json({ok:false,error:"Không tìm thấy hồ sơ nhận kết quả."},404);
-  const formType=link.defaults.formType==="general"?"general":"student";
+  const formType=link.defaults.formType==="general"?"general":link.defaults.formType==="mvd_invitation"?"mvd_invitation":"student";
   return json({ok:true,link:{id:link.id,label:link.label,status:link.status,formType},defaults:link.defaults,deviceCode:device?.code??null});
  }catch{return json({ok:false,error:"Không thể mở form thu thập lúc này."},503);}
 }
@@ -220,7 +220,7 @@ export async function POST(request: Request) {
 
     const source = (body.applicant && typeof body.applicant === "object" ? body.applicant : {}) as Record<string, unknown>;
     const defaults = link.defaults ?? {};
-    const formType = defaults.formType === "general" ? "general" : "student";
+    const formType = defaults.formType === "general" ? "general" : defaults.formType === "mvd_invitation" ? "mvd_invitation" : "student";
     const student = formType === "student";
     const withDefault = (key: string, fallback: unknown) => Object.prototype.hasOwnProperty.call(source, key) ? source[key] : fallback;
     const passportIssue = text(source.passportIssue, 10);
@@ -246,6 +246,8 @@ export async function POST(request: Request) {
       tin: text(withDefault("tin", defaults.tin), 40),
       telex: text(withDefault("telex", defaults.telex), 80),
       invitation: text(withDefault("invitation", defaults.invitation), 120),
+      invitationIssuer: upperPlain(withDefault("invitationIssuer", defaults.invitationIssuer), 300),
+      invitationDurationDays: text(withDefault("invitationDurationDays", defaults.invitationDurationDays), 5),
       passportNo: upperPlain(source.passportNo, 40),
       passportIssue,
       passportExpiry: text(source.passportExpiry, 10) || passportExpiryFromIssue(passportIssue),
