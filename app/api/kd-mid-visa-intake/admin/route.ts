@@ -54,7 +54,7 @@ const STUDENT_INTAKE_DEFAULTS = {
   organization: "МИН-ВО НАУКИ И ВЫСШЕГО ОБРАЗОВАНИЯ РФ (МИНОБРНАУКИ РОССИИ)",
   organizationAddress: "125993, МОСКВА, УЛ. ТВЕРСКАЯ, Д.11, СТР.1, 4",
   tin: "7707740714",
-  telex: "321422",
+  telex: "",
   invitation: "",
   routeCity: "МОСКВА",
   employer: "ГОСУДАРСТВЕННЫЙ ТЕХНИЧЕСКИЙ УНИВЕРСИТЕТ ИМЕНИ ЛЕ КУИ ДОНА",
@@ -168,7 +168,7 @@ export async function POST(request: Request) {
         organization: text(defaults.organization, 300),
         organizationAddress: text(defaults.organizationAddress, 400),
         tin: text(defaults.tin, 40),
-        telex: text(defaults.telex, 80),
+        telex: "", // No group Telex: only a value typed for an individual is retained.
         invitation: text(defaults.invitation, 120),
         invitationIssuer: text(defaults.invitationIssuer, 300),
         invitationDurationDays: text(defaults.invitationDurationDays, 5),

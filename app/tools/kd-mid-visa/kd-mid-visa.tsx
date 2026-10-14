@@ -227,7 +227,7 @@ const defaultCommon: CommonData = {
   organization: "МИН-ВО НАУКИ И ВЫСШЕГО ОБРАЗОВАНИЯ РФ (МИНОБРНАУКИ РОССИИ)",
   organizationAddress: "125993, МОСКВА, УЛ. ТВЕРСКАЯ, Д.11, СТР.1, 4",
   tin: "7707740714",
-  telex: "321422",
+  telex: "",
   invitation: "",
   destinationType: "ОРГАНИЗАЦИЯ",
   city: "МОСКВА",
@@ -284,8 +284,8 @@ function emptyApplicant(): Applicant {
     organization: defaultCommon.organization,
     organizationAddress: defaultCommon.organizationAddress,
     tin: defaultCommon.tin,
-    telex: defaultCommon.telex,
-    invitation: defaultCommon.invitation,
+    telex: "",
+    invitation: "",
     passportNo: "",
     passportIssue: "",
     passportExpiry: "",
@@ -330,26 +330,25 @@ function safeLoad(): Store {
       version: 1,
       common: { ...defaultCommon, ...(parsed.common ?? {}) },
       applicants: Array.isArray(parsed.applicants) ? parsed.applicants.map((item) => {
-        const common = { ...defaultCommon, ...(parsed.common ?? {}) };
         return {
           ...item,
-          routeCity: item.routeCity || "МОСКВА",
+          routeCity: item.routeCity ?? "",
           hasOtherNames: item.hasOtherNames ?? false,
           otherNames: item.otherNames ?? "",
           bornInRussia: item.bornInRussia ?? false,
-          citizenship: item.citizenship || common.citizenship,
-          purposeSection: item.purposeSection || common.purposeSection,
-          purpose: item.purpose || common.purpose,
-          visaType: item.visaType || common.visaType,
-          entries: item.entries || common.entries,
-          entryDate: item.entryDate || common.entryDate,
-          exitDate: item.exitDate || common.exitDate,
-          destinationType: item.destinationType || common.destinationType,
-          organization: item.organization || common.organization,
-          organizationAddress: item.organizationAddress || common.organizationAddress,
-          tin: item.tin || common.tin,
-          telex: item.telex || common.telex,
-          invitation: item.invitation ?? common.invitation,
+          citizenship: item.citizenship ?? "",
+          purposeSection: item.purposeSection ?? "",
+          purpose: item.purpose ?? "",
+          visaType: item.visaType ?? "",
+          entries: item.entries ?? "",
+          entryDate: item.entryDate ?? "",
+          exitDate: item.exitDate ?? "",
+          destinationType: item.destinationType ?? "",
+          organization: item.organization ?? "",
+          organizationAddress: item.organizationAddress ?? "",
+          tin: item.tin ?? "",
+          telex: item.telex ?? "",
+          invitation: item.invitation ?? "",
           hasPermanentAddress: item.hasPermanentAddress ?? true,
           personalFax: item.personalFax ?? "",
           worksOrStudies: item.worksOrStudies ?? true,
@@ -357,15 +356,15 @@ function safeLoad(): Store {
           hadFormerRussianCitizenship: item.hadFormerRussianCitizenship ?? false,
           formerCitizenshipLostDate: item.formerCitizenshipLostDate ?? "",
           formerCitizenshipLossReason: item.formerCitizenshipLossReason ?? "",
-          personalAddress: String(item.personalAddress ?? "").trim() || fixedPermanentAddress,
-          workStudyPlace: String(item.workStudyPlace ?? "").trim() || common.employer,
-          position: String(item.position ?? "").trim() || common.defaultPosition,
-          workAddress: String(item.workAddress ?? "").trim() || common.employerAddress,
-          workPhone: String(item.workPhone ?? "").trim() || fixedWorkPhone,
-          workEmail: String(item.workEmail ?? "").trim() || common.employerEmail,
+          personalAddress: String(item.personalAddress ?? ""),
+          workStudyPlace: String(item.workStudyPlace ?? ""),
+          position: String(item.position ?? ""),
+          workAddress: String(item.workAddress ?? ""),
+          workPhone: String(item.workPhone ?? ""),
+          workEmail: String(item.workEmail ?? ""),
           childrenUnder16: item.childrenUnder16 ?? false,
           relativesInRussia: item.relativesInRussia ?? false,
-          preferredEmbassy: item.preferredEmbassy || common.embassy,
+          preferredEmbassy: item.preferredEmbassy ?? "",
           specialNotes: item.specialNotes ?? "",
         };
       }) : [],
@@ -456,27 +455,28 @@ function emitChange(el: HTMLInputElement | HTMLSelectElement | HTMLTextAreaEleme
 function buildPayload(applicant: Applicant, common: CommonData, autoAdvance = false, revision = Date.now()) {
   const resolvedCommon: CommonData = {
     ...common,
-    citizenship: applicant.citizenship || common.citizenship,
-    purposeSection: applicant.purposeSection || common.purposeSection,
-    purpose: applicant.purpose || common.purpose,
-    visaType: applicant.visaType || common.visaType,
-    entries: applicant.entries || common.entries,
-    entryDate: applicant.entryDate || common.entryDate,
-    exitDate: applicant.exitDate || common.exitDate,
-    destinationType: applicant.destinationType || common.destinationType,
-    organization: applicant.organization || common.organization,
-    organizationAddress: applicant.organizationAddress || common.organizationAddress,
-    tin: applicant.tin || common.tin,
-    telex: applicant.telex || common.telex,
-    invitation: applicant.invitation ?? common.invitation,
+    citizenship: applicant.citizenship,
+    purposeSection: applicant.purposeSection,
+    purpose: applicant.purpose,
+    visaType: applicant.visaType,
+    entries: applicant.entries,
+    entryDate: applicant.entryDate,
+    exitDate: applicant.exitDate,
+    destinationType: applicant.destinationType,
+    organization: applicant.organization,
+    organizationAddress: applicant.organizationAddress,
+    tin: applicant.tin,
+    city: applicant.routeCity,
+    telex: applicant.telex ?? "",
+    invitation: applicant.invitation ?? "",
   };
   const normalizedApplicant = {
     ...applicant,
-    workStudyPlace: applicant.workStudyPlace.trim() || resolvedCommon.employer,
-    position: applicant.position.trim() || resolvedCommon.defaultPosition,
-    workAddress: applicant.workAddress.trim() || resolvedCommon.employerAddress,
-    workPhone: applicant.workPhone.trim() || fixedWorkPhone,
-    workEmail: applicant.workEmail.trim() || resolvedCommon.employerEmail,
+    workStudyPlace: applicant.workStudyPlace.trim(),
+    position: applicant.position.trim(),
+    workAddress: applicant.workAddress.trim(),
+    workPhone: applicant.workPhone.trim(),
+    workEmail: applicant.workEmail.trim(),
     birthDate: normalizeDmy(applicant.birthDate),
     passportIssue: normalizeDmy(applicant.passportIssue),
     passportExpiry: normalizeDmy(applicant.passportExpiry) || passportExpiryFromIssue(applicant.passportIssue),
@@ -488,14 +488,14 @@ function buildPayload(applicant: Applicant, common: CommonData, autoAdvance = fa
     ...resolvedCommon,
     entryDate: normalizeDmy(resolvedCommon.entryDate),
     exitDate: normalizeDmy(resolvedCommon.exitDate),
-    embassy: applicant.preferredEmbassy || common.embassy,
-    fixedPermanentAddress: "ВЬЕТНАМ, Г. ХАНОЙ, УЛИЦА НГИА ДО, ДОРОГА ХОАНГ КУОК ВЬЕТ, ДОМ Ш9",
-    fixedWorkPhone,
+    embassy: applicant.preferredEmbassy,
+    fixedPermanentAddress: "",
+    fixedWorkPhone: "",
     _automation: { autoAdvance, autoPrint: true },
     _payloadRevision: revision,
     applicant: {
       ...normalizedApplicant,
-      personalAddress: applicant.hasPermanentAddress === false ? "" : (applicant.personalAddress || fixedPermanentAddress),
+      personalAddress: applicant.hasPermanentAddress === false ? "" : applicant.personalAddress,
       password: applicant.passwordOverride || common.password,
       surname5: surname5(applicant.surname),
       birthYear: birthYear(normalizedApplicant.birthDate),
@@ -558,7 +558,7 @@ if(A.hasInsurance)setAnyText(["Название страховой компан�
 setYesNo("Были ли Вы когда-нибудь в России",A.visitedRussia);
 if(A.visitedRussia){setAnyText(["Сколько раз Вы были в России"],A.visitsCount);setDate("Дата въезда",A.lastVisitFrom);setDate("Дата выезда",A.lastVisitTo)}
 setYesNo("Имеете ли Вы адрес постоянного проживания",A.hasPermanentAddress!==false);
-setAnyText(["Адрес вашего постоянного проживания"],A.personalAddress||p.fixedPermanentAddress);
+setAnyText(["Адрес вашего постоянного проживания"],A.personalAddress);
 setAnyText(["Ваш личный телефон"],A.phone);setAnyText(["Ваш личный факс"],A.personalFax);setAnyText(["Ваш личный E-mail"],A.email);
 setYesNo("Вы работаете",A.worksOrStudies!==false);
 setAnyText(["Место работы (учебы)"],A.workStudyPlace);
@@ -758,7 +758,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         formerCitizenshipLostDate: normalizeDmy(next.formerCitizenshipLostDate),
         lastVisitFrom: normalizeDmy(next.lastVisitFrom),
         lastVisitTo: normalizeDmy(next.lastVisitTo),
-        personalAddress: fixedPermanentAddress,
+        personalAddress: next.personalAddress.trim(),
       };
       const applicants = exists ? current.applicants.map((item) => item.id === normalized.id ? normalized : item) : [normalized, ...current.applicants];
       const nextStore = { ...current, applicants, selectedId: normalized.id };
@@ -906,7 +906,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
           organization: student ? store.common.organization : mvdInvitation ? mvdCommon.organization.trim() : "",
           organizationAddress: student ? store.common.organizationAddress : mvdInvitation ? mvdCommon.organizationAddress.trim() : "",
           tin: student ? store.common.tin : "",
-          telex: student ? store.common.telex : "",
+          telex: "",
           invitation: student ? store.common.invitation : "",
           invitationIssuer: mvdInvitation ? mvdCommon.invitationIssuer.trim() : "",
           invitationDurationDays: mvdInvitation ? mvdCommon.invitationDurationDays.trim() : "",
@@ -926,7 +926,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       setShareUrl(url);
       await navigator.clipboard.writeText(url).catch(() => undefined);
       setNotice(student
-        ? "Đã tạo Link 1 · Mẫu nhập học và sao chép URL. Telex được lấy từ Trường dùng chung."
+        ? "Đã tạo Link 1 · Mẫu nhập học và sao chép URL. Mỗi người chỉ nhập Telex nếu có, để trống thì hệ thống giữ trống."
         : mvdInvitation ? "Đã tạo Link 3 · Thư mời điện tử МВД. Trường chung đã chuyển sang link; số thư mời và giấy tờ cá nhân vẫn phải khai riêng."
         : "Đã tạo Link 2 · Người thường và sao chép URL. Các trường visa không chắc chắn được để trống.");
     } catch (reason) {
@@ -936,7 +936,6 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
 
   function applicantFromIntake(submission: IntakeSubmission): Applicant {
     const source = submission.applicant;
-    const isMvd = intakeLinks.find((link) => link.id === submission.linkId)?.formType === "mvd_invitation";
     const value = (key: string) => typeof source[key] === "string" ? String(source[key]) : "";
     const flag = (key: string) => source[key] === true;
     return {
@@ -946,22 +945,22 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       givenNames: value("givenNames").toUpperCase(),
       birthDate: normalizeDmy(value("birthDate")),
       birthPlace: value("birthPlace").toUpperCase(),
-      sex: value("sex") || "МУЖСКОЙ",
+      sex: value("sex"),
       hasOtherNames: flag("hasOtherNames"),
       otherNames: value("otherNames"),
       bornInRussia: flag("bornInRussia"),
-      citizenship: value("citizenship") || store.common.citizenship,
-      purposeSection: value("purposeSection") || store.common.purposeSection,
-      purpose: value("purpose") || store.common.purpose,
-      visaType: value("visaType") || store.common.visaType,
-      entries: value("entries") || store.common.entries,
-      entryDate: normalizeDmy(value("entryDate")) || store.common.entryDate,
-      exitDate: normalizeDmy(value("exitDate")) || store.common.exitDate,
-      destinationType: value("destinationType") || store.common.destinationType,
-      organization: value("organization") || store.common.organization,
-      organizationAddress: value("organizationAddress") || store.common.organizationAddress,
-      tin: value("tin") || store.common.tin,
-      telex: value("telex") || (isMvd ? "" : store.common.telex),
+      citizenship: value("citizenship"),
+      purposeSection: value("purposeSection"),
+      purpose: value("purpose"),
+      visaType: value("visaType"),
+      entries: value("entries"),
+      entryDate: normalizeDmy(value("entryDate")),
+      exitDate: normalizeDmy(value("exitDate")),
+      destinationType: value("destinationType"),
+      organization: value("organization"),
+      organizationAddress: value("organizationAddress"),
+      tin: value("tin"),
+      telex: value("telex"),
       invitation: value("invitation"),
       invitationIssuer: value("invitationIssuer"),
       invitationDurationDays: value("invitationDurationDays"),
@@ -972,15 +971,15 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       phone: value("phone"),
       personalFax: value("personalFax"),
       email: value("email"),
-      routeCity: value("routeCity").toUpperCase() || store.common.city,
+      routeCity: value("routeCity").toUpperCase(),
       worksOrStudies: source.worksOrStudies !== false,
-      workStudyPlace: value("workStudyPlace") || store.common.employer,
-      position: value("position") || store.common.defaultPosition,
-      workAddress: value("workAddress") || store.common.employerAddress,
-      workPhone: value("workPhone") || fixedWorkPhone,
+      workStudyPlace: value("workStudyPlace"),
+      position: value("position"),
+      workAddress: value("workAddress"),
+      workPhone: value("workPhone"),
       workFax: value("workFax"),
-      workEmail: value("workEmail") || store.common.employerEmail,
-      preferredEmbassy: value("preferredEmbassy") || store.common.embassy,
+      workEmail: value("workEmail"),
+      preferredEmbassy: value("preferredEmbassy"),
       hadFormerRussianCitizenship: flag("hadFormerRussianCitizenship"),
       formerCitizenshipLostDate: normalizeDmy(value("formerCitizenshipLostDate")),
       formerCitizenshipLossReason: value("formerCitizenshipLossReason"),
@@ -995,7 +994,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       passwordOverride: value("passwordOverride"),
       applicationId: value("applicationId").replace(/\D/g, ""),
       specialNotes: value("specialNotes"),
-      personalAddress: value("personalAddress") || fixedPermanentAddress,
+      personalAddress: value("personalAddress"),
       intakeOrder: submission.queueNo,
       intakeSubmissionId: submission.id,
     };
@@ -1012,8 +1011,12 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
           const right = b.intakeOrder ?? Number.MAX_SAFE_INTEGER;
           return left - right;
         });
-        const next = { ...current, applicants, selectedId: current.selectedId || imported.id };
+        const next = { ...current, applicants, selectedId: imported.id };
         persistStoreSnapshot(next);
+        // The newly approved profile becomes the active KD-MID payload immediately.
+        const payload = buildPayload(imported, next.common, autoAdvance);
+        persistActivePayload(payload);
+        window.postMessage({ type: "KD_MID_SET_PAYLOAD", payload }, window.location.origin);
         return next;
       });
       await intakeAction({ action: "mark-imported", submissionId: submission.id, applicantId: imported.id });
@@ -1230,7 +1233,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       return;
     }
 
-    setNotice(`Payload v0.9.35 đã khóa: Surname=${latestSelected.surname}; Given names=${latestSelected.givenNames}; DOB=${normalizeDmy(latestSelected.birthDate)}; Passport=${latestSelected.passportNo}. Mỗi lần chạy sẽ mở tab KD-MID mới để không dùng cache/payload cũ.`);
+    setNotice(`Payload v0.9.36 đã khóa: Surname=${latestSelected.surname}; Given names=${latestSelected.givenNames}; DOB=${normalizeDmy(latestSelected.birthDate)}; Passport=${latestSelected.passportNo}. Mỗi lần chạy sẽ mở tab KD-MID mới để không dùng cache/payload cũ.`);
   }
 
   function saveManualRecord() {
@@ -1416,7 +1419,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       <section className={styles.metrics}>
         <article><span>Hồ sơ cá nhân</span><strong>{store.applicants.length}</strong><small>{completeCount} đã có Application ID</small></article>
         <article><span>Bản ghi mở lại</span><strong>{store.records.length}</strong><small>ID · Surname5 · năm sinh · password</small></article>
-        <article><span>Telex mặc định</span><strong>{store.common.telex}</strong><small>{store.common.city}</small></article>
+        <article><span>Telex tham khảo (không tự áp dụng)</span><strong>{store.common.telex || "Không có"}</strong><small>{store.common.city}</small></article>
         <article><span>Lưu trữ</span><strong>Local + D1</strong><small>Form gửi ngoài lưu tạm để xác minh; hồ sơ đã duyệt lưu vào danh sách xử lý trên máy.</small></article>
       </section>
       <section className={styles.panel}>
@@ -1600,7 +1603,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       <header><div><span>KẾT NỐI KD-MID</span><h3>Tự động điền visa.kdmid.ru</h3></div><button onClick={() => void prepareBridge()} disabled={!selected}>Tạo bookmarklet dự phòng</button></header>
       <div className={styles.autoConnect}>
         <div><span>KHUYÊN DÙNG</span><h4>Tự động từ trang đầu đến PDF A4 chính thức</h4><p>Mỗi lần bấm chạy, Companion nhận lại <strong>hồ sơ mới nhất vừa lưu</strong> và mở <strong>một tab KD-MID mới</strong> để loại bỏ payload cũ, rồi tự chọn <strong>Việt Nam</strong> + <strong>Русский</strong> + tích <strong>“Я прочитал эту информацию”</strong>, tự mở hồ sơ mới, điền mật khẩu mặc định và <strong>dừng ở CAPTCHA để bạn tự nhập ký tự trong ảnh</strong>. Sau khi bạn nhập CAPTCHA, Companion tiếp tục tự động, ghi nhớ Application ID, điền các trang còn lại và cuối cùng bấm <strong>Печать формата A4</strong>.</p></div>
-        <div className={styles.autoActions}><a className={styles.installLink} href="/kd-mid-visa-companion.user.js" target="_blank" rel="noreferrer">1. Cài / cập nhật Companion v0.9.35 ↗</a><span className={styles.companionState} data-ready={Boolean(companionVersion)}>{companionVersion ? `✓ Companion ${companionVersion} đang hoạt động trên App-Manager` : "Companion v0.9.35 sẽ tự kiểm tra khi mở KD-MID"}</span><button onClick={openAutomaticKdmid} disabled={!selected}>3. Bắt đầu tự động đến PDF</button></div>
+        <div className={styles.autoActions}><a className={styles.installLink} href="/kd-mid-visa-companion.user.js" target="_blank" rel="noreferrer">1. Cài / cập nhật Companion v0.9.36 ↗</a><span className={styles.companionState} data-ready={Boolean(companionVersion)}>{companionVersion ? `✓ Companion ${companionVersion} đang hoạt động trên App-Manager` : "Companion v0.9.36 sẽ tự kiểm tra khi mở KD-MID"}</span><button onClick={openAutomaticKdmid} disabled={!selected}>3. Bắt đầu tự động đến PDF</button></div>
         <div className={styles.profileChooser}>
           <div><span>BƯỚC 2</span><strong>Chọn hồ sơ sử dụng</strong><small>Danh sách lấy trực tiếp từ mục Hồ sơ cá nhân đã lưu trên máy này.</small></div>
           {store.applicants.length ? <div className={styles.profileChooserControl}>
@@ -1614,7 +1617,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         <label className={styles.autoToggle}><input type="checkbox" checked={autoAdvance} onChange={(event) => setAutoAdvance(event.target.checked)} /><span><strong>Tự động toàn bộ sau CAPTCHA</strong><small>Bật mặc định. Companion không giải CAPTCHA: Tool điền password rồi chờ bạn nhập ký tự trong ảnh. Khi CAPTCHA đã được nhập, Tool tự tiếp tục các trang và yêu cầu KD-MID xuất PDF A4 chính thức.</small></span></label>
       </div>
       <div className={styles.connectGrid}>
-        <article><b>1</b><strong>Cài Companion v0.9.35</strong><p>Tampermonkey/Violentmonkey phải báo script <strong>Enabled</strong>. Nếu đã cài bản cũ, mở lại nút cài để cập nhật lên v0.9.35.</p></article>
+        <article><b>1</b><strong>Cài Companion v0.9.36</strong><p>Tampermonkey/Violentmonkey phải báo script <strong>Enabled</strong>. Nếu đã cài bản cũ, mở lại nút cài để cập nhật lên v0.9.36.</p></article>
         <article><b>2</b><strong>Chọn hồ sơ ngay phía trên</strong><p>{selected ? `Đang chọn: ${displayName(selected)}.` : "Chưa chọn hồ sơ."} Nếu có nhiều hồ sơ, mở danh sách và chọn đúng người trước khi chạy.</p></article>
         <article><b>3</b><strong>Password tự điền · CAPTCHA nhập tay</strong><p>Companion tự điền cả <strong>Пароль</strong> và <strong>Подтверждение пароля</strong>. CAPTCHA không được tự giải; bạn nhập ký tự trong ảnh. Sau khi nhập xong, Companion tự bấm <strong>Отправить</strong>.</p></article>
         <article><b>4</b><strong>Lưu ID rồi tiếp tục tự động</strong><p>Ở trang xác nhận <strong>Идентификационный номер Вашей анкеты</strong>, Companion lưu ID vào hồ sơ/Bản ghi mở lại, tự bấm <strong>Далее</strong>, rồi tiếp tục các trang còn lại đến <strong>Печать формата A4</strong>.</p></article>
@@ -1624,7 +1627,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         <textarea readOnly value={bookmarklet} placeholder="Bấm “Tạo bookmarklet dự phòng” để tạo javascript:..." />
         <div className={styles.bridgeActions}><button onClick={async () => { if (!bookmarklet) return; await navigator.clipboard.writeText(bookmarklet); setNotice("Đã sao chép bookmarklet."); }} disabled={!bookmarklet}>Sao chép bookmarklet</button><button className={styles.secondary} onClick={openKdmid}>Mở KD-MID thủ công ↗</button><button className={styles.danger} onClick={clearActivePayload}>Xóa payload tạm</button></div>
       </div>
-      <div className={styles.warning}><strong>Kiểm tra trước khi chạy</strong><p>Với v0.9.35, dòng trạng thái trên App-Manager chỉ là thông tin phụ. Luồng chính được kiểm tra trực tiếp khi tab <strong>visa.kdmid.ru</strong> mở: nếu Companion nhận hồ sơ, đoạn <code>#kdmidv8=...</code> sẽ tự biến mất và hộp trạng thái KD-MID Visa VN xuất hiện ở góc dưới. Tool không tự đọc/giải CAPTCHA; sau khi bạn nhập CAPTCHA, Companion tiếp tục và PDF/barcode do chính <strong>visa.kdmid.ru</strong> tạo. <strong>Barcode chỉ hợp lệ khi do KD-MID tạo.</strong></p></div>
+      <div className={styles.warning}><strong>Kiểm tra trước khi chạy</strong><p>Với v0.9.36, dòng trạng thái trên App-Manager chỉ là thông tin phụ. Luồng chính được kiểm tra trực tiếp khi tab <strong>visa.kdmid.ru</strong> mở: nếu Companion nhận hồ sơ, đoạn <code>#kdmidv8=...</code> sẽ tự biến mất và hộp trạng thái KD-MID Visa VN xuất hiện ở góc dưới. Tool không tự đọc/giải CAPTCHA; sau khi bạn nhập CAPTCHA, Companion tiếp tục và PDF/barcode do chính <strong>visa.kdmid.ru</strong> tạo. <strong>Barcode chỉ hợp lệ khi do KD-MID tạo.</strong></p></div>
     </section>;
   }
 

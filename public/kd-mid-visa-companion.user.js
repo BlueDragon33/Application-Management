@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.35
+// @version      0.9.36
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,7 +17,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.35";
+  const VERSION = "0.9.36";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
@@ -879,7 +879,9 @@
 
     // IMPORTANT: this first select is NOT a yes/no question.
     // It must remain "Организация", never "НЕТ".
-    let state = ensureSelectAfterLabel("В какое учреждение направляетесь?", [payload.destinationType || "ОРГАНИЗАЦИЯ","ОРГАНИЗАЦИЯ","ORGANIZATION"]);
+    let state = payload.destinationType
+      ? ensureSelectAfterLabel("В какое учреждение направляетесь?", [payload.destinationType])
+      : "ready";
     if (state === "changed") {
       status("KD-MID Visa VN: đã chọn nơi hướng đến = Организация. Đang điền thông tin tổ chức…", "wait");
       continueAutofill(payload);
@@ -900,7 +902,8 @@
     ];
 
     for (const [label, value] of textSteps) {
-      if (!value && label === "Номер приглашения") continue;
+      // Never populate missing values, especially Telex or invitation numbers.
+      if (value == null || !String(value).trim()) continue;
       state = ensureTextAfterLabel(label, value);
       if (state === "changed") {
         refreshAspNetValidators();
@@ -915,7 +918,11 @@
       }
     }
 
-    const routeValue = A.routeCity || payload.city || "МОСКВА";
+    const routeValue = String(A.routeCity || payload.city || "").trim();
+    if (!routeValue) {
+      status("KD-MID Visa VN: hồ sơ chưa có thành phố đến. Bỏ qua tự điền ô Маршрут; cần nhập và xác nhận thủ công trước khi tiếp tục.", "wait");
+      return { handled: true, ready: false };
+    }
     const routeInput = routeCityControl();
     if (!routeInput || !routeCityControlLooksRight(routeInput)) {
       status("KD-MID Visa VN: chưa khóa đúng ô Маршрут / Населенный пункт hiển thị trên màn hình; đang tự dò lại.", "wait");
@@ -1084,7 +1091,7 @@
     if (
       !finalRoute ||
       !routeCityControlLooksRight(finalRoute) ||
-      String(finalRoute.value).trim() !== "МОСКВА" ||
+      String(finalRoute.value).trim() !== routeValue ||
       routeValidationErrorVisible(finalRoute)
     ) {
       status("KD-MID Visa VN: Маршрут chưa khớp payload; chưa được phép bấm Далее.", "wait");
@@ -1217,26 +1224,23 @@
     const optionalText = (control, value) => {
       const text = String(value ?? "");
       if (!control) return text ? "missing" : "ready";
-      if (!text) {
-        if (!String(control.value || "")) return "ready";
-        return writeContactText(control, "");
-      }
+      if (!text) return "ready"; // Not supplied: leave the form field untouched.
       return writeContactText(control, text);
     };
 
     const steps = [
       ["Có địa chỉ thường trú", () => C.hasPermanentAddress ? writeSelectControl(C.hasPermanentAddress, A.hasPermanentAddress === false ? ["НЕТ","NO"] : ["ДА","YES"]) : "missing"],
-      ["Địa chỉ thường trú", () => optionalText(C.permanentAddress, A.hasPermanentAddress === false ? "" : (A.personalAddress || CANONICAL_PERMANENT_ADDRESS))],
+      ["Địa chỉ thường trú", () => optionalText(C.permanentAddress, A.hasPermanentAddress === false ? "" : A.personalAddress)],
       ["Điện thoại cá nhân", () => optionalText(C.personalPhone, A.phone)],
       ["Fax cá nhân (tùy chọn)", () => personalFax ? optionalText(C.personalFax, personalFax) : "ready"],
       ["E-mail cá nhân", () => optionalText(C.personalEmail, A.email)],
       ["Đang làm việc/học tập", () => C.worksOrStudies ? writeSelectControl(C.worksOrStudies, A.worksOrStudies === false ? ["НЕТ","NO"] : ["ДА","YES"]) : "missing"],
-      ["Nơi làm việc/học tập", () => optionalText(C.employer, A.worksOrStudies === false ? "" : (A.workStudyPlace || payload.employer))],
-      ["Chức vụ", () => optionalText(C.position, A.worksOrStudies === false ? "" : (A.position || payload.defaultPosition))],
-      ["Địa chỉ cơ quan", () => optionalText(C.workAddress, A.worksOrStudies === false ? "" : (A.workAddress || payload.employerAddress))],
-      ["Điện thoại cơ quan", () => optionalText(C.workPhone, A.worksOrStudies === false ? "" : (A.workPhone || payload.fixedWorkPhone))],
+      ["Nơi làm việc/học tập", () => optionalText(C.employer, A.worksOrStudies === false ? "" : A.workStudyPlace)],
+      ["Chức vụ", () => optionalText(C.position, A.worksOrStudies === false ? "" : A.position)],
+      ["Địa chỉ cơ quan", () => optionalText(C.workAddress, A.worksOrStudies === false ? "" : A.workAddress)],
+      ["Điện thoại cơ quan", () => optionalText(C.workPhone, A.worksOrStudies === false ? "" : A.workPhone)],
       ["Fax cơ quan (tùy chọn)", () => workFax ? optionalText(C.workFax, workFax) : "ready"],
-      ["E-mail cơ quan", () => optionalText(C.workEmail, A.worksOrStudies === false ? "" : (A.workEmail || payload.employerEmail))],
+      ["E-mail cơ quan", () => optionalText(C.workEmail, A.worksOrStudies === false ? "" : A.workEmail)],
       ["Trẻ em dưới 16 tuổi", () => C.children ? writeSelectControl(C.children, A.childrenUnder16 ? ["ДА","YES"] : ["НЕТ","NO"]) : "missing"],
       ["Người thân tại Nga", () => {
         if (!C.relatives) return "missing";
@@ -1278,16 +1282,16 @@
 
     const finalC = contactInfoControls();
     const expected = {
-      permanentAddress: A.hasPermanentAddress === false ? "" : String(A.personalAddress || CANONICAL_PERMANENT_ADDRESS),
+      permanentAddress: A.hasPermanentAddress === false ? "" : String(A.personalAddress || ""),
       personalPhone: String(A.phone || ""),
       personalFax,
       personalEmail: String(A.email || ""),
-      employer: A.worksOrStudies === false ? "" : String(A.workStudyPlace || payload.employer || ""),
-      position: A.worksOrStudies === false ? "" : String(A.position || payload.defaultPosition || ""),
-      workAddress: A.worksOrStudies === false ? "" : String(A.workAddress || payload.employerAddress || ""),
-      workPhone: A.worksOrStudies === false ? "" : String(A.workPhone || payload.fixedWorkPhone || ""),
+      employer: A.worksOrStudies === false ? "" : String(A.workStudyPlace || ""),
+      position: A.worksOrStudies === false ? "" : String(A.position || ""),
+      workAddress: A.worksOrStudies === false ? "" : String(A.workAddress || ""),
+      workPhone: A.worksOrStudies === false ? "" : String(A.workPhone || ""),
       workFax,
-      workEmail: A.worksOrStudies === false ? "" : String(A.workEmail || payload.employerEmail || ""),
+      workEmail: A.worksOrStudies === false ? "" : String(A.workEmail || ""),
     };
 
     const textPairs = [
@@ -1306,7 +1310,7 @@
     const usedControls = textPairs.filter(([control, value]) => Boolean(value) && control).map(([control]) => control);
     const uniqueTextCount = new Set(usedControls).size;
     const textReady = textPairs.every(([control, value]) => {
-      if (!value) return !control || String(control.value || "") === "";
+      if (!value) return true; // Missing optional values must not block or overwrite.
       return Boolean(control) && String(control.value) === String(value);
     });
 
