@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.33
+// @version      0.9.34
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,12 +17,12 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.33";
+  const VERSION = "0.9.34";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
   const PRINT_KEY = "kd-mid-visa-vn:auto-print:v9";
-  const RETRY_MS = 450;
+  const RETRY_MS = 900;
   const RETRY_LIMIT = 160;
   const APP_HOST = "application-management.boiech-ai.workers.dev";
   const KD_HOST = "visa.kdmid.ru";
@@ -1137,53 +1137,42 @@
   }
 
   function contactInfoControls() {
-    // This KD-MID page has a stable visual/control order. Previous label-based
-    // lookup could miss "Ваш личный E-mail" even though the value exists in the
-    // payload. Keep Fax slots in the mapping so following fields do not shift.
+    // Prefer exact Russian field labels. Global input indices drift whenever KD-MID
+    // adds a visible auxiliary control; a stale index could overwrite Fax or miss E-mail.
+    // Keep the old ordered slots solely as a fallback for missing label matches.
     const textInputs = [...document.querySelectorAll(
-      'input:not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]):not([type="password"])'
+      'input:not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]):not([type="password"]),textarea'
     )].filter(visible);
     const selects = [...document.querySelectorAll("select")].filter(visible);
+    const index = (offset) => textInputs.length >= 10 && selects.length >= 4 ? textInputs[offset] : null;
+    const picked = new Set();
+    const byLabel = (labels, offset) => {
+      const labeled = textControlForField(labels);
+      if (labeled && textInputs.includes(labeled) && !picked.has(labeled)) {
+        picked.add(labeled);
+        return labeled;
+      }
+      const fallback = index(offset);
+      if (fallback && !picked.has(fallback)) {
+        picked.add(fallback);
+        return fallback;
+      }
+      return null; // Unknown/ambiguous input: never write into a guessed field.
+    };
 
-    if (textInputs.length >= 10 && selects.length >= 4) {
-      return {
-        hasPermanentAddress: selects[0],
-        permanentAddress: textInputs[0],
-        personalPhone: textInputs[1],
-        personalFax: textInputs[2],
-        personalEmail: textInputs[3],
-        worksOrStudies: selects[1],
-        employer: textInputs[4],
-        position: textInputs[5],
-        workAddress: textInputs[6],
-        workPhone: textInputs[7],
-        workFax: textInputs[8],
-        workEmail: textInputs[9],
-        children: yesNoSelectForQuestion([
-          "Дети до 16 лет и другие родственники, вписанные в Ваш паспорт и следующие с Вами",
-          "Дети до 16 лет"
-        ], 2),
-        relatives: yesNoSelectForQuestion([
-          "Имеете ли Вы в настоящее время родственников на территории России?",
-          "Имеете ли Вы в настоящее время родственников"
-        ], 1),
-      };
-    }
-
-    // Fallback for minor markup variations.
     return {
-      hasPermanentAddress: selectControlForField("Имеете ли Вы адрес постоянного проживания?"),
-      permanentAddress: textControlForField("Адрес вашего постоянного проживания"),
-      personalPhone: textControlForField("Ваш личный телефон"),
-      personalFax: textControlForField("Ваш личный факс"),
-      personalEmail: textControlForField(["Ваш личный E-mail", "Ваш личный Email"]),
-      worksOrStudies: selectControlForField("Вы работаете (работали ранее), учитесь (учились ранее)?"),
-      employer: textControlForField("Место работы (учебы)"),
-      position: textControlForField("Должность"),
-      workAddress: textControlForField("Рабочий адрес"),
-      workPhone: textControlForField("Рабочий телефон"),
-      workFax: textControlForField("Рабочий факс"),
-      workEmail: textControlForField(["Рабочий E-mail", "Рабочий Email"]),
+      hasPermanentAddress: selectControlForField("Имеете ли Вы адрес постоянного проживания?") || selects[0] || null,
+      permanentAddress: byLabel("Адрес вашего постоянного проживания", 0),
+      personalPhone: byLabel("Ваш личный телефон", 1),
+      personalFax: byLabel("Ваш личный факс", 2),
+      personalEmail: byLabel(["Ваш личный E-mail", "Ваш личный Email"], 3),
+      worksOrStudies: selectControlForField("Вы работаете (работали ранее), учитесь (учились ранее)?") || selects[1] || null,
+      employer: byLabel("Место работы (учебы)", 4),
+      position: byLabel("Должность", 5),
+      workAddress: byLabel("Рабочий адрес", 6),
+      workPhone: byLabel("Рабочий телефон", 7),
+      workFax: byLabel("Рабочий факс", 8),
+      workEmail: byLabel(["Рабочий E-mail", "Рабочий Email"], 9),
       children: yesNoSelectForQuestion([
         "Дети до 16 лет и другие родственники, вписанные в Ваш паспорт и следующие с Вами",
         "Дети до 16 лет"
@@ -1992,23 +1981,32 @@
   }
 
   function status(message, tone = "ok") {
-    document.getElementById("kd-mid-vn-status")?.remove();
-    const box = document.createElement("div");
-    box.id = "kd-mid-vn-status";
+    // Reuse the same status element to avoid redraw/flicker and observer feedback.
+    let box = document.getElementById("kd-mid-vn-status");
+    if (box?.textContent === message && box.dataset.tone === tone) return;
+    if (!box) {
+      box = document.createElement("div");
+      box.id = "kd-mid-vn-status";
+      document.body.appendChild(box);
+    }
     const colors = tone === "wait"
       ? ["#b7791f","#fffbeb","#744210"]
       : ["#2f855a","#ecfdf5","#14532d"];
+    box.dataset.tone = tone;
     box.style.cssText = `position:fixed;right:14px;bottom:14px;z-index:2147483647;max-width:450px;padding:10px 12px;border:1px solid ${colors[0]};border-radius:10px;background:${colors[1]};color:${colors[2]};box-shadow:0 8px 30px rgba(0,0,0,.22);font:600 12px/1.45 Arial`;
     box.textContent = message;
-    document.body.appendChild(box);
   }
 
   let retryCount = 0;
   let retryTimer = 0;
   let lastRunSignature = "";
+  let hintsAppliedSignature = "";
   function run(payload) {
-    addHints();
     const currentSig = pageSignature();
+    if (currentSig !== hintsAppliedSignature) {
+      addHints();
+      hintsAppliedSignature = currentSig;
+    }
     if (lastRunSignature && currentSig !== lastRunSignature) {
       sessionStorage.removeItem(pendingNavigationKey);
     }
@@ -2119,6 +2117,7 @@
   }, true);
 
   function isOwnStatusMutation(mutation) {
+    if (mutation.target?.id === "kd-mid-vn-status" || mutation.target?.closest?.("#kd-mid-vn-status")) return true;
     const nodes = [...mutation.addedNodes, ...mutation.removedNodes];
     return nodes.length > 0 && nodes.every((node) => node?.id === "kd-mid-vn-status");
   }
@@ -2126,7 +2125,6 @@
   const observer = new MutationObserver((mutations) => {
     if (mutations.length && mutations.every(isOwnStatusMutation)) return;
     const current = currentPayload || readSharedPayload();
-    addHints();
     if (!current) return;
     window.clearTimeout(observer._kdmidTimer);
     observer._kdmidTimer = window.setTimeout(() => run(current), 180);
