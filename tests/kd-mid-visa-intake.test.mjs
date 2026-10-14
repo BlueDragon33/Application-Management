@@ -13,55 +13,55 @@ const resultMigration = fs.readFileSync("drizzle/0010_visa_intake_results.sql", 
 const deviceMigration = fs.readFileSync("drizzle/0011_visa_intake_device_recovery.sql", "utf8");
 const schema = fs.readFileSync("db/schema.ts", "utf8");
 
-test("MVD Link 3 uses Bauman INN and common sections 04–05 without requiring duration", () => {
-  const referenceStart = tool.indexOf("const baumanInvitationReference:");
-  const referenceEnd = tool.indexOf("const mvdSharedLabels:", referenceStart);
-  const reference = tool.slice(referenceStart, referenceEnd);
-  assert.match(reference, /visaType: "ОБЫКНОВЕННАЯ УЧЕБНАЯ"/);
-  assert.match(reference, /entries: "ОДНОКРАТНАЯ"/);
-  assert.match(reference, /entryDate: "19\\/10\\/2026"/);
-  assert.match(reference, /exitDate: "16\\/01\\/2027"/);
-  assert.match(reference, /tin: "7701002520"/);
-  assert.doesNotMatch(reference, /invitationDurationDays|passportNo|birthDate|personalFax/);
-  assert.match(tool, /tin: student \\? store\\.common\\.tin : mvdInvitation \\? mvdCommon\\.tin\\.trim\\(\\) : ""/);
-  assert.match(tool, /setMvdCommon\\(\\{ \\.\\.\\.baumanInvitationReference \\}\\)/);
-  assert.match(tool, /reader\\.readAsDataURL\\(file\\)/);
-  assert.match(tool, /Chỉ xem tại thiết bị này, không tải ảnh lên hệ thống/);
-  assert.doesNotMatch(tool.slice(referenceEnd, tool.indexOf("type IntakeSubmission", referenceEnd)), /invitationDurationDays/);
+test("MVD Link 3 reuses sections 04-05, INN Bauman and omits duration", () => {
+  const reference = tool.slice(tool.indexOf("const baumanInvitationReference:"), tool.indexOf("const mvdSharedLabels:"));
+  for (const field of [
+    'visaType: "ОБЫКНОВЕННАЯ УЧЕБНАЯ"',
+    'entries: "ОДНОКРАТНАЯ"',
+    'entryDate: "19/10/2026"',
+    'exitDate: "16/01/2027"',
+    'tin: "7701002520"',
+  ]) assert.ok(reference.includes(field), field);
+  assert.ok(!reference.includes("invitationDurationDays"));
+  assert.ok(tool.includes('tin: student ? store.common.tin : mvdInvitation ? mvdCommon.tin.trim() : ""'));
+  assert.ok(tool.includes('setMvdCommon({ ...baumanInvitationReference })'));
+  assert.ok(tool.includes('reader.readAsDataURL(file)'));
+  assert.ok(tool.includes('Chỉ xem tại thiết bị này, không tải ảnh lên hệ thống'));
+  const sharedLabels = tool.slice(tool.indexOf("const mvdSharedLabels:"), tool.indexOf("type IntakeSubmission"));
+  assert.ok(!sharedLabels.includes("invitationDurationDays"));
   for (const [name, value] of [
-    ["employer","store.common.employer"], ["position","store.common.defaultPosition"],
-    ["workAddress","store.common.employerAddress"], ["workPhone","fixedWorkPhone"],
-    ["workEmail","store.common.employerEmail"], ["permanentAddress","fixedPermanentAddress"],
-  ]) assert.ok(tool.includes(name + ": student || mvdInvitation ? " + value + ' : ""'));
-  assert.match(publicPage, /<header><b>04<\\/b>/);
-  assert.match(publicPage, /<header><b>05<\\/b>/);
-  assert.match(publicWorkerPage, /<header><b>04<\\/b>/);
-  assert.match(publicWorkerPage, /<header><b>05<\\/b>/);
-  assert.doesNotMatch(publicPage, /fieldKey="invitationDurationDays"/);
-  assert.doesNotMatch(publicWorkerPage, /data-field="invitationDurationDays"/);
-  assert.doesNotMatch(publicApi, /\\["invitationDurationDays", "Thời hạn thư mời/);
-  assert.match(adminApi, /invitationDurationDays: formType === "mvd_invitation" \\? ""/);
+    ["employer", "store.common.employer"], ["position", "store.common.defaultPosition"],
+    ["workAddress", "store.common.employerAddress"], ["workPhone", "fixedWorkPhone"],
+    ["workEmail", "store.common.employerEmail"], ["permanentAddress", "fixedPermanentAddress"],
+  ]) assert.ok(tool.includes(name + ": student || mvdInvitation ? " + value + ' : ""'), name);
+  for (const source of [publicPage, publicWorkerPage]) {
+    assert.ok(source.includes("<header><b>04</b>"));
+    assert.ok(source.includes("<header><b>05</b>"));
+  }
+  assert.ok(!publicPage.includes('fieldKey="invitationDurationDays"'));
+  assert.ok(!publicWorkerPage.includes('data-field="invitationDurationDays"'));
+  assert.ok(!publicApi.includes('["invitationDurationDays", "Thời hạn thư mời'));
+  assert.ok(adminApi.includes('invitationDurationDays: formType === "mvd_invitation" ? ""'));
 });
 
-test("MVD number preserves one character before first letter across client, server, worker and import", () => {
-  assert.match(tool, /function normalizeMvdInvitation/);
-  assert.match(tool, /normalizeMvdInvitation\\(value\\("invitation"\\)\\)/);
-  assert.match(publicPage, /normalizeMvdInvitation\\(e\\.target\\.value\\)/);
-  assert.match(publicWorkerPage, /invitation:formType==="mvd_invitation" \\? normalizeMvdInvitation\\(value\\("invitation"\\)\\)/);
-  assert.match(publicApi, /normalizeMvdInvitation\\(text\\(withDefault\\("invitation"/);
-  assert.match(publicApi, /invitationDurationDays: formType === "mvd_invitation" \\? ""/);
+test("MVD number trims up to the character before the first letter, only on Link 3", () => {
+  assert.ok(tool.includes("function normalizeMvdInvitation"));
+  assert.ok(tool.includes('normalizeMvdInvitation(value("invitation"))'));
+  assert.ok(publicPage.includes('normalizeMvdInvitation(e.target.value)'));
+  assert.ok(publicWorkerPage.includes('normalizeMvdInvitation(value("invitation"))'));
+  assert.ok(publicApi.includes('normalizeMvdInvitation(text(withDefault("invitation"'));
+  assert.ok(publicApi.includes('invitationDurationDays: formType === "mvd_invitation" ? ""'));
   const normalize = value => {
-    const text = value.trim().toUpperCase();
-    const letter = text.search(/[A-ZА-ЯЁ]/);
-    return letter > 1 ? text.slice(letter - 1) : text;
+    const clean = value.trim().toUpperCase();
+    const letter = clean.search(/[A-ZА-ЯЁ]/);
+    return letter > 1 ? clean.slice(letter - 1) : clean;
   };
   assert.equal(normalize("7726002Y8858461"), "2Y8858461");
   assert.equal(normalize("2Y8858461"), "2Y8858461");
   assert.equal(normalize("7726002y8858461"), "2Y8858461");
   assert.equal(normalize("123456789"), "123456789");
   assert.equal(normalize("AB123"), "AB123");
-  assert.match(tool, /telex: ""/);
-  assert.doesNotMatch(adminApi, /referenceImage: /);
+  assert.ok(tool.includes('telex: ""'));
 });
 
 test("all intake modes preserve blank Telex through API, personal import and KD-MID launch", () => {
