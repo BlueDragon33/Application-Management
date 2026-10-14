@@ -34,6 +34,8 @@ export type ApplicationConfig = {
   publicUrl?: string;
   /** Explicit development preview, never a production release or SSO credential. */
   previewUrl?: string;
+  /** PKCE entrypoint on the registered child client; not a bypass URL. */
+  ssoStartUrl?: string;
   contractSource?: "repository";
   localUrl?: string;
   initials: string;
@@ -78,7 +80,7 @@ const baumanChildren: readonly SubClientConfig[] = [
 
 export const applicationRegistry: readonly ApplicationConfig[] = [
   {
-    id: "software-blueprint-hub", name: "Software Blueprint Hub", shortName: "Blueprint OS", href: "/apps/software-blueprint-hub", publicUrl: "https://software-blueprint-hub.vercel.app/", previewUrl: "https://software-blueprint-hub-git-main-dinhnam3391-4708.vercel.app/",
+    id: "software-blueprint-hub", name: "Software Blueprint Hub", shortName: "Blueprint OS", href: "/apps/software-blueprint-hub", publicUrl: "https://software-blueprint-hub.vercel.app/", previewUrl: "https://software-blueprint-hub-git-main-dinhnam3391-4708.vercel.app/", ssoStartUrl: "https://software-blueprint-hub-git-main-dinhnam3391-4708.vercel.app/api/sso/start",
     contractSource: "repository",
     initials: "BP", category: "Kỹ thuật", tier: "client", status: "warning", contractState: "migrating",
     repository: "BlueDragon33/Software-Blueprint-Hub",
