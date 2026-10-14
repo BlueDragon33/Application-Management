@@ -750,7 +750,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       setNotice("Contract ứng dụng không cho Application Management mở learning runtime trực tiếp.");
       return;
     }
-    const fallback = app?.publicUrl ?? (localRuntime ? app?.localUrl : undefined);
+    const fallback = app?.previewUrl ?? app?.publicUrl ?? (localRuntime ? app?.localUrl : undefined);
     if (!summary?.webHref && !fallback) {
       setNotice("Ứng dụng chưa công bố URL website hợp lệ.");
       return;
@@ -773,7 +773,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
           throw caught;
         }
       } else {
-        window.open(summary?.webHref ?? fallback, "_blank", "noopener,noreferrer");
+        window.open(app?.previewUrl ?? summary?.webHref ?? fallback, "_blank", "noopener,noreferrer");
       }
       setWebMenu(false);
     } catch (caught) {
