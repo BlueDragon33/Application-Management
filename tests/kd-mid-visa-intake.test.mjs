@@ -13,6 +13,26 @@ const resultMigration = fs.readFileSync("drizzle/0010_visa_intake_results.sql", 
 const deviceMigration = fs.readFileSync("drizzle/0011_visa_intake_device_recovery.sql", "utf8");
 const schema = fs.readFileSync("db/schema.ts", "utf8");
 
+test("Link 3 accepts МВД electronic invitation details without inheriting student Telex", () => {
+  assert.match(tool, /setIntakeFormType\("mvd_invitation"\)/);
+  assert.match(tool, /invitationDurationDays: ""/);
+  assert.match(tool, /isMvd \? "" : store\.common\.telex/);
+  assert.match(publicPage, /formType === "mvd_invitation"/);
+  assert.match(publicPage, /fieldKey="invitationIssuer"/);
+  assert.match(publicPage, /fieldKey="invitationDurationDays"/);
+  assert.match(publicPage, /required=\{formType === "mvd_invitation"\}/);
+  assert.match(adminApi, /text\(body\.formType, 20\) === "mvd_invitation"/);
+  assert.match(adminApi, /invitationIssuer: text\(defaults\.invitationIssuer/);
+  assert.match(adminApi, /invitationDurationDays: text\(defaults\.invitationDurationDays/);
+  assert.match(publicApi, /formType === "mvd_invitation"/);
+  assert.match(publicApi, /\["invitationIssuer", "Cơ quan cấp thư mời"\]/);
+  assert.match(publicApi, /\["invitationDurationDays", "Thời hạn thư mời \(ngày\)"\]/);
+  assert.match(publicWorkerPage, /const serverMvd = serverDefaults\.formType === "mvd_invitation"/);
+  assert.match(publicWorkerPage, /data-field="invitationIssuer"/);
+  assert.match(publicWorkerPage, /data-field="invitationDurationDays"/);
+  assert.match(adminApi, /"invitationIssuer", "invitationDurationDays"/);
+});
+
 test("visa intake has isolated link and submission tables", () => {
   assert.match(migration, /CREATE TABLE IF NOT EXISTS `visa_intake_links`/);
   assert.match(migration, /token_hash/);
@@ -268,7 +288,9 @@ test("React public intake visibly distinguishes student and general forms", () =
 test("production worker renders student versus general intake from persisted formType", () => {
   assert.match(publicWorkerPage, /LINK 1 · MẪU NHẬP HỌC/);
   assert.match(publicWorkerPage, /LINK 2 · MẪU VISA NGƯỜI THƯỜNG/);
-  assert.match(publicWorkerPage, /formType = data\.link\?\.formType === "general"/);
+  assert.match(publicWorkerPage, /formType = data\.link\?\.formType === "mvd_invitation"/);
+  assert.match(publicWorkerPage, /rawDefaults\.formType === "general"/);
+  assert.match(publicWorkerPage, /el\.required=student \|\| mvd/);
   assert.match(publicWorkerPage, /el\.required=student/);
   assert.match(publicWorkerPage, /student \? "МОСКВА" : ""/);
   assert.match(publicWorkerPage, /-- Chọn nơi nộp hồ sơ --/);

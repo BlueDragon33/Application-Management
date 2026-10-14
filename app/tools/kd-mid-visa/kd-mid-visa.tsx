@@ -59,6 +59,8 @@ type Applicant = {
   tin: string;
   telex: string;
   invitation: string;
+  invitationIssuer?: string;
+  invitationDurationDays?: string;
   passportNo: string;
   passportIssue: string;
   passportExpiry: string;
@@ -104,7 +106,7 @@ type IntakeLink = {
   publicPath: string;
   submissionCount: number;
   resultCount: number;
-  formType: "student" | "general";
+  formType: "student" | "general" | "mvd_invitation";
 };
 
 type IntakeSubmission = {
@@ -583,7 +585,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
   const [intakeSubmissions, setIntakeSubmissions] = useState<IntakeSubmission[]>([]);
   const [intakeLoading, setIntakeLoading] = useState(false);
   const [intakeLabel, setIntakeLabel] = useState("");
-  const [intakeFormType, setIntakeFormType] = useState<"student" | "general">("student");
+  const [intakeFormType, setIntakeFormType] = useState<"student" | "general" | "mvd_invitation">("student");
   const [shareUrl, setShareUrl] = useState("");
   const [resultUploadingId, setResultUploadingId] = useState("");
   const [correctionSelections, setCorrectionSelections] = useState<Record<string, string[]>>({});
@@ -800,6 +802,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
   async function createIntakeLink() {
     try {
       const student = intakeFormType === "student";
+      const mvdInvitation = intakeFormType === "mvd_invitation";
       const data = await intakeAction({
         action: "create-link",
         formType: intakeFormType,
@@ -819,6 +822,8 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
           tin: student ? store.common.tin : "",
           telex: student ? store.common.telex : "",
           invitation: student ? store.common.invitation : "",
+          invitationIssuer: "",
+          invitationDurationDays: "",
           routeCity: student ? store.common.city : "",
           employer: student ? store.common.employer : "",
           position: student ? store.common.defaultPosition : "",
@@ -836,6 +841,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       await navigator.clipboard.writeText(url).catch(() => undefined);
       setNotice(student
         ? "Đã tạo Link 1 · Mẫu nhập học và sao chép URL. Telex được lấy từ Trường dùng chung."
+        : mvdInvitation ? "Đã tạo Link 3 · Thư mời điện tử МВД. Người nộp tự nhập số thư mời, cơ quan cấp và các thông tin riêng."
         : "Đã tạo Link 2 · Người thường và sao chép URL. Các trường visa không chắc chắn được để trống.");
     } catch (reason) {
       setNotice(reason instanceof Error ? reason.message : "Không tạo được link Form.");
@@ -844,6 +850,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
 
   function applicantFromIntake(submission: IntakeSubmission): Applicant {
     const source = submission.applicant;
+    const isMvd = intakeLinks.find((link) => link.id === submission.linkId)?.formType === "mvd_invitation";
     const value = (key: string) => typeof source[key] === "string" ? String(source[key]) : "";
     const flag = (key: string) => source[key] === true;
     return {
@@ -868,8 +875,10 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       organization: value("organization") || store.common.organization,
       organizationAddress: value("organizationAddress") || store.common.organizationAddress,
       tin: value("tin") || store.common.tin,
-      telex: value("telex") || store.common.telex,
+      telex: value("telex") || (isMvd ? "" : store.common.telex),
       invitation: value("invitation"),
+      invitationIssuer: value("invitationIssuer"),
+      invitationDurationDays: value("invitationDurationDays"),
       passportNo: value("passportNo").toUpperCase(),
       passportIssue: normalizeDmy(value("passportIssue")),
       passportExpiry: normalizeDmy(value("passportExpiry")) || passportExpiryFromIssue(value("passportIssue")),
@@ -1356,7 +1365,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       ["surname","Họ"],["givenNames","Tên + đệm"],["birthDate","Ngày sinh"],["birthPlace","Nơi sinh"],
       ["sex","Giới tính"],["hasOtherNames","Đã dùng tên khác"],["otherNames","Tên khác đã dùng"],["bornInRussia","Sinh tại Nga"],
       ["citizenship","Quốc tịch"],["purposeSection","Nhóm mục đích"],["purpose","Mục đích"],["visaType","Loại visa"],["entries","Số lần nhập cảnh"],["entryDate","Ngày vào Nga"],["exitDate","Ngày ra Nga"],
-      ["destinationType","Loại nơi đến"],["organization","Tổ chức mời"],["organizationAddress","Địa chỉ tổ chức"],["tin","INN"],["telex","Telex"],["invitation","Số giấy mời"],
+      ["destinationType","Loại nơi đến"],["organization","Tổ chức mời"],["organizationAddress","Địa chỉ tổ chức"],["tin","INN"],["telex","Telex"],["invitation","Số giấy mời"],["invitationIssuer","Cơ quan cấp thư mời МВД"],["invitationDurationDays","Thời hạn thư mời (ngày)"],
       ["passportNo","Số hộ chiếu"],["passportIssue","Ngày cấp"],["passportExpiry","Hết hạn"],
       ["hasPermanentAddress","Có địa chỉ thường trú"],["personalAddress","Địa chỉ thường trú"],["phone","Điện thoại"],["personalFax","Fax cá nhân"],["email","Email"],["routeCity","Nơi đến Nga"],["worksOrStudies","Đang làm/học"],["workStudyPlace","Nơi làm việc/học tập"],
       ["position","Chức vụ"],["workAddress","Địa chỉ cơ quan"],["workPhone","Điện thoại cơ quan"],["workFax","Fax cơ quan"],["workEmail","Email cơ quan"],["passwordOverride","Mật khẩu KD-MID"],["applicationId","Application ID"],
@@ -1375,15 +1384,16 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         <div className={styles.intakeTypeChoice}>
           <button type="button" data-active={intakeFormType === "student"} onClick={() => setIntakeFormType("student")}><strong>Link 1 · Nhập học</strong><small>Mẫu cũ + Mã Telex</small></button>
           <button type="button" data-active={intakeFormType === "general"} onClick={() => setIntakeFormType("general")}><strong>Link 2 · Người thường</strong><small>Mẫu visa tổng quát</small></button>
+          <button type="button" data-active={intakeFormType === "mvd_invitation"} onClick={() => setIntakeFormType("mvd_invitation")}><strong>Link 3 · Thư mời МВД</strong><small>Thư mời điện tử, không dùng Telex</small></button>
         </div>
-        <button onClick={() => void createIntakeLink()}>Tạo {intakeFormType === "student" ? "Link 1" : "Link 2"} & sao chép</button>
+        <button onClick={() => void createIntakeLink()}>Tạo {intakeFormType === "student" ? "Link 1" : intakeFormType === "mvd_invitation" ? "Link 3" : "Link 2"} & sao chép</button>
         {shareUrl ? <div className={styles.shareUrl}><input readOnly value={shareUrl}/><button className={styles.secondary} onClick={() => void navigator.clipboard.writeText(shareUrl)}>Sao chép</button><a href={shareUrl} target="_blank" rel="noreferrer">Mở form ↗</a></div> : null}
       </div>
       <div className={styles.intakeLinks}>
         {intakeLinks.filter((item) => item.status === "active").map((item) => {
           const url = intakePublicUrl(item);
           return <article key={item.id} data-status={item.status}>
-            <div className={styles.intakeLinkMeta}><strong>{item.label}</strong><span className={styles.intakeTypeBadge} data-type={item.formType}>{item.formType === "general" ? "LINK 2 · NGƯỜI THƯỜNG" : "LINK 1 · NHẬP HỌC"}</span><small>Tạo {new Date(item.createdAt).toLocaleString("vi-VN")} · {item.submissionCount} hồ sơ · {item.resultCount} PDF kết quả · Đang mở</small></div>
+            <div className={styles.intakeLinkMeta}><strong>{item.label}</strong><span className={styles.intakeTypeBadge} data-type={item.formType}>{item.formType === "mvd_invitation" ? "LINK 3 · THƯ MỜI МВД" : item.formType === "general" ? "LINK 2 · NGƯỜI THƯỜNG" : "LINK 1 · NHẬP HỌC"}</span><small>Tạo {new Date(item.createdAt).toLocaleString("vi-VN")} · {item.submissionCount} hồ sơ · {item.resultCount} PDF kết quả · Đang mở</small></div>
             <div className={styles.intakeLinkUrl}><input readOnly value={url}/><button className={styles.secondary} onClick={() => void navigator.clipboard.writeText(url)}>Sao chép</button><a href={url} target="_blank" rel="noreferrer">Mở form ↗</a></div>
             <button className={styles.danger} onClick={() => void closeIntakeLink(item.id)}>Đóng link</button>
           </article>;
