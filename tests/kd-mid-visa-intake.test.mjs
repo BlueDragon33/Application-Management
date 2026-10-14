@@ -13,6 +13,31 @@ const resultMigration = fs.readFileSync("drizzle/0010_visa_intake_results.sql", 
 const deviceMigration = fs.readFileSync("drizzle/0011_visa_intake_device_recovery.sql", "utf8");
 const schema = fs.readFileSync("db/schema.ts", "utf8");
 
+test("MVD Link 3 supports private photo reference and explicit Bauman group-only defaults", () => {
+  const referenceStart = tool.indexOf("const baumanInvitationReference:");
+  const referenceEnd = tool.indexOf("const mvdSharedLabels:", referenceStart);
+  assert.ok(referenceStart >= 0 && referenceEnd > referenceStart);
+  const groupReference = tool.slice(referenceStart, referenceEnd);
+  assert.match(groupReference, /visaType: "ОБЫКНОВЕННАЯ УЧЕБНАЯ"/);
+  assert.match(groupReference, /entries: "ОДНОКРАТНАЯ"/);
+  assert.match(groupReference, /entryDate: "19\/10\/2026"/);
+  assert.match(groupReference, /exitDate: "16\/01\/2027"/);
+  assert.match(groupReference, /invitationDurationDays: "90"/);
+  assert.match(groupReference, /БАУМАНА/);
+  assert.doesNotMatch(groupReference, /7726002Y88584|passportNo|birthDate|personalFax|email:/);
+  assert.match(tool, /setMvdCommon\(\{ \.\.\.baumanInvitationReference \}\)/);
+  assert.match(tool, /attachMvdReferenceImage\(event\.target\.files\?\.\[0\] \?\? null\)/);
+  assert.match(tool, /reader\.readAsDataURL\(file\)/);
+  assert.match(tool, /file\.size > 4_000_000/);
+  assert.match(tool, /Chỉ xem tại thiết bị này, không tải ảnh lên hệ thống/);
+  assert.match(tool, /mvdInvitation \? mvdCommon\.organization\.trim\(\) : ""/);
+  assert.match(tool, /mvdInvitation \? mvdCommon\.invitationIssuer\.trim\(\) : ""/);
+  assert.match(tool, /mvdInvitation \? mvdCommon\.invitationDurationDays\.trim\(\) : ""/);
+  assert.match(tool, /invitation: student \? store\.common\.invitation : ""/);
+  assert.match(tool, /telex: student \? store\.common\.telex : ""/);
+  assert.doesNotMatch(adminApi, /imageDataUrl|mvdImagePreview|data:image\/|referenceImage/);
+});
+
 test("Link 3 accepts МВД electronic invitation details without inheriting student Telex", () => {
   assert.match(tool, /setIntakeFormType\("mvd_invitation"\)/);
   assert.match(tool, /invitationDurationDays: ""/);
@@ -146,7 +171,7 @@ test("intake link snapshots the current common work and embassy defaults", () =>
   assert.match(tool, /employer: student \? store\.common\.employer : ""/);
   assert.match(tool, /workPhone: student \? fixedWorkPhone : ""/);
   assert.match(tool, /permanentAddress: student \? fixedPermanentAddress : ""/);
-  assert.match(tool, /preferredEmbassy: student \? store\.common\.embassy : ""/);
+  assert.match(tool, /preferredEmbassy: student \? store\.common\.embassy : mvdInvitation \? mvdCommon\.preferredEmbassy\.trim\(\) : ""/);
 });
 
 test("applicant preferred embassy overrides common embassy in the KD-MID payload", () => {
@@ -267,7 +292,7 @@ test("admin creates two persistent intake form types and snapshots the type in d
 });
 
 test("general intake does not inherit study-only KD-MID defaults while student intake requires Telex", () => {
-  assert.match(tool, /purposeSection: student \? store\.common\.purposeSection : ""/);
+  assert.match(tool, /purposeSection: student \? store\.common\.purposeSection : mvdInvitation \? mvdCommon\.purposeSection\.trim\(\) : ""/);
   assert.match(tool, /telex: student \? store\.common\.telex : ""/);
   assert.match(publicApi, /student \? "УЧЕБА" : ""/);
   assert.match(publicApi, /student \? "МОСКВА" : ""/);
