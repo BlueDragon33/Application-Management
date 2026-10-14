@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KD-MID Visa VN Companion
 // @namespace    application-management
-// @version      0.9.32
+// @version      0.9.33
 // @description  Tự động điền hồ sơ chính thức trên visa.kdmid.ru; tự điền password, chờ người dùng nhập CAPTCHA, lưu ID xác nhận rồi tiếp tục đến PDF A4.
 // @match        https://application-management.boiech-ai.workers.dev/*
 // @match        https://visa.kdmid.ru/*
@@ -17,7 +17,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.32";
+  const VERSION = "0.9.33";
   const SHARED_PAYLOAD_KEY = "kd-mid-visa-vn:shared-payload:v9";
   const SHARED_RECORD_KEY = "kd-mid-visa-vn:shared-record:v9";
   const CLICK_KEY = "kd-mid-visa-vn:auto-click:v9";
@@ -1139,7 +1139,7 @@
   function contactInfoControls() {
     // This KD-MID page has a stable visual/control order. Previous label-based
     // lookup could miss "Ваш личный E-mail" even though the value exists in the
-    // payload. Use the page's actual control sequence and deliberately skip Fax.
+    // payload. Keep Fax slots in the mapping so following fields do not shift.
     const textInputs = [...document.querySelectorAll(
       'input:not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]):not([type="password"])'
     )].filter(visible);
@@ -1199,6 +1199,9 @@
     if (!isContactInfoPage()) return { handled: false, ready: false };
     const A = payload.applicant || {};
     const C = contactInfoControls();
+    // KD-MID Fax fields are optional: no value means no input, no validation and no wait.
+    const personalFax = String(A.personalFax ?? "").trim();
+    const workFax = A.worksOrStudies === false ? "" : String(A.workFax ?? "").trim();
 
     const optionalText = (control, value) => {
       const text = String(value ?? "");
@@ -1219,14 +1222,14 @@
       ["Có địa chỉ thường trú", () => C.hasPermanentAddress ? writeSelectControl(C.hasPermanentAddress, A.hasPermanentAddress === false ? ["НЕТ","NO"] : ["ДА","YES"]) : "missing"],
       ["Địa chỉ thường trú", () => optionalText(C.permanentAddress, A.hasPermanentAddress === false ? "" : (A.personalAddress || CANONICAL_PERMANENT_ADDRESS))],
       ["Điện thoại cá nhân", () => optionalText(C.personalPhone, A.phone)],
-      ["Fax cá nhân", () => optionalText(C.personalFax, A.personalFax)],
+      ["Fax cá nhân (tùy chọn)", () => personalFax ? optionalText(C.personalFax, personalFax) : "ready"],
       ["E-mail cá nhân", () => optionalText(C.personalEmail, A.email)],
       ["Đang làm việc/học tập", () => C.worksOrStudies ? writeSelectControl(C.worksOrStudies, A.worksOrStudies === false ? ["НЕТ","NO"] : ["ДА","YES"]) : "missing"],
       ["Nơi làm việc/học tập", () => optionalText(C.employer, A.worksOrStudies === false ? "" : (A.workStudyPlace || payload.employer))],
       ["Chức vụ", () => optionalText(C.position, A.worksOrStudies === false ? "" : (A.position || payload.defaultPosition))],
       ["Địa chỉ cơ quan", () => optionalText(C.workAddress, A.worksOrStudies === false ? "" : (A.workAddress || payload.employerAddress))],
       ["Điện thoại cơ quan", () => optionalText(C.workPhone, A.worksOrStudies === false ? "" : (A.workPhone || payload.fixedWorkPhone))],
-      ["Fax cơ quan", () => optionalText(C.workFax, A.worksOrStudies === false ? "" : A.workFax)],
+      ["Fax cơ quan (tùy chọn)", () => workFax ? optionalText(C.workFax, workFax) : "ready"],
       ["E-mail cơ quan", () => optionalText(C.workEmail, A.worksOrStudies === false ? "" : (A.workEmail || payload.employerEmail))],
       ["Trẻ em dưới 16 tuổi", () => C.children ? writeSelectControl(C.children, A.childrenUnder16 ? ["ДА","YES"] : ["НЕТ","NO"]) : "missing"],
       ["Người thân tại Nga", () => {
@@ -1239,8 +1242,7 @@
       }],
     ];
 
-    // Fax fields are intentionally skipped. KD-MID does not require them and
-    // the profile does not store fax numbers.
+    // Blank Fax fields are intentionally skipped; supplied Fax values are still filled.
     for (const [label, fn] of steps) {
       const state = fn();
       if (state === "changed") {
@@ -1262,26 +1264,26 @@
     const expected = {
       permanentAddress: A.hasPermanentAddress === false ? "" : String(A.personalAddress || CANONICAL_PERMANENT_ADDRESS),
       personalPhone: String(A.phone || ""),
-      personalFax: String(A.personalFax || ""),
+      personalFax,
       personalEmail: String(A.email || ""),
       employer: A.worksOrStudies === false ? "" : String(A.workStudyPlace || payload.employer || ""),
       position: A.worksOrStudies === false ? "" : String(A.position || payload.defaultPosition || ""),
       workAddress: A.worksOrStudies === false ? "" : String(A.workAddress || payload.employerAddress || ""),
       workPhone: A.worksOrStudies === false ? "" : String(A.workPhone || payload.fixedWorkPhone || ""),
-      workFax: A.worksOrStudies === false ? "" : String(A.workFax || ""),
+      workFax,
       workEmail: A.worksOrStudies === false ? "" : String(A.workEmail || payload.employerEmail || ""),
     };
 
     const textPairs = [
       [finalC.permanentAddress, expected.permanentAddress],
       [finalC.personalPhone, expected.personalPhone],
-      [finalC.personalFax, expected.personalFax],
+      ...(personalFax ? [[finalC.personalFax, expected.personalFax]] : []),
       [finalC.personalEmail, expected.personalEmail],
       [finalC.employer, expected.employer],
       [finalC.position, expected.position],
       [finalC.workAddress, expected.workAddress],
       [finalC.workPhone, expected.workPhone],
-      [finalC.workFax, expected.workFax],
+      ...(workFax ? [[finalC.workFax, expected.workFax]] : []),
       [finalC.workEmail, expected.workEmail],
     ];
 
@@ -1312,7 +1314,7 @@
     }
 
     refreshAspNetValidators();
-    status("KD-MID Visa VN: trang liên hệ/cơ quan đã điền đúng, gồm cả Fax nếu hồ sơ có dữ liệu.");
+    status("KD-MID Visa VN: trang liên hệ/cơ quan đã điền đúng; Fax trống được tự động bỏ qua.");
     return { handled: true, ready: true };
   }
 
