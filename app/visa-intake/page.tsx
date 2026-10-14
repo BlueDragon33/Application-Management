@@ -585,7 +585,8 @@ export default function VisaIntakePage() {
             <>
             <Field fieldKey="invitationIssuer" correctionFields={correctionFields} label="Cơ quan cấp thư mời МВД *" ru="Орган, оформивший приглашение"><input required value={applicant.invitationIssuer} onChange={(e) => set("invitationIssuer", upperPlain(e.target.value))} /></Field>
             <Field fieldKey="invitationDurationDays" correctionFields={correctionFields} label="Thời hạn thư mời (ngày) *" ru="На срок (дней)"><input required inputMode="numeric" value={applicant.invitationDurationDays} onChange={(e) => set("invitationDurationDays", e.target.value.replace(/\D/g, "").slice(0, 4))} /></Field>
-          </> : null>
+            </>
+          ) : null}
         </div>
       </section>
 
