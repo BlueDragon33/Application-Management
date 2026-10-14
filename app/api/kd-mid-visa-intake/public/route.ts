@@ -73,11 +73,16 @@ const STUDENT_INTAKE_DEFAULTS = {
 
 function fillStudentDefaults(raw: Record<string, unknown>) {
   const formType = raw.formType === "general" ? "general" : raw.formType === "mvd_invitation" ? "mvd_invitation" : "student";
-  if (formType !== "student") return { ...raw, formType };
-  const merged: Record<string, unknown> = { ...raw, formType: "student" };
-  for (const [key, value] of Object.entries(STUDENT_INTAKE_DEFAULTS)) {
+  if (formType === "general") return { ...raw, formType };
+  const merged: Record<string, unknown> = { ...raw, formType };
+  const keys = formType === "student" ? Object.keys(STUDENT_INTAKE_DEFAULTS)
+    : ["employer", "position", "workAddress", "workPhone", "workEmail", "permanentAddress"];
+  for (const key of keys) {
+    const value = STUDENT_INTAKE_DEFAULTS[key as keyof typeof STUDENT_INTAKE_DEFAULTS];
     if (!String(merged[key] ?? "").trim() && String(value ?? "").trim()) merged[key] = value;
   }
+  if (formType === "mvd_invitation" && !String(merged.tin ?? "").trim() &&
+    /БАУМАН|BAUMAN/i.test(String(merged.organization ?? ""))) merged.tin = "7701002520";
   return merged;
 }
 
