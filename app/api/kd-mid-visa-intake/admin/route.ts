@@ -171,7 +171,7 @@ export async function POST(request: Request) {
         telex: "", // No group Telex: only a value typed for an individual is retained.
         invitation: text(defaults.invitation, 120),
         invitationIssuer: text(defaults.invitationIssuer, 300),
-        invitationDurationDays: text(defaults.invitationDurationDays, 5),
+        invitationDurationDays: formType === "mvd_invitation" ? "" : text(defaults.invitationDurationDays, 5),
         routeCity: text(defaults.routeCity, 80),
         employer: text(defaults.employer, 240),
         position: text(defaults.position, 120),
