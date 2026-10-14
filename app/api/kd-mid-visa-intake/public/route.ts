@@ -81,6 +81,12 @@ function fillStudentDefaults(raw: Record<string, unknown>) {
   return merged;
 }
 
+function normalizeMvdInvitation(value: string): string {
+  const clean = value.trim().toUpperCase();
+  const letter = clean.search(/[A-ZА-ЯЁ]/);
+  return letter > 1 ? clean.slice(letter - 1) : clean;
+}
+
 function parseDmy(value: string) {
   const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
   if (!match) return null;
@@ -245,9 +251,11 @@ export async function POST(request: Request) {
       organizationAddress: upperPlain(withDefault("organizationAddress", defaults.organizationAddress), 400),
       tin: text(withDefault("tin", defaults.tin), 40),
       telex: text(source.telex, 80), // An omitted/empty Telex must never inherit a link default.
-      invitation: text(withDefault("invitation", defaults.invitation), 120),
+      invitation: formType === "mvd_invitation"
+        ? normalizeMvdInvitation(text(withDefault("invitation", defaults.invitation), 120))
+        : text(withDefault("invitation", defaults.invitation), 120),
       invitationIssuer: upperPlain(withDefault("invitationIssuer", defaults.invitationIssuer), 300),
-      invitationDurationDays: text(withDefault("invitationDurationDays", defaults.invitationDurationDays), 5),
+      invitationDurationDays: formType === "mvd_invitation" ? "" : text(withDefault("invitationDurationDays", defaults.invitationDurationDays), 5),
       passportNo: upperPlain(source.passportNo, 40),
       passportIssue,
       passportExpiry: text(source.passportExpiry, 10) || passportExpiryFromIssue(passportIssue),
@@ -315,11 +323,9 @@ export async function POST(request: Request) {
       required.push(
         ["invitation", "Số thư mời nhập cảnh điện tử МВД"],
         ["invitationIssuer", "Cơ quan cấp thư mời"],
-        ["invitationDurationDays", "Thời hạn thư mời (ngày)"],
         ["organization", "Tổ chức mời"],
         ["organizationAddress", "Địa chỉ tổ chức mời"],
       );
-      if (applicant.invitationDurationDays && (!/^[0-9]{1,4}$/.test(applicant.invitationDurationDays) || Number(applicant.invitationDurationDays) <= 0)) missing.push("Thời hạn thư mời phải là số ngày hợp lệ");
     }
     for (const [key, label] of required) if (!String(applicant[key] ?? "").trim()) missing.push(label);
 

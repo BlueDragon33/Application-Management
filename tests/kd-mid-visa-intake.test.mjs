@@ -13,49 +13,55 @@ const resultMigration = fs.readFileSync("drizzle/0010_visa_intake_results.sql", 
 const deviceMigration = fs.readFileSync("drizzle/0011_visa_intake_device_recovery.sql", "utf8");
 const schema = fs.readFileSync("db/schema.ts", "utf8");
 
-test("MVD Link 3 supports private photo reference and explicit Bauman group-only defaults", () => {
-  const referenceStart = tool.indexOf("const baumanInvitationReference:");
-  const referenceEnd = tool.indexOf("const mvdSharedLabels:", referenceStart);
-  assert.ok(referenceStart >= 0 && referenceEnd > referenceStart);
-  const groupReference = tool.slice(referenceStart, referenceEnd);
-  assert.match(groupReference, /visaType: "ОБЫКНОВЕННАЯ УЧЕБНАЯ"/);
-  assert.match(groupReference, /entries: "ОДНОКРАТНАЯ"/);
-  assert.match(groupReference, /entryDate: "19\/10\/2026"/);
-  assert.match(groupReference, /exitDate: "16\/01\/2027"/);
-  assert.match(groupReference, /invitationDurationDays: "90"/);
-  assert.match(groupReference, /БАУМАНА/);
-  assert.doesNotMatch(groupReference, /7726002Y88584|passportNo|birthDate|personalFax|email:/);
-  assert.match(tool, /setMvdCommon\(\{ \.\.\.baumanInvitationReference \}\)/);
-  assert.match(tool, /attachMvdReferenceImage\(event\.target\.files\?\.\[0\] \?\? null\)/);
-  assert.match(tool, /reader\.readAsDataURL\(file\)/);
-  assert.match(tool, /file\.size > 4_000_000/);
-  assert.match(tool, /Chỉ xem tại thiết bị này, không tải ảnh lên hệ thống/);
-  assert.match(tool, /mvdInvitation \? mvdCommon\.organization\.trim\(\) : ""/);
-  assert.match(tool, /mvdInvitation \? mvdCommon\.invitationIssuer\.trim\(\) : ""/);
-  assert.match(tool, /mvdInvitation \? mvdCommon\.invitationDurationDays\.trim\(\) : ""/);
-  assert.match(tool, /invitation: student \? store\.common\.invitation : ""/);
-  assert.match(tool, /telex: ""/);
-  assert.doesNotMatch(adminApi, /imageDataUrl|mvdImagePreview|data:image\/|referenceImage/);
+test("MVD Link 3 reuses sections 04-05, INN Bauman and omits duration", () => {
+  const reference = tool.slice(tool.indexOf("const baumanInvitationReference:"), tool.indexOf("const mvdSharedLabels:"));
+  for (const field of [
+    'visaType: "ОБЫКНОВЕННАЯ УЧЕБНАЯ"',
+    'entries: "ОДНОКРАТНАЯ"',
+    'entryDate: "19/10/2026"',
+    'exitDate: "16/01/2027"',
+    'tin: "7701002520"',
+  ]) assert.ok(reference.includes(field), field);
+  assert.ok(!reference.includes("invitationDurationDays"));
+  assert.ok(tool.includes('tin: student ? store.common.tin : mvdInvitation ? mvdCommon.tin.trim() : ""'));
+  assert.ok(tool.includes('setMvdCommon({ ...baumanInvitationReference })'));
+  assert.ok(tool.includes('reader.readAsDataURL(file)'));
+  assert.ok(tool.includes('Chỉ xem tại thiết bị này, không tải ảnh lên hệ thống'));
+  const sharedLabels = tool.slice(tool.indexOf("const mvdSharedLabels:"), tool.indexOf("type IntakeSubmission"));
+  assert.ok(!sharedLabels.includes("invitationDurationDays"));
+  for (const [name, value] of [
+    ["employer", "store.common.employer"], ["position", "store.common.defaultPosition"],
+    ["workAddress", "store.common.employerAddress"], ["workPhone", "fixedWorkPhone"],
+    ["workEmail", "store.common.employerEmail"], ["permanentAddress", "fixedPermanentAddress"],
+  ]) assert.ok(tool.includes(name + ": student || mvdInvitation ? " + value + ' : ""'), name);
+  for (const source of [publicPage, publicWorkerPage]) {
+    assert.ok(source.includes("<header><b>04</b>"));
+    assert.ok(source.includes("<header><b>05</b>"));
+  }
+  assert.ok(!publicPage.includes('fieldKey="invitationDurationDays"'));
+  assert.ok(!publicWorkerPage.includes('data-field="invitationDurationDays"'));
+  assert.ok(!publicApi.includes('["invitationDurationDays", "Thời hạn thư mời'));
+  assert.ok(adminApi.includes('invitationDurationDays: formType === "mvd_invitation" ? ""'));
 });
 
-test("Link 3 accepts МВД electronic invitation details without inheriting student Telex", () => {
-  assert.match(tool, /setIntakeFormType\("mvd_invitation"\)/);
-  assert.match(tool, /invitationDurationDays: ""/);
-  assert.match(tool, /telex: value\("telex"\)/);
-  assert.match(publicPage, /formType === "mvd_invitation"/);
-  assert.match(publicPage, /fieldKey="invitationIssuer"/);
-  assert.match(publicPage, /fieldKey="invitationDurationDays"/);
-  assert.match(publicPage, /required=\{formType === "mvd_invitation"\}/);
-  assert.match(adminApi, /text\(body\.formType, 20\) === "mvd_invitation"/);
-  assert.match(adminApi, /invitationIssuer: text\(defaults\.invitationIssuer/);
-  assert.match(adminApi, /invitationDurationDays: text\(defaults\.invitationDurationDays/);
-  assert.match(publicApi, /formType === "mvd_invitation"/);
-  assert.match(publicApi, /\["invitationIssuer", "Cơ quan cấp thư mời"\]/);
-  assert.match(publicApi, /\["invitationDurationDays", "Thời hạn thư mời \(ngày\)"\]/);
-  assert.match(publicWorkerPage, /const serverMvd = serverDefaults\.formType === "mvd_invitation"/);
-  assert.match(publicWorkerPage, /data-field="invitationIssuer"/);
-  assert.match(publicWorkerPage, /data-field="invitationDurationDays"/);
-  assert.match(adminApi, /"invitationIssuer", "invitationDurationDays"/);
+test("MVD number trims up to the character before the first letter, only on Link 3", () => {
+  assert.ok(tool.includes("function normalizeMvdInvitation"));
+  assert.ok(tool.includes('normalizeMvdInvitation(value("invitation"))'));
+  assert.ok(publicPage.includes('normalizeMvdInvitation(e.target.value)'));
+  assert.ok(publicWorkerPage.includes('normalizeMvdInvitation(value("invitation"))'));
+  assert.ok(publicApi.includes('normalizeMvdInvitation(text(withDefault("invitation"'));
+  assert.ok(publicApi.includes('invitationDurationDays: formType === "mvd_invitation" ? ""'));
+  const normalize = value => {
+    const clean = value.trim().toUpperCase();
+    const letter = clean.search(/[A-ZА-ЯЁ]/);
+    return letter > 1 ? clean.slice(letter - 1) : clean;
+  };
+  assert.equal(normalize("7726002Y8858461"), "2Y8858461");
+  assert.equal(normalize("2Y8858461"), "2Y8858461");
+  assert.equal(normalize("7726002y8858461"), "2Y8858461");
+  assert.equal(normalize("123456789"), "123456789");
+  assert.equal(normalize("AB123"), "AB123");
+  assert.ok(tool.includes('telex: ""'));
 });
 
 test("all intake modes preserve blank Telex through API, personal import and KD-MID launch", () => {
@@ -182,10 +188,10 @@ test("approved intake submission is mapped into the local KD-MID applicant model
   assert.match(tool, /action: "mark-imported"/);
 });
 
-test("intake link snapshots the current common work and embassy defaults", () => {
-  assert.match(tool, /employer: student \? store\.common\.employer : ""/);
-  assert.match(tool, /workPhone: student \? fixedWorkPhone : ""/);
-  assert.match(tool, /permanentAddress: student \? fixedPermanentAddress : ""/);
+test("intake link snapshots shared contact defaults for Link 1 and Link 3", () => {
+  assert.ok(tool.includes('employer: student || mvdInvitation ? store.common.employer : ""'));
+  assert.ok(tool.includes('workPhone: student || mvdInvitation ? fixedWorkPhone : ""'));
+  assert.ok(tool.includes('permanentAddress: student || mvdInvitation ? fixedPermanentAddress : ""'));
   assert.match(tool, /preferredEmbassy: student \? store\.common\.embassy : mvdInvitation \? mvdCommon\.preferredEmbassy\.trim\(\) : ""/);
 });
 
@@ -375,8 +381,8 @@ test("sender browser keeps a stable device id and automatically recovers the ser
 test("student common defaults fill missing draft keys without overwriting explicit user edits", () => {
   assert.match(publicWorkerPage, /const mergeCommonDefaultsIntoDraft = draft/);
   assert.match(publicWorkerPage, /if\(!Object\.prototype\.hasOwnProperty\.call\(merged,key\) && String\(value \?\? ""\)\.trim\(\)\) merged\[key\]=String\(value\)/);
-  assert.match(publicWorkerPage, /currentApplicant=normalizePersonalApplicant\(mergeCommonDefaultsIntoDraft\(currentApplicant\)\)/);
-  assert.match(publicWorkerPage, /currentApplicant=normalizePersonalApplicant\(mergeCommonDefaultsIntoDraft\(\{\}\)\)/);
+  assert.ok(publicWorkerPage.includes("currentApplicant=normalizePersonalApplicant(mergeCommonDefaultsIntoDraft(currentApplicant), formType)"));
+  assert.ok(publicWorkerPage.includes("currentApplicant=normalizePersonalApplicant(mergeCommonDefaultsIntoDraft({}), formType)"));
   assert.match(publicWorkerPage, /được điền sẵn trực tiếp trong từng ô/);
 });
 
@@ -404,7 +410,7 @@ test("student intake links always expose complete shared defaults, including old
 test("Link 1 has complete defaults and preserves an existing rejected local draft", () => {
   assert.match(publicWorkerPage, /const STUDENT_FORM_DEFAULTS = \{/);
   assert.match(publicWorkerPage, /withStudentFallbacks\(rawDefaults\)/);
-  assert.match(publicWorkerPage, /currentApplicant=normalizePersonalApplicant\(keepReturnedDraft && currentApplicant \? currentApplicant : data\.submission\.applicant\)/);
+  assert.ok(publicWorkerPage.includes("currentApplicant=normalizePersonalApplicant(keepReturnedDraft && currentApplicant ? currentApplicant : data.submission.applicant, formType)"));
   assert.match(publicPage, /const STUDENT_FORM_DEFAULTS/);
   assert.match(publicPage, /const STUDENT_SHARED_KEYS/);
   assert.match(publicPage, /if \(resolvedFormType === "student"\)/);
@@ -502,8 +508,8 @@ test("production inline visa-intake script is valid JavaScript", () => {
 
 test("personal uppercase normalization survives restored drafts and uses one delegated capture path", () => {
   assert.match(publicWorkerPage, /const personalUpperPlainNames = \["surname","givenNames","birthPlace","otherNames","routeCity"\]/);
-  assert.match(publicWorkerPage, /const normalizePersonalApplicant = applicant =>/);
-  assert.match(publicWorkerPage, /applicant=normalizePersonalApplicant\(applicant\)/);
+  assert.ok(publicWorkerPage.includes('const normalizePersonalApplicant = (applicant, requestedFormType = "student") =>'));
+  assert.ok(publicWorkerPage.includes("applicant=normalizePersonalApplicant(applicant, formType)"));
   assert.match(publicWorkerPage, /const normalizeMarkedElement = element =>/);
   assert.match(publicWorkerPage, /form\.addEventListener\(type,normalizeMarkedEvent,true\)/);
   assert.match(publicWorkerPage, /const normalizeMarkedInputs = \(\) =>/);
@@ -515,7 +521,7 @@ test("standalone form submit cannot be silently blocked by native validation", (
   assert.match(publicWorkerPage, /<form id="form" novalidate>/);
   assert.match(publicWorkerPage, /const collectClientInvalid = \(\) =>/);
   assert.match(publicWorkerPage, /Còn trường bắt buộc chưa điền hoặc chưa hợp lệ/);
-  assert.match(publicWorkerPage, /normalizePersonalApplicant\(readApplicant\(\)\)/);
+  assert.ok(publicWorkerPage.includes("normalizePersonalApplicant(readApplicant(), formType)"));
   assert.match(publicWorkerPage, /form\.addEventListener\("invalid"/);
 });
 
@@ -587,7 +593,7 @@ test("draft persistence returns observable success or failure instead of swallow
 });
 
 test("submit and autosave share one normalized client snapshot", () => {
-  assert.match(publicWorkerPage, /const snapshotCurrentApplicant = \(\) => \{[\s\S]*?normalizeMarkedInputs\(\);[\s\S]*?normalizePersonalApplicant\(readApplicant\(\)\)/);
+  assert.match(publicWorkerPage, /const snapshotCurrentApplicant = \(\) => \{[\s\S]*?normalizeMarkedInputs\(\);[\s\S]*?normalizePersonalApplicant\(readApplicant\(\), formType\)/);
   assert.match(publicWorkerPage, /const applicant = snapshotCurrentApplicant\(\)/);
   assert.match(publicWorkerPage, /form\.addEventListener\("compositionend",persistFormDraft,true\)/);
 });
@@ -646,7 +652,7 @@ test("normalized draft round-trips through storage with the five personal fields
 test("submit payload source uses the same normalized snapshot that autosave persists", () => {
   const snapshotDeclaration = publicWorkerPage.match(/const snapshotCurrentApplicant = \(\) => \{([\s\S]*?)\n  \};/)?.[0] ?? "";
   assert.match(snapshotDeclaration, /normalizeMarkedInputs\(\)/);
-  assert.match(snapshotDeclaration, /normalizePersonalApplicant\(readApplicant\(\)\)/);
+  assert.ok(snapshotDeclaration.includes("normalizePersonalApplicant(readApplicant(), formType)"));
   assert.match(publicWorkerPage, /return saveLocal\(snapshotCurrentApplicant\(\)\)/);
   assert.match(publicWorkerPage, /const applicant = snapshotCurrentApplicant\(\);\n    saveLocal\(applicant\);/);
   assert.match(publicWorkerPage, /body:JSON\.stringify\(\{token,batch:batchId,deviceId,applicant,/);

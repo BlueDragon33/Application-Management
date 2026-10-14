@@ -111,6 +111,58 @@ test('server accepts a blank Telex and keeps it blank through submission readbac
   assert.equal(read.submission.applicant.telex, '');
 });
 
+test('MVD link saves trimmed invitation, Bauman INN and issuer without obsolete duration', async t => {
+  const f = fixture(t);
+  f.sqlite.prepare('UPDATE visa_intake_links SET defaults_json=?').run(JSON.stringify({
+    formType: 'mvd_invitation', citizenship: 'ВЬЕТНАМ', purposeSection: 'УЧЕБА', purpose: 'УЧЕБА',
+    visaType: 'ОБЫКНОВЕННАЯ УЧЕБНАЯ', entries: 'ОДНОКРАТНАЯ',
+    entryDate: '19/10/2026', exitDate: '16/01/2027', destinationType: 'ОРГАНИЗАЦИЯ',
+    organization: 'BMSTU', organizationAddress: 'MOSCOW', tin: '7701002520',
+    invitationIssuer: 'ГУ МВД РОССИИ', invitationDurationDays: '90',
+    routeCity: 'МОСКВА', preferredEmbassy: 'ПОСОЛЬСТВО РФ ВО ВЬЕТНАМЕ',
+    permanentAddress: 'ADDRESS USED BY LINK 1', employer: 'STUDY OFFICE',
+    position: 'СТУДЕНТ', workAddress: 'OFFICE ADDRESS', workPhone: '123456',
+    workEmail: 'school@example.com',
+  }));
+  const response = await f.post({ applicant: {
+    ...applicant, invitation: '7726002Y8858461', invitationIssuer: 'ГУ МВД РОССИИ',
+    invitationDurationDays: '999',
+    telex: '',
+  }});
+  assert.equal(response.status, 201, JSON.stringify(await response.clone().json()));
+  const sent = (await response.json()).submission;
+  assert.equal(sent.applicant.invitation, '2Y8858461');
+  assert.equal(sent.applicant.tin, '7701002520');
+  assert.equal(sent.applicant.invitationIssuer, 'ГУ МВД РОССИИ');
+  assert.equal(sent.applicant.invitationDurationDays, '');
+  assert.equal(sent.applicant.telex, '');
+  const persisted = (await (await f.get(sent.id)).json()).submission.applicant;
+  assert.equal(persisted.invitation, '2Y8858461');
+  assert.equal(persisted.invitationDurationDays, '');
+  assert.equal(persisted.personalAddress, 'ADDRESS USED BY LINK 1');
+  assert.equal(persisted.workStudyPlace, 'STUDY OFFICE');
+});
+
+test('MVD invitation normalization is idempotent and does not affect non-MVD forms', async t => {
+  const f = fixture(t);
+  const shared = {
+    formType: 'mvd_invitation', purposeSection: 'УЧЕБА', purpose: 'УЧЕБА',
+    visaType: 'ОБЫКНОВЕННАЯ УЧЕБНАЯ', entries: 'ОДНОКРАТНАЯ',
+    entryDate: '19/10/2026', exitDate: '16/01/2027', destinationType: 'ОРГАНИЗАЦИЯ',
+    organization: 'BMSTU', organizationAddress: 'MOSCOW', invitationIssuer: 'ГУ МВД',
+    routeCity: 'МОСКВА', preferredEmbassy: 'ПОСОЛЬСТВО РФ ВО ВЬЕТНАМЕ',
+  };
+  f.sqlite.prepare('UPDATE visa_intake_links SET defaults_json=?').run(JSON.stringify(shared));
+  let r = await f.post({ applicant: { ...applicant, invitation: '2Y8858461' } });
+  assert.equal(r.status, 201);
+  assert.equal((await r.json()).submission.applicant.invitation, '2Y8858461');
+  const general = fixture(t);
+  general.sqlite.prepare('UPDATE visa_intake_links SET defaults_json=?').run(JSON.stringify({ ...shared, formType: 'general' }));
+  r = await general.post({ applicant: { ...applicant, invitation: '7726002Y8858461' } });
+  assert.equal(r.status, 201);
+  assert.equal((await r.json()).submission.applicant.invitation, '7726002Y8858461');
+});
+
 test('stale rejected tab cannot revert a newer corrected revision', async t => {
   const f = fixture(t);
   const initial = await (await f.post()).json();

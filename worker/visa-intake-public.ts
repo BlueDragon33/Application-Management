@@ -145,7 +145,7 @@ export async function publicVisaIntakePage(request: Request, env: VisaIntakePage
 <label class="field" data-field="telex" id="telexField">Mã Telex / Số chỉ thị <small>Номер указания (телекса)</small><input name="telex" value=""></label>
 <label class="field" data-field="invitation">Số thư mời <small>Номер приглашения · khác mã Telex</small><input name="invitation" value="${htmlAttr(serverDefaults.invitation)}" ${serverMvd ? "required" : ""}></label>
 ${serverMvd ? `<label class="field" data-field="invitationIssuer">Cơ quan cấp thư mời МВД <small>Орган, оформивший приглашение</small><input name="invitationIssuer" required value="${htmlAttr(serverDefaults.invitationIssuer)}"></label>
-<label class="field" data-field="invitationDurationDays">Thời hạn thư mời (ngày) <small>На срок (дней)</small><input name="invitationDurationDays" inputmode="numeric" pattern="[0-9]{1,4}" required value="${htmlAttr(serverDefaults.invitationDurationDays)}"></label>` : ""}
+` : ""}
 </div></section>
 <section class="section"><header><b>02</b><div><h2>Thông tin cá nhân</h2><p>Họ và tên nhập chữ Latin không dấu, đúng thứ tự trên hộ chiếu.</p></div></header><div class="grid">
 <label class="field" data-field="surname" data-personal-required="true">Họ <b class="required-mark">*</b> <small>Фамилия</small><input name="surname" data-normalize="upper-plain" required></label>
@@ -304,9 +304,18 @@ ${serverMvd ? `<label class="field" data-field="invitationIssuer">Cơ quan cấp
   };
   const upperPlain = value => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[đĐ]/g, letter => letter === "đ" ? "d" : "D").toUpperCase();
   const personalUpperPlainNames = ["surname","givenNames","birthPlace","otherNames","routeCity"];
-  const normalizePersonalApplicant = applicant => {
+  const normalizeMvdInvitation = value => {
+    const clean = upperPlain(value).trim();
+    const index = clean.search(/[A-ZА-ЯЁ]/);
+    return index > 1 ? clean.slice(index - 1) : clean;
+  };
+  const normalizePersonalApplicant = (applicant, requestedFormType = "student") => {
     const normalized={...(applicant || {})};
     personalUpperPlainNames.forEach(name=>{normalized[name]=upperPlain(normalized[name] || "");});
+    if (requestedFormType === "mvd_invitation") {
+      normalized.invitation = normalizeMvdInvitation(normalized.invitation || "");
+      normalized.invitationDurationDays = "";
+    }
     return normalized;
   };
   const normalizeTwoDigits = (value,max) => {
@@ -383,7 +392,7 @@ ${serverMvd ? `<label class="field" data-field="invitationIssuer">Cơ quan cấp
 
   const fillApplicant = applicant => {
     if(!applicant) return;
-    applicant=normalizePersonalApplicant(applicant);
+    applicant=normalizePersonalApplicant(applicant, formType);
     Object.entries(applicant).forEach(([key,value]) => {
       if(["birthDate","entryDate","exitDate","passportIssue","passportExpiry","formerCitizenshipLostDate","lastVisitFrom","lastVisitTo"].includes(key)){ fillDate(key,String(value || "")); return; }
       const el=byName(key);
@@ -481,7 +490,7 @@ ${serverMvd ? `<label class="field" data-field="invitationIssuer">Cơ quan cấp
           return;
         }
         if(!data.submission.applicant) {setError("Không đọc được nội dung phiên bản mới. Bản nháp vẫn được giữ.");return;}
-        currentApplicant=normalizePersonalApplicant(data.submission.applicant);
+        currentApplicant=normalizePersonalApplicant(data.submission.applicant, formType);
         fillApplicant(currentApplicant);
         refreshButtons.forEach(button=>delete button.dataset.replaceDraft);
         setError("");
@@ -518,8 +527,8 @@ ${serverMvd ? `<label class="field" data-field="invitationIssuer">Cơ quan cấp
     batch.innerHTML = "Đợt thu hồ sơ: <strong>"+String(data.link?.label || "").replace(/[<>&]/g,"")+"</strong> · <b>"+(student ? "MẪU NHẬP HỌC" : mvd ? "THƯ MỜI МВД" : "NGƯỜI THƯỜNG")+"</b>";
     document.getElementById("formTypeBadge").textContent = student ? "LINK 1 · MẪU NHẬP HỌC" : mvd ? "LINK 3 · THƯ MỜI МВД" : "LINK 2 · MẪU VISA NGƯỜI THƯỜNG";
     document.getElementById("heroTitle").textContent = student ? "Điền hồ sơ nhập học để chuẩn bị KD-MID" : mvd ? "Điền hồ sơ theo thư mời điện tử của МВД Nga" : "Điền hồ sơ visa cá nhân để chuẩn bị KD-MID";
-    document.getElementById("heroIntro").textContent = student ? "Các dữ liệu học tập dùng chung đã được điền sẵn trực tiếp trong từng ô. Chỉ sửa ô nào khác giấy tờ; Telex không có thì giữ trống." : "Mẫu tổng quát không tự áp các giá trị visa học tập. Hãy nhập đúng thông tin theo mục đích chuyến đi của bạn.";
-    document.getElementById("guideTypeTitle").textContent=student ? "Mẫu nhập học" : "Mẫu người thường";
+    document.getElementById("heroIntro").textContent = student ? "Các dữ liệu học tập dùng chung đã được điền sẵn trực tiếp trong từng ô. Chỉ sửa ô nào khác giấy tờ; Telex không có thì giữ trống." : mvd ? "Mục 04–05 dùng thông tin chung như Link 1. INN Bauman: 7701002520. Số thư mời tự rút gọn, ví dụ 7726002Y8858461 thành 2Y8858461." : "Mẫu tổng quát không tự áp các giá trị visa học tập. Hãy nhập đúng thông tin theo mục đích chuyến đi của bạn.";
+    document.getElementById("guideTypeTitle").textContent=student ? "Mẫu nhập học" : mvd ? "Mẫu thư mời МВД" : "Mẫu người thường";
     document.getElementById("guideTypeText").textContent=student ? "Các trường chung đã nằm sẵn trong ô nhập theo đợt. Bạn chỉ cần kiểm tra; nếu khác giấy tờ thì sửa trực tiếp. Không có Telex thì để trống, không tự dùng mã mẫu chung." : "Không dùng mặc định học tập. Điền mục đích, loại visa, lịch trình và thông tin thư mời đúng hồ sơ thực tế; Telex có thể để trống nếu không dùng.";
     document.getElementById("prefillNotice").style.display=student ? "block" : "none";
     const telexField=document.getElementById("telexField");
@@ -535,7 +544,7 @@ ${serverMvd ? `<label class="field" data-field="invitationIssuer">Cơ quan cấp
       entries:upperPlain(d.entries || (student ? "ОДНОКРАТНАЯ" : "")),
       destinationType:upperPlain(d.destinationType || (student ? "ОРГАНИЗАЦИЯ" : "")),
       organization:upperPlain(d.organization || ""), organizationAddress:upperPlain(d.organizationAddress || ""),
-      tin:String(d.tin || ""), telex:"", invitation:String(d.invitation || ""), invitationIssuer:upperPlain(d.invitationIssuer || ""), invitationDurationDays:String(d.invitationDurationDays || ""), passwordOverride:String(d.password || ""),
+      tin:String(d.tin || ""), telex:"", invitation:mvd ? normalizeMvdInvitation(d.invitation || "") : String(d.invitation || ""), invitationIssuer:upperPlain(d.invitationIssuer || ""), passwordOverride:String(d.password || ""),
       personalAddress:upperPlain(d.permanentAddress || ""), routeCity:upperPlain(d.routeCity || (student ? "МОСКВА" : "")),
       workStudyPlace:upperPlain(d.employer || ""), position:upperPlain(d.position || ""), workAddress:upperPlain(d.workAddress || ""),
       workPhone:d.workPhone || "", workEmail:String(d.workEmail || "").toLowerCase(), preferredEmbassy:d.preferredEmbassy || ""
@@ -556,15 +565,15 @@ ${serverMvd ? `<label class="field" data-field="invitationIssuer">Cơ quan cấp
 
     if(data.submission?.applicant){
       const keepReturnedDraft=data.submission.status==="rejected" && receipt?.id===data.submission.id && (receipt?.status==="rejected" || draftEditedDuringInit) && (receipt.revision || 0)===(data.submission.revision || 0);
-      currentApplicant=normalizePersonalApplicant(keepReturnedDraft && currentApplicant ? currentApplicant : data.submission.applicant);
+      currentApplicant=normalizePersonalApplicant(keepReturnedDraft && currentApplicant ? currentApplicant : data.submission.applicant, formType);
       fillApplicant(currentApplicant);
       saveLocal(currentApplicant);
     } else if(currentApplicant) {
-      currentApplicant=normalizePersonalApplicant(mergeCommonDefaultsIntoDraft(currentApplicant));
+      currentApplicant=normalizePersonalApplicant(mergeCommonDefaultsIntoDraft(currentApplicant), formType);
       fillApplicant(currentApplicant);
       saveLocal(currentApplicant);
     } else {
-      currentApplicant=normalizePersonalApplicant(mergeCommonDefaultsIntoDraft({}));
+      currentApplicant=normalizePersonalApplicant(mergeCommonDefaultsIntoDraft({}), formType);
       fillApplicant(currentApplicant);
       saveLocal(currentApplicant);
     }
@@ -585,7 +594,7 @@ ${serverMvd ? `<label class="field" data-field="invitationIssuer">Cơ quan cấp
       bornInRussia:value("bornInRussia")==="ДА", citizenship:upperPlain(value("citizenship")), purposeSection:upperPlain(value("purposeSection")),
       purpose:upperPlain(value("purpose")), visaType:upperPlain(value("visaType")), entries:upperPlain(value("entries")), entryDate:value("entryDate"), exitDate:value("exitDate"),
       destinationType:upperPlain(value("destinationType")), organization:upperPlain(value("organization")), organizationAddress:upperPlain(value("organizationAddress")),
-      tin:value("tin"), telex:value("telex"), invitation:value("invitation"), passportNo:upperPlain(value("passportNo")),
+      tin:value("tin"), telex:value("telex"), invitation:formType==="mvd_invitation" ? normalizeMvdInvitation(value("invitation")) : value("invitation"), invitationIssuer:upperPlain(value("invitationIssuer")), passportNo:upperPlain(value("passportNo")),
       passportIssue:value("passportIssue"), passportExpiry:value("passportExpiry") || passportExpiryFromIssue(value("passportIssue")),
       hasPermanentAddress:value("hasPermanentAddress")!=="НЕТ", personalAddress:upperPlain(value("personalAddress")), phone:value("phone"), personalFax:value("personalFax"), email:value("email").toLowerCase(),
       routeCity:upperPlain(value("routeCity")), worksOrStudies:value("worksOrStudies")!=="НЕТ", workStudyPlace:upperPlain(value("workStudyPlace")), position:upperPlain(value("position")),
@@ -601,13 +610,19 @@ ${serverMvd ? `<label class="field" data-field="invitationIssuer">Cơ quan cấp
 
   const snapshotCurrentApplicant = () => {
     normalizeMarkedInputs();
-    return normalizePersonalApplicant(readApplicant());
+    return normalizePersonalApplicant(readApplicant(), formType);
   };
   const persistFormDraft = event => {
     if(!linkReady && event) draftEditedDuringInit=true;
     if(event?.isComposing || composingElements.size) return false;
     return saveLocal(snapshotCurrentApplicant());
   };
+  byName("invitation")?.addEventListener("input", event => {
+    if(formType !== "mvd_invitation" || event.isComposing || composingElements.size) return;
+    const field = event.currentTarget;
+    const normalized = normalizeMvdInvitation(field.value);
+    if (field.value !== normalized) field.value = normalized;
+  });
   form.addEventListener("input",persistFormDraft);
   form.addEventListener("change",persistFormDraft);
   form.addEventListener("blur",()=>queueMicrotask(()=>persistFormDraft()),true);

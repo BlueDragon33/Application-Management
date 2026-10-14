@@ -110,6 +110,14 @@ type IntakeLink = {
 };
 
 
+// Keep the character immediately before the first letter (e.g. 7726002Y8858461 → 2Y8858461).
+// Other form types and codes without letters must not be altered.
+function normalizeMvdInvitation(value: string): string {
+  const clean = value.trim().toUpperCase();
+  const letter = clean.search(/[A-ZА-ЯЁ]/);
+  return letter > 1 ? clean.slice(letter - 1) : clean;
+}
+
 type MvdCommonFields = {
   citizenship: string;
   purposeSection: string;
@@ -122,7 +130,7 @@ type MvdCommonFields = {
   organization: string;
   organizationAddress: string;
   invitationIssuer: string;
-  invitationDurationDays: string;
+  tin: string;
   routeCity: string;
   preferredEmbassy: string;
 };
@@ -134,7 +142,7 @@ const blankMvdCommon: MvdCommonFields = {
   purposeSection: "", purpose: "", visaType: "", entries: "",
   entryDate: "", exitDate: "", destinationType: "ОРГАНИЗАЦИЯ",
   organization: "", organizationAddress: "", invitationIssuer: "",
-  invitationDurationDays: "", routeCity: "", preferredEmbassy: "",
+  tin: "", routeCity: "", preferredEmbassy: "",
 };
 const baumanInvitationReference: MvdCommonFields = {
   citizenship: "ВЬЕТНАМ",
@@ -148,7 +156,7 @@ const baumanInvitationReference: MvdCommonFields = {
   organization: 'ФЕДЕРАЛЬНОЕ ГОСУДАРСТВЕННОЕ АВТОНОМНОЕ ОБРАЗОВАТЕЛЬНОЕ УЧРЕЖДЕНИЕ ВЫСШЕГО ОБРАЗОВАНИЯ "МОСКОВСКИЙ ГОСУДАРСТВЕННЫЙ ТЕХНИЧЕСКИЙ УНИВЕРСИТЕТ ИМЕНИ Н.Э. БАУМАНА (НАЦИОНАЛЬНЫЙ ИССЛЕДОВАТЕЛЬСКИЙ УНИВЕРСИТЕТ)"',
   organizationAddress: "105005, Г. МОСКВА, УЛ. 2-Я БАУМАНСКАЯ, Д. 5, СТР. 1",
   invitationIssuer: "770-001 ОТДЕЛ ОФОРМЛЕНИЯ ВИЗ И ПРИГЛАШЕНИЙ УВМ ГУ МВД РОССИИ ПО Г. МОСКВЕ",
-  invitationDurationDays: "90",
+  tin: "7701002520",
   routeCity: "МОСКВА",
   preferredEmbassy: "ПОСОЛЬСТВО РФ ВО ВЬЕТНАМЕ",
 };
@@ -160,11 +168,11 @@ const mvdSharedLabels: Array<{ field: keyof MvdCommonFields; label: string }> = 
   { field: "entries", label: "Số lần nhập cảnh" },
   { field: "entryDate", label: "Ngày vào Nga (dd/mm/yyyy)" },
   { field: "exitDate", label: "Hạn lưu trú (dd/mm/yyyy)" },
-  { field: "invitationDurationDays", label: "Thời hạn (ngày)" },
   { field: "invitationIssuer", label: "Cơ quan cấp thư mời МВД" },
   { field: "destinationType", label: "Loại nơi đến" },
   { field: "organization", label: "Tên cơ quan/trường mời" },
   { field: "organizationAddress", label: "Địa chỉ bên mời" },
+  { field: "tin", label: "INN Bauman / cơ quan mời" },
   { field: "routeCity", label: "Thành phố đến" },
   { field: "preferredEmbassy", label: "Nơi nộp visa" },
 ];
@@ -646,7 +654,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
   const [intakeLoading, setIntakeLoading] = useState(false);
   const [intakeLabel, setIntakeLabel] = useState("");
   const [intakeFormType, setIntakeFormType] = useState<"student" | "general" | "mvd_invitation">("student");
-  const [mvdCommon, setMvdCommon] = useState<MvdCommonFields>({ ...blankMvdCommon });
+  const [mvdCommon, setMvdCommon] = useState<MvdCommonFields>({ ...blankMvdCommon, tin: "7701002520" });
   const [mvdImagePreview, setMvdImagePreview] = useState("");
   const [mvdImageName, setMvdImageName] = useState("");
   const [mvdImageError, setMvdImageError] = useState("");
@@ -905,18 +913,18 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
           destinationType: student ? store.common.destinationType : mvdInvitation ? mvdCommon.destinationType.trim() : "",
           organization: student ? store.common.organization : mvdInvitation ? mvdCommon.organization.trim() : "",
           organizationAddress: student ? store.common.organizationAddress : mvdInvitation ? mvdCommon.organizationAddress.trim() : "",
-          tin: student ? store.common.tin : "",
+          tin: student ? store.common.tin : mvdInvitation ? mvdCommon.tin.trim() : "",
           telex: "",
           invitation: student ? store.common.invitation : "",
           invitationIssuer: mvdInvitation ? mvdCommon.invitationIssuer.trim() : "",
-          invitationDurationDays: mvdInvitation ? mvdCommon.invitationDurationDays.trim() : "",
+          invitationDurationDays: "", // Obsolete for Link 3; preserve historic applicant records only.
           routeCity: student ? store.common.city : mvdInvitation ? mvdCommon.routeCity.trim() : "",
-          employer: student ? store.common.employer : "",
-          position: student ? store.common.defaultPosition : "",
-          workAddress: student ? store.common.employerAddress : "",
-          workPhone: student ? fixedWorkPhone : "",
-          workEmail: student ? store.common.employerEmail : "",
-          permanentAddress: student ? fixedPermanentAddress : "",
+          employer: student || mvdInvitation ? store.common.employer : "",
+          position: student || mvdInvitation ? store.common.defaultPosition : "",
+          workAddress: student || mvdInvitation ? store.common.employerAddress : "",
+          workPhone: student || mvdInvitation ? fixedWorkPhone : "",
+          workEmail: student || mvdInvitation ? store.common.employerEmail : "",
+          permanentAddress: student || mvdInvitation ? fixedPermanentAddress : "",
           preferredEmbassy: student ? store.common.embassy : mvdInvitation ? mvdCommon.preferredEmbassy.trim() : "",
         },
       });
@@ -961,7 +969,8 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       organizationAddress: value("organizationAddress"),
       tin: value("tin"),
       telex: value("telex"),
-      invitation: value("invitation"),
+      invitation: intakeLinks.find((link) => link.id === submission.linkId)?.formType === "mvd_invitation"
+        ? normalizeMvdInvitation(value("invitation")) : value("invitation"),
       invitationIssuer: value("invitationIssuer"),
       invitationDurationDays: value("invitationDurationDays"),
       passportNo: value("passportNo").toUpperCase(),
@@ -1454,7 +1463,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       ["surname","Họ"],["givenNames","Tên + đệm"],["birthDate","Ngày sinh"],["birthPlace","Nơi sinh"],
       ["sex","Giới tính"],["hasOtherNames","Đã dùng tên khác"],["otherNames","Tên khác đã dùng"],["bornInRussia","Sinh tại Nga"],
       ["citizenship","Quốc tịch"],["purposeSection","Nhóm mục đích"],["purpose","Mục đích"],["visaType","Loại visa"],["entries","Số lần nhập cảnh"],["entryDate","Ngày vào Nga"],["exitDate","Ngày ra Nga"],
-      ["destinationType","Loại nơi đến"],["organization","Tổ chức mời"],["organizationAddress","Địa chỉ tổ chức"],["tin","INN"],["telex","Telex"],["invitation","Số giấy mời"],["invitationIssuer","Cơ quan cấp thư mời МВД"],["invitationDurationDays","Thời hạn thư mời (ngày)"],
+      ["destinationType","Loại nơi đến"],["organization","Tổ chức mời"],["organizationAddress","Địa chỉ tổ chức"],["tin","INN"],["telex","Telex"],["invitation","Số giấy mời"],["invitationIssuer","Cơ quan cấp thư mời МВД"],
       ["passportNo","Số hộ chiếu"],["passportIssue","Ngày cấp"],["passportExpiry","Hết hạn"],
       ["hasPermanentAddress","Có địa chỉ thường trú"],["personalAddress","Địa chỉ thường trú"],["phone","Điện thoại"],["personalFax","Fax cá nhân"],["email","Email"],["routeCity","Nơi đến Nga"],["worksOrStudies","Đang làm/học"],["workStudyPlace","Nơi làm việc/học tập"],
       ["position","Chức vụ"],["workAddress","Địa chỉ cơ quan"],["workPhone","Điện thoại cơ quan"],["workFax","Fax cơ quan"],["workEmail","Email cơ quan"],["passwordOverride","Mật khẩu KD-MID"],["applicationId","Application ID"],
@@ -1476,7 +1485,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
           <button type="button" data-active={intakeFormType === "mvd_invitation"} onClick={() => setIntakeFormType("mvd_invitation")}><strong>Link 3 · Thư mời МВД</strong><small>Thư mời điện tử, không dùng Telex</small></button>
         </div>
         {intakeFormType === "mvd_invitation" ? <section className={styles.mvdSharedPanel} aria-label="Thông tin chung Link 3">
-          <div className={styles.mvdSharedHeading}><strong>Ảnh đối chiếu & thông tin chung МВД</strong><small>Chỉ thông tin thực sự giống nhau trong nhóm mới được điền chung. Số thư mời, ngày sinh, hộ chiếu của từng em luôn để trống.</small></div>
+          <div className={styles.mvdSharedHeading}><strong>Ảnh đối chiếu & thông tin chung МВД</strong><small>Mục 04–05 giống Link 1; INN Bauman là 7701002520. Số thư mời, ngày sinh và hộ chiếu từng người luôn để trống.</small></div>
           <div className={styles.mvdSharedToolbar}>
             <label className={styles.mvdImagePicker}>Đính kèm 1 ảnh thư mời để đối chiếu
               <input aria-label="Đính kèm ảnh thư mời МВД" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => attachMvdReferenceImage(event.target.files?.[0] ?? null)} />
