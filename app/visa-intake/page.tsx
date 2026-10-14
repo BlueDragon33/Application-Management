@@ -25,6 +25,8 @@ type ApplicantForm = {
   tin: string;
   telex: string;
   invitation: string;
+  invitationIssuer: string;
+  invitationDurationDays: string;
   passportNo: string;
   passportIssue: string;
   passportExpiry: string;
@@ -87,6 +89,8 @@ function blank(): ApplicantForm {
     tin: "",
     telex: "",
     invitation: "",
+    invitationIssuer: "",
+    invitationDurationDays: "",
     passportNo: "",
     passportIssue: "",
     passportExpiry: "",
@@ -315,7 +319,7 @@ export default function VisaIntakePage() {
   const [applicant, setApplicant] = useState<ApplicantForm>(blank());
   const [permanentAddress, setPermanentAddress] = useState("");
   const [linkLabel, setLinkLabel] = useState("");
-  const [formType, setFormType] = useState<"student" | "general">("student");
+  const [formType, setFormType] = useState<"student" | "general" | "mvd_invitation">("student");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [statusChecking, setStatusChecking] = useState(false);
@@ -353,7 +357,7 @@ export default function VisaIntakePage() {
           throw new Error(data.error || "Link không hợp lệ.");
         }
         const rawDefaults = data.defaults ?? {};
-        const resolvedFormType = data.link?.formType === "general" || rawDefaults.formType === "general" ? "general" : "student";
+        const resolvedFormType = data.link?.formType === "mvd_invitation" || rawDefaults.formType === "mvd_invitation" ? "mvd_invitation" : data.link?.formType === "general" || rawDefaults.formType === "general" ? "general" : "student";
         const defaults: Record<string, unknown> = { ...rawDefaults };
         if (resolvedFormType === "student") {
           for (const [key, value] of Object.entries(STUDENT_FORM_DEFAULTS)) {
