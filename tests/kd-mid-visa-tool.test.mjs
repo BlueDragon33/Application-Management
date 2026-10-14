@@ -326,8 +326,8 @@ test("v0.9.33 bypasses empty Fax without blocking the contact page", () => {
   assert.ok(contact.includes('workFax ? optionalText(C.workFax, workFax) : "ready"'));
   assert.ok(contact.includes('...(personalFax ? [[finalC.personalFax, expected.personalFax]] : [])'));
   assert.ok(contact.includes('...(workFax ? [[finalC.workFax, expected.workFax]] : [])'));
-  assert.match(companion, /personalFax: textInputs\\[2\\]/);
-  assert.match(companion, /workFax: textInputs\\[8\\]/);
+  assert.match(companion, /personalFax: textInputs\[2\]/);
+  assert.match(companion, /workFax: textInputs\[8\]/);
 
   const input = (value) => ({ value });
   const forbiddenFax = { get value() { throw new Error("blank Fax control must be skipped"); } };
