@@ -1144,7 +1144,10 @@
       'input:not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]):not([type="password"]),textarea'
     )].filter(visible);
     const selects = [...document.querySelectorAll("select")].filter(visible);
-    const index = (offset) => textInputs.length >= 10 && selects.length >= 4 ? textInputs[offset] : null;
+    const addressAnchor = textControlForField("Адрес вашего постоянного проживания");
+    const addressStart = textInputs.indexOf(addressAnchor);
+    const index = (offset) => addressStart >= 0 && textInputs.length >= addressStart + 10 && selects.length >= 4
+      ? textInputs[addressStart + offset] : null;
     const picked = new Set();
     const byLabel = (labels, offset) => {
       const labeled = textControlForField(labels);
@@ -1192,19 +1195,28 @@
     const personalFax = String(A.personalFax ?? "").trim();
     const workFax = A.worksOrStudies === false ? "" : String(A.workFax ?? "").trim();
 
+    // Text inputs on the contact page do not need a synthetic mouse click or
+    // scrolling for every field. Those operations cause flicker and can race
+    // ASP.NET's client validators, particularly on the E-mail field.
+    const writeContactText = (control, text) => {
+      if (!control) return "missing";
+      if (String(control.value ?? "") === text) return "ready";
+      if (control.disabled || control.readOnly) return "waiting";
+      setNativeControlValue(control, text);
+      control.dispatchEvent(new Event("input", { bubbles: true }));
+      control.dispatchEvent(new Event("change", { bubbles: true }));
+      return control.isConnected === false || String(control.value ?? "") !== text
+        ? "waiting" : "changed";
+    };
+
     const optionalText = (control, value) => {
       const text = String(value ?? "");
       if (!control) return text ? "missing" : "ready";
       if (!text) {
         if (!String(control.value || "")) return "ready";
-        activateControl(control);
-        setNativeControlValue(control, "");
-        control.dispatchEvent(new Event("input", { bubbles: true }));
-        control.dispatchEvent(new Event("change", { bubbles: true }));
-        try { control.blur(); } catch {}
-        return String(control.value || "") === "" ? "changed" : "waiting";
+        return writeContactText(control, "");
       }
-      return writeTextControl(control, text);
+      return writeContactText(control, text);
     };
 
     const steps = [
