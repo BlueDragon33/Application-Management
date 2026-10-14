@@ -190,7 +190,7 @@ test("intake link snapshots the current common work and embassy defaults", () =>
 });
 
 test("applicant preferred embassy overrides common embassy in the KD-MID payload", () => {
-  assert.match(tool, /embassy: applicant\.preferredEmbassy \|\| common\.embassy/);
+  assert.match(tool, /embassy: applicant\.preferredEmbassy/);
 });
 
 
@@ -386,7 +386,6 @@ test("student intake links always expose complete shared defaults, including old
     "05/10/2026",
     "31/12/2026",
     "7707740714",
-    "321422",
     "МОСКВА",
     "СТУДЕНТ",
     "+842437555706",
@@ -395,6 +394,7 @@ test("student intake links always expose complete shared defaults, including old
   ]) {
     assert.match(publicApi, new RegExp(value.replace(/[.*+?^$()|[\]{}]/g, "\\$&")));
   }
+  assert.doesNotMatch(publicApi, /telex: "321422"/);
   assert.match(publicApi, /defaults=fillStudentDefaults\(defaults\)/);
   assert.match(publicApi, /const recoveredDefaults = fillStudentDefaults\(link\.defaults\)/);
   assert.match(adminApi, /const safeDefaults = student \? fillStudentDefaults\(submittedDefaults\) : submittedDefaults/);
