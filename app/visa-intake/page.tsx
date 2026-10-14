@@ -391,6 +391,8 @@ export default function VisaIntakePage() {
           tin: current.tin || String(defaults.tin ?? ""),
           telex: current.telex || String(defaults.telex ?? ""),
           invitation: current.invitation || String(defaults.invitation ?? ""),
+          invitationIssuer: current.invitationIssuer || upperPlain(String(defaults.invitationIssuer ?? "")),
+          invitationDurationDays: current.invitationDurationDays || String(defaults.invitationDurationDays ?? ""),
           passwordOverride: current.passwordOverride || String(defaults.password ?? ""),
           personalAddress: current.personalAddress || upperPlain(String(defaults.permanentAddress ?? "")),
           routeCity: current.routeCity || upperPlain(String(defaults.routeCity ?? "")),
@@ -540,7 +542,7 @@ export default function VisaIntakePage() {
   }
   return <main className={styles.page}>
     <header className={styles.hero}>
-      <div><span>{formType === "student" ? "LINK 1 · MẪU NHẬP HỌC" : "LINK 2 · MẪU VISA NGƯỜI THƯỜNG"}</span><h1>{formType === "student" ? "Điền hồ sơ nhập học để chuẩn bị KD-MID" : "Điền hồ sơ visa cá nhân để chuẩn bị KD-MID"}</h1><p>{formType === "student" ? "Các dữ liệu học tập dùng chung đã được nạp sẵn. Hãy kiểm tra Mã Telex và thông tin cá nhân trước khi gửi." : "Mẫu tổng quát không tự áp các giá trị visa học tập. Hãy nhập đúng thông tin theo mục đích chuyến đi của bạn."}</p></div>
+      <div><span>{formType === "student" ? "LINK 1 · MẪU NHẬP HỌC" : formType === "mvd_invitation" ? "LINK 3 · THƯ MỜI МВД" : "LINK 2 · MẪU VISA NGƯỜI THƯỜNG"}</span><h1>{formType === "student" ? "Điền hồ sơ nhập học để chuẩn bị KD-MID" : formType === "mvd_invitation" ? "Hồ sơ theo thư mời nhập cảnh điện tử МВД" : "Điền hồ sơ visa cá nhân để chuẩn bị KD-MID"}</h1><p>{formType === "student" ? "Các dữ liệu học tập dùng chung đã được nạp sẵn. Hãy kiểm tra Mã Telex và thông tin cá nhân trước khi gửi." : "Mẫu tổng quát không tự áp các giá trị visa học tập. Hãy nhập đúng thông tin theo mục đích chuyến đi của bạn."}</p></div>
       <div className={styles.progress}><small>Mức hoàn thành cơ bản</small><strong>{completion}%</strong><div><i style={{ width: `${completion}%` }} /></div></div>
     </header>
 
@@ -548,7 +550,7 @@ export default function VisaIntakePage() {
       {receipt?.status === "rejected" ? <div className={styles.returnAlert}><strong>⚠ HỒ SƠ BỊ TRẢ VỀ · CẦN SỬA</strong><p>{receipt.reviewNote || "Hãy sửa các ô được đánh dấu đỏ rồi gửi lại."}</p><small>Giữ nguyên số tiếp nhận #{receipt.queueNo ?? "—"} · {correctionFields.length} ô cần sửa.</small><button className={styles.statusRefresh} type="button" disabled={statusChecking} onClick={() => void refreshSubmissionStatus(true)}>{statusChecking ? "↻ Đang cập nhật…" : "↻ Cập nhật trạng thái"}</button></div> : null}
       <datalist id="visa-day-options">{dayOptions.map((value) => <option key={value} value={value} />)}</datalist>
       <datalist id="visa-month-options">{monthOptions.map((value) => <option key={value} value={value} />)}</datalist>
-      {linkLabel ? <div className={styles.batch}>Đợt thu hồ sơ: <strong>{linkLabel}</strong> · <b>{formType === "student" ? "MẪU NHẬP HỌC" : "NGƯỜI THƯỜNG"}</b></div> : null}
+      {linkLabel ? <div className={styles.batch}>Đợt thu hồ sơ: <strong>{linkLabel}</strong> · <b>{formType === "student" ? "MẪU NHẬP HỌC" : formType === "mvd_invitation" ? "THƯ MỜI МВД" : "NGƯỜI THƯỜNG"}</b></div> : null}
       <details className={styles.guide} open>
         <summary>Hướng dẫn điền hồ sơ</summary>
         <div className={styles.guideGrid}>
@@ -557,7 +559,7 @@ export default function VisaIntakePage() {
           <article><strong>Các mục Có / Không</strong><p>Chỉ chọn Có khi đúng thực tế. Khi chọn Có, các ô chi tiết liên quan sẽ xuất hiện và cần điền đầy đủ.</p></article>
           <article><strong>Khi hồ sơ bị trả về</strong><p>Ô sai sẽ màu đỏ. Sửa xong gửi lại, ô đó chuyển xanh để admin xác minh lại. Không cần tạo hồ sơ mới.</p></article>
           <article><strong>Đóng tab và mở lại</strong><p>Thiết bị này có mã riêng. Sau khi đã gửi, mở lại đúng link trên cùng trình duyệt sẽ tự khôi phục hồ sơ/trạng thái cho đến khi admin đóng link.</p></article>
-          <article><strong>{formType === "student" ? "Mẫu nhập học" : "Mẫu người thường"}</strong><p>{formType === "student" ? "Các trường chung đã được điền sẵn theo đợt. Nếu giấy tờ của bạn khác, sửa trực tiếp trước khi gửi. Mã Telex là trường bắt buộc." : "Không dùng mặc định học tập. Hãy điền mục đích, loại visa, lịch trình và thông tin thư mời đúng trường hợp thực tế; Telex có thể để trống nếu không dùng."}</p></article>
+          <article><strong>{formType === "student" ? "Mẫu nhập học" : formType === "mvd_invitation" ? "Mẫu thư mời điện tử МВД" : "Mẫu người thường"}</strong><p>{formType === "student" ? "Các trường chung đã được điền sẵn theo đợt. Nếu giấy tờ của bạn khác, sửa trực tiếp trước khi gửi. Mã Telex là trường bắt buộc." : "Không dùng mặc định học tập. Hãy điền mục đích, loại visa, lịch trình và thông tin thư mời đúng trường hợp thực tế; Telex có thể để trống nếu không dùng."}</p></article>
         </div>
       </details>
       {formType === "student" ? <div className={styles.prefillNotice}><strong>Thông tin chung Link 1 đã nạp sẵn</strong><p>Quốc tịch · nhóm/mục đích học tập · loại visa · số lần nhập cảnh · ngày vào/ra · loại nơi đến · tổ chức tiếp nhận · địa chỉ tổ chức · INN · Mã Telex · số giấy mời nếu có · Moscow · địa chỉ thường trú · nơi học · STUDENT · địa chỉ/điện thoại/email đơn vị · nơi nộp · mật khẩu KD-MID. <b>Nếu thông tin nào không đúng với bạn, sửa trực tiếp trong ô tương ứng.</b></p></div> : null}
