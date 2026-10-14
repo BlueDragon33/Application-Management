@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "project": "BlueDragon33/Application-Management",
-  "constitutionPolicy": "blueprint-os:universal-century-grade@1.2.0",
+  "constitutionPolicy": "blueprint-os:universal-century-grade@1.3.0",
   "defaultPrinciple": "LOCAL_FIRST_OFFLINE_CAPABLE_PROVIDER_REPLACEABLE",
   "canonicalAuthorityRule": "Application Management owns only central management policy/device-role/audit state. Client domain data remains in each client.",
   "dependencies": [
