@@ -14,7 +14,7 @@ const STUDENT_SERVER_DEFAULTS: Record<string, string> = {
   organization: "МИН-ВО НАУКИ И ВЫСШЕГО ОБРАЗОВАНИЯ РФ (МИНОБРНАУКИ РОССИИ)",
   organizationAddress: "125993, МОСКВА, УЛ. ТВЕРСКАЯ, Д.11, СТР.1, 4",
   tin: "7707740714",
-  telex: "321422",
+  telex: "",
   invitation: "",
   routeCity: "МОСКВА",
   employer: "ГОСУДАРСТВЕННЫЙ ТЕХНИЧЕСКИЙ УНИВЕРСИТЕТ ИМЕНИ ЛЕ КУИ ДОНА",
@@ -142,7 +142,7 @@ export async function publicVisaIntakePage(request: Request, env: VisaIntakePage
 <label class="field" data-field="organization">Tên tổ chức tiếp nhận <small>Наименование организации</small><input name="organization" value="${htmlAttr(serverDefaults.organization)}" required></label>
 <label class="field" data-field="organizationAddress">Địa chỉ tổ chức <small>Адрес</small><input name="organizationAddress" value="${htmlAttr(serverDefaults.organizationAddress)}" required></label>
 <label class="field" data-field="tin">INN tổ chức <small>ИНН организации</small><input name="tin" value="${htmlAttr(serverDefaults.tin)}" required></label>
-<label class="field" data-field="telex" id="telexField">Mã Telex / Số chỉ thị <small>Номер указания (телекса)</small><input name="telex" value="${htmlAttr(serverDefaults.telex)}" required></label>
+<label class="field" data-field="telex" id="telexField">Mã Telex / Số chỉ thị <small>Номер указания (телекса)</small><input name="telex" value=""></label>
 <label class="field" data-field="invitation">Số thư mời <small>Номер приглашения · khác mã Telex</small><input name="invitation" value="${htmlAttr(serverDefaults.invitation)}" ${serverMvd ? "required" : ""}></label>
 ${serverMvd ? `<label class="field" data-field="invitationIssuer">Cơ quan cấp thư mời МВД <small>Орган, оформивший приглашение</small><input name="invitationIssuer" required value="${htmlAttr(serverDefaults.invitationIssuer)}"></label>
 <label class="field" data-field="invitationDurationDays">Thời hạn thư mời (ngày) <small>На срок (дней)</small><input name="invitationDurationDays" inputmode="numeric" pattern="[0-9]{1,4}" required value="${htmlAttr(serverDefaults.invitationDurationDays)}"></label>` : ""}
@@ -265,7 +265,7 @@ ${serverMvd ? `<label class="field" data-field="invitationIssuer">Cơ quan cấp
     organization:"МИН-ВО НАУКИ И ВЫСШЕГО ОБРАЗОВАНИЯ РФ (МИНОБРНАУКИ РОССИИ)",
     organizationAddress:"125993, МОСКВА, УЛ. ТВЕРСКАЯ, Д.11, СТР.1, 4",
     tin:"7707740714",
-    telex:"321422",
+    telex:"",
     invitation:"",
     routeCity:"МОСКВА",
     employer:"ГОСУДАРСТВЕННЫЙ ТЕХНИЧЕСКИЙ УНИВЕРСИТЕТ ИМЕНИ ЛЕ КУИ ДОНА",
@@ -279,7 +279,7 @@ ${serverMvd ? `<label class="field" data-field="invitationIssuer">Cơ quan cấp
   const withStudentFallbacks = raw => {
     const merged={...(raw || {})};
     for(const [key,value] of Object.entries(STUDENT_FORM_DEFAULTS)){
-      if(!String(merged[key] ?? "").trim() && String(value ?? "").trim()) merged[key]=value;
+      if(key !== "telex" && !String(merged[key] ?? "").trim() && String(value ?? "").trim()) merged[key]=value;
     }
     return merged;
   };
@@ -520,12 +520,13 @@ ${serverMvd ? `<label class="field" data-field="invitationIssuer">Cơ quan cấp
     document.getElementById("heroTitle").textContent = student ? "Điền hồ sơ nhập học để chuẩn bị KD-MID" : mvd ? "Điền hồ sơ theo thư mời điện tử của МВД Nga" : "Điền hồ sơ visa cá nhân để chuẩn bị KD-MID";
     document.getElementById("heroIntro").textContent = student ? "Các dữ liệu học tập dùng chung đã được điền sẵn trực tiếp trong từng ô. Chỉ sửa ô nào khác với giấy tờ của bạn; hãy kiểm tra Mã Telex trước khi gửi." : "Mẫu tổng quát không tự áp các giá trị visa học tập. Hãy nhập đúng thông tin theo mục đích chuyến đi của bạn.";
     document.getElementById("guideTypeTitle").textContent=student ? "Mẫu nhập học" : "Mẫu người thường";
-    document.getElementById("guideTypeText").textContent=student ? "Các trường chung đã nằm sẵn trong ô nhập theo đợt. Bạn chỉ cần kiểm tra; nếu khác giấy tờ thì sửa trực tiếp. Mã Telex bắt buộc." : "Không dùng mặc định học tập. Điền mục đích, loại visa, lịch trình và thông tin thư mời đúng hồ sơ thực tế; Telex có thể để trống nếu không dùng.";
+    document.getElementById("guideTypeText").textContent=student ? "Các trường chung đã nằm sẵn trong ô nhập theo đợt. Bạn chỉ cần kiểm tra; nếu khác giấy tờ thì sửa trực tiếp. Không có Telex thì để trống, không tự dùng mã mẫu chung." : "Không dùng mặc định học tập. Điền mục đích, loại visa, lịch trình và thông tin thư mời đúng hồ sơ thực tế; Telex có thể để trống nếu không dùng.";
     document.getElementById("prefillNotice").style.display=student ? "block" : "none";
     const telexField=document.getElementById("telexField");
     if(telexField) telexField.childNodes[0].textContent=student ? "Mã Telex " : "Mã Telex / Số chỉ thị ";
     ["organization","organizationAddress"].forEach(name=>{const el=byName(name);if(el) el.required=student || mvd;});
-    ["tin","telex"].forEach(name=>{const el=byName(name);if(el) el.required=student;});
+    ["tin"].forEach(name=>{const el=byName(name);if(el) el.required=student;});
+    const telexInput = byName("telex"); if(telexInput) telexInput.required=false;
     const values = {
       citizenship:upperPlain(d.citizenship || "ВЬЕТНАМ"),
       purposeSection:upperPlain(d.purposeSection || (student ? "УЧЕБА" : "")),
@@ -534,7 +535,7 @@ ${serverMvd ? `<label class="field" data-field="invitationIssuer">Cơ quan cấp
       entries:upperPlain(d.entries || (student ? "ОДНОКРАТНАЯ" : "")),
       destinationType:upperPlain(d.destinationType || (student ? "ОРГАНИЗАЦИЯ" : "")),
       organization:upperPlain(d.organization || ""), organizationAddress:upperPlain(d.organizationAddress || ""),
-      tin:String(d.tin || ""), telex:String(d.telex || ""), invitation:String(d.invitation || ""), invitationIssuer:upperPlain(d.invitationIssuer || ""), invitationDurationDays:String(d.invitationDurationDays || ""), passwordOverride:String(d.password || ""),
+      tin:String(d.tin || ""), telex:"", invitation:String(d.invitation || ""), invitationIssuer:upperPlain(d.invitationIssuer || ""), invitationDurationDays:String(d.invitationDurationDays || ""), passwordOverride:String(d.password || ""),
       personalAddress:upperPlain(d.permanentAddress || ""), routeCity:upperPlain(d.routeCity || (student ? "МОСКВА" : "")),
       workStudyPlace:upperPlain(d.employer || ""), position:upperPlain(d.position || ""), workAddress:upperPlain(d.workAddress || ""),
       workPhone:d.workPhone || "", workEmail:String(d.workEmail || "").toLowerCase(), preferredEmbassy:d.preferredEmbassy || ""
