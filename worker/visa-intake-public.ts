@@ -45,8 +45,8 @@ async function hashToken(value: string) {
 }
 
 function mergeStudentServerDefaults(raw: Record<string, unknown>) {
-  const formType = raw.formType === "general" ? "general" : "student";
-  if (formType === "general") return { ...raw, formType };
+  const formType = raw.formType === "general" ? "general" : raw.formType === "mvd_invitation" ? "mvd_invitation" : "student";
+  if (formType !== "student") return { ...raw, formType };
   const merged: Record<string, unknown> = { ...raw, formType: "student" };
   for (const [key, value] of Object.entries(STUDENT_SERVER_DEFAULTS)) {
     if (!String(merged[key] ?? "").trim() && value) merged[key] = value;
@@ -96,7 +96,8 @@ function headers() {
 export async function publicVisaIntakePage(request: Request, env: VisaIntakePageEnv) {
   let serverDefaults: Record<string, unknown> = {};
   try { serverDefaults = await resolveServerDefaults(request, env); } catch {}
-  const serverStudent = serverDefaults.formType !== "general";
+  const serverStudent = serverDefaults.formType === "student";
+  const serverMvd = serverDefaults.formType === "mvd_invitation";
   const entryDate = dateParts(serverDefaults.entryDate);
   const exitDate = dateParts(serverDefaults.exitDate);
   const selectedEmbassy = String(serverDefaults.preferredEmbassy ?? "");
@@ -508,7 +509,7 @@ export async function publicVisaIntakePage(request: Request, env: VisaIntakePage
       form.addEventListener("compositionend",afterComposition);
     });
     const rawDefaults = data.defaults || {};
-    formType = data.link?.formType === "general" || rawDefaults.formType === "general" ? "general" : "student";
+    formType = data.link?.formType === "mvd_invitation" || rawDefaults.formType === "mvd_invitation" ? "mvd_invitation" : data.link?.formType === "general" || rawDefaults.formType === "general" ? "general" : "student";
     const student = formType === "student";
     const d = student ? withStudentFallbacks(rawDefaults) : rawDefaults;
     batch.innerHTML = "Đợt thu hồ sơ: <strong>"+String(data.link?.label || "").replace(/[<>&]/g,"")+"</strong> · <b>"+(student ? "MẪU NHẬP HỌC" : "NGƯỜI THƯỜNG")+"</b>";
