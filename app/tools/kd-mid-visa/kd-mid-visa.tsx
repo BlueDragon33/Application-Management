@@ -1360,7 +1360,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       ["surname","Họ"],["givenNames","Tên + đệm"],["birthDate","Ngày sinh"],["birthPlace","Nơi sinh"],
       ["sex","Giới tính"],["hasOtherNames","Đã dùng tên khác"],["otherNames","Tên khác đã dùng"],["bornInRussia","Sinh tại Nga"],
       ["citizenship","Quốc tịch"],["purposeSection","Nhóm mục đích"],["purpose","Mục đích"],["visaType","Loại visa"],["entries","Số lần nhập cảnh"],["entryDate","Ngày vào Nga"],["exitDate","Ngày ra Nga"],
-      ["destinationType","Loại nơi đến"],["organization","Tổ chức mời"],["organizationAddress","Địa chỉ tổ chức"],["tin","INN"],["telex","Telex"],["invitation","Số giấy mời"],
+      ["destinationType","Loại nơi đến"],["organization","Tổ chức mời"],["organizationAddress","Địa chỉ tổ chức"],["tin","INN"],["telex","Telex"],["invitation","Số giấy mời"],["invitationIssuer","Cơ quan cấp thư mời МВД"],["invitationDurationDays","Thời hạn thư mời (ngày)"],
       ["passportNo","Số hộ chiếu"],["passportIssue","Ngày cấp"],["passportExpiry","Hết hạn"],
       ["hasPermanentAddress","Có địa chỉ thường trú"],["personalAddress","Địa chỉ thường trú"],["phone","Điện thoại"],["personalFax","Fax cá nhân"],["email","Email"],["routeCity","Nơi đến Nga"],["worksOrStudies","Đang làm/học"],["workStudyPlace","Nơi làm việc/học tập"],
       ["position","Chức vụ"],["workAddress","Địa chỉ cơ quan"],["workPhone","Điện thoại cơ quan"],["workFax","Fax cơ quan"],["workEmail","Email cơ quan"],["passwordOverride","Mật khẩu KD-MID"],["applicationId","Application ID"],
@@ -1379,8 +1379,9 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         <div className={styles.intakeTypeChoice}>
           <button type="button" data-active={intakeFormType === "student"} onClick={() => setIntakeFormType("student")}><strong>Link 1 · Nhập học</strong><small>Mẫu cũ + Mã Telex</small></button>
           <button type="button" data-active={intakeFormType === "general"} onClick={() => setIntakeFormType("general")}><strong>Link 2 · Người thường</strong><small>Mẫu visa tổng quát</small></button>
+          <button type="button" data-active={intakeFormType === "mvd_invitation"} onClick={() => setIntakeFormType("mvd_invitation")}><strong>Link 3 · Thư mời МВД</strong><small>Thư mời điện tử, không dùng Telex</small></button>
         </div>
-        <button onClick={() => void createIntakeLink()}>Tạo {intakeFormType === "student" ? "Link 1" : "Link 2"} & sao chép</button>
+        <button onClick={() => void createIntakeLink()}>Tạo {intakeFormType === "student" ? "Link 1" : intakeFormType === "mvd_invitation" ? "Link 3" : "Link 2"} & sao chép</button>
         {shareUrl ? <div className={styles.shareUrl}><input readOnly value={shareUrl}/><button className={styles.secondary} onClick={() => void navigator.clipboard.writeText(shareUrl)}>Sao chép</button><a href={shareUrl} target="_blank" rel="noreferrer">Mở form ↗</a></div> : null}
       </div>
       <div className={styles.intakeLinks}>
