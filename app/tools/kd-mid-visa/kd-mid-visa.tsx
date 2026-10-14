@@ -109,6 +109,66 @@ type IntakeLink = {
   formType: "student" | "general" | "mvd_invitation";
 };
 
+
+type MvdCommonFields = {
+  citizenship: string;
+  purposeSection: string;
+  purpose: string;
+  visaType: string;
+  entries: string;
+  entryDate: string;
+  exitDate: string;
+  destinationType: string;
+  organization: string;
+  organizationAddress: string;
+  invitationIssuer: string;
+  invitationDurationDays: string;
+  routeCity: string;
+  preferredEmbassy: string;
+};
+
+// Reference data compared across TWO Bauman МВД invitations supplied for this cohort.
+// Invitation IDs, births, passports and issue dates are strictly per-person and excluded.
+const blankMvdCommon: MvdCommonFields = {
+  citizenship: "ВЬЕТНАМ",
+  purposeSection: "", purpose: "", visaType: "", entries: "",
+  entryDate: "", exitDate: "", destinationType: "ОРГАНИЗАЦИЯ",
+  organization: "", organizationAddress: "", invitationIssuer: "",
+  invitationDurationDays: "", routeCity: "", preferredEmbassy: "",
+};
+const baumanInvitationReference: MvdCommonFields = {
+  citizenship: "ВЬЕТНАМ",
+  purposeSection: "УЧЕБА",
+  purpose: "УЧЕБА",
+  visaType: "ОБЫКНОВЕННАЯ УЧЕБНАЯ",
+  entries: "ОДНОКРАТНАЯ",
+  entryDate: "19/10/2026",
+  exitDate: "16/01/2027",
+  destinationType: "ОРГАНИЗАЦИЯ",
+  organization: 'ФЕДЕРАЛЬНОЕ ГОСУДАРСТВЕННОЕ АВТОНОМНОЕ ОБРАЗОВАТЕЛЬНОЕ УЧРЕЖДЕНИЕ ВЫСШЕГО ОБРАЗОВАНИЯ "МОСКОВСКИЙ ГОСУДАРСТВЕННЫЙ ТЕХНИЧЕСКИЙ УНИВЕРСИТЕТ ИМЕНИ Н.Э. БАУМАНА (НАЦИОНАЛЬНЫЙ ИССЛЕДОВАТЕЛЬСКИЙ УНИВЕРСИТЕТ)"',
+  organizationAddress: "105005, Г. МОСКВА, УЛ. 2-Я БАУМАНСКАЯ, Д. 5, СТР. 1",
+  invitationIssuer: "770-001 ОТДЕЛ ОФОРМЛЕНИЯ ВИЗ И ПРИГЛАШЕНИЙ УВМ ГУ МВД РОССИИ ПО Г. МОСКВЕ",
+  invitationDurationDays: "90",
+  routeCity: "МОСКВА",
+  preferredEmbassy: "ПОСОЛЬСТВО РФ ВО ВЬЕТНАМЕ",
+};
+const mvdSharedLabels: Array<{ field: keyof MvdCommonFields; label: string }> = [
+  { field: "citizenship", label: "Quốc tịch" },
+  { field: "purposeSection", label: "Nhóm mục đích" },
+  { field: "purpose", label: "Mục đích chuyến đi" },
+  { field: "visaType", label: "Loại visa" },
+  { field: "entries", label: "Số lần nhập cảnh" },
+  { field: "entryDate", label: "Ngày vào Nga (dd/mm/yyyy)" },
+  { field: "exitDate", label: "Hạn lưu trú (dd/mm/yyyy)" },
+  { field: "invitationDurationDays", label: "Thời hạn (ngày)" },
+  { field: "invitationIssuer", label: "Cơ quan cấp thư mời МВД" },
+  { field: "destinationType", label: "Loại nơi đến" },
+  { field: "organization", label: "Tên cơ quan/trường mời" },
+  { field: "organizationAddress", label: "Địa chỉ bên mời" },
+  { field: "routeCity", label: "Thành phố đến" },
+  { field: "preferredEmbassy", label: "Nơi nộp visa" },
+];
+
 type IntakeSubmission = {
   queueNo: number;
   id: string;
@@ -586,6 +646,10 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
   const [intakeLoading, setIntakeLoading] = useState(false);
   const [intakeLabel, setIntakeLabel] = useState("");
   const [intakeFormType, setIntakeFormType] = useState<"student" | "general" | "mvd_invitation">("student");
+  const [mvdCommon, setMvdCommon] = useState<MvdCommonFields>({ ...blankMvdCommon });
+  const [mvdImagePreview, setMvdImagePreview] = useState("");
+  const [mvdImageName, setMvdImageName] = useState("");
+  const [mvdImageError, setMvdImageError] = useState("");
   const [shareUrl, setShareUrl] = useState("");
   const [resultUploadingId, setResultUploadingId] = useState("");
   const [correctionSelections, setCorrectionSelections] = useState<Record<string, string[]>>({});
@@ -799,6 +863,28 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
     return data;
   }
 
+  function attachMvdReferenceImage(file: File | null) {
+    if (!file) return;
+    setMvdImageError("");
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type) || file.size > 4_000_000) {
+      setMvdImageError("Chỉ nhận PNG, JPG hoặc WebP không quá 4 MB.");
+      return;
+    }
+    // Admin-only local preview: never serialize image bytes to D1, a public link,
+    // a GitHub commit, or browser localStorage (personal invitation data).
+    const reader = new FileReader();
+    reader.onerror = () => setMvdImageError("Không thể đọc ảnh trên thiết bị.");
+    reader.onload = () => {
+      if (typeof reader.result !== "string" || !reader.result.startsWith("data:image/")) {
+        setMvdImageError("Ảnh không hợp lệ.");
+        return;
+      }
+      setMvdImagePreview(reader.result);
+      setMvdImageName(file.name);
+    };
+    reader.readAsDataURL(file);
+  }
+
   async function createIntakeLink() {
     try {
       const student = intakeFormType === "student";
@@ -809,29 +895,29 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
         label: intakeLabel,
         defaults: {
           password: store.common.password,
-          citizenship: store.common.citizenship || "ВЬЕТНАМ",
-          purposeSection: student ? store.common.purposeSection : "",
-          purpose: student ? store.common.purpose : "",
-          visaType: student ? store.common.visaType : "",
-          entries: student ? store.common.entries : "",
-          entryDate: student ? store.common.entryDate : "",
-          exitDate: student ? store.common.exitDate : "",
-          destinationType: student ? store.common.destinationType : "",
-          organization: student ? store.common.organization : "",
-          organizationAddress: student ? store.common.organizationAddress : "",
+          citizenship: mvdInvitation ? mvdCommon.citizenship.trim() || "ВЬЕТНАМ" : store.common.citizenship || "ВЬЕТНАМ",
+          purposeSection: student ? store.common.purposeSection : mvdInvitation ? mvdCommon.purposeSection.trim() : "",
+          purpose: student ? store.common.purpose : mvdInvitation ? mvdCommon.purpose.trim() : "",
+          visaType: student ? store.common.visaType : mvdInvitation ? mvdCommon.visaType.trim() : "",
+          entries: student ? store.common.entries : mvdInvitation ? mvdCommon.entries.trim() : "",
+          entryDate: student ? store.common.entryDate : mvdInvitation ? mvdCommon.entryDate.trim() : "",
+          exitDate: student ? store.common.exitDate : mvdInvitation ? mvdCommon.exitDate.trim() : "",
+          destinationType: student ? store.common.destinationType : mvdInvitation ? mvdCommon.destinationType.trim() : "",
+          organization: student ? store.common.organization : mvdInvitation ? mvdCommon.organization.trim() : "",
+          organizationAddress: student ? store.common.organizationAddress : mvdInvitation ? mvdCommon.organizationAddress.trim() : "",
           tin: student ? store.common.tin : "",
           telex: student ? store.common.telex : "",
           invitation: student ? store.common.invitation : "",
-          invitationIssuer: "",
-          invitationDurationDays: "",
-          routeCity: student ? store.common.city : "",
+          invitationIssuer: mvdInvitation ? mvdCommon.invitationIssuer.trim() : "",
+          invitationDurationDays: mvdInvitation ? mvdCommon.invitationDurationDays.trim() : "",
+          routeCity: student ? store.common.city : mvdInvitation ? mvdCommon.routeCity.trim() : "",
           employer: student ? store.common.employer : "",
           position: student ? store.common.defaultPosition : "",
           workAddress: student ? store.common.employerAddress : "",
           workPhone: student ? fixedWorkPhone : "",
           workEmail: student ? store.common.employerEmail : "",
           permanentAddress: student ? fixedPermanentAddress : "",
-          preferredEmbassy: student ? store.common.embassy : "",
+          preferredEmbassy: student ? store.common.embassy : mvdInvitation ? mvdCommon.preferredEmbassy.trim() : "",
         },
       });
       const publicPath = String(data.link?.publicPath || "");
@@ -841,7 +927,7 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
       await navigator.clipboard.writeText(url).catch(() => undefined);
       setNotice(student
         ? "Đã tạo Link 1 · Mẫu nhập học và sao chép URL. Telex được lấy từ Trường dùng chung."
-        : mvdInvitation ? "Đã tạo Link 3 · Thư mời điện tử МВД. Người nộp tự nhập số thư mời, cơ quan cấp và các thông tin riêng."
+        : mvdInvitation ? "Đã tạo Link 3 · Thư mời điện tử МВД. Trường chung đã chuyển sang link; số thư mời và giấy tờ cá nhân vẫn phải khai riêng."
         : "Đã tạo Link 2 · Người thường và sao chép URL. Các trường visa không chắc chắn được để trống.");
     } catch (reason) {
       setNotice(reason instanceof Error ? reason.message : "Không tạo được link Form.");
@@ -1386,6 +1472,28 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
           <button type="button" data-active={intakeFormType === "general"} onClick={() => setIntakeFormType("general")}><strong>Link 2 · Người thường</strong><small>Mẫu visa tổng quát</small></button>
           <button type="button" data-active={intakeFormType === "mvd_invitation"} onClick={() => setIntakeFormType("mvd_invitation")}><strong>Link 3 · Thư mời МВД</strong><small>Thư mời điện tử, không dùng Telex</small></button>
         </div>
+        {intakeFormType === "mvd_invitation" ? <section className={styles.mvdSharedPanel} aria-label="Thông tin chung Link 3">
+          <div className={styles.mvdSharedHeading}><strong>Ảnh đối chiếu & thông tin chung МВД</strong><small>Chỉ thông tin thực sự giống nhau trong nhóm mới được điền chung. Số thư mời, ngày sinh, hộ chiếu của từng em luôn để trống.</small></div>
+          <div className={styles.mvdSharedToolbar}>
+            <label className={styles.mvdImagePicker}>Đính kèm 1 ảnh thư mời để đối chiếu
+              <input aria-label="Đính kèm ảnh thư mời МВД" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => attachMvdReferenceImage(event.target.files?.[0] ?? null)} />
+            </label>
+            <button type="button" className={styles.secondary} onClick={() => setMvdCommon({ ...baumanInvitationReference })}>Nạp mẫu chung Bauman từ 2 ảnh</button>
+            <button type="button" className={styles.secondary} onClick={() => setMvdCommon({ ...blankMvdCommon })}>Xóa các giá trị chung</button>
+          </div>
+          {mvdImageError ? <p role="alert" className={styles.mvdImageError}>{mvdImageError}</p> : null}
+          {mvdImagePreview ? <div className={styles.mvdImagePreview}>
+            <img src={mvdImagePreview} alt="Ảnh thư mời МВД đính kèm để đối chiếu thông tin chung" />
+            <div><small>{mvdImageName} · Chỉ xem tại thiết bị này, không tải ảnh lên hệ thống.</small><button type="button" className={styles.secondary} onClick={() => { setMvdImagePreview(""); setMvdImageName(""); }}>Bỏ ảnh</button></div>
+          </div> : null}
+          <div className={styles.mvdSharedGrid}>
+            {mvdSharedLabels.map(({ field, label }) => <label key={field}>
+              <span>{label}</span>
+              <input value={mvdCommon[field]} onChange={(event) => setMvdCommon((current) => ({ ...current, [field]: event.target.value }))} />
+            </label>)}
+          </div>
+          <small className={styles.mvdPrivacyHint}>Ảnh dùng để xem và đối chiếu thủ công, không có OCR tự động. Chỉ các giá trị trong bảng được lưu làm mặc định cho Link 3; số thư mời, hộ chiếu và ngày sinh không bao giờ lấy từ ảnh mẫu.</small>
+        </section> : null}
         <button onClick={() => void createIntakeLink()}>Tạo {intakeFormType === "student" ? "Link 1" : intakeFormType === "mvd_invitation" ? "Link 3" : "Link 2"} & sao chép</button>
         {shareUrl ? <div className={styles.shareUrl}><input readOnly value={shareUrl}/><button className={styles.secondary} onClick={() => void navigator.clipboard.writeText(shareUrl)}>Sao chép</button><a href={shareUrl} target="_blank" rel="noreferrer">Mở form ↗</a></div> : null}
       </div>
