@@ -242,7 +242,7 @@ type AccountPageData = {
 
 function accountPage(identity: ProductionIdentity, profile: AccountPageData, notice = "") {
   const message = notice
-    ? `<p class="${notice.startsWith("Lỗi:") ? "error" : "success"}">${escapeHtml(notice)}</p>`
+    ? `<p class="${notice.startsWith("Lỗi:") || notice.startsWith("Cần ") ? "error" : "success"}">${escapeHtml(notice)}</p>`
     : "";
   return shell("Tài khoản & bảo mật", `
     <h1>Tài khoản & bảo mật</h1>
