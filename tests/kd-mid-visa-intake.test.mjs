@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
+import ts from "typescript";
 
 const tool = fs.readFileSync("app/tools/kd-mid-visa/kd-mid-visa.tsx", "utf8");
 const publicPage = fs.readFileSync("app/visa-intake/page.tsx", "utf8");
@@ -133,7 +134,7 @@ test("public intake form is Vietnamese and covers required visa profile fields",
   assert.match(publicWorkerPage, /data-part="month"/);
   assert.match(publicWorkerPage, /data-part="year"/);
   assert.match(publicWorkerPage, /const writeDraft = \(storage,key,payload\) =>/);
-  assert.match(publicWorkerPage, /writeDraft\(\(\)=>localStorage,storageKey,\{ applicant: currentApplicant, receipt \}\)/);
+  assert.match(publicWorkerPage, /writeDraft\(\(\)=>localStorage,storageKey,\{ applicant: currentApplicant, receipt, mvdManuallyCleared:/);
   assert.match(publicWorkerPage, /submissionId:receipt\?\.status==="rejected"/);
   assert.match(publicWorkerPage, /setInterval\(\(\)=>void checkStatus\(\),15000\)/);
   assert.match(publicWorkerPage, /data-correction/);
@@ -380,12 +381,82 @@ test("sender browser keeps a stable device id and automatically recovers the ser
 
 test("student common defaults fill missing draft keys without overwriting explicit user edits", () => {
   assert.match(publicWorkerPage, /const mergeCommonDefaultsIntoDraft = draft/);
-  assert.match(publicWorkerPage, /if\(!Object\.prototype\.hasOwnProperty\.call\(merged,key\) && String\(value \?\? ""\)\.trim\(\)\) merged\[key\]=String\(value\)/);
+  assert.match(publicWorkerPage, /mvdSharedFields\.includes\(key\)/);
+  assert.match(publicWorkerPage, /mvdManuallyCleared\.has\(key\)/);
   assert.ok(publicWorkerPage.includes("currentApplicant=normalizePersonalApplicant(mergeCommonDefaultsIntoDraft(currentApplicant), formType)"));
   assert.ok(publicWorkerPage.includes("currentApplicant=normalizePersonalApplicant(mergeCommonDefaultsIntoDraft({}), formType)"));
   assert.match(publicWorkerPage, /được điền sẵn trực tiếp trong từng ô/);
 });
 
+
+test("legacy Link 3 actually server-renders six shared contact fields without changing private data", async () => {
+  const exports = {};
+  const code = ts.transpileModule(publicWorkerPage, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  new Function("require", "exports", code)(() => { throw Error("unexpected module import"); }, exports);
+  const legacyDefaults = {
+    formType: "mvd_invitation", organization: "УНИВЕРСИТЕТ ИМЕНИ Н.Э. БАУМАНА",
+    invitation: "", telex: "", tin: "", employer: "", workEmail: "",
+  };
+  const env = {
+    DB: { prepare: () => ({ bind: () => ({
+      first: async () => ({ defaults_json: JSON.stringify(legacyDefaults) }),
+    }) }) },
+  };
+  const request = new Request("https://example.test/visa-intake?batch=11111111-1111-4111-8111-111111111111");
+  const response = await exports.publicVisaIntakePage(request, env);
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  const valueOf = key => html.match(new RegExp('<input name="' + key + '"[^>]*value="([^"]*)"'))?.[1] ?? null;
+  assert.ok(valueOf("personalAddress")?.includes("ХАНОЙ"));
+  assert.ok(valueOf("workStudyPlace")?.includes("ЛЕ КУИ ДОНА"));
+  assert.equal(valueOf("position"), "СТУДЕНТ");
+  assert.ok(valueOf("workAddress")?.includes("ХАНОЙ"));
+  assert.equal(valueOf("workPhone"), "+842437555706");
+  assert.equal(valueOf("workEmail"), "lequydonqllhs@gmail.com");
+  assert.equal(valueOf("tin"), "7701002520");
+  assert.equal(valueOf("telex"), "");
+  assert.equal(valueOf("invitation"), "");
+  assert.match(html, /viewport-fit=cover/);
+  assert.match(html, /safe-area-inset-top/);
+});
+
+test("legacy MVD blank autosaved draft receives defaults but explicit clears remain blank", () => {
+  const body = publicWorkerPage.match(/<script>\n([\s\S]*?)\n<\/script>/)?.[1];
+  assert.ok(body);
+  const start = body.indexOf("const mergeCommonDefaultsIntoDraft = draft =>");
+  const stop = body.indexOf("\n\n    if(data.submission?.applicant)", start);
+  assert.ok(start > 0 && stop > start);
+  const values = {
+    personalAddress: "SHARED ADDRESS", workStudyPlace: "SHARED SCHOOL",
+    position: "СТУДЕНТ", workAddress: "SHARED OFFICE", workPhone: "+84",
+    workEmail: "school@example.com", telex: "",
+  };
+  const makeMerge = (formType, manuallyCleared) => new Function(
+    "values", "formType", "mvdSharedFields", "mvdManuallyCleared", "d",
+    body.slice(start, stop) + "; return mergeCommonDefaultsIntoDraft;"
+  )(values, formType, Object.keys(values).filter(key => key !== "telex"), new Set(manuallyCleared), {});
+  const oldDraft = {
+    personalAddress: "", workStudyPlace: "", position: "", workAddress: "",
+    workPhone: "", workEmail: "", telex: "", invitation: "2Y8858461",
+    email: "personal@example.com",
+  };
+  const restored = makeMerge("mvd_invitation", ["workEmail"])(oldDraft);
+  assert.equal(restored.personalAddress, "SHARED ADDRESS");
+  assert.equal(restored.workStudyPlace, "SHARED SCHOOL");
+  assert.equal(restored.position, "СТУДЕНТ");
+  assert.equal(restored.workAddress, "SHARED OFFICE");
+  assert.equal(restored.workPhone, "+84");
+  assert.equal(restored.workEmail, "", "intentionally cleared field must stay blank");
+  assert.equal(restored.telex, "");
+  assert.equal(restored.invitation, "2Y8858461");
+  assert.equal(restored.email, "personal@example.com");
+  const custom = makeMerge("mvd_invitation", [])({ ...oldDraft, workStudyPlace: "DIFFERENT SCHOOL" });
+  assert.equal(custom.workStudyPlace, "DIFFERENT SCHOOL");
+  const general = makeMerge("general", [])(oldDraft);
+  assert.equal(general.workStudyPlace, "", "Link 2 must not inherit academic contact data");
+});
 
 test("student intake links always expose complete shared defaults, including old links with blank defaults", () => {
   for (const value of [
