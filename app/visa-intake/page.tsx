@@ -410,7 +410,7 @@ export default function VisaIntakePage() {
           invitation: resolvedFormType === "mvd_invitation"
             ? normalizeMvdInvitation(current.invitation || String(defaults.invitation ?? ""))
             : current.invitation || String(defaults.invitation ?? ""),
-          invitationIssuer: current.invitationIssuer || upperPlain(String(defaults.invitationIssuer ?? "")),
+          invitationIssuer: resolvedFormType === "mvd_invitation" ? "" : current.invitationIssuer || upperPlain(String(defaults.invitationIssuer ?? "")),
           invitationDurationDays: resolvedFormType === "mvd_invitation" ? "" : current.invitationDurationDays || String(defaults.invitationDurationDays ?? ""),
           passwordOverride: current.passwordOverride || String(defaults.password ?? ""),
           personalAddress: current.personalAddress || upperPlain(String(defaults.permanentAddress ?? "")),
@@ -438,6 +438,7 @@ export default function VisaIntakePage() {
           if (resolvedFormType === "mvd_invitation") {
             merged.invitation = normalizeMvdInvitation(String(merged.invitation ?? ""));
             merged.invitationDurationDays = "";
+            merged.invitationIssuer = "";
           }
           if (resolvedFormType === "student") {
             for (const key of STUDENT_SHARED_KEYS) {
@@ -501,7 +502,7 @@ export default function VisaIntakePage() {
       applicant.passportNo, applicant.passportIssue, applicant.passportExpiry, applicant.phone, applicant.email, applicant.preferredEmbassy,
     ];
     if (formType === "student") fields.push(applicant.organization, applicant.organizationAddress, applicant.tin, applicant.telex);
-    if (formType === "mvd_invitation") fields.push(applicant.invitation, applicant.invitationIssuer, applicant.organization, applicant.organizationAddress);
+    if (formType === "mvd_invitation") fields.push(applicant.invitation, applicant.organization, applicant.organizationAddress);
     return fields;
   }, [applicant, formType]);
 
@@ -615,14 +616,9 @@ export default function VisaIntakePage() {
           <Field fieldKey="destinationType" correctionFields={correctionFields} label="Loại nơi đến" ru="В какое учреждение направляетесь?"><SelectRussian required value={applicant.destinationType} options={destinationTypeOptions} onChange={(value) => set("destinationType", value)} /></Field>
           <Field fieldKey="organization" correctionFields={correctionFields} label="Tên tổ chức tiếp nhận" ru="Наименование организации"><input required={formType !== "general"} value={applicant.organization} onChange={(e) => set("organization", upperPlain(e.target.value))} /></Field>
           <Field fieldKey="organizationAddress" correctionFields={correctionFields} label="Địa chỉ tổ chức" ru="Адрес"><input required={formType !== "general"} value={applicant.organizationAddress} onChange={(e) => set("organizationAddress", upperPlain(e.target.value))} /></Field>
-          <Field fieldKey="tin" correctionFields={correctionFields} label="INN tổ chức" ru="ИНН организации"><input required={formType === "student"} value={applicant.tin} onChange={(e) => set("tin", e.target.value.replace(/\D/g, ""))} /></Field>
+          <Field fieldKey="tin" correctionFields={correctionFields} label={formType === "mvd_invitation" ? "INN Bauman / cơ quan mời" : "INN tổ chức"} ru="ИНН организации" hint={formType === "mvd_invitation" ? "Bauman: 7701002520. Đã điền sẵn cho trường Bauman; nếu trường mời khác, kiểm tra và sửa." : undefined}><input required={formType === "student"} value={applicant.tin} onChange={(e) => set("tin", e.target.value.replace(/\D/g, ""))} /></Field>
           <Field fieldKey="telex" correctionFields={correctionFields} label={formType === "student" ? "Mã Telex" : "Mã Telex / Số chỉ thị"} ru="Номер указания (телекса)" hint="Không có Telex thì để trống; hệ thống không tự lấy mã từ mẫu chung."><input value={applicant.telex} onChange={(e) => set("telex", e.target.value)} /></Field>
           <Field fieldKey="invitation" correctionFields={correctionFields} label={formType === "mvd_invitation" ? "Số thư mời điện tử МВД *" : "Số giấy mời"} ru="Номер приглашения" hint={formType === "mvd_invitation" ? "Ví dụ 7726002Y8858461 sẽ thành 2Y8858461. Không phải mã Telex." : "Không có thì để trống."}><input required={formType === "mvd_invitation"} value={applicant.invitation} onChange={(e) => set("invitation", formType === "mvd_invitation" ? normalizeMvdInvitation(e.target.value) : upperPlain(e.target.value))} /></Field>
-          {formType === "mvd_invitation" ? (
-            <>
-            <Field fieldKey="invitationIssuer" correctionFields={correctionFields} label="Cơ quan cấp thư mời МВД *" ru="Орган, оформивший приглашение"><input required value={applicant.invitationIssuer} onChange={(e) => set("invitationIssuer", upperPlain(e.target.value))} /></Field>
-            </>
-          ) : null}
         </div>
       </section>
 

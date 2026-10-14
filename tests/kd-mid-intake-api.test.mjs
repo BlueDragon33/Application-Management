@@ -111,7 +111,7 @@ test('server accepts a blank Telex and keeps it blank through submission readbac
   assert.equal(read.submission.applicant.telex, '');
 });
 
-test('MVD link saves trimmed invitation, Bauman INN and issuer without obsolete duration', async t => {
+test('MVD link saves trimmed invitation and Bauman INN without obsolete issuer or duration', async t => {
   const f = fixture(t);
   f.sqlite.prepare('UPDATE visa_intake_links SET defaults_json=?').run(JSON.stringify({
     formType: 'mvd_invitation', citizenship: 'ВЬЕТНАМ', purposeSection: 'УЧЕБА', purpose: 'УЧЕБА',
@@ -133,12 +133,13 @@ test('MVD link saves trimmed invitation, Bauman INN and issuer without obsolete 
   const sent = (await response.json()).submission;
   assert.equal(sent.applicant.invitation, '2Y8858461');
   assert.equal(sent.applicant.tin, '7701002520');
-  assert.equal(sent.applicant.invitationIssuer, 'ГУ МВД РОССИИ');
+  assert.equal(sent.applicant.invitationIssuer, '', 'Obsolete field must not block or persist in new MVD submissions');
   assert.equal(sent.applicant.invitationDurationDays, '');
   assert.equal(sent.applicant.telex, '');
   const persisted = (await (await f.get(sent.id)).json()).submission.applicant;
   assert.equal(persisted.invitation, '2Y8858461');
   assert.equal(persisted.invitationDurationDays, '');
+  assert.equal(persisted.invitationIssuer, '');
   assert.equal(persisted.personalAddress, 'ADDRESS USED BY LINK 1');
   assert.equal(persisted.workStudyPlace, 'STUDY OFFICE');
 });
@@ -149,7 +150,7 @@ test('MVD invitation normalization is idempotent and does not affect non-MVD for
     formType: 'mvd_invitation', purposeSection: 'УЧЕБА', purpose: 'УЧЕБА',
     visaType: 'ОБЫКНОВЕННАЯ УЧЕБНАЯ', entries: 'ОДНОКРАТНАЯ',
     entryDate: '19/10/2026', exitDate: '16/01/2027', destinationType: 'ОРГАНИЗАЦИЯ',
-    organization: 'BMSTU', organizationAddress: 'MOSCOW', invitationIssuer: 'ГУ МВД',
+    organization: 'BMSTU', organizationAddress: 'MOSCOW',
     routeCity: 'МОСКВА', preferredEmbassy: 'ПОСОЛЬСТВО РФ ВО ВЬЕТНАМЕ',
   };
   f.sqlite.prepare('UPDATE visa_intake_links SET defaults_json=?').run(JSON.stringify(shared));

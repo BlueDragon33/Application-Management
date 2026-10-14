@@ -30,6 +30,7 @@ test("MVD Link 3 reuses sections 04-05, INN Bauman and omits duration", () => {
   assert.ok(tool.includes('Chỉ xem tại thiết bị này, không tải ảnh lên hệ thống'));
   const sharedLabels = tool.slice(tool.indexOf("const mvdSharedLabels:"), tool.indexOf("type IntakeSubmission"));
   assert.ok(!sharedLabels.includes("invitationDurationDays"));
+  assert.ok(!sharedLabels.includes("invitationIssuer"), "Link 3 shared settings must not show issuing authority");
   for (const [name, value] of [
     ["employer", "store.common.employer"], ["position", "store.common.defaultPosition"],
     ["workAddress", "store.common.employerAddress"], ["workPhone", "fixedWorkPhone"],
@@ -41,6 +42,13 @@ test("MVD Link 3 reuses sections 04-05, INN Bauman and omits duration", () => {
   }
   assert.ok(!publicPage.includes('fieldKey="invitationDurationDays"'));
   assert.ok(!publicWorkerPage.includes('data-field="invitationDurationDays"'));
+  assert.ok(!publicWorkerPage.includes('data-field="invitationIssuer"'));
+  assert.ok(!publicPage.includes('fieldKey="invitationIssuer"'));
+  assert.ok(publicWorkerPage.includes('INN Bauman / cơ quan mời'));
+  assert.ok(publicPage.includes('INN Bauman / cơ quan mời'));
+  assert.ok(!publicApi.includes('["invitationIssuer", "Cơ quan cấp thư mời"]'));
+  assert.ok(publicApi.includes('invitationIssuer: formType === "mvd_invitation" ? ""'));
+  assert.ok(adminApi.includes('invitationIssuer: formType === "mvd_invitation" ? ""'));
   assert.ok(!publicApi.includes('["invitationDurationDays", "Thời hạn thư mời'));
   assert.ok(adminApi.includes('invitationDurationDays: formType === "mvd_invitation" ? ""'));
 });
@@ -416,6 +424,9 @@ test("legacy Link 3 actually server-renders six shared contact fields without ch
   assert.equal(valueOf("workPhone"), "+842437555706");
   assert.equal(valueOf("workEmail"), "lequydonqllhs@gmail.com");
   assert.equal(valueOf("tin"), "7701002520");
+  assert.match(html, /INN Bauman \/ cơ quan mời/);
+  assert.doesNotMatch(html, /name="invitationIssuer"/);
+  assert.doesNotMatch(html, /Cơ quan cấp thư mời МВД/);
   assert.equal(valueOf("telex"), "");
   assert.equal(valueOf("invitation"), "");
   assert.match(html, /viewport-fit=cover/);

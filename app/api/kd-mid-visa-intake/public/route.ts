@@ -259,7 +259,7 @@ export async function POST(request: Request) {
       invitation: formType === "mvd_invitation"
         ? normalizeMvdInvitation(text(withDefault("invitation", defaults.invitation), 120))
         : text(withDefault("invitation", defaults.invitation), 120),
-      invitationIssuer: upperPlain(withDefault("invitationIssuer", defaults.invitationIssuer), 300),
+      invitationIssuer: formType === "mvd_invitation" ? "" : upperPlain(withDefault("invitationIssuer", defaults.invitationIssuer), 300),
       invitationDurationDays: formType === "mvd_invitation" ? "" : text(withDefault("invitationDurationDays", defaults.invitationDurationDays), 5),
       passportNo: upperPlain(source.passportNo, 40),
       passportIssue,
@@ -327,7 +327,6 @@ export async function POST(request: Request) {
     if (formType === "mvd_invitation") {
       required.push(
         ["invitation", "Số thư mời nhập cảnh điện tử МВД"],
-        ["invitationIssuer", "Cơ quan cấp thư mời"],
         ["organization", "Tổ chức mời"],
         ["organizationAddress", "Địa chỉ tổ chức mời"],
       );
