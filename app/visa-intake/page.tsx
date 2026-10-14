@@ -642,7 +642,7 @@ export default function VisaIntakePage() {
           <Field fieldKey="workFax" correctionFields={correctionFields} label="Fax cơ quan" ru="Рабочий факс" hint="Không có thì để trống."><input value={applicant.workFax} onChange={(e) => set("workFax", e.target.value)} /></Field>
           <Field fieldKey="workEmail" correctionFields={correctionFields} label="Email cơ quan" ru="Рабочий E-mail"><input type="email" required value={applicant.workEmail} onChange={(e) => set("workEmail", e.target.value.toLowerCase())} /></Field>
             </>
-          ) : null}
+          : null}
         </div>
       </section>
 
