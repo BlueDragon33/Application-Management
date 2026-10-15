@@ -70,7 +70,7 @@ export async function authorizeBlueprintSso(
     "SELECT role,status FROM control_accounts WHERE email=?1 LIMIT 1"
   ).bind(email).first<{ role: string; status: string }>();
   if (!account || account.status !== "active" ||
-      !["owner", "reviewer", "viewer"].includes(account.role)) {
+      account.role !== "owner") {
     return json({ error: "app_management_account_disabled" }, 403);
   }
   const code = b64(crypto.getRandomValues(new Uint8Array(32)));
@@ -116,9 +116,9 @@ export async function exchangeBlueprintSso(
     .first<{ actor_email: string }>();
   if (!record) return json({ error: "invalid_grant" }, 401);
   const account = await env.DB.prepare(
-    "SELECT status FROM control_accounts WHERE email=?1 LIMIT 1"
-  ).bind(record.actor_email).first<{ status: string }>();
-  if (account?.status !== "active") return json({ error: "account_revoked" }, 403);
+    "SELECT status,role FROM control_accounts WHERE email=?1 LIMIT 1"
+  ).bind(record.actor_email).first<{ status: string; role: string }>();
+  if (account?.status !== "active" || account.role !== "owner") return json({ error: "account_revoked" }, 403);
   return json({
     issuer: new URL(request.url).origin,
     audience: HUB_CLIENT_ID,
@@ -126,6 +126,7 @@ export async function exchangeBlueprintSso(
     email: record.actor_email,
     authMethod: "google",
     emailVerified: true,
+    appManageRole: "owner",
     expiresAt: nowSeconds + 60
   });
 }
