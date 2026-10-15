@@ -314,7 +314,7 @@ function accountPage(identity: ProductionIdentity, profile: AccountPageData, not
       <button type="submit">Lưu thông tin</button>
     </form>
     <details>
-      <summary>Cài đặt bảo mật nâng cao · Đổi email / mật khẩu khôi phục</summary>
+      <summary>Tùy chọn khôi phục nâng cao · Đổi email / mật khẩu</summary>
     <form method="post" action="${ACCOUNT_PATH}/email">
       <h2>Đổi email quyền nội bộ</h2>
       <label for="newEmail">Email mới</label>
