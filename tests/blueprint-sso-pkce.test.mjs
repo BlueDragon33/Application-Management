@@ -81,6 +81,7 @@ test("auth code is issued to exact registered callback and can be redeemed once 
   });
   assert.equal(json.authMethod,"google");
   assert.equal(json.emailVerified,true);
+  assert.equal(json.appManageRole,"owner");
   assert.equal((await redeem()).status,401,"code replay must be blocked in durable D1");
 });
 test("wrong verifier, malformed callback, wrong client or missing session privileges fail closed",async()=>{
@@ -135,6 +136,20 @@ test("a password session can never mint cross-provider auto-link identity, even 
  assert.equal(grant.status,303);
  assert.equal(new URL(grant.headers.get("location")).pathname,"/__account");
  assert.equal(f.codes.size,0);
+});
+test("privileged Blueprint single tap rejects an App-Manage reviewer and role downgrade on redemption",async()=>{
+ const f=fixture();f.url.searchParams.set("code_challenge",await challengeFor(verifier));
+ f.accounts.set("owner@example.com",{role:"viewer",status:"active"});
+ assert.equal((await authorizeBlueprintSso(new Request(f.url),f,f.identity,10000)).status,403);
+ f.accounts.set("owner@example.com",{role:"owner",status:"active"});
+ const issue=await authorizeBlueprintSso(new Request(f.url),f,f.identity,10000);
+ const code=new URL(issue.headers.get("location")).searchParams.get("code");
+ f.accounts.set("owner@example.com",{role:"reviewer",status:"active"});
+ const response=await exchangeBlueprintSso(new Request("https://application-management.boiech-ai.workers.dev/__sso/token",{
+   method:"POST",headers:{"content-type":"application/json"},
+   body:JSON.stringify({code,code_verifier:verifier,client_id:"software-blueprint-hub",redirect_uri:HUB_CALLBACK})
+ }),f,10001);
+ assert.equal(response.status,403,"downgraded owner must not redeem privileged grant");
 });
 test("expired codes cannot be exchanged and role revocation is rechecked",async()=>{
  const f=fixture();f.url.searchParams.set("code_challenge",await challengeFor(verifier));
