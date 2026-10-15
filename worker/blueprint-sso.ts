@@ -37,11 +37,11 @@ export async function authorizeBlueprintSso(
   nowSeconds = Math.floor(Date.now() / 1000)
 ): Promise<Response> {
   if (request.method !== "GET") return json({ error: "method_not_allowed" }, 405);
-  // Password recovery/bootstrap credential must not be silently promoted into
-  // a Hub SSO grant. A *separately verified Google OAuth session* already proves
-  // account identity, so it must not be blocked by the optional recovery-password
-  // rotation flag. Two-factor remains an opt-in, sensitive-action control.
-  if (identity.mustChangePassword && identity.authMethod !== "google") {
+  // Browser SSO is issued only from independently verified Google OAuth
+  // sessions. An App-Manage recovery password alone cannot auto-link a
+  // privileged Hub GitHub principal, even if its rotation flag was cleared.
+  // The recovery password remains independently configurable in Settings.
+  if (identity.authMethod !== "google") {
     const response = new URL("/__account?sso=google", request.url);
     return new Response(null, {
       status: 303,
@@ -70,7 +70,7 @@ export async function authorizeBlueprintSso(
     "SELECT role,status FROM control_accounts WHERE email=?1 LIMIT 1"
   ).bind(email).first<{ role: string; status: string }>();
   if (!account || account.status !== "active" ||
-      !["owner", "reviewer", "viewer"].includes(account.role)) {
+      account.role !== "owner") {
     return json({ error: "app_management_account_disabled" }, 403);
   }
   const code = b64(crypto.getRandomValues(new Uint8Array(32)));
@@ -116,14 +116,17 @@ export async function exchangeBlueprintSso(
     .first<{ actor_email: string }>();
   if (!record) return json({ error: "invalid_grant" }, 401);
   const account = await env.DB.prepare(
-    "SELECT status FROM control_accounts WHERE email=?1 LIMIT 1"
-  ).bind(record.actor_email).first<{ status: string }>();
-  if (account?.status !== "active") return json({ error: "account_revoked" }, 403);
+    "SELECT status,role FROM control_accounts WHERE email=?1 LIMIT 1"
+  ).bind(record.actor_email).first<{ status: string; role: string }>();
+  if (account?.status !== "active" || account.role !== "owner") return json({ error: "account_revoked" }, 403);
   return json({
     issuer: new URL(request.url).origin,
     audience: HUB_CLIENT_ID,
     subject: record.actor_email,
     email: record.actor_email,
+    authMethod: "google",
+    emailVerified: true,
+    appManageRole: "owner",
     expiresAt: nowSeconds + 60
   });
 }
