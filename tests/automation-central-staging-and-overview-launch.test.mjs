@@ -47,7 +47,9 @@ test("overview icon buttons open their own web while heading remains the app-tab
   assert.doesNotMatch(block, /role="button"|aria-label="Mở tab Ứng dụng"/);
   assert.match(block, /<button type="button" onClick=\{\(\) => switchView\("applications"\)\}>Xem tất cả/);
   assert.match(block, /className="amv2-overview-app-tile"/);
-  assert.match(block, /aria-label=\{`Mở web \$\{item\.name\}`\}/);
+  assert.match(block, /aria-label=\{item\.id === "pc-manager"/);
+  assert.match(block, /`Mở ứng dụng cục bộ \$\{item\.name\}`/);
+  assert.match(block, /`Mở web \$\{item\.name\}`/);
   assert.match(block, /void launchWeb\(item\.id\)/);
   assert.match(block, /window\.location\.assign\(item\.href\)/);
   assert.match(block, /disabled=\{!item\.canOpen \|\| webBusy === item\.id\}/);
