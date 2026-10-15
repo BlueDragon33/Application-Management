@@ -253,7 +253,7 @@ function webActionLabel(summary: OperationsSummary | undefined, hasWeb: boolean,
 
 function webAccessAvailable(app: ApplicationConfig, summary: OperationsSummary | undefined, localRuntime: boolean) {
   if (summary?.webAccessPolicy === "deny") return false;
-  return Boolean(summary?.webHref || app.publicUrl || (localRuntime && app.localUrl));
+  return Boolean(app.desktopLaunchUrl || summary?.webHref || app.publicUrl || (localRuntime && app.localUrl));
 }
 
 function intentionalNonRemoteMode(summary?: OperationsSummary) {
@@ -748,6 +748,23 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
     const summary = summaryMap.get(appId);
     if (summary?.webAccessPolicy === "deny") {
       setNotice("Contract ứng dụng không cho Application Management mở learning runtime trực tiếp.");
+      return;
+    }
+    // PC Manager is an offline WebView2/Tauri application, not an HTTP website.
+    // Never proxy native Windows commands through localhost or promote its
+    // desktop-launch capability into remote-management permission.
+    if (app?.desktopLaunchUrl) {
+      if (app.id !== "pc-manager" || app.desktopLaunchUrl !== "pcmanager://open") {
+        setNotice("Đường mở ứng dụng cục bộ không được cho phép.");
+        return;
+      }
+      if (!/Windows/i.test(navigator.userAgent)) {
+        setNotice("PC Manager chỉ mở được trên máy Windows đã cài ứng dụng.");
+        return;
+      }
+      window.open(app.desktopLaunchUrl, "_blank", "noopener,noreferrer");
+      setNotice("Windows có thể yêu cầu xác nhận mở PC Manager. Nếu không có ứng dụng, cần cài và đăng ký pcmanager:// trên máy này.");
+      setWebMenu(false);
       return;
     }
     const fallback = app?.previewUrl ?? app?.publicUrl ?? (localRuntime ? app?.localUrl : undefined);
@@ -1351,7 +1368,7 @@ function Overview({ apps, tools, summaryMap, devices, pendingDevices, approvalDe
             key={item.id}
             disabled={!item.canOpen || webBusy === item.id}
             title={item.canOpen ? `Mở ${item.name}` : `${item.name} chưa có đường dẫn hợp lệ`}
-            aria-label={`Mở web ${item.name}`}
+            aria-label={item.id === "pc-manager" ? `Mở ứng dụng cục bộ ${item.name}` : `Mở web ${item.name}`}
             onClick={() => {
               if (item.kind === "tool") {
                 if (item.href) window.location.assign(item.href);
