@@ -84,7 +84,7 @@ test("auth code is issued to exact registered callback and can be redeemed once 
 test("wrong verifier, malformed callback, wrong client or missing session privileges fail closed",async()=>{
  const f=fixture();f.url.searchParams.set("code_challenge",await challengeFor(verifier));
  const incomplete = await authorizeBlueprintSso(new Request(f.url), f,
-   {...f.identity, mustChangePassword:true}, 10000);
+   {...f.identity, mustChangePassword:true, authMethod:"password"}, 10000);
  assert.equal(incomplete.status,303,"browser must be guided to account setup");
  assert.equal(incomplete.headers.get("location"),
    "https://application-management.boiech-ai.workers.dev/__account?sso=google");
