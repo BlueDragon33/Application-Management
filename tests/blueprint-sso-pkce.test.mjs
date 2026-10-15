@@ -84,10 +84,10 @@ test("auth code is issued to exact registered callback and can be redeemed once 
 test("wrong verifier, malformed callback, wrong client or missing session privileges fail closed",async()=>{
  const f=fixture();f.url.searchParams.set("code_challenge",await challengeFor(verifier));
  const incomplete = await authorizeBlueprintSso(new Request(f.url), f,
-   {...f.identity, mustChangePassword:true}, 10000);
+   {...f.identity, mustChangePassword:true, authMethod:"password"}, 10000);
  assert.equal(incomplete.status,303,"browser must be guided to account setup");
  assert.equal(incomplete.headers.get("location"),
-   "https://application-management.boiech-ai.workers.dev/__account?sso=setup");
+   "https://application-management.boiech-ai.workers.dev/__account?sso=google");
  assert.equal(incomplete.headers.get("cache-control"),"no-store, private");
  assert.equal(f.codes.size,0,"no SSO grant issued to an incomplete account");
  const wrongMethod = await authorizeBlueprintSso(new Request(f.url,{method:"POST"}),
@@ -110,6 +110,22 @@ test("wrong verifier, malformed callback, wrong client or missing session privil
  assert.equal((await call({...payload,code_verifier:verifier},10001)).status,200);
  assert.equal((await call({...payload,code_verifier:verifier},10002)).status,401);
 });
+test("verified Google sign-in works with optional recovery-password reset still pending", async () => {
+ const f=fixture();
+ f.url.searchParams.set("code_challenge",await challengeFor(verifier));
+ const issued=await authorizeBlueprintSso(new Request(f.url), f,
+  {...f.identity, mustChangePassword:true, authMethod:"google"}, 10000);
+ assert.equal(issued.status,303);
+ assert.equal(new URL(issued.headers.get("location")).origin,new URL(HUB_CALLBACK).origin);
+ assert.equal(f.codes.size,1,"real PKCE grant issued from verified Google session");
+ // Password-bootstrap sessions must NOT be exchanged for Hub authority.
+ const recovery=await authorizeBlueprintSso(new Request(f.url), f,
+  {...f.identity, mustChangePassword:true, authMethod:"password"}, 10000);
+ assert.equal(recovery.status,303);
+ assert.equal(new URL(recovery.headers.get("location")).pathname,"/__account");
+ assert.equal(f.codes.size,1,"recovery-password login did not issue any new grant");
+});
+
 test("expired codes cannot be exchanged and role revocation is rechecked",async()=>{
  const f=fixture();f.url.searchParams.set("code_challenge",await challengeFor(verifier));
  const req=()=>authorizeBlueprintSso(new Request(f.url),f,f.identity,10000);
