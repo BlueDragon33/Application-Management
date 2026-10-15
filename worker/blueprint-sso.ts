@@ -37,15 +37,16 @@ export async function authorizeBlueprintSso(
   nowSeconds = Math.floor(Date.now() / 1000)
 ): Promise<Response> {
   if (request.method !== "GET") return json({ error: "method_not_allowed" }, 405);
-  if (identity.mustChangePassword) {
-    // This is a real required account step, not a failed PKCE grant.
-    // Send human browser navigation to the existing protected account page,
-    // never expose bootstrap credentials or bypass must_change_password.
-    const accountSetup = new URL("/__account?sso=setup", request.url);
+  // Password recovery/bootstrap credential must not be silently promoted into
+  // a Hub SSO grant. A *separately verified Google OAuth session* already proves
+  // account identity, so it must not be blocked by the optional recovery-password
+  // rotation flag. Two-factor remains an opt-in, sensitive-action control.
+  if (identity.mustChangePassword && identity.authMethod !== "google") {
+    const response = new URL("/__account?sso=google", request.url);
     return new Response(null, {
       status: 303,
       headers: {
-        location: accountSetup.href,
+        location: response.href,
         "cache-control": "no-store, private",
         "referrer-policy": "no-referrer",
         "x-content-type-options": "nosniff"
