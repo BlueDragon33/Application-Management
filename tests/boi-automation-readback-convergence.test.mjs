@@ -23,7 +23,8 @@ test("dashboard consumes targeted mutation readback instead of blocking on a ful
   assert.match(block, /taskMatchesReadback/);
   assert.doesNotMatch(block, /for \(const delay of \[180, 360, 720\]\)/);
   assert.doesNotMatch(block, /let synced = await refreshOperations/);
-  assert.match(block, /window\.setTimeout\(\(\) => void refreshOperations\(true, true\), 1_200\)/);
+  assert.doesNotMatch(block, /window\.setTimeout\(\(\) => void refreshOperations\(true, true\), 1_200\)/);
+  assert.match(dashboard, /startedAtMutationRevision === automationMutationRevisionRef\.current && !automationSaveLockRef\.current/);
 });
 
 test("Boi free policy readback compares both days and device limit", () => {
