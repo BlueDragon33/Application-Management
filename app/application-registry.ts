@@ -38,6 +38,8 @@ export type ApplicationConfig = {
   ssoStartUrl?: string;
   contractSource?: "repository";
   localUrl?: string;
+  /** Local Windows protocol handler; launch only, never proof of installation/approval. */
+  desktopLaunchUrl?: "pcmanager://open";
   initials: string;
   iconPath?: string;
   category: ApplicationCategory;
@@ -141,6 +143,7 @@ export const applicationRegistry: readonly ApplicationConfig[] = [
   },
   {
     id: "pc-manager", name: "PC Manager Desktop", shortName: "PC Manager", href: "/apps/pc-manager",
+    desktopLaunchUrl: "pcmanager://open",
     initials: "PC", category: "Kỹ thuật", tier: "client", status: "warning", contractState: "migrating",
     repository: "BlueDragon33/pc-manager-desktop",
     scope: "Ứng dụng Windows native quản lý sức khỏe, dọn dẹp, startup, ứng dụng, lưu trữ và giám sát máy tính. Kết nối Application Management bằng Desktop Agent Gateway outbound-only; không mở cổng inbound trên máy người dùng.",
