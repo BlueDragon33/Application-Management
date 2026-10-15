@@ -37,11 +37,11 @@ export async function authorizeBlueprintSso(
   nowSeconds = Math.floor(Date.now() / 1000)
 ): Promise<Response> {
   if (request.method !== "GET") return json({ error: "method_not_allowed" }, 405);
-  // Password recovery/bootstrap credential must not be silently promoted into
-  // a Hub SSO grant. A *separately verified Google OAuth session* already proves
-  // account identity, so it must not be blocked by the optional recovery-password
-  // rotation flag. Two-factor remains an opt-in, sensitive-action control.
-  if (identity.mustChangePassword && identity.authMethod !== "google") {
+  // Browser SSO is issued only from independently verified Google OAuth
+  // sessions. An App-Manage recovery password alone cannot auto-link a
+  // privileged Hub GitHub principal, even if its rotation flag was cleared.
+  // The recovery password remains independently configurable in Settings.
+  if (identity.authMethod !== "google") {
     const response = new URL("/__account?sso=google", request.url);
     return new Response(null, {
       status: 303,
@@ -124,6 +124,8 @@ export async function exchangeBlueprintSso(
     audience: HUB_CLIENT_ID,
     subject: record.actor_email,
     email: record.actor_email,
+    authMethod: "google",
+    emailVerified: true,
     expiresAt: nowSeconds + 60
   });
 }
