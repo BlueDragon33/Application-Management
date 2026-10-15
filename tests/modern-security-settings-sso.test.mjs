@@ -8,7 +8,7 @@ const sso = readFileSync(new URL("../worker/blueprint-sso.ts", import.meta.url),
 test("security UI is opt-in and no bootstrap reset wall is rendered on opening Settings", () => {
   assert.match(account,/Bảo mật hai lớp \(2FA\)/);
   assert.match(account,/Đang tắt · có thể bật trong Cài đặt/);
-  assert.match(account,/<details>\s*<summary>Cài đặt bảo mật nâng cao/);
+  assert.match(account,/<details>\s*<summary>Tùy chọn khôi phục nâng cao/);
   assert.match(account,/Đổi mật khẩu khôi phục/);
   assert.doesNotMatch(account,/Cần hoàn tất bảo mật tài khoản trước khi mở Blueprint Hub/);
   assert.doesNotMatch(account,/Bước bắt buộc: đổi mật khẩu khởi tạo/);
@@ -21,5 +21,5 @@ test("recovery password not being rotated never auto-elevates an unverified pass
   assert.match(sso,/SELECT role,status FROM control_accounts/);
   assert.match(sso,/hub_sso_authorization_codes/);
   assert.match(account,/Tiếp tục bằng Google/);
-  assert.match(account,/Đang dùng phiên mật khẩu khởi tạo/);
+  assert.match(account,/Đang dùng phiên\s+mật khẩu khởi tạo/);
 });
