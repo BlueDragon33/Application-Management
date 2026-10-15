@@ -248,18 +248,19 @@ function accountPage(identity: ProductionIdentity, profile: AccountPageData, not
     <h1>Tài khoản & bảo mật</h1>
     <p>Quản lý trực tiếp tài khoản Production của Application Management.</p>
     ${message}
-    ${identity.mustChangePassword ? `<div class="error" role="alert">
-      <strong>Cần hoàn tất bảo mật tài khoản trước khi mở Blueprint Hub.</strong>
-      <p>Đây là yêu cầu đổi mật khẩu khởi tạo một lần của Application Management,
-      không phải lỗi ứng dụng. Kéo xuống phần “Đổi mật khẩu khôi phục”,
-      nhập mật khẩu khởi tạo đang dùng và mật khẩu mới, sau đó bấm lưu.
-      Bạn không cần đăng nhập GitHub hoặc thay đổi OAuth.</p>
-      <p>Sau khi đổi thành công, quay lại App-Manage và nhấn biểu tượng Blueprint Hub
-      để tiếp tục đăng nhập một lần.</p>
-    </div>` : ""}
+    ${identity.mustChangePassword && identity.authMethod !== "google"
+      ? `<div class="field" role="status">
+          <span>Đăng nhập ứng dụng</span>
+          <p class="note">Bạn đang dùng phiên mật khẩu khởi tạo. Đăng nhập bằng
+          Google đã được xác minh để mở các ứng dụng liên kết mà không cần đổi
+          mật khẩu khôi phục ngay. Nếu không dùng Google, bạn vẫn có thể
+          cập nhật mật khẩu khôi phục trong phần tùy chọn bên dưới.</p>
+          <a class="button secondary" href="${googleOAuthStartPath()}">Tiếp tục bằng Google</a>
+        </div>`
+      : "" }
     <div class="field"><span>Email quyền nội bộ</span><strong>${escapeHtml(identity.email)}</strong></div>
     <div class="field"><span>Đăng nhập chính</span><strong>${profile.googleLinked ? `Google · ${escapeHtml(profile.googleEmail || identity.email)}` : "Tài khoản khôi phục"}</strong></div>
-    <div class="field"><span>Authenticator</span><strong>${profile.totp?.enabled ? "Đã bật · Step-up cho thao tác nhạy cảm" : profile.totp?.configured ? "Chưa bật" : "Chưa cấu hình khóa mã hóa"}</strong></div>
+    <div class="field"><span>Bảo mật hai lớp (2FA)</span><strong>${profile.totp?.enabled ? "Đang bật · chỉ xác minh khi thao tác nhạy cảm" : "Đang tắt · có thể bật trong Cài đặt"}</strong></div>
     ${profile.setupSecret ? `
       <div class="success">
         <strong>Thiết lập Google Authenticator</strong>
@@ -312,8 +313,8 @@ function accountPage(identity: ProductionIdentity, profile: AccountPageData, not
       <input id="phone" name="phone" maxlength="32" inputmode="tel" value="${escapeHtml(profile.phone ?? "")}">
       <button type="submit">Lưu thông tin</button>
     </form>
-    <details ${identity.mustChangePassword ? "open" : ""}>
-      <summary>${identity.mustChangePassword ? "Bước bắt buộc: đổi mật khẩu khởi tạo" : "Tùy chọn khôi phục nâng cao"}</summary>
+    <details>
+      <summary>Cài đặt bảo mật nâng cao · Đổi email / mật khẩu khôi phục</summary>
     <form method="post" action="${ACCOUNT_PATH}/email">
       <h2>Đổi email quyền nội bộ</h2>
       <label for="newEmail">Email mới</label>
@@ -711,10 +712,8 @@ async function requireAccountStepUp(env: ProductionAuthEnv, identity: Production
 export async function handleProductionAccount(request: Request, env: ProductionAuthEnv, identity: ProductionIdentity) {
   const url = new URL(request.url);
   if (request.method === "GET" && url.pathname === ACCOUNT_PATH) {
-    return responseHtml(accountPage(identity, await accountPageData(env, identity),
-      url.searchParams.get("sso") === "setup" && identity.mustChangePassword
-        ? "Cần cập nhật mật khẩu khởi tạo trước khi sử dụng đăng nhập một lần từ App-Manage."
-        : ""));
+    // Plain settings page: no mandatory password or TOTP warning on entry.
+    return responseHtml(accountPage(identity, await accountPageData(env, identity)));
   }
   if (request.method !== "POST" || !sameOriginPost(request)) return new Response("Method Not Allowed", { status: 405, headers: secureHeaders("text/plain; charset=utf-8") });
 
