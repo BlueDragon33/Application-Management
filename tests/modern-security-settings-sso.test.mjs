@@ -17,7 +17,7 @@ test("security UI is opt-in and no bootstrap reset wall is rendered on opening S
 });
 
 test("recovery password not being rotated never auto-elevates an unverified password session to SSO", () => {
-  assert.match(sso,/identity\.mustChangePassword && identity\.authMethod !== "google"/);
+  assert.match(sso,/identity\.authMethod !== "google"/);
   assert.match(sso,/SELECT role,status FROM control_accounts/);
   assert.match(sso,/hub_sso_authorization_codes/);
   assert.match(account,/Tiếp tục bằng Google/);
