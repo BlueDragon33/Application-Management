@@ -21,5 +21,5 @@ test("recovery password not being rotated never auto-elevates an unverified pass
   assert.match(sso,/SELECT role,status FROM control_accounts/);
   assert.match(sso,/hub_sso_authorization_codes/);
   assert.match(account,/Tiếp tục bằng Google/);
-  assert.match(account,/Đang dùng phiên\s+mật khẩu khởi tạo/);
+  assert.match(account,/đang dùng phiên mật khẩu khởi tạo/i);
 });
