@@ -23,7 +23,8 @@ let runtimeChild = null;
 function permittedOrigin(req) {
   const origin = req.headers.origin || "";
   const host = req.headers.host || "";
-  return ORIGINS.has(origin) && (host === "127.0.0.1:" + PORT || host === "localhost:" + PORT);
+  const boundPort = req.socket.localPort;
+  return ORIGINS.has(origin) && (host === "127.0.0.1:" + boundPort || host === "localhost:" + boundPort);
 }
 function reply(res, status, data, origin = "") {
   res.writeHead(status, {
