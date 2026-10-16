@@ -1,9 +1,14 @@
 name: Application Management Live Development Deploy
 
+# Blueprint OS Offline-first: Production is never triggered by merge to main.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      confirm_production_release:
+        description: "I explicitly authorize a new hosted Production release."
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -14,6 +19,7 @@ concurrency:
 
 jobs:
   deploy-live:
+    if: ${{ inputs.confirm_production_release == true }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     environment: application-management-production
