@@ -21,6 +21,8 @@ test("Main application icon launches through Windows only, never local HTTP or r
   assert.match(dashboard, /!\/Windows\/i\.test\(navigator\.userAgent\)/);
   assert.match(dashboard, /window\.open\(app\.desktopLaunchUrl, "_blank", "noopener,noreferrer"\)/);
   assert.match(dashboard, /Mở ứng dụng cục bộ/);
+  assert.match(dashboard, /chưa xác nhận ứng dụng đã chạy/);
+  assert.match(dashboard, /tự đăng ký pcmanager/);
 });
 
 test("Denied web policy is checked before any desktop handoff", () => {
