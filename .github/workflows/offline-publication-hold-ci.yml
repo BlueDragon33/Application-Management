@@ -7,6 +7,7 @@ on:
       - '.github/workflows/live-development-deploy.yml'
       - '.github/workflows/bootstrap-managed-client-production.yml'
       - '.github/workflows/deploy-application-management-production.yml'
+      - '.github/workflows/deploy-application-management-preview.yml'
       - 'tests/governance/offline-publication-hold.test.mjs'
       - '.github/workflows/offline-publication-hold-ci.yml'
   push:
@@ -15,6 +16,7 @@ on:
       - '.github/workflows/live-development-deploy.yml'
       - '.github/workflows/bootstrap-managed-client-production.yml'
       - '.github/workflows/deploy-application-management-production.yml'
+      - '.github/workflows/deploy-application-management-preview.yml'
       - 'tests/governance/offline-publication-hold.test.mjs'
       - '.github/workflows/offline-publication-hold-ci.yml'
 
