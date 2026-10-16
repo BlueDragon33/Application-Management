@@ -16,7 +16,7 @@ test("PC Manager has an exact allowlisted offline Windows launch, no online web 
 });
 
 test("Main application icon launches through Windows only, never local HTTP or remote shell", () => {
-  assert.match(dashboard, /app\.desktopLaunchUrl \|\| summary\?\.webHref/);
+  assert.match(dashboard, /hasOfflineWeb\(app\.id\) \|\| Boolean\(app\.desktopLaunchUrl\)/);
   assert.match(dashboard, /app\.id !== "pc-manager" \|\| app\.desktopLaunchUrl !== "pcmanager:\/\/open"/);
   assert.match(dashboard, /!\/Windows\/i\.test\(navigator\.userAgent\)/);
   assert.match(dashboard, /window\.open\(app\.desktopLaunchUrl, "_blank", "noopener,noreferrer"\)/);
