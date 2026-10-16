@@ -66,7 +66,7 @@ test("quick web menu exposes only actual client runtime URLs", () => {
   const dashboard = source("app/management-dashboard-v2.tsx");
   assert.match(dashboard, /function webAccessAvailable/);
   assert.match(dashboard, /if \(summary\?\.webAccessPolicy === "deny"\) return false/);
-  assert.match(dashboard, /return Boolean\(app\.desktopLaunchUrl \|\| summary\?\.webHref \|\| app\.publicUrl \|\| \(localRuntime && app\.localUrl\)\)/);
+  assert.match(dashboard, /mode === "offline"\) return localRuntime &&/);
   assert.match(dashboard, /app\.id !== "pc-manager" \|\| app\.desktopLaunchUrl !== "pcmanager:\/\/open"/);
   assert.match(dashboard, /app\?\.publicUrl \?\? \(localRuntime \? app\?\.localUrl : undefined\)/);
   assert.match(dashboard, /disabled=\{!hasWeb \|\| webBusy === app\.id\}/);
