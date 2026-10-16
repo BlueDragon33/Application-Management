@@ -37,7 +37,7 @@ async function launch(dir) {
   throw new Error("daemon did not bind loopback: " + output);
 }
 async function stop(child) {
-  if (!child || child.exitCode !== null) return;
+  if (!child || child.exitCode !== null || child.signalCode !== null) return; // SIGTERM exitCode is null on Windows
   const exited = new Promise(resolve => child.once("exit", resolve));
   child.kill();
   await Promise.race([exited, delay(5000).then(() => { throw new Error("daemon termination timeout"); })]);
