@@ -113,3 +113,40 @@ test("registered schema is absent or invalid and never silently falls back to a 
  assert.equal((await f.grant()).status,403);
  assert.equal(f.codes.size,0);
 });
+
+test("registered SSO callback can move off Vercel without redirect fallback or replay",async()=>{
+ const f=setup();
+ const newCallback="https://blueprint.example.test/api/sso/callback";
+ const original=await f.grant();
+ assert.equal(original.status,303);
+ const previousCode=new URL(original.headers.get("location")).searchParams.get("code");
+ const client=f.clients.get("software-blueprint-hub");
+
+ // This simulates a future owner-authorized D1 registration update, NOT a
+ // deployed provider cutover, DNS change or production migration.
+ client.redirect_uri=newCallback;
+ assert.equal((await f.grant(f.authorizeUrl("software-blueprint-hub",callback))).status,403,
+   "old callback cannot silently remain an alias");
+ assert.equal((await f.redeem(previousCode,verifier,10001,"software-blueprint-hub",callback)).status,401,
+   "a pre-cutover code cannot be exchanged against the old callback");
+ assert.equal((await f.redeem(previousCode,verifier,10001,"software-blueprint-hub",newCallback)).status,401,
+   "a pre-cutover code cannot be rebound to the new callback");
+
+ const granted=await f.grant(f.authorizeUrl("software-blueprint-hub",newCallback));
+ assert.equal(granted.status,303);
+ const redirected=new URL(granted.headers.get("location"));
+ assert.equal(redirected.origin,"https://blueprint.example.test");
+ assert.equal(redirected.pathname,"/api/sso/callback");
+ assert.equal(redirected.searchParams.get("state"),state);
+ const code=redirected.searchParams.get("code");
+ assert.equal((await f.redeem(code,verifier,10001,"software-blueprint-hub",callback)).status,401);
+ assert.equal((await f.redeem(code,verifier,10001,"software-blueprint-hub",newCallback)).status,200);
+ assert.equal((await f.redeem(code,verifier,10001,"software-blueprint-hub",newCallback)).status,401,
+   "the replacement endpoint never permits grant replay");
+
+ // Registration is data-driven, but it must still require an exact HTTPS URL.
+ client.redirect_uri="http://localhost:3000/api/sso/callback";
+ assert.equal((await f.grant(f.authorizeUrl("software-blueprint-hub",client.redirect_uri))).status,403);
+ client.redirect_uri="https://blueprint.example.test/*";
+ assert.equal((await f.grant(f.authorizeUrl("software-blueprint-hub",client.redirect_uri))).status,403);
+});
