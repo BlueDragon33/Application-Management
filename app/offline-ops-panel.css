@@ -1,0 +1,13 @@
+.amv2-local-ops { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px 18px; padding:8px 14px; border-bottom:1px solid rgba(255,255,255,.09); color:inherit; background:rgba(255,255,255,.022); }
+.amv2-local-mode {display:flex; gap:5px; flex-wrap:wrap}
+.amv2-local-mode button, .amv2-local-summary button {border:1px solid rgba(255,255,255,.14); border-radius:8px; color:inherit; background:rgba(255,255,255,.04); padding:7px 10px; cursor:pointer; font-size:12px}
+.amv2-local-mode button[data-selected="true"] {border-color:var(--amv2-cyan, #7fc); background:rgba(51,207,167,.15)}
+.amv2-local-summary {display:flex; gap:12px; align-items:center; font-size:12px;color:var(--amv2-muted,#abc)}
+.amv2-local-summary button {border-color:rgba(51,207,167,.45);color:var(--amv2-text,#fff)}
+.amv2-local-summary button:disabled {opacity:.5;cursor:not-allowed}
+.amv2-local-error {color:#ffaba5; width:100%}
+.amv2-local-pull {width:100%;font-size:12px;color:var(--amv2-muted,#abc)}
+.amv2-local-pull summary {cursor:pointer}
+.amv2-local-pull div {max-height:135px;overflow:auto;padding:4px 12px}
+.amv2-local-pull p {margin:4px 0}
+@media(max-width:720px){.amv2-local-ops{align-items:stretch}.amv2-local-summary{justify-content:space-between}}
