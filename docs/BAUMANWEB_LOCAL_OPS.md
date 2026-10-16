@@ -11,7 +11,7 @@
 1. Đặt các repo dưới <ổ đĩa>:\BaumanWeb và cài Node.js >=22.13.0, Git. Cài sẵn dependencies cho các app cần chạy.
 2. Nhấp đúp START_BAUMANWEB.vbs trong thư mục Application-Management. Đây là launcher một lần, khởi động helper và local stack ngầm qua Windows, tự mở trình duyệt khi Center sẵn sàng; không phải gõ lệnh CMD.
 3. Ở App Manager chọn Offline/Online rồi ấn icon tương ứng. Nhấn Pull all khi đã có mã mới merge lên GitHub.
-4. Sau khi Pull all cập nhật mã, hãy khởi động lại stack để runtime sử dụng commit mới. Không hot reload mã server đang chạy.
+4. Sau khi Pull all cập nhật mã, trạng thái `restartRequired` sẽ bật khi stack đang chạy. App Manager không cho mở nhầm runtime cũ như bản mới. Dừng stack cũ đúng quy trình, rồi chạy lại `START_BAUMANWEB.vbs`; kiểm tra endpoint/phiên bản trước khi coi là nghiệm thu. Chưa có restart cưỡng bức tự động vì `taskkill /F /T` có thể làm hỏng giao dịch D1. Không hot reload mã server đang chạy.
 
 Nếu startup lỗi, nhấp CHECK_LOCAL_OPS.bat để kiểm tra; xem log .local-ops-bootstrap.log và .local-ops-runtime.log (không commit).
 
@@ -28,3 +28,13 @@ Blueprint OS monorepo, CAD CAM 3D và PC Manager chưa có launcher localhost d�
 ## Cổng nghiệm thu
 
 Tự động CI gồm test giao thức localhost, các tình huống Pull all có Git fixture thật, và Docker --network none cho riêng route gốc App Manager; vẫn bắt buộc Windows cold-start trên BaumanWeb thật; verify D1 local; auth localhost; disconnected use; Pull clean/dirty/diverged; readback SHA; restart và runtime identity; CI regression; Blueprint 1.3.0. Không publish production để nghiệm thu.
+
+## Bằng chứng kiểm thử bổ sung — phạm vi chính xác
+
+- `scripts/local-d1-persistence-smoke.mjs`: Wrangler D1 **--local --persist-to** trong thư mục tạm của hệ điều hành; tạo bảng QA riêng, ghi marker, thoát process Wrangler rồi đọc marker ở process mới; tự dọn thư mục tạm. Không chạy `--remote`, không chạm D1 người dùng hay dữ liệu thật. Đây là bằng chứng tính bền của **fixture D1**, chưa xác nhận migration, auth và save/restore của từng app.
+- `tests/local-ops-windows-smoke.test.mjs`: chạy trên Windows GitHub Actions, dựng `BaumanWeb/Application-Management` tạm, cold-start helper chỉ nghe loopback, thử phiên xác thực, dừng/mở lại helper và bảo đảm token cũ mất hiệu lực. **Không khởi động full 7-app stack**, không gọi launcher `--start` và không tự động xác nhận máy Windows của chủ sở hữu.
+- `tests/local-ops-git-real.test.mjs`: Git bare/repo tạm, fast-forward, dirty/diverged, đối chiếu full SHA; không Pull kho thực.
+- `scripts/local-isolated-network-none-smoke.mjs`: xác minh route `/` trung tâm trong `Docker --network none`; không chứng minh toàn bộ ứng dụng hay cơ sở dữ liệu có thể chạy khi mạng mất.
+- Runtime đang chạy sau Pull: server trả `restartRequired=true`; App Manager từ chối coi HTTP 200 là bản đã Pull. **Không tự taskkill cưỡng bức** vì rủi ro với giao dịch SQLite/D1; restart full stack và SHA runtime readback trên Windows thật vẫn **BLOCKED**.
+
+Nghiệm thu còn thiếu: thư mục BaumanWeb thật trên Windows, khởi động toàn hệ thống sau khi preload dependency, kiểm tra từng runtime identity/SHA, tính bền dữ liệu D1 sử dụng bởi app thật, đóng mở các process đúng quy trình và kiểm thử khi tháo Internet. Không thể đổi kết quả CI fixture thành `WINDOWS_FULL_STACK_PASS` hoặc `BLUEPRINT_APPROVED`.

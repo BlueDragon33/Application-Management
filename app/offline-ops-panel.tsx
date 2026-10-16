@@ -59,6 +59,7 @@ export default function OfflineOpsPanel({ local, mode, onModeChange }: {
       <button type="button" data-selected={mode === "offline"} aria-pressed={mode === "offline"} onClick={() => onModeChange("offline")}>◉ Offline · main đã Pull</button>
       <button type="button" data-selected={mode === "online"} aria-pressed={mode === "online"} onClick={() => onModeChange("online")}>↗ Online · bản đã publish</button>
     </div>
+    {status?.restartRequired ? <small className="amv2-local-error" role="alert">Mã nguồn đã cập nhật nhưng runtime đang chạy bản cũ. Hãy đóng và mở lại START_BAUMANWEB.vbs sau khi dừng stack cũ; không coi trạng thái HTTP 200 là phiên bản mới.</small> : null}
     <div className="amv2-local-summary">
       <span>{status ? ready + "/" + supported + " runtime local sẵn sàng" : "Chưa kết nối Local Ops"}</span>
       <button type="button" disabled={busy || !status || Boolean(status.busy)} onClick={() => void pullAll()}>{busy || status?.busy === "pull-all" ? "↻ Đang Pull…" : "↓ Pull all"}</button>

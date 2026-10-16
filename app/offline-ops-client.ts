@@ -12,6 +12,8 @@ export type LocalOpsStatus = {
   busy: string;
   runtime: string;
   runtimePid: number | null;
+  runtimeStartedAt: string | null;
+  restartRequired: boolean;
   error: string | null;
   pull: { status: string; startedAt: string; finishedAt?: string; results: PullResult[]; error?: string } | null;
   apps: LocalOpsAppStatus[];
@@ -63,12 +65,14 @@ export async function launchOffline(appId: string): Promise<string> {
   const target = localApp(appId);
   if (!target?.port) throw new Error(target?.note || "Ứng dụng chưa có runtime localhost được xác minh.");
   let current = await localOpsStatus();
+  if (current.restartRequired) throw new Error("RUNTIME_STALE_RESTART_REQUIRED: Dừng và khởi động lại BaumanWeb để dùng mã mới.");
   if (current.apps.some((app) => app.id === appId && app.ready)) return current.apps.find((app) => app.id === appId)!.url!;
   await localOpsStart();
   // No online fallback: wait for the actual port to respond, not merely for a child PID.
   for (let count = 0; count < 90; count += 1) {
     await new Promise((resolve) => setTimeout(resolve, 2000));
     current = await localOpsStatus();
+    if (current.restartRequired) throw new Error("RUNTIME_STALE_RESTART_REQUIRED: Cần khởi động lại BaumanWeb.");
     const ready = current.apps.find((app) => app.id === appId);
     if (ready?.ready && ready.url) return ready.url;
     if (current.runtime === "error") throw new Error(current.error || "Không thể khởi động runtime offline.");

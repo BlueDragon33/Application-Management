@@ -15,6 +15,9 @@ on:
       - 'control/local-ops-apps.json'
       - 'app/offline-ops-client.ts'
       - 'app/offline-ops-panel.tsx'
+      - 'tests/local-ops-windows-smoke.test.mjs'
+      - 'scripts/local-d1-persistence-smoke.mjs'
+      - 'docs/BAUMANWEB_LOCAL_OPS.md'
   workflow_dispatch:
 
 permissions:
@@ -36,6 +39,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Git fast-forward fixtures and localhost protocol regression
         run: node --test tests/local-ops-daemon.test.mjs tests/local-ops-git-real.test.mjs
+      - name: Check local D1 process-to-process persistence in disposable storage
+        run: node scripts/local-d1-persistence-smoke.mjs
       - name: Acquire sandbox image at build time
         run: docker pull node:22-bookworm-slim
       - name: Verify localhost security protocol inside network-denied container
@@ -49,6 +54,17 @@ jobs:
             -e CI=1 \
             node:22-bookworm-slim \
             node --test tests/local-ops-daemon.test.mjs
+      - name: Verify disposable D1 persistence with external network denied
+        run: |
+          docker run --rm \
+            --network none \
+            --user "$(id -u):$(id -g)" \
+            --memory 2g --cpus 2 \
+            -v "$GITHUB_WORKSPACE:/workspace" \
+            -w /workspace \
+            -e CI=1 \
+            node:22-bookworm-slim \
+            node scripts/local-d1-persistence-smoke.mjs
       - name: Test local standalone root in network-denied process
         run: |
           docker run --rm \
@@ -63,3 +79,23 @@ jobs:
             node scripts/local-isolated-network-none-smoke.mjs
       - name: Accurate scoped result
         run: echo "NO claim about cross-app orchestration, private storage, real UX or Product Acceptance."
+
+  windows-helper-and-d1:
+    runs-on: windows-latest
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22.13.0'
+          package-manager-cache: false
+      - name: Windows helper cold-start/restart + real Git SHA fixtures
+        run: node --test tests/local-ops-windows-smoke.test.mjs tests/local-ops-git-real.test.mjs tests/local-ops-daemon.test.mjs
+      - name: Install local D1 tooling
+        run: npm ci --no-audit --no-fund
+      - name: Disposable Windows D1 write-stop-read persistence
+        run: node scripts/local-d1-persistence-smoke.mjs
+      - name: Scope note
+        run: echo "Helper/D1 fixture only; full BaumanWeb multi-app Windows acceptance remains BLOCKED."

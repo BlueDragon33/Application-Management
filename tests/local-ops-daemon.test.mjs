@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { pullRepository, createLocalOpsServer, probe } from "../scripts/local-ops-daemon.mjs";
+import { pullRepository, createLocalOpsServer, probe, requiresRestart } from "../scripts/local-ops-daemon.mjs";
 import { createServer, request as httpRequest } from "node:http";
 
 const manifest = JSON.parse(readFileSync(new URL("../control/local-ops-apps.json", import.meta.url), "utf8"));
@@ -180,4 +180,12 @@ test("offline port probe rejects HTTP redirect even when target is reachable", a
   } finally {
     await new Promise(resolve => server.close(resolve));
   }
+});
+
+test("runtime source drift requires a cold restart only after a successful Pull", () => {
+  const updated = [{ state: "updated", sha: "a".repeat(40) }];
+  for (const state of ["stopped", "starting", "error"])
+    assert.equal(requiresRestart(state, updated), false);
+  assert.equal(requiresRestart("running", updated), true);
+  assert.equal(requiresRestart("running", [{ state: "current" }, { state: "skipped" }]), false);
 });

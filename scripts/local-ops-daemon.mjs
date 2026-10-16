@@ -23,7 +23,10 @@ const TRUSTED_ORIGIN = /^(?:https:\/\/github\.com\/|git@github\.com:|ssh:\/\/git
 function trustedRemote(url) {
   return TRUSTED_ORIGIN.test(url.trim()) && !url.includes("..");
 }
-const state = { busy: "", pull: null, runtime: "stopped", runtimePid: null, lastError: "" };
+export function requiresRestart(runtime, results) {
+  return runtime === "running" && results.some(item => item.state === "updated");
+}
+const state = { busy: "", pull: null, runtime: "stopped", runtimePid: null, lastError: "", runtimeStartedAt: null, restartRequired: false };
 let runtimeChild = null;
 
 function permittedOrigin(req) {
@@ -125,6 +128,9 @@ async function pullAll() {
       state.pull.results.push(result);
     }
     state.pull.status = "finished";
+    // A running stack cannot adopt fetched source without a verified cold restart.
+    if (requiresRestart(state.runtime, state.pull.results))
+      state.restartRequired = true;
   } catch (error) {
     state.pull.status = "error";
     state.pull.error = String(error).slice(0, 300);
@@ -151,13 +157,16 @@ async function status() {
     note: app.note || null,
   })));
   return { ok: true, workspace: basename(WORKSPACE), agent: "localhost", busy: state.busy, runtime: state.runtime,
-    runtimePid: state.runtimePid, error: state.lastError || null, pull: state.pull, apps };
+    runtimePid: state.runtimePid, runtimeStartedAt: state.runtimeStartedAt,
+    restartRequired: state.restartRequired, error: state.lastError || null, pull: state.pull, apps };
 }
 function startAll() {
-  if (state.runtime === "starting" || state.runtime === "running") return state.runtime;
+  if (state.runtime === "starting" || state.runtime === "running")
+    return state.restartRequired ? "restart-required" : state.runtime;
   const logFd = openSync(join(ROOT, ".local-ops-runtime.log"), "a", 0o600);
   state.runtime = "starting";
   state.lastError = "";
+  state.runtimeStartedAt = null;
   try {
     const child = spawn(process.execPath, [join(ROOT, "scripts", "run-all.mjs"), "--local", "--no-browser"], {
       cwd: ROOT, detached: true, windowsHide: true, shell: false,
@@ -171,14 +180,18 @@ function startAll() {
       state.runtime = code === 0 ? "stopped" : "error";
       state.lastError = code === 0 ? "" : "Runtime kết thúc, xem .local-ops-runtime.log (exit " + code + ")";
       state.runtimePid = null;
+      state.runtimeStartedAt = null;
       runtimeChild = null;
     });
     child.unref();
     closeSync(logFd);
     state.runtime = "running"; // process started; per-app 'ready' still requires actual HTTP probe
+    state.runtimeStartedAt = new Date().toISOString();
+    state.restartRequired = false;
     return state.runtime;
   } catch (error) {
     state.runtime = "error";
+    state.runtimeStartedAt = null;
     state.lastError = String(error);
     closeSync(logFd);
     return state.runtime;
@@ -210,6 +223,8 @@ export function createLocalOpsServer() {
     if (req.method === "GET" && req.url === "/status") return reply(res, 200, await status(), origin);
     if (req.method === "POST" && req.url === "/start") {
       if (state.busy) return reply(res, 409, { error: "LOCAL_OPERATION_BUSY" }, origin);
+      if (state.restartRequired && (state.runtime === "running" || state.runtime === "starting"))
+        return reply(res, 409, { error: "RUNTIME_STALE_RESTART_REQUIRED" }, origin);
       return reply(res, 202, { ok: true, runtime: startAll() }, origin);
     }
     if (req.method === "POST" && req.url === "/pull-all") {
