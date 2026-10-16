@@ -1,8 +1,7 @@
 name: Application Management Live Development Deploy
 
+# Offline-first: no push/CI publication. Protected online release requires a reviewed reactivation PR.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -14,6 +13,8 @@ concurrency:
 
 jobs:
   deploy-live:
+    # DORMANT: online deployment disabled until exact-app release gates and separate owner approval.
+    if: ${{ false }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     environment: application-management-production
