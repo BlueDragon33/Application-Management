@@ -7,8 +7,6 @@ on:
         description: "Gõ BOOTSTRAP_MANAGED_RUNTIMES để triển khai Bơi ếch + Health + RU_LIFE + PriceReport Production từ Trung tâm"
         required: true
         type: string
-  issue_comment:
-    types: [created]
 
 permissions:
   contents: read
@@ -19,16 +17,8 @@ concurrency:
 
 jobs:
   bootstrap:
-    if: >-
-      ${{
-        github.event_name == 'workflow_dispatch' ||
-        (
-          github.event_name == 'issue_comment' &&
-          github.actor == 'BlueDragon33' &&
-          github.event.issue.pull_request != null &&
-          github.event.comment.body == '/bootstrap-managed-runtimes'
-        )
-      }}
+    # DORMANT: offline-first policy forbids cross-app Production bootstrap from this Hub.
+    if: ${{ false }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     environment: application-management-production

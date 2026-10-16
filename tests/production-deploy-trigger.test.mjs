@@ -7,27 +7,24 @@ const workflow = fs.readFileSync(
   "utf8",
 );
 
-test("Production deploy keeps the explicit manual confirmation path", () => {
-  assert.match(workflow, /workflow_dispatch:/);
+const events=workflow.slice(workflow.indexOf("\non:"),workflow.indexOf("\npermissions:"));
+const guard=workflow.slice(workflow.indexOf("  deploy-production:"),workflow.indexOf("    runs-on:",workflow.indexOf("  deploy-production:")));
+
+test("Production retains a future manual release contract, without granting dispatch authority now", () => {
+  assert.match(events, /workflow_dispatch:/);
   assert.match(workflow, /confirm:/);
   assert.match(workflow, /DEPLOY_PRODUCTION/);
+  assert.match(workflow, /environment: application-management-production/);
+  assert.match(guard, /if: \$\{\{ false \}\}/);
 });
 
-test("Production deploy accepts only the repository owner's exact PR comment command", () => {
-  assert.match(workflow, /issue_comment:/);
-  assert.match(workflow, /types: \[created\]/);
-  assert.match(workflow, /github\.actor == 'BlueDragon33'/);
-  assert.match(workflow, /github\.event\.issue\.pull_request != null/);
-  assert.match(workflow, /github\.event\.comment\.body == '\/deploy-production'/);
+test("offline policy removes all Production comment and push entry points", () => {
+  assert.doesNotMatch(events, /\bissue_comment:|\bpush:|\bworkflow_run:/);
+  assert.match(guard, /if: \$\{\{ false \}\}/);
   assert.match(workflow, /Only the repository owner exact \/deploy-production command may deploy Production/);
 });
 
-test("arbitrary issue comments cannot enter the Production environment job", () => {
-  const jobStart = workflow.indexOf("  deploy-production:");
-  const runner = workflow.indexOf("    runs-on:", jobStart);
-  const guard = workflow.slice(jobStart, runner);
-  assert.match(guard, /github\.event_name == 'workflow_dispatch'/);
-  assert.match(guard, /github\.event_name == 'issue_comment'/);
-  assert.match(guard, /github\.actor == 'BlueDragon33'/);
-  assert.match(guard, /github\.event\.comment\.body == '\/deploy-production'/);
+test("no actor, including the owner, can enter dormant Production job", () => {
+  assert.match(guard, /if: \$\{\{ false \}\}/);
+  assert.doesNotMatch(guard, /github\.event_name|github\.actor|github\.event\.comment/);
 });
