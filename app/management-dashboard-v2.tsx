@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { applicationRegistry, standardDeviceExperiences, type ApplicationConfig } from "./application-registry";
+import OfflineOpsPanel from "./offline-ops-panel";
+import { hasOfflineWeb, launchOffline, publishedUrl, type OperatingMode } from "./offline-ops-client";
 import BoiAccessView from "./boi-access-view";
 import AutomaticDevicePolicies, { type AutomationSelection } from "./automatic-device-policies";
 import {
@@ -251,9 +253,10 @@ function webActionLabel(summary: OperationsSummary | undefined, hasWeb: boolean,
   return "Chưa sẵn sàng";
 }
 
-function webAccessAvailable(app: ApplicationConfig, summary: OperationsSummary | undefined, localRuntime: boolean) {
+function webAccessAvailable(app: ApplicationConfig, summary: OperationsSummary | undefined, localRuntime: boolean, mode: OperatingMode) {
   if (summary?.webAccessPolicy === "deny") return false;
-  return Boolean(app.desktopLaunchUrl || summary?.webHref || app.publicUrl || (localRuntime && app.localUrl));
+  if (mode === "offline") return localRuntime && (hasOfflineWeb(app.id) || Boolean(app.desktopLaunchUrl));
+  return Boolean(publishedUrl(app.publicUrl));
 }
 
 function intentionalNonRemoteMode(summary?: OperationsSummary) {
@@ -372,6 +375,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   const [accountSecurityOpen, setAccountSecurityOpen] = useState(false);
   const [fontScale, setFontScale] = useState<FontScale>("compact");
   const [localRuntime, setLocalRuntime] = useState(false);
+  const [operatingMode, setOperatingMode] = useState<OperatingMode>("online");
   const [approvalGateEnabled, setApprovalGateEnabled] = useState(defaultApprovalGate);
 
   async function refreshOperations(silent = false, forceOnline = false) {
@@ -461,7 +465,9 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
     };
     resolveView();
     setClock(new Date());
-    setLocalRuntime(["127.0.0.1", "localhost"].includes(window.location.hostname));
+    const local = ["127.0.0.1", "localhost"].includes(window.location.hostname);
+    setLocalRuntime(local);
+    setOperatingMode(local ? "offline" : "online");
     try {
       const saved = window.localStorage.getItem(approvalGateStorageKey);
       if (saved === "on") setApprovalGateEnabled(true);
@@ -750,6 +756,32 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       setNotice("Contract ứng dụng không cho Application Management mở learning runtime trực tiếp.");
       return;
     }
+    if (operatingMode === "offline" && localRuntime && app?.id !== "pc-manager") {
+      if (!hasOfflineWeb(appId)) {
+        setNotice("Ứng dụng chưa có runtime localhost được nghiệm thu. Không tự chuyển sang online.");
+        return;
+      }
+      const actionKey = "web:" + appId;
+      if (!acquireActionLock(actionKey)) return;
+      const popup = window.open("about:blank", "_blank");
+      if (popup) popup.opener = null;
+      setWebBusy(appId);
+      setNotice("Đang khởi động runtime offline cho " + app?.shortName + "…");
+      try {
+        const url = await launchOffline(appId);
+        if (popup) popup.location.replace(url);
+        else window.location.assign(url);
+        setWebMenu(false);
+        setNotice("");
+      } catch (caught) {
+        popup?.close();
+        setNotice(caught instanceof Error ? caught.message : "Không thể khởi động offline.");
+      } finally {
+        releaseActionLock(actionKey);
+        setWebBusy("");
+      }
+      return;
+    }
     // PC Manager is an offline WebView2/Tauri application, not an HTTP website.
     // Never proxy native Windows commands through localhost or promote its
     // desktop-launch capability into remote-management permission.
@@ -767,9 +799,9 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       setWebMenu(false);
       return;
     }
-    const fallback = app?.previewUrl ?? app?.publicUrl ?? (localRuntime ? app?.localUrl : undefined);
-    if (!summary?.webHref && !fallback) {
-      setNotice("Ứng dụng chưa công bố URL website hợp lệ.");
+    const fallback = publishedUrl(app?.publicUrl);
+    if (!fallback) {
+      setNotice("Ứng dụng chưa có bản Online đã publish; không tự sử dụng Preview.");
       return;
     }
     const actionKey = `web:${appId}`;
@@ -783,6 +815,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
         try {
           const result = await operationsAction({ action: "launch-client-web", appId });
           if (!result.launchUrl) throw new Error(result.error ?? "Không lấy được vé mở website ứng dụng.");
+          if (new URL(result.launchUrl).origin !== new URL(fallback).origin) throw new Error("Vé mở website không trỏ tới Production đã đăng ký.");
           if (popup) popup.location.replace(result.launchUrl);
           else window.location.assign(result.launchUrl);
         } catch (caught) {
@@ -790,7 +823,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
           throw caught;
         }
       } else {
-        window.open(app?.ssoStartUrl ?? app?.previewUrl ?? summary?.webHref ?? fallback, "_blank", "noopener,noreferrer");
+        window.open(fallback, "_blank", "noopener,noreferrer");
       }
       setWebMenu(false);
     } catch (caught) {
@@ -1100,6 +1133,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       </header>
 
       <div className="amv2-content" data-view={view}>
+        <OfflineOpsPanel local={localRuntime} mode={operatingMode} onModeChange={setOperatingMode}/>
         <header className="amv2-page-head" data-view={view}>
           <div className="amv2-page-title"><h1>{title.title}</h1>{title.subtitle ? <p>{title.subtitle}</p> : null}</div>
           <section className="amv2-notification-board" aria-label="Bảng thông báo">
@@ -1142,9 +1176,10 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
             enableAutoApproval={openAutomationPolicies}
             syncOperations={syncOperationsNow}
             localRuntime={localRuntime}
+            operatingMode={operatingMode}
           /> : null}
           {view === "approvals" ? <ApprovalView devices={filteredApprovalDevices} actionBusy={actionBusy} manageDevice={manageDevice}/> : null}
-          {view === "applications" ? <ApplicationsView apps={filteredApps} tools={filteredTools} summaryMap={summaryMap} devices={devices} webBusy={webBusy} launchWeb={launchWeb} localRuntime={localRuntime} offline={offline} lastUpdatedAt={operations?.generatedAt}/> : null}
+          {view === "applications" ? <ApplicationsView apps={filteredApps} tools={filteredTools} summaryMap={summaryMap} devices={devices} webBusy={webBusy} launchWeb={launchWeb} localRuntime={localRuntime} operatingMode={operatingMode} offline={offline} lastUpdatedAt={operations?.generatedAt}/> : null}
           {view === "devices" ? <DevicesView devices={filteredPendingDevices} actionBusy={actionBusy} manageDevice={manageDevice} bulkRemovePendingDevices={bulkRemovePendingDevices} openAutomation={openAutomationPolicies}/> : null}
           {view === "access" ? <BoiAccessView query={search}/> : null}
           {view === "alerts" ? <AlertsView apps={filteredApps} summaryMap={summaryMap} workItems={filteredWork} lastUpdated={lastUpdated} offline={offline}/> : null}
@@ -1275,7 +1310,7 @@ function AppCell({ appId, name }: { appId: string; name: string }) {
   return <div className="amv2-app-cell"><AppIcon appId={appId}/><strong>{name}</strong></div>;
 }
 
-function Overview({ apps, tools, summaryMap, devices, pendingDevices, approvalDevices, workItems, highAlerts, unavailableCount, environmentCount, contractPending, offline, actionBusy, webBusy, syncing, webMenu, setWebMenu, switchView, launchWeb, manageDevice, clearNotifications, enableAutoApproval, syncOperations, localRuntime }: {
+function Overview({ apps, tools, summaryMap, devices, pendingDevices, approvalDevices, workItems, highAlerts, unavailableCount, environmentCount, contractPending, offline, actionBusy, webBusy, syncing, webMenu, setWebMenu, switchView, launchWeb, manageDevice, clearNotifications, enableAutoApproval, syncOperations, localRuntime, operatingMode }: {
   apps: ApplicationConfig[];
   tools: SystemTool[];
   summaryMap: Map<string, OperationsSummary>;
@@ -1300,6 +1335,7 @@ function Overview({ apps, tools, summaryMap, devices, pendingDevices, approvalDe
   enableAutoApproval: () => void;
   syncOperations: () => Promise<OperationsBootstrap | null>;
   localRuntime: boolean;
+  operatingMode: OperatingMode;
 }) {
   const priorityRows = [
     ...approvalDevices.map((device) => ({ key: `device:${device.appId}:${device.deviceId}`, appId: device.appId, appName: device.appName, type: device.attention === "environment" ? "Môi trường" : "Thiết bị", content: `${device.userLabel} · ${device.deviceCode}`, at: device.lastSeenAt ?? device.createdAt, priority: device.attention === "environment" ? "Cao" : "Vừa", status: device.status === "pending" ? "Chờ duyệt" : "Cần xác minh" })),
@@ -1316,7 +1352,7 @@ function Overview({ apps, tools, summaryMap, devices, pendingDevices, approvalDe
         name: app.shortName,
         iconAppId: app.id,
         kind: "app" as const,
-        canOpen: webAccessAvailable(app, summary, localRuntime),
+        canOpen: webAccessAvailable(app, summary, localRuntime, operatingMode),
         online: offline ? null : counts.online,
         connection,
         status: offline ? "Chưa xác minh" : connectionLabel(connection, summary),
@@ -1353,7 +1389,7 @@ function Overview({ apps, tools, summaryMap, devices, pendingDevices, approvalDe
 
       <section className="amv2-panel amv2-alert-panel"><PanelTitle icon="♧" title="Cảnh báo nhanh" onClick={() => switchView("alerts")}/><div className="amv2-alert-grid"><button onClick={() => switchView("devices")} data-tone="gold"><small>Thiết bị mới</small><strong>{offline ? "—" : pendingDevices.length}</strong></button><button onClick={() => switchView("alerts")} data-tone="red"><small>App mất kết nối</small><strong>{offline ? "—" : unavailableCount}</strong></button><button onClick={() => switchView("alerts")} data-tone="olive"><small>Môi trường thay đổi</small><strong>{offline ? "—" : environmentCount}</strong></button><button onClick={() => switchView("applications")} data-tone="blue"><small>Kết nối chờ hoàn tất</small><strong>{offline ? "—" : contractPending}</strong></button></div></section>
 
-      <section className="amv2-panel amv2-quick-panel"><header><h2>⚡ Thao tác nhanh</h2></header><div className="amv2-quick-grid"><button onClick={() => switchView("applications")}>◇<span>Quản trị ứng dụng</span></button><button data-active={webMenu} onClick={() => setWebMenu((current) => !current)}>◎<span>Truy cập web</span></button><button onClick={() => switchView("devices")}>▣<span>Kiểm duyệt thiết bị</span></button><button onClick={() => switchView("approvals")}>⬡<span>Yêu cầu chờ duyệt</span></button><button data-danger="true" disabled={Boolean(actionBusy)} onClick={() => void clearNotifications()}>⌫<span>{actionBusy === "clear" ? "Đang xóa…" : "Xóa hết thông báo"}</span></button><button disabled={Boolean(actionBusy)} onClick={() => void enableAutoApproval()}>⚙<span>{actionBusy === "auto" ? "Đang lưu…" : "Duyệt tự động"}</span></button><button disabled={syncing} onClick={() => void syncOperations()}>↻<span>{syncing ? "Đang đồng bộ…" : "Đồng bộ dữ liệu"}</span></button><button onClick={() => switchView("settings")}>▦<span>Giao diện</span></button><button onClick={() => switchView("audit")}>▤<span>Xem nhật ký</span></button></div>{webMenu ? <div className="amv2-web-menu">{apps.map((app) => { const summary = summaryMap.get(app.id); const hasWeb = webAccessAvailable(app, summary, localRuntime); return <button key={app.id} disabled={!hasWeb || webBusy === app.id} onClick={() => void launchWeb(app.id)}><span className="amv2-web-menu-app"><AppIcon appId={app.id}/><span>{app.shortName}</span></span><b>{webBusy === app.id ? "Đang mở…" : hasWeb ? "Mở ↗" : webActionLabel(summary, false)}</b></button>; })}</div> : null}</section>
+      <section className="amv2-panel amv2-quick-panel"><header><h2>⚡ Thao tác nhanh</h2></header><div className="amv2-quick-grid"><button onClick={() => switchView("applications")}>◇<span>Quản trị ứng dụng</span></button><button data-active={webMenu} onClick={() => setWebMenu((current) => !current)}>◎<span>Truy cập web</span></button><button onClick={() => switchView("devices")}>▣<span>Kiểm duyệt thiết bị</span></button><button onClick={() => switchView("approvals")}>⬡<span>Yêu cầu chờ duyệt</span></button><button data-danger="true" disabled={Boolean(actionBusy)} onClick={() => void clearNotifications()}>⌫<span>{actionBusy === "clear" ? "Đang xóa…" : "Xóa hết thông báo"}</span></button><button disabled={Boolean(actionBusy)} onClick={() => void enableAutoApproval()}>⚙<span>{actionBusy === "auto" ? "Đang lưu…" : "Duyệt tự động"}</span></button><button disabled={syncing} onClick={() => void syncOperations()}>↻<span>{syncing ? "Đang đồng bộ…" : "Đồng bộ dữ liệu"}</span></button><button onClick={() => switchView("settings")}>▦<span>Giao diện</span></button><button onClick={() => switchView("audit")}>▤<span>Xem nhật ký</span></button></div>{webMenu ? <div className="amv2-web-menu">{apps.map((app) => { const summary = summaryMap.get(app.id); const hasWeb = webAccessAvailable(app, summary, localRuntime, operatingMode); return <button key={app.id} disabled={!hasWeb || webBusy === app.id} onClick={() => void launchWeb(app.id)}><span className="amv2-web-menu-app"><AppIcon appId={app.id}/><span>{app.shortName}</span></span><b>{webBusy === app.id ? "Đang mở…" : hasWeb ? "Mở ↗" : webActionLabel(summary, false)}</b></button>; })}</div> : null}</section>
 
       <section className="amv2-panel amv2-apps-panel amv2-overview-apps-launcher">
         <header className="amv2-overview-apps-title">
@@ -1395,7 +1431,7 @@ function ApprovalView({ devices, actionBusy, manageDevice }: { devices: Operatio
   return <section className="amv2-page-panel"><div className="amv2-view-table approval"><div className="head"><span>Ứng dụng</span><span>Loại yêu cầu</span><span>Thiết bị / người dùng</span><span>Trạng thái</span><span>Thao tác</span></div>{devices.map((device) => { const rowBusy = actionBusy === `${device.appId}:${device.deviceId}`; const pending = device.status === "pending"; return <div className="row" key={`${device.appId}:${device.deviceId}`}><AppCell appId={device.appId} name={device.appName}/><span>{pending ? "Kiểm duyệt thiết bị" : "Xác minh môi trường"}</span><div><strong>{device.userLabel}</strong><small>{device.deviceCode}</small></div><b>{pending ? "Chờ kiểm duyệt" : "Cần xử lý"}</b><div>{pending && device.canApprove ? <button disabled={rowBusy} onClick={() => void manageDevice(device, "approve")}>{device.appId === "boi-ech" ? "Phân quyền" : "Duyệt"}</button> : null}{pending && device.canRemove ? <button data-danger="true" disabled={rowBusy} onClick={() => void manageDevice(device, "remove")}>{device.appId === "boi-ech" ? "Xóa vĩnh viễn" : "Từ chối & khóa"}</button> : null}{!pending ? <Link href={device.href}>Quản trị</Link> : null}</div></div>; })}{!devices.length ? <div className="amv2-empty"><strong>Không có yêu cầu cần xử lý.</strong></div> : null}</div></section>;
 }
 
-function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb, localRuntime, offline, lastUpdatedAt }: {
+function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb, localRuntime, operatingMode, offline, lastUpdatedAt }: {
   apps: ApplicationConfig[];
   tools: SystemTool[];
   summaryMap: Map<string, OperationsSummary>;
@@ -1403,6 +1439,7 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
   webBusy: string;
   launchWeb: (appId: string) => Promise<void>;
   localRuntime: boolean;
+  operatingMode: OperatingMode;
   offline: boolean;
   lastUpdatedAt?: string;
 }) {
@@ -1503,7 +1540,7 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
     const appItems = apps.map((app) => {
       const summary = summaryMap.get(app.id);
       const counts = operationalCounts(app.id, summary, devices);
-      const canOpen = webAccessAvailable(app, summary, localRuntime);
+      const canOpen = webAccessAvailable(app, summary, localRuntime, operatingMode);
       const runtimeLabel = offline
         ? "—"
         : summary?.runtimeConnected === true
@@ -1533,7 +1570,7 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
     });
 
     return [...appItems, ...toolItems];
-  }, [apps, tools, summaryMap, devices, localRuntime, offline, categoryOverrides]);
+  }, [apps, tools, summaryMap, devices, localRuntime, operatingMode, offline, categoryOverrides]);
 
   const categories = useMemo(() => {
     const present = new Set(items.map((item) => item.category));
@@ -2000,7 +2037,7 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
           if (!app) return null;
           const summary = summaryMap.get(app.id);
           const counts = operationalCounts(app.id, summary, devices);
-          const hasWeb = webAccessAvailable(app, summary, localRuntime);
+          const hasWeb = webAccessAvailable(app, summary, localRuntime, operatingMode);
           return <div className="amv2-app-row" key={app.id}><AppCell appId={app.id} name={app.shortName}/><span>{item.category}</span><strong title={counts.pending === null ? "Client chưa cung cấp dữ liệu thiết bị." : undefined}>{offline ? "—" : countText(counts.pending)}</strong><strong title={counts.online === null ? "Client chưa cung cấp dữ liệu online." : undefined}>{offline ? "—" : countText(counts.online)}</strong><StatusCell app={app} summary={summary} offline={offline}/><button className="amv2-web-action" disabled={!hasWeb || webBusy === app.id} onClick={() => void launchWeb(app.id)}>{webActionLabel(summary, hasWeb, webBusy === app.id)}</button><Link className="amv2-manage-action" href={app.href}>Quản trị</Link></div>;
         })}
         {!visibleItems.length ? <div className="amv2-empty"><strong>Không tìm thấy ứng dụng hoặc Tool phù hợp.</strong></div> : null}
