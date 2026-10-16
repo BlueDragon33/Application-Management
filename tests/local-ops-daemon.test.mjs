@@ -64,14 +64,14 @@ test("local companion rejects requests without exact 3000 loopback Origin", asyn
   const address = server.address();
   const url = "http://127.0.0.1:" + address.port;
   try {
-    const forged = await fetch(url + "/session", { headers: { origin: "https://evil.example", host: "127.0.0.1:3011" } });
+    const forged = await fetch(url + "/session", { headers: { origin: "https://evil.example" } });
     assert.equal(forged.status, 403);
-    const allowed = await fetch(url + "/session", { headers: { origin: "http://127.0.0.1:3000", host: "127.0.0.1:3011" } });
+    const allowed = await fetch(url + "/session", { headers: { origin: "http://127.0.0.1:3000" } });
     assert.equal(allowed.status, 200);
     const session = await allowed.json();
     assert.ok(session.token.length >= 32);
     const rejected = await fetch(url + "/pull-all", {
-      method: "POST", headers: { origin: "http://127.0.0.1:3000", host: "127.0.0.1:3011" },
+      method: "POST", headers: { origin: "http://127.0.0.1:3000" },
     });
     assert.equal(rejected.status, 401);
   } finally {
