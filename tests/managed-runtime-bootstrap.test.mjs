@@ -7,13 +7,12 @@ const workflow = fs.readFileSync(
   "utf8",
 );
 
-test("managed runtime bootstrap is owner-gated and uses the Production environment", () => {
+test("managed runtime bootstrap remains dormant pending authenticated future Production release", () => {
   assert.match(workflow, /workflow_dispatch:/);
   assert.match(workflow, /BOOTSTRAP_MANAGED_RUNTIMES/);
-  assert.match(workflow, /github\.actor == 'BlueDragon33'/);
-  assert.match(workflow, /github\.event\.issue\.pull_request != null/);
-  assert.match(workflow, /github\.event\.comment\.body == '\/bootstrap-managed-runtimes'/);
   assert.match(workflow, /environment: application-management-production/);
+  assert.doesNotMatch(workflow.slice(workflow.indexOf("\non:"),workflow.indexOf("\npermissions:")), /issue_comment:|push:/);
+  assert.match(workflow, /bootstrap:\s*\n(?:\s*#[^\n]*\n)*\s*if: \$\{\{ false \}\}/);
 });
 
 test("central bootstrap owns Bơi ếch, Health, RU_LIFE and PriceReport control provisioning", () => {
