@@ -4,7 +4,7 @@ import manifest from "../control/local-ops-apps.json";
 
 export type OperatingMode = "offline" | "online";
 export type LocalOpsAppStatus = { id: string; port: number | null; url: string | null; ready: boolean; note: string | null };
-export type PullResult = { name: string; state: "current" | "updated" | "skipped" | "error"; reason?: string; sha?: string; from?: string };
+export type PullResult = { name: string; state: "current" | "updated" | "skipped" | "error"; reason?: string; sha?: string; from?: string; restartRequired?: boolean };
 export type LocalOpsStatus = {
   ok: boolean;
   workspace: string;

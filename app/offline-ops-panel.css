@@ -9,5 +9,5 @@
 .amv2-local-pull {width:100%;font-size:12px;color:var(--amv2-muted,#abc)}
 .amv2-local-pull summary {cursor:pointer}
 .amv2-local-pull div {max-height:135px;overflow:auto;padding:4px 12px}
-.amv2-local-pull p {margin:4px 0}
+.amv2-local-pull p {margin:4px 0;overflow-wrap:anywhere}
 @media(max-width:720px){.amv2-local-ops{align-items:stretch}.amv2-local-summary{justify-content:space-between}}

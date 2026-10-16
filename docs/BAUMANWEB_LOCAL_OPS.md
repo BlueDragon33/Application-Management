@@ -4,7 +4,7 @@
 
 - Offline: mở duy nhất localhost đã đăng ký trong control/local-ops-apps.json. Nhấn icon sẽ yêu cầu script run-all.mjs khởi động các runtime đã hỗ trợ. Không fallback online.
 - Online: chỉ mở publicUrl HTTPS trong application registry (bản publish trước đó); không mở Preview và không publish.
-- Pull all: tìm repository trong thư mục BaumanWeb (tối đa 2 cấp); chỉ thực hiện git fetch origin main và git merge --ff-only khi nhánh main sạch và lịch sử fast-forward. Repo dirty/diverged/khác nhánh sẽ bỏ qua, hiển thị lý do; không reset hay force. Cần Internet để pull, nhưng không cần GitHub khi chạy offline.
+- Pull all: tìm repository trong thư mục BaumanWeb (tối đa 2 cấp); chỉ thực hiện fetch + merge --ff-only khi nhánh main sạch và lịch sử fast-forward, origin gốc và URL sau rewrite đều thuộc GitHub BlueDragon33. Từ chối file://, ext::, origin khác chủ sở hữu; không can thiệp cấu hình Git. Repo dirty/diverged/khác nhánh hoặc thay đổi trong khi fetch sẽ bỏ qua, hiển thị lý do. SHA trước/sau được giữ đầy đủ 40 ký tự và xác minh HEAD bằng FETCH_HEAD sau cập nhật; không reset hay force. Cần Internet để pull, nhưng không cần GitHub khi chạy offline.
 
 ## Khởi động Windows
 
@@ -17,7 +17,7 @@ Nếu startup lỗi, nhấp CHECK_LOCAL_OPS.bat để kiểm tra; xem log .local
 
 ## Giới hạn bảo mật
 
-Helper chỉ nghe 127.0.0.1:3011; yêu cầu Origin App Manager localhost:3000 + token phiên. API chỉ hỗ trợ status, start và pull-all; không cho nhập shell, URL, đường dẫn hoặc lệnh bất kỳ. Không mở port helper ra LAN, không đưa phiên này lên cloud và không sử dụng để cấp quyền Production.
+Helper chỉ nghe 127.0.0.1:3011; yêu cầu loopback peer, Host chính xác, Origin App Manager localhost:3000 + token phiên. Mô hình token localhost không chống được phần mềm độc hại chạy trên chính máy hoặc ứng dụng giả mạo chiếm cổng 3000; không coi đây là xác thực người dùng. Probe offline không đi theo redirect đến web online. API chỉ hỗ trợ status, start và pull-all; không cho nhập shell, URL, đường dẫn hoặc lệnh bất kỳ. Không mở port helper ra LAN, không đưa phiên này lên cloud và không sử dụng để cấp quyền Production.
 
 ## Ports và phạm vi
 
@@ -27,4 +27,4 @@ Blueprint OS monorepo, CAD CAM 3D và PC Manager chưa có launcher localhost d�
 
 ## Cổng nghiệm thu
 
-Windows cold-start trên BaumanWeb thật; verify D1 local; auth localhost; disconnected use; Pull clean/dirty/diverged; readback SHA; restart và runtime identity; CI regression; Blueprint 1.3.0. Không publish production để nghiệm thu.
+Tự động CI gồm test giao thức localhost, các tình huống Pull all có Git fixture thật, và Docker --network none cho riêng route gốc App Manager; vẫn bắt buộc Windows cold-start trên BaumanWeb thật; verify D1 local; auth localhost; disconnected use; Pull clean/dirty/diverged; readback SHA; restart và runtime identity; CI regression; Blueprint 1.3.0. Không publish production để nghiệm thu.

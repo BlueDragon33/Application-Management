@@ -66,7 +66,7 @@ export default function OfflineOpsPanel({ local, mode, onModeChange }: {
     {error ? <small role="status" className="amv2-local-error">{error}</small> : null}
     {status?.pull ? <details className="amv2-local-pull">
       <summary>{status.pull.status === "running" ? "Đang đồng bộ mã nguồn…" : "Kết quả Pull all"} · {results.length} repo · {updated} cập nhật · {skipped} cần xem</summary>
-      <div>{results.map((row) => <p key={row.name}><strong>{row.name}</strong> · {row.state}{row.sha ? " · " + row.sha : ""}{row.reason ? " · " + row.reason : ""}</p>)}</div>
+      <div>{results.map((row) => <p key={row.name}><strong>{row.name}</strong> · {row.state}{row.from ? " · từ " + row.from : ""}{row.sha ? " · HEAD " + row.sha : ""}{row.restartRequired ? " · cần khởi động lại" : ""}{row.reason ? " · " + row.reason : ""}</p>)}</div>
       {status.pull.status === "finished" ? <small>Các runtime đang chạy phải khởi động lại để sử dụng code mới; không tự ý hot reload production.</small> : null}
     </details> : null}
   </section>;

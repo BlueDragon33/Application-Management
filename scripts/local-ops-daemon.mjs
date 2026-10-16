@@ -17,6 +17,12 @@ const PORT = MANIFEST.agentPort;
 const TOKEN = randomBytes(32).toString("base64url");
 const ORIGINS = new Set(["http://127.0.0.1:3000", "http://localhost:3000"]);
 const AVOID = new Set(["node_modules", ".git", ".next", ".wrangler", ".cache", "dist", "build", "coverage"]);
+// Git remotes are configuration, not trusted commands. Do not fetch arbitrary hosts,
+// local files, ext helpers or credential-bearing URLs from a managed workspace.
+const TRUSTED_ORIGIN = /^(?:https:\/\/github\.com\/|git@github\.com:|ssh:\/\/git@github\.com\/)BlueDragon33\/[a-z0-9_.-]+(?:\.git)?\/?$/i;
+function trustedRemote(url) {
+  return TRUSTED_ORIGIN.test(url.trim()) && !url.includes("..");
+}
 const state = { busy: "", pull: null, runtime: "stopped", runtimePid: null, lastError: "" };
 let runtimeChild = null;
 
@@ -70,24 +76,45 @@ export async function pullRepository(dir, runner = git) {
   try {
     const branch = await runner(dir, ["symbolic-ref", "--quiet", "--short", "HEAD"]);
     if (branch !== "main") return { name, state: "skipped", reason: "Không ở nhánh main (" + branch + ")" };
-    if (await runner(dir, ["status", "--porcelain"])) return { name, state: "skipped", reason: "Có thay đổi chưa commit" };
+    if (await runner(dir, ["status", "--porcelain", "--untracked-files=all"]))
+      return { name, state: "skipped", reason: "Có thay đổi chưa commit" };
+
+    const configured = await runner(dir, ["config", "--get", "remote.origin.url"]);
+    const resolved = await runner(dir, ["remote", "get-url", "origin"]);
+    if (!trustedRemote(configured) || !trustedRemote(resolved))
+      return { name, state: "skipped", reason: "Origin không thuộc GitHub BlueDragon33 hoặc bị viết lại; từ chối fetch" };
+
     const before = await runner(dir, ["rev-parse", "HEAD"]);
-    await runner(dir, ["fetch", "--no-tags", "origin", "main"]);
+    // No git://, file://, ext::, nor other helper protocols via a config rewrite.
+    await runner(dir, ["-c", "protocol.file.allow=never", "-c", "protocol.ext.allow=never",
+      "fetch", "--no-tags", "origin", "main"]);
     const remote = await runner(dir, ["rev-parse", "FETCH_HEAD"]);
-    if (before === remote) return { name, state: "current", sha: before.slice(0, 12) };
-    // Only remote descendants of local HEAD can replace it. No reset, force or rebase.
+    // Recheck mutable local state after network I/O to avoid racing user edits.
+    if (await runner(dir, ["symbolic-ref", "--quiet", "--short", "HEAD"]) !== "main"
+        || await runner(dir, ["rev-parse", "HEAD"]) !== before
+        || await runner(dir, ["status", "--porcelain", "--untracked-files=all"])) {
+      return { name, state: "skipped", reason: "Repo thay đổi trong khi fetch; không cập nhật" };
+    }
+    if (before === remote) return { name, state: "current", sha: before };
     try {
       await runner(dir, ["merge-base", "--is-ancestor", before, remote]);
     } catch {
-      return { name, state: "skipped", reason: "Local có commit riêng hoặc phân nhánh; cần xử lý thủ công" };
+      return { name, state: "skipped", reason: "Local có commit riêng hoặc phân nhánh; không tự ghi đè" };
     }
     await runner(dir, ["merge", "--ff-only", remote]);
     const after = await runner(dir, ["rev-parse", "HEAD"]);
-    return { name, state: "updated", from: before.slice(0, 12), sha: after.slice(0, 12) };
+    if (after !== remote) {
+      return { name, state: "error", reason: "SHA HEAD sau Pull không khớp FETCH_HEAD; kiểm tra repo", from: before, sha: after };
+    }
+    if (await runner(dir, ["status", "--porcelain", "--untracked-files=all"])) {
+      return { name, state: "error", reason: "Working tree không sạch sau Pull; kiểm tra repo", from: before, sha: after };
+    }
+    return { name, state: "updated", from: before, sha: after, restartRequired: true };
   } catch (error) {
     return { name, state: "error", reason: error instanceof Error ? error.message.slice(0, 280) : "Git failed" };
   }
 }
+
 async function pullAll() {
   state.busy = "pull-all";
   state.pull = { status: "running", startedAt: new Date().toISOString(), results: [] };
@@ -106,10 +133,13 @@ async function pullAll() {
     state.busy = "";
   }
 }
-async function probe(port, path = "/") {
+export async function probe(port, path = "/") {
   try {
-    const response = await fetch("http://127.0.0.1:" + port + path, { signal: AbortSignal.timeout(900), cache: "no-store" });
-    return response.status >= 200 && response.status < 400;
+    const response = await fetch("http://127.0.0.1:" + port + path, {
+      signal: AbortSignal.timeout(900), cache: "no-store", redirect: "manual",
+    });
+    // 30x may point to a published site; a redirect never proves local readiness.
+    return response.status >= 200 && response.status < 300;
   } catch { return false; }
 }
 async function status() {
@@ -170,6 +200,9 @@ async function waitAndOpenCenter() {
 export function createLocalOpsServer() {
   return createServer(async (req, res) => {
     const origin = req.headers.origin || "";
+    const peer = req.socket.remoteAddress || "";
+    if (peer !== "127.0.0.1" && peer !== "::ffff:127.0.0.1")
+      return reply(res, 403, { error: "LOCAL_PEER_REQUIRED" });
     if (!permittedOrigin(req)) return reply(res, 403, { error: "LOCAL_ORIGIN_REQUIRED" });
     if (req.method === "OPTIONS") return reply(res, 204, null, origin);
     if (req.method === "GET" && req.url === "/session") return reply(res, 200, { token: TOKEN }, origin);
