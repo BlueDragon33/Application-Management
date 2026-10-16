@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { pullRepository, createLocalOpsServer, probe } from "../scripts/local-ops-daemon.mjs";
-import { createServer } from "node:http";
+import { createServer, request as httpRequest } from "node:http";
 
 const manifest = JSON.parse(readFileSync(new URL("../control/local-ops-apps.json", import.meta.url), "utf8"));
 const registry = readFileSync(new URL("../app/application-registry.ts", import.meta.url), "utf8");
@@ -129,10 +129,19 @@ test("localhost API rejects unexpected Host, origin and command methods", async 
   const base = "http://127.0.0.1:" + server.address().port;
   try {
     const trustedOrigin = "http://127.0.0.1:3000";
-    const badHost = await fetch(base + "/session", { headers: {
-      origin: trustedOrigin, host: "evil.example:" + server.address().port,
-    } });
-    assert.equal(badHost.status, 403);
+    // node:fetch may normalize/override Host; raw HTTP proves the server
+    // actually rejects a forged Host header over an on-loopback connection.
+    const badHostCode = await new Promise((resolve, reject) => {
+      const request = httpRequest(base + "/session", {
+        headers: { origin: trustedOrigin, host: "evil.example:" + server.address().port },
+      }, response => {
+        response.resume();
+        response.once("end", () => resolve(response.statusCode));
+      });
+      request.once("error", reject);
+      request.end();
+    });
+    assert.equal(badHostCode, 403);
     const missingOrigin = await fetch(base + "/session");
     assert.equal(missingOrigin.status, 403);
     const allowed = await fetch(base + "/session", { headers: { origin: trustedOrigin } });
