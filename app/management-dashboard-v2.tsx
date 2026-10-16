@@ -763,7 +763,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
         return;
       }
       window.open(app.desktopLaunchUrl, "_blank", "noopener,noreferrer");
-      setNotice("Windows có thể yêu cầu xác nhận mở PC Manager. Nếu không có ứng dụng, cần cài và đăng ký pcmanager:// trên máy này.");
+      setNotice("Đã gửi yêu cầu mở PC Manager tới Windows; chưa xác nhận ứng dụng đã chạy. Nếu chưa cài, hãy dùng bộ cài NSIS (tự đăng ký pcmanager:// cho tài khoản Windows hiện tại).");
       setWebMenu(false);
       return;
     }
