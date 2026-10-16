@@ -19,7 +19,7 @@ test("automation editor resets controls from verified readback and stays open af
   assert.match(editor, /Cấu hình đang khớp trạng thái đã đọc/);
   assert.match(dashboard, /save=\{saveAutomation\}/);
   assert.doesNotMatch(saveBlock, /setAutoPolicyOpen\(false\)/);
-  assert.match(saveBlock, /return mergedSettings/);
+  assert.match(saveBlock, /return failedFields\.length \? null : mergedSettings/);
 });
 
 test("unsupported automation controls describe unsupported state instead of fake manual defaults", () => {

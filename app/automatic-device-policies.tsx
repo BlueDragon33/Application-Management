@@ -115,6 +115,7 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const openerRef = useRef<HTMLElement | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const boiPolicy = policyFor(settings, "boi-ech");
   const [days, setDays] = useState(boiPolicy.current.freeAccessDays ?? settings?.freeAccessDaysByApp?.["boi-ech"] ?? 0);
   const [limit, setLimit] = useState(boiPolicy.current.freeDeviceLimit ?? settings?.freeDeviceLimitByApp?.["boi-ech"] ?? 0);
@@ -187,6 +188,7 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
   }
 
   function updateDraft(appId: string, patch: Partial<AutomationAppDraft>) {
+    setSaveError("");
     draftEditedRef.current = true;
     setDrafts((current) => ({
       ...current,
@@ -198,6 +200,7 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
     if (!canSave || submitLockRef.current) return;
     submitLockRef.current = true;
     setSubmitting(true);
+    setSaveError("");
     try {
       const appIds = apps.filter((app) => drafts[app.id]?.autoApprove).map((app) => app.id);
       const autoBlockAppIds = apps.filter((app) => drafts[app.id]?.autoBlock).map((app) => app.id);
@@ -205,13 +208,18 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
         apps.map((app) => [app.id, drafts[app.id]?.pendingBlockAfterHours ?? 168]),
       ) as Record<string, number>;
       const readback = await save({ appIds, autoBlockAppIds, pendingBlockAfterHoursByApp, defaultAccessDays: days, defaultDeviceLimit: limit });
-      if (!readback) return;
+      if (!readback) {
+        setSaveError("Chưa lưu được toàn bộ thay đổi hoặc chưa xác minh được readback. Bản nháp của bạn vẫn được giữ để thử lại.");
+        return;
+      }
 
       draftEditedRef.current = false;
       setDrafts(initialDrafts(apps, readback));
       const nextBoi = policyFor(readback, "boi-ech");
       setDays(nextBoi.current.freeAccessDays ?? readback.freeAccessDaysByApp?.["boi-ech"] ?? days);
       setLimit(nextBoi.current.freeDeviceLimit ?? readback.freeDeviceLimitByApp?.["boi-ech"] ?? limit);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Lưu thất bại; bản nháp chưa bị xóa.");
     } finally {
       submitLockRef.current = false;
       setSubmitting(false);
@@ -324,6 +332,7 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
       </div>
 
       <footer className={styles.dialogFooter}>
+        {saveError ? <span role="alert" className={styles.warning}>{saveError}</span> : null}
         <span className={styles.saveState}>{locked ? "Đang ghi và đọc lại client…" : !verified ? "Chưa xác minh LIVE" : hasChanges ? "Có thay đổi chưa lưu" : "Cấu hình đang khớp trạng thái đã đọc"}</span>
         <div><button type="button" onClick={() => void sync()} disabled={locked}>Đồng bộ LIVE</button><button onClick={close} disabled={locked}>Đóng</button><button className={styles.save} disabled={!canSave} onClick={() => void submit()}>{locked ? "Đang lưu…" : "Lưu thay đổi"}</button></div>
       </footer>

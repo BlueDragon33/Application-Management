@@ -41,7 +41,7 @@ test("explicit Save has one targeted readback invariant for static and dynamic a
   assert.match(block, /const chains = new Map/);
   assert.match(block, /responseSettings/);
   assert.match(block, /taskMatchesReadback/);
-  assert.match(block, /return mergedSettings/);
+  assert.match(block, /return failedFields\.length \? null : mergedSettings/);
   assert.doesNotMatch(block, /return synced\.settings/);
   assert.doesNotMatch(block, /for \(const delay of \[180, 360, 720\]\)/);
 });

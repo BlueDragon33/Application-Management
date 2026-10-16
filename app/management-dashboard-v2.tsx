@@ -364,6 +364,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   const [syncError, setSyncError] = useState("");
   const notificationListRef = useRef<HTMLDivElement>(null);
   const automationSaveLockRef = useRef(false);
+  const automationMutationRevisionRef = useRef(0);
   const actionLocksRef = useRef<Set<string>>(new Set());
   const operationsRefreshPromiseRef = useRef<Promise<OperationsBootstrap | null> | null>(null);
   const [clock, setClock] = useState<Date | null>(null);
@@ -386,10 +387,15 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
     }
     try {
       if (!operationsRefreshPromiseRef.current) {
+        const startedAtMutationRevision = automationMutationRevisionRef.current;
         operationsRefreshPromiseRef.current = (async () => {
           const result = await connectOperationsDashboard();
-          if (result.bootstrap) setOperations(result.bootstrap);
-          setOperationsVerified(Boolean(result.bootstrap));
+          // A bootstrap begun before or during a save must not roll back a
+          // targeted, independently verified policy readback in the UI.
+          if (startedAtMutationRevision === automationMutationRevisionRef.current && !automationSaveLockRef.current) {
+            if (result.bootstrap) setOperations(result.bootstrap);
+            setOperationsVerified(Boolean(result.bootstrap));
+          }
           return result.bootstrap ?? null;
         })().finally(() => {
           operationsRefreshPromiseRef.current = null;
@@ -831,6 +837,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       return null;
     }
     automationSaveLockRef.current = true;
+    automationMutationRevisionRef.current += 1;
     setActionBusy("auto-policy");
 
     try {
@@ -898,7 +905,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
         "",
         "Mỗi policy được ghi vào đúng client và chỉ được coi là thành công sau readback.",
       ].join("\n");
-      if (!window.confirm(confirmation)) return current;
+      if (!window.confirm(confirmation)) return null;
 
       type PolicySaveTask = {
         appId: string;
@@ -1035,10 +1042,10 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
         setNotice("Đã lưu và readback chính xác " + changedAppIds.length + " ứng dụng.");
       }
 
-      // Full inventory refresh is eventual consistency only. It must never keep
-      // the Save button locked after target-app readback already succeeded.
-      window.setTimeout(() => void refreshOperations(true, true), 1_200);
-      return mergedSettings;
+      // Never report the combined save as successful on partial failure.
+      // Keep the user's draft for retry, while displaying confirmed per-app
+      // readbacks. An unrelated background bootstrap cannot overwrite them.
+      return failedFields.length ? null : mergedSettings;
     } catch (caught) {
       setNotice(caught instanceof Error ? caught.message : "Không thể cập nhật quy tắc tự động.");
       return null;
