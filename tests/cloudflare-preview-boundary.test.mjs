@@ -65,10 +65,11 @@ test("generated Cloudflare artifact validation follows Wrangler's config redirec
   assert.ok(artifact.includes("assets.run_worker_first !== true"));
 });
 
-test("Cloudflare preview remains an explicit protected verification path while main auto-publishes standalone development", () => {
+test("Cloudflare preview remains protected while production deployment requires explicit dispatch", () => {
   assert.ok(deploy.includes("workflow_dispatch"));
   assert.doesNotMatch(deploy, /push:\s*\n\s*branches: \[main\]/);
-  assert.match(liveDevelopment, /push:\s*\n\s*branches: \[main\]/);
+  assert.doesNotMatch(liveDevelopment, /push:\s*\n\s*branches: \[main\]/);
+  assert.match(liveDevelopment, /confirm_production_release/);
   assert.match(liveDevelopment, /APPLICATION_MANAGEMENT_ACCESS_MODE: standalone/);
   assert.ok(deploy.includes("cancel-in-progress: true"));
   assert.ok(deploy.includes("Detect preview readiness"));
