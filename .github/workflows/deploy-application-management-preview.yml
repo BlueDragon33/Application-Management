@@ -12,6 +12,8 @@ concurrency:
 
 jobs:
   deploy-preview:
+    # DORMANT: remote Preview publication is paused for offline-first development.
+    if: ${{ false }}
     runs-on: ubuntu-24.04
     timeout-minutes: 22
     environment: application-management-preview
