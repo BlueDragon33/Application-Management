@@ -3,7 +3,7 @@
 import { randomBytes } from "node:crypto";
 import { execFile } from "node:child_process";
 import { spawn } from "node:child_process";
-import { createReadStream, createWriteStream, existsSync, lstatSync, readFileSync, readdirSync } from "node:fs";
+import { closeSync, existsSync, lstatSync, openSync, readFileSync, readdirSync } from "node:fs";
 import { createServer } from "node:http";
 import { basename, dirname, join, resolve } from "node:path";
 import { promisify } from "node:util";
@@ -34,6 +34,7 @@ function reply(res, status, data, origin = "") {
     "vary": "Origin",
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-headers": "Authorization, Content-Type",
+    "access-control-allow-private-network": "true",
   });
   res.end(JSON.stringify(data));
 }
@@ -123,13 +124,13 @@ async function status() {
 }
 function startAll() {
   if (state.runtime === "starting" || state.runtime === "running") return state.runtime;
-  const log = createWriteStream(join(ROOT, ".local-ops-runtime.log"), { flags: "a", mode: 0o600 });
+  const logFd = openSync(join(ROOT, ".local-ops-runtime.log"), "a", 0o600);
   state.runtime = "starting";
   state.lastError = "";
   try {
     const child = spawn(process.execPath, [join(ROOT, "scripts", "run-all.mjs"), "--local", "--no-browser"], {
       cwd: ROOT, detached: true, windowsHide: true, shell: false,
-      stdio: ["ignore", log, log], env: process.env,
+      stdio: ["ignore", logFd, logFd], env: process.env,
     });
     runtimeChild = child;
     state.runtimePid = child.pid || null;
@@ -142,13 +143,13 @@ function startAll() {
       runtimeChild = null;
     });
     child.unref();
-    log.end();
+    closeSync(logFd);
     state.runtime = "running"; // process started; per-app 'ready' still requires actual HTTP probe
     return state.runtime;
   } catch (error) {
     state.runtime = "error";
     state.lastError = String(error);
-    log.end();
+    closeSync(logFd);
     return state.runtime;
   }
 }
