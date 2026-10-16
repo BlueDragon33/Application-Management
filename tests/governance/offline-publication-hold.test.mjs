@@ -14,6 +14,11 @@ const workflows=[
     "marker": "Checkout BOIECH_AI"
   },
   {
+    "path": ".github/workflows/deploy-application-management-preview.yml",
+    "job": "deploy-preview",
+    "marker": "Application Management Cloudflare preview read-back PASS"
+  },
+  {
     "path": ".github/workflows/deploy-application-management-production.yml",
     "job": "deploy-production",
     "marker": "Deploy Application Management production Worker"
