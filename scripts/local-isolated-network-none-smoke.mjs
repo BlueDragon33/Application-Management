@@ -10,7 +10,8 @@ const address="http://127.0.0.1:4174/";
 const app=spawn("npm",["run","dev","--","--host","127.0.0.1","--port","4174"],{
   cwd:process.cwd(),
   env:{...process.env,APPLICATION_MANAGEMENT_ACCESS_MODE:"standalone",LOCAL_CONTROL_PLANE:"1"},
-  stdio:["ignore","pipe","pipe"]
+  detached:true,
+ stdio:["ignore","pipe","pipe"]
 });
 let terminated=false,logs="";
 app.once("exit",()=>terminated=true);
@@ -41,6 +42,8 @@ try{
  console.error("Trimmed runtime diagnostics:\n"+logs.slice(-8000));
  process.exitCode=1;
 }finally{
- app.kill("SIGTERM");
+ try{if(app.pid)process.kill(-app.pid,"SIGTERM")}catch{app.kill("SIGTERM")}
+ app.stdout.destroy();
+ app.stderr.destroy();
  await Promise.race([new Promise(r=>app.once("exit",r)),pause(3500)]);
 }
