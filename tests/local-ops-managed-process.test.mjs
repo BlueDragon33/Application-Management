@@ -9,7 +9,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { managedRuntimePlan, childOwnershipEvidence } from "../scripts/local-ops-managed-process.mjs";
 import { treeDescendants, verifyGone, captureWindowsTree, verifyWindowsTreeGone } from "../scripts/local-ops-windows-process-tree.mjs";
 
-test("managed npx.cmd Vite/Wrangler bypasses cmd.exe only with local verified Node binary", t => {
+test("managed npx.cmd Vite/Wrangler bypasses cmd.exe only with local verified Node binary", async t => {
   const root=mkdtempSync(join(tmpdir(),"am-npx-direct-"));
   t.after(()=>rmSync(root,{recursive:true,force:true}));
   for(const tool of ["vite","wrangler"]) {
@@ -24,6 +24,8 @@ test("managed npx.cmd Vite/Wrangler bypasses cmd.exe only with local verified No
     assert.equal(plan.mode,"local-bin-direct");
     const child=spawn(plan.command,plan.args,{cwd:root,windowsHide:true,stdio:"ignore"});
     assert.equal(childOwnershipEvidence(plan,child).directChild,true);
+    const [exitCode] = await once(child, "exit");
+    assert.equal(exitCode,0, "fixture binary actually completed before cleanup");
     // No shell, no npm install, no remote package fetch.
   }
   const old=managedRuntimePlan({command:"npx.cmd",args:["vite"],cwd:root,managed:false,platform:"win32"});
