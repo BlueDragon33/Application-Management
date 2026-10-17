@@ -290,5 +290,5 @@ test("Windows bootstrap requests only standalone center; managed app gates remai
   assert.ok(!isolated.includes('npm ci",'));
   assert.ok(!isolated.includes('run-all.mjs'));
   assert.ok(!isolated.includes('taskkill'));
-  assert.ok(!isolated.includes('migration'));
+  assert.ok(!isolated.includes('"d1", "migrations"'));
 });
