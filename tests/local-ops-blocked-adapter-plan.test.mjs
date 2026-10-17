@@ -128,3 +128,18 @@ test("real GitHub PR review readback and isolate ledger NEVER grant managed admi
     assert.equal(unit.permitAutoRestart,false);
   }
 });
+
+test("live remote review observation and tamper-poisoned ledger remain non-authorizing",()=>{
+  const bauman=plan.units.find(x=>x.id==="BAUMAN-CONTROL");
+  const price=plan.units.find(x=>x.id==="PRICE-CONTROL");
+  assert.equal(bauman.sourceDraft.reviewVerification.currentRemoteMainSha,"cec06d57df9d3224239213a6f08c4e184a2121cb");
+  assert.equal(bauman.sourceDraft.reviewVerification.pullRequestBehindRemoteMainBy,27);
+  assert.equal(price.sourceDraft.reviewVerification.pullRequestBehindRemoteMainBy,0);
+  for(const unit of [bauman,price]){
+    assert.equal(unit.sourceDraft.reviewVerification.reviewCount,0);
+    assert.equal(unit.sourceDraft.reviewVerification.independentReviewApproved,false);
+    assert.equal(unit.sourceDraft.reviewVerification.authorizedSourceAdmission,false);
+    assert.equal(unit.permitAutoRestart,false);
+    assert.match(unit.implementation.multiIsolateLedger,/TAINT_ON_INVALID_RECEIPT/);
+  }
+});

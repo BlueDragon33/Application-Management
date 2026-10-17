@@ -9,7 +9,8 @@ process.on("message",async msg=>{
  try {
   if(msg?.type==="qa-boot"&&server===null&&
      /^[a-zA-Z0-9_-]{24,}$/.test(msg.bootNonce||"")&&
-     /^[a-f0-9]{40}$/i.test(msg.sourceSha||"")) {
+     /^[a-f0-9]{40}$/i.test(msg.sourceSha||"")&&
+     msg.processPid===process.pid) {
     nonce=msg.bootNonce;sha=msg.sourceSha;
     server=createServer((req,res)=>{
       if(stopping){res.writeHead(503);res.end("draining");return;}
@@ -21,7 +22,8 @@ process.on("message",async msg=>{
     reply("qa-ready",msg.requestId,{port:server.address().port,scope:"node-gateway-fixture-only"});
     return;
   }
-  if(!server||msg?.bootNonce!==nonce||msg?.sourceSha!==sha) {
+  if(!server||msg?.bootNonce!==nonce||msg?.sourceSha!==sha||
+     msg?.processPid!==process.pid) {
     reply("qa-refused",msg?.requestId??null,{reason:"IPC_PROCESS_IDENTITY_MISMATCH"});
     return;
   }

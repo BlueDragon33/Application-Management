@@ -54,6 +54,9 @@ test("nonce PID SHA MAC tamper replay unknown isolate and freshness fail closed"
  assert.equal(ledger.record(frame("iso-B",{issuedAt:now-6000})).reason,
    "ISOLATE_SEQUENCE_OR_FRESHNESS_INVALID");
  assert.equal(ledger.status().permitShutdown,false);
+ assert.equal(ledger.status().receiptLedgerTainted,true);
+ assert.equal(ledger.status().declaredSetComplete,false,
+   "invalid/spoofed receipts permanently taint this boot attempt");
 });
 test("caller cannot forge declared inventory by empty or duplicated isolate IDs",()=>{
  for(const expectedIsolates of [[],["iso-A","iso-A"],[""],new Array(65).fill("a")])
@@ -61,4 +64,26 @@ test("caller cannot forge declared inventory by empty or duplicated isolate IDs"
      /ISOLATE_LEDGER_EXPECTATION_INVALID/);
  assert.throws(()=>createIsolateDrainLedger({...expected,secret:"weak"}),
    /ISOLATE_LEDGER_EXPECTATION_INVALID/);
+});
+
+test("caller mutation of declared isolate list cannot silently change authenticated scope",()=>{
+ const ids=["iso-A","iso-B"];
+ const ledger=createIsolateDrainLedger({...expected,expectedIsolates:ids,time:()=>now});
+ ids.length=0;
+ ids.push("rogue");
+ assert.equal(ledger.status().declaredIsolateCount,2);
+ assert.deepEqual(ledger.status().missingIsolates,["iso-A","iso-B"]);
+ assert.equal(ledger.record(frame("rogue")).accepted,false);
+ assert.equal(ledger.status().receiptLedgerTainted,true);
+ assert.equal(ledger.status().permitShutdown,false);
+});
+test("any replay poisons declared-set completeness without asserting global isolate drain",()=>{
+ const ledger=makeLedger();
+ assert.equal(ledger.record(frame("iso-A")).accepted,true);
+ assert.equal(ledger.record(frame("iso-B")).accepted,true);
+ assert.equal(ledger.status().declaredSetComplete,true);
+ assert.equal(ledger.status().allWorkerIsolatesDrained,false);
+ assert.equal(ledger.record(frame("iso-A")).accepted,false);
+ assert.equal(ledger.status().declaredSetComplete,false);
+ assert.equal(ledger.status().permitShutdown,false);
 });

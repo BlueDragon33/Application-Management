@@ -26,3 +26,9 @@ The Bauman **main advanced** since the previous checkpoint. A previously recorde
 ## Next safe action
 
 Implement a runtime-owned *exhaustive* worker request/isolate inventory or an alternate provider-backed quiescence barrier for the real BAUMAN-CONTROL and PRICE-CONTROL Worker deployments, then process-bound graceful Wrangler exit without taskkill and perform live Windows BaumanWeb reception after independent source review and verified exact SHA. Do not convert declared-set receipts into global runtime authority.
+
+## Refreshed source review and malformed ACK quarantine (this checkpoint)
+
+- Read-only GitHub review lookup: Bauman #366 and PriceReport #133 both still Draft with **zero reviews** and no merge. At this audit, Bauman `main=cec06d57df9d3224239213a6f08c4e184a2121cb`; PR #366 is **27 commits behind main / 5 ahead**. PriceReport `main=9e8df71f2839989b067af79ef22c389f541664e5`; PR #133 is **0 behind / 10 ahead**. These are observations, not source admission, and may change again.
+- `createIsolateDrainLedger()` now copies the declared isolate array at ledger construction so callers cannot mutate the expected inventory after initiation. A bad MAC, unknown isolate, stale frame, failed D1 barrier or replay **taints the current ledger attempt**: even if all declared IDs later return valid ACKs, `declaredSetComplete` remains false. This is stricter audit semantics only; exhaustive Cloudflare isolate count still never claimed.
+- Disposable real Node IPC gateway now requires child-supplied process PID on commands and verifies nonce/PID/SHA for both boot and stop-preflight. Negative Windows/Linux tests reject mismatched source SHA and PID, in addition to old nonce and in-flight cases. It is **not** the real Wrangler lifecycle.

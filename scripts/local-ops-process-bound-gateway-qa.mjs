@@ -32,7 +32,7 @@ async function ask(type,extra={}) {
   child.on("message",onMessage);child.once("exit",onExit);
  });
  if(!child.connected)throw Error("QA_IPC_NOT_CONNECTED");
- child.send({type,requestId,bootNonce:nonce,sourceSha:sha,...extra});
+ child.send({type,requestId,bootNonce:nonce,sourceSha:sha,processPid:child.pid,...extra});
  return reply;
 }
 async function awaitExit() {
@@ -72,6 +72,12 @@ try{
  const wrong=await ask("qa-preflight",{bootNonce:"wrong"});
  assert.equal(wrong.type,"qa-refused");
  assert.equal(wrong.reason,"IPC_PROCESS_IDENTITY_MISMATCH");
+ const wrongSha=await ask("qa-preflight",{sourceSha:"b".repeat(40)});
+ assert.equal(wrongSha.type,"qa-refused");
+ assert.equal(wrongSha.reason,"IPC_PROCESS_IDENTITY_MISMATCH");
+ const wrongPid=await ask("qa-preflight",{processPid:child.pid+1});
+ assert.equal(wrongPid.type,"qa-refused");
+ assert.equal(wrongPid.reason,"IPC_PROCESS_IDENTITY_MISMATCH");
  const done=await ask("qa-release");
  assert.equal(done.type,"qa-released");
  assert.equal((await request).status,200);
@@ -101,6 +107,7 @@ try{
    realPortReleased:true,processExitObserved:true,
    capturedWindowsDescendantsGone:gone?.stopped??"not-windows",
    inflightRequestBlockedStop:true,wrongNonceRejected:true,
+   wrongShaRejected:true,wrongPidRejected:true,
    ackVerifiedByParentIPC:true,workerD1TransactionsDrained:false,
    fullIsolateInventoryVerified:false,realApplicationShutdownApproved:false
  }));

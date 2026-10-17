@@ -27,6 +27,8 @@ export function createIsolateDrainLedger({
      typeof secret!=="string"||secret.length<32||
      !Number.isInteger(maxAgeMs)||maxAgeMs<1000||maxAgeMs>120000)
      throw Error("ISOLATE_LEDGER_EXPECTATION_INVALID");
+  // Snapshot caller inventory at boot: it cannot be mutated behind the ledger.
+  const isolateSet=Object.freeze([...expectedIsolates]);
   const received=new Map();
   let invalidReceipts=0,unknownIsolates=0,replays=0;
   function record({receipt,mac}={}) {
@@ -43,7 +45,7 @@ export function createIsolateDrainLedger({
        receipt.processPid!==processPid||receipt.bootNonce!==bootNonce){
       invalidReceipts++;return {accepted:false,reason:"ISOLATE_PROCESS_NONCE_SHA_MISMATCH"};
     }
-    if(!expectedIsolates.includes(receipt.isolateId)){
+    if(!isolateSet.includes(receipt.isolateId)){
       unknownIsolates++;return {accepted:false,reason:"ISOLATE_NOT_IN_DECLARED_SET"};
     }
     if(!Number.isSafeInteger(receipt.sequence)||receipt.sequence<=0||
@@ -65,13 +67,15 @@ export function createIsolateDrainLedger({
     return {accepted:true,scope:"declared-isolate-only",globalVerified:false};
   }
   function status() {
-    const missing=expectedIsolates.filter(id=>!received.has(id));
-    const stale=expectedIsolates.filter(id=>received.has(id)&&
+    const missing=isolateSet.filter(id=>!received.has(id));
+    const stale=isolateSet.filter(id=>received.has(id)&&
       Math.abs(time()-received.get(id).issuedAt)>maxAgeMs);
     return {protocol:ISOLATE_DRAIN_PROTOCOL,serviceId,sourceSha,processPid,
-      declaredIsolateCount:expectedIsolates.length,receivedCount:received.size,
+      declaredIsolateCount:isolateSet.length,receivedCount:received.size,
       missingIsolates:missing,staleIsolates:stale,invalidReceipts,
-      unknownIsolates,replays,declaredSetComplete:missing.length===0&&stale.length===0,
+      unknownIsolates,replays,receiptLedgerTainted:invalidReceipts+unknownIsolates+replays>0,
+      declaredSetComplete:missing.length===0&&stale.length===0&&
+        invalidReceipts===0&&unknownIsolates===0&&replays===0,
       authoritativeRuntimeIsolateInventory:false,allWorkerIsolatesDrained:false,
       processBoundGracefulExitObserved:false,windowsDescendantsGone:false,
       autoRestartAllowed:false,permitShutdown:false,ready:false};
