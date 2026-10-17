@@ -108,7 +108,7 @@ test("real source Worker private-file credential + gateway QA is not global OS/D
 
 test("real GitHub PR review readback and isolate ledger NEVER grant managed admission",()=>{
   const currentMain={
-    "BAUMAN-CONTROL":"34cf28ee66e51c0bbca42ac248830075fd9ae2d9",
+    "BAUMAN-CONTROL":"cec06d57df9d3224239213a6f08c4e184a2121cb",
     "PRICE-CONTROL":"9e8df71f2839989b067af79ef22c389f541664e5"
   };
   for(const id of ["BAUMAN-CONTROL","PRICE-CONTROL"]){
@@ -121,7 +121,7 @@ test("real GitHub PR review readback and isolate ledger NEVER grant managed admi
     assert.equal(check.currentRemoteMainSha,currentMain[id]);
     assert.equal(check.independentReviewApproved,false);
     assert.equal(check.authorizedSourceAdmission,false);
-    assert.match(unit.implementation.multiIsolateLedger,/NOT_AUTHORITATIVE/);
+    assert.match(unit.implementation.multiIsolateLedger,/NOT_CLOUDFLARE_INVENTORY/);
     assert.match(unit.implementation.processBoundAck,/NODE_IPC_GATEWAY_QA_ONLY/);
     assert.equal(unit.ready,false);
     assert.equal(unit.approved,false);
