@@ -2,22 +2,22 @@
 
 ## Cơ chế
 
-- Offline: mở duy nhất localhost đã đăng ký trong control/local-ops-apps.json. Nhấn icon sẽ yêu cầu script run-all.mjs khởi động các runtime đã hỗ trợ. Không fallback online.
+- Offline: mặc định mở localhost đã đăng ký trong `control/local-ops-apps.json`; một nhấp vào icon gọi `/start-app/<id>` cho đúng một runtime frontend. `Run All` gọi `/start-web-all` lần lượt, không gọi managed `run-all.mjs`. Tuyệt đối không fallback online; các Control Service/D1 còn giữ gate riêng.
 - Online: chỉ mở publicUrl HTTPS trong application registry (bản publish trước đó); không mở Preview và không publish.
 - Pull all: tìm repository trong thư mục BaumanWeb (tối đa 2 cấp); chỉ thực hiện fetch + merge --ff-only khi nhánh main sạch và lịch sử fast-forward, origin gốc và URL sau rewrite đều thuộc GitHub BlueDragon33. Từ chối file://, ext::, origin khác chủ sở hữu; không can thiệp cấu hình Git. Repo dirty/diverged/khác nhánh hoặc thay đổi trong khi fetch sẽ bỏ qua, hiển thị lý do. SHA trước/sau được giữ đầy đủ 40 ký tự và xác minh HEAD bằng FETCH_HEAD sau cập nhật; không reset hay force. Cần Internet để pull, nhưng không cần GitHub khi chạy offline.
 
 ## Khởi động Windows
 
 1. Đặt các repo dưới <ổ đĩa>:\BaumanWeb và cài Node.js >=22.13.0, Git. Cài sẵn dependencies cho các app cần chạy.
-2. Nhấp đúp START_BAUMANWEB.vbs trong thư mục Application-Management. Đây là launcher một lần, khởi động helper và local stack ngầm qua Windows, tự mở trình duyệt khi Center sẵn sàng; không phải gõ lệnh CMD.
-3. Ở App Manager chọn Offline/Online rồi ấn icon tương ứng. Nhấn Pull all khi đã có mã mới merge lên GitHub.
+2. Nhấp đúp `START_BAUMANWEB.vbs` trong thư mục Application-Management. Nó chỉ khởi động helper + App Manager Center trên `127.0.0.1:3000` bằng dependency đã cài sẵn, **không** tự khởi động stack quản trị hoặc can thiệp D1; trình duyệt được mở khi Center có phản hồi HTTP. Chưa có chứng cứ nghiệm thu máy chủ sở hữu.
+3. Mặc định Offline, một nhấp icon sẽ mở frontend tương ứng khi PID/cổng và SHA đạt kiểm tra. `Run All` chỉ làm nóng các web frontend đã đăng ký. `Pull origin · tất cả main` cập nhật repo không hoạt động; repo đang chạy được SKIPPED. Nếu cần Pull cả chính App Manager, dừng an toàn rồi dùng `UPDATE_BAUMANWEB_MAIN.vbs`.
 4. Sau khi Pull all cập nhật mã, trạng thái `restartRequired` sẽ bật khi stack đang chạy. App Manager không cho mở nhầm runtime cũ như bản mới. Dừng stack cũ đúng quy trình, rồi chạy lại `START_BAUMANWEB.vbs`; kiểm tra endpoint/phiên bản trước khi coi là nghiệm thu. Chưa có restart cưỡng bức tự động vì `taskkill /F /T` có thể làm hỏng giao dịch D1. Không hot reload mã server đang chạy.
 
 Nếu startup lỗi, nhấp CHECK_LOCAL_OPS.bat để kiểm tra; xem log .local-ops-bootstrap.log và .local-ops-runtime.log (không commit).
 
 ## Giới hạn bảo mật
 
-Helper chỉ nghe 127.0.0.1:3011; yêu cầu loopback peer, Host chính xác, Origin App Manager localhost:3000 + token phiên. Mô hình token localhost không chống được phần mềm độc hại chạy trên chính máy hoặc ứng dụng giả mạo chiếm cổng 3000; không coi đây là xác thực người dùng. Probe offline không đi theo redirect đến web online. API chỉ hỗ trợ status, start và pull-all; không cho nhập shell, URL, đường dẫn hoặc lệnh bất kỳ. Không mở port helper ra LAN, không đưa phiên này lên cloud và không sử dụng để cấp quyền Production.
+Helper chỉ nghe 127.0.0.1:3011; yêu cầu loopback peer, Host chính xác, Origin App Manager localhost:3000 + token phiên. Mô hình token localhost không chống được phần mềm độc hại chạy trên chính máy hoặc ứng dụng giả mạo chiếm cổng 3000; không coi đây là xác thực người dùng. Probe offline không đi theo redirect đến web online. API hỗ trợ status, /start-app theo allowlist cố định, /start-web-all, Pull origin và các route quản trị đã khóa; không cho người dùng nhập shell, URL, đường dẫn hay lệnh tùy ý. Không mở port helper ra LAN, không đưa phiên này lên cloud và không sử dụng để cấp quyền Production.
 
 ## Ports và phạm vi
 
