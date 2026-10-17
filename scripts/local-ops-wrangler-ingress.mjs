@@ -7,7 +7,11 @@ function assertPort(port) {
   if (!Number.isInteger(port) || port < 1024 || port > 65535)
     throw Error("WRANGLER_UPSTREAM_PORT_INVALID");
 }
-export function createWranglerIngress({ upstreamPort } = {}) {
+export function createWranglerIngress({ upstreamPort, managedIngressProof = null } = {}) {
+  if (managedIngressProof !== null &&
+    (typeof managedIngressProof !== "string" || managedIngressProof.length < 32 ||
+     !/^[A-Za-z0-9_-]+$/.test(managedIngressProof)))
+    throw Error("MANAGED_INGRESS_PROOF_INVALID");
   assertPort(upstreamPort);
   let state = "open", pending = 0, completed = 0, uncertain = false;
   const waiting = new Set();
@@ -29,11 +33,16 @@ export function createWranglerIngress({ upstreamPort } = {}) {
       completed++;
       notify();
     };
+    // Reject caller-supplied proof. Only the managed gateway may inject a
+    // per-boot proof for an app Worker that independently enforces it.
+    const headers = { ...incoming.headers, host: "127.0.0.1:" + upstreamPort,
+      connection: "close" };
+    delete headers["x-local-ops-ingress-proof"];
+    if (managedIngressProof) headers["x-local-ops-ingress-proof"] = managedIngressProof;
     const upstream = forwardHttp({
       hostname: "127.0.0.1", port: upstreamPort,
       method: incoming.method, path: incoming.url,
-      headers: { ...incoming.headers, host: "127.0.0.1:" + upstreamPort, connection: "close" },
-      agent: false,
+      headers, agent: false,
     }, reply => {
       response.writeHead(reply.statusCode || 502, {
         ...reply.headers, connection: "close",
@@ -63,6 +72,7 @@ export function createWranglerIngress({ upstreamPort } = {}) {
     },
     status: () => ({
       state, pending, completed, uncertain, localOnly: true, upstreamPort,
+      managedProofInjected: Boolean(managedIngressProof), upstreamGuardAcknowledged:false,
       completeGlobalWorkerIsolateCoverage: false, d1DurableCommitProven: false,
       safeToStopWrangler: false,
     }),

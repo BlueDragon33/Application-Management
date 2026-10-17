@@ -39,8 +39,8 @@ test("actual run-all remains fully blocked even after direct spawn/HTTP verifier
 
 test("BAUMAN-CONTROL and PRICE-CONTROL linked drafts are only partial per-isolate evidence, never full shutdown approval",()=>{
   const linked = new Map([
-    ["BAUMAN-CONTROL",{pr:366,sha:"9c14ee0900ac840ed5431c859f357b776d48cd70"}],
-    ["PRICE-CONTROL",{pr:133,sha:"d0810b9d4159b463bd3c3fb54e96ad42fcc45174"}],
+    ["BAUMAN-CONTROL",{pr:366,sha:"2d39f866ed63761200bca2a9d224e6524308cb7c"}],
+    ["PRICE-CONTROL",{pr:133,sha:"0567cdce46598b4dcf46dbd9bc6c78b9d585e59d"}],
   ]);
   for (const [id,ref] of linked) {
     const row=plan.units.find(x=>x.id===id);
@@ -64,6 +64,22 @@ test("BAUMAN-CONTROL and PRICE-CONTROL linked drafts are only partial per-isolat
     assert.equal(row.sourceDraft.testEvidence.actualSourceWorker.windowsGracefulExit,"NOT_PROVEN");
     assert.equal(row.implementation.actualAppWindowsShutdown,"NOT_TESTED");
     if(id==="PRICE-CONTROL")
-      assert.match(row.implementation.lockedWranglerCompatibility,/WRANGLER_LOCKED_4_92_0_REJECTS/);
+      assert.match(row.implementation.lockedWranglerCompatibility,/DRAFT_LOCKED_4_151_1/);
   }
+});
+
+test("managed ingress guard is Draft-only evidence, never an OS unbypassable or shutdown-ready claim",()=>{
+  for(const id of ["BAUMAN-CONTROL","PRICE-CONTROL"]){
+    const unit=plan.units.find(x=>x.id===id);
+    const proof=unit.sourceDraft.testEvidence.managedIngressGuard;
+    assert.equal(proof.directWithoutProof,"HTTP_403_TESTED");
+    assert.equal(proof.verifiedUnbypassableOSBoundary,false);
+    assert.equal(proof.actualManagedRunAllWiring,false);
+    assert.equal(proof.d1GlobalDrain,false);
+    assert.equal(proof.authenticatedGracefulExit,false);
+    assert.equal(unit.ready,false);
+    assert.equal(unit.permitAutoRestart,false);
+  }
+  const price=plan.units.find(x=>x.id==="PRICE-CONTROL");
+  assert.match(price.implementation.npmGeneratedLockfile,/94_PACKAGE_GRAPH/);
 });

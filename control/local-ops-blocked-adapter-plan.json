@@ -217,7 +217,8 @@
         "actualWorkerLocalStartup": "WINDOWS_AND_UBUNTU_REAL_WRANGLER_SOURCE_QA_PASS",
         "lockedWranglerCompatibility": "LOCKED_WRANGLER_4_92_NOT_OBSERVED_BROKEN_HERE",
         "wranglerSupervisorIngress": "REAL_TEMPORARY_WRANGLER_D1_PROXY_FIXTURE_ONLY",
-        "d1CrossProcessReadback": "TEMPORARY_WRANGLER_QA_AFTER_FIXTURE_EXIT_PASS"
+        "d1CrossProcessReadback": "TEMPORARY_WRANGLER_QA_AFTER_FIXTURE_EXIT_PASS",
+        "managedIngressProof": "SOURCE_DRAFT_REAL_WORKER_GUARD_QA_PASS; APP_MANAGER_INJECTOR_QA_ONLY"
       },
       "blocker": "NO_VERIFIED_OWNED_RUNTIME_DRAIN_EXIT_ACK",
       "ready": false,
@@ -226,7 +227,7 @@
       "sourceDraft": {
         "repository": "BlueDragon33/Bauman-master-ai-system",
         "pr": 366,
-        "head": "9c14ee0900ac840ed5431c859f357b776d48cd70",
+        "head": "2d39f866ed63761200bca2a9d224e6524308cb7c",
         "workerEntry": "Worker entry automation-contract.ts",
         "testEvidence": {
           "workflow": "Offline D1 Observer Draft Validation",
@@ -240,6 +241,16 @@
             "scope": "REAL_WORKER_MIGRATED_D1_HEALTH_CONTRACT_AND_HTTP_503_PRESTOP_ONLY",
             "d1InFlightShutdown": "NOT_PROVEN",
             "windowsGracefulExit": "NOT_PROVEN"
+          },
+          "managedIngressGuard": {
+            "sourceWorkerGitSHA": "2d39f866ed63761200bca2a9d224e6524308cb7c",
+            "sourceWinLinuxRun": 39003498165,
+            "directWithoutProof": "HTTP_403_TESTED",
+            "validBootProof": "WORKER_SOURCE_QA_PASS",
+            "verifiedUnbypassableOSBoundary": false,
+            "actualManagedRunAllWiring": false,
+            "d1GlobalDrain": false,
+            "authenticatedGracefulExit": false
           }
         },
         "globalMultiIsolateDrained": false,
@@ -334,9 +345,11 @@
         "realWorkerD1Tracking": "DRAFT_PER_ISOLATE_OBSERVER_WIRED",
         "disposableD1Durability": "WINDOWS_AND_UBUNTU_WRANGLER_BACKEND_FIXTURE_PASS",
         "actualWorkerLocalStartup": "WINDOWS_AND_UBUNTU_REAL_WRANGLER_SOURCE_QA_PASS",
-        "lockedWranglerCompatibility": "WRANGLER_LOCKED_4_92_0_REJECTS_2026_09_22_COMPAT_DATE; QA_CLI_4_151_1_ONLY",
+        "lockedWranglerCompatibility": "DRAFT_LOCKED_4_151_1_AND_WORKERS_TYPES_5_20261016_1; MAIN_STILL_4_92_0",
         "wranglerSupervisorIngress": "REAL_TEMPORARY_WRANGLER_D1_PROXY_FIXTURE_ONLY",
-        "d1CrossProcessReadback": "TEMPORARY_WRANGLER_QA_AFTER_FIXTURE_EXIT_PASS"
+        "d1CrossProcessReadback": "TEMPORARY_WRANGLER_QA_AFTER_FIXTURE_EXIT_PASS",
+        "managedIngressProof": "SOURCE_DRAFT_REAL_WORKER_GUARD_QA_PASS; APP_MANAGER_INJECTOR_QA_ONLY",
+        "npmGeneratedLockfile": "VERIFIED_94_PACKAGE_GRAPH_CI_NPM_CI_BUILD"
       },
       "blocker": "NO_VERIFIED_OWNED_RUNTIME_DRAIN_EXIT_ACK",
       "ready": false,
@@ -345,7 +358,7 @@
       "sourceDraft": {
         "repository": "BlueDragon33/PriceReport_Tunggiabao",
         "pr": 133,
-        "head": "d0810b9d4159b463bd3c3fb54e96ad42fcc45174",
+        "head": "0567cdce46598b4dcf46dbd9bc6c78b9d585e59d",
         "workerEntry": "Worker entry index.ts",
         "testEvidence": {
           "workflow": "Offline D1 Observer Draft Validation",
@@ -359,6 +372,16 @@
             "scope": "REAL_WORKER_MIGRATED_D1_HEALTH_CONTRACT_AND_HTTP_503_PRESTOP_ONLY",
             "d1InFlightShutdown": "NOT_PROVEN",
             "windowsGracefulExit": "NOT_PROVEN"
+          },
+          "managedIngressGuard": {
+            "sourceWorkerGitSHA": "0567cdce46598b4dcf46dbd9bc6c78b9d585e59d",
+            "sourceWinLinuxRun": 39003520175,
+            "directWithoutProof": "HTTP_403_TESTED",
+            "validBootProof": "WORKER_SOURCE_QA_PASS",
+            "verifiedUnbypassableOSBoundary": false,
+            "actualManagedRunAllWiring": false,
+            "d1GlobalDrain": false,
+            "authenticatedGracefulExit": false
           }
         },
         "globalMultiIsolateDrained": false,

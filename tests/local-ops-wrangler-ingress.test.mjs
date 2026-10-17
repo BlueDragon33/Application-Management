@@ -56,3 +56,42 @@ test("never connects to user-selected host or arbitrary port",()=>{
   assert.throws(()=>createWranglerIngress({upstreamPort:80}),/PORT_INVALID/);
   assert.throws(()=>createWranglerIngress({upstreamPort:NaN}),/PORT_INVALID/);
 });
+
+test("managed proof injector denies raw Wrangler backend, strips caller-supplied proof and forwards gateway-owned proof",async()=>{
+  const proof="A".repeat(48);
+  let rejectedDirect=0, receivedValid=0;
+  const worker=createServer((req,res)=>{
+    if(req.headers["x-local-ops-ingress-proof"]!==proof){
+      rejectedDirect++;res.writeHead(403);res.end("direct denied");return;
+    }
+    receivedValid++;res.writeHead(200,{"content-type":"application/json"});
+    res.end('{"health":"pass"}');
+  });
+  const backend=await start(worker);
+  const gateway=createWranglerIngress({upstreamPort:backend,managedIngressProof:proof});
+  const front=await gateway.listen();
+  try{
+    const direct=await fetch("http://127.0.0.1:"+backend+"/health");
+    assert.equal(direct.status,403);
+    const spoof=await fetch("http://127.0.0.1:"+backend+"/health",
+      {headers:{"x-local-ops-ingress-proof":"invalid"}});
+    assert.equal(spoof.status,403);
+    const fromProxy=await fetch("http://127.0.0.1:"+front+"/health",
+      {headers:{"x-local-ops-ingress-proof":"bogus-inbound"}});
+    assert.equal(fromProxy.status,200);
+    assert.deepEqual(await fromProxy.json(),{health:"pass"});
+    assert.equal(receivedValid,1);
+    assert.equal(rejectedDirect,2);
+    const status=gateway.status();
+    assert.equal(status.managedProofInjected,true);
+    assert.equal(status.upstreamGuardAcknowledged,false);
+    assert.equal(status.safeToStopWrangler,false);
+    assert.equal(JSON.stringify(status).includes(proof),false);
+    const stop=await gateway.drainIngress();
+    assert.equal(stop.autoRestartApproved,false);
+  } finally {await gateway.close();await new Promise(done=>worker.close(done));}
+});
+test("managed proof requires boot-time high-entropy token and cannot be injected by default",()=>{
+  assert.throws(()=>createWranglerIngress({upstreamPort:13303,managedIngressProof:"short"}),
+    /MANAGED_INGRESS_PROOF_INVALID/);
+});
