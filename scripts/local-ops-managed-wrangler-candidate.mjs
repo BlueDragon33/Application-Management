@@ -36,7 +36,7 @@ export function createManagedWranglerCandidate({projectRoot,configFile,credentia
     throw Error("WRANGLER_CANDIDATE_PROOF_FILE_MISMATCH");
   if(process.platform!=="win32" && (statSync(secretFile).mode&0o077)!==0)
     throw Error("WRANGLER_CANDIDATE_SECRET_PERMISSIONS_WEAK");
-  if(!isAbsolute(resolve(persistDir)))throw Error("WRANGLER_CANDIDATE_STORE_INVALID");
+  // persistDir is required above; resolve() ensures an absolute local path.
   const args=[cli,"dev","--local","--config",config,
     "--ip","127.0.0.1","--port",String(backendPort),
     "--persist-to",resolve(persistDir)];
