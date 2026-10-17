@@ -250,3 +250,21 @@ test("Run All is an explicit authenticated fail-closed action while controlled s
     await new Promise(resolve => server.close(resolve));
   }
 });
+
+test("Offline-first route never silently falls through to a public child URL", () => {
+  const panel = readFileSync(new URL("../app/offline-ops-panel.tsx", import.meta.url), "utf8");
+  const client = readFileSync(new URL("../app/offline-ops-client.ts", import.meta.url), "utf8");
+  assert.match(dashboard, /useState<OperatingMode>\\("offline"\\)/);
+  assert.match(dashboard, /setOperatingMode\\("offline"\\)/);
+  const start = dashboard.indexOf("async function launchWeb(");
+  const end = dashboard.indexOf("// PC Manager is an offline", start);
+  const offlineLaunch = dashboard.slice(start, end);
+  assert.match(offlineLaunch, /if \\(!localRuntime\\)/);
+  assert.match(offlineLaunch, /Không tự chuyển sang URL online/);
+  assert.match(offlineLaunch, /const url = await launchOffline\\(appId\\)/);
+  assert.doesNotMatch(offlineLaunch, /publishedUrl|publicUrl|summary\\?\\.webHref/);
+  assert.match(dashboard, /href: canOpen[\\s\\S]*operatingMode === "offline"/);
+  assert.match(panel, /Website online không thể tự mở các cổng trên Windows/);
+  assert.match(panel, /http:\\/\\/127\\.0\\.0\\.1:3000/);
+  assert.doesNotMatch(client.slice(client.indexOf("export async function launchOffline")), /publishedUrl|publicUrl|location\\.assign\\(/);
+});

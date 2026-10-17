@@ -136,14 +136,17 @@ test("expanded details use only real normalized data", () => {
   assert.match(dashboard, /selectedItem\.description \|\| "Chưa có dữ liệu"/);
 });
 
-test("single click remains deferred and double click cancels it", () => {
-  assert.match(dashboard, /window\.setTimeout\(\(\) => \{[\s\S]*setSelectedId\(item\.id\)[\s\S]*\}, 240\)/);
-  const start = dashboard.indexOf("function handleCardDoubleClick");
-  const end = dashboard.indexOf("function updateScrollState", start);
+test("single click opens the app and separate gestures show details", () => {
+  const start = dashboard.indexOf("function handleCardClick");
+  const end = dashboard.indexOf("function handleCardPointerDown", start);
   const block = dashboard.slice(start, end);
-  assert.match(block, /cancelSingleClick\(\)/);
-  assert.match(block, /void openLauncherItem\(item\)/);
+  assert.match(block, /void openLauncherItem\\(item\\)/);
+  assert.match(block, /event\\.shiftKey/);
+  assert.match(block, /showCardDetails\\(item, event\\.currentTarget\\)/);
+  assert.match(dashboard, /onContextMenu=\\{\\(event\\) => \\{/);
+  assert.match(dashboard, /Chuột phải \\/ Shift\\+Click/);
 });
+
 
 test("canonical opening remains policy-gated for apps and direct for real tool hrefs", () => {
   assert.match(dashboard, /await launchWeb\(item\.id\)/);

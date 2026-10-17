@@ -32,7 +32,18 @@ export default function OfflineOpsPanel({ local, mode, onModeChange }: {
     return () => { active = false; window.clearInterval(timer); };
   }, [local]);
 
-  if (!local) return null;
+  if (!local) return <section className="amv2-local-ops" aria-label="Chế độ Offline của Application Management">
+    <div className="amv2-local-mode" role="group" aria-label="Môi trường mở ứng dụng">
+      <button type="button" data-selected={mode === "offline"} aria-pressed={mode === "offline"} onClick={() => onModeChange("offline")}>◉ Run Offline</button>
+      <button type="button" data-selected={mode === "online"} aria-pressed={mode === "online"} onClick={() => onModeChange("online")}>↗ Online · chọn thủ công</button>
+    </div>
+    <small role="status">Website online không thể tự mở các cổng trên Windows. Để chạy app offline, khởi động Local Ops rồi mở <a href="http://127.0.0.1:3000">App Management localhost:3000</a>. Không tự fallback sang app online.</small>
+    <div className="amv2-local-guidance">
+      <button type="button" data-blueprint-required="next-action" aria-expanded={guideOpen}
+        aria-controls="amv2-blueprint-guide" onClick={() => setGuideOpen((current) => !current)}> ? Hướng dẫn · Next Action </button>
+      {guideOpen ? <div id="amv2-blueprint-guide" role="region"><strong>Blueprint OS 1.3.0</strong><p>Phiên website online không được phép điều khiển Local Ops trên Windows. Mở trung tâm trên localhost và giữ runtime chưa kiểm định ở trạng thái BLOCKED.</p></div> : null}
+    </div>
+  </section>;
 
   // Explicit pre-warm request; code never claims that an unreviewed child stack is ready.
   async function runAll() {

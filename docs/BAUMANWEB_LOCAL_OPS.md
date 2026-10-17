@@ -63,3 +63,10 @@ Nghiệm thu còn thiếu: thư mục BaumanWeb thật trên Windows, khởi đ�
 - `Run All · mở sẵn` là thao tác chủ động gọi `POST /start` để prewarm các app được hỗ trợ; sau 202 chỉ là đang xác minh, không đồng nghĩa tất cả cổng sẵn sàng. Khi chưa được review, API từ chối ngay với HTTP 409 `RUN_ALL_BLOCKED` **trước khi khởi chạy/di chuyển D1**; không có cách bấm nút vượt gate.
 - `Pull origin · tất cả main` là giao diện cho `/pull-all` sẵn có: chỉ `origin/main` sạch, ff-only và remote tin cậy; xem kết quả từng repo. Không lấy tự động Draft PR; chỉ nhận commit đã xuất hiện trên main sau merge. Git Pull cần mạng; chạy offline sau khi đã tải code không cần mạng. Nếu runtime đang chạy phải dừng an toàn và kiểm tra SHA mới, không ép kill/auto-restart.
 - CI bắt buộc kiểm tra các nhãn/nút được nối hành động, block cấp API trước spawn khi admission thiếu và tính đúng của Pull. 10/10 BLOCKED, 0 READY, publication held; không nhận nhầm UX hoàn thiện trên máy người dùng.
+
+
+## Offline-first fix: avoid unexpected online child URLs (Draft)
+
+- Root causes: hosted dashboard initialized `online`, and `launchWeb` chose published URL whenever `localRuntime` was false; app grid used single click for details and double click for Open; popover `href` displayed a public/remote URL even in Offline mode.
+- Correction: default Offline on both hosts. A hosted manager in Offline mode shows the localhost launcher requirement and refuses to open an online child. Online access can be selected manually. A localhost manager calls `launchOffline` with validated managed localhost ports; card single-click opens, right click / Shift+Click shows details. The popover no longer advertises online URL in Offline mode.
+- This is navigation work, **NOT** proof of a running full stack, safe D1 quiescence or individual app spawn; Windows owner acceptance and Blueprint review still required before a safe merge. No release or ratification implied by green CI.

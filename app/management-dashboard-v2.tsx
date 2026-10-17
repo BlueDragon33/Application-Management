@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { applicationRegistry, standardDeviceExperiences, type ApplicationConfig } from "./application-registry";
 import OfflineOpsPanel from "./offline-ops-panel";
-import { hasOfflineWeb, launchOffline, publishedUrl, type OperatingMode } from "./offline-ops-client";
+import { hasOfflineWeb, localApp, launchOffline, publishedUrl, type OperatingMode } from "./offline-ops-client";
 import BoiAccessView from "./boi-access-view";
 import AutomaticDevicePolicies, { type AutomationSelection } from "./automatic-device-policies";
 import {
@@ -255,7 +255,7 @@ function webActionLabel(summary: OperationsSummary | undefined, hasWeb: boolean,
 
 function webAccessAvailable(app: ApplicationConfig, summary: OperationsSummary | undefined, localRuntime: boolean, mode: OperatingMode) {
   if (summary?.webAccessPolicy === "deny") return false;
-  if (mode === "offline") return localRuntime && (hasOfflineWeb(app.id) || Boolean(app.desktopLaunchUrl));
+  if (mode === "offline") return hasOfflineWeb(app.id) || Boolean(app.desktopLaunchUrl);
   return Boolean(publishedUrl(app.publicUrl));
 }
 
@@ -375,7 +375,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   const [accountSecurityOpen, setAccountSecurityOpen] = useState(false);
   const [fontScale, setFontScale] = useState<FontScale>("compact");
   const [localRuntime, setLocalRuntime] = useState(false);
-  const [operatingMode, setOperatingMode] = useState<OperatingMode>("online");
+  const [operatingMode, setOperatingMode] = useState<OperatingMode>("offline");
   const [approvalGateEnabled, setApprovalGateEnabled] = useState(defaultApprovalGate);
 
   async function refreshOperations(silent = false, forceOnline = false) {
@@ -467,7 +467,8 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
     setClock(new Date());
     const local = ["127.0.0.1", "localhost"].includes(window.location.hostname);
     setLocalRuntime(local);
-    setOperatingMode(local ? "offline" : "online");
+    // Offline-first even if the dashboard is served by a hosted site.
+    setOperatingMode("offline");
     try {
       const saved = window.localStorage.getItem(approvalGateStorageKey);
       if (saved === "on") setApprovalGateEnabled(true);
@@ -756,7 +757,11 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       setNotice("Contract ứng dụng không cho Application Management mở learning runtime trực tiếp.");
       return;
     }
-    if (operatingMode === "offline" && localRuntime && app?.id !== "pc-manager") {
+    if (operatingMode === "offline" && app?.id !== "pc-manager") {
+      if (!localRuntime) {
+        setNotice("App Management đang mở trên website online. Hãy khởi động Local Ops trên Windows và mở http://127.0.0.1:3000 để chạy ứng dụng offline. Không tự chuyển sang URL online.");
+        return;
+      }
       if (!hasOfflineWeb(appId)) {
         setNotice("Ứng dụng chưa có runtime localhost được nghiệm thu. Không tự chuyển sang online.");
         return;
@@ -1564,7 +1569,15 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
         category: categoryOverrides[app.id] || app.category,
         description: app.scope,
         kind: "app" as const,
-        href: canOpen ? summary?.webHref ?? app.publicUrl ?? (localRuntime ? app.localUrl : undefined) : undefined,
+        // Detail view must never advertise a remote URL in Offline mode.
+        href: canOpen
+          ? operatingMode === "offline"
+            ? (localRuntime && hasOfflineWeb(app.id) ? (() => {
+                const target = localApp(app.id);
+                return target?.port ? "http://127.0.0.1:" + target.port + (target.path || "/") : undefined;
+              })() : undefined)
+            : publishedUrl(app.publicUrl) || undefined
+          : undefined,
         manageHref: app.href,
         connection: offline ? "pending" : connectionFor(app, summary),
         statusLabel: offline ? "Chưa xác minh" : connectionLabel(connectionFor(app, summary), summary),
@@ -1714,22 +1727,28 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
     await launchWeb(item.id);
   }
 
+  function showCardDetails(item: AppLauncherItem, anchor: HTMLButtonElement) {
+    setDetailOpen(false);
+    setCategoryEditing(false);
+    setCategoryDraft(item.category);
+    setSelectedId(item.id);
+    setAnchorElement(anchor);
+  }
+
   function handleCardClick(event: React.MouseEvent<HTMLButtonElement>, item: AppLauncherItem) {
     if (editMode || longPressTriggeredRef.current) {
       event.preventDefault();
       longPressTriggeredRef.current = false;
       return;
     }
-    const anchor = event.currentTarget;
     cancelSingleClick();
-    clickTimerRef.current = window.setTimeout(() => {
-      setDetailOpen(false);
-      setCategoryEditing(false);
-      setCategoryDraft(item.category);
-      setSelectedId(item.id);
-      setAnchorElement(anchor);
-      clickTimerRef.current = null;
-    }, 240);
+    if (event.shiftKey) {
+      showCardDetails(item, event.currentTarget);
+      return;
+    }
+    // Single click opens the app. Duplicate double clicks are coalesced.
+    closePopover();
+    void openLauncherItem(item);
   }
 
   function handleCardDoubleClick(event: React.MouseEvent<HTMLButtonElement>, item: AppLauncherItem) {
@@ -1988,7 +2007,7 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
           ? <div className="amv2-launcher-editbar"><span>↕ Kéo icon để đổi vị trí · App và Tool giữ thành hai nhóm riêng</span><button type="button" onClick={() => { setEditMode(false); setDraggingId(null); longPressTriggeredRef.current = false; }}>Xong</button></div>
           : sortMode === "category-auto"
             ? <p className="amv2-launcher-help" data-auto-sort="true"><b>✓ Tự động theo phân loại</b><i/> sửa phân loại → icon tự chuyển nhóm</p>
-            : <p className="amv2-launcher-help"><b>1 lần</b>: thông tin <i/> <b>2 lần</b>: mở <i/> <b>Giữ 3 giây</b>: sắp xếp</p>}
+            : <p className="amv2-launcher-help"><b>1 lần</b>: mở app <i/> <b>Chuột phải / Shift+Click</b>: thông tin <i/> <b>Giữ 3 giây</b>: sắp xếp</p>}
       </div>
 
       {mode === "grid" ? <div className="amv2-launcher-grid-wrap">
@@ -2008,7 +2027,10 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
             onPointerMove={(event) => handleCardPointerMove(event, item)}
             onPointerUp={handleCardPointerUp}
             onPointerCancel={handleCardPointerCancel}
-            onContextMenu={(event) => event.preventDefault()}
+            onContextMenu={(event) => {
+              event.preventDefault();
+              if (!editMode) showCardDetails(item, event.currentTarget);
+            }
             onClick={(event) => handleCardClick(event, item)}
             onDoubleClick={(event) => handleCardDoubleClick(event, item)}
             onKeyDown={(event) => {
@@ -2019,7 +2041,7 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
                 void openLauncherItem(item);
               }
             }}
-            title={editMode ? "Kéo để đổi vị trí" : "Nhấn 1 lần: thông tin · 2 lần: mở · giữ 3 giây: sắp xếp"}
+            title={editMode ? "Kéo để đổi vị trí" : "Nhấn 1 lần: mở · chuột phải/Shift+Click: thông tin · giữ 3 giây: sắp xếp"}
           >
             <span className="amv2-launcher-card-top">
               <AppIcon appId={item.iconAppId}/>
