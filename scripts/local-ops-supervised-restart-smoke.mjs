@@ -102,6 +102,9 @@ try {
   // A tracked source commit change must invalidate the old ready state.
   const changed=join(workspace,requiredApps[0].directory);
   writeFileSync(join(changed,"tracked.txt"),"source 2\n");
+  const dirtySource=(await helperCall("/status",session.token)).data;
+  assert.equal(dirtySource.restartRequired,true,"uncommitted tracked source must block SHA readiness");
+  assert.equal(dirtySource.sourceVerified,false,"HEAD alone cannot verify dirty source");
   git(changed,"add",".");git(changed,"commit","-m","after launch");
   const drift=(await helperCall("/status",session.token)).data;
   assert.equal(drift.restartRequired,true);
