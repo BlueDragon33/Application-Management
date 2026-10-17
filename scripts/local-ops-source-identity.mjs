@@ -30,6 +30,10 @@ export async function readSourceSnapshot(workspace, apps, runner = realGit) {
     if (prefix !== "") throw Error("SOURCE_WRONG_GIT_ROOT: " + id);
     const branch = await runner(target, ["symbolic-ref", "--quiet", "--short", "HEAD"]);
     if (branch !== "main") throw Error("SOURCE_NOT_MAIN: " + id);
+    // HEAD alone is not the executable source identity when tracked files
+    // differ from that commit. Ignore untracked build/output artifacts only.
+    const dirty = await runner(target, ["status", "--porcelain", "--untracked-files=no"]);
+    if (dirty) throw Error("SOURCE_TRACKED_WORKTREE_DIRTY: " + id);
     const sha = await runner(target, ["rev-parse", "HEAD"]);
     if (!SHA.test(sha)) throw Error("SOURCE_INVALID_SHA: " + id);
     return [id, sha.toLowerCase()];
