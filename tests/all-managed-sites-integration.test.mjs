@@ -91,7 +91,7 @@ test("NC03 is reachable from Application Management through the authenticated lo
   assert.doesNotMatch(launcher, /"nc03-modem"[^\n]+127\.0\.0\.1:3010/);
   assert.match(dashboard, /function webAccessAvailable/);
   assert.match(dashboard, /summary\?\.webAccessPolicy === "deny"/);
-  assert.match(dashboard, /localRuntime && app\.localUrl/);
+  assert.match(dashboard, /mode === "offline"\) return localRuntime &&/);
   assert.match(workspace, /Mở Website ↗/);
 });
 

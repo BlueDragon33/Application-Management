@@ -33,7 +33,7 @@ test("Overview keeps application clients before Tools without bypassing launch p
   const end = dashboard.indexOf("return <>", start);
   const model = dashboard.slice(start, end);
   assert.ok(model.indexOf("...apps.map") < model.indexOf("...tools.map"));
-  assert.match(model, /canOpen: webAccessAvailable\(app, summary, localRuntime\)/);
+  assert.match(model, /canOpen: webAccessAvailable\(app, summary, localRuntime, operatingMode\)/);
   assert.match(model, /href: tool\.href/);
 });
 
@@ -136,19 +136,21 @@ test("expanded details use only real normalized data", () => {
   assert.match(dashboard, /selectedItem\.description \|\| "Chưa có dữ liệu"/);
 });
 
-test("single click remains deferred and double click cancels it", () => {
-  assert.match(dashboard, /window\.setTimeout\(\(\) => \{[\s\S]*setSelectedId\(item\.id\)[\s\S]*\}, 240\)/);
-  const start = dashboard.indexOf("function handleCardDoubleClick");
-  const end = dashboard.indexOf("function updateScrollState", start);
+test("single click opens the app and separate gestures show details", () => {
+  const start = dashboard.indexOf("function handleCardClick");
+  const end = dashboard.indexOf("function handleCardPointerDown", start);
   const block = dashboard.slice(start, end);
-  assert.match(block, /cancelSingleClick\(\)/);
-  assert.match(block, /void openLauncherItem\(item\)/);
+  assert.ok(block.includes("void openLauncherItem(item)"));
+  assert.ok(block.includes("event.shiftKey"));
+  assert.ok(block.includes("showCardDetails(item, event.currentTarget)"));
+  assert.ok(dashboard.includes("onContextMenu={(event) => {"));
+  assert.ok(dashboard.includes("Chuột phải / Shift+Click"));
 });
 
 test("canonical opening remains policy-gated for apps and direct for real tool hrefs", () => {
   assert.match(dashboard, /await launchWeb\(item\.id\)/);
   assert.match(dashboard, /window\.location\.assign\(item\.href\)/);
-  assert.match(dashboard, /canOpen = webAccessAvailable\(app, summary, localRuntime\)/);
+  assert.match(dashboard, /canOpen = webAccessAvailable\(app, summary, localRuntime, operatingMode\)/);
 });
 
 test("only one anchored popover is modeled at a time and closes safely", () => {

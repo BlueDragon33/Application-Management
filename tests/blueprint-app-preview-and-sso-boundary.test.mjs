@@ -11,7 +11,7 @@ const start = registry.indexOf('id: "software-blueprint-hub"');
 const end = registry.indexOf("\n  },", start);
 const blueprint = registry.slice(start, end);
 
-test("Blueprint launch uses the verified latest development Preview without overwriting Production", () => {
+test("Blueprint Preview is explicit while Online mode opens the pinned published Production", () => {
   assert.ok(start > 0);
   assert.match(blueprint, /publicUrl: "https:\/\/software-blueprint-hub\.vercel\.app\/"/);
   assert.match(blueprint, /previewUrl: "https:\/\/software-blueprint-hub-git-main-dinhnam3391-4708\.vercel\.app\/"/);
@@ -19,7 +19,7 @@ test("Blueprint launch uses the verified latest development Preview without over
   assert.match(workspace, /Mở qua App-Manage \(SSO\)/);
   assert.match(blueprint, /ssoStartUrl: "https:\/\/software-blueprint-hub-git-main-dinhnam3391-4708\.vercel\.app\/api\/sso\/start"/);
   assert.match(workspace, /Mở Website/);
-  assert.match(dashboard, /app\?\.ssoStartUrl \?\? app\?\.previewUrl \?\? summary\?\.webHref \?\? fallback/);
+  assert.match(dashboard, /const fallback = publishedUrl\(app\?\.publicUrl\)/);
   assert.match(dashboard, /if \(summary\?\.webAccessPolicy === "deny"\)/);
   assert.match(dashboard, /if \(summary\?\.managedWebLaunch && approvalGateEnabled\)/);
 });

@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "workspace": "BaumanWeb",
+  "agentPort": 3011,
+  "apps": [
+    {
+      "id": "software-blueprint-hub",
+      "directory": "Software-Blueprint-Hub",
+      "port": null,
+      "note": "Cần tích hợp launcher riêng cho monorepo Blueprint OS"
+    },
+    {
+      "id": "boi-ech",
+      "directory": "BOIECH_AI",
+      "port": 3004
+    },
+    {
+      "id": "health-care",
+      "directory": "Health_Care",
+      "port": 3001,
+      "path": "/suc-khoe-tre"
+    },
+    {
+      "id": "ru-life",
+      "directory": "RU_LIFE",
+      "port": 3002
+    },
+    {
+      "id": "bauman-master-ai",
+      "directory": "Bauman-master-ai-system",
+      "port": 3005
+    },
+    {
+      "id": "price-report-tunggiabao",
+      "directory": "PriceReport_Tunggiabao",
+      "port": 3008
+    },
+    {
+      "id": "pc-manager",
+      "directory": "pc-manager-desktop",
+      "port": null,
+      "note": "Dùng giao thức Windows pcmanager://open, không phải web runtime"
+    },
+    {
+      "id": "nc03-modem",
+      "directory": "NC03_Modem",
+      "port": 3010
+    },
+    {
+      "id": "cad-cam-3d",
+      "directory": "CAD_CAM_3D",
+      "port": null,
+      "note": "Chưa có launcher localhost được nghiệm thu"
+    },
+    {
+      "id": "growup-mychildren",
+      "directory": "GrowUP_MyChildren",
+      "port": 3006
+    }
+  ]
+}
