@@ -89,7 +89,7 @@ export default function ProjectsCatalog() {
   return <main className={styles.shell}>
     <header className={styles.topbar}>
       <div><span className={styles.eyebrow}>APPLICATION MANAGEMENT · GITHUB PROJECT CATALOG</span><h1>Toàn bộ dự án GitHub</h1><p>Một danh mục duy nhất cho mọi repo và source legacy đã xác minh. Repo có contract quản trị thật sẽ mở khu quản trị nội bộ; repo kỹ thuật vẫn được theo dõi đầy đủ nhưng không tạo nút điều khiển giả.</p></div>
-      <div className={styles.topActions}><button type="button" onClick={() => void checkGitHub()} disabled={checking}>{checking ? "Đang kiểm tra…" : "↻ Kiểm tra GitHub"}</button><Link className={styles.back} href="/">← Quản trị Ứng dụng</Link></div>
+      <div className={styles.topActions}><Link className={styles.back} href="/projects/zero-spend">Kiểm kê ZERO-SPEND (Local QA)</Link><button type="button" onClick={() => void checkGitHub()} disabled={checking}>{checking ? "Đang kiểm tra…" : "↻ Kiểm tra GitHub"}</button><Link className={styles.back} href="/">← Quản trị Ứng dụng</Link></div>
     </header>
 
     <section className={styles.summary}>
