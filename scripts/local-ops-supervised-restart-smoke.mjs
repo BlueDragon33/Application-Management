@@ -101,7 +101,7 @@ try {
   // modified; synthetic supervisor ACK exercises request coordination, not
   // actual permission to run unreviewed source apps.
   writeFileSync(join(central,"scripts","local-ops-managed-startup-policy.mjs"),
-    'export function assertManagedControlAdmission({managed}={}) { if(managed!==true) throw Error("QA_FIXTURE_MANAGED_REQUIRED"); return {mode:"SYNTHETIC_QA_FIXTURE_ONLY"}; }\\n');
+    'export function assertManagedControlAdmission({managed}={}) { if(managed!==true) throw Error("QA_FIXTURE_MANAGED_REQUIRED"); return {mode:"SYNTHETIC_QA_FIXTURE_ONLY"}; }\n');
 
   writeFileSync(join(central,"scripts","run-all.mjs"),fakeRunAll);
   // Recommit source after placing the controlled fixture files.
