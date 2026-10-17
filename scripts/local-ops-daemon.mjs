@@ -71,7 +71,7 @@ async function git(cwd, args, timeout = 120000) {
   });
   return stdout.trim();
 }
-function gitRepositories(root = WORKSPACE, depth = 0) {
+export function gitRepositories(root = WORKSPACE, depth = 0) {
   const found = [];
   if (depth > 2) return found;
   for (const entry of readdirSync(root, { withFileTypes: true })) {

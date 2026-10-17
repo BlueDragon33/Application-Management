@@ -85,3 +85,8 @@ Pull all applies fast-forward only when the target repository is idle. A running
 ### Run All responsiveness / duplicate-start fix
 
 When Run All is warming the client frontends, a click on an app joins that operation and polls its verified local port instead of sending a conflicting second `/start-app` request. If a different app is starting, the new requested app starts as soon as the helper becomes idle. A `blocked` owned runtime is never counted as successful `already-running-or-owned`. Frontend startup has a bounded 45-second port readiness wait, and UI errors point to a per-app local log. Still not real Windows owner acceptance.
+
+
+## Cold Pull origin/main: cập nhật cả chính App Manager
+
+Khi trung tâm đang chạy ở `3000`, nút Pull origin không được ghi đè `Application-Management` (hoặc app con đang chạy). Để cập nhật **toàn bộ** mã `origin/main` kể cả App Manager, đóng các dịch vụ cục bộ bằng quy trình dừng an toàn trước, rồi nhấp đúp `E:\BaumanWeb\Application-Management\UPDATE_BAUMANWEB_MAIN.vbs`. Script kiểm tra 12 cổng `3000–3011` đều không còn listener, sau đó áp dụng logic hiện hữu `pullRepository`: chỉ repo `main` sạch, GitHub `BlueDragon33` hợp lệ, fast-forward-only và SHA readback; từ chối ghi đè nhánh, remote, dữ liệu hay tiến trình đang chạy. Kết quả từng repo trong `.local-ops-cold-pull.log`. Khi script hoàn tất, mở lại `START_BAUMANWEB.vbs`. Thao tác này cần có mạng đến GitHub, không tự merge PR và không tạo chứng cứ D1 giả. Kiểm tra cổng trước mỗi repo giảm rủi ro race nhưng không phải khóa giao dịch liên tiến trình tuyệt đối. Nếu không xác nhận được shutdown D1, không được dùng thao tác này để coi D1 quiescence đã PASS.
