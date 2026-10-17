@@ -122,7 +122,7 @@ test("real GitHub PR review readback and isolate ledger NEVER grant managed admi
     assert.equal(check.independentReviewApproved,false);
     assert.equal(check.authorizedSourceAdmission,false);
     assert.match(unit.implementation.multiIsolateLedger,/NOT_CLOUDFLARE_INVENTORY/);
-    assert.match(unit.implementation.processBoundAck,/NODE_IPC_GATEWAY_QA_ONLY/);
+    assert.match(unit.implementation.processBoundAck,/REAL_NODE_IPC_GATEWAY_QA_PID_NONCE_SHA_NEGATIVE_TEST_NOT_WRANGLER/);
     assert.equal(unit.ready,false);
     assert.equal(unit.approved,false);
     assert.equal(unit.permitAutoRestart,false);
