@@ -1,6 +1,8 @@
 // Local-only Windows companion for the Application Management UI.
 // NO arbitrary command API, NO LAN listener, NO production bridge or authentication bypass.
 import { randomBytes } from "node:crypto";
+import { Socket } from "node:net";
+import { readSourceSnapshot, exactSourceMatch } from "./local-ops-source-identity.mjs";
 import { execFile } from "node:child_process";
 import { spawn } from "node:child_process";
 import { closeSync, existsSync, lstatSync, openSync, readFileSync, readdirSync } from "node:fs";
@@ -26,7 +28,7 @@ function trustedRemote(url) {
 export function requiresRestart(runtime, results) {
   return runtime === "running" && results.some(item => item.state === "updated");
 }
-const state = { busy: "", pull: null, runtime: "stopped", runtimePid: null, lastError: "", runtimeStartedAt: null, restartRequired: false };
+const state = { busy: "", pull: null, runtime: "stopped", runtimePid: null, lastError: "", runtimeStartedAt: null, restartRequired: false, sourceSnapshot: null, sourceVerified: false, runtimeEvidence: null };
 let runtimeChild = null;
 
 function permittedOrigin(req) {
@@ -129,8 +131,10 @@ async function pullAll() {
     }
     state.pull.status = "finished";
     // A running stack cannot adopt fetched source without a verified cold restart.
-    if (requiresRestart(state.runtime, state.pull.results))
+    if (requiresRestart(state.runtime, state.pull.results)) {
       state.restartRequired = true;
+      state.sourceVerified = false;
+    }
   } catch (error) {
     state.pull.status = "error";
     state.pull.error = String(error).slice(0, 300);
@@ -148,55 +152,130 @@ export async function probe(port, path = "/") {
     return response.status >= 200 && response.status < 300;
   } catch { return false; }
 }
+export function portOccupied(port, timeout = 700) {
+  return new Promise(resolvePort => {
+    const socket = new Socket();
+    let finished = false;
+    const finish = found => {
+      if (finished) return;
+      finished = true;
+      socket.destroy();
+      resolvePort(found);
+    };
+    socket.setTimeout(timeout);
+    socket.once("connect", () => finish(true));
+    socket.once("timeout", () => finish(false));
+    socket.once("error", error => finish(error?.code === "ECONNREFUSED" ? false : true));
+    socket.connect(port, "127.0.0.1");
+  });
+}
+const STACK_PORTS = Array.from({ length: 11 }, (_, i) => 3000 + i);
+async function freeStackPorts() {
+  const occupied = (await Promise.all(STACK_PORTS.map(async port => await portOccupied(port) ? port : null)))
+    .filter(port => port !== null);
+  if (occupied.length) throw Error("LOCAL_PORTS_BUSY: " + occupied.join(", ") +
+    "; dừng stack cũ bằng cơ chế an toàn rồi thử lại. Không taskkill cưỡng bức.");
+}
+async function checkSourceDrift() {
+  if (!state.sourceSnapshot || state.runtime !== "running" || state.restartRequired) return;
+  try {
+    const current = await readSourceSnapshot(WORKSPACE, MANIFEST.apps);
+    if (!exactSourceMatch(state.sourceSnapshot, current)) {
+      state.restartRequired = true;
+      state.sourceVerified = false;
+      state.lastError = "SOURCE_SHA_CHANGED: mã nguồn khác phiên bản đã khởi động; cần restart.";
+    }
+  } catch (error) {
+    state.restartRequired = true;
+    state.sourceVerified = false;
+    state.lastError = "SOURCE_READBACK_BLOCKED: " + String(error).slice(0, 200);
+  }
+}
 async function status() {
+  await checkSourceDrift();
+  const verified = state.runtime === "running" && state.sourceVerified && !state.restartRequired && !state.busy;
   const apps = await Promise.all(MANIFEST.apps.map(async app => ({
     id: app.id,
     url: app.port ? "http://127.0.0.1:" + app.port + (app.path || "/") : null,
     port: app.port,
-    ready: app.port ? await probe(app.port, app.path || "/") : false,
+    ready: verified && app.port ? await probe(app.port, app.path || "/") : false,
     note: app.note || null,
+    sourceSha: verified ? (state.sourceSnapshot?.[app.id] ?? null) : null,
   })));
   return { ok: true, workspace: basename(WORKSPACE), agent: "localhost", busy: state.busy, runtime: state.runtime,
     runtimePid: state.runtimePid, runtimeStartedAt: state.runtimeStartedAt,
-    restartRequired: state.restartRequired, error: state.lastError || null, pull: state.pull, apps };
+    restartRequired: state.restartRequired, sourceVerified: verified,
+    sourceSnapshot: verified ? state.sourceSnapshot : null, runtimeEvidence: verified ? state.runtimeEvidence : null,
+    error: state.lastError || null, pull: state.pull, apps };
 }
-function startAll() {
-  if (state.runtime === "starting" || state.runtime === "running")
-    return state.restartRequired ? "restart-required" : state.runtime;
-  const logFd = openSync(join(ROOT, ".local-ops-runtime.log"), "a", 0o600);
+async function startAll() {
+  state.busy = "starting";
   state.runtime = "starting";
+  state.sourceVerified = false;
   state.lastError = "";
-  state.runtimeStartedAt = null;
+  let logFd = null;
   try {
+    if (runtimeChild) throw Error("MANAGED_STACK_STILL_ALIVE: không tự kết thúc tiến trình hoặc cưỡng bức D1");
+    await freeStackPorts();
+    const before = await readSourceSnapshot(WORKSPACE, MANIFEST.apps);
+    const nonce = randomBytes(32).toString("base64url");
+    logFd = openSync(join(ROOT, ".local-ops-runtime.log"), "a", 0o600);
     const child = spawn(process.execPath, [join(ROOT, "scripts", "run-all.mjs"), "--local", "--no-browser"], {
-      cwd: ROOT, detached: true, windowsHide: true, shell: false,
-      stdio: ["ignore", logFd, logFd], env: process.env,
+      cwd: ROOT, detached: false, windowsHide: true, shell: false,
+      stdio: ["ignore", logFd, logFd, "ipc"],
+      env: { ...process.env, LOCAL_OPS_BOOT_NONCE: nonce },
     });
     runtimeChild = child;
     state.runtimePid = child.pid || null;
-    child.on("error", error => { state.runtime = "error"; state.lastError = error.message; });
-    child.on("exit", code => {
+    child.on("exit", (code, signal) => {
       if (runtimeChild !== child) return;
-      state.runtime = code === 0 ? "stopped" : "error";
-      state.lastError = code === 0 ? "" : "Runtime kết thúc, xem .local-ops-runtime.log (exit " + code + ")";
+      runtimeChild = null;
       state.runtimePid = null;
       state.runtimeStartedAt = null;
-      runtimeChild = null;
+      state.sourceVerified = false;
+      state.runtime = state.restartRequired ? "stopped" : "error";
+      state.lastError ||= "Managed run-all exited (" + (code ?? signal ?? "unknown") + ")";
     });
-    child.unref();
-    closeSync(logFd);
-    state.runtime = "running"; // process started; per-app 'ready' still requires actual HTTP probe
+    const attestation = await new Promise((resolveBoot, rejectBoot) => {
+      const timeout = setTimeout(() => rejectBoot(Error("STACK_ATTESTATION_TIMEOUT")), 180_000);
+      const done = (fn, value) => { clearTimeout(timeout); fn(value); };
+      child.on("message", message => {
+        if (message?.type !== "local-ops-stack-ready") return;
+        if (message.protocol !== "local-ops-source/v1" || message.nonce !== nonce)
+          return done(rejectBoot, Error("STACK_ATTESTATION_INVALID"));
+        done(resolveBoot, message.sources);
+      });
+      child.once("exit", (code, signal) => done(rejectBoot, Error("STACK_EXIT_BEFORE_ATTESTATION: " + (code ?? signal))));
+      child.once("error", error => done(rejectBoot, error));
+    });
+    const after = await readSourceSnapshot(WORKSPACE, MANIFEST.apps);
+    if (!exactSourceMatch(before, attestation) || !exactSourceMatch(before, after))
+      throw Error("SOURCE_SHA_ATTESTATION_MISMATCH");
+    const probes = await Promise.all(MANIFEST.apps.filter(app => app.port).map(async app => ({
+      id: app.id, ready: await probe(app.port, app.path || "/"),
+    })));
+    if (probes.some(row => !row.ready))
+      throw Error("STACK_HTTP_READINESS_FAILED: " + probes.filter(row => !row.ready).map(row => row.id).join(","));
+    if (runtimeChild !== child || child.exitCode !== null || child.signalCode !== null)
+      throw Error("STACK_EXITED_DURING_VERIFY");
+    state.sourceSnapshot = before;
+    state.sourceVerified = true;
     state.runtimeStartedAt = new Date().toISOString();
+    state.runtimeEvidence = "process-bound Git SHA + run-all contract/health readiness; individual HTTP SHA unverified";
+    state.runtime = "running";
     state.restartRequired = false;
-    return state.runtime;
   } catch (error) {
-    state.runtime = "error";
-    state.runtimeStartedAt = null;
-    state.lastError = String(error);
-    closeSync(logFd);
-    return state.runtime;
+    state.sourceVerified = false;
+    state.runtime = runtimeChild ? "blocked" : "error";
+    state.restartRequired = true;
+    state.lastError = error instanceof Error ? error.message.slice(0, 280) : String(error);
+    // Never force-stop an unknown or still-active Windows process tree: D1 writes may be active.
+  } finally {
+    if (logFd !== null) closeSync(logFd);
+    state.busy = "";
   }
 }
+
 async function waitAndOpenCenter() {
   for (let i = 0; i < 180; i += 1) {
     if (await probe(3000)) {
@@ -225,7 +304,17 @@ export function createLocalOpsServer() {
       if (state.busy) return reply(res, 409, { error: "LOCAL_OPERATION_BUSY" }, origin);
       if (state.restartRequired && (state.runtime === "running" || state.runtime === "starting"))
         return reply(res, 409, { error: "RUNTIME_STALE_RESTART_REQUIRED" }, origin);
-      return reply(res, 202, { ok: true, runtime: startAll() }, origin);
+      if (runtimeChild) return reply(res, 409, { error: "MANAGED_STACK_STILL_ALIVE" }, origin);
+      state.busy = "starting";
+      void startAll();
+      return reply(res, 202, { ok: true, runtime: "starting" }, origin);
+    }
+    if (req.method === "POST" && req.url === "/restart") {
+      if (state.busy) return reply(res, 409, { error: "LOCAL_OPERATION_BUSY" }, origin);
+      if (runtimeChild) return reply(res, 409, { error: "MANUAL_SAFE_STOP_REQUIRED: stack vẫn đang chạy; không cưỡng bức kết thúc D1" }, origin);
+      state.busy = "starting";
+      void startAll();
+      return reply(res, 202, { ok: true, message: "Chỉ khởi động lại sau khi stack cũ đã dừng và các cổng được giải phóng." }, origin);
     }
     if (req.method === "POST" && req.url === "/pull-all") {
       if (state.busy) return reply(res, 409, { error: "LOCAL_OPERATION_BUSY" }, origin);
@@ -244,8 +333,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     server.listen(PORT, "127.0.0.1", () => {
       console.log("[Local Ops] 127.0.0.1:" + PORT + " | BaumanWeb only");
       if (process.argv.includes("--start")) {
-        startAll();
-        void waitAndOpenCenter();
+        state.busy = "starting";
+        void startAll().then(() => { if (state.runtime === "running") void waitAndOpenCenter(); });
       }
     });
   }

@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
-import { createReadStream, existsSync, statSync } from "node:fs";
+import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
+import { readSourceSnapshot } from "./local-ops-source-identity.mjs";
 import { createServer } from "node:http";
 import { dirname, extname, join, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,6 +9,7 @@ import { spawn, spawnSync } from "node:child_process";
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const centralRoot = resolve(scriptDir, "..");
 const defaultAppsRoot = resolve(centralRoot, "..");
+const localOpsApps = JSON.parse(readFileSync(join(centralRoot, "control", "local-ops-apps.json"), "utf8")).apps;
 const isWindows = process.platform === "win32";
 const npm = isWindows ? "npm.cmd" : "npm";
 const npx = isWindows ? "npx.cmd" : "npx";
@@ -403,6 +405,14 @@ async function main() {
     console.log(" Secret liên-app chỉ tồn tại trong process hiện tại; không ghi vào GitHub.");
     console.log(" 6 client quản trị + NC03 local runtime đã được khởi động trong cùng hệ thống.");
     console.log("===============================================================\n");
+    if (typeof process.send === "function" && process.env.LOCAL_OPS_BOOT_NONCE) {
+      // Bound to this actual run-all child and emitted only AFTER all existing
+      // contract/readiness gates. It is a process-bound Git source readback,
+      // not individual apps attesting an HTTP build SHA.
+      const sources = await readSourceSnapshot(appsRoot, localOpsApps);
+      process.send({ type: "local-ops-stack-ready", protocol: "local-ops-source/v1",
+        nonce: process.env.LOCAL_OPS_BOOT_NONCE, sources });
+    }
   } catch (error) {
     close();
     throw error;

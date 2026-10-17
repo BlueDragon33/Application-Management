@@ -38,3 +38,12 @@ Tự động CI gồm test giao thức localhost, các tình huống Pull all c�
 - Runtime đang chạy sau Pull: server trả `restartRequired=true`; App Manager từ chối coi HTTP 200 là bản đã Pull. **Không tự taskkill cưỡng bức** vì rủi ro với giao dịch SQLite/D1; restart full stack và SHA runtime readback trên Windows thật vẫn **BLOCKED**.
 
 Nghiệm thu còn thiếu: thư mục BaumanWeb thật trên Windows, khởi động toàn hệ thống sau khi preload dependency, kiểm tra từng runtime identity/SHA, tính bền dữ liệu D1 sử dụng bởi app thật, đóng mở các process đúng quy trình và kiểm thử khi tháo Internet. Không thể đổi kết quả CI fixture thành `WINDOWS_FULL_STACK_PASS` hoặc `BLUEPRINT_APPROVED`.
+
+## Restart supervisor + xác minh danh tính nguồn (Draft, chưa duyệt)
+
+- API mới: `POST /restart` chỉ chấp nhận session localhost; **không bao giờ tắt tiến trình**. Nếu child `run-all` đang chạy, trả `409 MANUAL_SAFE_STOP_REQUIRED`. Nếu một trong các cổng 3000–3010 bị chiếm, trả lỗi và không khởi động đè lên dịch vụ khác.
+- Trước khởi động, helper đối chiếu **Git root + branch main + SHA đầy đủ** của Application-Management và 7 ứng dụng có runtime trong `control/local-ops-apps.json`. Nếu thiếu repo/HEAD hoặc sai đường dẫn, fail-closed.
+- `run-all` phát tín hiệu qua **IPC tiến trình cha–con** sau khi các contract/health đang có báo sẵn sàng, kèm snapshot nguồn do chính process `run-all` đọc. Helper bắt buộc kiểm tra nonce phiên khởi động, danh sách và SHA chính xác với snapshot trước và sau boot, rồi kiểm tra HTTP localhost từng cổng. Khi thiếu tín hiệu, process đã thoát, SHA lệch, app không phản hồi hoặc token sai, `sourceVerified=false`, ứng dụng không được đánh dấu ready.
+- Mỗi lần kiểm tra trạng thái, helper đọc lại Git HEAD để phát hiện thay đổi ngoài `Pull all`; SHA thay đổi sẽ khóa trạng thái ready và yêu cầu restart. Bộ nhớ log có thể còn chứa mã cũ; API không tuyên bố đã cập nhật runtime nếu chưa kiểm thử.
+- **Giới hạn:** IPC + SHA chứng minh child `run-all` khởi động từ cây nguồn đó và đã vượt kiểm tra contract/HTTP sẵn có; **không** thay cho SHA build do từng ứng dụng tự báo/được ký. Không có bảo đảm kết thúc sạch trên Windows khi nhánh `run-all` hiện còn dùng `taskkill /F`; **không triển khai auto-kill/auto-restart** cho đến khi có shutdown contract an toàn của toàn bộ child và D1.
+- CI dùng kho Git thật và các server fixture tạm để mô phỏng post-Pull HEAD drift, khóa restart khi child còn sống, và kiểm tra SHA sau boot lần 2 trên Linux/Windows. Kết quả PASS này **không** tương đương kiểm thử 7 ứng dụng thật trên Windows/BaumanWeb của người dùng.

@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { pullRepository, createLocalOpsServer, probe, requiresRestart } from "../scripts/local-ops-daemon.mjs";
+import { pullRepository, createLocalOpsServer, probe, requiresRestart, portOccupied } from "../scripts/local-ops-daemon.mjs";
+import { exactSourceMatch, sourceTargets } from "../scripts/local-ops-source-identity.mjs";
 import { createServer, request as httpRequest } from "node:http";
 
 const manifest = JSON.parse(readFileSync(new URL("../control/local-ops-apps.json", import.meta.url), "utf8"));
@@ -188,4 +189,38 @@ test("runtime source drift requires a cold restart only after a successful Pull"
     assert.equal(requiresRestart(state, updated), false);
   assert.equal(requiresRestart("running", updated), true);
   assert.equal(requiresRestart("running", [{ state: "current" }, { state: "skipped" }]), false);
+});
+
+test("source identity comparison requires same app set and full exact SHA", () => {
+  const first = { "application-management": "a".repeat(40), "boi-ech": "b".repeat(40) };
+  assert.equal(exactSourceMatch(first, { ...first }), true);
+  assert.equal(exactSourceMatch(first, { ...first, extra: "c".repeat(40) }), false);
+  assert.equal(exactSourceMatch(first, { "boi-ech": "b".repeat(40) }), false);
+  assert.equal(exactSourceMatch(first, { ...first, "boi-ech": "c".repeat(40) }), false);
+  assert.equal(exactSourceMatch({}, {}), false);
+  const targets = sourceTargets(manifest.apps);
+  assert.ok(targets.some(x => x.id === "application-management"));
+  assert.equal(targets.length, 8);
+  assert.ok(!targets.some(x => x.id === "pc-manager"), "native-only entry has no web source gate");
+});
+
+test("real port preflight rejects already-bound TCP listeners", async () => {
+  const server = createServer((_req,res) => res.end("test"));
+  await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+  const port = server.address().port;
+  try { assert.equal(await portOccupied(port), true); }
+  finally { await new Promise(resolve => server.close(resolve)); }
+  assert.equal(await portOccupied(port), false);
+});
+
+test("restart endpoint is never accessible without local bearer token", async () => {
+  const server = createLocalOpsServer();
+  await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+  const base = "http://127.0.0.1:" + server.address().port;
+  try {
+    const r = await fetch(base + "/restart", {method:"POST",headers:{origin:"http://127.0.0.1:3000"}});
+    assert.equal(r.status, 401);
+    const forged = await fetch(base + "/restart", {method:"POST",headers:{origin:"https://evil.example"}});
+    assert.equal(forged.status, 403);
+  } finally {await new Promise(resolve => server.close(resolve));}
 });

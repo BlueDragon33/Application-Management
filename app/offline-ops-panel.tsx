@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { localOpsPullAll, localOpsStatus, type LocalOpsStatus, type OperatingMode } from "./offline-ops-client";
+import { localOpsPullAll, localOpsRestart, localOpsStatus, type LocalOpsStatus, type OperatingMode } from "./offline-ops-client";
 import "./offline-ops-panel.css";
 
 export default function OfflineOpsPanel({ local, mode, onModeChange }: {
@@ -48,6 +48,21 @@ export default function OfflineOpsPanel({ local, mode, onModeChange }: {
     }
   }
 
+  async function restartIfSafe() {
+    if (lock.current || busy || status?.busy) return;
+    lock.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      await localOpsRestart();
+      setStatus(await localOpsStatus());
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Restart bị chặn vì chưa an toàn.");
+    } finally {
+      lock.current = false;
+      setBusy(false);
+    }
+  }
   const ready = status?.apps.filter((app) => app.ready).length ?? 0;
   const supported = status?.apps.filter((app) => Boolean(app.port)).length ?? 0;
   const results = status?.pull?.results ?? [];
@@ -59,11 +74,13 @@ export default function OfflineOpsPanel({ local, mode, onModeChange }: {
       <button type="button" data-selected={mode === "offline"} aria-pressed={mode === "offline"} onClick={() => onModeChange("offline")}>◉ Offline · main đã Pull</button>
       <button type="button" data-selected={mode === "online"} aria-pressed={mode === "online"} onClick={() => onModeChange("online")}>↗ Online · bản đã publish</button>
     </div>
-    {status?.restartRequired ? <small className="amv2-local-error" role="alert">Mã nguồn đã cập nhật nhưng runtime đang chạy bản cũ. Hãy đóng và mở lại START_BAUMANWEB.vbs sau khi dừng stack cũ; không coi trạng thái HTTP 200 là phiên bản mới.</small> : null}
+    {status?.restartRequired ? <small className="amv2-local-error" role="alert">Mã nguồn hoặc runtime chưa được chứng thực. {status.runtimePid ? "Stack cũ còn chạy: phải dừng an toàn trước; không tự ép tắt D1." : "Chỉ khởi động lại khi các cổng 3000–3010 đã được giải phóng."}</small> : null}
     <div className="amv2-local-summary">
       <span>{status ? ready + "/" + supported + " runtime local sẵn sàng" : "Chưa kết nối Local Ops"}</span>
+      {status?.restartRequired ? <button type="button" disabled={busy || Boolean(status.busy) || Boolean(status.runtimePid)} onClick={() => void restartIfSafe()}>↻ Khởi động lại khi an toàn</button> : null}
       <button type="button" disabled={busy || !status || Boolean(status.busy)} onClick={() => void pullAll()}>{busy || status?.busy === "pull-all" ? "↻ Đang Pull…" : "↓ Pull all"}</button>
     </div>
+    {status?.sourceVerified ? <small>Đã đối chiếu SHA tại thời điểm khởi động và readback Git · {Object.keys(status.sourceSnapshot ?? {}).length} repo. Không phải chứng thực SHA HTTP từng app.</small> : null}
     {error ? <small role="status" className="amv2-local-error">{error}</small> : null}
     {status?.pull ? <details className="amv2-local-pull">
       <summary>{status.pull.status === "running" ? "Đang đồng bộ mã nguồn…" : "Kết quả Pull all"} · {results.length} repo · {updated} cập nhật · {skipped} cần xem</summary>
