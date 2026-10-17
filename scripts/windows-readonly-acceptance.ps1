@@ -4,7 +4,8 @@
 [CmdletBinding()]
 param(
   [string]$WorkspaceRoot = 'E:\BaumanWeb',
-  [string]$ReportDirectory = ''
+  [string]$ReportDirectory = '',
+  [switch]$ProbeHttp
 )
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
@@ -44,7 +45,7 @@ function GitObservation([string]$Directory) {
   }
   return $result
 }
-function PortObservation([int]$Port, [string]$Path) {
+function PortObservation([int]$Port, [string]$Path, [bool]$AllowHttp = $false) {
   $result = [ordered]@{
     port = $Port; listener = 'UNVERIFIED'; addresses = @(); pids = @()
     processNames = @(); http = 'NOT_PROBED'; httpStatus = $null
@@ -72,6 +73,12 @@ function PortObservation([int]$Port, [string]$Path) {
     if ($result.listener -ne 'LOOPBACK_LISTENER') { return $result }
   } catch {
     $result.listener = 'TCP_OBSERVATION_UNAVAILABLE'
+    return $result
+  }
+  # Even GET may trigger side effects in a poorly designed app.
+  # Passive port/PID/SHA observation is therefore the default; HTTP is opt-in.
+  if (-not $AllowHttp) {
+    $result.http = 'SKIPPED_PASSIVE_ONLY'
     return $result
   }
   # No redirects, proxy, auth, cookies, response body, or arbitrary URLs.
@@ -123,8 +130,8 @@ if ((Split-Path $workspace -Leaf) -eq 'BaumanWeb' -and (Test-Path -LiteralPath $
 # Report contains ONLY fixed catalog ID, SHA, branch, PID, process name and
 # observed HTTP status; no machine username, absolute path or configuration.
 $managerGit = GitObservation $manager
-$center = PortObservation 3000 '/'
-$agent = PortObservation 3011 '/status'
+$center = PortObservation 3000 '/' ([bool]$ProbeHttp)
+$agent = PortObservation 3011 '/status' ([bool]$ProbeHttp)
 foreach ($app in $catalog) {
   $id = [string]$app.id
   $dir = [string]$app.directory
@@ -145,13 +152,14 @@ foreach ($app in $catalog) {
   $path = if ($null -ne $app.PSObject.Properties['path'] -and $app.path) {
     [string]$app.path
   } else { '/' }
-  $observations += [ordered]@{ id = $id; capability = 'WEB'; git = $source; runtime = (PortObservation $port $path) }
+  $observations += [ordered]@{ id = $id; capability = 'WEB'; git = $source; runtime = (PortObservation $port $path ([bool]$ProbeHttp)) }
 }
 $report = [ordered]@{
   protocol = 'BLUEPRINT_WINDOWS_READONLY_ACCEPTANCE_V1'
   observedUtc = [DateTime]::UtcNow.ToString('o')
   shaIsGitSourceOnly = $true
   responseBodyCaptured = $false
+  activeHttpProbeEnabled = [bool]$ProbeHttp
   secretsCaptured = $false
   manifest = $manifestState
   manager = [ordered]@{ git = $managerGit; http = $center }
@@ -177,6 +185,7 @@ $liveCount = @($observations | Where-Object {
   ('Manager Git SHA: ' + $managerGit.sha)
   ('Manager Git state: ' + $managerGit.state)
   ('Manager HTTP: ' + $center.http)
+  ('Active HTTP probe explicitly enabled: ' + [bool]$ProbeHttp)
   ('Local Agent: ' + $agent.listener)
   ('Web apps with observed loopback HTTP 2xx: ' + $liveCount + '/' + $webCount)
   'D1 shutdown: BLOCKED_NOT_TESTED'
