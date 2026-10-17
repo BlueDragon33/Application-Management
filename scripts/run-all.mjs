@@ -3,6 +3,7 @@ import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
 import { readSourceSnapshot } from "./local-ops-source-identity.mjs";
 import { SHUTDOWN_PROTOCOL, unsupportedFullStack } from "./local-ops-shutdown-contract.mjs";
 import { managedRuntimePlan, childOwnershipEvidence } from "./local-ops-managed-process.mjs";
+import { assertManagedControlAdmission, assertNoManagedArgvSecrets } from "./local-ops-managed-startup-policy.mjs";
 import { createServer } from "node:http";
 import { dirname, extname, join, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -156,6 +157,7 @@ function startStaticServer(root, port) {
 }
 
 function spawnService({ name, command, args, cwd, env = {} }) {
+  assertNoManagedArgvSecrets({managed:Boolean(process.env.LOCAL_OPS_BOOT_NONCE),command,args});
   const managedPlan = managedRuntimePlan({
     command, args, cwd, managed: Boolean(process.env.LOCAL_OPS_BOOT_NONCE),
   });
@@ -275,6 +277,8 @@ function kill(child, signal = "SIGTERM") {
 
 async function main() {
   const { appsRoot, forwarded } = parseArgs(process.argv.slice(2));
+  // First action: reject unsupported managed child sources before D1 or spawn.
+  assertManagedControlAdmission({managed:Boolean(process.env.LOCAL_OPS_BOOT_NONCE),appsRoot:appsRoot});
   const growUpRoot = join(appsRoot, "GrowUP_MyChildren");
   const growUpControlScript = join(growUpRoot, "control-service", "local-control.mjs");
   const priceRoot = join(appsRoot, "PriceReport_Tunggiabao");

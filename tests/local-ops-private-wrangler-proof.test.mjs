@@ -9,6 +9,8 @@ test("per-boot private Wrangler proof never appears in CLI args, status, or log 
    const data=await readFile(fixture.file,"utf8");
    assert.match(data,/LOCAL_OPS_GATEWAY_REQUIRED="1"/);
    assert.ok(data.includes(fixture.proof));
+   assert.ok(data.includes('PRICE_REPORT_CONTROL_SERVICE_SECRET="'+ "s".repeat(48)+'"'));
+   assert.ok(data.includes('APPLICATION_MANAGEMENT_ORIGIN="http://127.0.0.1:3000"'));
    assert.equal(fixture.proof.length>=48,true);
    const args=["dev","--config",fixture.dir+"/wrangler.qa.json","--local"];
    assert.equal(assertNoSecretInArgs(args,fixture.proof),true);
@@ -28,4 +30,6 @@ test("per-boot private Wrangler proof never appears in CLI args, status, or log 
 test("weak prefixes and empty credentials never get accepted",async()=>{
  await assert.rejects(createPrivateWranglerProof({prefix:"../outside"}),/PREFIX_INVALID/);
  assert.throws(()=>assertNoSecretInArgs([],"weak"),/AUDIT_INVALID/);
+ await assert.rejects(createPrivateWranglerProof({bindings:{"LOCAL_OPS_INGRESS_PROOF":"bad"}}),/SECRET_BINDING_UNSAFE/);
+ await assert.rejects(createPrivateWranglerProof({bindings:{"PRICE_REPORT_CONTROL_SERVICE_SECRET":"x\nnewline"}}),/SECRET_BINDING_UNSAFE/);
 });

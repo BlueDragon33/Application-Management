@@ -22,13 +22,23 @@ async function secureOwnerOnly(dir,file) {
       {windowsHide:true,timeout:10000});
   }
 }
-export async function createPrivateWranglerProof({prefix="managed-wrangler-proof-"}={}) {
+export async function createPrivateWranglerProof({prefix="managed-wrangler-proof-",bindings={}}={}) {
   if(!/^[a-z0-9-]{3,40}$/i.test(prefix))throw Error("SECRET_DIRECTORY_PREFIX_INVALID");
+  const proof=randomBytes(48).toString("base64url");
+  if(!bindings || typeof bindings!=="object" || Array.isArray(bindings))
+    throw Error("SECRET_BINDINGS_INVALID");
+  const lines=['LOCAL_OPS_GATEWAY_REQUIRED="1"',
+    "LOCAL_OPS_INGRESS_PROOF="+JSON.stringify(proof)];
+  for(const [name,value] of Object.entries(bindings)){
+    if(!/^[A-Z][A-Z0-9_]{1,95}$/.test(name) || name.startsWith("LOCAL_OPS_") ||
+      typeof value!=="string" || value.length>4096 || /[\r\n\u0000]/.test(value))
+      throw Error("SECRET_BINDING_UNSAFE");
+    lines.push(name+"="+JSON.stringify(value));
+  }
   const dir=await mkdtemp(join(tmpdir(),prefix));
   const file=join(dir,".dev.vars");
-  const proof=randomBytes(48).toString("base64url");
   try {
-    await writeFile(file,'LOCAL_OPS_GATEWAY_REQUIRED="1"\nLOCAL_OPS_INGRESS_PROOF="'+proof+'"\n',
+    await writeFile(file,lines.join("\n")+"\n",
       {flag:"wx",mode:0o600});
     await secureOwnerOnly(dir,file);
     return {dir,file,proof,

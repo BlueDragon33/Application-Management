@@ -18,6 +18,19 @@ const exec = promisify(execFile);
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const WRANGLER = join(ROOT, "node_modules/wrangler/bin/wrangler.js");
 const DB = "temporary-wrangler-drain-db";
+async function assertPortReleased(port,label) {
+  const server=createServer();
+  try {
+    await new Promise((ok,fail)=>{
+      server.once("error",fail);
+      server.listen(port,"127.0.0.1",ok);
+    });
+  }catch(error) {
+    throw Error("QA_PORT_STILL_BOUND: "+label+" :"+port,{cause:error});
+  } finally {
+    if(server.listening)await new Promise(ok=>server.close(ok));
+  }
+}
 async function freePort() {
   const server = createServer();
   await new Promise((ok, fail) => server.once("error", fail).listen(0,"127.0.0.1",ok));
@@ -61,7 +74,7 @@ const config=join(temp,"wrangler.fixture.json");
 const store=join(temp,"local-state");
 const id=randomBytes(16).toString("hex");
 const backend=await freePort();
-let child, ingress, snap, log="";
+let child, ingress, snap, log="", frontendPort=null;
 try {
   await copyFile(join(ROOT,"tests/fixtures/wrangler-d1-flight-worker.mjs"),
     join(temp,"worker.mjs"));
@@ -82,6 +95,7 @@ try {
   assert.equal((await fetch("http://127.0.0.1:"+backend+"/health",{headers:{"x-local-ops-ingress-proof":"invalid"}})).status,403);
   ingress=createWranglerIngress({upstreamPort:backend,managedIngressProof:credential.proof});
   const port=await ingress.listen();
+  frontendPort=port;
   const start=fetch("http://127.0.0.1:"+port+"/write?id="+id,
     {method:"POST",signal:AbortSignal.timeout(13000)});
   for(let i=0;i<100&&ingress.status().pending!==1;i++)await sleep(20);
@@ -115,9 +129,12 @@ try {
   assert.equal(persisted.flatMap(x=>x.results||[])[0]?.val,"COMMITTED");
   assert.equal(windowsResult?.stopped ?? true,true,
     "all captured Windows Wrangler fixture descendants must have exited");
+  await assertPortReleased(backend,"internal-wrangler");
+  await assertPortReleased(frontendPort,"external-gateway");
   console.log(JSON.stringify({result:"REAL_WRANGLER_D1_HTTP_INGRESS_FIXTURE_PASS",
     platform:process.platform,actualD1Write:true,readbackAfterFixtureProcessExit:true,
     secretDeliveredViaPrivateFile:true,secretInArgv:false,directBackend403:true,
+    backendPortReleased:true,gatewayPortReleased:true,
     capturedWindowsTreeGone:windowsResult?.stopped??"not-windows",
     stopMethod:"fixture-only SIGTERM; NOT approved graceful shutdown",
     preExit,productionShutdownAck:false,allIsolatesDrained:false,

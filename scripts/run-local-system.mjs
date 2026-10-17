@@ -6,6 +6,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { reconcileBoiLocalMigrationJournal } from "./local-d1-migration-reconcile.mjs";
 import { SHUTDOWN_PROTOCOL, unsupportedFullStack } from "./local-ops-shutdown-contract.mjs";
 import { managedRuntimePlan, childOwnershipEvidence } from "./local-ops-managed-process.mjs";
+import { assertManagedControlAdmission, assertNoManagedArgvSecrets } from "./local-ops-managed-startup-policy.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const centralRoot = resolve(scriptDir, "..");
@@ -190,6 +191,7 @@ function migrateLocalDatabases(paths, skipMigrate) {
 }
 
 function spawnService({ name, command, args, cwd, env }) {
+  assertNoManagedArgvSecrets({managed:Boolean(process.env.LOCAL_OPS_BOOT_NONCE),command,args});
   const managedPlan = managedRuntimePlan({
     command, args, cwd, managed: Boolean(process.env.LOCAL_OPS_BOOT_NONCE),
   });
@@ -374,6 +376,8 @@ async function shutdown(exitCode = 0) {
 async function main() {
   ensureNodeVersion();
   const options = parseArgs(process.argv.slice(2));
+  // First action: reject unsupported managed child sources before D1 or spawn.
+  assertManagedControlAdmission({managed:Boolean(process.env.LOCAL_OPS_BOOT_NONCE),appsRoot:options.appsRoot});
   const baumanRoot = join(options.appsRoot, "Bauman-master-ai-system");
   const paths = {
     central: centralRoot,

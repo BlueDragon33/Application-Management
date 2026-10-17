@@ -61,7 +61,8 @@
         "runtimeDrainProbe": "CODE_ADDED_NO_REAL_SERVICE_ENDPOINT",
         "d1TrackedDrain": "LIBRARY_ONLY_NOT_BOUND_TO_RUNTIME",
         "windowsChildTree": "READ_ONLY_INSPECTION_FIXTURE_PENDING",
-        "actualAppWindowsShutdown": "NOT_TESTED"
+        "actualAppWindowsShutdown": "NOT_TESTED",
+        "managedAdmission": "EARLY_BLOCK_UNTIL_CANONICAL_CHILD_SOURCE_REVIEW_AND_SHA_RECEIPT; NO_D1_MIGRATION_OR_SPAWN"
       },
       "blocker": "NO_VERIFIED_OWNED_RUNTIME_DRAIN_EXIT_ACK",
       "ready": false,
@@ -91,7 +92,8 @@
         "runtimeDrainProbe": "CODE_ADDED_NO_REAL_SERVICE_ENDPOINT",
         "d1TrackedDrain": "LIBRARY_ONLY_NOT_BOUND_TO_RUNTIME",
         "windowsChildTree": "READ_ONLY_INSPECTION_FIXTURE_PENDING",
-        "actualAppWindowsShutdown": "NOT_TESTED"
+        "actualAppWindowsShutdown": "NOT_TESTED",
+        "managedAdmission": "EARLY_BLOCK_UNTIL_CANONICAL_CHILD_SOURCE_REVIEW_AND_SHA_RECEIPT; NO_D1_MIGRATION_OR_SPAWN"
       },
       "blocker": "NO_VERIFIED_OWNED_RUNTIME_DRAIN_EXIT_ACK",
       "ready": false,
@@ -219,7 +221,9 @@
         "wranglerSupervisorIngress": "REAL_TEMPORARY_WRANGLER_D1_PROXY_FIXTURE_ONLY",
         "d1CrossProcessReadback": "TEMPORARY_WRANGLER_QA_AFTER_FIXTURE_EXIT_PASS",
         "managedIngressProof": "SOURCE_DRAFT_REAL_WORKER_GUARD_QA_PASS; APP_MANAGER_INJECTOR_QA_ONLY",
-        "privateSecretProvision": "SOURCE_WORKER_DOTENV_TEMP_PRIVATE_ACL_WINDOWS_LINUX_FIXTURE_PASS"
+        "privateSecretProvision": "SOURCE_WORKER_DOTENV_TEMP_PRIVATE_ACL_WINDOWS_LINUX_FIXTURE_PASS",
+        "managedArgv": "STRICT_NO_VAR_OR_PINNED_NPX; PRIVATE_DOTVARS_PLAN_ONLY",
+        "qaPortReadback": "STAGED_TEST_REQUIRES_BACKEND_AND_GATEWAY_PORT_RELEASE"
       },
       "blocker": "NO_VERIFIED_OWNED_RUNTIME_DRAIN_EXIT_ACK",
       "ready": false,
@@ -369,7 +373,9 @@
         "d1CrossProcessReadback": "TEMPORARY_WRANGLER_QA_AFTER_FIXTURE_EXIT_PASS",
         "managedIngressProof": "SOURCE_DRAFT_REAL_WORKER_GUARD_QA_PASS; APP_MANAGER_INJECTOR_QA_ONLY",
         "npmGeneratedLockfile": "VERIFIED_94_PACKAGE_GRAPH_CI_NPM_CI_BUILD",
-        "privateSecretProvision": "SOURCE_WORKER_DOTENV_TEMP_PRIVATE_ACL_WINDOWS_LINUX_FIXTURE_PASS"
+        "privateSecretProvision": "SOURCE_WORKER_DOTENV_TEMP_PRIVATE_ACL_WINDOWS_LINUX_FIXTURE_PASS",
+        "managedArgv": "STRICT_NO_VAR_OR_PINNED_NPX; PRIVATE_DOTVARS_PLAN_ONLY",
+        "qaPortReadback": "STAGED_TEST_REQUIRES_BACKEND_AND_GATEWAY_PORT_RELEASE"
       },
       "blocker": "NO_VERIFIED_OWNED_RUNTIME_DRAIN_EXIT_ACK",
       "ready": false,
