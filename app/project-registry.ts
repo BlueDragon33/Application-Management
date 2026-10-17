@@ -62,7 +62,7 @@ export const projectRepositories: readonly ProjectRepositoryConfig[] = [
     defaultBranch: "main",
     group: "learning",
     state: "developing",
-    summary: "Ứng dụng iPhone native SwiftUI + WidgetKit offline-first đang ở Draft PR #3; build và XCTest Simulator đã đạt trên commit fe7e8d44cbf7, nhưng source chưa merge main, chưa cài trên iPhone, chưa có RU03 được duyệt và chưa được App-manager kết nối/đăng ký runtime. Không có launcher xác thực.",
+    summary: "Ứng dụng iPhone SwiftUI + WidgetKit offline-first, source đang ở Draft PR #3 (chưa merge vào main). Có CI build/XCTest trên nhánh P2, nhưng chưa cài và nghiệm thu trên iPhone thật, chưa có RU03 được duyệt, chưa đăng ký runtime App-manager và chưa xác minh launcher.",
     relatedTo: "Bauman Master AI",
   },
   {
