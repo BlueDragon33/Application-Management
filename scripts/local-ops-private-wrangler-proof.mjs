@@ -7,6 +7,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 const exec = promisify(execFile);
+// A filesystem path alone is not trusted credential provenance.
+const issuedCredentials=new WeakSet();
+export function requireIssuedPrivateWranglerCredential(credential){
+  if(!credential||typeof credential!=="object"||!issuedCredentials.has(credential))
+    throw Error("MANAGED_WRANGLER_CREDENTIAL_UNTRUSTED");
+  return credential;
+}
 
 async function secureOwnerOnly(dir,file) {
   await chmod(dir,0o700);
@@ -41,11 +48,16 @@ export async function createPrivateWranglerProof({prefix="managed-wrangler-proof
     await writeFile(file,lines.join("\n")+"\n",
       {flag:"wx",mode:0o600});
     await secureOwnerOnly(dir,file);
-    return {dir,file,proof,
+    const credential=Object.freeze({dir,file,proof,
       // Never include proof in logs, status, argv, or commit artifacts.
-      publicStatus:{privateFile:true,proofInArgs:false,proofInEnvironment:false,
-        windowsOwnerAclEnforced:process.platform==="win32"},
-      cleanup:async()=>rm(dir,{recursive:true,force:true,maxRetries:6,retryDelay:350})};
+      publicStatus:Object.freeze({privateFile:true,proofInArgs:false,proofInEnvironment:false,
+        windowsOwnerAclEnforced:process.platform==="win32"}),
+      cleanup:async()=>{
+        issuedCredentials.delete(credential);
+        await rm(dir,{recursive:true,force:true,maxRetries:6,retryDelay:350});
+      }});
+    issuedCredentials.add(credential);
+    return credential;
   }catch(error) {
     await rm(dir,{recursive:true,force:true,maxRetries:6,retryDelay:350});
     throw Error("PRIVATE_WRANGLER_PROOF_CREATION_FAILED",{cause:error});

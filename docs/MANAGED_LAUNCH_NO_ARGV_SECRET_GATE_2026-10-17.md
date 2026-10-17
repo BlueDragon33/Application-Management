@@ -18,3 +18,9 @@ Status: **Draft technical checkpoint**, Blueprint OS 1.3.0; no merge, publish, r
 ## Scope and remaining gates
 
 Real user BaumanWeb stack ports 3000–3010 have NOT been restarted or accepted. The temporary private file's ACL does not prove isolation from a malicious process running under the SAME Windows user. The source PRs are still Draft, without official review/ratification. Managed startup therefore REJECTS instead of launching legacy processes with secrets in argv. 10/10 BLOCKED, auto-restart DISABLED. Real cross-isolate D1 drain, authenticated stop ACK, true service Windows exit, and full port readback remain prerequisites for per-unit READY.
+
+## Read-only Git provenance and managed Wrangler CLI candidate (2026-10-17)
+
+- `scripts/local-ops-control-source-audit.mjs`: checks actual local Git main, exact expected HEAD and tracked-worktree cleanliness for BAUMAN-CONTROL and PRICE-CONTROL. It reports local provenance only, `permitStart=false`, and is unable to supply remote cryptographic review or deployment authorization. Runtime admission explicitly rejects caller-provided `reviewed:true` booleans; no user-supplied JSON can grant admission.
+- `scripts/local-ops-managed-wrangler-candidate.mjs`: builds a direct local-node Wrangler command with validated config-adjacent private `.dev.vars`, validated loopback upstream port and no `--var` / `npx` / secret in argv or child environment. Its gateway is the existing ingress/D1 tracking library and stays blocked for full shutdown. The actual **disposable Wrangler/Miniflare D1 Windows/Linux CI** now exercises this shared candidate builder, rather than a separately handcrafted command.
+- All source PRs remain Draft and without independent review. The candidate is QA-only; installed BaumanWeb managed ports 3003/3009 are **not rewired**. Genuine per-isolate D1 drain and authenticated graceful process-bound stop/Windows exit remain BLOCKED. No merge or publish.

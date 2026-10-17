@@ -12,6 +12,7 @@ import { promisify } from "node:util";
 import { setTimeout as sleep } from "node:timers/promises";
 import { createWranglerIngress } from "./local-ops-wrangler-ingress.mjs";
 import { createPrivateWranglerProof, assertNoSecretInArgs } from "./local-ops-private-wrangler-proof.mjs";
+import { createManagedWranglerCandidate } from "./local-ops-managed-wrangler-candidate.mjs";
 import { captureWindowsTree, verifyWindowsTreeGone } from "./local-ops-windows-process-tree.mjs";
 
 const exec = promisify(execFile);
@@ -83,17 +84,23 @@ try {
     d1_databases:[{binding:"DB",database_name:DB,
       database_id:"00000000-0000-0000-0000-000000001190"}]}));
   await sql(temp,config,store,"CREATE TABLE flight_qa (id TEXT PRIMARY KEY, val TEXT NOT NULL)");
-  child=spawn(process.execPath,[WRANGLER,"dev","--local","--config",config,
-    "--ip","127.0.0.1","--port",String(backend),"--persist-to",store],{
-      cwd:temp,stdio:["ignore","pipe","pipe"],windowsHide:true,
-      env:{...process.env,CI:"1",WRANGLER_SEND_METRICS:"false",NO_COLOR:"1"}});
+  const launch=createManagedWranglerCandidate({
+    projectRoot:ROOT,configFile:config,credential,
+    persistDir:store,backendPort:backend
+  });
+  assert.equal(launch.publicEvidence.autoRestartAllowed,false);
+  assert.equal(launch.publicEvidence.sourceAdmissionReviewed,false);
+  assert.equal(launch.args.some(arg=>arg==="--var"||arg==="--yes"),false);
+  child=spawn(launch.command,launch.args,{
+      cwd:launch.cwd,stdio:["ignore","pipe","pipe"],windowsHide:true,
+      env:launch.env});
   child.stdout.on("data",d=>{log=(log+String(d)).slice(-12000)});
   child.stderr.on("data",d=>{log=(log+String(d)).slice(-12000)});
   assert.equal(assertNoSecretInArgs(child.spawnargs,credential.proof),true);
   await waitFor("http://127.0.0.1:"+backend+"/health",child,log,credential.proof);
   assert.equal((await fetch("http://127.0.0.1:"+backend+"/health")).status,403);
   assert.equal((await fetch("http://127.0.0.1:"+backend+"/health",{headers:{"x-local-ops-ingress-proof":"invalid"}})).status,403);
-  ingress=createWranglerIngress({upstreamPort:backend,managedIngressProof:credential.proof});
+  ingress=launch.gateway;
   const port=await ingress.listen();
   frontendPort=port;
   const start=fetch("http://127.0.0.1:"+port+"/write?id="+id,
@@ -134,6 +141,7 @@ try {
   console.log(JSON.stringify({result:"REAL_WRANGLER_D1_HTTP_INGRESS_FIXTURE_PASS",
     platform:process.platform,actualD1Write:true,readbackAfterFixtureProcessExit:true,
     secretDeliveredViaPrivateFile:true,secretInArgv:false,directBackend403:true,
+    managedWranglerCandidateUsed:true,childEnvironmentProofAbsent:true,
     backendPortReleased:true,gatewayPortReleased:true,
     capturedWindowsTreeGone:windowsResult?.stopped??"not-windows",
     stopMethod:"fixture-only SIGTERM; NOT approved graceful shutdown",
