@@ -50,7 +50,11 @@ function PortObservation([int]$Port, [string]$Path) {
     processNames = @(); http = 'NOT_PROBED'; httpStatus = $null
   }
   try {
-    $tcp = @(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction Stop)
+    if (-not (Get-Command Get-NetTCPConnection -ErrorAction SilentlyContinue)) {
+      $result.listener = 'TCP_CMDLET_UNAVAILABLE'
+      return $result
+    }
+    $tcp = @(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)
     if ($tcp.Count -eq 0) { $result.listener = 'STOPPED'; return $result }
     $addresses = @($tcp | ForEach-Object { [string]$_.LocalAddress } | Sort-Object -Unique)
     $result.addresses = $addresses
@@ -75,6 +79,8 @@ function PortObservation([int]$Port, [string]$Path) {
     $result.http = 'UNSAFE_PATH_REFUSED'
     return $result
   }
+  $client = $null
+  $handler = $null
   try {
     Add-Type -AssemblyName System.Net.Http -ErrorAction Stop
     $handler = New-Object System.Net.Http.HttpClientHandler
@@ -118,7 +124,7 @@ if ((Split-Path $workspace -Leaf) -eq 'BaumanWeb' -and (Test-Path -LiteralPath $
 # observed HTTP status; no machine username, absolute path or configuration.
 $managerGit = GitObservation $manager
 $center = PortObservation 3000 '/'
-$agent = PortObservation 3011 '/session'
+$agent = PortObservation 3011 '/status'
 foreach ($app in $catalog) {
   $id = [string]$app.id
   $dir = [string]$app.directory
@@ -136,7 +142,9 @@ foreach ($app in $catalog) {
     $observations += [ordered]@{ id = $id; capability = 'INVALID_PORT'; git = $source; runtime = $null }
     continue
   }
-  $path = if ($app.path) { [string]$app.path } else { '/' }
+  $path = if ($null -ne $app.PSObject.Properties['path'] -and $app.path) {
+    [string]$app.path
+  } else { '/' }
   $observations += [ordered]@{ id = $id; capability = 'WEB'; git = $source; runtime = (PortObservation $port $path) }
 }
 $report = [ordered]@{
