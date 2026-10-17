@@ -39,8 +39,8 @@ test("actual run-all remains fully blocked even after direct spawn/HTTP verifier
 
 test("BAUMAN-CONTROL and PRICE-CONTROL linked drafts are only partial per-isolate evidence, never full shutdown approval",()=>{
   const linked = new Map([
-    ["BAUMAN-CONTROL",{pr:366,sha:"caf96b51400fbce74bf86e0f30cc178e3b140eb5"}],
-    ["PRICE-CONTROL",{pr:133,sha:"ff36f4ee8dc935aea25b0c0043bbcdaee100009b"}],
+    ["BAUMAN-CONTROL",{pr:366,sha:"9c14ee0900ac840ed5431c859f357b776d48cd70"}],
+    ["PRICE-CONTROL",{pr:133,sha:"d0810b9d4159b463bd3c3fb54e96ad42fcc45174"}],
   ]);
   for (const [id,ref] of linked) {
     const row=plan.units.find(x=>x.id===id);
@@ -57,5 +57,13 @@ test("BAUMAN-CONTROL and PRICE-CONTROL linked drafts are only partial per-isolat
     assert.equal(row.ready,false);
     assert.equal(row.approved,false);
     assert.equal(row.permitAutoRestart,false);
+    assert.equal(row.sourceDraft.testEvidence.actualSourceWorker.windows,"PASS");
+    assert.equal(row.sourceDraft.testEvidence.actualSourceWorker.ubuntu,"PASS");
+    assert.match(row.sourceDraft.testEvidence.actualSourceWorker.scope,/HTTP_503_PRESTOP_ONLY/);
+    assert.equal(row.sourceDraft.testEvidence.actualSourceWorker.d1InFlightShutdown,"NOT_PROVEN");
+    assert.equal(row.sourceDraft.testEvidence.actualSourceWorker.windowsGracefulExit,"NOT_PROVEN");
+    assert.equal(row.implementation.actualAppWindowsShutdown,"NOT_TESTED");
+    if(id==="PRICE-CONTROL")
+      assert.match(row.implementation.lockedWranglerCompatibility,/WRANGLER_LOCKED_4_92_0_REJECTS/);
   }
 });

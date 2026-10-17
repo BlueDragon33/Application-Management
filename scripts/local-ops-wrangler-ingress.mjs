@@ -41,6 +41,8 @@ export function createWranglerIngress({ upstreamPort } = {}) {
       reply.pipe(response);
     });
     upstream.once("error", () => {
+      // A 502 proves only transport failure, not whether the Worker committed.
+      uncertain = true;
       if (!response.headersSent) response.writeHead(502, { connection: "close" });
       if (!response.writableEnded) response.end();
     });
@@ -71,10 +73,15 @@ export function createWranglerIngress({ upstreamPort } = {}) {
       // will receive 503. Never signal/kill the Wrangler child here.
       const closed = new Promise((resolve, reject) =>
         server.close(error => error ? reject(error) : resolve()));
-      await Promise.race([
-        closed,
-        new Promise((_, reject) => setTimeout(() => reject(Error("INGRESS_DRAIN_TIMEOUT")), timeoutMs)),
-      ]);
+      let timer;
+      try {
+        await Promise.race([
+          closed,
+          new Promise((_, reject) => {
+            timer = setTimeout(() => reject(Error("INGRESS_DRAIN_TIMEOUT")), timeoutMs);
+          }),
+        ]);
+      } finally { clearTimeout(timer); }
       if (pending !== 0 || uncertain) throw Error("INGRESS_DRAIN_UNCERTAIN_OR_PENDING");
       state = "closed";
       return {

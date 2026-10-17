@@ -45,10 +45,11 @@ test("upstream failure and HTTP client abort invalidate drain evidence",async()=
   try {
     const response=await fetch("http://127.0.0.1:"+front+"/write");
     assert.equal(response.status,502);
-    // 502 is a completed response, but no durable data can be inferred.
-    const receipt=await ingress.drainIngress({timeoutMs:4000});
-    assert.equal(receipt.d1CommitReadbackVerified,false);
-    assert.equal(receipt.safeToStopWrangler,false);
+    // 502 means the real upstream may already have written data: fail closed.
+    await assert.rejects(ingress.drainIngress({timeoutMs:4000}),
+      /INGRESS_DRAIN_UNCERTAIN_OR_PENDING/);
+    assert.equal(ingress.status().uncertain,true);
+    assert.equal(ingress.status().safeToStopWrangler,false);
   }finally {await ingress.close();await new Promise(resolve=>upstream.close(resolve));}
 });
 test("never connects to user-selected host or arbitrary port",()=>{

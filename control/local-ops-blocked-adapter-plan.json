@@ -213,7 +213,11 @@
         "windowsChildTree": "READ_ONLY_INSPECTION_FIXTURE_PENDING",
         "actualAppWindowsShutdown": "NOT_TESTED",
         "realWorkerD1Tracking": "DRAFT_PER_ISOLATE_OBSERVER_WIRED",
-        "disposableD1Durability": "WINDOWS_AND_UBUNTU_WRANGLER_BACKEND_FIXTURE_PASS"
+        "disposableD1Durability": "WINDOWS_AND_UBUNTU_WRANGLER_BACKEND_FIXTURE_PASS",
+        "actualWorkerLocalStartup": "WINDOWS_AND_UBUNTU_REAL_WRANGLER_SOURCE_QA_PASS",
+        "lockedWranglerCompatibility": "LOCKED_WRANGLER_4_92_NOT_OBSERVED_BROKEN_HERE",
+        "wranglerSupervisorIngress": "REAL_TEMPORARY_WRANGLER_D1_PROXY_FIXTURE_ONLY",
+        "d1CrossProcessReadback": "TEMPORARY_WRANGLER_QA_AFTER_FIXTURE_EXIT_PASS"
       },
       "blocker": "NO_VERIFIED_OWNED_RUNTIME_DRAIN_EXIT_ACK",
       "ready": false,
@@ -222,13 +226,21 @@
       "sourceDraft": {
         "repository": "BlueDragon33/Bauman-master-ai-system",
         "pr": 366,
-        "head": "caf96b51400fbce74bf86e0f30cc178e3b140eb5",
+        "head": "9c14ee0900ac840ed5431c859f357b776d48cd70",
         "workerEntry": "Worker entry automation-contract.ts",
         "testEvidence": {
           "workflow": "Offline D1 Observer Draft Validation",
           "runId": 38998280819,
           "windowsFixture": "PASS",
-          "ubuntuFixture": "PASS"
+          "ubuntuFixture": "PASS",
+          "actualSourceWorker": {
+            "ciRun": 39001099147,
+            "windows": "PASS",
+            "ubuntu": "PASS",
+            "scope": "REAL_WORKER_MIGRATED_D1_HEALTH_CONTRACT_AND_HTTP_503_PRESTOP_ONLY",
+            "d1InFlightShutdown": "NOT_PROVEN",
+            "windowsGracefulExit": "NOT_PROVEN"
+          }
         },
         "globalMultiIsolateDrained": false,
         "wranglerChildExitObserved": false,
@@ -320,7 +332,11 @@
         "windowsChildTree": "READ_ONLY_INSPECTION_FIXTURE_PENDING",
         "actualAppWindowsShutdown": "NOT_TESTED",
         "realWorkerD1Tracking": "DRAFT_PER_ISOLATE_OBSERVER_WIRED",
-        "disposableD1Durability": "WINDOWS_AND_UBUNTU_WRANGLER_BACKEND_FIXTURE_PASS"
+        "disposableD1Durability": "WINDOWS_AND_UBUNTU_WRANGLER_BACKEND_FIXTURE_PASS",
+        "actualWorkerLocalStartup": "WINDOWS_AND_UBUNTU_REAL_WRANGLER_SOURCE_QA_PASS",
+        "lockedWranglerCompatibility": "WRANGLER_LOCKED_4_92_0_REJECTS_2026_09_22_COMPAT_DATE; QA_CLI_4_151_1_ONLY",
+        "wranglerSupervisorIngress": "REAL_TEMPORARY_WRANGLER_D1_PROXY_FIXTURE_ONLY",
+        "d1CrossProcessReadback": "TEMPORARY_WRANGLER_QA_AFTER_FIXTURE_EXIT_PASS"
       },
       "blocker": "NO_VERIFIED_OWNED_RUNTIME_DRAIN_EXIT_ACK",
       "ready": false,
@@ -329,13 +345,21 @@
       "sourceDraft": {
         "repository": "BlueDragon33/PriceReport_Tunggiabao",
         "pr": 133,
-        "head": "ff36f4ee8dc935aea25b0c0043bbcdaee100009b",
+        "head": "d0810b9d4159b463bd3c3fb54e96ad42fcc45174",
         "workerEntry": "Worker entry index.ts",
         "testEvidence": {
           "workflow": "Offline D1 Observer Draft Validation",
           "runId": 38998290242,
           "windowsFixture": "PASS",
-          "ubuntuFixture": "PASS"
+          "ubuntuFixture": "PASS",
+          "actualSourceWorker": {
+            "ciRun": 39001260954,
+            "windows": "PASS",
+            "ubuntu": "PASS",
+            "scope": "REAL_WORKER_MIGRATED_D1_HEALTH_CONTRACT_AND_HTTP_503_PRESTOP_ONLY",
+            "d1InFlightShutdown": "NOT_PROVEN",
+            "windowsGracefulExit": "NOT_PROVEN"
+          }
         },
         "globalMultiIsolateDrained": false,
         "wranglerChildExitObserved": false,
