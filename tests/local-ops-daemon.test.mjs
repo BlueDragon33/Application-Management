@@ -320,9 +320,9 @@ test("Pull origin all protects running repos rather than fast-forward under acti
 test("offline launcher joins Run All warmup rather than competing with /start-app", () => {
   const source = readFileSync(new URL("../app/offline-ops-client.ts", import.meta.url), "utf8");
   const launch = source.slice(source.indexOf("export async function launchOffline"));
-  assert.match(launch, /current\\.busy === "start-web-all"/);
-  assert.match(launch, /current\\.busy === "start-app:" \+ appId/);
-  assert.match(launch, /if \(!requested && !current\\.busy\)/);
-  assert.match(launch, /await localOpsStartApp\(appId\)/);
-  assert.doesNotMatch(launch, /await localOpsStart\(\)/);
+  assert.ok(launch.includes('current.busy === "start-web-all"'));
+  assert.ok(launch.includes('current.busy === "start-app:" + appId'));
+  assert.ok(launch.includes("if (!requested && !current.busy)"));
+  assert.ok(launch.includes("await localOpsStartApp(appId)"));
+  assert.ok(!launch.includes("await localOpsStart()"));
 });
