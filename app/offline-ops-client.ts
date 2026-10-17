@@ -82,16 +82,32 @@ export async function launchOffline(appId: string): Promise<string> {
   let current = await localOpsStatus();
   if (current.restartRequired) throw new Error("RUNTIME_STALE_RESTART_REQUIRED: Dừng stack cũ an toàn trước khi khởi động lại BaumanWeb.");
   if (current.apps.some((app) => app.id === appId && app.ready)) return current.apps.find((app) => app.id === appId)!.url!;
-  await localOpsStartApp(appId);
-  // No online fallback: wait for the actual port to respond, not merely for a child PID.
-  for (let count = 0; count < 90; count += 1) {
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+  // If Run All is warming apps, join that operation instead of POSTing a competing
+  // /start-app and receiving LOCAL_OPERATION_BUSY. An existing single-app boot
+  // similarly joins the same launch; otherwise request this app when idle.
+  let requested = current.busy === "start-web-all" || current.busy === "start-app:" + appId
+    || current.webAll?.status === "running";
+  if (!requested && !current.busy) {
+    await localOpsStartApp(appId);
+    requested = true;
+  }
+  // Fail closed: no online fallback, only a verified live localhost port.
+  for (let count = 0; count < 75; count += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     current = await localOpsStatus();
     if (current.restartRequired) throw new Error("RUNTIME_STALE_RESTART_REQUIRED: Cần khởi động lại BaumanWeb.");
     const ready = current.apps.find((app) => app.id === appId);
     if (ready?.ready && ready.url) return ready.url;
     if (ready?.error) throw new Error(ready.error);
     if (ready?.phase === "blocked") throw new Error("WEB_FRONTEND_BLOCKED: " + appId);
+    const all = current.webAll;
+    if (all?.status === "finished" && all.results.find((item) => item.id === appId)?.status === "blocked") {
+      throw new Error(all.results.find((item) => item.id === appId)?.reason || "WEB_ALL_APP_BLOCKED");
+    }
+    if (!requested && !current.busy) {
+      await localOpsStartApp(appId);
+      requested = true;
+    }
   }
-  throw new Error("Runtime offline chưa sẵn sàng. Xem .local-ops-runtime.log trong Application-Management.");
+  throw new Error("Runtime offline chưa sẵn sàng. Kiểm tra trạng thái và .local-ops-web-" + appId + ".log trong Application-Management.");
 }

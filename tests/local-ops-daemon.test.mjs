@@ -316,3 +316,13 @@ test("Pull origin all protects running repos rather than fast-forward under acti
   assert.equal(pullSkipReason("CAD_CAM_3D"), null, "inactive clean repos remain eligible");
   assert.equal(pullSkipReason("Application-Management"), null, "cold center can be updated safely");
 });
+
+test("offline launcher joins Run All warmup rather than competing with /start-app", () => {
+  const source = readFileSync(new URL("../app/offline-ops-client.ts", import.meta.url), "utf8");
+  const launch = source.slice(source.indexOf("export async function launchOffline"));
+  assert.match(launch, /current\\.busy === "start-web-all"/);
+  assert.match(launch, /current\\.busy === "start-app:" \+ appId/);
+  assert.match(launch, /if \(!requested && !current\\.busy\)/);
+  assert.match(launch, /await localOpsStartApp\(appId\)/);
+  assert.doesNotMatch(launch, /await localOpsStart\(\)/);
+});

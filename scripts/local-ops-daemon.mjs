@@ -308,7 +308,7 @@ async function startWebFrontend(id) {
       webChildren.delete(id);
       webErrors.set(id,"WEB_PROCESS_EXIT: "+(code ?? signal ?? "unknown"));
     });
-    for(let i=0;i<100;i+=1){
+    for(let i=0;i<45;i+=1){
       if (entry.phase==="blocked" || child.exitCode !== null || child.signalCode !== null)
         throw Error(webErrors.get(id) || "WEB_EXIT_BEFORE_READY");
       if (await probe(app.port,app.path||"/")) {
@@ -339,7 +339,13 @@ async function startWebFrontendsAll() {
         webAll.results.push({id,status:"blocked",reason:"SOURCE_RESTART_REQUIRED"});continue;
       }
       if(webChildren.has(id)){
-        webAll.results.push({id,status:"already-running-or-owned"});continue;
+        const current = webChildren.get(id);
+        if (current?.phase === "running" && current.child.exitCode === null && current.child.signalCode === null) {
+          webAll.results.push({id,status:"already-running-or-owned"});
+        } else {
+          webAll.results.push({id,status:"blocked",reason:webErrors.get(id) || "WEB_CHILD_ALREADY_OWNED_BUT_NOT_READY"});
+        }
+        continue;
       }
       try{
         const answer=await startWebFrontend(id);

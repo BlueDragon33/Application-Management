@@ -80,3 +80,8 @@ Nghiệm thu còn thiếu: thư mục BaumanWeb thật trên Windows, khởi đ�
 ### Pull origin while local app is running — safety fix
 
 Pull all applies fast-forward only when the target repository is idle. A running Application-Management center, a managed stack, an owned app frontend, or an unknown listener on a manifest port makes the corresponding repository **SKIPPED** with `APP_MANAGER_ACTIVE`, `MANAGED_STACK_ACTIVE`, `APP_FRONTEND_ACTIVE` or `LOCAL_PORT_OCCUPIED`. All other repos continue to receive the existing clean-main/trusted-origin/fast-forward/SHA-readback check. **Do not** change source files underneath an active local D1 instance. Updating Application-Management itself requires closing the center safely then pulling from an independent trusted updater; no fake shutdown ACK/kill is introduced.
+
+
+### Run All responsiveness / duplicate-start fix
+
+When Run All is warming the client frontends, a click on an app joins that operation and polls its verified local port instead of sending a conflicting second `/start-app` request. If a different app is starting, the new requested app starts as soon as the helper becomes idle. A `blocked` owned runtime is never counted as successful `already-running-or-owned`. Frontend startup has a bounded 45-second port readiness wait, and UI errors point to a per-app local log. Still not real Windows owner acceptance.
