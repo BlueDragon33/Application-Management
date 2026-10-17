@@ -56,6 +56,16 @@ export const projectRepositories: readonly ProjectRepositoryConfig[] = [
     managementHref: "/apps/bauman-master-ai",
   },
   {
+    id: "bauman-russian-ios",
+    name: "Bauman Russian iOS",
+    repository: "BlueDragon33/Bauman-Russian-iOS",
+    defaultBranch: "main",
+    group: "learning",
+    state: "developing",
+    summary: "Ứng dụng iPhone native SwiftUI + WidgetKit offline-first đang ở Draft PR #3; build và XCTest Simulator đã đạt trên commit fe7e8d44cbf7, nhưng source chưa merge main, chưa cài trên iPhone, chưa có RU03 được duyệt và chưa được App-manager kết nối/đăng ký runtime. Không có launcher xác thực.",
+    relatedTo: "Bauman Master AI",
+  },
+  {
     id: "math-bauman",
     name: "Math Bauman",
     repository: "BlueDragon33/Math_Bauman",
