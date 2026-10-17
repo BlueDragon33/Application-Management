@@ -45,5 +45,7 @@ next-env.d.ts
 /.sites-runtime/
 .local-ops-bootstrap.log
 .local-ops-runtime.log
+.local-ops-center.log
+.local-ops-web-*.log
 /outputs/
 /work/
