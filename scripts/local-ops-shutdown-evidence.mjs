@@ -1,5 +1,5 @@
 // Read-only inventory: no repo mutation, process signal, D1 write, or release action.
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, realpathSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { dirname, resolve, join, relative, isAbsolute } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -49,12 +49,21 @@ function inspected(workspace, unit) {
   if (relative(workspace, file).startsWith("..") || isAbsolute(relative(workspace, file)))
     return { id: unit.id, state: "INVALID_PATH", ready: false };
   if (!existsSync(file)) return { id: unit.id, state: "SOURCE_NOT_PRESENT", ready: false };
+  // Reject a symlinked repo or source file escaping the physical workspace.
+  try {
+    const physicalRoot = realpathSync(workspace);
+    const physicalDir = realpathSync(directory);
+    const physicalFile = realpathSync(file);
+    if (!physicalDir.startsWith(physicalRoot + (process.platform === "win32" ? "\\\\" : "/")) ||
+        !physicalFile.startsWith(physicalDir + (process.platform === "win32" ? "\\\\" : "/")))
+      return { id:unit.id, state:"SYMLINK_ESCAPE_DENIED", ready:false };
+  } catch { return { id:unit.id, state:"REALPATH_UNVERIFIED", ready:false }; }
   let head = null, clean = false;
   try {
     head = execFileSync("git", ["rev-parse","HEAD"], { cwd: directory,
-      windowsHide: true, timeout: 5000, encoding:"utf8" }).trim();
+      windowsHide: true, timeout: 5000, encoding:"utf8", env:{...process.env,GIT_OPTIONAL_LOCKS:"0",GIT_TERMINAL_PROMPT:"0"} }).trim();
     clean = !execFileSync("git", ["status","--porcelain","--untracked-files=no"], {
-      cwd: directory, windowsHide: true, timeout: 5000, encoding:"utf8" }).trim();
+      cwd: directory, windowsHide: true, timeout: 5000, encoding:"utf8", env:{...process.env,GIT_OPTIONAL_LOCKS:"0",GIT_TERMINAL_PROMPT:"0"} }).trim();
   } catch { return { id: unit.id, state:"GIT_READBACK_UNAVAILABLE", ready:false }; }
   return { id: unit.id, state: head===unit.repoMainAtAudit && clean ?
     "SOURCE_PRESENT_AT_AUDIT_SHA_BUT_DRAIN_UNPROVEN":"SOURCE_SHA_OR_TREE_DIFFERS",
