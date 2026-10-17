@@ -1,7 +1,7 @@
 // Read-only inventory: no repo mutation, process signal, D1 write, or release action.
 import { readFileSync, existsSync, realpathSync } from "node:fs";
 import { execFileSync } from "node:child_process";
-import { dirname, resolve, join, relative, isAbsolute } from "node:path";
+import { dirname, resolve, join, relative, isAbsolute, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { REQUIRED_SHUTDOWN_UNITS } from "./local-ops-shutdown-contract.mjs";
 
@@ -54,8 +54,8 @@ function inspected(workspace, unit) {
     const physicalRoot = realpathSync(workspace);
     const physicalDir = realpathSync(directory);
     const physicalFile = realpathSync(file);
-    if (!physicalDir.startsWith(physicalRoot + (process.platform === "win32" ? "\\\\" : "/")) ||
-        !physicalFile.startsWith(physicalDir + (process.platform === "win32" ? "\\\\" : "/")))
+    if (!physicalDir.startsWith(physicalRoot + sep) ||
+        !physicalFile.startsWith(physicalDir + sep))
       return { id:unit.id, state:"SYMLINK_ESCAPE_DENIED", ready:false };
   } catch { return { id:unit.id, state:"REALPATH_UNVERIFIED", ready:false }; }
   let head = null, clean = false;
