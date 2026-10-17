@@ -46,9 +46,9 @@ export function assertManagedControlAdmission({managed,appsRoot,authority=null}=
   // The source files are NOT the release authority. Until external Blueprint
   // review, exact SHA readback, and child process/port acceptance are wired,
   // even a valid guarded checkout cannot authorize automatic startup.
-  if(authority?.reviewed !== true || authority?.exactSourceSHAReadback !== true ||
-    authority?.safeRuntimeAdmission !== true)
-    throw Error("MANAGED_CONTROL_REVIEW_AND_SHA_BLOCKED");
-  // This function only describes startup admission, never shutdown readiness.
-  return {mode:"guarded-source-candidate",allowed:true,shutdownApproved:false};
+  // A caller-provided boolean, JSON receipt or pre-filled permission is NOT
+  // authenticated authority. Reject it explicitly, even if every flag is true.
+  // Independent Git audit is available separately and is always non-authorizing.
+  if(authority !== null)throw Error("MANAGED_CALLER_SUPPLIED_AUTHORITY_REJECTED");
+  throw Error("MANAGED_CONTROL_REVIEW_AND_SHA_BLOCKED");
 }
