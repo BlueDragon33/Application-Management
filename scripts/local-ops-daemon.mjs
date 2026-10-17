@@ -1,6 +1,7 @@
 // Local-only Windows companion for the Application Management UI.
 // NO arbitrary command API, NO LAN listener, NO production bridge or authentication bypass.
 import { randomBytes } from "node:crypto";
+import { setTimeout as delay } from "node:timers/promises";
 import { Socket } from "node:net";
 import { readSourceSnapshot, exactSourceMatch } from "./local-ops-source-identity.mjs";
 import { assertManagedControlAdmission } from "./local-ops-managed-startup-policy.mjs";
@@ -31,8 +32,10 @@ function trustedRemote(url) {
 export function requiresRestart(runtime, results) {
   return runtime === "running" && results.some(item => item.state === "updated");
 }
-const state = { busy: "", pull: null, runtime: "stopped", runtimePid: null, lastError: "", runtimeStartedAt: null, restartRequired: false, sourceSnapshot: null, sourceVerified: false, runtimeEvidence: null, runtimeNonce: null, restartControl: null };
+const state = { busy: "", pull: null, runtime: "stopped", runtimePid: null, lastError: "", runtimeStartedAt: null, restartRequired: false, sourceSnapshot: null, sourceVerified: false, runtimeEvidence: null, runtimeNonce: null, restartControl: null,
+  centerRuntime: "stopped", centerPid: null, centerError: null };
 let runtimeChild = null;
+let centerChild = null;
 
 function permittedOrigin(req) {
   const origin = req.headers.origin || "";
@@ -209,8 +212,57 @@ async function status() {
     runtimePid: state.runtimePid, runtimeStartedAt: state.runtimeStartedAt,
     restartRequired: state.restartRequired, sourceVerified: verified,
     sourceSnapshot: verified ? state.sourceSnapshot : null, runtimeEvidence: verified ? state.runtimeEvidence : null,
-    error: state.lastError || null, pull: state.pull, restartControl: state.restartControl, apps };
+    error: state.lastError || null, pull: state.pull, restartControl: state.restartControl,
+    centerRuntime: state.centerRuntime, centerPid: state.centerPid, centerError: state.centerError, apps };
 }
+// Lightweight standalone front-end bootstrap: no BAUMAN-CONTROL/PRICE-CONTROL,
+// no migrations, no downloaded dependencies, no remote ports or elevated privileges.
+// This is not source approval or attestation of the 7 managed child runtimes.
+export async function startStandaloneCenter({ root = ROOT, onReady = waitAndOpenCenter } = {}) {
+  if (centerChild) throw Error("CENTER_ALREADY_OWNED_BY_HELPER");
+  if (await portOccupied(3000)) throw Error("CENTER_PORT_3000_BUSY: existing process is not owned; will not reuse or kill it");
+  const viteEntry = join(root, "node_modules", "vite", "bin", "vite.js");
+  if (!existsSync(viteEntry)) throw Error("CENTER_OFFLINE_DEPENDENCIES_MISSING: run npm ci once in Application-Management before disconnecting the network");
+  if (Number(process.versions.node.split(".")[0]) < 22) throw Error("CENTER_NODE_22_REQUIRED");
+  const logFd = openSync(join(root, ".local-ops-center.log"), "a", 0o600);
+  state.centerRuntime = "starting";
+  state.centerError = null;
+  try {
+    const child = spawn(process.execPath, [viteEntry, "--host", "127.0.0.1", "--port", "3000", "--strictPort"], {
+      cwd: root, shell: false, detached: false, windowsHide: true, stdio: ["ignore", logFd, logFd],
+      env: { ...process.env, APPLICATION_MANAGEMENT_ACCESS_MODE: "standalone",
+        LOCAL_DEV_AUTH: "1", LOCAL_CONTROL_PLANE: "1", CONTROL_PLANE_NETWORK_MODE: "local" },
+    });
+    centerChild = child;
+    state.centerPid = child.pid || null;
+    child.once("exit", (code, signal) => {
+      if (centerChild !== child) return;
+      centerChild = null;
+      state.centerPid = null;
+      state.centerRuntime = "stopped";
+      state.centerError = "CENTER_PROCESS_EXIT: " + (code ?? signal ?? "unknown");
+    });
+    for (let i = 0; i < 75; i += 1) {
+      if (child.exitCode !== null || child.signalCode !== null) throw Error("CENTER_EXIT_BEFORE_READY");
+      if (await probe(3000)) {
+        if (centerChild !== child) throw Error("CENTER_OWNER_CHANGED_DURING_BOOT");
+        state.centerRuntime = "running";
+        // HTTP availability is not cryptographic source identity; keep this separate
+        // from the managed Run All readiness flag.
+        void onReady().catch(error => { state.centerError = String(error).slice(0, 220); });
+        return {status: "running", pid: child.pid, sourceVerified: false};
+      }
+      await delay(850);
+    }
+    throw Error("CENTER_HTTP_READINESS_TIMEOUT: inspect .local-ops-center.log");
+  } catch (error) {
+    state.centerRuntime = centerChild ? "blocked" : "error";
+    state.centerError = error instanceof Error ? error.message.slice(0, 240) : String(error);
+    // Unknown managed processes are never force-killed from this helper.
+    throw error;
+  } finally { closeSync(logFd); }
+}
+
 async function startAll() {
   state.busy = "starting";
   state.runtime = "starting";
@@ -415,7 +467,11 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     const server = createLocalOpsServer();
     server.listen(PORT, "127.0.0.1", () => {
       console.log("[Local Ops] 127.0.0.1:" + PORT + " | BaumanWeb only");
-      if (process.argv.includes("--start")) {
+      if (process.argv.includes("--center")) {
+        void startStandaloneCenter().catch(error => {
+          console.error("[Local Ops] Standalone Center startup blocked: " + (error?.message || error));
+        });
+      } else if (process.argv.includes("--start")) {
         state.busy = "starting";
         void startAll().then(() => { if (state.runtime === "running") void waitAndOpenCenter(); });
       }

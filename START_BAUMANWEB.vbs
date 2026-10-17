@@ -9,4 +9,5 @@ If LCase(fso.GetFileName(fso.GetParentFolderName(root))) <> "baumanweb" Then
   WScript.Quit 2
 End If
 shell.CurrentDirectory = root
-shell.Run "cmd.exe /d /c node scripts\local-ops-daemon.mjs --start >> .local-ops-bootstrap.log 2>&1", 0, False
+' Start only the standalone Manager shell. Run All remains a user choice behind review gates.
+shell.Run "cmd.exe /d /c node scripts\local-ops-daemon.mjs --center >> .local-ops-bootstrap.log 2>&1", 0, False

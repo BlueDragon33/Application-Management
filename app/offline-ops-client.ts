@@ -11,6 +11,9 @@ export type LocalOpsStatus = {
   agent: string;
   busy: string;
   runtime: string;
+  centerRuntime?: string;
+  centerPid?: number | null;
+  centerError?: string | null;
   runtimePid: number | null;
   runtimeStartedAt: string | null;
   restartRequired: boolean;

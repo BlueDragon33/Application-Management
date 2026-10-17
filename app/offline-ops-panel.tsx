@@ -141,7 +141,7 @@ export default function OfflineOpsPanel({ local, mode, onModeChange }: {
       </div> : null}
     </div>
     <div className="amv2-local-summary">
-      <span>{status ? ready + "/" + supported + " runtime local sẵn sàng" : "Chưa kết nối Local Ops"}</span>
+      <span>{status ? "App Manager: " + (status.centerRuntime === "running" ? "đang chạy" : "chưa xác minh") + " · " + ready + "/" + supported + " app con sẵn sàng" : "Chưa kết nối Local Ops"}</span>
       <button type="button" disabled={busy || !status || Boolean(status.busy) || status.runtime === "running" || status.restartRequired}
         onClick={() => void runAll()}>{status?.runtime === "starting" || status?.busy === "starting" ? "▶ Đang Run All…" : status?.runtime === "running" ? "✓ Run All đã mở" : "▶ Run All · mở sẵn"}</button>
       {status?.restartRequired ? <button type="button" disabled={busy || Boolean(status.busy) || Boolean(status.runtimePid)} onClick={() => void restartIfSafe()}>↻ Khởi động lại khi an toàn</button> : null}
@@ -150,6 +150,7 @@ export default function OfflineOpsPanel({ local, mode, onModeChange }: {
     </div>
     {status?.sourceVerified ? <small>Đã đối chiếu SHA tại thời điểm khởi động và readback Git · {Object.keys(status.sourceSnapshot ?? {}).length} repo. Không phải chứng thực SHA HTTP từng app.</small> : null}
     {status?.restartControl?.status === "blocked" ? <small role="alert" className="amv2-local-error">Không tự restart: {status.restartControl.reason || "Chưa có bằng chứng drain D1 đầy đủ."}</small> : null}
+    {status?.centerRuntime === "blocked" && status.centerError ? <small role="alert" className="amv2-local-error">App Manager Center BLOCKED: {status.centerError}</small> : null}
     {status?.runtime === "blocked" && status.error ? <small role="alert" className="amv2-local-error">Run All BLOCKED: {status.error}</small> : null}
     {actionInfo ? <small role="status">{actionInfo}</small> : null}
     {error ? <small role="alert" className="amv2-local-error">{error}</small> : null}

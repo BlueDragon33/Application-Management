@@ -272,3 +272,23 @@ test("Offline-first route never silently falls through to a public child URL", (
   assert.ok(!runtimeLauncher.includes("publishedUrl"));
   assert.ok(!runtimeLauncher.includes("publicUrl"));
 });
+
+test("Windows bootstrap requests only standalone center; managed app gates remain intact", () => {
+  const vbs = readFileSync(new URL("../START_BAUMANWEB.vbs", import.meta.url), "utf8");
+  const daemon = readFileSync(new URL("../scripts/local-ops-daemon.mjs", import.meta.url), "utf8");
+  assert.ok(vbs.includes("local-ops-daemon.mjs --center"));
+  assert.ok(!vbs.includes("local-ops-daemon.mjs --start"));
+  assert.ok(daemon.includes('if (process.argv.includes("--center"))'));
+  assert.ok(daemon.includes("async function startAll()"));
+  assert.ok(daemon.includes("assertManagedControlAdmission({ managed: true, appsRoot: WORKSPACE })"));
+  const begin = daemon.indexOf("export async function startStandaloneCenter");
+  const end = daemon.indexOf("async function startAll()", begin);
+  const isolated = daemon.slice(begin, end);
+  assert.ok(isolated.includes('vite.js'));
+  assert.ok(isolated.includes('127.0.0.1'));
+  assert.ok(isolated.includes('CENTER_OFFLINE_DEPENDENCIES_MISSING'));
+  assert.ok(!isolated.includes('npm ci",'));
+  assert.ok(!isolated.includes('run-all.mjs'));
+  assert.ok(!isolated.includes('taskkill'));
+  assert.ok(!isolated.includes('migration'));
+});
