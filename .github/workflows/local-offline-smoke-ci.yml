@@ -10,6 +10,9 @@ on:
       - 'vite.config.ts'
       - 'package-lock.json'
       - 'scripts/local-ops-daemon.mjs'
+      - 'scripts/windows-readonly-acceptance.ps1'
+      - 'tests/windows-readonly-acceptance.test.mjs'
+      - 'QA_BAUMANWEB_READONLY.vbs'
       - 'scripts/local-ops-web-launcher.mjs'
       - 'scripts/local-ops-growup-static.mjs'
       - 'scripts/local-ops-single-app-real-process-qa.mjs'
@@ -153,6 +156,21 @@ jobs:
         with:
           node-version: '22.13.0'
           package-manager-cache: false
+      - name: Windows read-only acceptance script checks fail-closed (disposable fixture)
+        shell: pwsh
+        run: |
+          $qaRoot = Join-Path $env:RUNNER_TEMP 'BaumanWeb'
+          $manager = Join-Path $qaRoot 'Application-Management'
+          New-Item -ItemType Directory -Force (Join-Path $manager 'control') | Out-Null
+          Copy-Item control/local-ops-apps.json (Join-Path $manager 'control/local-ops-apps.json')
+          $report = Join-Path $env:RUNNER_TEMP 'read-only-qa-report'
+          & powershell.exe -NoProfile -NonInteractive -File scripts/windows-readonly-acceptance.ps1 -WorkspaceRoot $qaRoot -ReportDirectory $report
+          if ($LASTEXITCODE -ne 0) { throw 'Read-only collector failed' }
+          $json = Get-Content (Join-Path $report 'latest.json') -Raw | ConvertFrom-Json
+          if ($json.verdict -ne 'BLOCKED_NEEDS_HUMAN_REVIEW') { throw 'Must never self-approve' }
+          if ($json.d1Shutdown -ne 'BLOCKED_NOT_TESTED') { throw 'Must never fake D1 drain' }
+          if ($json.manager.git.state -ne 'MISSING_DIRECTORY') { throw 'Must be honest about missing real checkout' }
+          if ($json.secretsCaptured -ne $false) { throw 'Secrets must not be captured' }
       - name: Windows helper cold-start/restart + real Git SHA fixtures
         run: node --test tests/local-ops-windows-smoke.test.mjs tests/local-ops-git-real.test.mjs tests/local-ops-daemon.test.mjs tests/local-ops-shutdown-contract.test.mjs tests/local-ops-shutdown-evidence.test.mjs tests/local-ops-managed-process.test.mjs tests/local-ops-drain-adapter.test.mjs tests/local-ops-runtime-drain-preflight.test.mjs tests/local-ops-blocked-adapter-plan.test.mjs tests/local-ops-wrangler-ingress.test.mjs tests/local-ops-private-wrangler-proof.test.mjs tests/blueprint-guidance-required.test.mjs tests/local-ops-managed-startup-policy.test.mjs tests/local-ops-control-source-audit.test.mjs tests/local-ops-managed-wrangler-candidate.test.mjs tests/local-ops-isolate-drain-ledger.test.mjs
       - name: Install local D1 tooling
