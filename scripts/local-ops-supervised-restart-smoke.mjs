@@ -93,9 +93,16 @@ try {
   mkdirSync(join(central,"scripts"),{recursive:true});
   mkdirSync(join(central,"control"),{recursive:true});
   writeFileSync(join(central,"package.json"),'{"type":"module"}\n');
-  for(const name of ["local-ops-daemon.mjs","local-ops-source-identity.mjs","local-ops-shutdown-contract.mjs","local-ops-windows-process-tree.mjs"])
+  for(const name of ["local-ops-daemon.mjs","local-ops-source-identity.mjs","local-ops-shutdown-contract.mjs","local-ops-windows-process-tree.mjs","local-ops-managed-startup-policy.mjs"])
     copyFileSync(join(SOURCE,"scripts",name),join(central,"scripts",name));
   copyFileSync(join(SOURCE,"control/local-ops-apps.json"),join(central,"control/local-ops-apps.json"));
+  // This detached temporary supervisor fixture deliberately replaces ONLY
+  // its private copy of the source-admission module. Product modules are never
+  // modified; synthetic supervisor ACK exercises request coordination, not
+  // actual permission to run unreviewed source apps.
+  writeFileSync(join(central,"scripts","local-ops-managed-startup-policy.mjs"),
+    'export function assertManagedControlAdmission({managed}={}) { if(managed!==true) throw Error("QA_FIXTURE_MANAGED_REQUIRED"); return {mode:"SYNTHETIC_QA_FIXTURE_ONLY"}; }\\n');
+
   writeFileSync(join(central,"scripts","run-all.mjs"),fakeRunAll);
   // Recommit source after placing the controlled fixture files.
   git(central,"add",".");git(central,"commit","-m","mock bootstrap");
