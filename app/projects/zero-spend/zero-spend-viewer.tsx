@@ -26,7 +26,8 @@ export default function ZeroSpendViewer() {
     setError("");
     setReport(null);
     setQuery("");
-    const file = event.currentTarget.files?.[0];
+    const input = event.currentTarget;
+    const file = input.files?.[0];
     if (!file) return;
     if (file.size > 4 * 1024 * 1024) {
       setError("BLOCKED: Báo cáo vượt 4 MB; không đọc hoặc tải lên.");
@@ -37,7 +38,7 @@ export default function ZeroSpendViewer() {
     } catch {
       setError("BLOCKED: Tệp JSON không đúng cấu trúc/nguồn ZERO-SPEND. Không chấp nhận là QA PASS.");
     }
-    event.currentTarget.value = "";
+    input.value = "";
   }
 
   const rows = useMemo(() =>
