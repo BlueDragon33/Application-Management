@@ -23,6 +23,10 @@ on:
       - 'scripts/local-ops-windows-process-tree.mjs'
       - 'scripts/local-ops-drain-adapter.mjs'
       - 'scripts/local-ops-runtime-drain-preflight.mjs'
+      - 'scripts/local-ops-wrangler-ingress.mjs'
+      - 'scripts/local-ops-real-wrangler-drain-smoke.mjs'
+      - 'tests/local-ops-wrangler-ingress.test.mjs'
+      - 'tests/fixtures/wrangler-d1-flight-worker.mjs'
       - 'tests/local-ops-managed-process.test.mjs'
       - 'tests/local-ops-drain-adapter.test.mjs'
       - 'tests/local-ops-runtime-drain-preflight.test.mjs'
@@ -59,13 +63,15 @@ jobs:
       - name: Install dependencies before disconnecting runtime
         run: npm ci --no-audit --no-fund
       - name: Git fast-forward fixtures and localhost protocol regression
-        run: node --test tests/local-ops-daemon.test.mjs tests/local-ops-git-real.test.mjs tests/local-ops-shutdown-contract.test.mjs tests/local-ops-shutdown-evidence.test.mjs tests/local-ops-managed-process.test.mjs tests/local-ops-drain-adapter.test.mjs tests/local-ops-runtime-drain-preflight.test.mjs tests/local-ops-blocked-adapter-plan.test.mjs
+        run: node --test tests/local-ops-daemon.test.mjs tests/local-ops-git-real.test.mjs tests/local-ops-shutdown-contract.test.mjs tests/local-ops-shutdown-evidence.test.mjs tests/local-ops-managed-process.test.mjs tests/local-ops-drain-adapter.test.mjs tests/local-ops-runtime-drain-preflight.test.mjs tests/local-ops-blocked-adapter-plan.test.mjs tests/local-ops-wrangler-ingress.test.mjs
       - name: Verify guarded stack restart with real Git HEAD and mock local ports
         run: node scripts/local-ops-supervised-restart-smoke.mjs
       - name: Read-only 13-unit matrix audit (never a release approval)
         run: node scripts/local-ops-shutdown-evidence.mjs
       - name: Check local D1 process-to-process persistence in disposable storage
         run: node scripts/local-d1-persistence-smoke.mjs
+      - name: Actual Wrangler/Miniflare D1 in-flight HTTP over localhost (temporary only)
+        run: node scripts/local-ops-real-wrangler-drain-smoke.mjs
       - name: Acquire sandbox image at build time
         run: docker pull node:22-bookworm-slim
       - name: Verify localhost security protocol inside network-denied container
@@ -117,12 +123,14 @@ jobs:
           node-version: '22.13.0'
           package-manager-cache: false
       - name: Windows helper cold-start/restart + real Git SHA fixtures
-        run: node --test tests/local-ops-windows-smoke.test.mjs tests/local-ops-git-real.test.mjs tests/local-ops-daemon.test.mjs tests/local-ops-shutdown-contract.test.mjs tests/local-ops-shutdown-evidence.test.mjs tests/local-ops-managed-process.test.mjs tests/local-ops-drain-adapter.test.mjs tests/local-ops-runtime-drain-preflight.test.mjs tests/local-ops-blocked-adapter-plan.test.mjs
+        run: node --test tests/local-ops-windows-smoke.test.mjs tests/local-ops-git-real.test.mjs tests/local-ops-daemon.test.mjs tests/local-ops-shutdown-contract.test.mjs tests/local-ops-shutdown-evidence.test.mjs tests/local-ops-managed-process.test.mjs tests/local-ops-drain-adapter.test.mjs tests/local-ops-runtime-drain-preflight.test.mjs tests/local-ops-blocked-adapter-plan.test.mjs tests/local-ops-wrangler-ingress.test.mjs
       - name: Install local D1 tooling
         run: npm ci --no-audit --no-fund
       - name: Windows guarded stack restart with mocked child and real Git HEADs
         run: node scripts/local-ops-supervised-restart-smoke.mjs
       - name: Disposable Windows D1 write-stop-read persistence
         run: node scripts/local-d1-persistence-smoke.mjs
+      - name: Actual Windows Wrangler D1 in-flight HTTP and process-tree fixture
+        run: node scripts/local-ops-real-wrangler-drain-smoke.mjs
       - name: Scope note
         run: echo "Helper/D1 fixture only; full BaumanWeb multi-app Windows acceptance remains BLOCKED."
