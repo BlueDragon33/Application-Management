@@ -4,7 +4,7 @@ import { readFile, stat } from "node:fs/promises";
 import { createPrivateWranglerProof, assertNoSecretInArgs } from "../scripts/local-ops-private-wrangler-proof.mjs";
 
 test("per-boot private Wrangler proof never appears in CLI args, status, or log evidence",async()=>{
- const fixture=await createPrivateWranglerProof({prefix:"am-secret-check-"});
+ const fixture=await createPrivateWranglerProof({prefix:"am-secret-check-",bindings:{PRICE_REPORT_CONTROL_SERVICE_SECRET:"s".repeat(48),APPLICATION_MANAGEMENT_ORIGIN:"http://127.0.0.1:3000"}});
  try {
    const data=await readFile(fixture.file,"utf8");
    assert.match(data,/LOCAL_OPS_GATEWAY_REQUIRED="1"/);

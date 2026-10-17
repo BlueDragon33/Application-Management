@@ -49,9 +49,9 @@ test("both runtime entrypoints must perform managed gate before migration or spa
     assert.match(entry,/assertManagedControlAdmission/);
     assert.match(entry,/assertNoManagedArgvSecrets/);
     const actual=entry.lastIndexOf("assertManagedControlAdmission(");
-    const migrate=entry.indexOf("runChecked(",actual);
-    const spawn=entry.indexOf("spawnService(",actual);
-    assert.ok(actual>0&&migrate>actual&&spawn>actual,"preflight first");
+    const startup=entry.indexOf("async function main()");
+    const knownPostGate=entry===all ? entry.indexOf('  requireFile(join(growUpRoot',actual) : entry.indexOf('  for (const [key, path] of Object.entries(paths)) requirePath',actual);
+    assert.ok(startup>=0&&actual>startup&&knownPostGate>actual,"admission before first workspace/migration step");
   }
 });
 
