@@ -5,6 +5,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { Socket } from "node:net";
 import { readSourceSnapshot, exactSourceMatch } from "./local-ops-source-identity.mjs";
 import { assertManagedControlAdmission } from "./local-ops-managed-startup-policy.mjs";
+import { webSupported, webSupportedIds, webRuntimeSpec } from "./local-ops-web-launcher.mjs";
 import { SHUTDOWN_PROTOCOL, validateStopPreflight, requestChildReply, childExited, newStopRequestId } from "./local-ops-shutdown-contract.mjs";
 import { captureWindowsTree, verifyWindowsTreeGone } from "./local-ops-windows-process-tree.mjs";
 import { execFile } from "node:child_process";
@@ -36,6 +37,9 @@ const state = { busy: "", pull: null, runtime: "stopped", runtimePid: null, last
   centerRuntime: "stopped", centerPid: null, centerError: null };
 let runtimeChild = null;
 let centerChild = null;
+const webChildren = new Map();
+const webErrors = new Map();
+let webAll = null;
 
 function permittedOrigin(req) {
   const origin = req.headers.origin || "";
@@ -137,7 +141,9 @@ async function pullAll() {
     }
     state.pull.status = "finished";
     // A running stack cannot adopt fetched source without a verified cold restart.
-    if (requiresRestart(state.runtime, state.pull.results)) {
+    if (requiresRestart(state.runtime, state.pull.results) ||
+        (state.pull.results.some(item => item.state === "updated") &&
+          (webChildren.size > 0 || state.centerRuntime === "running"))) {
       state.restartRequired = true;
       state.sourceVerified = false;
     }
@@ -200,21 +206,122 @@ async function checkSourceDrift() {
 async function status() {
   await checkSourceDrift();
   const verified = state.runtime === "running" && state.sourceVerified && !state.restartRequired && !state.busy;
-  const apps = await Promise.all(MANIFEST.apps.map(async app => ({
-    id: app.id,
-    url: app.port ? "http://127.0.0.1:" + app.port + (app.path || "/") : null,
-    port: app.port,
-    ready: verified && app.port ? await probe(app.port, app.path || "/") : false,
-    note: app.note || null,
-    sourceSha: verified ? (state.sourceSnapshot?.[app.id] ?? null) : null,
-  })));
+  const apps = await Promise.all(MANIFEST.apps.map(async app => {
+    const frontend = webChildren.get(app.id);
+    let singleReady = false, sourceSha = null;
+    if (frontend && frontend.phase === "running" && !state.restartRequired &&
+      frontend.child.exitCode === null && frontend.child.signalCode === null && state.busy !== "pull-all") {
+      try {
+        const now = await readSourceSnapshot(WORKSPACE, [app]);
+        if (exactSourceMatch(frontend.sources, now)) {
+          singleReady = Boolean(await probe(app.port, app.path || "/"));
+          sourceSha = now[app.id] || null;
+        } else {
+          state.restartRequired = true;
+          webErrors.set(app.id, "WEB_SOURCE_SHA_DRIFT: safe manual restart required");
+        }
+      } catch (error) {
+        state.restartRequired = true;
+        webErrors.set(app.id, "WEB_SOURCE_READBACK_BLOCKED: " + String(error).slice(0, 160));
+      }
+    }
+    const globalReady = Boolean(verified && app.port && await probe(app.port, app.path || "/"));
+    return {
+      id: app.id, port: app.port,
+      url: app.port ? "http://127.0.0.1:" + app.port + (app.path || "/") : null,
+      ready: !state.restartRequired && (globalReady || singleReady),
+      note: app.note || null,
+      sourceSha: globalReady ? (state.sourceSnapshot?.[app.id] ?? null) : sourceSha,
+      phase: frontend?.phase || "stopped", pid: frontend?.child.pid || null,
+      error: webErrors.get(app.id) || null,
+      evidence: singleReady ? "owned PID + Git main SHA + localhost HTTP (not signed app build)" : null,
+    };
+  }));
   return { ok: true, workspace: basename(WORKSPACE), agent: "localhost", busy: state.busy, runtime: state.runtime,
     runtimePid: state.runtimePid, runtimeStartedAt: state.runtimeStartedAt,
     restartRequired: state.restartRequired, sourceVerified: verified,
     sourceSnapshot: verified ? state.sourceSnapshot : null, runtimeEvidence: verified ? state.runtimeEvidence : null,
     error: state.lastError || null, pull: state.pull, restartControl: state.restartControl,
-    centerRuntime: state.centerRuntime, centerPid: state.centerPid, centerError: state.centerError, apps };
+    centerRuntime: state.centerRuntime, centerPid: state.centerPid, centerError: state.centerError,
+    webAll, apps };
 }
+
+// Independent web frontends only. Never spawn BAUMAN-CONTROL, PRICE-CONTROL,
+// or stop an active D1 process forcibly. Do not claim verified app build SHA.
+async function startWebFrontend(id) {
+  const app = MANIFEST.apps.find(item => item.id === id);
+  if (!webSupported(app)) throw Error("WEB_FRONTEND_NOT_SUPPORTED: " + id);
+  if (state.restartRequired) throw Error("RUNTIME_STALE_RESTART_REQUIRED");
+  if (webChildren.has(id)) throw Error("WEB_FRONTEND_ALREADY_OWNED: " + id);
+  if (await portOccupied(app.port)) throw Error("WEB_PORT_BUSY_UNOWNED: " + app.port);
+  const before = await readSourceSnapshot(WORKSPACE, [app]);
+  const spec = webRuntimeSpec({ app, workspace: WORKSPACE, managerRoot: ROOT });
+  const fd = openSync(join(ROOT, ".local-ops-web-" + id + ".log"), "a", 0o600);
+  webErrors.delete(id);
+  let entry;
+  try {
+    const child = spawn(spec.file, spec.args, {cwd: spec.cwd, shell: false,
+      detached: false, windowsHide: true, stdio: ["ignore", fd, fd],
+      env: { ...process.env, ...spec.env }});
+    entry = { child, phase:"starting", sources:before };
+    webChildren.set(id, entry);
+    child.once("error",error=>{
+      if (webChildren.get(id) === entry) {
+        entry.phase="blocked";
+        webErrors.set(id,"WEB_PROCESS_SPAWN_ERROR: "+String(error).slice(0,160));
+      }
+    });
+    child.once("exit",(code,signal)=>{
+      if (webChildren.get(id) !== entry) return;
+      webChildren.delete(id);
+      webErrors.set(id,"WEB_PROCESS_EXIT: "+(code ?? signal ?? "unknown"));
+    });
+    for(let i=0;i<100;i+=1){
+      if (entry.phase==="blocked" || child.exitCode !== null || child.signalCode !== null)
+        throw Error(webErrors.get(id) || "WEB_EXIT_BEFORE_READY");
+      if (await probe(app.port,app.path||"/")) {
+        const after = await readSourceSnapshot(WORKSPACE,[app]);
+        if (!exactSourceMatch(before,after)) {
+          state.restartRequired=true;
+          throw Error("WEB_SOURCE_SHA_CHANGED_DURING_BOOT");
+        }
+        if (webChildren.get(id)!==entry || child.exitCode!==null) throw Error("WEB_CHILD_OWNERSHIP_LOST");
+        entry.phase="running";
+        return {id,port:app.port,pid:child.pid};
+      }
+      await delay(1000);
+    }
+    throw Error("WEB_HTTP_READINESS_TIMEOUT: see .local-ops-web-"+id+".log");
+  } catch(error) {
+    const reason=String(error.message||error).slice(0,220);
+    webErrors.set(id,reason);
+    if(entry && webChildren.get(id)===entry) entry.phase="blocked";
+    throw Error(reason);
+  } finally { closeSync(fd); }
+}
+async function startWebFrontendsAll() {
+  webAll={ status:"running", startedAt:new Date().toISOString(), results:[] };
+  try{
+    for(const id of webSupportedIds(MANIFEST.apps)) {
+      if(state.restartRequired){
+        webAll.results.push({id,status:"blocked",reason:"SOURCE_RESTART_REQUIRED"});continue;
+      }
+      if(webChildren.has(id)){
+        webAll.results.push({id,status:"already-running-or-owned"});continue;
+      }
+      try{
+        const answer=await startWebFrontend(id);
+        webAll.results.push({id,status:"ready",port:answer.port});
+      }catch(error){
+        webAll.results.push({id,status:"blocked",reason:String(error.message||error).slice(0,180)});
+      }
+    }
+    webAll.status="finished";
+  }catch(error){
+    webAll.status="blocked";webAll.error=String(error).slice(0,180);
+  }finally{webAll.finishedAt=new Date().toISOString();state.busy="";}
+}
+
 // Lightweight standalone front-end bootstrap: no BAUMAN-CONTROL/PRICE-CONTROL,
 // no migrations, no downloaded dependencies, no remote ports or elevated privileges.
 // This is not source approval or attestation of the 7 managed child runtimes.
@@ -424,6 +531,26 @@ export function createLocalOpsServer() {
     if (req.method === "GET" && req.url === "/session") return reply(res, 200, { token: TOKEN }, origin);
     if (!validToken(req)) return reply(res, 401, { error: "LOCAL_TOKEN_REQUIRED" }, origin);
     if (req.method === "GET" && req.url === "/status") return reply(res, 200, await status(), origin);
+    const single = req.method === "POST" ? /^\/start-app\/([a-z0-9-]+)$/.exec(req.url || "") : null;
+    if (single) {
+      const id=single[1],app=MANIFEST.apps.find(row=>row.id===id);
+      if(!webSupported(app))return reply(res,404,{error:"WEB_FRONTEND_NOT_REGISTERED"},origin);
+      if(state.busy)return reply(res,409,{error:"LOCAL_OPERATION_BUSY"},origin);
+      if(state.restartRequired)return reply(res,409,{error:"RUNTIME_STALE_RESTART_REQUIRED"},origin);
+      if(webChildren.has(id))return reply(res,409,{error:"WEB_FRONTEND_ALREADY_OWNED"},origin);
+      webErrors.delete(id);
+      state.busy="start-app:"+id;
+      void startWebFrontend(id).catch(error=>webErrors.set(id,String(error.message||error).slice(0,200)))
+        .finally(()=>{state.busy="";});
+      return reply(res,202,{ok:true,id,state:"starting"},origin);
+    }
+    if(req.method==="POST"&&req.url==="/start-web-all"){
+      if(state.busy)return reply(res,409,{error:"LOCAL_OPERATION_BUSY"},origin);
+      if(state.restartRequired)return reply(res,409,{error:"RUNTIME_STALE_RESTART_REQUIRED"},origin);
+      state.busy="start-web-all";
+      void startWebFrontendsAll();
+      return reply(res,202,{ok:true,state:"starting",mode:"standalone-frontend-only"},origin);
+    }
     if (req.method === "POST" && req.url === "/start") {
       if (state.busy) return reply(res, 409, { error: "LOCAL_OPERATION_BUSY" }, origin);
       if (state.restartRequired && (state.runtime === "running" || state.runtime === "starting"))

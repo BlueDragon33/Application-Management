@@ -228,7 +228,7 @@ test("restart endpoint is never accessible without local bearer token", async ()
 test("Run All is an explicit authenticated fail-closed action while controlled source review is missing", async () => {
   const panel = readFileSync(new URL("../app/offline-ops-panel.tsx", import.meta.url), "utf8");
   assert.match(panel, /Run All · mở sẵn/);
-  assert.match(panel, /localOpsStart\(\)/);
+  assert.match(panel, /localOpsStartWebAll\(\)/);
   assert.match(panel, /Run Offline · chọn app/);
   assert.match(panel, /Pull origin · tất cả main/);
   assert.match(panel, /Hướng dẫn · Next Action/);
@@ -291,4 +291,19 @@ test("Windows bootstrap requests only standalone center; managed app gates remai
   assert.ok(!isolated.includes('run-all.mjs'));
   assert.ok(!isolated.includes('taskkill'));
   assert.ok(!isolated.includes('"d1", "migrations"'));
+});
+
+test("per-app offline endpoints reject arbitrary path and require a local authenticated session",async()=>{
+  const server=createLocalOpsServer();
+  await new Promise(r=>server.listen(0,"127.0.0.1",r));
+  const base="http://127.0.0.1:"+server.address().port;
+  const origin="http://127.0.0.1:3000";
+  try{
+    const {token}=await(await fetch(base+"/session",{headers:{origin}})).json();
+    const headers={origin,authorization:"Bearer "+token};
+    assert.equal((await fetch(base+"/start-app/evil-command",{method:"POST",headers})).status,404);
+    assert.equal((await fetch(base+"/start-app/pc-manager",{method:"POST",headers})).status,404);
+    assert.equal((await fetch(base+"/start-web-all",{method:"POST",headers:{origin}})).status,401);
+    assert.equal((await fetch(base+"/start-app/boi-ech/cmd",{method:"POST",headers})).status,404);
+  }finally{await new Promise(r=>server.close(r));}
 });

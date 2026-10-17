@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { localOpsAutoRestart, localOpsPullAll, localOpsRestart, localOpsStart, localOpsStatus, type LocalOpsStatus, type OperatingMode } from "./offline-ops-client";
+import { localOpsAutoRestart, localOpsPullAll, localOpsRestart, localOpsStartWebAll, localOpsStatus, type LocalOpsStatus, type OperatingMode } from "./offline-ops-client";
 import "./offline-ops-panel.css";
 
 export default function OfflineOpsPanel({ local, mode, onModeChange }: {
@@ -47,16 +47,16 @@ export default function OfflineOpsPanel({ local, mode, onModeChange }: {
 
   // Explicit pre-warm request; code never claims that an unreviewed child stack is ready.
   async function runAll() {
-    if (lock.current || busy || status?.busy || status?.runtime === "running") return;
+    if (lock.current || busy || status?.busy || (status?.apps.every((app) => !app.port || app.ready) ?? false)) return;
     lock.current = true;
     setBusy(true);
     setError("");
     setActionInfo("");
     onModeChange("offline");
     try {
-      const result = await localOpsStart();
-      if (result.runtime !== "starting") throw new Error("Không nhận được trạng thái khởi động từ Local Ops.");
-      setActionInfo("Run All đã được yêu cầu. Đang xác minh cổng và SHA; chỉ dùng ứng dụng khi báo sẵn sàng.");
+      const result = await localOpsStartWebAll();
+      if (result.state !== "starting") throw new Error("Không nhận được trạng thái khởi động từ Local Ops.");
+      setActionInfo("Run All đang mở từng giao diện offline. Control Service/D1 còn khóa; chỉ dùng app đã được xác minh cổng và SHA.");
       setStatus(await localOpsStatus());
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Run All bị chặn.");
@@ -142,9 +142,10 @@ export default function OfflineOpsPanel({ local, mode, onModeChange }: {
     </div>
     <div className="amv2-local-summary">
       <span>{status ? "App Manager: " + (status.centerRuntime === "running" ? "đang chạy" : "chưa xác minh") + " · " + ready + "/" + supported + " app con sẵn sàng" : "Chưa kết nối Local Ops"}</span>
-      <button type="button" disabled={busy || !status || Boolean(status.busy) || status.runtime === "running" || status.restartRequired}
-        onClick={() => void runAll()}>{status?.runtime === "starting" || status?.busy === "starting" ? "▶ Đang Run All…" : status?.runtime === "running" ? "✓ Run All đã mở" : "▶ Run All · mở sẵn"}</button>
-      {status?.restartRequired ? <button type="button" disabled={busy || Boolean(status.busy) || Boolean(status.runtimePid)} onClick={() => void restartIfSafe()}>↻ Khởi động lại khi an toàn</button> : null}
+      <button type="button" disabled={busy || !status || Boolean(status.busy) || ready >= supported || status.restartRequired}
+        onClick={() => void runAll()}>{status?.webAll?.status === "running" || status?.busy === "start-web-all" ? "▶ Đang Run All…" : supported > 0 && ready >= supported ? "✓ Giao diện đã mở" : "▶ Run All · mở sẵn"}</button>
+      {status?.restartRequired && status.centerRuntime === "running" ? <small className="amv2-local-error">Đã Pull mã mới: dừng các runtime cũ an toàn và mở lại Local Ops; không ép tắt D1.</small> : null}
+      {status?.restartRequired && status.centerRuntime !== "running" ? <button type="button" disabled={busy || Boolean(status.busy) || Boolean(status.runtimePid)} onClick={() => void restartIfSafe()}>↻ Khởi động lại khi an toàn</button> : null}
       {status?.restartRequired && status.runtimePid ? <button type="button" disabled={busy || Boolean(status.busy)} onClick={() => void tryAutoRestart()}>Kiểm tra điều kiện tự restart</button> : null}
       <button type="button" disabled={busy || !status || Boolean(status.busy)} onClick={() => void pullAll()}>{busy || status?.busy === "pull-all" ? "↻ Đang Pull…" : "↓ Pull origin · tất cả main"}</button>
     </div>
@@ -152,6 +153,11 @@ export default function OfflineOpsPanel({ local, mode, onModeChange }: {
     {status?.restartControl?.status === "blocked" ? <small role="alert" className="amv2-local-error">Không tự restart: {status.restartControl.reason || "Chưa có bằng chứng drain D1 đầy đủ."}</small> : null}
     {status?.centerRuntime === "blocked" && status.centerError ? <small role="alert" className="amv2-local-error">App Manager Center BLOCKED: {status.centerError}</small> : null}
     {status?.runtime === "blocked" && status.error ? <small role="alert" className="amv2-local-error">Run All BLOCKED: {status.error}</small> : null}
+    {status?.webAll ? <details className="amv2-local-pull">
+      <summary>Run All giao diện · {status.webAll.status} · {status.webAll.results.filter((x) => x.status === "ready" || x.status === "already-running-or-owned").length}/{supported} app được yêu cầu</summary>
+      <div>{status.webAll.results.map((x) => <p key={x.id}><strong>{x.id}</strong> · {x.status}{x.port ? " · port " + x.port : ""}{x.reason ? " · " + x.reason : ""}</p>)}</div>
+      <small>Frontend localhost không đồng nghĩa Control Service hoặc shutdown D1 đã nghiệm thu.</small>
+    </details> : null}
     {actionInfo ? <small role="status">{actionInfo}</small> : null}
     {error ? <small role="alert" className="amv2-local-error">{error}</small> : null}
     {status?.pull ? <details className="amv2-local-pull">
