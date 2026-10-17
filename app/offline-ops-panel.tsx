@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { localOpsAutoRestart, localOpsPullAll, localOpsRestart, localOpsStatus, type LocalOpsStatus, type OperatingMode } from "./offline-ops-client";
+import { localOpsAutoRestart, localOpsPullAll, localOpsRestart, localOpsStart, localOpsStatus, type LocalOpsStatus, type OperatingMode } from "./offline-ops-client";
 import "./offline-ops-panel.css";
 
 export default function OfflineOpsPanel({ local, mode, onModeChange }: {
@@ -11,6 +11,7 @@ export default function OfflineOpsPanel({ local, mode, onModeChange }: {
 }) {
   const [status, setStatus] = useState<LocalOpsStatus | null>(null);
   const [error, setError] = useState("");
+  const [actionInfo, setActionInfo] = useState("");
   const [busy, setBusy] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   const lock = useRef(false);
@@ -33,16 +34,39 @@ export default function OfflineOpsPanel({ local, mode, onModeChange }: {
 
   if (!local) return null;
 
+  // Explicit pre-warm request; code never claims that an unreviewed child stack is ready.
+  async function runAll() {
+    if (lock.current || busy || status?.busy || status?.runtime === "running") return;
+    lock.current = true;
+    setBusy(true);
+    setError("");
+    setActionInfo("");
+    onModeChange("offline");
+    try {
+      const result = await localOpsStart();
+      if (result.runtime !== "starting") throw new Error("Không nhận được trạng thái khởi động từ Local Ops.");
+      setActionInfo("Run All đã được yêu cầu. Đang xác minh cổng và SHA; chỉ dùng ứng dụng khi báo sẵn sàng.");
+      setStatus(await localOpsStatus());
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Run All bị chặn.");
+    } finally {
+      lock.current = false;
+      setBusy(false);
+    }
+  }
+
   async function pullAll() {
     if (lock.current || busy || status?.busy) return;
     lock.current = true;
     setBusy(true);
     setError("");
+    setActionInfo("");
     try {
       await localOpsPullAll();
       setStatus(await localOpsStatus());
+      setActionInfo("Đã gửi yêu cầu Pull origin/main. Xem kết quả của từng repo; không tự ghi đè nhánh có thay đổi.");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Pull all thất bại.");
+      setError(caught instanceof Error ? caught.message : "Pull origin thất bại.");
     } finally {
       lock.current = false;
       setBusy(false);
@@ -87,7 +111,7 @@ export default function OfflineOpsPanel({ local, mode, onModeChange }: {
 
   return <section className="amv2-local-ops" aria-label="Điều khiển Offline và Online">
     <div className="amv2-local-mode" role="group" aria-label="Môi trường mở ứng dụng">
-      <button type="button" data-selected={mode === "offline"} aria-pressed={mode === "offline"} onClick={() => onModeChange("offline")}>◉ Offline · main đã Pull</button>
+      <button type="button" data-selected={mode === "offline"} aria-pressed={mode === "offline"} onClick={() => onModeChange("offline")}>◉ Run Offline · chọn app</button>
       <button type="button" data-selected={mode === "online"} aria-pressed={mode === "online"} onClick={() => onModeChange("online")}>↗ Online · bản đã publish</button>
     </div>
     {status?.restartRequired ? <small className="amv2-local-error" role="alert">Mã nguồn hoặc runtime chưa được chứng thực. {status.runtimePid ? "Stack cũ còn chạy: phải dừng an toàn trước; không tự ép tắt D1." : "Chỉ khởi động lại khi các cổng 3000–3010 đã được giải phóng."}</small> : null}
@@ -107,17 +131,21 @@ export default function OfflineOpsPanel({ local, mode, onModeChange }: {
     </div>
     <div className="amv2-local-summary">
       <span>{status ? ready + "/" + supported + " runtime local sẵn sàng" : "Chưa kết nối Local Ops"}</span>
+      <button type="button" disabled={busy || !status || Boolean(status.busy) || status.runtime === "running" || status.restartRequired}
+        onClick={() => void runAll()}>{status?.runtime === "starting" || status?.busy === "starting" ? "▶ Đang Run All…" : status?.runtime === "running" ? "✓ Run All đã mở" : "▶ Run All · mở sẵn"}</button>
       {status?.restartRequired ? <button type="button" disabled={busy || Boolean(status.busy) || Boolean(status.runtimePid)} onClick={() => void restartIfSafe()}>↻ Khởi động lại khi an toàn</button> : null}
       {status?.restartRequired && status.runtimePid ? <button type="button" disabled={busy || Boolean(status.busy)} onClick={() => void tryAutoRestart()}>Kiểm tra điều kiện tự restart</button> : null}
-      <button type="button" disabled={busy || !status || Boolean(status.busy)} onClick={() => void pullAll()}>{busy || status?.busy === "pull-all" ? "↻ Đang Pull…" : "↓ Pull all"}</button>
+      <button type="button" disabled={busy || !status || Boolean(status.busy)} onClick={() => void pullAll()}>{busy || status?.busy === "pull-all" ? "↻ Đang Pull…" : "↓ Pull origin · tất cả main"}</button>
     </div>
     {status?.sourceVerified ? <small>Đã đối chiếu SHA tại thời điểm khởi động và readback Git · {Object.keys(status.sourceSnapshot ?? {}).length} repo. Không phải chứng thực SHA HTTP từng app.</small> : null}
     {status?.restartControl?.status === "blocked" ? <small role="alert" className="amv2-local-error">Không tự restart: {status.restartControl.reason || "Chưa có bằng chứng drain D1 đầy đủ."}</small> : null}
-    {error ? <small role="status" className="amv2-local-error">{error}</small> : null}
+    {status?.runtime === "blocked" && status.error ? <small role="alert" className="amv2-local-error">Run All BLOCKED: {status.error}</small> : null}
+    {actionInfo ? <small role="status">{actionInfo}</small> : null}
+    {error ? <small role="alert" className="amv2-local-error">{error}</small> : null}
     {status?.pull ? <details className="amv2-local-pull">
       <summary>{status.pull.status === "running" ? "Đang đồng bộ mã nguồn…" : "Kết quả Pull all"} · {results.length} repo · {updated} cập nhật · {skipped} cần xem</summary>
       <div>{results.map((row) => <p key={row.name}><strong>{row.name}</strong> · {row.state}{row.from ? " · từ " + row.from : ""}{row.sha ? " · HEAD " + row.sha : ""}{row.restartRequired ? " · cần khởi động lại" : ""}{row.reason ? " · " + row.reason : ""}</p>)}</div>
-      {status.pull.status === "finished" ? <small>Các runtime đang chạy phải khởi động lại để sử dụng code mới; không tự ý hot reload production.</small> : null}
+      {status.pull.status === "finished" ? <small>Repo được fast-forward mới nhận mã merge trên origin/main. Nếu runtime đang chạy phải restart an toàn để nhận mã mới; không tắt D1 cưỡng bức.</small> : null}
     </details> : null}
   </section>;
 }

@@ -224,3 +224,29 @@ test("restart endpoint is never accessible without local bearer token", async ()
     assert.equal(forged.status, 403);
   } finally {await new Promise(resolve => server.close(resolve));}
 });
+
+test("Run All is an explicit authenticated fail-closed action while controlled source review is missing", async () => {
+  const panel = readFileSync(new URL("../app/offline-ops-panel.tsx", import.meta.url), "utf8");
+  assert.match(panel, /Run All · mở sẵn/);
+  assert.match(panel, /localOpsStart\(\)/);
+  assert.match(panel, /Run Offline · chọn app/);
+  assert.match(panel, /Pull origin · tất cả main/);
+  assert.match(panel, /Hướng dẫn · Next Action/);
+  const server = createLocalOpsServer();
+  await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+  const base = "http://127.0.0.1:" + server.address().port;
+  const headers = { origin:"http://127.0.0.1:3000" };
+  try {
+    const session = await (await fetch(base + "/session", {headers})).json();
+    const auth = {...headers, authorization:"Bearer " + session.token};
+    const start = await fetch(base + "/start", {method:"POST",headers:auth});
+    assert.equal(start.status,409,"do not launch unreviewed managed Workers");
+    const payload = await start.json();
+    assert.match(payload.error,/RUN_ALL_BLOCKED:.*(REVIEW_AND_SHA_BLOCKED|SOURCE_GUARD_MISSING)/);
+    const result = await (await fetch(base + "/status", {headers:auth})).json();
+    assert.equal(result.runtimePid,null,"no child spawned from denied request");
+    assert.notEqual(result.runtime,"running");
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
+});

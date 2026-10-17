@@ -3,6 +3,7 @@
 import { randomBytes } from "node:crypto";
 import { Socket } from "node:net";
 import { readSourceSnapshot, exactSourceMatch } from "./local-ops-source-identity.mjs";
+import { assertManagedControlAdmission } from "./local-ops-managed-startup-policy.mjs";
 import { SHUTDOWN_PROTOCOL, validateStopPreflight, requestChildReply, childExited, newStopRequestId } from "./local-ops-shutdown-contract.mjs";
 import { captureWindowsTree, verifyWindowsTreeGone } from "./local-ops-windows-process-tree.mjs";
 import { execFile } from "node:child_process";
@@ -218,6 +219,8 @@ async function startAll() {
   let logFd = null;
   try {
     if (runtimeChild) throw Error("MANAGED_STACK_STILL_ALIVE: không tự kết thúc tiến trình hoặc cưỡng bức D1");
+    // Reject unreviewed BAUMAN/PRICE source BEFORE touching ports, D1 or spawning children.
+    assertManagedControlAdmission({ managed: true, appsRoot: WORKSPACE });
     await freeStackPorts();
     const before = await readSourceSnapshot(WORKSPACE, MANIFEST.apps);
     const nonce = randomBytes(32).toString("base64url");
@@ -374,6 +377,8 @@ export function createLocalOpsServer() {
       if (state.restartRequired && (state.runtime === "running" || state.runtime === "starting"))
         return reply(res, 409, { error: "RUNTIME_STALE_RESTART_REQUIRED" }, origin);
       if (runtimeChild) return reply(res, 409, { error: "MANAGED_STACK_STILL_ALIVE" }, origin);
+      try { assertManagedControlAdmission({ managed: true, appsRoot: WORKSPACE }); }
+      catch (error) { return reply(res, 409, { error: "RUN_ALL_BLOCKED: " + String(error.message || error).slice(0, 220) }, origin); }
       state.busy = "starting";
       void startAll();
       return reply(res, 202, { ok: true, runtime: "starting" }, origin);
@@ -381,6 +386,8 @@ export function createLocalOpsServer() {
     if (req.method === "POST" && req.url === "/restart") {
       if (state.busy) return reply(res, 409, { error: "LOCAL_OPERATION_BUSY" }, origin);
       if (runtimeChild) return reply(res, 409, { error: "MANUAL_SAFE_STOP_REQUIRED: stack vẫn đang chạy; không cưỡng bức kết thúc D1" }, origin);
+      try { assertManagedControlAdmission({ managed: true, appsRoot: WORKSPACE }); }
+      catch (error) { return reply(res, 409, { error: "RESTART_BLOCKED: " + String(error.message || error).slice(0, 220) }, origin); }
       state.busy = "starting";
       void startAll();
       return reply(res, 202, { ok: true, message: "Chỉ khởi động lại sau khi stack cũ đã dừng và các cổng được giải phóng." }, origin);
