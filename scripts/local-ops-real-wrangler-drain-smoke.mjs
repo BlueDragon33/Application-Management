@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { setTimeout as sleep } from "node:timers/promises";
 import { createWranglerIngress } from "./local-ops-wrangler-ingress.mjs";
+import { createPrivateWranglerProof, assertNoSecretInArgs } from "./local-ops-private-wrangler-proof.mjs";
 import { captureWindowsTree, verifyWindowsTreeGone } from "./local-ops-windows-process-tree.mjs";
 
 const exec = promisify(execFile);
@@ -34,12 +35,12 @@ async function sql(cwd, config, storage, query) {
   if (bracket<0) throw Error("WRANGLER_D1_JSON_MISSING: "+stdout.slice(-400));
   return JSON.parse(stdout.slice(bracket));
 }
-async function waitFor(url, child, lines) {
+async function waitFor(url, child, lines, proof) {
   for(let i=0;i<150;i++) {
     if(child.exitCode!==null||child.signalCode!==null)
       throw Error("WRANGLER_EXITED_BEFORE_READY: "+lines.slice(-1200));
     try {
-      const result=await fetch(url,{signal:AbortSignal.timeout(1000)});
+      const result=await fetch(url,{headers:{"x-local-ops-ingress-proof":proof},signal:AbortSignal.timeout(1000)});
       if(result.ok && (await result.json()).fixture===true)return;
     } catch {}
     await sleep(300);
@@ -54,7 +55,8 @@ async function waitExit(child, ms=16000) {
     child.once("exit",exited);
   });
 }
-const temp=await mkdtemp(join(tmpdir(),"am-real-wrangler-drain-"));
+const credential=await createPrivateWranglerProof({prefix:"am-real-wrangler-qa-"});
+const temp=credential.dir;
 const config=join(temp,"wrangler.fixture.json");
 const store=join(temp,"local-state");
 const id=randomBytes(16).toString("hex");
@@ -74,8 +76,11 @@ try {
       env:{...process.env,CI:"1",WRANGLER_SEND_METRICS:"false",NO_COLOR:"1"}});
   child.stdout.on("data",d=>{log=(log+String(d)).slice(-12000)});
   child.stderr.on("data",d=>{log=(log+String(d)).slice(-12000)});
-  await waitFor("http://127.0.0.1:"+backend+"/health",child,log);
-  ingress=createWranglerIngress({upstreamPort:backend});
+  assert.equal(assertNoSecretInArgs(child.spawnargs,credential.proof),true);
+  await waitFor("http://127.0.0.1:"+backend+"/health",child,log,credential.proof);
+  assert.equal((await fetch("http://127.0.0.1:"+backend+"/health")).status,403);
+  assert.equal((await fetch("http://127.0.0.1:"+backend+"/health",{headers:{"x-local-ops-ingress-proof":"invalid"}})).status,403);
+  ingress=createWranglerIngress({upstreamPort:backend,managedIngressProof:credential.proof});
   const port=await ingress.listen();
   const start=fetch("http://127.0.0.1:"+port+"/write?id="+id,
     {method:"POST",signal:AbortSignal.timeout(13000)});
@@ -92,7 +97,7 @@ try {
   assert.equal(drain.admittedRequestsCompleted,true);
   assert.equal(drain.safeToStopWrangler,false);
   // This is a verified D1 readback via real Wrangler Worker, not a shutdown ACK.
-  const check=await fetch("http://127.0.0.1:"+backend+"/read?id="+id);
+  const check=await fetch("http://127.0.0.1:"+backend+"/read?id="+id,{headers:{"x-local-ops-ingress-proof":credential.proof}});
   assert.equal((await check.json()).val,"COMMITTED");
   const preExit={ realWranglerRunning:child.exitCode===null&&child.signalCode===null,
     d1WorkerRequestCommitted:true,ingressDrained:true,
@@ -112,12 +117,13 @@ try {
     "all captured Windows Wrangler fixture descendants must have exited");
   console.log(JSON.stringify({result:"REAL_WRANGLER_D1_HTTP_INGRESS_FIXTURE_PASS",
     platform:process.platform,actualD1Write:true,readbackAfterFixtureProcessExit:true,
+    secretDeliveredViaPrivateFile:true,secretInArgv:false,directBackend403:true,
     capturedWindowsTreeGone:windowsResult?.stopped??"not-windows",
     stopMethod:"fixture-only SIGTERM; NOT approved graceful shutdown",
     preExit,productionShutdownAck:false,allIsolatesDrained:false,
     userStorageTouched:false,fullStackAutoRestartApproved:false}));
 } catch(error) {
-  console.error("WRANGLER_FIXTURE_FAILURE",String(error),log.slice(-2500));
+  console.error("WRANGLER_FIXTURE_FAILURE",String(error).replaceAll(credential.proof,"[REDACTED]"),log.replaceAll(credential.proof,"[REDACTED]").slice(-2500));
   throw error;
 } finally {
   if(ingress) await ingress.close().catch(()=>{});
@@ -125,5 +131,5 @@ try {
     child.kill("SIGTERM");
     await waitExit(child,8000).catch(()=>{});
   }
-  await rm(temp,{recursive:true,force:true,maxRetries:5,retryDelay:500});
+  await credential.cleanup();
 }

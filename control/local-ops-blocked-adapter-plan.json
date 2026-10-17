@@ -218,7 +218,8 @@
         "lockedWranglerCompatibility": "LOCKED_WRANGLER_4_92_NOT_OBSERVED_BROKEN_HERE",
         "wranglerSupervisorIngress": "REAL_TEMPORARY_WRANGLER_D1_PROXY_FIXTURE_ONLY",
         "d1CrossProcessReadback": "TEMPORARY_WRANGLER_QA_AFTER_FIXTURE_EXIT_PASS",
-        "managedIngressProof": "SOURCE_DRAFT_REAL_WORKER_GUARD_QA_PASS; APP_MANAGER_INJECTOR_QA_ONLY"
+        "managedIngressProof": "SOURCE_DRAFT_REAL_WORKER_GUARD_QA_PASS; APP_MANAGER_INJECTOR_QA_ONLY",
+        "privateSecretProvision": "SOURCE_WORKER_DOTENV_TEMP_PRIVATE_ACL_WINDOWS_LINUX_FIXTURE_PASS"
       },
       "blocker": "NO_VERIFIED_OWNED_RUNTIME_DRAIN_EXIT_ACK",
       "ready": false,
@@ -227,7 +228,7 @@
       "sourceDraft": {
         "repository": "BlueDragon33/Bauman-master-ai-system",
         "pr": 366,
-        "head": "2d39f866ed63761200bca2a9d224e6524308cb7c",
+        "head": "0afe07e7e0f1d8cfd0dec66e887a3545f4e27947",
         "workerEntry": "Worker entry automation-contract.ts",
         "testEvidence": {
           "workflow": "Offline D1 Observer Draft Validation",
@@ -251,6 +252,24 @@
             "actualManagedRunAllWiring": false,
             "d1GlobalDrain": false,
             "authenticatedGracefulExit": false
+          },
+          "privateFileManagedGateway": {
+            "head": "0afe07e7e0f1d8cfd0dec66e887a3545f4e27947",
+            "ciRun": 39005447548,
+            "windows": "PASS",
+            "ubuntu": "PASS",
+            "scope": "REAL_WORKER_LOCAL_D1_GATE_AND_PROXY_FIXTURE",
+            "secretInArgv": false,
+            "secretInChildEnvironment": false,
+            "temporaryDotVars": true,
+            "privateWindowsDaclApplied": true,
+            "directWithoutProof403": true,
+            "proxyWithProof200": true,
+            "shutdownPreflight503": true,
+            "osSameUserIsolationProven": false,
+            "productionManagedPortWired": false,
+            "globalD1DrainProven": false,
+            "gracefulWindowsExitProven": false
           }
         },
         "globalMultiIsolateDrained": false,
@@ -349,7 +368,8 @@
         "wranglerSupervisorIngress": "REAL_TEMPORARY_WRANGLER_D1_PROXY_FIXTURE_ONLY",
         "d1CrossProcessReadback": "TEMPORARY_WRANGLER_QA_AFTER_FIXTURE_EXIT_PASS",
         "managedIngressProof": "SOURCE_DRAFT_REAL_WORKER_GUARD_QA_PASS; APP_MANAGER_INJECTOR_QA_ONLY",
-        "npmGeneratedLockfile": "VERIFIED_94_PACKAGE_GRAPH_CI_NPM_CI_BUILD"
+        "npmGeneratedLockfile": "VERIFIED_94_PACKAGE_GRAPH_CI_NPM_CI_BUILD",
+        "privateSecretProvision": "SOURCE_WORKER_DOTENV_TEMP_PRIVATE_ACL_WINDOWS_LINUX_FIXTURE_PASS"
       },
       "blocker": "NO_VERIFIED_OWNED_RUNTIME_DRAIN_EXIT_ACK",
       "ready": false,
@@ -358,7 +378,7 @@
       "sourceDraft": {
         "repository": "BlueDragon33/PriceReport_Tunggiabao",
         "pr": 133,
-        "head": "0567cdce46598b4dcf46dbd9bc6c78b9d585e59d",
+        "head": "d6e910e6c0c7b0cdb1a395381f2be0d65eb7ca3d",
         "workerEntry": "Worker entry index.ts",
         "testEvidence": {
           "workflow": "Offline D1 Observer Draft Validation",
@@ -382,6 +402,24 @@
             "actualManagedRunAllWiring": false,
             "d1GlobalDrain": false,
             "authenticatedGracefulExit": false
+          },
+          "privateFileManagedGateway": {
+            "head": "d6e910e6c0c7b0cdb1a395381f2be0d65eb7ca3d",
+            "ciRun": 39005464711,
+            "windows": "PASS",
+            "ubuntu": "PASS",
+            "scope": "REAL_WORKER_LOCAL_D1_GATE_AND_PROXY_FIXTURE",
+            "secretInArgv": false,
+            "secretInChildEnvironment": false,
+            "temporaryDotVars": true,
+            "privateWindowsDaclApplied": true,
+            "directWithoutProof403": true,
+            "proxyWithProof200": true,
+            "shutdownPreflight503": true,
+            "osSameUserIsolationProven": false,
+            "productionManagedPortWired": false,
+            "globalD1DrainProven": false,
+            "gracefulWindowsExitProven": false
           }
         },
         "globalMultiIsolateDrained": false,

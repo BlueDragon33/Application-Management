@@ -39,8 +39,8 @@ test("actual run-all remains fully blocked even after direct spawn/HTTP verifier
 
 test("BAUMAN-CONTROL and PRICE-CONTROL linked drafts are only partial per-isolate evidence, never full shutdown approval",()=>{
   const linked = new Map([
-    ["BAUMAN-CONTROL",{pr:366,sha:"2d39f866ed63761200bca2a9d224e6524308cb7c"}],
-    ["PRICE-CONTROL",{pr:133,sha:"0567cdce46598b4dcf46dbd9bc6c78b9d585e59d"}],
+    ["BAUMAN-CONTROL",{pr:366,sha:"0afe07e7e0f1d8cfd0dec66e887a3545f4e27947"}],
+    ["PRICE-CONTROL",{pr:133,sha:"d6e910e6c0c7b0cdb1a395381f2be0d65eb7ca3d"}],
   ]);
   for (const [id,ref] of linked) {
     const row=plan.units.find(x=>x.id===id);
@@ -82,4 +82,26 @@ test("managed ingress guard is Draft-only evidence, never an OS unbypassable or 
   }
   const price=plan.units.find(x=>x.id==="PRICE-CONTROL");
   assert.match(price.implementation.npmGeneratedLockfile,/94_PACKAGE_GRAPH/);
+});
+
+test("real source Worker private-file credential + gateway QA is not global OS/D1 shutdown authority",()=>{
+  const ci={"BAUMAN-CONTROL":39005447548,"PRICE-CONTROL":39005464711};
+  for(const id of ["BAUMAN-CONTROL","PRICE-CONTROL"]){
+    const unit=plan.units.find(x=>x.id===id);
+    const proof=unit.sourceDraft.testEvidence.privateFileManagedGateway;
+    assert.equal(proof.ciRun,ci[id]);
+    assert.equal(proof.windows,"PASS");
+    assert.equal(proof.ubuntu,"PASS");
+    assert.equal(proof.secretInArgv,false);
+    assert.equal(proof.privateWindowsDaclApplied,true);
+    assert.equal(proof.directWithoutProof403,true);
+    assert.equal(proof.proxyWithProof200,true);
+    assert.equal(proof.shutdownPreflight503,true);
+    assert.equal(proof.osSameUserIsolationProven,false);
+    assert.equal(proof.productionManagedPortWired,false);
+    assert.equal(proof.globalD1DrainProven,false);
+    assert.equal(proof.gracefulWindowsExitProven,false);
+    assert.equal(unit.implementation.actualAppWindowsShutdown,"NOT_TESTED");
+    assert.equal(unit.permitAutoRestart,false);
+  }
 });

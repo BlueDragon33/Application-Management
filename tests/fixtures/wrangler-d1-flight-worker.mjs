@@ -1,6 +1,9 @@
 // Disposable e2e probe worker ONLY; not imported by user applications.
 export default {
   async fetch(request, env) {
+    if (env.LOCAL_OPS_GATEWAY_REQUIRED === "1" &&
+      request.headers.get("x-local-ops-ingress-proof") !== env.LOCAL_OPS_INGRESS_PROOF)
+      return new Response("Direct backend denied", { status: 403 });
     const url = new URL(request.url);
     if (url.pathname === "/health") return Response.json({ ok: true, fixture: true });
     if (url.pathname === "/write" && request.method === "POST") {

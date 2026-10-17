@@ -12,6 +12,7 @@ export default function OfflineOpsPanel({ local, mode, onModeChange }: {
   const [status, setStatus] = useState<LocalOpsStatus | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
   const lock = useRef(false);
 
   useEffect(() => {
@@ -90,6 +91,20 @@ export default function OfflineOpsPanel({ local, mode, onModeChange }: {
       <button type="button" data-selected={mode === "online"} aria-pressed={mode === "online"} onClick={() => onModeChange("online")}>↗ Online · bản đã publish</button>
     </div>
     {status?.restartRequired ? <small className="amv2-local-error" role="alert">Mã nguồn hoặc runtime chưa được chứng thực. {status.runtimePid ? "Stack cũ còn chạy: phải dừng an toàn trước; không tự ép tắt D1." : "Chỉ khởi động lại khi các cổng 3000–3010 đã được giải phóng."}</small> : null}
+    <div className="amv2-local-guidance">
+      <button type="button" data-blueprint-required="next-action" aria-expanded={guideOpen}
+        aria-controls="amv2-blueprint-guide" onClick={() => setGuideOpen((current) => !current)}>
+        ? Hướng dẫn · Next Action
+      </button>
+      {guideOpen ? <div id="amv2-blueprint-guide" role="region" aria-label="Hướng dẫn Blueprint OS">
+        <strong>Blueprint OS 1.3.0 · Hướng dẫn thực hiện</strong>
+        <p>Chỉ tiếp tục những bước có bằng chứng thật. Khi shutdown D1, exit, SHA hoặc cổng chưa xác minh, phải giữ BLOCKED; không ép tắt hay tự publish.</p>
+        <a href="/?view=audit">Xem bằng chứng và nhật ký →</a>
+        <button type="button" onClick={() => void navigator.clipboard?.writeText(
+          "Tiếp tục Application-Management PR #360 theo Blueprint OS 1.3.0: xác minh HEAD thật, xử lý blocker ưu tiên, test Windows/D1/exit, ghi bằng chứng; giữ fail-closed, không tự merge/publish/phê duyệt."
+        ).catch(() => setError("Không thể sao chép hướng dẫn tự động."))}>Sao chép lệnh tiếp tục</button>
+      </div> : null}
+    </div>
     <div className="amv2-local-summary">
       <span>{status ? ready + "/" + supported + " runtime local sẵn sàng" : "Chưa kết nối Local Ops"}</span>
       {status?.restartRequired ? <button type="button" disabled={busy || Boolean(status.busy) || Boolean(status.runtimePid)} onClick={() => void restartIfSafe()}>↻ Khởi động lại khi an toàn</button> : null}

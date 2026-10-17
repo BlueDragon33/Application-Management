@@ -1127,6 +1127,14 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
         <label className="amv2-search"><span>⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm theo ứng dụng, thiết bị, người dùng…"/></label>
         <label className="amv2-filter"><span>▽</span><select value={appFilter} onChange={(event) => setAppFilter(event.target.value)}><option value="all">Bộ lọc nhanh</option>{activeApps.map((app) => <option key={app.id} value={app.id}>{app.shortName}</option>)}{systemTools.map((tool) => <option key={tool.id} value={tool.id}>Tool · {tool.name}</option>)}</select></label>
         <button className="amv2-access-mode" data-enabled={approvalGateEnabled} onClick={() => changeApprovalGate(!approvalGateEnabled)} title="Bật/tắt kiểm duyệt quyền và thiết bị"><span>{approvalGateEnabled ? "🔒" : "⚡"}</span><div><small>Kiểm duyệt truy cập</small><strong>{approvalGateEnabled ? "BẬT" : "TẮT · Vào thẳng"}</strong></div></button>
+        <details className="amv2-blueprint-guide" data-blueprint-required="guidance">
+          <summary>Hướng dẫn · Next Action</summary>
+          <div role="region" aria-label="Hướng dẫn Blueprint OS 1.3.0">
+            <strong>Blueprint OS 1.3.0 · Quy trình bắt buộc</strong>
+            <p>Kiểm tra SHA → xử lý blocker → kiểm thử thực tế → ghi bằng chứng → review. Chưa chứng minh drain D1 hoặc Windows exit thì giữ BLOCKED, không tự merge/publish.</p>
+            <button type="button" onClick={() => switchView("audit")}>Xem nhật ký & Quality Gates →</button>
+          </div>
+        </details>
         <button className="amv2-bell" aria-label={notificationCount ? `Mở Cảnh báo: ${notificationCount} thông báo` : "Mở Cảnh báo"} onClick={() => switchView("alerts")}>♧{notificationCount ? <b>{notificationCount}</b> : null}</button>
         <span className="amv2-online" data-standalone={offline}><i/><strong>{offline ? "Bản lưu cục bộ" : "Hệ thống kết nối"}</strong><small>{syncing ? "Đang đồng bộ…" : offline ? "Chưa xác minh Production" : "Dữ liệu đã cập nhật"}</small></span>
         <details className="amv2-account"><summary><span>{initials(user.displayName)}</span><div><strong>{user.displayName}</strong><small>{approvalGateEnabled ? roleLabels[access.role] : "Standalone Owner"}</small></div><b>⌄</b></summary><div><small>{user.email}</small>{authMode === "cloudflare-production" ? <a href="/__account">Tài khoản & bảo mật</a> : <button onClick={() => setAccountSecurityOpen(true)}>Tài khoản & bảo mật</button>}<button onClick={() => switchView("settings")}>Cấu hình</button>{authMode === "cloudflare-production" ? <form method="post" action="/__logout"><button type="submit">Đăng xuất</button></form> : <a href="/signout-with-chatgpt?return_to=%2F">Đăng xuất</a>}</div></details>
