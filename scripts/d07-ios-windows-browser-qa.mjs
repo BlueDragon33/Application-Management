@@ -103,12 +103,18 @@ async function run() {
   assert.equal(response?.status(), 200, "Expected localhost development identity to pass");
   await page.getByRole("heading", { name: "Toàn bộ dự án GitHub" }).waitFor();
 
-  const card = page.locator("article.card")
+  // CSS Modules hash class names in the browser; assert semantic DOM instead.
+  const card = page.locator("article")
     .filter({ has: page.getByRole("heading", { name: "Bauman Russian iOS", exact: true }) });
-  assert.equal(await card.count(), 1);
+  await page.screenshot({
+    path: path.join(artifacts, "d07-loaded-projects-debug.png"), fullPage: true,
+  });
+  assert.equal(await card.count(), 1,
+    "Expected a single iOS card; headings=" +
+      JSON.stringify(await page.locator("h2").allTextContents()));
   assert.equal(await card.locator('[data-state="developing"]').innerText(), "Đang phát triển");
   assert.match(await card.innerText(), /Thuộc Bauman Master AI/);
-  const actions = card.locator(".actions a");
+  const actions = card.locator("a");
   assert.deepEqual(await actions.allTextContents(), ["Code ↗", "Issues ↗", "Actions ↗"]);
   const urls = await actions.evaluateAll(els => els.map(el => el.getAttribute("href")));
   assert.deepEqual(urls, [
