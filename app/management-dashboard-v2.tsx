@@ -255,7 +255,7 @@ function webActionLabel(summary: OperationsSummary | undefined, hasWeb: boolean,
 
 function webAccessAvailable(app: ApplicationConfig, summary: OperationsSummary | undefined, localRuntime: boolean, mode: OperatingMode) {
   if (summary?.webAccessPolicy === "deny") return false;
-  if (mode === "offline") return hasOfflineWeb(app.id) || Boolean(app.desktopLaunchUrl);
+  if (mode === "offline") return localRuntime && (hasOfflineWeb(app.id) || Boolean(app.desktopLaunchUrl));
   return Boolean(publishedUrl(app.publicUrl));
 }
 
