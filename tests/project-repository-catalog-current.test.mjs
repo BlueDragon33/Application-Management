@@ -38,7 +38,7 @@ test("project registry tracks the current owned project set", () => {
   assert.match(registry, /projectRepositoryCount = projectRepositories\.length/);
   assert.match(registry, /group: "accounting"/);
   assert.match(projectDocs, /BlueDragon33\/NC03_Modem/);
-  assert.match(projectDocs, /Tổng: \*\*14 repo hiện hữu\*\*/);
+  assert.match(projectDocs, /Tổng: \*\*15 repo hiện hữu\*\*/);
 });
 
 test("current dashboard exposes the GitHub project catalog", () => {
@@ -61,10 +61,10 @@ test("catalog reconciliation is read-only and detects drift", () => {
 
 test("Bauman Russian iOS is a developing project, never a fictitious installed or managed app", () => {
   const start = registry.indexOf('id: "bauman-russian-ios"');
-  const end = registry.indexOf("\\n  },", start);
+  const end = registry.indexOf("\n  },", start);
   assert.ok(start >= 0, "iOS repo must appear in the project catalog");
   const block = registry.slice(start, end);
-  assert.match(block, /BlueDragon33\\/Bauman-Russian-iOS/);
+  assert.match(block, /BlueDragon33\/Bauman-Russian-iOS/);
   assert.match(block, /state: "developing"/);
   assert.match(block, /relatedTo: "Bauman Master AI"/);
   assert.doesNotMatch(block, /managementHref:|appLaunchUrl:|connected|state: "operational"/);
