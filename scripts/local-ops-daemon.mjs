@@ -86,6 +86,22 @@ function gitRepositories(root = WORKSPACE, depth = 0) {
   }
   return found.sort((a,b) => a.localeCompare(b));
 }
+// A running Node/Vite/Cloudflare Worker must never have tracked source files
+// replaced underneath it. The pull queue may update inactive repositories only.
+// This guard is intentionally independent of whether Git itself supports ff-only.
+export function pullSkipReason(directoryName, { centerActive = false, managedStackActive = false,
+  frontendActive = false, portBusy = false } = {}) {
+  if (directoryName === "Application-Management" && centerActive)
+    return "APP_MANAGER_ACTIVE: dừng trung tâm đúng cách trước khi Pull repo của chính nó";
+  if (managedStackActive)
+    return "MANAGED_STACK_ACTIVE: không ghi đè mã khi tiến trình/D1 còn chạy";
+  if (frontendActive)
+    return "APP_FRONTEND_ACTIVE: dừng runtime đang chạy đúng cách trước khi Pull";
+  if (portBusy)
+    return "LOCAL_PORT_OCCUPIED: không xác minh được chủ cổng; từ chối ghi đè mã đang có thể được sử dụng";
+  return null;
+}
+
 export async function pullRepository(dir, runner = git) {
   const name = dir.slice(WORKSPACE.length + 1);
   try {
@@ -136,6 +152,22 @@ async function pullAll() {
   try {
     const dirs = gitRepositories();
     for (const dir of dirs) {
+      const name = basename(dir);
+      const app = MANIFEST.apps.find(item => item.directory === name);
+      const frontendActive = [...webChildren.keys()].some(id =>
+        MANIFEST.apps.some(item => item.id === id && item.directory === name));
+      const portBusy = app?.port ? await portOccupied(app.port)
+        : name === "Application-Management" ? await portOccupied(3000) : false;
+      const reason = pullSkipReason(name, {
+        centerActive: name === "Application-Management" &&
+          (Boolean(centerChild) || state.centerRuntime !== "stopped" || portBusy),
+        managedStackActive: Boolean(runtimeChild) || state.runtime === "running" || state.runtime === "starting",
+        frontendActive, portBusy,
+      });
+      if (reason) {
+        state.pull.results.push({ name, state: "skipped", reason });
+        continue;
+      }
       const result = await pullRepository(dir);
       state.pull.results.push(result);
     }

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { pullRepository, createLocalOpsServer, probe, requiresRestart, portOccupied } from "../scripts/local-ops-daemon.mjs";
+import { pullRepository, pullSkipReason, createLocalOpsServer, probe, requiresRestart, portOccupied } from "../scripts/local-ops-daemon.mjs";
 import { exactSourceMatch, sourceTargets } from "../scripts/local-ops-source-identity.mjs";
 import { createServer, request as httpRequest } from "node:http";
 
@@ -306,4 +306,13 @@ test("per-app offline endpoints reject arbitrary path and require a local authen
     assert.equal((await fetch(base+"/start-web-all",{method:"POST",headers:{origin}})).status,401);
     assert.equal((await fetch(base+"/start-app/boi-ech/cmd",{method:"POST",headers})).status,404);
   }finally{await new Promise(r=>server.close(r));}
+});
+
+test("Pull origin all protects running repos rather than fast-forward under active processes", () => {
+  assert.match(pullSkipReason("Application-Management", {centerActive:true}), /APP_MANAGER_ACTIVE/);
+  assert.match(pullSkipReason("BOIECH_AI", {frontendActive:true}), /APP_FRONTEND_ACTIVE/);
+  assert.match(pullSkipReason("RU_LIFE", {portBusy:true}), /LOCAL_PORT_OCCUPIED/);
+  assert.match(pullSkipReason("Health_Care", {managedStackActive:true}), /MANAGED_STACK_ACTIVE/);
+  assert.equal(pullSkipReason("CAD_CAM_3D"), null, "inactive clean repos remain eligible");
+  assert.equal(pullSkipReason("Application-Management"), null, "cold center can be updated safely");
 });

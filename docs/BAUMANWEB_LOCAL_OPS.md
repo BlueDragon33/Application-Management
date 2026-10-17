@@ -75,3 +75,8 @@ Nghiệm thu còn thiếu: thư mục BaumanWeb thật trên Windows, khởi đ�
 ## Standalone Center startup (Draft, independent from blocked apps)
 
 `START_BAUMANWEB.vbs` now requests `node scripts/local-ops-daemon.mjs --center`, which opens only Application Management at loopback 3000 using existing installed `node_modules/vite/bin/vite.js` and mode `standalone`. It must not run `run-all` implicitly, fetch npm packages, run database migrations, elevate Windows privileges, or kill unrelated processes. Use `npm ci` once while online if dependencies are absent; startup fails with a visible `.local-ops-bootstrap.log` and `.local-ops-center.log` reason. Manager 3000 HTTP readiness is not a SHA-attested app runtime. The 7 managed app runtimes and Run All remain fail-closed until actual source admission, process/port/D1 tests and independent review; this change does not mark any application READY. For a pre-existing 3000 listener, fail rather than claiming ownership.
+
+
+### Pull origin while local app is running — safety fix
+
+Pull all applies fast-forward only when the target repository is idle. A running Application-Management center, a managed stack, an owned app frontend, or an unknown listener on a manifest port makes the corresponding repository **SKIPPED** with `APP_MANAGER_ACTIVE`, `MANAGED_STACK_ACTIVE`, `APP_FRONTEND_ACTIVE` or `LOCAL_PORT_OCCUPIED`. All other repos continue to receive the existing clean-main/trusted-origin/fast-forward/SHA-readback check. **Do not** change source files underneath an active local D1 instance. Updating Application-Management itself requires closing the center safely then pulling from an independent trusted updater; no fake shutdown ACK/kill is introduced.
