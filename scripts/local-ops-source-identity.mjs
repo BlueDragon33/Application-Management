@@ -23,8 +23,11 @@ export async function readSourceSnapshot(workspace, apps, runner = realGit) {
   const pairs = await Promise.all(targets.map(async ({ id, directory }) => {
     const target = realpathSync(resolve(root, directory));
     if (target === root || !target.startsWith(root + sep)) throw Error("SOURCE_OUTSIDE_BAUMANWEB: " + id);
-    const top = realpathSync(resolve(await runner(target, ["rev-parse", "--show-toplevel"])));
-    if (top !== target) throw Error("SOURCE_WRONG_GIT_ROOT: " + id);
+    // Git for Windows may print a short/aliased DOS root while Node realpath
+    // reports a long path. Git's own --show-prefix is empty only at the worktree
+    // root, avoiding a false negative without relaxing the workspace boundary.
+    const prefix = await runner(target, ["rev-parse", "--show-prefix"]);
+    if (prefix !== "") throw Error("SOURCE_WRONG_GIT_ROOT: " + id);
     const branch = await runner(target, ["symbolic-ref", "--quiet", "--short", "HEAD"]);
     if (branch !== "main") throw Error("SOURCE_NOT_MAIN: " + id);
     const sha = await runner(target, ["rev-parse", "HEAD"]);
