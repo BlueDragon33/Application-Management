@@ -19,6 +19,7 @@ const repositories = [
   "BlueDragon33/Application-Management",
   "BlueDragon33/Software-Blueprint-Hub",
   "BlueDragon33/Bauman-master-ai-system",
+  "BlueDragon33/Bauman-Russian-iOS",
   "BlueDragon33/Math_Bauman",
   "BlueDragon33/BOIECH_AI",
   "BlueDragon33/Health_Care",
@@ -56,6 +57,20 @@ test("catalog reconciliation is read-only and detects drift", () => {
   assert.match(repositoryWatchWorkflow, /push:/);
   assert.match(repositoryWatchWorkflow, /app\/project-registry\.ts/);
   assert.equal(pkg.scripts["projects:check"], "node scripts/check-project-repositories.mjs");
+});
+
+test("Bauman Russian iOS is a developing project, never a fictitious installed or managed app", () => {
+  const start = registry.indexOf('id: "bauman-russian-ios"');
+  const end = registry.indexOf("\\n  },", start);
+  assert.ok(start >= 0, "iOS repo must appear in the project catalog");
+  const block = registry.slice(start, end);
+  assert.match(block, /BlueDragon33\\/Bauman-Russian-iOS/);
+  assert.match(block, /state: "developing"/);
+  assert.match(block, /relatedTo: "Bauman Master AI"/);
+  assert.doesNotMatch(block, /managementHref:|appLaunchUrl:|connected|state: "operational"/);
+  assert.match(projectDocs, /Bauman-Russian-iOS/);
+  assert.match(projectDocs, /chưa có bản cài iPhone/);
+  assert.doesNotMatch(source("app/application-registry.ts"), /id: "bauman-russian-ios"/);
 });
 
 test("technical repositories do not invent remote controls", () => {
