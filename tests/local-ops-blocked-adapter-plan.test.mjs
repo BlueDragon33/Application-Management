@@ -39,7 +39,7 @@ test("actual run-all remains fully blocked even after direct spawn/HTTP verifier
 
 test("BAUMAN-CONTROL and PRICE-CONTROL linked drafts are only partial per-isolate evidence, never full shutdown approval",()=>{
   const linked = new Map([
-    ["BAUMAN-CONTROL",{pr:366,sha:"0afe07e7e0f1d8cfd0dec66e887a3545f4e27947"}],
+    ["BAUMAN-CONTROL",{pr:366,sha:"a67e049440900e00672e55a17b0baf133b79d7b6"}],
     ["PRICE-CONTROL",{pr:133,sha:"d6e910e6c0c7b0cdb1a395381f2be0d65eb7ca3d"}],
   ]);
   for (const [id,ref] of linked) {
@@ -142,4 +142,24 @@ test("live remote review observation and tamper-poisoned ledger remain non-autho
     assert.equal(unit.permitAutoRestart,false);
     assert.match(unit.implementation.multiIsolateLedger,/TAINT_ON_INVALID_RECEIPT/);
   }
+});
+
+test("Bauman main-overlaid source Worker real D1 QA remains non-authorizing and no merge",()=>{
+  const unit=plan.units.find(x=>x.id==="BAUMAN-CONTROL");
+  const overlay=unit.sourceDraft.testEvidence.mainOverlay;
+  const mutation=unit.sourceDraft.testEvidence.realSourceDurableReadback;
+  assert.equal(overlay.workflowRun,39028472291);
+  assert.equal(overlay.mode,"DETACHED_TEMP_WORKTREE_GIT_DIFF_APPLY_NO_MERGE");
+  assert.equal(overlay.overlapFiles,0);
+  assert.equal(overlay.windows,"PASS");
+  assert.equal(overlay.ubuntu,"PASS");
+  assert.equal(mutation.workflowRun,39028472301);
+  assert.equal(mutation.windows,"PASS");
+  assert.equal(mutation.ubuntu,"PASS");
+  assert.equal(mutation.realApplicationShutdownAck,false);
+  assert.equal(mutation.globalIsolatesDrained,false);
+  assert.equal(overlay.sourceReviewAdmission,false);
+  assert.equal(unit.ready,false);
+  assert.equal(unit.approved,false);
+  assert.equal(unit.permitAutoRestart,false);
 });
