@@ -226,9 +226,11 @@
         "qaPortReadback": "STAGED_TEST_REQUIRES_BACKEND_AND_GATEWAY_PORT_RELEASE",
         "sourceGitMainAudit": "LOCAL_GIT_EXACT_SHA_CLEAN_MAIN_VERIFIER_CI_PASS_NOT_REVIEW",
         "wranglerCliSecureCandidate": "STAGED_DIRECT_NODE_LOCAL_BIN_PRIVATE_DOTVARS_NO_VAR_QA_ONLY",
-        "authenticatedExitAck": "BLOCKED_NO_REAL_WRANGLER_SERVICE_BOUND_RECEIPT"
+        "authenticatedExitAck": "BLOCKED_NO_REAL_WRANGLER_SERVICE_BOUND_RECEIPT",
+        "multiIsolateLedger": "SIGNED_DECLARED_SET_ONLY_NOT_AUTHORITATIVE_RUNTIME_ISOLATE_INVENTORY",
+        "processBoundAck": "REAL_NODE_IPC_GATEWAY_QA_ONLY_NOT_ACTUAL_WRANGLER_ACK"
       },
-      "blocker": "NO_VERIFIED_OWNED_RUNTIME_DRAIN_EXIT_ACK",
+      "blocker": "NO_VERIFIED_INDEPENDENT_REVIEW_OR_ALL_ISOLATES_D1_DRAIN_AND_REAL_WRANGLER_EXIT",
       "ready": false,
       "approved": false,
       "permitAutoRestart": false,
@@ -281,7 +283,17 @@
         },
         "globalMultiIsolateDrained": false,
         "wranglerChildExitObserved": false,
-        "realApplicationDrainAccepted": false
+        "realApplicationDrainAccepted": false,
+        "reviewVerification": {
+          "checkedAt": "2026-10-17",
+          "actualPullRequestHead": "0afe07e7e0f1d8cfd0dec66e887a3545f4e27947",
+          "isDraft": true,
+          "merged": false,
+          "reviewCount": 0,
+          "currentRemoteMainSha": "34cf28ee66e51c0bbca42ac248830075fd9ae2d9",
+          "independentReviewApproved": false,
+          "authorizedSourceAdmission": false
+        }
       }
     },
     {
@@ -381,9 +393,11 @@
         "qaPortReadback": "STAGED_TEST_REQUIRES_BACKEND_AND_GATEWAY_PORT_RELEASE",
         "sourceGitMainAudit": "LOCAL_GIT_EXACT_SHA_CLEAN_MAIN_VERIFIER_CI_PASS_NOT_REVIEW",
         "wranglerCliSecureCandidate": "STAGED_DIRECT_NODE_LOCAL_BIN_PRIVATE_DOTVARS_NO_VAR_QA_ONLY",
-        "authenticatedExitAck": "BLOCKED_NO_REAL_WRANGLER_SERVICE_BOUND_RECEIPT"
+        "authenticatedExitAck": "BLOCKED_NO_REAL_WRANGLER_SERVICE_BOUND_RECEIPT",
+        "multiIsolateLedger": "SIGNED_DECLARED_SET_ONLY_NOT_AUTHORITATIVE_RUNTIME_ISOLATE_INVENTORY",
+        "processBoundAck": "REAL_NODE_IPC_GATEWAY_QA_ONLY_NOT_ACTUAL_WRANGLER_ACK"
       },
-      "blocker": "NO_VERIFIED_OWNED_RUNTIME_DRAIN_EXIT_ACK",
+      "blocker": "NO_VERIFIED_INDEPENDENT_REVIEW_OR_ALL_ISOLATES_D1_DRAIN_AND_REAL_WRANGLER_EXIT",
       "ready": false,
       "approved": false,
       "permitAutoRestart": false,
@@ -436,7 +450,17 @@
         },
         "globalMultiIsolateDrained": false,
         "wranglerChildExitObserved": false,
-        "realApplicationDrainAccepted": false
+        "realApplicationDrainAccepted": false,
+        "reviewVerification": {
+          "checkedAt": "2026-10-17",
+          "actualPullRequestHead": "d6e910e6c0c7b0cdb1a395381f2be0d65eb7ca3d",
+          "isDraft": true,
+          "merged": false,
+          "reviewCount": 0,
+          "currentRemoteMainSha": "9e8df71f2839989b067af79ef22c389f541664e5",
+          "independentReviewApproved": false,
+          "authorizedSourceAdmission": false
+        }
       }
     },
     {
