@@ -30,6 +30,8 @@ on:
       - 'scripts/local-ops-isolate-drain-ledger.mjs'
       - 'tests/local-ops-isolate-drain-ledger.test.mjs'
       - 'scripts/local-ops-process-bound-gateway-qa.mjs'
+      - 'scripts/local-ops-real-workerd-process-bound-qa.mjs'
+      - 'tests/fixtures/local-ops-real-workerd-d1-child.mjs'
       - 'tests/fixtures/local-ops-graceful-gateway-child.mjs'
       - 'scripts/local-ops-managed-wrangler-candidate.mjs'
       - 'tests/local-ops-managed-wrangler-candidate.test.mjs'
@@ -87,6 +89,8 @@ jobs:
         run: node scripts/local-d1-persistence-smoke.mjs
       - name: Process-bound real Node gateway graceful ACK (scope fixture-only)
         run: node scripts/local-ops-process-bound-gateway-qa.mjs
+      - name: Real workerd D1 and process-bound Miniflare.dispose graceful QA
+        run: node scripts/local-ops-real-workerd-process-bound-qa.mjs
       - name: Actual Wrangler/Miniflare D1 in-flight HTTP over localhost (temporary only)
         run: node scripts/local-ops-real-wrangler-drain-smoke.mjs
       - name: Acquire sandbox image at build time
@@ -149,6 +153,8 @@ jobs:
         run: node scripts/local-d1-persistence-smoke.mjs
       - name: Process-bound Windows Node gateway graceful ACK and port release (QA only)
         run: node scripts/local-ops-process-bound-gateway-qa.mjs
+      - name: Real Windows workerd D1 and process-bound Miniflare.dispose graceful QA
+        run: node scripts/local-ops-real-workerd-process-bound-qa.mjs
       - name: Actual Windows Wrangler D1 in-flight HTTP and process-tree fixture
         run: node scripts/local-ops-real-wrangler-drain-smoke.mjs
       - name: Scope note
