@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
 import { readSourceSnapshot } from "./local-ops-source-identity.mjs";
+import { SHUTDOWN_PROTOCOL, unsupportedFullStack } from "./local-ops-shutdown-contract.mjs";
 import { createServer } from "node:http";
 import { dirname, extname, join, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,6 +11,24 @@ const scriptDir = dirname(fileURLToPath(import.meta.url));
 const centralRoot = resolve(scriptDir, "..");
 const defaultAppsRoot = resolve(centralRoot, "..");
 const localOpsApps = JSON.parse(readFileSync(join(centralRoot, "control", "local-ops-apps.json"), "utf8")).apps;
+// The actual nested graph contains Vite, Wrangler, npm.cmd wrappers and D1.
+// There is currently no authenticated per-service drain/exit contract.
+// A request MUST be denied before signaling/terminating any of these children.
+process.on("message", message => {
+  if (message?.protocol !== SHUTDOWN_PROTOCOL ||
+      message?.nonce !== process.env.LOCAL_OPS_BOOT_NONCE ||
+      typeof message?.requestId !== "string" ||
+      !/^[0-9a-f]{40}$/.test(message.requestId)) return;
+  if (message.type === "local-ops-shutdown-preflight") {
+    process.send?.({ type: "local-ops-shutdown-preflight-result",
+      nonce: message.nonce, requestId: message.requestId, ...unsupportedFullStack() });
+  } else if (message.type === "local-ops-shutdown-commit") {
+    // Never accept stop before a full verified preflight+drain contract exists.
+    process.send?.({ type: "local-ops-shutdown-complete",
+      nonce: message.nonce, requestId: message.requestId,
+      ...unsupportedFullStack(), shutdownCompleted: false });
+  }
+});
 const isWindows = process.platform === "win32";
 const npm = isWindows ? "npm.cmd" : "npm";
 const npx = isWindows ? "npx.cmd" : "npx";

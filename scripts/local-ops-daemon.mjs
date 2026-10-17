@@ -3,6 +3,7 @@
 import { randomBytes } from "node:crypto";
 import { Socket } from "node:net";
 import { readSourceSnapshot, exactSourceMatch } from "./local-ops-source-identity.mjs";
+import { SHUTDOWN_PROTOCOL, validateStopPreflight, requestChildReply, childExited, newStopRequestId } from "./local-ops-shutdown-contract.mjs";
 import { execFile } from "node:child_process";
 import { spawn } from "node:child_process";
 import { closeSync, existsSync, lstatSync, openSync, readFileSync, readdirSync } from "node:fs";
@@ -28,7 +29,7 @@ function trustedRemote(url) {
 export function requiresRestart(runtime, results) {
   return runtime === "running" && results.some(item => item.state === "updated");
 }
-const state = { busy: "", pull: null, runtime: "stopped", runtimePid: null, lastError: "", runtimeStartedAt: null, restartRequired: false, sourceSnapshot: null, sourceVerified: false, runtimeEvidence: null };
+const state = { busy: "", pull: null, runtime: "stopped", runtimePid: null, lastError: "", runtimeStartedAt: null, restartRequired: false, sourceSnapshot: null, sourceVerified: false, runtimeEvidence: null, runtimeNonce: null, restartControl: null };
 let runtimeChild = null;
 
 function permittedOrigin(req) {
@@ -206,7 +207,7 @@ async function status() {
     runtimePid: state.runtimePid, runtimeStartedAt: state.runtimeStartedAt,
     restartRequired: state.restartRequired, sourceVerified: verified,
     sourceSnapshot: verified ? state.sourceSnapshot : null, runtimeEvidence: verified ? state.runtimeEvidence : null,
-    error: state.lastError || null, pull: state.pull, apps };
+    error: state.lastError || null, pull: state.pull, restartControl: state.restartControl, apps };
 }
 async function startAll() {
   state.busy = "starting";
@@ -226,10 +227,12 @@ async function startAll() {
       env: { ...process.env, LOCAL_OPS_BOOT_NONCE: nonce },
     });
     runtimeChild = child;
+    state.runtimeNonce = nonce;
     state.runtimePid = child.pid || null;
     child.on("exit", (code, signal) => {
       if (runtimeChild !== child) return;
       runtimeChild = null;
+      state.runtimeNonce = null;
       state.runtimePid = null;
       state.runtimeStartedAt = null;
       state.sourceVerified = false;
@@ -276,6 +279,62 @@ async function startAll() {
   }
 }
 
+
+export async function attemptGracefulAutoRestart({
+  child, nonce, workspacePortsFree = freeStackPorts,
+  afterStopped = startAll, processWait = childExited,
+} = {}) {
+  // User-directed opt-in, no shell commands or OS process termination.
+  if (!child || !nonce || !child.connected)
+    return { status: "blocked", reason: "AUTO_RESTART_NO_MANAGED_IPC_CHILD" };
+  const requestId = newStopRequestId();
+  try {
+    const answer = await requestChildReply(child, "local-ops-shutdown-preflight",
+      requestId, nonce, "local-ops-shutdown-preflight-result");
+    if (!validateStopPreflight(answer)) {
+      const missing = Array.isArray(answer?.missingUnits) ? answer.missingUnits.join(",") : "unknown";
+      return { status: "blocked",
+        reason: "GRACEFUL_DRAIN_UNVERIFIED: " + (answer?.reason || missing).slice(0, 240),
+        missingUnits: answer?.missingUnits || [] };
+    }
+    // A false preflight may not proceed to ANY child stop.
+    const complete = await requestChildReply(child, "local-ops-shutdown-commit",
+      requestId, nonce, "local-ops-shutdown-complete", 45_000);
+    if (complete?.shutdownCompleted !== true || !validateStopPreflight(complete))
+      return { status: "blocked", reason: "GRACEFUL_DRAIN_FINAL_ACK_MISSING" };
+    await processWait(child, 30_000);
+    // Wait for every managed loopback socket. An orphaned grandchild blocks restart.
+    await workspacePortsFree();
+    await afterStopped();
+    return { status: "finished" };
+  } catch (error) {
+    return { status: "blocked",
+      reason: error instanceof Error ? error.message.slice(0, 240) : "UNVERIFIED_SHUTDOWN" };
+  }
+}
+async function autoRestart() {
+  const child = runtimeChild;
+  const nonce = state.runtimeNonce;
+  state.busy = "shutdown-preflight";
+  state.restartControl = { status: "running", startedAt: new Date().toISOString() };
+  try {
+    const result = await attemptGracefulAutoRestart({ child, nonce,
+      afterStopped: async () => {
+        // Only reset/readiness from startAll AFTER child exit and zero listening ports.
+        state.busy = "starting";
+        await startAll();
+        if (state.runtime !== "running" || !state.sourceVerified)
+          throw Error("RESTART_NEW_RUNTIME_UNVERIFIED: " + (state.lastError || state.runtime));
+      },
+    });
+    state.restartControl = { ...result, finishedAt: new Date().toISOString() };
+    if (result.status !== "finished") {
+      state.lastError = result.reason;
+      // Preserve previous runtime state when preflight refused without stopping anything.
+    }
+  } finally { state.busy = ""; }
+}
+
 async function waitAndOpenCenter() {
   for (let i = 0; i < 180; i += 1) {
     if (await probe(3000)) {
@@ -315,6 +374,13 @@ export function createLocalOpsServer() {
       state.busy = "starting";
       void startAll();
       return reply(res, 202, { ok: true, message: "Chỉ khởi động lại sau khi stack cũ đã dừng và các cổng được giải phóng." }, origin);
+    }
+    if (req.method === "POST" && req.url === "/restart-auto") {
+      if (state.busy) return reply(res, 409, { error: "LOCAL_OPERATION_BUSY" }, origin);
+      if (!runtimeChild || !state.runtimeNonce) return reply(res, 409, { error: "AUTO_RESTART_NO_MANAGED_STACK" }, origin);
+      state.busy = "shutdown-preflight";
+      void autoRestart();
+      return reply(res, 202, { ok: true, message: "Đang kiểm tra điều kiện shutdown. Không tắt tiến trình nếu chưa có bằng chứng drain tất cả dịch vụ." }, origin);
     }
     if (req.method === "POST" && req.url === "/pull-all") {
       if (state.busy) return reply(res, 409, { error: "LOCAL_OPERATION_BUSY" }, origin);

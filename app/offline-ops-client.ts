@@ -17,6 +17,7 @@ export type LocalOpsStatus = {
   sourceVerified: boolean;
   sourceSnapshot: Record<string, string> | null;
   runtimeEvidence: string | null;
+  restartControl: { status: string; reason?: string; missingUnits?: string[]; finishedAt?: string } | null;
   error: string | null;
   pull: { status: string; startedAt: string; finishedAt?: string; results: PullResult[]; error?: string } | null;
   apps: LocalOpsAppStatus[];
@@ -64,6 +65,7 @@ export function localOpsStatus() { return call<LocalOpsStatus>("/status"); }
 export function localOpsStart() { return call<{ok: boolean; runtime: string}>("/start", "POST"); }
 export function localOpsPullAll() { return call<{ok: boolean; message: string}>("/pull-all", "POST"); }
 export function localOpsRestart() { return call<{ok: boolean; message: string}>("/restart", "POST"); }
+export function localOpsAutoRestart() { return call<{ok: boolean; message: string}>("/restart-auto", "POST"); }
 
 export async function launchOffline(appId: string): Promise<string> {
   const target = localApp(appId);

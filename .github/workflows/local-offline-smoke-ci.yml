@@ -16,6 +16,9 @@ on:
       - 'app/offline-ops-client.ts'
       - 'app/offline-ops-panel.tsx'
       - 'scripts/run-all.mjs'
+      - 'scripts/run-local-system.mjs'
+      - 'scripts/local-ops-shutdown-contract.mjs'
+      - 'tests/local-ops-shutdown-contract.test.mjs'
       - 'scripts/local-ops-source-identity.mjs'
       - 'scripts/local-ops-supervised-restart-smoke.mjs'
       - 'tests/local-ops-windows-smoke.test.mjs'
@@ -41,7 +44,7 @@ jobs:
       - name: Install dependencies before disconnecting runtime
         run: npm ci --no-audit --no-fund
       - name: Git fast-forward fixtures and localhost protocol regression
-        run: node --test tests/local-ops-daemon.test.mjs tests/local-ops-git-real.test.mjs
+        run: node --test tests/local-ops-daemon.test.mjs tests/local-ops-git-real.test.mjs tests/local-ops-shutdown-contract.test.mjs
       - name: Verify guarded stack restart with real Git HEAD and mock local ports
         run: node scripts/local-ops-supervised-restart-smoke.mjs
       - name: Check local D1 process-to-process persistence in disposable storage
@@ -97,7 +100,7 @@ jobs:
           node-version: '22.13.0'
           package-manager-cache: false
       - name: Windows helper cold-start/restart + real Git SHA fixtures
-        run: node --test tests/local-ops-windows-smoke.test.mjs tests/local-ops-git-real.test.mjs tests/local-ops-daemon.test.mjs
+        run: node --test tests/local-ops-windows-smoke.test.mjs tests/local-ops-git-real.test.mjs tests/local-ops-daemon.test.mjs tests/local-ops-shutdown-contract.test.mjs
       - name: Install local D1 tooling
         run: npm ci --no-audit --no-fund
       - name: Windows guarded stack restart with mocked child and real Git HEADs

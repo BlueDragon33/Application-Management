@@ -4,6 +4,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn, spawnSync } from "node:child_process";
 import { reconcileBoiLocalMigrationJournal } from "./local-d1-migration-reconcile.mjs";
+import { SHUTDOWN_PROTOCOL, unsupportedFullStack } from "./local-ops-shutdown-contract.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const centralRoot = resolve(scriptDir, "..");
@@ -11,6 +12,15 @@ const defaultAppsRoot = resolve(centralRoot, "..");
 const isWindows = process.platform === "win32";
 const npm = isWindows ? "npm.cmd" : "npm";
 const npx = isWindows ? "npx.cmd" : "npx";
+// The core tree is currently unable to prove all Wrangler/Vite subprocesses
+// drained their D1 writes. Never respond with a success to graceful stop requests.
+process.on("message", message => {
+  if (message?.protocol !== SHUTDOWN_PROTOCOL || typeof message?.requestId !== "string") return;
+  if (message.type === "local-ops-shutdown-preflight") {
+    process.send?.({ type: "local-ops-shutdown-preflight-result",
+      nonce: message.nonce, requestId: message.requestId, ...unsupportedFullStack() });
+  }
+});
 const REQUIRED_NC03_RUNTIME_PROTOCOL = "nc03-local-runtime/v4";
 const REQUIRED_NC03_AUTH_LOGIN_PROTOCOL = "nc03-auth-login/v1";
 const REQUIRED_NC03_WRITE_READINESS_PROTOCOL = "nc03-write-readiness/v1";

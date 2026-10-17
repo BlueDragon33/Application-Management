@@ -48,6 +48,8 @@ import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
 import { resolve,join } from "node:path";
 import { readSourceSnapshot } from "./local-ops-source-identity.mjs";
+import { SHUTDOWN_PROTOCOL, REQUIRED_SHUTDOWN_UNITS, unsupportedFullStack } from "./local-ops-shutdown-contract.mjs";
+import { existsSync } from "node:fs";
 const root=resolve(process.cwd(),"..");
 const apps=JSON.parse(readFileSync(join(process.cwd(),"control/local-ops-apps.json"),"utf8")).apps;
 const servers=[];
@@ -62,6 +64,24 @@ servers.push(control);
 const sources=await readSourceSnapshot(root,apps);
 process.send?.({type:"local-ops-stack-ready",protocol:"local-ops-source/v1",
   nonce:process.env.LOCAL_OPS_BOOT_NONCE,sources});
+// A CONTROLLED TEST FIXTURE: simulated drain acknowledgements, NEVER a claim
+// about production Vite/Wrangler/SQLite flushing.
+process.on("message", async m => {
+  if(m?.protocol!==SHUTDOWN_PROTOCOL || m.nonce!==process.env.LOCAL_OPS_BOOT_NONCE) return;
+  const base={nonce:m.nonce,requestId:m.requestId,protocol:SHUTDOWN_PROTOCOL};
+  const allowed=existsSync(join(process.cwd(),"graceful.fixture-allowed"));
+  if(m.type==="local-ops-shutdown-preflight"){
+    if(!allowed) return process.send?.({type:"local-ops-shutdown-preflight-result",...base,...unsupportedFullStack()});
+    const units=REQUIRED_SHUTDOWN_UNITS.map(id=>({id,supported:true,d1Drained:true,ownedProcess:true,gracefulExitSupported:true}));
+    return process.send?.({type:"local-ops-shutdown-preflight-result",...base,supported:true,units});
+  }
+  if(m.type==="local-ops-shutdown-commit" && allowed){
+    const units=REQUIRED_SHUTDOWN_UNITS.map(id=>({id,supported:true,d1Drained:true,ownedProcess:true,gracefulExitSupported:true}));
+    await Promise.all(servers.map(server=>new Promise(ok=>server.close(ok))));
+    process.send?.({type:"local-ops-shutdown-complete",...base,supported:true,units,shutdownCompleted:true},
+      ()=>setImmediate(()=>process.exit(0)));
+  }
+});
 process.on("SIGTERM",()=>{for(const s of servers)s.close();});
 `;
 const temp=mkdtempSync(join(tmpdir(),"am-supervised-"));
@@ -73,7 +93,7 @@ try {
   mkdirSync(join(central,"scripts"),{recursive:true});
   mkdirSync(join(central,"control"),{recursive:true});
   writeFileSync(join(central,"package.json"),'{"type":"module"}\n');
-  for(const name of ["local-ops-daemon.mjs","local-ops-source-identity.mjs"])
+  for(const name of ["local-ops-daemon.mjs","local-ops-source-identity.mjs","local-ops-shutdown-contract.mjs"])
     copyFileSync(join(SOURCE,"scripts",name),join(central,"scripts",name));
   copyFileSync(join(SOURCE,"control/local-ops-apps.json"),join(central,"control/local-ops-apps.json"));
   writeFileSync(join(central,"scripts","run-all.mjs"),fakeRunAll);
@@ -114,26 +134,34 @@ try {
   assert.equal(blocked.status,409,"no kill/restart while owned child is alive");
   assert.equal(blocked.data.error.startsWith("MANUAL_SAFE_STOP_REQUIRED"),true);
   assert.equal((await helperCall("/status",session.token)).data.runtimePid,lastStackPid);
-  // Fixture-only child terminates; not a production D1 process.
-  process.kill(lastStackPid);
-  await until("child stopped",async()=>{
+  // Real run-all does not advertise any service drain: preflight must block
+  // without touching the old child. The fixture starts in the same blocked mode.
+  const denied=await helperCall("/restart-auto",session.token,"POST");
+  assert.equal(denied.status,202);
+  const rejected=await until("blocked unsafe restart",async()=>{
     const r=(await helperCall("/status",session.token)).data;
-    return !r.runtimePid?r:null;
+    return r.restartControl?.status==="blocked"?r:null;
   });
-  const restarted=await helperCall("/restart",session.token,"POST");
-  assert.equal(restarted.status,202);
+  assert.match(rejected.restartControl.reason,/GRACEFUL_DRAIN_UNVERIFIED/);
+  assert.equal(rejected.runtimePid,lastStackPid,"blocked drain must not kill old child");
+  // Fixture ONLY: simulate the complete 13-unit D1-drain and graceful-exit ACKs.
+  writeFileSync(join(central,"graceful.fixture-allowed"),"QA synthetic drain\n");
+  const accepted=await helperCall("/restart-auto",session.token,"POST");
+  assert.equal(accepted.status,202);
   const newState=await until("verified restarted stack",async()=>{
     const r=(await helperCall("/status",session.token)).data;
-    if(r.runtime==="blocked"||r.runtime==="error")throw Error(r.error);
-    return r.runtime==="running"&&r.sourceVerified?r:null;
-  });
+    if(r.restartControl?.status==="blocked")throw Error(r.restartControl.reason);
+    return r.runtime==="running"&&r.sourceVerified&&r.runtimePid!==lastStackPid?r:null;
+  },45000);
+  assert.equal(newState.restartControl?.status,"finished");
   assert.notEqual(newState.runtimePid,lastStackPid);
   assert.equal(newState.sourceSnapshot[requiredApps[0].id],git(changed,"rev-parse","HEAD"));
   assert.equal(newState.restartRequired,false);
   lastStackPid=newState.runtimePid;
   console.log(JSON.stringify({result:"SUPERVISED_RESTART_FIXTURE_PASS",
     scope:"mock child+ports+real Git repos, NOT live BaumanWeb apps",
-    oldProcessBlocked:true,shaDriftDetected:true,postRestartHeadVerified:true,
+    oldProcessBlocked:true,drainPreflightBlockedWithoutKill:true,fixtureSyntheticDrainAccepted:true,
+    shaDriftDetected:true,postRestartHeadVerified:true,
     realApplicationHTTPIdentity:"UNVERIFIED",userD1:"UNTOUCHED"}));
 } finally {
   try { if(lastStackPid)process.kill(lastStackPid); } catch{}
