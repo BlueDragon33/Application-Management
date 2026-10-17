@@ -208,15 +208,32 @@
       ],
       "implementation": {
         "managedDirectSpawn": "CODE_ADDED_NOT_FULLSTACK_VERIFIED",
-        "runtimeDrainProbe": "CODE_ADDED_NO_REAL_SERVICE_ENDPOINT",
-        "d1TrackedDrain": "LIBRARY_ONLY_NOT_BOUND_TO_RUNTIME",
+        "runtimeDrainProbe": "HTTP_503_FAIL_CLOSED_REAL_WORKER",
+        "d1TrackedDrain": "D1_QUERY_CALLS_INSTRUMENTED_PER_ISOLATE; GLOBAL_DRAIN_UNVERIFIED",
         "windowsChildTree": "READ_ONLY_INSPECTION_FIXTURE_PENDING",
-        "actualAppWindowsShutdown": "NOT_TESTED"
+        "actualAppWindowsShutdown": "NOT_TESTED",
+        "realWorkerD1Tracking": "DRAFT_PER_ISOLATE_OBSERVER_WIRED",
+        "disposableD1Durability": "WINDOWS_AND_UBUNTU_WRANGLER_BACKEND_FIXTURE_PASS"
       },
       "blocker": "NO_VERIFIED_OWNED_RUNTIME_DRAIN_EXIT_ACK",
       "ready": false,
       "approved": false,
-      "permitAutoRestart": false
+      "permitAutoRestart": false,
+      "sourceDraft": {
+        "repository": "BlueDragon33/Bauman-master-ai-system",
+        "pr": 366,
+        "head": "caf96b51400fbce74bf86e0f30cc178e3b140eb5",
+        "workerEntry": "Worker entry automation-contract.ts",
+        "testEvidence": {
+          "workflow": "Offline D1 Observer Draft Validation",
+          "runId": 38998280819,
+          "windowsFixture": "PASS",
+          "ubuntuFixture": "PASS"
+        },
+        "globalMultiIsolateDrained": false,
+        "wranglerChildExitObserved": false,
+        "realApplicationDrainAccepted": false
+      }
     },
     {
       "id": "BOI",
@@ -298,15 +315,32 @@
       ],
       "implementation": {
         "managedDirectSpawn": "NOT_APPLICABLE_OR_WRAPPER_UNVERIFIED",
-        "runtimeDrainProbe": "CODE_ADDED_NO_REAL_SERVICE_ENDPOINT",
-        "d1TrackedDrain": "LIBRARY_ONLY_NOT_BOUND_TO_RUNTIME",
+        "runtimeDrainProbe": "HTTP_503_FAIL_CLOSED_REAL_WORKER",
+        "d1TrackedDrain": "D1_QUERY_CALLS_INSTRUMENTED_PER_ISOLATE; GLOBAL_DRAIN_UNVERIFIED",
         "windowsChildTree": "READ_ONLY_INSPECTION_FIXTURE_PENDING",
-        "actualAppWindowsShutdown": "NOT_TESTED"
+        "actualAppWindowsShutdown": "NOT_TESTED",
+        "realWorkerD1Tracking": "DRAFT_PER_ISOLATE_OBSERVER_WIRED",
+        "disposableD1Durability": "WINDOWS_AND_UBUNTU_WRANGLER_BACKEND_FIXTURE_PASS"
       },
       "blocker": "NO_VERIFIED_OWNED_RUNTIME_DRAIN_EXIT_ACK",
       "ready": false,
       "approved": false,
-      "permitAutoRestart": false
+      "permitAutoRestart": false,
+      "sourceDraft": {
+        "repository": "BlueDragon33/PriceReport_Tunggiabao",
+        "pr": 133,
+        "head": "ff36f4ee8dc935aea25b0c0043bbcdaee100009b",
+        "workerEntry": "Worker entry index.ts",
+        "testEvidence": {
+          "workflow": "Offline D1 Observer Draft Validation",
+          "runId": 38998290242,
+          "windowsFixture": "PASS",
+          "ubuntuFixture": "PASS"
+        },
+        "globalMultiIsolateDrained": false,
+        "wranglerChildExitObserved": false,
+        "realApplicationDrainAccepted": false
+      }
     },
     {
       "id": "PRICE",

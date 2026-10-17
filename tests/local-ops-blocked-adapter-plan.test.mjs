@@ -36,3 +36,26 @@ test("actual run-all remains fully blocked even after direct spawn/HTTP verifier
   const verifier=readFileSync(new URL("../scripts/local-ops-runtime-drain-preflight.mjs",import.meta.url),"utf8");
   assert.match(verifier,/autoRestartAllowed:false/);
 });
+
+test("BAUMAN-CONTROL and PRICE-CONTROL linked drafts are only partial per-isolate evidence, never full shutdown approval",()=>{
+  const linked = new Map([
+    ["BAUMAN-CONTROL",{pr:366,sha:"caf96b51400fbce74bf86e0f30cc178e3b140eb5"}],
+    ["PRICE-CONTROL",{pr:133,sha:"ff36f4ee8dc935aea25b0c0043bbcdaee100009b"}],
+  ]);
+  for (const [id,ref] of linked) {
+    const row=plan.units.find(x=>x.id===id);
+    assert.ok(row);
+    assert.equal(row.sourceDraft.pr,ref.pr);
+    assert.equal(row.sourceDraft.head,ref.sha);
+    assert.equal(row.sourceDraft.testEvidence.windowsFixture,"PASS");
+    assert.equal(row.sourceDraft.testEvidence.ubuntuFixture,"PASS");
+    assert.equal(row.sourceDraft.globalMultiIsolateDrained,false);
+    assert.equal(row.sourceDraft.wranglerChildExitObserved,false);
+    assert.equal(row.sourceDraft.realApplicationDrainAccepted,false);
+    assert.equal(row.implementation.actualAppWindowsShutdown,"NOT_TESTED");
+    assert.match(row.implementation.runtimeDrainProbe,/503_FAIL_CLOSED/);
+    assert.equal(row.ready,false);
+    assert.equal(row.approved,false);
+    assert.equal(row.permitAutoRestart,false);
+  }
+});
