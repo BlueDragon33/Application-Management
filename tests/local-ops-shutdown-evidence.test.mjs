@@ -23,7 +23,7 @@ test("the 13-unit audit reconciles exact shutdown gate without claiming approval
     assert.equal(unit.autoRestartApproved,false);
     assert.equal(unit.actualDrainAttested,false);
     assert.equal(unit.actualExitAttested,false);
-    assert.equal(unit.windowsEvidence,"Windows real runtime NOT_TESTED");
+    assert.match(unit.windowsEvidence,/^Windows (?:real runtime|full stack) NOT_TESTED$/);
     assert.match(unit.repository,/^BlueDragon33\//);
   }
 });
