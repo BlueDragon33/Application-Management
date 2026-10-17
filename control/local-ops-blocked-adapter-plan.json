@@ -1,0 +1,342 @@
+{
+  "schemaVersion": 1,
+  "generatedFrom": "control/local-ops-shutdown-evidence.json",
+  "owner": "Application-Management",
+  "mainAtAudit": "93906a7fff0f3925139ab63dc01312e8d18caf17",
+  "fullStackAutoRestartAllowed": false,
+  "readyCount": 0,
+  "workPackages": [
+    {
+      "wave": 1,
+      "id": "process-ownership",
+      "goal": "Replace verifiable local npx.cmd Vite/Wrangler wrappers by direct Node bin only in managed mode; audit pinned unknown wrappers",
+      "acceptance": "Windows real PID tree + exact bin path, no npm install, orphan exit check"
+    },
+    {
+      "wave": 2,
+      "id": "runtime-drain",
+      "goal": "Integrate request and transaction tracker inside each runtime; authenticate local preflight with nonce/PID/SHA",
+      "acceptance": "In-flight writes block, missing hook blocks; real runtime positive and negative tests"
+    },
+    {
+      "wave": 3,
+      "id": "sqlite-d1",
+      "goal": "Wrangler worker bindings must prove stop-new-writes, in-flight transaction complete and persistent readback",
+      "acceptance": "Real D1 in-flight crash-safe test on isolated Windows workspace"
+    },
+    {
+      "wave": 4,
+      "id": "supervisor-commit",
+      "goal": "Verified per-unit drain ACK before graceful stop, child exit and 3000-3010 port readback",
+      "acceptance": "13/13 real unit receipts + no orphans; no taskkill /F in managed path"
+    },
+    {
+      "wave": 5,
+      "id": "acceptance",
+      "goal": "Cold start restart and offline browser QA on real BaumanWeb Windows; independent reviewer",
+      "acceptance": "Owner review and Blueprint approval via authoritative gate only"
+    }
+  ],
+  "units": [
+    {
+      "id": "run-all",
+      "repository": "BlueDragon33/Application-Management",
+      "code": "scripts/run-all.mjs",
+      "sourceMainAtAudit": "bbc0c3469227db6ac920b33c4f033ae75f028cb7",
+      "adapterKind": "supervisor",
+      "persistence": "nested all stores",
+      "requirements": [
+        "bound process ownership",
+        "complete request instrumentation",
+        "reject new writes",
+        "all inflight writes committed",
+        "durability readback",
+        "nonce+PID+SHA bound receipt",
+        "graceful exit and no surviving descendants",
+        "ports free on localhost",
+        "Windows real runtime test"
+      ],
+      "implementation": {
+        "managedDirectSpawn": "NOT_APPLICABLE_OR_WRAPPER_UNVERIFIED",
+        "runtimeDrainProbe": "CODE_ADDED_NO_REAL_SERVICE_ENDPOINT",
+        "d1TrackedDrain": "LIBRARY_ONLY_NOT_BOUND_TO_RUNTIME",
+        "windowsChildTree": "READ_ONLY_INSPECTION_FIXTURE_PENDING",
+        "actualAppWindowsShutdown": "NOT_TESTED"
+      },
+      "blocker": "NO_VERIFIED_OWNED_RUNTIME_DRAIN_EXIT_ACK",
+      "ready": false,
+      "approved": false,
+      "permitAutoRestart": false
+    },
+    {
+      "id": "run-local-system",
+      "repository": "BlueDragon33/Application-Management",
+      "code": "scripts/run-local-system.mjs",
+      "sourceMainAtAudit": "bbc0c3469227db6ac920b33c4f033ae75f028cb7",
+      "adapterKind": "supervisor",
+      "persistence": "local migrations; nested writers",
+      "requirements": [
+        "bound process ownership",
+        "complete request instrumentation",
+        "reject new writes",
+        "all inflight writes committed",
+        "durability readback",
+        "nonce+PID+SHA bound receipt",
+        "graceful exit and no surviving descendants",
+        "ports free on localhost",
+        "Windows real runtime test"
+      ],
+      "implementation": {
+        "managedDirectSpawn": "NOT_APPLICABLE_OR_WRAPPER_UNVERIFIED",
+        "runtimeDrainProbe": "CODE_ADDED_NO_REAL_SERVICE_ENDPOINT",
+        "d1TrackedDrain": "LIBRARY_ONLY_NOT_BOUND_TO_RUNTIME",
+        "windowsChildTree": "READ_ONLY_INSPECTION_FIXTURE_PENDING",
+        "actualAppWindowsShutdown": "NOT_TESTED"
+      },
+      "blocker": "NO_VERIFIED_OWNED_RUNTIME_DRAIN_EXIT_ACK",
+      "ready": false,
+      "approved": false,
+      "permitAutoRestart": false
+    },
+    {
+      "id": "ADMIN",
+      "repository": "BlueDragon33/Application-Management",
+      "code": "scripts/run-local-system.mjs",
+      "sourceMainAtAudit": "bbc0c3469227db6ac920b33c4f033ae75f028cb7",
+      "adapterKind": "vite",
+      "persistence": "learning-management-db",
+      "requirements": [
+        "bound process ownership",
+        "complete request instrumentation",
+        "reject new writes",
+        "all inflight writes committed",
+        "durability readback",
+        "nonce+PID+SHA bound receipt",
+        "graceful exit and no surviving descendants",
+        "ports free on localhost",
+        "Windows real runtime test"
+      ],
+      "implementation": {
+        "managedDirectSpawn": "CODE_ADDED_NOT_FULLSTACK_VERIFIED",
+        "runtimeDrainProbe": "CODE_ADDED_NO_REAL_SERVICE_ENDPOINT",
+        "d1TrackedDrain": "LIBRARY_ONLY_NOT_BOUND_TO_RUNTIME",
+        "windowsChildTree": "READ_ONLY_INSPECTION_FIXTURE_PENDING",
+        "actualAppWindowsShutdown": "NOT_TESTED"
+      },
+      "blocker": "NO_VERIFIED_OWNED_RUNTIME_DRAIN_EXIT_ACK",
+      "ready": false,
+      "approved": false,
+      "permitAutoRestart": false
+    },
+    {
+      "id": "HEALTH",
+      "repository": "BlueDragon33/Health_Care",
+      "code": "wrangler.local.jsonc",
+      "sourceMainAtAudit": "316f1739ba16b947315dcdb24dffcfd51bd057aa",
+      "adapterKind": "vite",
+      "persistence": "health-care-local-db",
+      "requirements": [
+        "bound process ownership",
+        "complete request instrumentation",
+        "reject new writes",
+        "all inflight writes committed",
+        "durability readback",
+        "nonce+PID+SHA bound receipt",
+        "graceful exit and no surviving descendants",
+        "ports free on localhost",
+        "Windows real runtime test"
+      ],
+      "implementation": {
+        "managedDirectSpawn": "CODE_ADDED_NOT_FULLSTACK_VERIFIED",
+        "runtimeDrainProbe": "CODE_ADDED_NO_REAL_SERVICE_ENDPOINT",
+        "d1TrackedDrain": "LIBRARY_ONLY_NOT_BOUND_TO_RUNTIME",
+        "windowsChildTree": "READ_ONLY_INSPECTION_FIXTURE_PENDING",
+        "actualAppWindowsShutdown": "NOT_TESTED"
+      },
+      "blocker": "NO_VERIFIED_OWNED_RUNTIME_DRAIN_EXIT_ACK",
+      "ready": false,
+      "approved": false,
+      "permitAutoRestart": false
+    },
+    {
+      "id": "RU",
+      "repository": "BlueDragon33/RU_LIFE",
+      "code": "wrangler.local.jsonc",
+      "sourceMainAtAudit": "a607cdf03f237b73cff0146cfd08fc1e118eccd6",
+      "adapterKind": "vite",
+      "persistence": "ru-life-local",
+      "requirements": [
+        "bound process ownership",
+        "complete request instrumentation",
+        "reject new writes",
+        "all inflight writes committed",
+        "durability readback",
+        "nonce+PID+SHA bound receipt",
+        "graceful exit and no surviving descendants",
+        "ports free on localhost",
+        "Windows real runtime test"
+      ],
+      "implementation": {
+        "managedDirectSpawn": "CODE_ADDED_NOT_FULLSTACK_VERIFIED",
+        "runtimeDrainProbe": "CODE_ADDED_NO_REAL_SERVICE_ENDPOINT",
+        "d1TrackedDrain": "LIBRARY_ONLY_NOT_BOUND_TO_RUNTIME",
+        "windowsChildTree": "READ_ONLY_INSPECTION_FIXTURE_PENDING",
+        "actualAppWindowsShutdown": "NOT_TESTED"
+      },
+      "blocker": "NO_VERIFIED_OWNED_RUNTIME_DRAIN_EXIT_ACK",
+      "ready": false,
+      "approved": false,
+      "permitAutoRestart": false
+    },
+    {
+      "id": "BAUMAN-CONTROL",
+      "repository": "BlueDragon33/Bauman-master-ai-system",
+      "code": "control-service/wrangler.local.jsonc",
+      "sourceMainAtAudit": "70df417bacb615602f76b40fea1073ad221059a6",
+      "adapterKind": "wrangler-d1",
+      "persistence": "bauman-control-local",
+      "requirements": [
+        "bound process ownership",
+        "complete request instrumentation",
+        "reject new writes",
+        "all inflight writes committed",
+        "durability readback",
+        "nonce+PID+SHA bound receipt",
+        "graceful exit and no surviving descendants",
+        "ports free on localhost",
+        "Windows real runtime test"
+      ],
+      "implementation": {
+        "managedDirectSpawn": "CODE_ADDED_NOT_FULLSTACK_VERIFIED",
+        "runtimeDrainProbe": "CODE_ADDED_NO_REAL_SERVICE_ENDPOINT",
+        "d1TrackedDrain": "LIBRARY_ONLY_NOT_BOUND_TO_RUNTIME",
+        "windowsChildTree": "READ_ONLY_INSPECTION_FIXTURE_PENDING",
+        "actualAppWindowsShutdown": "NOT_TESTED"
+      },
+      "blocker": "NO_VERIFIED_OWNED_RUNTIME_DRAIN_EXIT_ACK",
+      "ready": false,
+      "approved": false,
+      "permitAutoRestart": false
+    },
+    {
+      "id": "BOI",
+      "repository": "BlueDragon33/BOIECH_AI",
+      "code": "boi-ech/wrangler.local.jsonc",
+      "sourceMainAtAudit": "636ad79262993feaba9ecfd94814b262198c6bc9",
+      "adapterKind": "vite-d1",
+      "persistence": "boi-ech-local",
+      "requirements": [
+        "bound process ownership",
+        "complete request instrumentation",
+        "reject new writes",
+        "all inflight writes committed",
+        "durability readback",
+        "nonce+PID+SHA bound receipt",
+        "graceful exit and no surviving descendants",
+        "ports free on localhost",
+        "Windows real runtime test"
+      ],
+      "implementation": {
+        "managedDirectSpawn": "CODE_ADDED_NOT_FULLSTACK_VERIFIED",
+        "runtimeDrainProbe": "CODE_ADDED_NO_REAL_SERVICE_ENDPOINT",
+        "d1TrackedDrain": "LIBRARY_ONLY_NOT_BOUND_TO_RUNTIME",
+        "windowsChildTree": "READ_ONLY_INSPECTION_FIXTURE_PENDING",
+        "actualAppWindowsShutdown": "NOT_TESTED"
+      },
+      "blocker": "NO_VERIFIED_OWNED_RUNTIME_DRAIN_EXIT_ACK",
+      "ready": false,
+      "approved": false,
+      "permitAutoRestart": false
+    },
+    {
+      "id": "GROWUP-CONTROL",
+      "repository": "BlueDragon33/GrowUP_MyChildren",
+      "code": "control-service/local-control.mjs",
+      "sourceMainAtAudit": "43694c2b911400e04511bd1239b8a747501de90b",
+      "adapterKind": "node-json",
+      "persistence": "sync JSON registry; durability not attested",
+      "requirements": [
+        "bound process ownership",
+        "complete request instrumentation",
+        "reject new writes",
+        "all inflight writes committed",
+        "durability readback",
+        "nonce+PID+SHA bound receipt",
+        "graceful exit and no surviving descendants",
+        "ports free on localhost",
+        "Windows real runtime test"
+      ],
+      "implementation": {
+        "managedDirectSpawn": "NOT_APPLICABLE_OR_WRAPPER_UNVERIFIED",
+        "runtimeDrainProbe": "CODE_ADDED_NO_REAL_SERVICE_ENDPOINT",
+        "d1TrackedDrain": "LIBRARY_ONLY_NOT_BOUND_TO_RUNTIME",
+        "windowsChildTree": "READ_ONLY_INSPECTION_FIXTURE_PENDING",
+        "actualAppWindowsShutdown": "NOT_TESTED"
+      },
+      "blocker": "NO_VERIFIED_OWNED_RUNTIME_DRAIN_EXIT_ACK",
+      "ready": false,
+      "approved": false,
+      "permitAutoRestart": false
+    },
+    {
+      "id": "PRICE-CONTROL",
+      "repository": "BlueDragon33/PriceReport_Tunggiabao",
+      "code": "control-service/wrangler.local.jsonc",
+      "sourceMainAtAudit": "9e8df71f2839989b067af79ef22c389f541664e5",
+      "adapterKind": "wrangler-d1",
+      "persistence": "price-report-control-local-db",
+      "requirements": [
+        "bound process ownership",
+        "complete request instrumentation",
+        "reject new writes",
+        "all inflight writes committed",
+        "durability readback",
+        "nonce+PID+SHA bound receipt",
+        "graceful exit and no surviving descendants",
+        "ports free on localhost",
+        "Windows real runtime test"
+      ],
+      "implementation": {
+        "managedDirectSpawn": "NOT_APPLICABLE_OR_WRAPPER_UNVERIFIED",
+        "runtimeDrainProbe": "CODE_ADDED_NO_REAL_SERVICE_ENDPOINT",
+        "d1TrackedDrain": "LIBRARY_ONLY_NOT_BOUND_TO_RUNTIME",
+        "windowsChildTree": "READ_ONLY_INSPECTION_FIXTURE_PENDING",
+        "actualAppWindowsShutdown": "NOT_TESTED"
+      },
+      "blocker": "NO_VERIFIED_OWNED_RUNTIME_DRAIN_EXIT_ACK",
+      "ready": false,
+      "approved": false,
+      "permitAutoRestart": false
+    },
+    {
+      "id": "PRICE",
+      "repository": "BlueDragon33/PriceReport_Tunggiabao",
+      "code": "package.json",
+      "sourceMainAtAudit": "9e8df71f2839989b067af79ef22c389f541664e5",
+      "adapterKind": "vite",
+      "persistence": "browser persistence not process-attested",
+      "requirements": [
+        "bound process ownership",
+        "complete request instrumentation",
+        "reject new writes",
+        "all inflight writes committed",
+        "durability readback",
+        "nonce+PID+SHA bound receipt",
+        "graceful exit and no surviving descendants",
+        "ports free on localhost",
+        "Windows real runtime test"
+      ],
+      "implementation": {
+        "managedDirectSpawn": "CODE_ADDED_NOT_FULLSTACK_VERIFIED",
+        "runtimeDrainProbe": "CODE_ADDED_NO_REAL_SERVICE_ENDPOINT",
+        "d1TrackedDrain": "LIBRARY_ONLY_NOT_BOUND_TO_RUNTIME",
+        "windowsChildTree": "READ_ONLY_INSPECTION_FIXTURE_PENDING",
+        "actualAppWindowsShutdown": "NOT_TESTED"
+      },
+      "blocker": "NO_VERIFIED_OWNED_RUNTIME_DRAIN_EXIT_ACK",
+      "ready": false,
+      "approved": false,
+      "permitAutoRestart": false
+    }
+  ]
+}

@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
 import { readSourceSnapshot } from "./local-ops-source-identity.mjs";
 import { SHUTDOWN_PROTOCOL, unsupportedFullStack } from "./local-ops-shutdown-contract.mjs";
+import { managedRuntimePlan, childOwnershipEvidence } from "./local-ops-managed-process.mjs";
 import { createServer } from "node:http";
 import { dirname, extname, join, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -155,7 +156,15 @@ function startStaticServer(root, port) {
 }
 
 function spawnService({ name, command, args, cwd, env = {} }) {
-  const spec = commandSpec(command, args);
+  const managedPlan = managedRuntimePlan({
+    command, args, cwd, managed: Boolean(process.env.LOCAL_OPS_BOOT_NONCE),
+  });
+  const spec = managedPlan.verifiedDirectChild
+    ? { file: managedPlan.command, args: managedPlan.args }
+    : commandSpec(command, args);
+  if (process.env.LOCAL_OPS_BOOT_NONCE && !managedPlan.verifiedDirectChild
+      && managedPlan.mode === "wrapper-unverified")
+    console.warn("[Local Ops] " + name + " still uses unverified npm wrapper; shutdown gate remains BLOCKED.");
   const child = spawn(spec.file, spec.args, {
     cwd,
     env: { ...process.env, ...env },
@@ -165,6 +174,11 @@ function spawnService({ name, command, args, cwd, env = {} }) {
   const prefix = `[${name}]`;
   child.stdout.on("data", (chunk) => process.stdout.write(`${prefix} ${String(chunk).replace(/\n/g, `\n${prefix} `)}`));
   child.stderr.on("data", (chunk) => process.stderr.write(`${prefix} ${String(chunk).replace(/\n/g, `\n${prefix} `)}`));
+  if (process.env.LOCAL_OPS_BOOT_NONCE) {
+    const ownership = childOwnershipEvidence(managedPlan, child);
+    console.log("[Local Ops] "+ name + " process PID="+ (ownership.pid ?? "unknown") +
+      " directChild="+ownership.directChild+" drainedD1=false");
+  }
   return child;
 }
 

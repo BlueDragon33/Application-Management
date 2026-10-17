@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { Socket } from "node:net";
 import { readSourceSnapshot, exactSourceMatch } from "./local-ops-source-identity.mjs";
 import { SHUTDOWN_PROTOCOL, validateStopPreflight, requestChildReply, childExited, newStopRequestId } from "./local-ops-shutdown-contract.mjs";
+import { captureWindowsTree, verifyWindowsTreeGone } from "./local-ops-windows-process-tree.mjs";
 import { execFile } from "node:child_process";
 import { spawn } from "node:child_process";
 import { closeSync, existsSync, lstatSync, openSync, readFileSync, readdirSync } from "node:fs";
@@ -297,12 +298,21 @@ export async function attemptGracefulAutoRestart({
         reason: "GRACEFUL_DRAIN_UNVERIFIED: " + (answer?.reason || missing).slice(0, 240),
         missingUnits: answer?.missingUnits || [] };
     }
+    // Snapshot the actual Windows process ancestry BEFORE permitting shutdown.
+    // Unknown ancestry is a blocker, never a license to force kill descendants.
+    const windowsSnapshot = process.platform === "win32"
+      ? await captureWindowsTree(child.pid) : null;
     // A false preflight may not proceed to ANY child stop.
     const complete = await requestChildReply(child, "local-ops-shutdown-commit",
       requestId, nonce, "local-ops-shutdown-complete", 45_000);
     if (complete?.shutdownCompleted !== true || !validateStopPreflight(complete))
       return { status: "blocked", reason: "GRACEFUL_DRAIN_FINAL_ACK_MISSING" };
     await processWait(child, 30_000);
+    if (windowsSnapshot) {
+      const treeResult = await verifyWindowsTreeGone(windowsSnapshot);
+      if (!treeResult.stopped)
+        throw Error("WINDOWS_ORPHANED_PROCESSES: " + treeResult.survivingPids.join(","));
+    }
     // Wait for every managed loopback socket. An orphaned grandchild blocks restart.
     await workspacePortsFree();
     await afterStopped();

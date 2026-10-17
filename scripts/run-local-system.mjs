@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { spawn, spawnSync } from "node:child_process";
 import { reconcileBoiLocalMigrationJournal } from "./local-d1-migration-reconcile.mjs";
 import { SHUTDOWN_PROTOCOL, unsupportedFullStack } from "./local-ops-shutdown-contract.mjs";
+import { managedRuntimePlan, childOwnershipEvidence } from "./local-ops-managed-process.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const centralRoot = resolve(scriptDir, "..");
@@ -189,7 +190,15 @@ function migrateLocalDatabases(paths, skipMigrate) {
 }
 
 function spawnService({ name, command, args, cwd, env }) {
-  const spec = commandSpec(command, args);
+  const managedPlan = managedRuntimePlan({
+    command, args, cwd, managed: Boolean(process.env.LOCAL_OPS_BOOT_NONCE),
+  });
+  const spec = managedPlan.verifiedDirectChild
+    ? { file: managedPlan.command, args: managedPlan.args }
+    : commandSpec(command, args);
+  if (process.env.LOCAL_OPS_BOOT_NONCE && !managedPlan.verifiedDirectChild
+      && managedPlan.mode === "wrapper-unverified")
+    console.warn("[Local Ops] " + name + " still uses unverified npm wrapper; shutdown gate remains BLOCKED.");
   const child = spawn(spec.file, spec.args, {
     cwd,
     env: { ...process.env, ...env },
@@ -206,6 +215,11 @@ function spawnService({ name, command, args, cwd, env }) {
       void shutdown(1);
     }
   });
+  if (process.env.LOCAL_OPS_BOOT_NONCE) {
+    const ownership = childOwnershipEvidence(managedPlan, child);
+    console.log("[Local Ops] "+ name + " process PID="+ (ownership.pid ?? "unknown") +
+      " directChild="+ownership.directChild+" drainedD1=false");
+  }
   return child;
 }
 
