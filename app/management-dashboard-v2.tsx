@@ -2030,7 +2030,7 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
             onContextMenu={(event) => {
               event.preventDefault();
               if (!editMode) showCardDetails(item, event.currentTarget);
-            }
+            }}
             onClick={(event) => handleCardClick(event, item)}
             onDoubleClick={(event) => handleCardDoubleClick(event, item)}
             onKeyDown={(event) => {

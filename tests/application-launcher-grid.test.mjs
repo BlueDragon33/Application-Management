@@ -140,13 +140,12 @@ test("single click opens the app and separate gestures show details", () => {
   const start = dashboard.indexOf("function handleCardClick");
   const end = dashboard.indexOf("function handleCardPointerDown", start);
   const block = dashboard.slice(start, end);
-  assert.match(block, /void openLauncherItem\\(item\\)/);
-  assert.match(block, /event\\.shiftKey/);
-  assert.match(block, /showCardDetails\\(item, event\\.currentTarget\\)/);
-  assert.match(dashboard, /onContextMenu=\\{\\(event\\) => \\{/);
-  assert.match(dashboard, /Chuột phải \\/ Shift\\+Click/);
+  assert.ok(block.includes("void openLauncherItem(item)"));
+  assert.ok(block.includes("event.shiftKey"));
+  assert.ok(block.includes("showCardDetails(item, event.currentTarget)"));
+  assert.ok(dashboard.includes("onContextMenu={(event) => {"));
+  assert.ok(dashboard.includes("Chuột phải / Shift+Click"));
 });
-
 
 test("canonical opening remains policy-gated for apps and direct for real tool hrefs", () => {
   assert.match(dashboard, /await launchWeb\(item\.id\)/);
