@@ -163,3 +163,21 @@ test("Bauman main-overlaid source Worker real D1 QA remains non-authorizing and 
   assert.equal(unit.approved,false);
   assert.equal(unit.permitAutoRestart,false);
 });
+
+test("real workerd/Miniflare disposal is a scoped QA receipt, not Wrangler Dev authorization",()=>{
+ for(const id of ["BAUMAN-CONTROL","PRICE-CONTROL"]){
+   const unit=plan.units.find(x=>x.id===id);
+   const qa=unit.sourceDraft.testEvidence.workerdProcessBoundQA;
+   assert.equal(qa.runId,39028968462);
+   assert.equal(qa.localD1,true);
+   assert.equal(qa.ackAfterActualMiniflareDispose,true);
+   assert.equal(qa.independentRuntimeReadback,true);
+   assert.equal(qa.fullCloudflareIsolateEnumeration,false);
+   assert.equal(qa.realWranglerDevShutdownVerified,false);
+   assert.equal(qa.userRuntimeTouched,false);
+   assert.equal(qa.autoRestartAllowed,false);
+   assert.equal(unit.implementation.actualAppWindowsShutdown,"NOT_TESTED");
+   assert.equal(unit.ready,false);
+   assert.equal(unit.permitAutoRestart,false);
+ }
+});

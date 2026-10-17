@@ -230,7 +230,8 @@
         "multiIsolateLedger": "SIGNED_IMMUTABLE_DECLARED_SET_TAINT_ON_INVALID_RECEIPT_NOT_CLOUDFLARE_INVENTORY",
         "processBoundAck": "REAL_NODE_IPC_GATEWAY_QA_PID_NONCE_SHA_NEGATIVE_TEST_NOT_WRANGLER",
         "sourceRebaseConflict": "NO_FILE_OVERLAP_MAIN_7_VS_DRAFT_10; SCRATCH_OVERLAY_QA_WINDOWS_LINUX_PASS; PR_BRANCH_STILL_27_BEHIND",
-        "realWorkerActualMutation": "SOURCE_AUTOMATION_POST_AND_INDEPENDENT_D1_READBACK_AFTER_QA_EXIT_PASS"
+        "realWorkerActualMutation": "SOURCE_AUTOMATION_POST_AND_INDEPENDENT_D1_READBACK_AFTER_QA_EXIT_PASS",
+        "realWorkerdProcessBoundQA": "WINDOWS_UBUNTU_REAL_MINIFLARE_D1_DISPOSE_IPC_ACK_PID_NONCE_SHA_FIXTURE_ONLY_NOT_WRANGLER_DEV"
       },
       "blocker": "NO_VERIFIED_INDEPENDENT_REVIEW_OR_ALL_ISOLATES_D1_DRAIN_AND_REAL_WRANGLER_EXIT",
       "ready": false,
@@ -303,6 +304,25 @@
             "scope": "AUTHENTICATED_SOURCE_WORKER_D1_POST_THEN_SQLITE_CLI_READBACK_AFTER_QA_WRANGLER_EXIT",
             "realApplicationShutdownAck": false,
             "globalIsolatesDrained": false
+          },
+          "workerdProcessBoundQA": {
+            "repository": "BlueDragon33/Application-Management",
+            "runId": 39028968462,
+            "platforms": [
+              "windows",
+              "ubuntu"
+            ],
+            "localD1": true,
+            "inFlightRequestStopDenied": true,
+            "invalidPidShaNonceDenied": true,
+            "ackAfterActualMiniflareDispose": true,
+            "windowsChildTreeGone": true,
+            "portReleased": true,
+            "independentRuntimeReadback": true,
+            "fullCloudflareIsolateEnumeration": false,
+            "realWranglerDevShutdownVerified": false,
+            "userRuntimeTouched": false,
+            "autoRestartAllowed": false
           }
         },
         "globalMultiIsolateDrained": false,
@@ -421,7 +441,8 @@
         "wranglerCliSecureCandidate": "STAGED_DIRECT_NODE_LOCAL_BIN_PRIVATE_DOTVARS_NO_VAR_QA_ONLY",
         "authenticatedExitAck": "BLOCKED_NO_REAL_WRANGLER_SERVICE_BOUND_RECEIPT",
         "multiIsolateLedger": "SIGNED_IMMUTABLE_DECLARED_SET_TAINT_ON_INVALID_RECEIPT_NOT_CLOUDFLARE_INVENTORY",
-        "processBoundAck": "REAL_NODE_IPC_GATEWAY_QA_PID_NONCE_SHA_NEGATIVE_TEST_NOT_WRANGLER"
+        "processBoundAck": "REAL_NODE_IPC_GATEWAY_QA_PID_NONCE_SHA_NEGATIVE_TEST_NOT_WRANGLER",
+        "realWorkerdProcessBoundQA": "WINDOWS_UBUNTU_REAL_MINIFLARE_D1_DISPOSE_IPC_ACK_PID_NONCE_SHA_FIXTURE_ONLY_NOT_WRANGLER_DEV"
       },
       "blocker": "NO_VERIFIED_INDEPENDENT_REVIEW_OR_ALL_ISOLATES_D1_DRAIN_AND_REAL_WRANGLER_EXIT",
       "ready": false,
@@ -472,6 +493,25 @@
             "productionManagedPortWired": false,
             "globalD1DrainProven": false,
             "gracefulWindowsExitProven": false
+          },
+          "workerdProcessBoundQA": {
+            "repository": "BlueDragon33/Application-Management",
+            "runId": 39028968462,
+            "platforms": [
+              "windows",
+              "ubuntu"
+            ],
+            "localD1": true,
+            "inFlightRequestStopDenied": true,
+            "invalidPidShaNonceDenied": true,
+            "ackAfterActualMiniflareDispose": true,
+            "windowsChildTreeGone": true,
+            "portReleased": true,
+            "independentRuntimeReadback": true,
+            "fullCloudflareIsolateEnumeration": false,
+            "realWranglerDevShutdownVerified": false,
+            "userRuntimeTouched": false,
+            "autoRestartAllowed": false
           }
         },
         "globalMultiIsolateDrained": false,
