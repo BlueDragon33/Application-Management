@@ -53,6 +53,7 @@ test("Windows: BaumanWeb temporary helper cold start, authenticated readback, st
     await copyFile(join(ROOT, "scripts", "local-ops-daemon.mjs"), join(dir, "scripts", "local-ops-daemon.mjs"));
     await copyFile(join(ROOT, "scripts", "local-ops-source-identity.mjs"), join(dir, "scripts", "local-ops-source-identity.mjs"));
     await copyFile(join(ROOT, "scripts", "local-ops-managed-startup-policy.mjs"), join(dir, "scripts", "local-ops-managed-startup-policy.mjs"));
+    await copyFile(join(ROOT, "scripts", "local-ops-web-launcher.mjs"), join(dir, "scripts", "local-ops-web-launcher.mjs"));
     await copyFile(join(ROOT, "scripts", "local-ops-shutdown-contract.mjs"), join(dir, "scripts", "local-ops-shutdown-contract.mjs"));
     await copyFile(join(ROOT, "scripts", "local-ops-windows-process-tree.mjs"), join(dir, "scripts", "local-ops-windows-process-tree.mjs"));
     await copyFile(join(ROOT, "control", "local-ops-apps.json"), join(dir, "control", "local-ops-apps.json"));

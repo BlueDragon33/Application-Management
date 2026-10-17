@@ -93,7 +93,7 @@ try {
   mkdirSync(join(central,"scripts"),{recursive:true});
   mkdirSync(join(central,"control"),{recursive:true});
   writeFileSync(join(central,"package.json"),'{"type":"module"}\n');
-  for(const name of ["local-ops-daemon.mjs","local-ops-source-identity.mjs","local-ops-shutdown-contract.mjs","local-ops-windows-process-tree.mjs","local-ops-managed-startup-policy.mjs"])
+  for(const name of ["local-ops-daemon.mjs","local-ops-source-identity.mjs","local-ops-shutdown-contract.mjs","local-ops-windows-process-tree.mjs","local-ops-managed-startup-policy.mjs","local-ops-web-launcher.mjs"])
     copyFileSync(join(SOURCE,"scripts",name),join(central,"scripts",name));
   copyFileSync(join(SOURCE,"control/local-ops-apps.json"),join(central,"control/local-ops-apps.json"));
   // This detached temporary supervisor fixture deliberately replaces ONLY
