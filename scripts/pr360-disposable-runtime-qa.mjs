@@ -13,7 +13,7 @@ export const IMAGE="node:22-bookworm-slim";
 function run(file,args,options={}){
   return execFileSync(file,args,{encoding:"utf8",windowsHide:true,stdio:["ignore","pipe","ignore"],
     timeout:options.timeout||12000,maxBuffer:1024*1024,
-    cwd:options.cwd,env:options.env||process.env}).trim();
+    cwd:options.cwd,env:options.env||(file==="git"?{...process.env,GIT_OPTIONAL_LOCKS:"0",GIT_TERMINAL_PROMPT:"0",GCM_INTERACTIVE:"never"}:process.env)}).trim();
 }
 export function boundary(root,path) {
   const base=resolve(root),target=resolve(path);
@@ -63,6 +63,8 @@ function mustImageAlreadyExist(){
   try{
     const imageId=run("docker",["image","inspect","--format","{{.Id}}",IMAGE],{timeout:15000});
     const serverOS=run("docker",["info","--format","{{.OSType}}"],{timeout:15000});
+    const imageArch=run("docker",["image","inspect","--format","{{.Architecture}}",IMAGE],{timeout:15000});
+    if(imageArch!=="amd64")throw Error("DOCKER_AMD64_IMAGE_REQUIRED");
     if(serverOS!=="linux")throw Error("DOCKER_LINUX_CONTAINER_REQUIRED");
     if(!imageId.startsWith("sha256:"))throw Error("DOCKER_IMAGE_ID_UNVERIFIED");
     return imageId;
@@ -76,7 +78,10 @@ function dependencyCheck(dir){
     try{
       const npmCli=join(dirname(process.execPath),"node_modules","npm","bin","npm-cli.js");
       if(!existsSync(npmCli))throw Error("NODE_NPM_CLI_NOT_INSTALLED");
-      run(process.execPath,[npmCli,"ci","--offline","--ignore-scripts","--no-audit","--no-fund"],{
+      // Dependencies will execute in Linux/amd64 Docker, not native Windows.
+      // Install the Linux optional binary packages from the existing offline cache.
+      run(process.execPath,[npmCli,"ci","--offline","--ignore-scripts","--no-audit","--no-fund",
+        "--os=linux","--cpu=x64","--libc=glibc"],{
         cwd:dir,timeout:150000,env:{...process.env,NPM_CONFIG_OFFLINE:"true",NPM_CONFIG_AUDIT:"false",
           NPM_CONFIG_FUND:"false",NPM_CONFIG_IGNORE_SCRIPTS:"true"}});
     }catch{throw Error("NPM_OFFLINE_CACHE_INCOMPLETE");}
