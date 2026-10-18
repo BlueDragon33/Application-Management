@@ -145,8 +145,10 @@ export async function runDisposable({
     report.blocker=/^[A-Z0-9_]+$/.test(msg)?msg:"ISOLATED_QA_EXECUTION_FAILED";
   }finally{
     try{
-      const after=mainCheck();
-      if(owner&&after.sha!==owner.sha){report.verdict="BLOCKED";report.blocker="OWNER_MAIN_CHANGED";}
+      if(owner){
+        const after=mainCheck();
+        if(after.sha!==owner.sha){report.verdict="BLOCKED";report.blocker="OWNER_MAIN_CHANGED";}
+      }
       if(candidate){
         const check=shaAndBranch(candidate);
         if(check.sha!==EVIDENCED_SHA||check.branch!=="HEAD"||!check.clean){
