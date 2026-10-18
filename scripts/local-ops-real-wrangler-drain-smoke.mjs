@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { setTimeout as sleep } from "node:timers/promises";
 import { createWranglerIngress } from "./local-ops-wrangler-ingress.mjs";
+import { createWranglerCliQuiescenceGate, WRANGLER_CLI_QUIESCENCE_PROTOCOL } from "./local-ops-wrangler-cli-quiescence.mjs";
 import { createPrivateWranglerProof, assertNoSecretInArgs } from "./local-ops-private-wrangler-proof.mjs";
 import { createManagedWranglerCandidate } from "./local-ops-managed-wrangler-candidate.mjs";
 import { captureWindowsTree, verifyWindowsTreeGone } from "./local-ops-windows-process-tree.mjs";
@@ -75,7 +76,10 @@ const config=join(temp,"wrangler.fixture.json");
 const store=join(temp,"local-state");
 const id=randomBytes(16).toString("hex");
 const backend=await freePort();
-let child, ingress, snap, log="", frontendPort=null;
+let child, ingress, snap, log="", frontendPort=null, cliGate=null;
+const bootNonce=randomBytes(32).toString("base64url");
+const sourceSha=(await exec("git",["rev-parse","HEAD"],{cwd:ROOT,windowsHide:true})).stdout.trim();
+assert.match(sourceSha,/^[0-9a-f]{40}$/);
 try {
   await copyFile(join(ROOT,"tests/fixtures/wrangler-d1-flight-worker.mjs"),
     join(temp,"worker.mjs"));
@@ -103,6 +107,12 @@ try {
   ingress=launch.gateway;
   const port=await ingress.listen();
   frontendPort=port;
+  cliGate=createWranglerCliQuiescenceGate({serviceId:"QA-WRANGLER-CLI",
+    sourceSha,bootNonce,supervisorPid:process.pid,wranglerPid:child.pid,
+    gatewayPort:port,backendPort:backend,expectedD1Bindings:["DB"]});
+  const qaReceipt=(data)=>({protocol:WRANGLER_CLI_QUIESCENCE_PROTOCOL,
+    serviceId:"QA-WRANGLER-CLI",sourceSha,bootNonce,
+    supervisorPid:process.pid,wranglerPid:child.pid,...data});
   const start=fetch("http://127.0.0.1:"+port+"/write?id="+id,
     {method:"POST",signal:AbortSignal.timeout(13000)});
   for(let i=0;i<100&&ingress.status().pending!==1;i++)await sleep(20);
@@ -117,6 +127,13 @@ try {
   assert.equal(drain.ingressClosed,true);
   assert.equal(drain.admittedRequestsCompleted,true);
   assert.equal(drain.safeToStopWrangler,false);
+  // The CLI gate is a source-bound observation only. Wrangler may still run
+  // background waitUntil/D1 writes or accept direct backend traffic.
+  assert.equal(cliGate.ingest("ingress",qaReceipt({closed:drain.ingressClosed,
+    pending:ingress.status().pending,uncertain:ingress.status().uncertain,
+    bypassUnexcluded:true})).accepted,true);
+  assert.equal(cliGate.status().stopAuthorized,false);
+  assert.ok(cliGate.status().missingEvidence.includes("INFLIGHT_OR_BACKGROUND_D1_UNVERIFIED"));
   // This is a verified D1 readback via real Wrangler Worker, not a shutdown ACK.
   const check=await fetch("http://127.0.0.1:"+backend+"/read?id="+id,{headers:{"x-local-ops-ingress-proof":credential.proof}});
   assert.equal((await check.json()).val,"COMMITTED");
@@ -138,6 +155,17 @@ try {
     "all captured Windows Wrangler fixture descendants must have exited");
   await assertPortReleased(backend,"internal-wrangler");
   await assertPortReleased(frontendPort,"external-gateway");
+  // Fixture SIGTERM is never a Wrangler CLI-native graceful acknowledgement.
+  // The independent D1 query demonstrates durable readback only for this row.
+  assert.equal(cliGate.ingest("storage",qaReceipt({independentCliReadback:true,
+    commitBarrierVerified:false,verifiedSha:sourceSha,bindings:["DB"]})).accepted,true);
+  assert.equal(cliGate.ingest("exit",qaReceipt({cliExited:true,exitCode:child.exitCode,
+    forcedTermination:true,cliNativeGracefulAck:false,
+    descendantsGone:windowsResult?.stopped??false,
+    backendPortReleased:true,gatewayPortReleased:true,
+    platform:process.platform})).accepted,true);
+  assert.equal(cliGate.status().autoRestartAllowed,false);
+  assert.equal(cliGate.status().gracefulCliShutdownVerified,false);
   console.log(JSON.stringify({result:"REAL_WRANGLER_D1_HTTP_INGRESS_FIXTURE_PASS",
     platform:process.platform,actualD1Write:true,readbackAfterFixtureProcessExit:true,
     secretDeliveredViaPrivateFile:true,secretInArgv:false,directBackend403:true,
@@ -146,7 +174,8 @@ try {
     capturedWindowsTreeGone:windowsResult?.stopped??"not-windows",
     stopMethod:"fixture-only SIGTERM; NOT approved graceful shutdown",
     preExit,productionShutdownAck:false,allIsolatesDrained:false,
-    userStorageTouched:false,fullStackAutoRestartApproved:false}));
+    userStorageTouched:false,fullStackAutoRestartApproved:false,
+    wranglerCliQuiescence:cliGate.status()}));
 } catch(error) {
   console.error("WRANGLER_FIXTURE_FAILURE",String(error).replaceAll(credential.proof,"[REDACTED]"),log.replaceAll(credential.proof,"[REDACTED]").slice(-2500));
   throw error;
