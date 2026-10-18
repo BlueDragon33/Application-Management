@@ -25,7 +25,7 @@ test("Windows netstat parses only listening endpoint/PID and rejects LAN binding
 test("passive collector never claims owner acceptance or D1 proof with an unavailable workspace",()=>{
   const src=readFileSync(new URL("../scripts/windows-readonly-acceptance.mjs",import.meta.url),"utf8");
   const vbs=readFileSync(new URL("../QA_BAUMANWEB_READONLY.vbs",import.meta.url),"utf8");
-  const p=collectObservations({workspaceRoot:join(tmpdir(),"fake-BaumanWeb"),
+  const p=collectObservations({workspaceRoot:join(tmpdir(),"fake-QA-root","BaumanWeb"),
     portMap:parseListeningPorts(""),netstatState:"UNAVAILABLE"});
   assert.equal(p.ownerAcceptance,"UNVERIFIED");
   assert.equal(p.mergeAuthorization,"NOT_GRANTED");
