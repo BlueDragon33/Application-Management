@@ -3,6 +3,7 @@ import test from "node:test";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {execFileSync} from "node:child_process";
 import {parseListeningPorts,portObservation,collectObservations,writeReport} from "../scripts/windows-readonly-acceptance.mjs";
 
@@ -49,7 +50,7 @@ test("passive collector never claims owner acceptance or D1 proof with an unavai
 test("Node command runs without PowerShell and returns a passive, blocked report",()=>{
   const dir=mkdtempSync(join(tmpdir(),"qa-process-"));
   try{
-    execFileSync(process.execPath,[new URL("../scripts/windows-readonly-acceptance.mjs",import.meta.url).pathname,
+    execFileSync(process.execPath,[fileURLToPath(new URL("../scripts/windows-readonly-acceptance.mjs",import.meta.url)),
       "--workspace",join(dir,"BaumanWeb"),"--report-dir",dir],{timeout:10000,encoding:"utf8"});
     const result=JSON.parse(readFileSync(join(dir,"latest.json"),"utf8"));
     assert.equal(result.verdict,"BLOCKED_NEEDS_HUMAN_REVIEW");
