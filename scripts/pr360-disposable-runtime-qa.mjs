@@ -74,7 +74,9 @@ function mustImageAlreadyExist(){
 function dependencyCheck(dir){
   if(!existsSync(join(dir,"node_modules","vite","bin","vite.js"))){
     try{
-      run("npm",["ci","--offline","--ignore-scripts","--no-audit","--no-fund"],{
+      const npmCli=join(dirname(process.execPath),"node_modules","npm","bin","npm-cli.js");
+      if(!existsSync(npmCli))throw Error("NODE_NPM_CLI_NOT_INSTALLED");
+      run(process.execPath,[npmCli,"ci","--offline","--ignore-scripts","--no-audit","--no-fund"],{
         cwd:dir,timeout:150000,env:{...process.env,NPM_CONFIG_OFFLINE:"true",NPM_CONFIG_AUDIT:"false",
           NPM_CONFIG_FUND:"false",NPM_CONFIG_IGNORE_SCRIPTS:"true"}});
     }catch{throw Error("NPM_OFFLINE_CACHE_INCOMPLETE");}
