@@ -19,6 +19,6 @@ test("Windows QA is read-only, localhost-only, never approves D1 or merge",()=>{
   const executableLines = src.split(/\r?\n/).filter(line => !line.trimStart().startsWith("#")).join("\n");
   assert.doesNotMatch(executableLines,/Stop-Process|taskkill|Start-Process|git checkout|git fetch|git pull|git reset|git merge|wrangler|migrate|Invoke-Expression|ExecutionPolicy Bypass|New-PSSession/);
   assert.doesNotMatch(src,/Bearer |password\s*=|tokenValue|clientSecret|Get-CimInstance.*CommandLine/);
-  assert.match(launcher,/-NoProfile -NonInteractive -File/);
+  assert.match(launcher,/node.exe/);
   assert.doesNotMatch(launcher,/-ExecutionPolicy Bypass|runas|taskkill/);
 });

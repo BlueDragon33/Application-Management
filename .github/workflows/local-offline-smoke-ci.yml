@@ -11,6 +11,8 @@ on:
       - 'package-lock.json'
       - 'scripts/local-ops-daemon.mjs'
       - 'scripts/windows-readonly-acceptance.ps1'
+      - 'scripts/windows-readonly-acceptance.mjs'
+      - 'tests/windows-readonly-node.test.mjs'
       - 'tests/windows-readonly-acceptance.test.mjs'
       - 'QA_BAUMANWEB_READONLY.vbs'
       - 'scripts/local-ops-web-launcher.mjs'
@@ -156,6 +158,8 @@ jobs:
         with:
           node-version: '22.13.0'
           package-manager-cache: false
+      - name: Windows Node-only passive QA must fail closed (no PowerShell)
+        run: node --test tests/windows-readonly-node.test.mjs
       - name: Windows read-only acceptance script checks fail-closed (disposable fixture)
         shell: pwsh
         run: |
