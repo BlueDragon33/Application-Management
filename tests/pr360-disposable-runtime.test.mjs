@@ -3,6 +3,7 @@ import test from "node:test";
 import {readFileSync,mkdtempSync,rmSync} from "node:fs";
 import {join} from "node:path";
 import {tmpdir} from "node:os";
+import {fileURLToPath} from "node:url";
 import {boundary,dockerArgumentAudit,selectVerifiedCandidate,runDisposable,NO_DOCKER_SAFE_TESTS,dockerUnavailableCode,runNoDockerContractChecks} from "../scripts/pr360-disposable-runtime-qa.mjs";
 test("isolation arguments reject host port mapping, privilege, network and env-file",()=>{
   const safe=["run","--rm","--pull","never","--network","none","--cap-drop","ALL",
@@ -34,7 +35,7 @@ test("no Docker fallback runs fixed Node-only contract suites without a runtime"
   assert.equal(dockerUnavailableCode({cli:false}),"DOCKER_COMMAND_MISSING");
   assert.equal(dockerUnavailableCode({cli:true,daemon:false}),"DOCKER_DAEMON_UNAVAILABLE");
   assert.equal(dockerUnavailableCode({cli:true,daemon:true,image:false}),"DOCKER_IMAGE_NOT_CACHED");
-  const candidate=new URL("..",import.meta.url).pathname;
+  const candidate=fileURLToPath(new URL("..",import.meta.url));
   let invocations=0;
   const fakeRunner=(file,args,options)=>{
     invocations++;
