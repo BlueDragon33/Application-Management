@@ -16,6 +16,9 @@ on:
       - 'scripts/candidate-pr360-isolated-qa.mjs'
       - 'tests/local-ops-candidate-acceptance.test.mjs'
       - 'QA_PR360_CANDIDATE.vbs'
+      - 'QA_PR360_RUNTIME.vbs'
+      - 'scripts/pr360-disposable-runtime-qa.mjs'
+      - 'tests/pr360-disposable-runtime.test.mjs'
       - 'tests/windows-readonly-acceptance.test.mjs'
       - 'QA_BAUMANWEB_READONLY.vbs'
       - 'scripts/local-ops-web-launcher.mjs'
@@ -161,6 +164,8 @@ jobs:
         with:
           node-version: '22.13.0'
           package-manager-cache: false
+      - name: Windows PR360 disposable runtime negative-gate tests (do not launch Docker)
+        run: node --test tests/pr360-disposable-runtime.test.mjs
       - name: Windows PR360 candidate isolated preparation fail-closed fixture
         run: node --test tests/local-ops-candidate-acceptance.test.mjs
       - name: Windows Node-only passive QA must fail closed (no PowerShell)
