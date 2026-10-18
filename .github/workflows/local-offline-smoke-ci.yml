@@ -13,6 +13,9 @@ on:
       - 'scripts/windows-readonly-acceptance.ps1'
       - 'scripts/windows-readonly-acceptance.mjs'
       - 'tests/windows-readonly-node.test.mjs'
+      - 'scripts/candidate-pr360-isolated-qa.mjs'
+      - 'tests/local-ops-candidate-acceptance.test.mjs'
+      - 'QA_PR360_CANDIDATE.vbs'
       - 'tests/windows-readonly-acceptance.test.mjs'
       - 'QA_BAUMANWEB_READONLY.vbs'
       - 'scripts/local-ops-web-launcher.mjs'
@@ -158,6 +161,8 @@ jobs:
         with:
           node-version: '22.13.0'
           package-manager-cache: false
+      - name: Windows PR360 candidate isolated preparation fail-closed fixture
+        run: node --test tests/local-ops-candidate-acceptance.test.mjs
       - name: Windows Node-only passive QA must fail closed (no PowerShell)
         run: node --test tests/windows-readonly-node.test.mjs
       - name: Windows read-only acceptance script checks fail-closed (disposable fixture)
