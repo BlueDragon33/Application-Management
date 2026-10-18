@@ -10,6 +10,14 @@ import {fileURLToPath} from "node:url";
 export const EVIDENCED_SHA="98bb7d9b7f7263dce89fb6a18d3232065c963b48";
 export const OWNER_MAIN_SHA="93906a7fff0f3925139ab63dc01312e8d18caf17";
 export const IMAGE="node:22-bookworm-slim";
+// Reviewed built-in Node fixture tests: do not use network, Docker, Wrangler,
+// migrate DB, control host services or start a frontend. Only inspect source
+// and create/delete their own disposable Node tmpdir fixtures.
+export const NO_DOCKER_SAFE_TESTS=Object.freeze([
+  "tests/local-ops-web-launcher.test.mjs",
+  "tests/blueprint-guidance-required.test.mjs",
+  "tests/local-ops-blocked-adapter-plan.test.mjs",
+]);
 function run(file,args,options={}){
   return execFileSync(file,args,{encoding:"utf8",windowsHide:true,stdio:["ignore","pipe","ignore"],
     timeout:options.timeout||12000,maxBuffer:1024*1024,
@@ -78,9 +86,41 @@ function ownerMainCheck(){
   if(st.sha!==OWNER_MAIN_SHA||st.branch!=="main"||!st.clean)throw Error("OWNER_MAIN_CHANGED_OR_DIRTY");
   return st;
 }
+// No Docker is NOT evidence that application runtime passed. Distinguish
+// operator setup states without pulling an image or starting any daemon.
+export function dockerUnavailableCode({cli,daemon,image}={}) {
+  if(cli===false)return "DOCKER_COMMAND_MISSING";
+  if(daemon===false)return "DOCKER_DAEMON_UNAVAILABLE";
+  if(image===false)return "DOCKER_IMAGE_NOT_CACHED";
+  return null;
+}
+export function runNoDockerContractChecks(candidate,{runner=run}={}) {
+  // Only launch fixed code modules from the evidenced exact-SHA temp clone.
+  // None of these selected Node built-in tests start an app/HTTP/D1.
+  const out=[];
+  for(const rel of NO_DOCKER_SAFE_TESTS){
+    const path=resolve(candidate,...rel.split("/"));
+    if(!boundary(candidate,path)||!existsSync(path))throw Error("NODE_CONTRACT_TEST_MISSING");
+    runner(process.execPath,["--test",path],{
+      cwd:candidate,timeout:90000,
+      env:{PATH:process.env.PATH||"",SystemRoot:process.env.SystemRoot||"",
+        WINDIR:process.env.WINDIR||"",TEMP:tmpdir(),TMP:tmpdir(),
+        GIT_OPTIONAL_LOCKS:"0",GIT_TERMINAL_PROMPT:"0",
+        NODE_ENV:"test",NO_COLOR:"1"}
+    });
+    out.push({suite:rel,status:"PASS"});
+  }
+  return out;
+}
 function mustImageAlreadyExist(){
   try{
-    const imageId=run("docker",["image","inspect","--format","{{.Id}}",IMAGE],{timeout:15000});
+    try{run("docker",["--version"],{timeout:8000});}
+    catch{throw Error("DOCKER_COMMAND_MISSING");}
+    try{run("docker",["info","--format","{{.OSType}}"],{timeout:15000});}
+    catch{throw Error("DOCKER_DAEMON_UNAVAILABLE");}
+    let imageId;
+    try{imageId=run("docker",["image","inspect","--format","{{.Id}}",IMAGE],{timeout:15000});}
+    catch{throw Error("DOCKER_IMAGE_NOT_CACHED");}
     const serverOS=run("docker",["info","--format","{{.OSType}}"],{timeout:15000});
     const imageArch=run("docker",["image","inspect","--format","{{.Architecture}}",IMAGE],{timeout:15000});
     if(imageArch!=="amd64")throw Error("DOCKER_AMD64_IMAGE_REQUIRED");
@@ -119,12 +159,14 @@ export async function runDisposable({
   imageCheck=mustImageAlreadyExist,
   dependencyPrep=dependencyCheck,
   dockerExec=run,
-  mainCheck=ownerMainCheck
+  mainCheck=ownerMainCheck,
+  fallbackChecks=runNoDockerContractChecks
 }={}){
   const report={
     protocol:"BLUEPRINT_PR360_DISPOSABLE_NETWORK_NONE_QA_V1",
     observedUtc:new Date().toISOString(),candidateSha:EVIDENCED_SHA,
     candidateSource:"UNVERIFIED",candidateSelection:"NEWEST_VERIFIED_TEMP_CLONE",ownerMain:"UNVERIFIED",
+    fallbackNodeTests:{status:"NOT_STARTED",suites:[]},
     dockerNetwork:"NOT_STARTED",dockerImage:"UNVERIFIED",
     dependencyInstall:"NOT_ATTEMPTED",runtime:"NOT_STARTED",
     tempD1:"UNVERIFIED",realD1Shutdown:"BLOCKED_NOT_TESTED",
@@ -143,7 +185,27 @@ export async function runDisposable({
       throw Error("CANDIDATE_SOURCE_DRIFT");
     ensureNoCredentials(candidate);
     report.candidateSource="DETACHED_EXACT_SHA_CLEAN";
-    report.dockerImage=imageCheck();
+    // A missing Docker CLI/daemon/image does not cause an unsafe host Vite
+    // fallback. Do only the scoped source/launcher/Blueprint contract suites.
+    try {
+      report.dockerImage=imageCheck();
+    } catch(dockerError) {
+      const reason=String(dockerError?.message||"").trim();
+      if(!/^DOCKER_[A-Z_]+$/.test(reason))throw dockerError;
+      report.dockerDiagnostic=reason;
+      report.fallbackNodeTests.status="RUNNING";
+      try {
+        report.fallbackNodeTests.suites=fallbackChecks(candidate);
+        report.fallbackNodeTests.status="PASS";
+      } catch {
+        report.fallbackNodeTests.status="FAILED";
+        throw Error("NODE_CONTRACT_TEST_FAILED");
+      }
+      report.verdict="BLOCKED";
+      report.blocker=reason;
+      // End this stage, do not start npm or Docker or claim runtime acceptance.
+      return report;
+    }
     report.dependencyInstall="OFFLINE_ONLY";
     dependencyPrep(candidate);
     ensureNoCredentials(candidate);
@@ -187,6 +249,7 @@ export async function runDisposable({
       "verdict="+report.verdict,"candidate="+report.candidateSha,
       "host ports never published; no real D1 used",
       "realD1Shutdown="+report.realD1Shutdown,
+      "fallbackNodeTests="+report.fallbackNodeTests.status,
       "blocker="+report.blocker
     ].join("\r\n")+"\r\n");
   }

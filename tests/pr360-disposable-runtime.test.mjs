@@ -3,7 +3,7 @@ import test from "node:test";
 import {readFileSync,mkdtempSync,rmSync} from "node:fs";
 import {join} from "node:path";
 import {tmpdir} from "node:os";
-import {boundary,dockerArgumentAudit,selectVerifiedCandidate,runDisposable} from "../scripts/pr360-disposable-runtime-qa.mjs";
+import {boundary,dockerArgumentAudit,selectVerifiedCandidate,runDisposable,NO_DOCKER_SAFE_TESTS,dockerUnavailableCode,runNoDockerContractChecks} from "../scripts/pr360-disposable-runtime-qa.mjs";
 test("isolation arguments reject host port mapping, privilege, network and env-file",()=>{
   const safe=["run","--rm","--pull","never","--network","none","--cap-drop","ALL",
     "--security-opt","no-new-privileges","-e","OFFLINE_NETWORK_ISOLATED=1"];
@@ -24,6 +24,30 @@ test("multiple eligible TEMP clones choose the newest verified clone without del
     {root:"a",label:"Blueprint-PR360-Candidate-a",createdAt:456},
   ]),"a");
   assert.throws(()=>selectVerifiedCandidate([]),/EVIDENCED_CANDIDATE_CLONE_NOT_FOUND/);
+});
+test("no Docker fallback runs fixed Node-only contract suites without a runtime",()=>{
+  assert.deepEqual(NO_DOCKER_SAFE_TESTS,[
+    "tests/local-ops-web-launcher.test.mjs",
+    "tests/blueprint-guidance-required.test.mjs",
+    "tests/local-ops-blocked-adapter-plan.test.mjs",
+  ]);
+  assert.equal(dockerUnavailableCode({cli:false}),"DOCKER_COMMAND_MISSING");
+  assert.equal(dockerUnavailableCode({cli:true,daemon:false}),"DOCKER_DAEMON_UNAVAILABLE");
+  assert.equal(dockerUnavailableCode({cli:true,daemon:true,image:false}),"DOCKER_IMAGE_NOT_CACHED");
+  const candidate=new URL("..",import.meta.url).pathname;
+  let invocations=0;
+  const fakeRunner=(file,args,options)=>{
+    invocations++;
+    assert.equal(file,process.execPath);
+    assert.deepEqual(args.slice(0,1),["--test"]);
+    assert.equal(options.env.NODE_ENV,"test");
+    assert.equal(options.env.GIT_TERMINAL_PROMPT,"0");
+    return "";
+  };
+  const checked=runNoDockerContractChecks(candidate,{runner:fakeRunner});
+  assert.equal(checked.length,3);
+  assert.equal(invocations,3);
+  assert.ok(checked.every(x=>x.status==="PASS"));
 });
 test("path isolation rejects OS temp root and sibling prefix traversal",()=>{
   assert.equal(boundary(join(tmpdir(),"qa"),join(tmpdir(),"qa","candidate")),true);
