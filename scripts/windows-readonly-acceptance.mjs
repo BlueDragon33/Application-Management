@@ -9,6 +9,21 @@ import { fileURLToPath } from "node:url";
 const DEFAULT_WORKSPACE = "E:\\BaumanWeb";
 const SHA = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/i;
 const PORTS = Array.from({length:12},(_,i)=>3000+i);
+// PR #360 read-only *reference* catalog. This is not an installed manifest or
+// authorization to start any app. It enables evidence collection on older main.
+const REFERENCE_CATALOG = Object.freeze([
+  {id:"software-blueprint-hub",directory:"Software-Blueprint-Hub",port:null},
+  {id:"boi-ech",directory:"BOIECH_AI",port:3004},
+  {id:"health-care",directory:"Health_Care",port:3001},
+  {id:"ru-life",directory:"RU_LIFE",port:3002},
+  {id:"bauman-master-ai",directory:"Bauman-master-ai-system",port:3005},
+  {id:"price-report-tunggiabao",directory:"PriceReport_Tunggiabao",port:3008},
+  {id:"pc-manager",directory:"pc-manager-desktop",port:null},
+  {id:"nc03-modem",directory:"NC03_Modem",port:3010},
+  {id:"cad-cam-3d",directory:"CAD_CAM_3D",port:null},
+  {id:"growup-mychildren",directory:"GrowUP_MyChildren",port:3006},
+]);
+
 const emptyPort = port => ({
   port, listener:"UNVERIFIED", addresses:[], pids:[],
   processNames:["NOT_COLLECTED"], http:"SKIPPED_PASSIVE_ONLY", httpStatus:null,
@@ -72,20 +87,28 @@ export function gitObservation(directory) {
 function reportWorkspace(root) {
   const workspace=resolve(root);
   const manager=join(workspace,"Application-Management");
-  let manifest="MISSING_OR_INVALID",apps=[];
+  let manifest="MISSING_OR_INVALID",apps=[],catalogSource="NONE";
   if(basename(workspace).toLowerCase()==="baumanweb"){
-    try{
-      const x=JSON.parse(readFileSync(join(manager,"control","local-ops-apps.json"),"utf8"));
-      if(x.agentPort===3011 && Array.isArray(x.apps) && x.apps.length>=7) {
-        manifest="LOADED";apps=x.apps;
-      }else manifest="INVALID_CATALOG";
-    }catch{manifest="MISSING_OR_INVALID";}
+    const manifestPath=join(manager,"control","local-ops-apps.json");
+    if(existsSync(manifestPath)){
+      try{
+        const x=JSON.parse(readFileSync(manifestPath,"utf8"));
+        if(x.agentPort===3011 && Array.isArray(x.apps) && x.apps.length>=7) {
+          manifest="LOADED_FROM_WINDOWS";apps=x.apps;catalogSource="LOCAL_MANIFEST";
+        }else manifest="INVALID_LOCAL_MANIFEST";
+      }catch{manifest="UNREADABLE_LOCAL_MANIFEST";}
+    }else manifest="MISSING_LOCAL_MANIFEST";
+    if(catalogSource!=="LOCAL_MANIFEST"){
+      // Reference-only: no file creation in BaumanWeb and no READY state.
+      apps=REFERENCE_CATALOG;
+      catalogSource="EMBEDDED_PR360_REFERENCE_NOT_INSTALLED";
+    }
   }else manifest="WORKSPACE_NAME_BLOCKED";
-  return {workspace,manager,manifest,apps};
+  return {workspace,manager,manifest,apps,catalogSource};
 }
 export function collectObservations({workspaceRoot=DEFAULT_WORKSPACE,
   portMap=null,netstatState=null}={}) {
-  const {workspace,manager,manifest,apps}=reportWorkspace(workspaceRoot);
+  const {workspace,manager,manifest,apps,catalogSource}=reportWorkspace(workspaceRoot);
   let state=netstatState||"OK",ports=portMap;
   if(!ports){
     try{
@@ -119,7 +142,8 @@ export function collectObservations({workspaceRoot=DEFAULT_WORKSPACE,
     observedUtc:new Date().toISOString(),
     shaIsGitSourceOnly:true, responseBodyCaptured:false,secretsCaptured:false,
     activeHttpProbeEnabled:false,usesPowershell:false,
-    manifest,manager:{git:gitObservation(manager),http:portObservation(3000,ports,state)},
+    manifest,catalogSource,catalogIsInstalled:catalogSource==="LOCAL_MANIFEST",
+    manager:{git:gitObservation(manager),http:portObservation(3000,ports,state)},
     localAgent:portObservation(3011,ports,state),apps:observed,
     d1Shutdown:"BLOCKED_NOT_TESTED",review:"NOT_VERIFIED",
     mergeAuthorization:"NOT_GRANTED",ownerAcceptance:"UNVERIFIED",
@@ -135,6 +159,8 @@ export function writeReport(report,dir=join(tmpdir(),"BaumanWeb-ReadOnly-QA")) {
     "BLUEPRINT OS 1.3.0 - WINDOWS PASSIVE QA",
     "Verdict: BLOCKED_NEEDS_HUMAN_REVIEW (not product acceptance)",
     "Manager Git SHA: "+(report.manager.git.sha||"UNVERIFIED"),
+    "Manifest: "+report.manifest+"; source: "+report.catalogSource,
+    "Reference catalog is not proof of installed offline support.",
     "Manager branch / state: "+(report.manager.git.branch||"?")+" / "+report.manager.git.state,
     "Manager port 3000: "+report.manager.http.listener,
     "Local helper port 3011: "+report.localAgent.listener,

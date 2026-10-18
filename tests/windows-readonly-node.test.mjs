@@ -33,6 +33,13 @@ test("passive collector never claims owner acceptance or D1 proof with an unavai
   assert.equal(p.activeHttpProbeEnabled,false);
   assert.equal(p.manager.http.listener,"TCP_OBSERVATION_UNAVAILABLE");
   assert.equal(p.usesPowershell,false);
+  assert.equal(p.manifest,"MISSING_LOCAL_MANIFEST");
+  assert.equal(p.catalogSource,"EMBEDDED_PR360_REFERENCE_NOT_INSTALLED");
+  assert.equal(p.catalogIsInstalled,false);
+  assert.equal(p.apps.length,10);
+  assert.equal(p.apps.filter(a=>a.capability==="WEB").length,7);
+  assert.ok(p.apps.find(a=>a.id==="boi-ech" && a.runtime.port===3004));
+  assert.ok(p.apps.every(a=>a.git.state==="MISSING_DIRECTORY"));
   assert.ok(src.includes('GIT_OPTIONAL_LOCKS:"0"'));
   assert.ok(!src.includes('fetch('));
   assert.ok(!src.includes('https://'));
