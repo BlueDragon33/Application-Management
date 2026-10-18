@@ -2,7 +2,7 @@
 // The ONLY executable app is a confirmed temp checkout in a --network none Docker
 // container. No host ports, app-manager helper, real user repo or real D1 touched.
 import {execFileSync} from "node:child_process";
-import {existsSync,readdirSync,realpathSync,statSync,mkdirSync,readFileSync,writeFileSync} from "node:fs";
+import {existsSync,readdirSync,realpathSync,statSync,lstatSync,mkdirSync,readFileSync,writeFileSync} from "node:fs";
 import {tmpdir} from "node:os";
 import {basename,dirname,join,resolve,sep} from "node:path";
 import {fileURLToPath} from "node:url";
@@ -21,7 +21,7 @@ export function boundary(root,path) {
 }
 export function dockerArgumentAudit(args) {
   const has=(...words)=>words.every(w=>args.includes(w));
-  return has("--network","none","--rm","--cap-drop","ALL","--security-opt","no-new-privileges")
+  return has("--network","none","--rm","--cap-drop","ALL","--security-opt","no-new-privileges","--pull","never")
     && !args.includes("-p") && !args.includes("--publish")
     && !args.includes("--privileged") && !args.includes("--network=host")
     && !args.includes("--env-file") && !args.includes("--device")
@@ -33,6 +33,20 @@ function shaAndBranch(dir){
   const clean=!run("git",["-C",dir,"status","--porcelain","--untracked-files=no"]);
   return {sha,branch,clean};
 }
+// Repeated safe source preparation can create more than one identical TEMP
+// candidate. Every candidate below has already passed exact Git SHA, detached
+// HEAD and clean-tree checks; choose the newest deterministically, without
+// deleting or mutating any sibling. Do not accept a clone just by folder name.
+export function selectVerifiedCandidate(matches) {
+  if (!matches.length) throw Error("EVIDENCED_CANDIDATE_CLONE_NOT_FOUND");
+  const ranked = [...matches].sort((a,b)=>{
+    const aTime=Number.isFinite(a.createdAt)?a.createdAt:0;
+    const bTime=Number.isFinite(b.createdAt)?b.createdAt:0;
+    if(bTime!==aTime)return bTime-aTime;
+    return a.label<b.label?-1:a.label>b.label?1:0;
+  });
+  return ranked[0].root;
+}
 export function locateEvidenceClone(temp=tmpdir()){
   const abs=realpathSync(temp);
   const matches=[];
@@ -43,15 +57,20 @@ export function locateEvidenceClone(temp=tmpdir()){
     let root;
     try{
       root=realpathSync(sub);
-      if(!boundary(abs,root)||basename(root)!=="Application-Management"
-        ||!statSync(join(root,".git")).isDirectory())continue;
+      if(!boundary(abs,root)||basename(root)!=="Application-Management")continue;
+      const gitPath=join(root,".git");
+      const gitStat=lstatSync(gitPath);
+      // Never follow an attacker-created .git junction/symlink out of TEMP.
+      if(!gitStat.isDirectory() || gitStat.isSymbolicLink())continue;
       const state=shaAndBranch(root);
-      if(state.sha===EVIDENCED_SHA && state.branch==="HEAD" && state.clean)
-        matches.push(root);
+      if(state.sha===EVIDENCED_SHA && state.branch==="HEAD" && state.clean) {
+        const timestamp=statSync(gitPath);
+        matches.push({root,label:entry.name,
+          createdAt:timestamp.birthtimeMs||timestamp.ctimeMs||0});
+      }
     }catch{/* unknown temp clone: ignore; never mutate */}
   }
-  if(matches.length!==1)throw Error(matches.length?"CANDIDATE_CLONE_AMBIGUOUS":"EVIDENCED_CANDIDATE_CLONE_NOT_FOUND");
-  return matches[0];
+  return selectVerifiedCandidate(matches);
 }
 function ownerMainCheck(){
   const root="E:\\BaumanWeb\\Application-Management";
@@ -105,7 +124,7 @@ export async function runDisposable({
   const report={
     protocol:"BLUEPRINT_PR360_DISPOSABLE_NETWORK_NONE_QA_V1",
     observedUtc:new Date().toISOString(),candidateSha:EVIDENCED_SHA,
-    candidateSource:"UNVERIFIED",ownerMain:"UNVERIFIED",
+    candidateSource:"UNVERIFIED",candidateSelection:"NEWEST_VERIFIED_TEMP_CLONE",ownerMain:"UNVERIFIED",
     dockerNetwork:"NOT_STARTED",dockerImage:"UNVERIFIED",
     dependencyInstall:"NOT_ATTEMPTED",runtime:"NOT_STARTED",
     tempD1:"UNVERIFIED",realD1Shutdown:"BLOCKED_NOT_TESTED",
@@ -130,7 +149,7 @@ export async function runDisposable({
     ensureNoCredentials(candidate);
     if(!shaAndBranch(candidate).clean)throw Error("CANDIDATE_TRACKED_FILES_CHANGED");
     const args=[
-      "run","--rm","--network","none","--memory","3g","--cpus","2",
+      "run","--rm","--pull","never","--network","none","--memory","3g","--cpus","2",
       "--pids-limit","128","--security-opt","no-new-privileges",
       "--cap-drop","ALL","--user","1000:1000",
       "-v",candidate+":/workspace","-w","/workspace",
