@@ -380,6 +380,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   const [modeDialogOpen, setModeDialogOpen] = useState(false);
   const [managedAccessVerified, setManagedAccessVerified] = useState(false);
   const modeEpochRef = useRef(0);
+  const currentModeRef = useRef<OperatingMode>(operatingMode);
   const approvalGateEnabled = operatingMode !== "local";
 
   async function refreshOperations(silent = false, forceOnline = false) {
@@ -442,6 +443,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   }
 
   async function initialize() {
+    if (operatingMode !== currentModeRef.current) return;
     const epoch = modeEpochRef.current;
     setBusy(true);
     setError("");
@@ -506,6 +508,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
         if (saved === "local" || saved === "online" || saved === "hybrid") {
           if (availableOperatingMode(saved, standaloneModeAvailable) && saved !== operatingMode) {
             modeEpochRef.current++;
+            currentModeRef.current = saved;
             setOperatingMode(saved);
           }
         }
@@ -560,6 +563,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
     setModeDialogOpen(false);
     if (next === operatingMode) return;
     modeEpochRef.current++;
+    currentModeRef.current = next;
     setBusy(true);
     setAccess(null);
     setCenter(null);
