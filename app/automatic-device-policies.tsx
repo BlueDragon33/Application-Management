@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { OperationsAutomationPolicy, OperationsSettings } from "./admin-device-client";
 import styles from "./automatic-device-policies.module.css";
+import { readAutomationDraft, writeAutomationDraft, clearAutomationDraft } from "./device-automation-draft.mjs";
 
 export type AutomationSelection = {
   appIds: string[];
@@ -116,6 +117,7 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const openerRef = useRef<HTMLElement | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [draftNotice, setDraftNotice] = useState("");
   const boiPolicy = policyFor(settings, "boi-ech");
   const [days, setDays] = useState(boiPolicy.current.freeAccessDays ?? settings?.freeAccessDaysByApp?.["boi-ech"] ?? 0);
   const [limit, setLimit] = useState(boiPolicy.current.freeDeviceLimit ?? settings?.freeDeviceLimitByApp?.["boi-ech"] ?? 0);
@@ -138,6 +140,7 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
     && Number.isInteger(limit) && limit >= 1 && limit <= 1_000
   );
   const canSave = Boolean(settings) && verified && !locked && hasWritablePolicy && hasChanges && boiLimitsValid;
+  const canSaveLocalDraft = !locked && (hasChanges || draftEditedRef.current);
 
   // A modal may be opened on a cached snapshot while live bootstrap is in flight.
   // Rebase only untouched drafts; never overwrite an actual user edit.
@@ -148,6 +151,22 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
     setDays(latestBoi.current.freeAccessDays ?? settings?.freeAccessDaysByApp?.["boi-ech"] ?? 0);
     setLimit(latestBoi.current.freeDeviceLimit ?? settings?.freeDeviceLimitByApp?.["boi-ech"] ?? 0);
   }, [apps, settings]);
+
+  // Restore desired settings only. This is not a readback from any client.
+  useEffect(() => {
+    const saved = readAutomationDraft(window.localStorage);
+    if (!saved) return;
+    const availableIds = new Set(apps.map((app) => app.id));
+    const restored = Object.fromEntries(Object.entries(saved.drafts)
+      .filter(([appId]) => availableIds.has(appId)));
+    if (!Object.keys(restored).length) return;
+    draftEditedRef.current = true;
+    setDrafts((current) => ({ ...current, ...restored }));
+    setDays(saved.days);
+    setLimit(saved.limit);
+    setDraftNotice("Đã khôi phục bản nháp trình duyệt. Chưa ghi vào ứng dụng nguồn.");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -189,10 +208,19 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
 
   function updateDraft(appId: string, patch: Partial<AutomationAppDraft>) {
     draftEditedRef.current = true;
+    setDraftNotice("Có thay đổi chưa lưu bản nháp hoặc áp dụng.");
     setDrafts((current) => ({
       ...current,
       [appId]: { ...(current[appId] ?? { autoApprove: false, autoBlock: false, pendingBlockAfterHours: 168 }), ...patch },
     }));
+  }
+
+  function saveLocalDraft() {
+    if (!canSaveLocalDraft) return;
+    const result = writeAutomationDraft(window.localStorage, { drafts, days, limit });
+    setDraftNotice(result.saved
+      ? "Đã lưu bản nháp trên trình duyệt, đọc lại khớp. CHƯA áp dụng vào client. Khi kết nối LIVE được xác minh, chọn Áp dụng & kiểm tra."
+      : "Không thể lưu bản nháp: " + result.reason + ". Cấu hình ứng dụng nguồn không thay đổi.");
   }
 
   async function submit() {
@@ -206,8 +234,14 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
         apps.map((app) => [app.id, drafts[app.id]?.pendingBlockAfterHours ?? 168]),
       ) as Record<string, number>;
       const readback = await save({ appIds, autoBlockAppIds, pendingBlockAfterHoursByApp, defaultAccessDays: days, defaultDeviceLimit: limit });
-      if (!readback) return;
-
+      if (!readback) {
+        setDraftNotice("Chưa xác minh áp dụng. Bản chỉnh sửa vẫn còn; hãy lưu bản nháp để thử lại.");
+        return;
+      }
+      const cleared = clearAutomationDraft(window.localStorage);
+      setDraftNotice(cleared
+        ? "Áp dụng và readback client đã xác minh; xóa bản nháp trình duyệt."
+        : "Readback client đã xác minh nhưng không xóa được bản nháp trình duyệt; cần kiểm tra trước lần chỉnh tiếp.");
       draftEditedRef.current = false;
       setDrafts(initialDrafts(apps, readback));
       const nextBoi = policyFor(readback, "boi-ech");
@@ -226,7 +260,8 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
         <button ref={closeButtonRef} onClick={close} disabled={locked} aria-label="Đóng">×</button>
       </header>
       <p className={styles.intro}><strong>Đang áp dụng</strong> là dữ liệu readback. Các ô bên dưới là bản nháp; sau khi lưu thành công chúng tự đồng bộ lại đúng trạng thái client.</p>
-      {!verified ? <p className={styles.warning}>Dữ liệu đang hiển thị chưa được xác minh LIVE trong phiên này. Đồng bộ online trước khi thay đổi quy tắc.</p> : null}
+      {!verified ? <p className={styles.warning}>Chưa xác minh LIVE. Có thể chỉnh và lưu bản nháp cục bộ, nhưng áp dụng vào client chỉ khi có contract và quyền hợp lệ.</p> : null}
+      {draftNotice ? <p className={styles.draftNotice} role="status">{draftNotice}</p> : null}
       {verifyAuthenticatorHref ? <p className={styles.authHelp}>Thao tác duyệt và lưu cấu hình nhạy cảm cần Google Authenticator. <a href={verifyAuthenticatorHref} target="_blank" rel="noopener noreferrer">Mở xác minh Authenticator ↗</a> ở tab riêng, rồi quay lại lưu.</p> : null}
       {hasUnverifiedPolicy ? <p className={styles.warning}>Ứng dụng LAST KNOWN/UNAVAILABLE chỉ hiển thị tham chiếu và không được ghi mù. READ-ONLY là app chưa công bố automation contract an toàn.</p> : null}
 
@@ -268,13 +303,11 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
                 <select
                   aria-label={app.shortName + " - chế độ kiểm duyệt"}
                   value={approvalValue}
-                  disabled={locked || !approveWritable}
+                  disabled={locked}
                   onChange={(event) => updateDraft(app.id, { autoApprove: event.target.value === "auto" })}
                 >
-                  {!policy.support.autoApprove ? <option value="unsupported">Không hỗ trợ</option> : <>
-                    <option value="manual">{app.id === "boi-ech" ? "Có phí · xác minh thủ công" : "Duyệt thủ công"}</option>
-                    <option value="auto">{app.id === "boi-ech" ? "Miễn phí · tự động duyệt" : "Tự động duyệt"}</option>
-                  </>}
+                  <option value="manual">{app.id === "boi-ech" ? "Có phí · xác minh thủ công" : "Duyệt thủ công"}</option>
+                  <option value="auto">{app.id === "boi-ech" ? "Miễn phí · tự động duyệt" : "Tự động duyệt"}</option>
                 </select>
                 <small>{approveWritable ? "Có thể thay đổi và readback." : policy.support.autoApprove ? "Chỉ đọc ở kết nối hiện tại." : "Client chưa hỗ trợ."}</small>
               </label>
@@ -284,13 +317,11 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
                 <select
                   aria-label={app.shortName + " - xử lý quá hạn"}
                   value={blockValue}
-                  disabled={locked || !blockWritable}
+                  disabled={locked}
                   onChange={(event) => updateDraft(app.id, { autoBlock: event.target.value === "block" })}
                 >
-                  {!policy.support.autoBlockPending ? <option value="unsupported">Không hỗ trợ</option> : <>
-                    <option value="keep">Giữ chờ · xử lý thủ công</option>
-                    <option value="block">Tự động từ chối & khóa</option>
-                  </>}
+                  <option value="keep">Giữ chờ · xử lý thủ công</option>
+                  <option value="block">Tự động từ chối & khóa</option>
                 </select>
                 <small>{blockWritable ? "Có thể thay đổi và readback." : policy.support.autoBlockPending ? "Chỉ đọc ở kết nối hiện tại." : "Client chưa hỗ trợ."}</small>
               </label>
@@ -300,7 +331,7 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
                 <select
                   aria-label={app.shortName + " - thời gian chờ"}
                   value={timeValue}
-                  disabled={locked || !blockWritable || !draft.autoBlock}
+                  disabled={locked || !draft.autoBlock}
                   onChange={(event) => updateDraft(app.id, { pendingBlockAfterHours: Number(event.target.value) })}
                 >
                   <option value={0}>{policy.support.autoBlockPending ? "Không áp dụng" : "Không hỗ trợ"}</option>
@@ -313,8 +344,8 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
             </div>
 
             {app.id === "boi-ech" ? <div className={styles.limits} data-disabled={!approveWritable}>
-              <label>Thời hạn miễn phí <select value={days} disabled={locked || !approveWritable} onChange={(event) => { draftEditedRef.current = true; setDays(Number(event.target.value)); }}><option value={0}>Chưa xác minh</option>{[30, 60, 90, 180, 365].map((value) => <option key={value} value={value}>{value} ngày</option>)}</select></label>
-              <label>Tối đa thiết bị <input type="number" min={1} max={1000} value={limit} disabled={locked || !approveWritable} onChange={(event) => { draftEditedRef.current = true; setLimit(Number(event.target.value)); }}/></label>
+              <label>Thời hạn miễn phí <select value={days} disabled={locked} onChange={(event) => { draftEditedRef.current = true; setDays(Number(event.target.value)); }}><option value={0}>Chưa xác minh</option>{[30, 60, 90, 180, 365].map((value) => <option key={value} value={value}>{value} ngày</option>)}</select></label>
+              <label>Tối đa thiết bị <input type="number" min={1} max={1000} value={limit} disabled={locked} onChange={(event) => { draftEditedRef.current = true; setLimit(Number(event.target.value)); }}/></label>
               <small>Chỉ áp dụng cho Miễn phí · tự động duyệt. Luồng trả phí vẫn phải xác minh thanh toán.</small>
             </div> : null}
 
@@ -327,7 +358,7 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
 
       <footer className={styles.dialogFooter}>
         <span className={styles.saveState}>{locked ? "Đang ghi và đọc lại client…" : !verified ? "Chưa xác minh LIVE" : hasChanges ? "Có thay đổi chưa lưu; chưa công nhận đã ghi" : "Cấu hình đang khớp trạng thái đã đọc"}</span>
-        <div><button type="button" onClick={() => void sync()} disabled={locked}>Đồng bộ LIVE</button><button onClick={close} disabled={locked}>Đóng</button><button className={styles.save} disabled={!canSave} onClick={() => void submit()}>{locked ? "Đang lưu…" : "Lưu thay đổi"}</button></div>
+        <div><button type="button" onClick={() => void sync()} disabled={locked}>Đồng bộ LIVE</button><button type="button" onClick={saveLocalDraft} disabled={!canSaveLocalDraft}>Lưu bản nháp</button><button onClick={close} disabled={locked}>Đóng</button><button className={styles.save} disabled={!canSave} onClick={() => void submit()}>{locked ? "Đang áp dụng…" : "Áp dụng & kiểm tra"}</button></div>
       </footer>
     </section>
   </div>;
