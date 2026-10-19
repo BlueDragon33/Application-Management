@@ -17,6 +17,9 @@ on:
       - "tests/totp-step-up-auth.test.mjs"
       - "tests/authenticator-qr-ui.test.mjs"
       - "tests/device-auth-settings-recovery.test.mjs"
+      - "tests/operating-mode-selector.test.mjs"
+      - "app/operating-mode-dialog.tsx"
+      - "app/operating-mode-dialog.module.css"
       - "app/management-dashboard-v2.tsx"
       - "app/automatic-device-policies.tsx"
       - "app/automatic-device-policies.module.css"
@@ -47,4 +50,4 @@ jobs:
       - name: TypeScript
         run: npm run typecheck
       - name: Authentication regression tests
-        run: node --test tests/google-production-auth.test.mjs tests/totp-step-up-auth.test.mjs tests/authenticator-qr-ui.test.mjs tests/cloudflare-production-boundary.test.mjs tests/production-deploy-trigger.test.mjs tests/production-owner-control-session.test.mjs tests/security-contract.test.mjs tests/device-auth-settings-recovery.test.mjs
+        run: node --test tests/google-production-auth.test.mjs tests/totp-step-up-auth.test.mjs tests/authenticator-qr-ui.test.mjs tests/cloudflare-production-boundary.test.mjs tests/production-deploy-trigger.test.mjs tests/production-owner-control-session.test.mjs tests/security-contract.test.mjs tests/device-auth-settings-recovery.test.mjs tests/operating-mode-selector.test.mjs
