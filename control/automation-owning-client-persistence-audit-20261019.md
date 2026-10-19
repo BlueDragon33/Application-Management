@@ -36,3 +36,11 @@ No merge, ratify, publish, auto-restart, privilege escalation, GitHub-hosted Act
 ## Handoff
 
 **Single next task:** Audit/correct exact-source regression conflicts for the new independent-GET and per-field pending semantics; obtain one Windows source/typecheck QA receipt at the new SHA, then isolated Bauman/PriceReport D1 restart-readback pilot. No repeat of unrelated prior PASS.
+
+## PriceReport disposable D1 source-pilot checkpoint
+
+A separate, unmerged PriceReport branch `candidate/automation-persisted-readback-pilot-20261019` now extends `control-service/scripts/real-worker-wrangler-gate-smoke.mjs` to submit a real owner-role `set-device-automation` command against a temporary D1 database, compare all 3 fields and revision via a separate authenticated GET, then query D1 through a separate subprocess after the disposable Worker child exits. `control-service/tests/automation-persisted-readback-qa.test.mjs` guards these steps and preserves disposable storage if the Worker process exit is unverified.
+
+**Current proof:** JavaScript parse plus 7/7 source assertion cases in V8, not Windows, not runtime/physical device acceptance. This branch has not modified PriceReport PR #133 or Production. CLI SIGTERM used solely for disposable QA teardown is not a graceful ACK and does not advance global D1 quiescence.
+
+Bauman already has source Worker + disposable D1 policy write/independent readback QA for autoApprove. Neither owner's production policy may be certified from these source checks alone.
