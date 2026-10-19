@@ -339,8 +339,8 @@ function deviceKind(device: OperationsDevice) {
   return device.deviceTypeLabel || "Chưa phân loại";
 }
 
-function Gate({ busy, error, access, retry }: { busy: boolean; error: string; access: AdminAccess | null; retry: () => void }) {
-  return <main className="amv2-gate"><section><div>QT</div><h1>Quản trị Ứng dụng</h1><p>{busy ? "Đang xác minh thiết bị quản trị…" : error || (access?.status === "pending" ? "Thiết bị này đang chờ Chủ hệ thống cấp quyền." : access?.status === "blocked" ? "Thiết bị quản trị đã bị khóa." : "Không thể mở Trung tâm quản trị.")}</p>{busy ? <span/> : <button onClick={retry}>Kiểm tra lại</button>}</section></main>;
+function Gate({ busy, error, access, retry, enterStandalone }: { busy: boolean; error: string; access: AdminAccess | null; retry: () => void; enterStandalone?: () => void }) {
+  return <main className="amv2-gate"><section><div>QT</div><h1>Quản trị Ứng dụng</h1><p>{busy ? "Đang xác minh thiết bị quản trị…" : error || (access?.status === "pending" ? "Thiết bị này đang chờ Chủ hệ thống cấp quyền." : access?.status === "blocked" ? "Thiết bị quản trị đã bị khóa." : "Không thể mở Trung tâm quản trị.")}</p>{busy ? <span/> : <><button onClick={retry}>Kiểm tra lại</button>{enterStandalone ? <button type="button" onClick={enterStandalone}>Vào bản offline · không thao tác quyền</button> : null}</>}</section></main>;
 }
 
 export default function ManagementDashboardV2({ user, authMode, defaultApprovalGate }: {
@@ -1083,8 +1083,8 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
     }
   }
 
-  if (approvalGateEnabled && (!access || access.status !== "approved" || !center)) return <Gate busy={busy} error={error} access={access} retry={() => void initialize()}/>;
-  if (!access || !center) return <Gate busy={busy} error={error} access={access} retry={() => void initialize()}/>;
+  if (approvalGateEnabled && (!access || access.status !== "approved" || !center)) return <Gate busy={busy} error={error} access={access} retry={() => void initialize()} enterStandalone={standaloneModeAvailable ? () => changeApprovalGate(false) : undefined}/>;
+  if (!access || !center) return <Gate busy={busy} error={error} access={access} retry={() => void initialize()} enterStandalone={standaloneModeAvailable ? () => changeApprovalGate(false) : undefined}/>;
 
   const title = viewTitles[view];
   const lastUpdated = operations?.generatedAt ? relativeTime(operations.generatedAt) : "Chưa có dữ liệu";
