@@ -12,9 +12,11 @@ test("automation editor resets controls from verified readback and stays open af
   const saveBlock = dashboard.slice(start, end);
 
   assert.match(editor, /const readback = await save/);
-  assert.match(editor, /setDrafts\(initialDrafts\(apps, readback\)\)/);
-  assert.match(editor, /setDays\(nextBoi\.current\.freeAccessDays/);
-  assert.match(editor, /setLimit\(nextBoi\.current\.freeDeviceLimit/);
+  assert.match(editor, /const rebased = initialDrafts\(apps, readback\)/);
+  assert.match(editor, /setDrafts\(rebased\)/);
+  assert.match(editor, /stillPending\.length > 0/);
+  assert.match(editor, /setDays\(boiPending && saved \? saved\.days/);
+  assert.match(editor, /setLimit\(boiPending && saved \? saved\.limit/);
   assert.match(editor, /hasChanges/);
   assert.match(editor, /Cấu hình đang khớp trạng thái đã đọc/);
   assert.match(dashboard, /save=\{saveAutomation\}/);
@@ -24,10 +26,11 @@ test("automation editor resets controls from verified readback and stays open af
 
 test("unsupported automation controls describe unsupported state instead of fake manual defaults", () => {
   const editor = source("app/automatic-device-policies.tsx");
-  assert.match(editor, /approvalValue = !policy\.support\.autoApprove \? "unsupported"/);
-  assert.match(editor, /blockValue = !policy\.support\.autoBlockPending \? "unsupported"/);
-  assert.match(editor, /<option value="unsupported">Không hỗ trợ<\/option>/);
-  assert.match(editor, /timeValue = policy\.support\.autoBlockPending && draft\.autoBlock \? draft\.pendingBlockAfterHours : 0/);
+  assert.match(editor, /approvalValue = draft\.autoApprove \? "auto" : "manual"/);
+  assert.match(editor, /blockValue = draft\.autoBlock \? "block" : "keep"/);
+  assert.match(editor, /Chỉ lưu bản nháp; client chưa cho phép ghi LIVE/);
+  assert.match(editor, /disabled=\{!canSave\}/);
+  assert.match(editor, /timeValue = draft\.autoBlock \? draft\.pendingBlockAfterHours : 0/);
   assert.match(editor, /<option value=\{0\}>/);
 });
 
