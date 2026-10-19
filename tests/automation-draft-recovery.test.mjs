@@ -65,7 +65,7 @@ test("step-up code has explicit user verification route before retry",()=>{
 test("save UI is high contrast, explicit about browser-only pending and readback",()=>{
  assert.match(css,/\.draftNotice/);
  assert.match(modal,/CHƯA áp dụng vào client/);
- assert.match(modal,/readback client đã xác minh|Readback client đã xác minh/);
+ assert.match(modal,/Client đã readback|Đã xác minh phần ghi LIVE/);
 });
 
 test("unsupported target keeps selectable desired values in a local-only draft",()=>{
