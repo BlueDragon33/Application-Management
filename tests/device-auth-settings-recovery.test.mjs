@@ -32,10 +32,10 @@ test('Automation modal has independent authentication entry while editing',()=>{
 });
 test('Managed/Production server gate cannot be bypassed by browser preference',()=>{
   assert.match(dashboard,/const standaloneModeAvailable = !defaultApprovalGate && authMode !== "cloudflare-production"/);
-  assert.match(dashboard,/if \(standaloneModeAvailable\) \{/);
-  assert.match(dashboard,/if \(!standaloneModeAvailable\) \{/);
-  assert.match(dashboard,/disabled=\{!standaloneModeAvailable\}/);
-  assert.match(dashboard,/Bắt buộc phía máy chủ/);
+  assert.match(dashboard,/availableOperatingMode\(next, standaloneModeAvailable\)/);
+  assert.match(dashboard,/hasProtectedOperationAccess\(operatingMode, managedAccessVerified\)/);
+  assert.match(dashboard,/setManagedAccessVerified\(false\)/);
+  assert.match(dashboard,/không thể bỏ qua xác thực Production/);
   assert.doesNotMatch(dashboard,/TẮT · Vào thẳng/);
 });
 test('Partial failed target readback does not discard unsaved policy edits',()=>{
@@ -51,9 +51,10 @@ test('Dashboard only promises saved state after readback verification',()=>{
   assert.match(policy,/Có thay đổi chưa lưu; chưa công nhận đã ghi/);
 });
 
-test('Only authorized standalone environments can escape an unavailable device gate',()=>{
-  assert.match(dashboard,/enterStandalone\?: \(\) => void/);
-  assert.match(dashboard,/enterStandalone=\{standaloneModeAvailable \? \(\) => changeApprovalGate\(false\) : undefined\}/);
-  assert.match(dashboard,/Vào bản offline · không thao tác quyền/);
+test('Gate always offers central mode selector without bypassing authorization',()=>{
+  assert.match(dashboard,/openModes: \(\) => void/);
+  assert.match(dashboard,/onClick=\{openModes\}/);
+  assert.match(dashboard,/modeDialogOpen \? <OperatingModeDialog/);
   assert.match(dashboard,/authMode !== "cloudflare-production"/);
+  assert.match(dashboard,/Chế độ vận hành · Chọn nguồn dữ liệu/);
 });
