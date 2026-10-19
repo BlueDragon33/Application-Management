@@ -21,6 +21,7 @@ const scriptFile=join(dir,"worker.mjs"),configFile=join(dir,"wrangler.json");
 const persistDir=join(dir,"local-d1");
 const nonce=randomBytes(32).toString("base64url");
 const marker=randomBytes(16).toString("hex");
+const backgroundMarker=randomBytes(16).toString("hex");
 const {stdout:rev}=await exec("git",["rev-parse","HEAD"],{cwd:ROOT,windowsHide:true});
 const sha=rev.trim();assert.match(sha,/^[0-9a-f]{40}$/);
 let child=null,port=null,tree=null,log="",stopAcknowledged=false;
@@ -108,10 +109,37 @@ try{
   const before=await ask("qa-preflight");
   assert.equal(before.active,0);
   assert.equal(before.globalD1QuiescenceVerified,false);
+  assert.equal(before.declaredBackgroundD1ReadbackVerified,false);
+  const deniedAbsentBackground=await ask("qa-stop");
+  assert.equal(deniedAbsentBackground.type,"qa-denied");
+  assert.equal(deniedAbsentBackground.reason,"D1_BACKGROUND_UNVERIFIED");
+  // Genuine Worker ctx.waitUntil schedules a second D1 write after 1500ms.
+  // Only ONE declared fixture task is tracked; no global isolate claims.
+  const scheduled=await ask("qa-background-write",{marker:backgroundMarker});
+  assert.equal(scheduled.type,"qa-background-accepted");
+  assert.equal(scheduled.backgroundCommitVerified,false);
+  const bgPending=await ask("qa-preflight");
+  assert.equal(bgPending.backgroundPending,true);
+  assert.equal(bgPending.declaredBackgroundD1ReadbackVerified,false);
+  const deniedBackground=await ask("qa-stop");
+  assert.equal(deniedBackground.type,"qa-denied");
+  assert.equal(deniedBackground.reason,"D1_BACKGROUND_UNVERIFIED");
+  const backgroundReceipt=await ask("qa-background-read",{marker:backgroundMarker},18000);
+  assert.equal(backgroundReceipt.type,"qa-background-readback");
+  assert.equal(backgroundReceipt.backgroundWriteCommitted,true);
+  assert.equal(backgroundReceipt.declaredBackgroundReadbackVerified,true);
+  assert.equal(backgroundReceipt.globalD1QuiescenceVerified,false);
+  const readyFixture=await ask("qa-preflight");
+  assert.equal(readyFixture.backgroundPending,false);
+  assert.equal(readyFixture.declaredBackgroundD1ReadbackVerified,true);
+  assert.equal(readyFixture.allWaitUntilJobsInstrumented,false);
+  assert.equal(readyFixture.allIsolateInventoryVerified,false);
   const stop=await ask("qa-stop");
   assert.equal(stop.type,"qa-stop-ack");
   assert.equal(stop.wranglerApiStopCompleted,true);
   assert.equal(stop.readbackBeforeStop,true);
+  assert.equal(stop.declaredBackgroundD1ReadbackBeforeStop,true);
+  assert.equal(stop.allWaitUntilJobsInstrumented,false);
   assert.equal(stop.globallyQuiescentD1Verified,false);
   assert.equal(stop.autoRestartApproved,false);
   stopAcknowledged=true;
@@ -120,12 +148,17 @@ try{
   await requirePortFreed(port);
   const durable=await sql("SELECT val FROM flight_qa WHERE id='"+marker+"'");
   assert.equal(durable[0]?.val,"COMMITTED");
+  // Independent CLI readback AFTER awaited runtime.stop, not only Worker fetch.
+  const persistedBackground=await sql("SELECT val FROM flight_qa WHERE id='"+backgroundMarker+"'");
+  assert.equal(persistedBackground[0]?.val,"BACKGROUND_COMMITTED");
   console.log(JSON.stringify({result:"WRANGLER_API_D1_PID_NONCE_SHA_ACK_QA_PASS",
     platform:process.platform,processPid:child.pid,sourceSha:sha,
     genuineD1Write:true,d1ReadbackAfterWranglerStop:true,
     apiStopAwaitedBeforeAck:stopAcknowledged,windowsTreeExited:tree?true:"not-windows",
     localPortReleased:true,wrongPidShaNonceRejected:true,
-    activeD1RequestStopsDenied:true,allWorkerIsolatesEnumerated:false,
+    activeD1RequestStopsDenied:true,backgroundD1StopDeniedUntilReadback:true,
+    actualWaitUntilBackgroundWrite:true,backgroundD1ReadbackAfterApiStop:true,
+    allWaitUntilJobsInstrumented:false,allWorkerIsolatesEnumerated:false,
     productionWranglerCliGracefulExitVerified:false,
     liveBaumanWebTouched:false,fullStackAutoRestartApproved:false}));
 }catch(error){
