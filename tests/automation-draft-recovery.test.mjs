@@ -67,3 +67,11 @@ test("save UI is high contrast, explicit about browser-only pending and readback
  assert.match(modal,/CHƯA áp dụng vào client/);
  assert.match(modal,/readback client đã xác minh|Readback client đã xác minh/);
 });
+
+test("unsupported target keeps selectable desired values in a local-only draft",()=>{
+ assert.match(modal,/const approvalValue = draft\.autoApprove \? "auto" : "manual"/);
+ assert.match(modal,/const blockValue = draft\.autoBlock \? "block" : "keep"/);
+ assert.match(modal,/const timeValue = draft\.autoBlock \? draft\.pendingBlockAfterHours : 0/);
+ assert.match(modal,/Chỉ lưu bản nháp; client chưa cho phép ghi LIVE/);
+ assert.doesNotMatch(modal,/value="unsupported"/);
+});
