@@ -1,6 +1,6 @@
 // A browser-local desired configuration, never an applied/verified client policy.
 const KEY = "application-management:automation-draft:v2";
-const ID = /^[a-z0-9][a-z0-9-]{0,79}$/;
+const ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,119}$/;
 export const AUTOMATION_DRAFT_KEY=KEY;
 
 export function validateAutomationDraft(data) {
