@@ -1123,6 +1123,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
             </div>
           </section>
           <div className="amv2-page-tools">
+            {authMode === "cloudflare-production" && (view === "devices" || view === "approvals" || view === "settings") ? <a className="amv2-security-link" href="/__account" target="_blank" rel="noopener noreferrer">🔐 Xác minh 2FA ↗</a> : null}
             {view === "overview" ? <section className="amv2-clock"><span>▣</span><div><small>{clock ? new Intl.DateTimeFormat("vi-VN", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }).format(clock) : ""}</small><strong>{clock ? new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(clock) : ""}</strong></div><i/><div><small>Hệ thống</small><strong>{offline ? "Chưa xác minh online" : unavailableCount ? "Cần kiểm tra" : "Hoạt động ổn định"}</strong></div></section> : <button className="amv2-sync" disabled={syncing} onClick={() => void syncOperationsNow()}>{syncing ? "Đang đồng bộ…" : "↻ Đồng bộ"}</button>}
           </div>
         </header>
