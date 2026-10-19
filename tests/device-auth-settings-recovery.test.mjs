@@ -49,7 +49,7 @@ test('Partial failed target readback does not discard unsaved policy edits',()=>
 });
 test('Dashboard only promises saved state after readback verification',()=>{
   const successAt=dashboard.indexOf('setNotice("Đã lưu và readback chính xác "');
-  const partialAt=dashboard.indexOf('if (failedFields.length) return null;');
+  const partialAt=dashboard.indexOf('if (failedFields.length || !independentReadback?.settings) return null;');
   assert.ok(successAt!==-1&&partialAt>successAt);
   assert.match(policy,/Có thay đổi chưa lưu; chưa công nhận đã ghi/);
 });
