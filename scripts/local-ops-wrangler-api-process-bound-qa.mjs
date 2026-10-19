@@ -113,9 +113,30 @@ try{
   const deniedAbsentBackground=await ask("qa-stop");
   assert.equal(deniedAbsentBackground.type,"qa-denied");
   assert.equal(deniedAbsentBackground.reason,"D1_BACKGROUND_UNVERIFIED");
-  // Genuine Worker ctx.waitUntil schedules a second D1 write after 1500ms.
-  // Only ONE declared fixture task is tracked; no global isolate claims.
-  const scheduled=await ask("qa-background-write",{marker:backgroundMarker});
+  // Real Worker ctx.waitUntil holds an asynchronous D1 write behind a
+  // persisted temporary D1 release marker. This proves PENDING was observed
+  // before the QA supervisor lets the one declared background task finish.
+  const scheduledPromise=ask("qa-background-write",{marker:backgroundMarker},45000);
+  let observedBackground=null;
+  for(let i=0;i<100;i++){
+    observedBackground=await ask("qa-preflight");
+    if(observedBackground.backgroundPending)break;
+    await delay(10);
+  }
+  assert.equal(observedBackground.backgroundPending,true);
+  assert.equal(observedBackground.declaredBackgroundD1ReadbackVerified,false);
+  const beforeRelease=await ask("qa-background-state",{marker:backgroundMarker});
+  assert.equal(beforeRelease.type,"qa-background-state");
+  assert.equal(beforeRelease.state,"PENDING","waitUntil D1 write must be genuinely unfinished");
+  const deniedInFlightBackground=await ask("qa-stop");
+  assert.equal(deniedInFlightBackground.type,"qa-denied");
+  assert.ok(["D1_ACTIVE_OR_UNVERIFIED","D1_BACKGROUND_UNVERIFIED"].includes(
+    deniedInFlightBackground.reason));
+  const released=await ask("qa-background-release",{marker:backgroundMarker});
+  assert.equal(released.type,"qa-background-released");
+  assert.equal(released.released,true);
+  assert.equal(released.backgroundWriteCommitted,false);
+  const scheduled=await scheduledPromise;
   assert.equal(scheduled.type,"qa-background-accepted");
   assert.equal(scheduled.backgroundCommitVerified,false);
   const bgPending=await ask("qa-preflight");
