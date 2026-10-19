@@ -70,7 +70,8 @@ export default function OperatingModeDialog({mode,localAllowed,connected,authIsP
       </div>
       <div className={styles.status} role="status">
         <span>Chế độ hiện tại: <strong>{operatingModeLabel(mode)}</strong></span>
-        <span>Dữ liệu trực tiếp: <strong>{connected?"Đã đồng bộ":"Chưa xác minh"}</strong></span>
+        <span>Nguồn đang dùng: <strong>{authIsProduction?"Cloudflare Production":"Backend của địa chỉ đang mở"}</strong></span>
+        <span>Phiên LIVE: <strong>{connected?"Đã xác minh":"Chưa xác minh"}</strong></span>
       </div>
       {authIsProduction?<p className={styles.warning}>Production bắt buộc xác thực máy chủ; không thể chuyển sang Local để bỏ qua 2FA. <a href="/__account" target="_blank" rel="noopener noreferrer">Xác minh Authenticator ↗</a></p>:null}
       <p className={styles.note}>Online trên localhost kết nối tới backend đã cấu hình cho phiên localhost, không tự động chuyển thành Production. Kết hợp là chiến lược đọc/fallback, không phải sao chép hoặc hợp nhất D1 giữa máy và cloud.</p>
