@@ -16,7 +16,10 @@ const MATH_QA = Object.freeze({ id:"math-bauman", directory:"_qa/Math_Bauman_PR7
   sha:"2d96583f034ff3c61456d52a0ef550d2c371d248" });
 export function sourceTargets(apps) {
   return [{ id: "application-management", directory: "Application-Management" },
-    ...apps.filter(a => Number.isInteger(a.port)).map(a => {
+    // Candidate QA is an independent frontend, never a required managed-stack unit.
+    // Global stacks retain their existing source-gate scope when QA worktree is absent.
+    ...apps.filter(a => Number.isInteger(a.port) &&
+      (a.id!=="math-bauman" || apps.length===1)).map(a => {
       if(a.id!=="math-bauman")return {id:a.id,directory:a.directory};
       // Exception is restricted to this single exact-SHA detached QA worktree.
       // Never weaken main-branch admission for other clients or Manager itself.
