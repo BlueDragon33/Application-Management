@@ -250,11 +250,11 @@ async function status() {
           singleReady = Boolean(await probe(app.port, app.path || "/",app.qaSha || null));
           sourceSha = now[app.id] || null;
         } else {
-          state.restartRequired = true;
+          if(!app.qaWorktree)state.restartRequired = true;
           webErrors.set(app.id, "WEB_SOURCE_SHA_DRIFT: safe manual restart required");
         }
       } catch (error) {
-        state.restartRequired = true;
+        if(!app.qaWorktree)state.restartRequired = true;
         webErrors.set(app.id, "WEB_SOURCE_READBACK_BLOCKED: " + String(error).slice(0, 160));
       }
     }
@@ -317,7 +317,7 @@ async function startWebFrontend(id) {
       if (await probe(app.port,app.path||"/",app.qaSha||null)) {
         const after = await readSourceSnapshot(WORKSPACE,[app]);
         if (!exactSourceMatch(before,after)) {
-          state.restartRequired=true;
+          if(!app.qaWorktree)state.restartRequired=true;
           throw Error("WEB_SOURCE_SHA_CHANGED_DURING_BOOT");
         }
         if (webChildren.get(id)!==entry || child.exitCode!==null) throw Error("WEB_CHILD_OWNERSHIP_LOST");
