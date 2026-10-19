@@ -45,6 +45,8 @@ on:
       - 'tests/local-ops-node-contract-report.test.mjs'
       - 'scripts/local-ops-wrangler-cli-stop-probe.mjs'
       - 'tests/local-ops-wrangler-cli-stop-probe.test.mjs'
+      - 'scripts/local-ops-api-background-d1-barrier.mjs'
+      - 'tests/local-ops-api-background-d1-barrier.test.mjs'
       - 'docs/WRANGLER_CLI_WINDOWS_SHUTDOWN_BLOCKER_2026-10-19.md'
       - 'scripts/local-ops-private-wrangler-proof.mjs'
       - 'scripts/local-ops-managed-startup-policy.mjs'
@@ -104,7 +106,7 @@ jobs:
       - name: Install dependencies before disconnecting runtime
         run: npm ci --no-audit --no-fund
       - name: Git fast-forward fixtures and localhost protocol regression
-        run: node --test tests/local-ops-daemon.test.mjs tests/local-ops-git-real.test.mjs tests/local-ops-shutdown-contract.test.mjs tests/local-ops-shutdown-evidence.test.mjs tests/local-ops-managed-process.test.mjs tests/local-ops-drain-adapter.test.mjs tests/local-ops-runtime-drain-preflight.test.mjs tests/local-ops-blocked-adapter-plan.test.mjs tests/local-ops-wrangler-ingress.test.mjs tests/local-ops-private-wrangler-proof.test.mjs tests/blueprint-guidance-required.test.mjs tests/local-ops-managed-startup-policy.test.mjs tests/local-ops-control-source-audit.test.mjs tests/local-ops-managed-wrangler-candidate.test.mjs tests/local-ops-isolate-drain-ledger.test.mjs tests/local-ops-wrangler-cli-quiescence.test.mjs tests/local-ops-node-contract-report.test.mjs tests/local-ops-wrangler-cli-stop-probe.test.mjs
+        run: node --test tests/local-ops-daemon.test.mjs tests/local-ops-git-real.test.mjs tests/local-ops-shutdown-contract.test.mjs tests/local-ops-shutdown-evidence.test.mjs tests/local-ops-managed-process.test.mjs tests/local-ops-drain-adapter.test.mjs tests/local-ops-runtime-drain-preflight.test.mjs tests/local-ops-blocked-adapter-plan.test.mjs tests/local-ops-wrangler-ingress.test.mjs tests/local-ops-private-wrangler-proof.test.mjs tests/blueprint-guidance-required.test.mjs tests/local-ops-managed-startup-policy.test.mjs tests/local-ops-control-source-audit.test.mjs tests/local-ops-managed-wrangler-candidate.test.mjs tests/local-ops-isolate-drain-ledger.test.mjs tests/local-ops-wrangler-cli-quiescence.test.mjs tests/local-ops-node-contract-report.test.mjs tests/local-ops-wrangler-cli-stop-probe.test.mjs tests/local-ops-api-background-d1-barrier.test.mjs
       - name: Verify one app opens exactly one local PID and port with real Git SHA
         run: node scripts/local-ops-single-app-real-process-qa.mjs
       - name: Verify guarded stack restart with real Git HEAD and mock local ports
@@ -193,7 +195,7 @@ jobs:
           if ($json.manager.git.state -eq 'MAIN_TRACKED_CLEAN') { throw 'Fixture cannot be treated as exact owner checkout' }
           if ($json.secretsCaptured -ne $false) { throw 'Secrets must not be captured' }
       - name: Windows helper cold-start/restart + real Git SHA fixtures
-        run: node --test tests/local-ops-windows-smoke.test.mjs tests/local-ops-git-real.test.mjs tests/local-ops-daemon.test.mjs tests/local-ops-shutdown-contract.test.mjs tests/local-ops-shutdown-evidence.test.mjs tests/local-ops-managed-process.test.mjs tests/local-ops-drain-adapter.test.mjs tests/local-ops-runtime-drain-preflight.test.mjs tests/local-ops-blocked-adapter-plan.test.mjs tests/local-ops-wrangler-ingress.test.mjs tests/local-ops-private-wrangler-proof.test.mjs tests/blueprint-guidance-required.test.mjs tests/local-ops-managed-startup-policy.test.mjs tests/local-ops-control-source-audit.test.mjs tests/local-ops-managed-wrangler-candidate.test.mjs tests/local-ops-isolate-drain-ledger.test.mjs tests/local-ops-wrangler-cli-quiescence.test.mjs tests/local-ops-node-contract-report.test.mjs tests/local-ops-wrangler-cli-stop-probe.test.mjs
+        run: node --test tests/local-ops-windows-smoke.test.mjs tests/local-ops-git-real.test.mjs tests/local-ops-daemon.test.mjs tests/local-ops-shutdown-contract.test.mjs tests/local-ops-shutdown-evidence.test.mjs tests/local-ops-managed-process.test.mjs tests/local-ops-drain-adapter.test.mjs tests/local-ops-runtime-drain-preflight.test.mjs tests/local-ops-blocked-adapter-plan.test.mjs tests/local-ops-wrangler-ingress.test.mjs tests/local-ops-private-wrangler-proof.test.mjs tests/blueprint-guidance-required.test.mjs tests/local-ops-managed-startup-policy.test.mjs tests/local-ops-control-source-audit.test.mjs tests/local-ops-managed-wrangler-candidate.test.mjs tests/local-ops-isolate-drain-ledger.test.mjs tests/local-ops-wrangler-cli-quiescence.test.mjs tests/local-ops-node-contract-report.test.mjs tests/local-ops-wrangler-cli-stop-probe.test.mjs tests/local-ops-api-background-d1-barrier.test.mjs
       - name: Install local D1 tooling
         run: npm ci --no-audit --no-fund
       - name: Windows one-app localhost PID/port/SHA smoke (disposable fixture)
