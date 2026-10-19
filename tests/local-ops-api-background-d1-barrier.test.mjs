@@ -68,4 +68,6 @@ test('QA source binds worker waitUntil background state to real API stop and pos
   assert.match(parent,/assert\.equal\(persistedBackground\[0\]\?\.val,"BACKGROUND_COMMITTED"\)/);
   assert.match(parent,/allWaitUntilJobsInstrumented:false/);
   assert.match(parent,/allWorkerIsolatesEnumerated:false/);
+  assert.match(parent,/lateTree=await captureWindowsTree/);
+  assert.match(parent,/verifyWindowsTreeGone\(lateTree\)/);
 });
