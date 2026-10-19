@@ -271,9 +271,9 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
           const draft = drafts[app.id] ?? { autoApprove: false, autoBlock: false, pendingBlockAfterHours: 168 };
           const approveWritable = verified && policy.mutation.autoApprove;
           const blockWritable = verified && policy.mutation.autoBlockPending;
-          const approvalValue = !policy.support.autoApprove ? "unsupported" : draft.autoApprove ? "auto" : "manual";
-          const blockValue = !policy.support.autoBlockPending ? "unsupported" : draft.autoBlock ? "block" : "keep";
-          const timeValue = policy.support.autoBlockPending && draft.autoBlock ? draft.pendingBlockAfterHours : 0;
+          const approvalValue = draft.autoApprove ? "auto" : "manual";
+          const blockValue = draft.autoBlock ? "block" : "keep";
+          const timeValue = draft.autoBlock ? draft.pendingBlockAfterHours : 0;
           const changed = draftChanged(policy, draft, app.id, days, limit);
 
           return <article key={app.id} className={styles.app} data-changed={changed}>
@@ -309,7 +309,7 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
                   <option value="manual">{app.id === "boi-ech" ? "Có phí · xác minh thủ công" : "Duyệt thủ công"}</option>
                   <option value="auto">{app.id === "boi-ech" ? "Miễn phí · tự động duyệt" : "Tự động duyệt"}</option>
                 </select>
-                <small>{approveWritable ? "Có thể thay đổi và readback." : policy.support.autoApprove ? "Chỉ đọc ở kết nối hiện tại." : "Client chưa hỗ trợ."}</small>
+                <small>{approveWritable ? "Có thể áp dụng và readback LIVE." : "Chỉ lưu bản nháp; client chưa cho phép ghi LIVE."}</small>
               </label>
 
               <label className={styles.field}>
@@ -323,7 +323,7 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
                   <option value="keep">Giữ chờ · xử lý thủ công</option>
                   <option value="block">Tự động từ chối & khóa</option>
                 </select>
-                <small>{blockWritable ? "Có thể thay đổi và readback." : policy.support.autoBlockPending ? "Chỉ đọc ở kết nối hiện tại." : "Client chưa hỗ trợ."}</small>
+                <small>{blockWritable ? "Có thể áp dụng và readback LIVE." : "Chỉ lưu bản nháp; client chưa cho phép ghi LIVE."}</small>
               </label>
 
               <label className={styles.field}>
@@ -334,7 +334,7 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
                   disabled={locked || !draft.autoBlock}
                   onChange={(event) => updateDraft(app.id, { pendingBlockAfterHours: Number(event.target.value) })}
                 >
-                  <option value={0}>{policy.support.autoBlockPending ? "Không áp dụng" : "Không hỗ trợ"}</option>
+                  <option value={0}>Không áp dụng</option>
                   <option value={24}>24 giờ</option>
                   <option value={168}>7 ngày</option>
                   <option value={720}>30 ngày</option>
