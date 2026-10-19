@@ -240,6 +240,23 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
       // Capture pending user intentions before any network transaction or re-render.
       const localIntent = Object.fromEntries(Object.entries(drafts)
         .filter(([appId]) => touchedAppIdsRef.current.has(appId)));
+      // Stage and read back the desired policy before any network mutation.
+      // A failed browser-store write must NOT produce a half-completed remote command.
+      let persisted;
+      try {
+        const previous = readAutomationDraft(window.localStorage);
+        persisted = writeAutomationDraft(window.localStorage, {
+          drafts: { ...previous?.drafts, ...localIntent }, days, limit,
+        });
+      } catch {
+        persisted = { saved: false, reason: "LOCAL_STORAGE_UNAVAILABLE" };
+      }
+      if (!persisted.saved) {
+        setDraftNotice("Không thể ghi nhận cấu hình cần áp dụng (" + persisted.reason
+          + "). Chưa gửi lệnh tới ứng dụng. Hãy kiểm tra khả năng lưu cục bộ; giá trị đang chỉnh vẫn được giữ.");
+        return;
+      }
+      setDraftNotice("Đã giữ bản nháp trên máy; đang xác minh ghi vào ứng dụng nguồn.");
       const appIds = apps.filter((app) => drafts[app.id]?.autoApprove).map((app) => app.id);
       const autoBlockAppIds = apps.filter((app) => drafts[app.id]?.autoBlock).map((app) => app.id);
       const pendingBlockAfterHoursByApp = Object.fromEntries(
@@ -247,7 +264,7 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
       ) as Record<string, number>;
       const readback = await save({ appIds, autoBlockAppIds, pendingBlockAfterHoursByApp, defaultAccessDays: days, defaultDeviceLimit: limit });
       if (!readback) {
-        setDraftNotice("Chưa xác minh áp dụng. Bản chỉnh sửa vẫn còn; hãy lưu bản nháp để thử lại.");
+        setDraftNotice("Chưa xác minh áp dụng. Bản chỉnh sửa đã giữ trên trình duyệt, chưa công nhận client được cập nhật.");
         return;
       }
       let saved;
