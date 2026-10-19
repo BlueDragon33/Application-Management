@@ -392,3 +392,8 @@
     padding: 4px 0;
   }
 }
+
+/* Required 2FA entry must remain discoverable beside device actions. */
+.amv2-page-tools .amv2-security-link { display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:6px 11px;border:1px solid rgba(115,216,185,.55);border-radius:8px;background:#144d3e;color:#e8fff6;font-size:12px;font-weight:700;white-space:nowrap;text-decoration:none; }
+.amv2-page-tools .amv2-security-link:focus-visible,.amv2-notice > a:focus-visible { outline:2px solid #d8fff2;outline-offset:3px; }
+.amv2-notice > a {flex:0 0 auto;color:#dbfff2;text-decoration:underline;text-underline-offset:2px;font-size:12px;font-weight:700;}
