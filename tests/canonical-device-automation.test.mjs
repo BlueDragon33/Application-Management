@@ -58,7 +58,8 @@ test("one save verifies each changed policy field independently with one confirm
   assert.match(endpoint, /for \(const appId of targets\)/);
   assert.match(endpoint, /policyMap\.get\(appId\)/);
   assert.match(endpoint, /executeUniversalAutomationCommand/);
-  assert.match(editor, /Lưu thay đổi/);
+  assert.match(editor, /Lưu bản nháp/);
+  assert.match(editor, /Áp dụng & kiểm tra/);
   assert.match(editor, /bản nháp/);
 });
 
