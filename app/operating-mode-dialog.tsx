@@ -1,6 +1,6 @@
 "use client";
 
-import {useEffect,useRef} from "react";
+import {useEffect,useRef,type KeyboardEvent} from "react";
 import styles from "./operating-mode-dialog.module.css";
 
 export type OperatingMode = "local" | "online" | "hybrid";
@@ -36,11 +36,11 @@ export default function OperatingModeDialog({mode,localAllowed,connected,authIsP
     close.current?.focus();
     return ()=>prev?.focus();
   },[]);
-  function onKeyDown(event:React.KeyboardEvent<HTMLElement>){
+  function onKeyDown(event:KeyboardEvent<HTMLElement>){
     if(event.key==="Escape"){event.preventDefault();onClose();return;}
     if(event.key!=="Tab")return;
-    const targets=[...root.current?.querySelectorAll<HTMLElement>(
-      'button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])')??[]];
+    const targets=Array.from(root.current?.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])') ?? []);
     if(!targets.length)return;
     if(event.shiftKey&&document.activeElement===targets[0]){
       event.preventDefault();targets[targets.length-1].focus();
