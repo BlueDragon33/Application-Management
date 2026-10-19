@@ -113,6 +113,7 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
   const [drafts, setDrafts] = useState<Record<string, AutomationAppDraft>>(() => initialDrafts(apps, settings));
   const submitLockRef = useRef(false);
   const draftEditedRef = useRef(false);
+  const touchedAppIdsRef = useRef<Set<string>>(new Set());
   const dialogRef = useRef<HTMLElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const openerRef = useRef<HTMLElement | null>(null);
@@ -140,7 +141,7 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
     && Number.isInteger(limit) && limit >= 1 && limit <= 1_000
   );
   const canSave = Boolean(settings) && verified && !locked && hasWritablePolicy && hasChanges && boiLimitsValid;
-  const canSaveLocalDraft = !locked && (hasChanges || draftEditedRef.current);
+  const canSaveLocalDraft = !locked && touchedAppIdsRef.current.size > 0;
 
   // A modal may be opened on a cached snapshot while live bootstrap is in flight.
   // Rebase only untouched drafts; never overwrite an actual user edit.
@@ -163,6 +164,7 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
       .filter(([appId]) => availableIds.has(appId)));
     if (!Object.keys(restored).length) return;
     draftEditedRef.current = true;
+    for (const appId of Object.keys(restored)) touchedAppIdsRef.current.add(appId);
     setDrafts((current) => ({ ...current, ...restored }));
     setDays(saved.days);
     setLimit(saved.limit);
@@ -210,6 +212,7 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
 
   function updateDraft(appId: string, patch: Partial<AutomationAppDraft>) {
     draftEditedRef.current = true;
+    touchedAppIdsRef.current.add(appId);
     setDraftNotice("Có thay đổi chưa lưu bản nháp hoặc áp dụng.");
     setDrafts((current) => ({
       ...current,
@@ -220,7 +223,9 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
   function saveLocalDraft() {
     if (!canSaveLocalDraft) return;
     let result;
-    try { result = writeAutomationDraft(window.localStorage, { drafts, days, limit }); }
+    const pendingDrafts = Object.fromEntries(Object.entries(drafts)
+      .filter(([appId]) => touchedAppIdsRef.current.has(appId)));
+    try { result = writeAutomationDraft(window.localStorage, { drafts: pendingDrafts, days, limit }); }
     catch { result = { saved: false, reason: "LOCAL_STORAGE_UNAVAILABLE" }; }
     setDraftNotice(result.saved
       ? "Đã lưu bản nháp trên trình duyệt, đọc lại khớp. CHƯA áp dụng vào client. Khi kết nối LIVE được xác minh, chọn Áp dụng & kiểm tra."
@@ -232,6 +237,9 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
     submitLockRef.current = true;
     setSubmitting(true);
     try {
+      // Capture pending user intentions before any network transaction or re-render.
+      const localIntent = Object.fromEntries(Object.entries(drafts)
+        .filter(([appId]) => touchedAppIdsRef.current.has(appId)));
       const appIds = apps.filter((app) => drafts[app.id]?.autoApprove).map((app) => app.id);
       const autoBlockAppIds = apps.filter((app) => drafts[app.id]?.autoBlock).map((app) => app.id);
       const pendingBlockAfterHoursByApp = Object.fromEntries(
@@ -245,7 +253,8 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
       let saved;
       try { saved = readAutomationDraft(window.localStorage); }
       catch { saved = null; }
-      const stillPending = Object.entries(saved?.drafts ?? {}).filter(([appId, proposed]) => {
+      const intended = { ...saved?.drafts, ...localIntent };
+      const stillPending = Object.entries(intended).filter(([appId, proposed]) => {
         const policy = policyFor(readback, appId);
         if (policy.verification.state !== "live") return true;
         if (!policy.support.autoApprove || policy.current.autoApprove !== proposed.autoApprove) return true;
@@ -255,8 +264,15 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
             policy.current.freeDeviceLimit !== saved?.limit)) return true;
         return false;
       });
+      let persistedPending = false;
       let cleared = false;
-      if (stillPending.length === 0) {
+      if (stillPending.length > 0) {
+        try {
+          persistedPending = writeAutomationDraft(window.localStorage, {
+            drafts: Object.fromEntries(stillPending), days, limit,
+          }).saved;
+        } catch { persistedPending = false; }
+      } else {
         try { cleared = clearAutomationDraft(window.localStorage); }
         catch { cleared = false; }
       }
@@ -264,10 +280,12 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
       for (const [appId, proposed] of stillPending) {
         if (apps.some((item) => item.id === appId)) rebased[appId] = proposed;
       }
+      touchedAppIdsRef.current = new Set(stillPending.map(([appId]) => appId));
       draftEditedRef.current = stillPending.length > 0;
       setDrafts(rebased);
       setDraftNotice(stillPending.length > 0
-        ? "Đã xác minh phần ghi LIVE; vẫn giữ " + stillPending.length + " chính sách nháp chưa được client xác nhận. Không xóa bản nháp."
+        ? "Đã xác minh phần ghi LIVE; " + stillPending.length + " chính sách chưa áp dụng."
+          + (persistedPending ? " Đã lưu phần còn lại trên trình duyệt." : " Không lưu được phần còn lại; giữ nguyên trong hộp chỉnh sửa.")
         : cleared
           ? "Đã áp dụng, đọc lại từ client và xóa bản nháp trình duyệt."
           : "Client đã readback nhưng chưa xóa được bản nháp trình duyệt; sẽ không tự nhận là hết bản nháp.");
@@ -304,7 +322,7 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
           const approvalValue = draft.autoApprove ? "auto" : "manual";
           const blockValue = draft.autoBlock ? "block" : "keep";
           const timeValue = draft.autoBlock ? draft.pendingBlockAfterHours : 0;
-          const changed = draftChanged(policy, draft, app.id, days, limit);
+          const changed = touchedAppIdsRef.current.has(app.id) || draftChanged(policy, draft, app.id, days, limit);
 
           return <article key={app.id} className={styles.app} data-changed={changed}>
             <div className={styles.appHeader}>
@@ -374,8 +392,8 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
             </div>
 
             {app.id === "boi-ech" ? <div className={styles.limits} data-disabled={!approveWritable}>
-              <label>Thời hạn miễn phí <select value={days} disabled={locked} onChange={(event) => { draftEditedRef.current = true; setDays(Number(event.target.value)); }}><option value={0}>Chưa xác minh</option>{[30, 60, 90, 180, 365].map((value) => <option key={value} value={value}>{value} ngày</option>)}</select></label>
-              <label>Tối đa thiết bị <input type="number" min={1} max={1000} value={limit} disabled={locked} onChange={(event) => { draftEditedRef.current = true; setLimit(Number(event.target.value)); }}/></label>
+              <label>Thời hạn miễn phí <select value={days} disabled={locked} onChange={(event) => { draftEditedRef.current = true; touchedAppIdsRef.current.add("boi-ech"); setDays(Number(event.target.value)); }}><option value={0}>Chưa xác minh</option>{[30, 60, 90, 180, 365].map((value) => <option key={value} value={value}>{value} ngày</option>)}</select></label>
+              <label>Tối đa thiết bị <input type="number" min={1} max={1000} value={limit} disabled={locked} onChange={(event) => { draftEditedRef.current = true; touchedAppIdsRef.current.add("boi-ech"); setLimit(Number(event.target.value)); }}/></label>
               <small>Chỉ áp dụng cho Miễn phí · tự động duyệt. Luồng trả phí vẫn phải xác minh thanh toán.</small>
             </div> : null}
 
