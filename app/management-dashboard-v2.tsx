@@ -1039,21 +1039,21 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
         return execution;
       });
       const settled = await Promise.allSettled(executions);
-      // A mutation response is NOT independent proof that its value persisted.
-      // Always require a separate authenticated read after all target writes.
-      let independentReadback: OperationsBootstrap | null = null;
+      // Obtain a separate authenticated read of only the affected app policies.
+      // Backend probes the owning client GET and refuses stale audit fallback.
+      let independentSettings: OperationsBootstrap["settings"] | null = null;
       try {
-        const observed = await connectOperationsDashboard();
-        if (observed.access.status === "approved" && observed.bootstrap?.settings?.automationPolicies?.length) {
-          independentReadback = observed.bootstrap;
+        const observed = await operationsAction({ action: "read-automation", targetAppIds: changedAppIds });
+        const observedIds = new Set(observed.settings?.automationPolicies?.map((item) => item.appId) ?? []);
+        if (changedAppIds.every((appId) => observedIds.has(appId))) {
+          independentSettings = observed.settings ?? null;
         }
       } catch {
-        // Fail closed: the modal retains its pending desired configuration.
+        // No GET receipt; preserve user edits and never claim applied success.
       }
 
       const transportErrors = new Map<string, string>();
       let stepUpDuringSave = false;
-      const responseSettings: NonNullable<OperationsBootstrap["settings"]>[] = [];
       settled.forEach((result, index) => {
         const task = tasks[index];
         if (result.status === "rejected") {
@@ -1063,12 +1063,11 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
           transportErrors.set(task.appId + ":" + task.field, result.reason instanceof Error ? result.reason.message : "Lệnh cập nhật thất bại.");
           return;
         }
-        if (result.value.settings) responseSettings.push(result.value.settings);
       });
 
       const mergedPolicies = new Map(current.automationPolicies.map((policy) => [policy.appId, policy]));
-      for (const patch of responseSettings) {
-        for (const policy of patch.automationPolicies ?? []) mergedPolicies.set(policy.appId, policy);
+      for (const policy of independentSettings?.automationPolicies ?? []) {
+        mergedPolicies.set(policy.appId, policy);
       }
       const automationPolicies = [...mergedPolicies.values()];
       const mergedSettings: NonNullable<OperationsBootstrap["settings"]> = {
@@ -1118,22 +1117,24 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
         const policy = mergedSettings.automationPolicies?.find((item) => item.appId === task.appId);
         const label = activeApps.find((app) => app.id === task.appId)?.shortName ?? task.appId;
         const verified = !transportErrors.has(task.appId + ":" + task.field)
-          && independentReadback?.settings != null
-          && taskMatchesReadback(independentReadback.settings, task);
+          && independentSettings != null
+          && taskMatchesReadback(independentSettings, task);
         if (!verified) {
           failedApps.add(task.appId);
           const fieldLabel = task.field === "autoApprove" ? "kiểm duyệt" : "quá hạn";
-          const detail = !independentReadback
+          const detail = !independentSettings
             ? "INDEPENDENT_READBACK_UNAVAILABLE"
-            : (independentReadback.settings?.automationPolicies?.find((row) => row.appId === task.appId)?.verification.errorCode
-              ?? policy?.verification.errorCode ?? transportErrors.get(task.appId + ":" + task.field));
+            : (independentSettings.automationPolicies?.find((row) => row.appId === task.appId)?.verification.errorCode
+              ?? transportErrors.get(task.appId + ":" + task.field) ?? policy?.verification.errorCode);
           failedFields.push(label + " · " + fieldLabel + (detail ? " (" + detail + ")" : ""));
         }
       }
 
-      // Only the independently retrieved snapshot may update the applied UI.
-      // Never replace the displayed source state using a write response alone.
-      if (independentReadback) setOperations(independentReadback);
+      // Only independently queried app policies may refresh the applied UI.
+      // Keep unrelated devices/notifications and their original freshness.
+      if (independentSettings) setOperations((previous) => previous ? {
+        ...previous, settings: mergedSettings,
+      } : previous);
 
       const succeededApps = changedAppIds.filter((appId) => !failedApps.has(appId));
       if (stepUpDuringSave) setStepUpRequired(true);
@@ -1150,8 +1151,8 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
 
       // Preserve unsaved edits when ANY target failed. Do not rebase the modal
       // to old client values and falsely treat a partially applied batch as saved.
-      if (failedFields.length || !independentReadback?.settings) return null;
-      return independentReadback.settings;
+      if (failedFields.length || !independentSettings) return null;
+      return mergedSettings;
     } catch (caught) {
       if (caught instanceof AdminApiError && caught.data.code === "STEP_UP_REQUIRED") {
         setStepUpRequired(true);
