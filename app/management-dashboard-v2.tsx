@@ -1052,10 +1052,14 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       }
 
       const transportErrors = new Map<string, string>();
+      let stepUpDuringSave = false;
       const responseSettings: NonNullable<OperationsBootstrap["settings"]>[] = [];
       settled.forEach((result, index) => {
         const task = tasks[index];
         if (result.status === "rejected") {
+          if (result.reason instanceof AdminApiError && result.reason.data.code === "STEP_UP_REQUIRED") {
+            stepUpDuringSave = true;
+          }
           transportErrors.set(task.appId + ":" + task.field, result.reason instanceof Error ? result.reason.message : "Lệnh cập nhật thất bại.");
           return;
         }
@@ -1132,11 +1136,13 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       if (independentReadback) setOperations(independentReadback);
 
       const succeededApps = changedAppIds.filter((appId) => !failedApps.has(appId));
+      if (stepUpDuringSave) setStepUpRequired(true);
       if (failedFields.length) {
         setNotice(
           "Đã xác minh " + succeededApps.length + "/" + changedAppIds.length + " ứng dụng. Chưa khớp readback: "
           + failedFields.join("; ")
-          + ". Giá trị hiển thị là readback của đúng client vừa thao tác.",
+          + (stepUpDuringSave ? ". Cần xác minh Google Authenticator tại mục Xác minh ngay." : "")
+          + ". Chỉ dữ liệu GET độc lập được hiển thị là đã áp dụng.",
         );
       } else {
         setNotice("Đã lưu và readback chính xác " + changedAppIds.length + " ứng dụng.");
