@@ -53,7 +53,7 @@ test("unverified policies remain locally editable, never directly applied",()=>{
 test("cancel and failed apply keep edits and avoid falsely claiming success",()=>{
  assert.match(dashboard,/if \(!window\.confirm\(confirmation\)\) return null;/);
  assert.match(modal,/if \(!readback\) \{/);
- assert.match(modal,/setDraftNotice\("Chưa xác minh áp dụng/);
+ assert.match(modal,/Chưa xác minh áp dụng\. Bản chỉnh sửa đã giữ trên trình duyệt/);
  assert.match(dashboard,/if \(failedFields\.length \|\| !independentReadback\?\.settings\) return null;/);
 });
 test("step-up code has explicit user verification route before retry",()=>{
@@ -83,4 +83,14 @@ test("unsupported disabled field does not cause phantom pending after valid supp
  assert.match(modal,/policy\.support\.autoBlockPending && policy\.current\.autoBlockPending !== proposed\.autoBlock/);
  assert.match(modal,/policy\.current\.freeAccessDays !== days/);
  assert.match(modal,/policy\.current\.freeDeviceLimit !== limit/);
+});
+
+test("Apply stages exact intended draft before remote write and refuses mutation on store failure",()=>{
+  const staging=modal.indexOf("persisted = writeAutomationDraft(window.localStorage");
+  const mutation=modal.indexOf("const readback = await save(");
+  assert.ok(staging>=0 && mutation>staging);
+  assert.match(modal,/if \(!persisted\.saved\) \{/);
+  assert.match(modal,/Chưa gửi lệnh tới ứng dụng/);
+  assert.match(modal,/drafts: \{ \.\.\.previous\?\.drafts, \.\.\.localIntent \}/);
+  assert.match(modal,/Chưa xác minh áp dụng\. Bản chỉnh sửa đã giữ trên trình duyệt/);
 });
