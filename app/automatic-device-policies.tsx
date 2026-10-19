@@ -238,15 +238,35 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
         setDraftNotice("Chưa xác minh áp dụng. Bản chỉnh sửa vẫn còn; hãy lưu bản nháp để thử lại.");
         return;
       }
-      const cleared = clearAutomationDraft(window.localStorage);
-      setDraftNotice(cleared
-        ? "Áp dụng và readback client đã xác minh; xóa bản nháp trình duyệt."
-        : "Readback client đã xác minh nhưng không xóa được bản nháp trình duyệt; cần kiểm tra trước lần chỉnh tiếp.");
-      draftEditedRef.current = false;
-      setDrafts(initialDrafts(apps, readback));
+      const saved = readAutomationDraft(window.localStorage);
+      const stillPending = Object.entries(saved?.drafts ?? {}).filter(([appId, proposed]) => {
+        const policy = policyFor(readback, appId);
+        if (policy.verification.state !== "live") return true;
+        if (!policy.support.autoApprove || policy.current.autoApprove !== proposed.autoApprove) return true;
+        if (!policy.support.autoBlockPending || policy.current.autoBlockPending !== proposed.autoBlock) return true;
+        if (proposed.autoBlock && policy.current.pendingBlockAfterHours !== proposed.pendingBlockAfterHours) return true;
+        if (appId === "boi-ech" && (policy.current.freeAccessDays !== saved?.days ||
+            policy.current.freeDeviceLimit !== saved?.limit)) return true;
+        return false;
+      });
+      const cleared = stillPending.length===0 && clearAutomationDraft(window.localStorage);
+      const rebased = initialDrafts(apps, readback);
+      for (const [appId, proposed] of stillPending) {
+        if (apps.some((item) => item.id === appId)) rebased[appId] = proposed;
+      }
+      draftEditedRef.current = stillPending.length > 0;
+      setDrafts(rebased);
+      setDraftNotice(stillPending.length > 0
+        ? "Đã xác minh phần ghi LIVE; vẫn giữ " + stillPending.length + " chính sách nháp chưa được client xác nhận. Không xóa bản nháp."
+        : cleared
+          ? "Đã áp dụng, đọc lại từ client và xóa bản nháp trình duyệt."
+          : "Client đã readback nhưng chưa xóa được bản nháp trình duyệt; sẽ không tự nhận là hết bản nháp.");
       const nextBoi = policyFor(readback, "boi-ech");
-      setDays(nextBoi.current.freeAccessDays ?? readback.freeAccessDaysByApp?.["boi-ech"] ?? days);
-      setLimit(nextBoi.current.freeDeviceLimit ?? readback.freeDeviceLimitByApp?.["boi-ech"] ?? limit);
+      const boiPending = stillPending.some(([appId]) => appId === "boi-ech");
+      setDays(boiPending && saved ? saved.days :
+        nextBoi.current.freeAccessDays ?? readback.freeAccessDaysByApp?.["boi-ech"] ?? days);
+      setLimit(boiPending && saved ? saved.limit :
+        nextBoi.current.freeDeviceLimit ?? readback.freeDeviceLimitByApp?.["boi-ech"] ?? limit);
     } finally {
       submitLockRef.current = false;
       setSubmitting(false);
