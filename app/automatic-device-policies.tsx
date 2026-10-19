@@ -225,8 +225,12 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
     let result;
     const pendingDrafts = Object.fromEntries(Object.entries(drafts)
       .filter(([appId]) => touchedAppIdsRef.current.has(appId)));
-    try { result = writeAutomationDraft(window.localStorage, { drafts: pendingDrafts, days, limit }); }
-    catch { result = { saved: false, reason: "LOCAL_STORAGE_UNAVAILABLE" }; }
+    try {
+      const previous = readAutomationDraft(window.localStorage);
+      result = writeAutomationDraft(window.localStorage, {
+        drafts: { ...previous?.drafts, ...pendingDrafts }, days, limit,
+      });
+    } catch { result = { saved: false, reason: "LOCAL_STORAGE_UNAVAILABLE" }; }
     setDraftNotice(result.saved
       ? "Đã lưu bản nháp trên trình duyệt, đọc lại khớp. CHƯA áp dụng vào client. Khi kết nối LIVE được xác minh, chọn Áp dụng & kiểm tra."
       : "Không thể lưu bản nháp: " + result.reason + ". Cấu hình ứng dụng nguồn không thay đổi.");
