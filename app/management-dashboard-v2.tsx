@@ -556,10 +556,11 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       setNotice("Không thể bỏ qua xác thực Production bằng cách chọn Cục bộ. Chỉ phiên Standalone được phép dùng Local.");
       return;
     }
-    if (actionBusy || syncing) {
-      setNotice("Đợi thao tác hiện tại hoàn tất trước khi đổi chế độ để tránh ghi trùng.");
+    if (actionBusy) {
+      setNotice("Đang có lệnh ghi quản trị. Đợi lệnh hoàn tất trước khi chuyển nguồn dữ liệu.");
       return;
     }
+    // Read-only sync may hang; mode-epoch fencing makes it safe to switch offline.
     setModeDialogOpen(false);
     if (next === operatingMode) return;
     modeEpochRef.current++;
