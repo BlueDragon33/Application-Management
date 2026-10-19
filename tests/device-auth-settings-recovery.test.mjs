@@ -39,7 +39,7 @@ test('Managed/Production server gate cannot be bypassed by browser preference',(
   assert.doesNotMatch(dashboard,/TẮT · Vào thẳng/);
 });
 test('Partial failed target readback does not discard unsaved policy edits',()=>{
-  assert.match(dashboard,/if \(failedFields\.length \|\| !independentReadback\?\.settings\) return null;/);
+  assert.match(dashboard,/if \(failedFields\.length \|\| !independentSettings\) return null;/);
   assert.match(policy,/if \(!readback\) \{/);
   assert.match(policy,/const stillPending = Object\.entries/);
   assert.match(policy,/draftEditedRef\.current = stillPending\.length > 0/);
@@ -49,7 +49,7 @@ test('Partial failed target readback does not discard unsaved policy edits',()=>
 });
 test('Dashboard only promises saved state after readback verification',()=>{
   const successAt=dashboard.indexOf('setNotice("Đã lưu và readback chính xác "');
-  const partialAt=dashboard.indexOf('if (failedFields.length || !independentReadback?.settings) return null;');
+  const partialAt=dashboard.indexOf('if (failedFields.length || !independentSettings) return null;');
   assert.ok(successAt!==-1&&partialAt>successAt);
   assert.match(policy,/Có thay đổi chưa lưu; chưa công nhận đã ghi/);
 });
