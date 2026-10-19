@@ -64,6 +64,9 @@ test('QA source binds worker waitUntil background state to real API stop and pos
   assert.match(child,/D1_BACKGROUND_UNVERIFIED/);
   assert.match(child,/await runtime\.stop\(\)/);
   assert.match(parent,/assert\.equal\(deniedBackground\.reason,"D1_BACKGROUND_UNVERIFIED"\)/);
+  assert.match(parent,/assert\\.equal\\(beforeRelease\\.state,"PENDING"/);
+  assert.match(parent,/qa-background-release/);
+  assert.match(worker,/background-release/);
   assert.match(parent,/persistedBackground=await sql/);
   assert.match(parent,/assert\.equal\(persistedBackground\[0\]\?\.val,"BACKGROUND_COMMITTED"\)/);
   assert.match(parent,/allWaitUntilJobsInstrumented:false/);
