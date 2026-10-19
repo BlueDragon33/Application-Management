@@ -122,6 +122,16 @@ const systemTools: readonly SystemTool[] = [
     manageHref: "/apps/bauman-master-ai",
   },
   {
+    id: "tool-math-qa",
+    name: "Toán Bauman · Offline QA",
+    href: "/apps/bauman-master-ai",
+    category: "Tool",
+    note: "Mở trực tiếp Math_Bauman PR #72 tại worktree QA 2d96583f…, localhost:3022. Chưa phải bản Production.",
+    parentAppId: "bauman-master-ai",
+    parentLabel: "Bauman Hub",
+    manageHref: "/apps/bauman-master-ai",
+  },
+  {
     id: "tool-secret-generator",
     name: "Tạo Key / Secret",
     href: "/tools/secret-generator",
@@ -1720,6 +1730,29 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
       openGuardTimerRef.current = null;
     }, 650);
 
+    if (item.id === "tool-math-qa") {
+      // Math remains a Bauman sub-client, not a new central admin contract.
+      // Its local QR candidate opens only through the authenticated helper.
+      if (operatingMode !== "offline" || !localRuntime || !hasOfflineWeb("math-bauman")) {
+        setNotice("Math QA chỉ mở qua App-Manager chạy localhost offline. Không fallback sang website online.");
+        return;
+      }
+      const popup = window.open("about:blank", "_blank");
+      if (popup) popup.opener = null;
+      setWebBusy("math-bauman");
+      try {
+        const url = await launchOffline("math-bauman");
+        if (popup) popup.location.replace(url);
+        else window.location.assign(url);
+        setNotice("");
+      } catch (caught) {
+        popup?.close();
+        setNotice(caught instanceof Error ? caught.message : "Không thể mở Math QA offline.");
+      } finally {
+        setWebBusy("");
+      }
+      return;
+    }
     if (item.kind === "tool") {
       if (item.href) window.location.assign(item.href);
       return;
