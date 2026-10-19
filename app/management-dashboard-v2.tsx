@@ -383,33 +383,42 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   const approvalGateEnabled = operatingMode !== "local";
 
   async function refreshOperations(silent = false, forceOnline = false) {
+    const epoch = modeEpochRef.current;
     if (!silent) setSyncing(true);
     setSyncError("");
     if (!approvalGateEnabled && !forceOnline) {
       const cached = readCachedOperations();
-      if (cached) setOperations(cached);
-      if (!silent) setNotice("Standalone Mode: dữ liệu local được ưu tiên. Các thao tác Lưu quản trị vẫn tự xác minh online.");
+      if (cached && epoch === modeEpochRef.current) setOperations(cached);
+      if (!silent) setNotice("Cục bộ: dữ liệu đã lưu được ưu tiên; không có quyền Duyệt/Lưu máy chủ.");
       if (!silent) setSyncing(false);
       return cached;
     }
     try {
       if (!operationsRefreshPromiseRef.current) {
-        operationsRefreshPromiseRef.current = (async () => {
+        const promise = (async () => {
           const result = await connectOperationsDashboard();
+          // Reject a response from an older mode even if the HTTP call succeeds.
+          if (epoch !== modeEpochRef.current) return null;
           if (result.bootstrap) setOperations(result.bootstrap);
           setOperationsVerified(Boolean(result.bootstrap));
           return result.bootstrap ?? null;
-        })().finally(() => {
-          operationsRefreshPromiseRef.current = null;
-        });
+        })();
+        operationsRefreshPromiseRef.current = promise;
+        void promise.finally(() => {
+          if (operationsRefreshPromiseRef.current === promise) {
+            operationsRefreshPromiseRef.current = null;
+          }
+        }).catch(() => undefined);
       }
       return await operationsRefreshPromiseRef.current;
     } catch (caught) {
-      setOperationsVerified(false);
-      setSyncError(caught instanceof Error ? caught.message : "Không thể đồng bộ dữ liệu ứng dụng.");
+      if (epoch === modeEpochRef.current) {
+        setOperationsVerified(false);
+        setSyncError(caught instanceof Error ? caught.message : "Không thể đồng bộ dữ liệu ứng dụng.");
+      }
       return null;
     } finally {
-      if (!silent) setSyncing(false);
+      if (!silent && epoch === modeEpochRef.current) setSyncing(false);
     }
   }
 
@@ -556,6 +565,8 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
     setCenter(null);
     setManagedAccessVerified(false);
     setOperationsVerified(false);
+    setSyncing(false);
+    operationsRefreshPromiseRef.current = null;
     setAutoPolicyOpen(false);
     setError("");
     setSyncError("");
