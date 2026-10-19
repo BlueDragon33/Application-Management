@@ -222,3 +222,21 @@ test("launcher stylesheet remains the final launcher-specific visual layer", () 
   const launcher = page.indexOf('management-app-launcher.css');
   assert.ok(typography >= 0 && launcher > typography);
 });
+
+
+test("Bauman Math has a real one-click offline QA tile without claiming a central client or online publish", () => {
+  const registry = fs.readFileSync("app/application-registry.ts", "utf8");
+  const manifest = JSON.parse(fs.readFileSync("control/local-ops-apps.json", "utf8"));
+  const math = manifest.apps.find(x => x.id === "math-bauman");
+  assert.ok(math);
+  assert.equal(math.port, 3022);
+  assert.equal(math.path, "/index.html");
+  assert.equal(math.qaSha, "2d96583f034ff3c61456d52a0ef550d2c371d248");
+  assert.match(dashboard, /id: "tool-math-qa"/);
+  assert.match(dashboard, /name: "Toán Bauman · Offline QA"/);
+  assert.match(dashboard, /parentAppId: "bauman-master-ai"/);
+  assert.match(dashboard, /item\.id === "tool-math-qa"/);
+  assert.match(dashboard, /await launchOffline\("math-bauman"\)/);
+  assert.match(dashboard, /operatingMode !== "offline" \|\| !localRuntime/);
+  assert.doesNotMatch(registry, /id: "math-bauman", name:/);
+});
