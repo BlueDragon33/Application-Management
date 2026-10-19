@@ -75,3 +75,12 @@ test("unsupported target keeps selectable desired values in a local-only draft",
  assert.match(modal,/Chỉ lưu bản nháp; client chưa cho phép ghi LIVE/);
  assert.doesNotMatch(modal,/value="unsupported"/);
 });
+
+test("unsupported disabled field does not cause phantom pending after valid supported write",()=>{
+ assert.match(modal,/proposed\.autoApprove && !policy\.support\.autoApprove/);
+ assert.match(modal,/proposed\.autoBlock && !policy\.support\.autoBlockPending/);
+ assert.match(modal,/policy\.support\.autoApprove && policy\.current\.autoApprove !== proposed\.autoApprove/);
+ assert.match(modal,/policy\.support\.autoBlockPending && policy\.current\.autoBlockPending !== proposed\.autoBlock/);
+ assert.match(modal,/policy\.current\.freeAccessDays !== days/);
+ assert.match(modal,/policy\.current\.freeDeviceLimit !== limit/);
+});
