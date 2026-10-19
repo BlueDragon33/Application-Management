@@ -371,6 +371,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   const [clock, setClock] = useState<Date | null>(null);
   const [webMenu, setWebMenu] = useState(false);
   const [autoPolicyOpen, setAutoPolicyOpen] = useState(false);
+  const [stepUpRequired, setStepUpRequired] = useState(false);
   const [accountSecurityOpen, setAccountSecurityOpen] = useState(false);
   const [fontScale, setFontScale] = useState<FontScale>("compact");
   const [localRuntime, setLocalRuntime] = useState(false);
@@ -716,6 +717,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
     if (!acquireActionLock(actionKey)) return;
     setActionBusy(`${device.appId}:${device.deviceId}`);
     setNotice("");
+    setStepUpRequired(false);
     try {
       const result = await operationsAction({
         action: "manage-client-device",
@@ -738,6 +740,11 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       }
     } catch (caught) {
       const code = caught instanceof AdminApiError ? caught.data.code : undefined;
+      if (code === "STEP_UP_REQUIRED") {
+        setStepUpRequired(true);
+        setNotice("Xác minh Google Authenticator là bắt buộc trước khi duyệt. Chọn Xác minh ngay, nhập mã 6 số rồi quay lại bấm Duyệt.");
+        return;
+      }
       const growUpStale = device.appId === "growup-mychildren"
         && (code === "DEVICE_NOT_FOUND" || code === "GROWUP_REGISTRY_INSTANCE_MISMATCH");
       await refreshOperations(true);
@@ -983,7 +990,8 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
         "",
         "Mỗi policy được ghi vào đúng client và chỉ được coi là thành công sau readback.",
       ].join("\n");
-      if (!window.confirm(confirmation)) return current;
+      // Cancel is NOT a readback; keep the locally edited draft intact.
+      if (!window.confirm(confirmation)) return null;
 
       type PolicySaveTask = {
         appId: string;
@@ -1128,7 +1136,12 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       window.setTimeout(() => void refreshOperations(true, true), 1_200);
       return mergedSettings;
     } catch (caught) {
-      setNotice(caught instanceof Error ? caught.message : "Không thể cập nhật quy tắc tự động.");
+      if (caught instanceof AdminApiError && caught.data.code === "STEP_UP_REQUIRED") {
+        setStepUpRequired(true);
+        setNotice("Để áp dụng cấu hình, cần xác minh Google Authenticator. Bấm Xác minh ngay rồi quay lại áp dụng; bản nháp không mất.");
+      } else {
+        setNotice(caught instanceof Error ? caught.message : "Không thể cập nhật quy tắc tự động.");
+      }
       return null;
     } finally {
       automationSaveLockRef.current = false;
@@ -1194,7 +1207,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
           <section className="amv2-notification-board" aria-label="Bảng thông báo">
             <h2>Thông báo</h2>
             <div ref={notificationListRef} className="amv2-notification-list" role="status" aria-live="polite" aria-atomic="true" tabIndex={0}>
-              {notice ? <div className="amv2-notice"><span>{notice}</span>{authMode === "cloudflare-production" && notice.includes("Authenticator") ? <a href="/__account" target="_blank" rel="noopener noreferrer" title="Mở trang xác minh rồi quay lại thử thao tác">Xác minh ngay ↗</a> : null}<button type="button" aria-label="Đóng thông báo" onClick={() => setNotice("")}>×</button></div> : null}
+              {notice ? <div className="amv2-notice"><span>{notice}</span>{authMode === "cloudflare-production" && (stepUpRequired || notice.includes("Authenticator")) ? <a href="/__account" target="_blank" rel="noopener noreferrer" title="Mở trang xác minh rồi quay lại thử thao tác">Xác minh ngay ↗</a> : null}<button type="button" aria-label="Đóng thông báo" onClick={() => setNotice("")}>×</button></div> : null}
               {syncError ? <p className="amv2-warning"><strong>Cảnh báo đồng bộ:</strong> {syncError}</p> : null}
               {offline ? <p className="amv2-warning"><strong>Chưa xác minh kết nối Production.</strong> Dữ liệu đang hiển thị là bản lưu cục bộ; bật Kiểm duyệt truy cập để đọc trạng thái và thiết bị trực tiếp.</p> : null}
               {!offline && !syncError && !notice ? <p className="amv2-notification-empty">{syncing ? "Đang đồng bộ dữ liệu…" : "Không có thông báo mới."}</p> : null}
