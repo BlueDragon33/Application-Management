@@ -154,7 +154,9 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
 
   // Restore desired settings only. This is not a readback from any client.
   useEffect(() => {
-    const saved = readAutomationDraft(window.localStorage);
+    let saved;
+    try { saved = readAutomationDraft(window.localStorage); }
+    catch { setDraftNotice("Trình duyệt không cho truy cập kho bản nháp; không thay đổi dữ liệu ứng dụng."); return; }
     if (!saved) return;
     const availableIds = new Set(apps.map((app) => app.id));
     const restored = Object.fromEntries(Object.entries(saved.drafts)
@@ -217,7 +219,9 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
 
   function saveLocalDraft() {
     if (!canSaveLocalDraft) return;
-    const result = writeAutomationDraft(window.localStorage, { drafts, days, limit });
+    let result;
+    try { result = writeAutomationDraft(window.localStorage, { drafts, days, limit }); }
+    catch { result = { saved: false, reason: "LOCAL_STORAGE_UNAVAILABLE" }; }
     setDraftNotice(result.saved
       ? "Đã lưu bản nháp trên trình duyệt, đọc lại khớp. CHƯA áp dụng vào client. Khi kết nối LIVE được xác minh, chọn Áp dụng & kiểm tra."
       : "Không thể lưu bản nháp: " + result.reason + ". Cấu hình ứng dụng nguồn không thay đổi.");
@@ -238,7 +242,9 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
         setDraftNotice("Chưa xác minh áp dụng. Bản chỉnh sửa vẫn còn; hãy lưu bản nháp để thử lại.");
         return;
       }
-      const saved = readAutomationDraft(window.localStorage);
+      let saved;
+      try { saved = readAutomationDraft(window.localStorage); }
+      catch { saved = null; }
       const stillPending = Object.entries(saved?.drafts ?? {}).filter(([appId, proposed]) => {
         const policy = policyFor(readback, appId);
         if (policy.verification.state !== "live") return true;
@@ -249,7 +255,11 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
             policy.current.freeDeviceLimit !== saved?.limit)) return true;
         return false;
       });
-      const cleared = stillPending.length===0 && clearAutomationDraft(window.localStorage);
+      let cleared = false;
+      if (stillPending.length === 0) {
+        try { cleared = clearAutomationDraft(window.localStorage); }
+        catch { cleared = false; }
+      }
       const rebased = initialDrafts(apps, readback);
       for (const [appId, proposed] of stillPending) {
         if (apps.some((item) => item.id === appId)) rebased[appId] = proposed;
