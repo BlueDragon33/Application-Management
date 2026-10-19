@@ -43,9 +43,10 @@ export function validateQaSource(root,managerRoot,sha){
    throw Error("MATH_QA_TRACKED_DIRTY");
  return actual;
 }
-export function serveMathQA({root,port,sha,managerRoot}){
- if(port!==PORT)throw Error("MATH_QA_PORT_MISMATCH");
- const staticRoot=validateQaSource(root,managerRoot,sha);
+export function serveMathQA({root,port,sha,managerRoot,verifySource=validateQaSource}){
+ if(port!==PORT || sha!==SHA)throw Error("MATH_QA_PORT_OR_SHA_MISMATCH");
+ // Direct CLI always takes real Git validator; only injected disposable test fixtures may substitute it.
+ const staticRoot=verifySource(root,managerRoot,sha);
  const expectedHost="127.0.0.1:"+PORT;
  const localhostHost="localhost:"+PORT;
  const server=createServer((req,res)=>{
