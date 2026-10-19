@@ -54,7 +54,7 @@ test("cancel and failed apply keep edits and avoid falsely claiming success",()=
  assert.match(dashboard,/if \(!window\.confirm\(confirmation\)\) return null;/);
  assert.match(modal,/if \(!readback\) \{/);
  assert.match(modal,/setDraftNotice\("Chưa xác minh áp dụng/);
- assert.match(dashboard,/if \(failedFields\.length\) return null;/);
+ assert.match(dashboard,/if \(failedFields\.length \|\| !independentReadback\?\.settings\) return null;/);
 });
 test("step-up code has explicit user verification route before retry",()=>{
  assert.match(dashboard,/code === "STEP_UP_REQUIRED"/);
