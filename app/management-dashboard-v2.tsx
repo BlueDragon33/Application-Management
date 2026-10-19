@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { applicationRegistry, standardDeviceExperiences, type ApplicationConfig } from "./application-registry";
 import BoiAccessView from "./boi-access-view";
 import AutomaticDevicePolicies, { type AutomationSelection } from "./automatic-device-policies";
+import OperatingModeDialog, { availableOperatingMode, hasProtectedOperationAccess, operatingModeLabel, type OperatingMode } from "./operating-mode-dialog";
 import {
   AdminApiError,
   centerAdminAction,
@@ -63,7 +64,7 @@ type AppLauncherItem = {
 };
 
 const fontScaleStorageKey = "application-management:font-scale:v1";
-const approvalGateStorageKey = "application-management:approval-gate:v1";
+const operatingModeStorageKey = "application-management:operating-mode:v1";
 const launcherOrderStorageKey = "application-management:launcher-order:v1";
 const launcherCategoryStorageKey = "application-management:launcher-category-overrides:v1";
 const launcherSortStorageKey = "application-management:launcher-sort:v1";
@@ -372,9 +373,13 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   const [accountSecurityOpen, setAccountSecurityOpen] = useState(false);
   const [fontScale, setFontScale] = useState<FontScale>("compact");
   const [localRuntime, setLocalRuntime] = useState(false);
-  // Browser preferences cannot disable the server-side Production approval/MFA gate.
+  // Mode selects the UI's data-source policy, never server-side authorization.
   const standaloneModeAvailable = !defaultApprovalGate && authMode !== "cloudflare-production";
-  const [approvalGateEnabled, setApprovalGateEnabled] = useState(authMode === "cloudflare-production" ? true : defaultApprovalGate);
+  const [operatingMode, setOperatingMode] = useState<OperatingMode>(
+    authMode === "cloudflare-production" || defaultApprovalGate ? "online" : "local");
+  const [modeDialogOpen, setModeDialogOpen] = useState(false);
+  const [managedAccessVerified, setManagedAccessVerified] = useState(false);
+  const approvalGateEnabled = operatingMode !== "local";
 
   async function refreshOperations(silent = false, forceOnline = false) {
     if (!silent) setSyncing(true);
@@ -408,6 +413,10 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   }
 
   async function syncOperationsNow() {
+    if (operatingMode === "local") {
+      setNotice("Chế độ Cục bộ không gửi yêu cầu kết nối. Mở Chế độ vận hành để chọn Trực tuyến hoặc Kết hợp.");
+      return null;
+    }
     setOperationsVerified(false);
     return refreshOperations(false, true);
   }
@@ -425,6 +434,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   async function initialize() {
     setBusy(true);
     setError("");
+    setManagedAccessVerified(false);
     try {
       const cached = readCachedOperations();
       if (cached) setOperations(cached);
@@ -435,13 +445,26 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
         return;
       }
       const result = await connectAdminCenter();
+      const verified = result.access.status === "approved" && Boolean(result.bootstrap);
+      setManagedAccessVerified(verified);
       setAccess(result.access);
       setCenter(result.bootstrap);
-      if (result.bootstrap) void refreshOperations(true);
+      if (verified) void refreshOperations(true);
+      else if (operatingMode === "hybrid") {
+        setAccess(standaloneAccess(user));
+        setCenter(standaloneCenter(user));
+        setNotice("Kết hợp: chưa xác minh quyền quản trị online. Chỉ hiển thị bản lưu; Duyệt và Lưu vẫn bị khóa.");
+      }
     } catch (caught) {
       if (!approvalGateEnabled) {
         setAccess(standaloneAccess(user));
         setCenter(standaloneCenter(user));
+        return;
+      }
+      if (operatingMode === "hybrid") {
+        setAccess(standaloneAccess(user));
+        setCenter(standaloneCenter(user));
+        setNotice("Kết hợp: không kết nối được máy chủ. Đã chuyển sang xem bản lưu, mọi thao tác quản trị bị khóa.");
         return;
       }
       setError(caught instanceof Error ? caught.message : "Không thể mở Trung tâm quản trị.");
@@ -466,9 +489,10 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
     setLocalRuntime(["127.0.0.1", "localhost"].includes(window.location.hostname));
     try {
       if (standaloneModeAvailable) {
-        const saved = window.localStorage.getItem(approvalGateStorageKey);
-        if (saved === "on") setApprovalGateEnabled(true);
-        if (saved === "off") setApprovalGateEnabled(false);
+        const saved = window.localStorage.getItem(operatingModeStorageKey);
+        if (saved === "local" || saved === "online" || saved === "hybrid") {
+          if (availableOperatingMode(saved, standaloneModeAvailable)) setOperatingMode(saved);
+        }
       }
     } catch {
       // Standalone preference is device-local and optional.
@@ -488,7 +512,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   useEffect(() => {
     void initialize();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [approvalGateEnabled]);
+  }, [operatingMode]);
 
   useEffect(() => {
     if (notificationListRef.current) notificationListRef.current.scrollTop = 0;
@@ -508,22 +532,38 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
     try { window.localStorage.setItem(fontScaleStorageKey, next); } catch { /* Device-local persistence is optional. */ }
   }
 
-  function changeApprovalGate(next: boolean) {
-    if (!standaloneModeAvailable) {
-      setNotice("Production/quản trị có kiểm soát: không thể tắt xác thực máy chủ bằng công tắc trình duyệt. Dùng Tài khoản & bảo mật để xác minh Authenticator hoặc mở bản local để truy cập offline.");
+  function changeOperatingMode(next: OperatingMode) {
+    if (!availableOperatingMode(next, standaloneModeAvailable)) {
+      setNotice("Không thể bỏ qua xác thực Production bằng cách chọn Cục bộ. Chỉ phiên Standalone được phép dùng Local.");
       return;
     }
-    setApprovalGateEnabled(next);
+    if (actionBusy || syncing) {
+      setNotice("Đợi thao tác hiện tại hoàn tất trước khi đổi chế độ để tránh ghi trùng.");
+      return;
+    }
+    setModeDialogOpen(false);
+    if (next === operatingMode) return;
+    setAccess(null);
+    setCenter(null);
+    setManagedAccessVerified(false);
     setOperationsVerified(false);
-    setNotice(next
-      ? "Đã bật Kiểm duyệt truy cập. Trung tâm sẽ xác minh quyền/thiết bị online."
-      : "Đã tắt Kiểm duyệt truy cập. Standalone Mode cho phép vào thẳng và ưu tiên dữ liệu local.");
-    try { window.localStorage.setItem(approvalGateStorageKey, next ? "on" : "off"); } catch { /* Device-local persistence is optional. */ }
+    setAutoPolicyOpen(false);
+    setError("");
+    setSyncError("");
+    setOperatingMode(next);
+    setNotice(next === "local"
+      ? "Cục bộ: chỉ dùng dữ liệu đã lưu; mọi lệnh quản trị online đều bị khóa."
+      : next === "online"
+        ? "Trực tuyến: đang xác minh quyền và kết nối máy chủ hiện tại."
+        : "Kết hợp: ưu tiên LIVE, tự dùng bản lưu khi kết nối lỗi; không ghi mù khi chưa xác minh.");
+    try { window.localStorage.setItem(operatingModeStorageKey, next); }
+    catch { /* Device-local preference, not a server security setting. */ }
   }
 
   function requireManagedAccess(actionLabel: string) {
-    if (approvalGateEnabled) return true;
-    setNotice(`${actionLabel} cần quyền quản trị online. Bật “Kiểm duyệt truy cập” khi cần thao tác quyền/thiết bị.`);
+    if (hasProtectedOperationAccess(operatingMode, managedAccessVerified)
+        && access?.status === "approved") return true;
+    setNotice(`${actionLabel}: chưa có phiên quyền LIVE hợp lệ. Chọn Trực tuyến/Kết hợp rồi xác minh quyền và Google Authenticator; bản lưu không được ghi.`);
     return false;
   }
 
