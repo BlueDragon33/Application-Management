@@ -6,6 +6,7 @@ import { applicationRegistry, standardDeviceExperiences, type ApplicationConfig 
 import BoiAccessView from "./boi-access-view";
 import AutomaticDevicePolicies, { type AutomationSelection } from "./automatic-device-policies";
 import OperatingModeDialog, { availableOperatingMode, hasProtectedOperationAccess, operatingModeLabel, type OperatingMode } from "./operating-mode-dialog";
+import { deviceTimePresentation, deviceUserPresentation, deviceActivityPresentation } from "./device-row-presentation.mjs";
 import {
   AdminApiError,
   centerAdminAction,
@@ -1234,7 +1235,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
           /> : null}
           {view === "approvals" ? <ApprovalView devices={filteredApprovalDevices} actionBusy={actionBusy} manageDevice={manageDevice}/> : null}
           {view === "applications" ? <ApplicationsView apps={filteredApps} tools={filteredTools} summaryMap={summaryMap} devices={devices} webBusy={webBusy} launchWeb={launchWeb} localRuntime={localRuntime} offline={offline} lastUpdatedAt={operations?.generatedAt}/> : null}
-          {view === "devices" ? <DevicesView devices={filteredPendingDevices} actionBusy={actionBusy} manageDevice={manageDevice} bulkRemovePendingDevices={bulkRemovePendingDevices} openAutomation={openAutomationPolicies}/> : null}
+          {view === "devices" ? <DevicesView devices={filteredPendingDevices} snapshotVerified={!offline && managedAccessVerified} now={clock?.getTime() ?? Date.now()} actionBusy={actionBusy} manageDevice={manageDevice} bulkRemovePendingDevices={bulkRemovePendingDevices} openAutomation={openAutomationPolicies}/> : null}
           {view === "access" ? <BoiAccessView query={search}/> : null}
           {view === "alerts" ? <AlertsView apps={filteredApps} summaryMap={summaryMap} workItems={filteredWork} lastUpdated={lastUpdated} offline={offline}/> : null}
           {view === "audit" ? <AuditView center={center}/> : null}
@@ -2156,20 +2157,59 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
   </section>;
 }
 
-function DevicesView({ devices, actionBusy, manageDevice, bulkRemovePendingDevices, openAutomation }: {
+function DevicesView({ devices, snapshotVerified, now, actionBusy, manageDevice, bulkRemovePendingDevices, openAutomation }: {
   devices: OperationsDevice[];
+  snapshotVerified: boolean;
+  now: number;
   actionBusy: string;
   manageDevice: (device: OperationsDevice, operation: "approve" | "remove") => Promise<void>;
   bulkRemovePendingDevices: (devices: OperationsDevice[]) => Promise<void>;
   openAutomation: () => void;
 }) {
   const bulkTargets = devices.filter((device) => device.status === "pending" && device.canRemove && device.appId !== "boi-ech").slice(0, 24);
+  const labelCounts = new Map<string, number>();
+  for (const device of devices) {
+    const key = device.appId + ":" + device.userLabel.trim().toLowerCase();
+    labelCounts.set(key, (labelCounts.get(key) ?? 0) + 1);
+  }
   return <section className="amv2-page-panel">
     <div className="amv2-device-bulk-toolbar">
-      <div><strong>Hàng đợi kiểm duyệt</strong><small>Chỉ hiển thị thiết bị đang chờ duyệt. Sau khi được duyệt, mọi thay đổi quyền, khóa hoặc xóa phải thực hiện trong Quản trị của từng app. Bơi ếch là xóa vĩnh viễn nên không được xử lý hàng loạt.</small></div>
+      <div><strong>Hàng đợi kiểm duyệt</strong><small>Thời gian và tín hiệu dựa vào contract ứng dụng nguồn, không chứng minh thiết bị đang online. Mọi thay đổi quyền sau duyệt phải thực hiện trong Quản trị từng app; Bơi ếch không xóa hàng loạt.</small></div>
       <div className="amv2-device-bulk-actions"><button disabled={Boolean(actionBusy)} onClick={openAutomation}>⚙ Tự động</button><button data-danger="true" aria-label="Từ chối và khóa các thiết bị chờ kiểm duyệt đang hiển thị" disabled={!bulkTargets.length || Boolean(actionBusy)} onClick={() => void bulkRemovePendingDevices(devices)}>{actionBusy === "bulk-pending" ? "Đang xử lý…" : `Từ chối & khóa (${bulkTargets.length})`}</button></div>
     </div>
-    <div className="amv2-view-table devices"><div className="head"><span>Ứng dụng</span><span>Thiết bị</span><span>Người dùng</span><span>Trạng thái</span><span>Hoạt động</span><span>Thao tác</span></div>{devices.map((device) => { const rowBusy = actionBusy === `${device.appId}:${device.deviceId}` || actionBusy === "bulk-pending"; return <div className="row" key={`${device.appId}:${device.deviceId}`}><AppCell appId={device.appId} name={device.appName}/><div><strong>{deviceKind(device)}</strong><small>{device.deviceCode}</small></div><span>{device.userLabel}</span><b>Chờ kiểm duyệt</b><span>{device.active ? "● Online" : relativeTime(device.lastSeenAt)}</span><div>{device.canApprove ? <button disabled={rowBusy} onClick={() => void manageDevice(device, "approve")}>{device.appId === "boi-ech" ? "Phân quyền" : "Duyệt"}</button> : null}{device.canRemove ? <button data-danger="true" disabled={rowBusy} onClick={() => void manageDevice(device, "remove")}>{device.appId === "boi-ech" ? "Xóa vĩnh viễn" : "Từ chối & khóa"}</button> : null}<Link href={device.href}>Quản trị</Link></div></div>; })}{!devices.length ? <div className="amv2-empty"><strong>Không có thiết bị chờ kiểm duyệt.</strong><small>Hàng đợi hiện đã sạch hoặc bộ lọc không có kết quả phù hợp.</small></div> : null}</div>
+    <div className="amv2-view-table devices" aria-label="Bảng thiết bị chờ duyệt">
+      <div className="head"><span>Ứng dụng</span><span>Thiết bị</span><span>Người dùng / định danh</span><span>Trạng thái</span><span>Thời gian</span><span>Hoạt động</span><span>Thao tác</span></div>
+      {devices.map((device) => {
+        const rowBusy = actionBusy === `${device.appId}:${device.deviceId}` || actionBusy === "bulk-pending";
+        const count = labelCounts.get(device.appId + ":" + device.userLabel.trim().toLowerCase()) ?? 1;
+        const user = deviceUserPresentation(device, count);
+        const timestamps = deviceTimePresentation(device);
+        const activity = deviceActivityPresentation(device, snapshotVerified, now);
+        return <div className="row" key={`${device.appId}:${device.deviceId}`}>
+          <AppCell appId={device.appId} name={device.appName}/>
+          <div className="amv2-device-identity"><strong>{deviceKind(device)}</strong><small title={device.deviceId}>Mã: {device.deviceCode}</small></div>
+          <div className="amv2-device-user" data-user-tone={user.tone} title={user.rawLabel ?? user.primary}>
+            <span className="amv2-device-user-monogram" aria-hidden="true">{user.tone === "unidentified" ? "?" : user.primary.slice(0, 1).toUpperCase()}</span>
+            <div><strong title={user.primary}>{user.primary}</strong><small>{user.secondary}</small></div>
+          </div>
+          <b className="amv2-device-pending">Chờ duyệt</b>
+          <div className="amv2-device-time" title={`Yêu cầu: ${timestamps.registered} · Lần cuối: ${timestamps.lastSeen}`}>
+            <strong>Yêu cầu: <time dateTime={timestamps.createdAt !== null ? new Date(timestamps.createdAt).toISOString() : undefined}>{timestamps.registered}</time></strong>
+            <small>Lần cuối: <time dateTime={timestamps.lastSeenAt !== null ? new Date(timestamps.lastSeenAt).toISOString() : undefined}>{timestamps.lastSeen}</time></small>
+          </div>
+          <div className="amv2-device-activity" data-activity={activity.tone} title={activity.detail}>
+            <strong><i aria-hidden="true"/>{activity.label}</strong>
+            <small>{timestamps.lastSeenAt !== null && snapshotVerified ? `Ghi nhận ${relativeTime(device.lastSeenAt)}` : activity.detail}</small>
+          </div>
+          <div className="amv2-device-actions">
+            {device.canApprove ? <button disabled={rowBusy} onClick={() => void manageDevice(device, "approve")}>{device.appId === "boi-ech" ? "Phân quyền" : "Duyệt"}</button> : null}
+            {device.canRemove ? <button data-danger="true" disabled={rowBusy} onClick={() => void manageDevice(device, "remove")}>{device.appId === "boi-ech" ? "Xóa vĩnh viễn" : "Từ chối & khóa"}</button> : null}
+            <Link href={device.href}>Quản trị</Link>
+          </div>
+        </div>;
+      })}
+      {!devices.length ? <div className="amv2-empty"><strong>Không có thiết bị chờ kiểm duyệt.</strong><small>Hàng đợi hiện đã sạch hoặc bộ lọc không có kết quả phù hợp.</small></div> : null}
+    </div>
   </section>;
 }
 
