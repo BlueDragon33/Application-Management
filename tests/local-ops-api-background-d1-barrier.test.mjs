@@ -73,4 +73,6 @@ test('QA source binds worker waitUntil background state to real API stop and pos
   assert.match(parent,/allWorkerIsolatesEnumerated:false/);
   assert.match(parent,/lateTree=await captureWindowsTree/);
   assert.match(parent,/verifyWindowsTreeGone\(lateTree\)/);
+  assert.match(parent,/WRANGLER_API_QA_STORAGE_PRESERVED_UNVERIFIED_EXIT/);
+  assert.match(parent,/if\(safeToRemove\)/);
 });
