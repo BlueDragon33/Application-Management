@@ -374,7 +374,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   const [localRuntime, setLocalRuntime] = useState(false);
   // Browser preferences cannot disable the server-side Production approval/MFA gate.
   const standaloneModeAvailable = !defaultApprovalGate && authMode !== "cloudflare-production";
-  const [approvalGateEnabled, setApprovalGateEnabled] = useState(defaultApprovalGate);
+  const [approvalGateEnabled, setApprovalGateEnabled] = useState(authMode === "cloudflare-production" ? true : defaultApprovalGate);
 
   async function refreshOperations(silent = false, forceOnline = false) {
     if (!silent) setSyncing(true);
