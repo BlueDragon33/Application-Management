@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 
 const DEFAULT_WORKSPACE = "E:\\BaumanWeb";
 const SHA = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/i;
-const PORTS = Array.from({length:12},(_,i)=>3000+i);
+const PORTS = [...Array.from({length:12},(_,i)=>3000+i),3022];
 // PR #360 read-only *reference* catalog. This is not an installed manifest or
 // authorization to start any app. It enables evidence collection on older main.
 const REFERENCE_CATALOG = Object.freeze([
@@ -66,11 +66,13 @@ function gitRead(cwd,args) {
     env:{...process.env,GIT_OPTIONAL_LOCKS:"0",GIT_TERMINAL_PROMPT:"0",GCM_INTERACTIVE:"never"}
   }).trim();
 }
-export function gitObservation(directory) {
+export function gitObservation(directory,expectedDetachedSha=null) {
   const result={state:"UNVERIFIED",branch:null,sha:null,clean:null};
   if(!existsSync(directory)){result.state="MISSING_DIRECTORY";return result;}
   try{
-    const branch=gitRead(directory,["symbolic-ref","--quiet","--short","HEAD"]);
+    const branch=expectedDetachedSha
+      ? gitRead(directory,["rev-parse","--abbrev-ref","HEAD"])
+      : gitRead(directory,["symbolic-ref","--quiet","--short","HEAD"]);
     if(!branch){result.state="DETACHED_OR_NON_BRANCH";return result;}
     result.branch=branch;
     const sha=gitRead(directory,["rev-parse","HEAD"]);
@@ -78,7 +80,10 @@ export function gitObservation(directory) {
     result.sha=sha.toLowerCase();
     const tracked=gitRead(directory,["status","--porcelain","--untracked-files=no"]);
     result.clean=tracked.length===0;
-    result.state=branch!=="main"?"NOT_MAIN":result.clean?"MAIN_TRACKED_CLEAN":"TRACKED_DIRTY";
+    result.state=expectedDetachedSha
+      ? (branch==="HEAD" && result.sha===expectedDetachedSha && result.clean
+          ? "QA_DETACHED_EXACT_SHA_CLEAN" : "QA_SOURCE_MISMATCH")
+      : branch!=="main"?"NOT_MAIN":result.clean?"MAIN_TRACKED_CLEAN":"TRACKED_DIRTY";
   }catch{
     result.state="GIT_NOT_AVAILABLE_OR_INVALID_REPO";
   }
@@ -127,12 +132,17 @@ export function collectObservations({workspaceRoot=DEFAULT_WORKSPACE,
       observed.push({id:"INVALID_MANIFEST_ENTRY",capability:"BLOCKED",git:null,runtime:null});
       continue;
     }
-    const git=gitObservation(join(workspace,dir));
+    const mathQa=id==="math-bauman"&&dir==="Math_Bauman"&&
+      app.qaWorktree==="_qa/Math_Bauman_PR72"&&app.port===3022&&
+      app.qaSha==="2d96583f034ff3c61456d52a0ef550d2c371d248";
+    const git=mathQa
+      ? gitObservation(join(workspace,"_qa","Math_Bauman_PR72"),app.qaSha)
+      : gitObservation(join(workspace,dir));
     if(app.port===null){
       observed.push({id,capability:"NON_WEB",git,runtime:null});continue;
     }
     const port=Number(app.port);
-    if(!Number.isSafeInteger(port)||port<3001||port>3010){
+    if(!Number.isSafeInteger(port)||((port<3001||port>3010)&&!(port===3022&&mathQa))){
       observed.push({id,capability:"INVALID_PORT",git,runtime:null});continue;
     }
     observed.push({id,capability:"WEB",git,runtime:portObservation(port,ports,state)});
