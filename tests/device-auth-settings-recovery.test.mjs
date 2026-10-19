@@ -50,3 +50,10 @@ test('Dashboard only promises saved state after readback verification',()=>{
   assert.ok(successAt!==-1&&partialAt>successAt);
   assert.match(policy,/Có thay đổi chưa lưu; chưa công nhận đã ghi/);
 });
+
+test('Only authorized standalone environments can escape an unavailable device gate',()=>{
+  assert.match(dashboard,/enterStandalone\?: \(\) => void/);
+  assert.match(dashboard,/enterStandalone=\{standaloneModeAvailable \? \(\) => changeApprovalGate\(false\) : undefined\}/);
+  assert.match(dashboard,/Vào bản offline · không thao tác quyền/);
+  assert.match(dashboard,/authMode !== "cloudflare-production"/);
+});
