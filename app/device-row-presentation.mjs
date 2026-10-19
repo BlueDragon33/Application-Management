@@ -15,7 +15,7 @@ export function validDeviceTimestamp(input) {
 export function formatDeviceTime(timestamp) {
   if (timestamp === null) return "Chưa có dữ liệu";
   return new Intl.DateTimeFormat("vi-VN",{
-    timeZone: "Asia/Ho_Chi_Minh", day:"2-digit",month:"2-digit",year:"numeric",
+    day:"2-digit",month:"2-digit",year:"numeric",
     hour:"2-digit",minute:"2-digit",hour12:false
   }).format(timestamp);
 }
