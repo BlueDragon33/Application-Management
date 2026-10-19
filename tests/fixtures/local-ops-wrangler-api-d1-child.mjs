@@ -83,6 +83,31 @@ process.on("message",async message=>{
       }finally{active--;}
       return;
     }
+    if(message.type==="qa-background-state"||message.type==="qa-background-release"){
+      if(stopping||!MARKER.test(message.marker??"")||
+         message.marker!==backgroundMarker||background.status().tainted){
+        respond("qa-denied",id,{reason:"BACKGROUND_MARKER_UNVERIFIED"});return;
+      }
+      active++;
+      try{
+        if(message.type==="qa-background-state"){
+          const response=await runtime.fetch("http://example.com/read?id="+backgroundMarker);
+          const value=await response.json();
+          if(response.status!==200||!["PENDING","RELEASED","BACKGROUND_COMMITTED"].includes(value.val))
+            throw Error("BACKGROUND_D1_STATE_UNVERIFIED");
+          respond("qa-background-state",id,{state:value.val,
+            backgroundStillUnverified:!background.status().declaredBackgroundD1ReadbackVerified});
+        }else{
+          const response=await runtime.fetch("http://example.com/background-release?id="+backgroundMarker,
+            {method:"POST"});
+          const value=await response.json();
+          if(response.status!==200||value.released!==true||value.id!==backgroundMarker)
+            throw Error("BACKGROUND_D1_GATE_RELEASE_UNVERIFIED");
+          respond("qa-background-released",id,{released:true,backgroundWriteCommitted:false});
+        }
+      }finally{active--;}
+      return;
+    }
     if(message.type==="qa-background-read"){
       if(stopping||active!==0||!MARKER.test(message.marker??"")||
          message.marker!==backgroundMarker||background.status().tainted){
@@ -97,7 +122,7 @@ process.on("message",async message=>{
           if(response.status===200&&value.val==="BACKGROUND_COMMITTED"){
             committed=background.complete(backgroundMarker,value.val);break;
           }
-          if(response.status!==200||value.val!=="PENDING")
+          if(response.status!==200||!["PENDING","RELEASED"].includes(value.val))
             throw Error("WRANGLER_BACKGROUND_D1_BAD_STATE");
           await new Promise(ok=>setTimeout(ok,100));
         }
