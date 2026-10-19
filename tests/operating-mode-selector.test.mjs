@@ -77,3 +77,10 @@ test("no claim of live write persistence is introduced by mode switching",()=>{
   assert.match(modal,/không ghi mù/);
   assert.match(dashboard,/if \(!readback\) return null;|if \(failedFields.length\) return null;/);
 });
+
+test("stalled read-only sync cannot trap the user online while mutations remain protected",()=>{
+  assert.match(dashboard,/if \(actionBusy\) \{/);
+  assert.doesNotMatch(dashboard,/if \(actionBusy \|\| syncing\)/);
+  assert.match(dashboard,/modeEpochRef\.current\+\+/);
+  assert.match(dashboard,/Đang có lệnh ghi quản trị/);
+});
