@@ -1,0 +1,25 @@
+.amv2-local-ops { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px 18px; padding:8px 14px; border-bottom:1px solid rgba(255,255,255,.09); color:inherit; background:rgba(255,255,255,.022); }
+.amv2-local-mode {display:flex; gap:5px; flex-wrap:wrap}
+.amv2-local-mode button, .amv2-local-summary button {border:1px solid rgba(255,255,255,.14); border-radius:8px; color:inherit; background:rgba(255,255,255,.04); padding:7px 10px; cursor:pointer; font-size:12px}
+.amv2-local-mode button[data-selected="true"] {border-color:var(--amv2-cyan, #7fc); background:rgba(51,207,167,.15)}
+.amv2-local-summary {display:flex; gap:12px; align-items:center; font-size:12px;color:var(--amv2-muted,#abc)}
+.amv2-local-summary button {border-color:rgba(51,207,167,.45);color:var(--amv2-text,#fff)}
+.amv2-local-summary button:disabled {opacity:.5;cursor:not-allowed}
+.amv2-local-error {color:#ffaba5; width:100%}
+.amv2-local-pull {width:100%;font-size:12px;color:var(--amv2-muted,#abc)}
+.amv2-local-pull summary {cursor:pointer}
+.amv2-local-pull div {max-height:135px;overflow:auto;padding:4px 12px}
+.amv2-local-pull p {margin:4px 0;overflow-wrap:anywhere}
+@media(max-width:720px){.amv2-local-ops{align-items:stretch}.amv2-local-summary{justify-content:space-between}}
+
+.amv2-local-guidance {display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.amv2-local-guidance > button, .amv2-local-guidance div button {border:1px solid currentColor;border-radius:7px;background:transparent;color:inherit;cursor:pointer;font-size:12px;padding:6px 9px}
+.amv2-local-guidance > div {max-width:440px;display:grid;gap:5px;font-size:12px;padding:9px 12px;border:1px solid rgba(130,166,155,.3);border-radius:9px}
+.amv2-local-guidance p {margin:0;font-size:12px;line-height:1.5}
+.amv2-local-guidance a {color:inherit;text-decoration:underline}
+
+.amv2-blueprint-guide {position:relative;z-index:32;max-width:200px;font-size:12px;color:inherit}
+.amv2-blueprint-guide > summary {cursor:pointer;white-space:nowrap;padding:7px 9px;border:1px solid rgba(130,166,155,.45);border-radius:8px;list-style:none;font-weight:650}
+.amv2-blueprint-guide > div {position:absolute;right:0;top:calc(100% + 8px);width:min(330px,85vw);padding:12px;border:1px solid rgba(130,166,155,.45);border-radius:10px;background:var(--amv2-panel,#172622);box-shadow:0 8px 24px rgba(0,0,0,.2);display:grid;gap:7px;line-height:1.5}
+.amv2-blueprint-guide p {margin:0}
+.amv2-blueprint-guide button {cursor:pointer;border:1px solid currentColor;border-radius:7px;background:transparent;color:inherit;padding:7px}

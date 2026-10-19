@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { applicationRegistry, standardDeviceExperiences, type ApplicationConfig } from "./application-registry";
+import OfflineOpsPanel from "./offline-ops-panel";
+import { hasOfflineWeb, localApp, launchOffline, publishedUrl, type OperatingMode } from "./offline-ops-client";
 import BoiAccessView from "./boi-access-view";
 import AutomaticDevicePolicies, { type AutomationSelection } from "./automatic-device-policies";
 import {
@@ -115,6 +117,16 @@ const systemTools: readonly SystemTool[] = [
     href: "/tools/study-plan",
     category: "Tool",
     note: "Phân tích kế hoạch 09.04.01/11 theo tuần, tháng, học kỳ và năm; đồng bộ học liệu/workflow với Bauman Hub và hiển thị độ phủ 33/33 khi registry live.",
+    parentAppId: "bauman-master-ai",
+    parentLabel: "Bauman Hub",
+    manageHref: "/apps/bauman-master-ai",
+  },
+  {
+    id: "tool-math-qa",
+    name: "Toán Bauman · Offline QA",
+    href: "/apps/bauman-master-ai",
+    category: "Tool",
+    note: "Mở trực tiếp Math_Bauman PR #72 tại worktree QA 2d96583f…, localhost:3022. Chưa phải bản Production.",
     parentAppId: "bauman-master-ai",
     parentLabel: "Bauman Hub",
     manageHref: "/apps/bauman-master-ai",
@@ -251,9 +263,10 @@ function webActionLabel(summary: OperationsSummary | undefined, hasWeb: boolean,
   return "Chưa sẵn sàng";
 }
 
-function webAccessAvailable(app: ApplicationConfig, summary: OperationsSummary | undefined, localRuntime: boolean) {
+function webAccessAvailable(app: ApplicationConfig, summary: OperationsSummary | undefined, localRuntime: boolean, mode: OperatingMode) {
   if (summary?.webAccessPolicy === "deny") return false;
-  return Boolean(app.desktopLaunchUrl || summary?.webHref || app.publicUrl || (localRuntime && app.localUrl));
+  if (mode === "offline") return localRuntime && (hasOfflineWeb(app.id) || Boolean(app.desktopLaunchUrl));
+  return Boolean(publishedUrl(app.publicUrl));
 }
 
 function intentionalNonRemoteMode(summary?: OperationsSummary) {
@@ -372,6 +385,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   const [accountSecurityOpen, setAccountSecurityOpen] = useState(false);
   const [fontScale, setFontScale] = useState<FontScale>("compact");
   const [localRuntime, setLocalRuntime] = useState(false);
+  const [operatingMode, setOperatingMode] = useState<OperatingMode>("offline");
   const [approvalGateEnabled, setApprovalGateEnabled] = useState(defaultApprovalGate);
 
   async function refreshOperations(silent = false, forceOnline = false) {
@@ -461,7 +475,10 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
     };
     resolveView();
     setClock(new Date());
-    setLocalRuntime(["127.0.0.1", "localhost"].includes(window.location.hostname));
+    const local = ["127.0.0.1", "localhost"].includes(window.location.hostname);
+    setLocalRuntime(local);
+    // Offline-first even if the dashboard is served by a hosted site.
+    setOperatingMode("offline");
     try {
       const saved = window.localStorage.getItem(approvalGateStorageKey);
       if (saved === "on") setApprovalGateEnabled(true);
@@ -750,6 +767,36 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       setNotice("Contract ứng dụng không cho Application Management mở learning runtime trực tiếp.");
       return;
     }
+    if (operatingMode === "offline" && app?.id !== "pc-manager") {
+      if (!localRuntime) {
+        setNotice("App Management đang mở trên website online. Hãy khởi động Local Ops trên Windows và mở http://127.0.0.1:3000 để chạy ứng dụng offline. Không tự chuyển sang URL online.");
+        return;
+      }
+      if (!hasOfflineWeb(appId)) {
+        setNotice("Ứng dụng chưa có runtime localhost được nghiệm thu. Không tự chuyển sang online.");
+        return;
+      }
+      const actionKey = "web:" + appId;
+      if (!acquireActionLock(actionKey)) return;
+      const popup = window.open("about:blank", "_blank");
+      if (popup) popup.opener = null;
+      setWebBusy(appId);
+      setNotice("Đang khởi động runtime offline cho " + app?.shortName + "…");
+      try {
+        const url = await launchOffline(appId);
+        if (popup) popup.location.replace(url);
+        else window.location.assign(url);
+        setWebMenu(false);
+        setNotice("");
+      } catch (caught) {
+        popup?.close();
+        setNotice(caught instanceof Error ? caught.message : "Không thể khởi động offline.");
+      } finally {
+        releaseActionLock(actionKey);
+        setWebBusy("");
+      }
+      return;
+    }
     // PC Manager is an offline WebView2/Tauri application, not an HTTP website.
     // Never proxy native Windows commands through localhost or promote its
     // desktop-launch capability into remote-management permission.
@@ -767,9 +814,9 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       setWebMenu(false);
       return;
     }
-    const fallback = app?.previewUrl ?? app?.publicUrl ?? (localRuntime ? app?.localUrl : undefined);
-    if (!summary?.webHref && !fallback) {
-      setNotice("Ứng dụng chưa công bố URL website hợp lệ.");
+    const fallback = publishedUrl(app?.publicUrl);
+    if (!fallback) {
+      setNotice("Ứng dụng chưa có bản Online đã publish; không tự sử dụng Preview.");
       return;
     }
     const actionKey = `web:${appId}`;
@@ -783,6 +830,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
         try {
           const result = await operationsAction({ action: "launch-client-web", appId });
           if (!result.launchUrl) throw new Error(result.error ?? "Không lấy được vé mở website ứng dụng.");
+          if (new URL(result.launchUrl).origin !== new URL(fallback).origin) throw new Error("Vé mở website không trỏ tới Production đã đăng ký.");
           if (popup) popup.location.replace(result.launchUrl);
           else window.location.assign(result.launchUrl);
         } catch (caught) {
@@ -790,7 +838,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
           throw caught;
         }
       } else {
-        window.open(app?.ssoStartUrl ?? app?.previewUrl ?? summary?.webHref ?? fallback, "_blank", "noopener,noreferrer");
+        window.open(fallback, "_blank", "noopener,noreferrer");
       }
       setWebMenu(false);
     } catch (caught) {
@@ -1094,12 +1142,21 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
         <label className="amv2-search"><span>⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm theo ứng dụng, thiết bị, người dùng…"/></label>
         <label className="amv2-filter"><span>▽</span><select value={appFilter} onChange={(event) => setAppFilter(event.target.value)}><option value="all">Bộ lọc nhanh</option>{activeApps.map((app) => <option key={app.id} value={app.id}>{app.shortName}</option>)}{systemTools.map((tool) => <option key={tool.id} value={tool.id}>Tool · {tool.name}</option>)}</select></label>
         <button className="amv2-access-mode" data-enabled={approvalGateEnabled} onClick={() => changeApprovalGate(!approvalGateEnabled)} title="Bật/tắt kiểm duyệt quyền và thiết bị"><span>{approvalGateEnabled ? "🔒" : "⚡"}</span><div><small>Kiểm duyệt truy cập</small><strong>{approvalGateEnabled ? "BẬT" : "TẮT · Vào thẳng"}</strong></div></button>
+        <details className="amv2-blueprint-guide" data-blueprint-required="guidance">
+          <summary>Hướng dẫn · Next Action</summary>
+          <div role="region" aria-label="Hướng dẫn Blueprint OS 1.3.0">
+            <strong>Blueprint OS 1.3.0 · Quy trình bắt buộc</strong>
+            <p>Kiểm tra SHA → xử lý blocker → kiểm thử thực tế → ghi bằng chứng → review. Chưa chứng minh drain D1 hoặc Windows exit thì giữ BLOCKED, không tự merge/publish.</p>
+            <button type="button" onClick={() => switchView("audit")}>Xem nhật ký & Quality Gates →</button>
+          </div>
+        </details>
         <button className="amv2-bell" aria-label={notificationCount ? `Mở Cảnh báo: ${notificationCount} thông báo` : "Mở Cảnh báo"} onClick={() => switchView("alerts")}>♧{notificationCount ? <b>{notificationCount}</b> : null}</button>
         <span className="amv2-online" data-standalone={offline}><i/><strong>{offline ? "Bản lưu cục bộ" : "Hệ thống kết nối"}</strong><small>{syncing ? "Đang đồng bộ…" : offline ? "Chưa xác minh Production" : "Dữ liệu đã cập nhật"}</small></span>
         <details className="amv2-account"><summary><span>{initials(user.displayName)}</span><div><strong>{user.displayName}</strong><small>{approvalGateEnabled ? roleLabels[access.role] : "Standalone Owner"}</small></div><b>⌄</b></summary><div><small>{user.email}</small>{authMode === "cloudflare-production" ? <a href="/__account">Tài khoản & bảo mật</a> : <button onClick={() => setAccountSecurityOpen(true)}>Tài khoản & bảo mật</button>}<button onClick={() => switchView("settings")}>Cấu hình</button>{authMode === "cloudflare-production" ? <form method="post" action="/__logout"><button type="submit">Đăng xuất</button></form> : <a href="/signout-with-chatgpt?return_to=%2F">Đăng xuất</a>}</div></details>
       </header>
 
       <div className="amv2-content" data-view={view}>
+        <OfflineOpsPanel local={localRuntime} mode={operatingMode} onModeChange={setOperatingMode}/>
         <header className="amv2-page-head" data-view={view}>
           <div className="amv2-page-title"><h1>{title.title}</h1>{title.subtitle ? <p>{title.subtitle}</p> : null}</div>
           <section className="amv2-notification-board" aria-label="Bảng thông báo">
@@ -1142,9 +1199,10 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
             enableAutoApproval={openAutomationPolicies}
             syncOperations={syncOperationsNow}
             localRuntime={localRuntime}
+            operatingMode={operatingMode}
           /> : null}
           {view === "approvals" ? <ApprovalView devices={filteredApprovalDevices} actionBusy={actionBusy} manageDevice={manageDevice}/> : null}
-          {view === "applications" ? <ApplicationsView apps={filteredApps} tools={filteredTools} summaryMap={summaryMap} devices={devices} webBusy={webBusy} launchWeb={launchWeb} localRuntime={localRuntime} offline={offline} lastUpdatedAt={operations?.generatedAt}/> : null}
+          {view === "applications" ? <ApplicationsView apps={filteredApps} tools={filteredTools} summaryMap={summaryMap} devices={devices} webBusy={webBusy} launchWeb={launchWeb} localRuntime={localRuntime} operatingMode={operatingMode} offline={offline} lastUpdatedAt={operations?.generatedAt}/> : null}
           {view === "devices" ? <DevicesView devices={filteredPendingDevices} actionBusy={actionBusy} manageDevice={manageDevice} bulkRemovePendingDevices={bulkRemovePendingDevices} openAutomation={openAutomationPolicies}/> : null}
           {view === "access" ? <BoiAccessView query={search}/> : null}
           {view === "alerts" ? <AlertsView apps={filteredApps} summaryMap={summaryMap} workItems={filteredWork} lastUpdated={lastUpdated} offline={offline}/> : null}
@@ -1275,7 +1333,7 @@ function AppCell({ appId, name }: { appId: string; name: string }) {
   return <div className="amv2-app-cell"><AppIcon appId={appId}/><strong>{name}</strong></div>;
 }
 
-function Overview({ apps, tools, summaryMap, devices, pendingDevices, approvalDevices, workItems, highAlerts, unavailableCount, environmentCount, contractPending, offline, actionBusy, webBusy, syncing, webMenu, setWebMenu, switchView, launchWeb, manageDevice, clearNotifications, enableAutoApproval, syncOperations, localRuntime }: {
+function Overview({ apps, tools, summaryMap, devices, pendingDevices, approvalDevices, workItems, highAlerts, unavailableCount, environmentCount, contractPending, offline, actionBusy, webBusy, syncing, webMenu, setWebMenu, switchView, launchWeb, manageDevice, clearNotifications, enableAutoApproval, syncOperations, localRuntime, operatingMode }: {
   apps: ApplicationConfig[];
   tools: SystemTool[];
   summaryMap: Map<string, OperationsSummary>;
@@ -1300,6 +1358,7 @@ function Overview({ apps, tools, summaryMap, devices, pendingDevices, approvalDe
   enableAutoApproval: () => void;
   syncOperations: () => Promise<OperationsBootstrap | null>;
   localRuntime: boolean;
+  operatingMode: OperatingMode;
 }) {
   const priorityRows = [
     ...approvalDevices.map((device) => ({ key: `device:${device.appId}:${device.deviceId}`, appId: device.appId, appName: device.appName, type: device.attention === "environment" ? "Môi trường" : "Thiết bị", content: `${device.userLabel} · ${device.deviceCode}`, at: device.lastSeenAt ?? device.createdAt, priority: device.attention === "environment" ? "Cao" : "Vừa", status: device.status === "pending" ? "Chờ duyệt" : "Cần xác minh" })),
@@ -1316,7 +1375,7 @@ function Overview({ apps, tools, summaryMap, devices, pendingDevices, approvalDe
         name: app.shortName,
         iconAppId: app.id,
         kind: "app" as const,
-        canOpen: webAccessAvailable(app, summary, localRuntime),
+        canOpen: webAccessAvailable(app, summary, localRuntime, operatingMode),
         online: offline ? null : counts.online,
         connection,
         status: offline ? "Chưa xác minh" : connectionLabel(connection, summary),
@@ -1353,7 +1412,7 @@ function Overview({ apps, tools, summaryMap, devices, pendingDevices, approvalDe
 
       <section className="amv2-panel amv2-alert-panel"><PanelTitle icon="♧" title="Cảnh báo nhanh" onClick={() => switchView("alerts")}/><div className="amv2-alert-grid"><button onClick={() => switchView("devices")} data-tone="gold"><small>Thiết bị mới</small><strong>{offline ? "—" : pendingDevices.length}</strong></button><button onClick={() => switchView("alerts")} data-tone="red"><small>App mất kết nối</small><strong>{offline ? "—" : unavailableCount}</strong></button><button onClick={() => switchView("alerts")} data-tone="olive"><small>Môi trường thay đổi</small><strong>{offline ? "—" : environmentCount}</strong></button><button onClick={() => switchView("applications")} data-tone="blue"><small>Kết nối chờ hoàn tất</small><strong>{offline ? "—" : contractPending}</strong></button></div></section>
 
-      <section className="amv2-panel amv2-quick-panel"><header><h2>⚡ Thao tác nhanh</h2></header><div className="amv2-quick-grid"><button onClick={() => switchView("applications")}>◇<span>Quản trị ứng dụng</span></button><button data-active={webMenu} onClick={() => setWebMenu((current) => !current)}>◎<span>Truy cập web</span></button><button onClick={() => switchView("devices")}>▣<span>Kiểm duyệt thiết bị</span></button><button onClick={() => switchView("approvals")}>⬡<span>Yêu cầu chờ duyệt</span></button><button data-danger="true" disabled={Boolean(actionBusy)} onClick={() => void clearNotifications()}>⌫<span>{actionBusy === "clear" ? "Đang xóa…" : "Xóa hết thông báo"}</span></button><button disabled={Boolean(actionBusy)} onClick={() => void enableAutoApproval()}>⚙<span>{actionBusy === "auto" ? "Đang lưu…" : "Duyệt tự động"}</span></button><button disabled={syncing} onClick={() => void syncOperations()}>↻<span>{syncing ? "Đang đồng bộ…" : "Đồng bộ dữ liệu"}</span></button><button onClick={() => switchView("settings")}>▦<span>Giao diện</span></button><button onClick={() => switchView("audit")}>▤<span>Xem nhật ký</span></button></div>{webMenu ? <div className="amv2-web-menu">{apps.map((app) => { const summary = summaryMap.get(app.id); const hasWeb = webAccessAvailable(app, summary, localRuntime); return <button key={app.id} disabled={!hasWeb || webBusy === app.id} onClick={() => void launchWeb(app.id)}><span className="amv2-web-menu-app"><AppIcon appId={app.id}/><span>{app.shortName}</span></span><b>{webBusy === app.id ? "Đang mở…" : hasWeb ? "Mở ↗" : webActionLabel(summary, false)}</b></button>; })}</div> : null}</section>
+      <section className="amv2-panel amv2-quick-panel"><header><h2>⚡ Thao tác nhanh</h2></header><div className="amv2-quick-grid"><button onClick={() => switchView("applications")}>◇<span>Quản trị ứng dụng</span></button><button data-active={webMenu} onClick={() => setWebMenu((current) => !current)}>◎<span>Truy cập web</span></button><button onClick={() => switchView("devices")}>▣<span>Kiểm duyệt thiết bị</span></button><button onClick={() => switchView("approvals")}>⬡<span>Yêu cầu chờ duyệt</span></button><button data-danger="true" disabled={Boolean(actionBusy)} onClick={() => void clearNotifications()}>⌫<span>{actionBusy === "clear" ? "Đang xóa…" : "Xóa hết thông báo"}</span></button><button disabled={Boolean(actionBusy)} onClick={() => void enableAutoApproval()}>⚙<span>{actionBusy === "auto" ? "Đang lưu…" : "Duyệt tự động"}</span></button><button disabled={syncing} onClick={() => void syncOperations()}>↻<span>{syncing ? "Đang đồng bộ…" : "Đồng bộ dữ liệu"}</span></button><button onClick={() => switchView("settings")}>▦<span>Giao diện</span></button><button onClick={() => switchView("audit")}>▤<span>Xem nhật ký</span></button></div>{webMenu ? <div className="amv2-web-menu">{apps.map((app) => { const summary = summaryMap.get(app.id); const hasWeb = webAccessAvailable(app, summary, localRuntime, operatingMode); return <button key={app.id} disabled={!hasWeb || webBusy === app.id} onClick={() => void launchWeb(app.id)}><span className="amv2-web-menu-app"><AppIcon appId={app.id}/><span>{app.shortName}</span></span><b>{webBusy === app.id ? "Đang mở…" : hasWeb ? "Mở ↗" : webActionLabel(summary, false)}</b></button>; })}</div> : null}</section>
 
       <section className="amv2-panel amv2-apps-panel amv2-overview-apps-launcher">
         <header className="amv2-overview-apps-title">
@@ -1395,7 +1454,7 @@ function ApprovalView({ devices, actionBusy, manageDevice }: { devices: Operatio
   return <section className="amv2-page-panel"><div className="amv2-view-table approval"><div className="head"><span>Ứng dụng</span><span>Loại yêu cầu</span><span>Thiết bị / người dùng</span><span>Trạng thái</span><span>Thao tác</span></div>{devices.map((device) => { const rowBusy = actionBusy === `${device.appId}:${device.deviceId}`; const pending = device.status === "pending"; return <div className="row" key={`${device.appId}:${device.deviceId}`}><AppCell appId={device.appId} name={device.appName}/><span>{pending ? "Kiểm duyệt thiết bị" : "Xác minh môi trường"}</span><div><strong>{device.userLabel}</strong><small>{device.deviceCode}</small></div><b>{pending ? "Chờ kiểm duyệt" : "Cần xử lý"}</b><div>{pending && device.canApprove ? <button disabled={rowBusy} onClick={() => void manageDevice(device, "approve")}>{device.appId === "boi-ech" ? "Phân quyền" : "Duyệt"}</button> : null}{pending && device.canRemove ? <button data-danger="true" disabled={rowBusy} onClick={() => void manageDevice(device, "remove")}>{device.appId === "boi-ech" ? "Xóa vĩnh viễn" : "Từ chối & khóa"}</button> : null}{!pending ? <Link href={device.href}>Quản trị</Link> : null}</div></div>; })}{!devices.length ? <div className="amv2-empty"><strong>Không có yêu cầu cần xử lý.</strong></div> : null}</div></section>;
 }
 
-function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb, localRuntime, offline, lastUpdatedAt }: {
+function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb, localRuntime, operatingMode, offline, lastUpdatedAt }: {
   apps: ApplicationConfig[];
   tools: SystemTool[];
   summaryMap: Map<string, OperationsSummary>;
@@ -1403,6 +1462,7 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
   webBusy: string;
   launchWeb: (appId: string) => Promise<void>;
   localRuntime: boolean;
+  operatingMode: OperatingMode;
   offline: boolean;
   lastUpdatedAt?: string;
 }) {
@@ -1503,7 +1563,7 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
     const appItems = apps.map((app) => {
       const summary = summaryMap.get(app.id);
       const counts = operationalCounts(app.id, summary, devices);
-      const canOpen = webAccessAvailable(app, summary, localRuntime);
+      const canOpen = webAccessAvailable(app, summary, localRuntime, operatingMode);
       const runtimeLabel = offline
         ? "—"
         : summary?.runtimeConnected === true
@@ -1519,7 +1579,15 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
         category: categoryOverrides[app.id] || app.category,
         description: app.scope,
         kind: "app" as const,
-        href: canOpen ? summary?.webHref ?? app.publicUrl ?? (localRuntime ? app.localUrl : undefined) : undefined,
+        // Detail view must never advertise a remote URL in Offline mode.
+        href: canOpen
+          ? operatingMode === "offline"
+            ? (localRuntime && hasOfflineWeb(app.id) ? (() => {
+                const target = localApp(app.id);
+                return target?.port ? "http://127.0.0.1:" + target.port + (target.path || "/") : undefined;
+              })() : undefined)
+            : publishedUrl(app.publicUrl) || undefined
+          : undefined,
         manageHref: app.href,
         connection: offline ? "pending" : connectionFor(app, summary),
         statusLabel: offline ? "Chưa xác minh" : connectionLabel(connectionFor(app, summary), summary),
@@ -1533,7 +1601,7 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
     });
 
     return [...appItems, ...toolItems];
-  }, [apps, tools, summaryMap, devices, localRuntime, offline, categoryOverrides]);
+  }, [apps, tools, summaryMap, devices, localRuntime, operatingMode, offline, categoryOverrides]);
 
   const categories = useMemo(() => {
     const present = new Set(items.map((item) => item.category));
@@ -1662,11 +1730,42 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
       openGuardTimerRef.current = null;
     }, 650);
 
+    if (item.id === "tool-math-qa") {
+      // Math remains a Bauman sub-client, not a new central admin contract.
+      // Its local QR candidate opens only through the authenticated helper.
+      if (operatingMode !== "offline" || !localRuntime || !hasOfflineWeb("math-bauman")) {
+        setNotice("Math QA chỉ mở qua App-Manager chạy localhost offline. Không fallback sang website online.");
+        return;
+      }
+      const popup = window.open("about:blank", "_blank");
+      if (popup) popup.opener = null;
+      setWebBusy("math-bauman");
+      try {
+        const url = await launchOffline("math-bauman");
+        if (popup) popup.location.replace(url);
+        else window.location.assign(url);
+        setNotice("");
+      } catch (caught) {
+        popup?.close();
+        setNotice(caught instanceof Error ? caught.message : "Không thể mở Math QA offline.");
+      } finally {
+        setWebBusy("");
+      }
+      return;
+    }
     if (item.kind === "tool") {
       if (item.href) window.location.assign(item.href);
       return;
     }
     await launchWeb(item.id);
+  }
+
+  function showCardDetails(item: AppLauncherItem, anchor: HTMLButtonElement) {
+    setDetailOpen(false);
+    setCategoryEditing(false);
+    setCategoryDraft(item.category);
+    setSelectedId(item.id);
+    setAnchorElement(anchor);
   }
 
   function handleCardClick(event: React.MouseEvent<HTMLButtonElement>, item: AppLauncherItem) {
@@ -1675,16 +1774,14 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
       longPressTriggeredRef.current = false;
       return;
     }
-    const anchor = event.currentTarget;
     cancelSingleClick();
-    clickTimerRef.current = window.setTimeout(() => {
-      setDetailOpen(false);
-      setCategoryEditing(false);
-      setCategoryDraft(item.category);
-      setSelectedId(item.id);
-      setAnchorElement(anchor);
-      clickTimerRef.current = null;
-    }, 240);
+    if (event.shiftKey) {
+      showCardDetails(item, event.currentTarget);
+      return;
+    }
+    // Single click opens the app. Duplicate double clicks are coalesced.
+    closePopover();
+    void openLauncherItem(item);
   }
 
   function handleCardDoubleClick(event: React.MouseEvent<HTMLButtonElement>, item: AppLauncherItem) {
@@ -1943,7 +2040,7 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
           ? <div className="amv2-launcher-editbar"><span>↕ Kéo icon để đổi vị trí · App và Tool giữ thành hai nhóm riêng</span><button type="button" onClick={() => { setEditMode(false); setDraggingId(null); longPressTriggeredRef.current = false; }}>Xong</button></div>
           : sortMode === "category-auto"
             ? <p className="amv2-launcher-help" data-auto-sort="true"><b>✓ Tự động theo phân loại</b><i/> sửa phân loại → icon tự chuyển nhóm</p>
-            : <p className="amv2-launcher-help"><b>1 lần</b>: thông tin <i/> <b>2 lần</b>: mở <i/> <b>Giữ 3 giây</b>: sắp xếp</p>}
+            : <p className="amv2-launcher-help"><b>1 lần</b>: mở app <i/> <b>Chuột phải / Shift+Click</b>: thông tin <i/> <b>Giữ 3 giây</b>: sắp xếp</p>}
       </div>
 
       {mode === "grid" ? <div className="amv2-launcher-grid-wrap">
@@ -1963,7 +2060,10 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
             onPointerMove={(event) => handleCardPointerMove(event, item)}
             onPointerUp={handleCardPointerUp}
             onPointerCancel={handleCardPointerCancel}
-            onContextMenu={(event) => event.preventDefault()}
+            onContextMenu={(event) => {
+              event.preventDefault();
+              if (!editMode) showCardDetails(item, event.currentTarget);
+            }}
             onClick={(event) => handleCardClick(event, item)}
             onDoubleClick={(event) => handleCardDoubleClick(event, item)}
             onKeyDown={(event) => {
@@ -1974,7 +2074,7 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
                 void openLauncherItem(item);
               }
             }}
-            title={editMode ? "Kéo để đổi vị trí" : "Nhấn 1 lần: thông tin · 2 lần: mở · giữ 3 giây: sắp xếp"}
+            title={editMode ? "Kéo để đổi vị trí" : "Nhấn 1 lần: mở · chuột phải/Shift+Click: thông tin · giữ 3 giây: sắp xếp"}
           >
             <span className="amv2-launcher-card-top">
               <AppIcon appId={item.iconAppId}/>
@@ -2000,7 +2100,7 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
           if (!app) return null;
           const summary = summaryMap.get(app.id);
           const counts = operationalCounts(app.id, summary, devices);
-          const hasWeb = webAccessAvailable(app, summary, localRuntime);
+          const hasWeb = webAccessAvailable(app, summary, localRuntime, operatingMode);
           return <div className="amv2-app-row" key={app.id}><AppCell appId={app.id} name={app.shortName}/><span>{item.category}</span><strong title={counts.pending === null ? "Client chưa cung cấp dữ liệu thiết bị." : undefined}>{offline ? "—" : countText(counts.pending)}</strong><strong title={counts.online === null ? "Client chưa cung cấp dữ liệu online." : undefined}>{offline ? "—" : countText(counts.online)}</strong><StatusCell app={app} summary={summary} offline={offline}/><button className="amv2-web-action" disabled={!hasWeb || webBusy === app.id} onClick={() => void launchWeb(app.id)}>{webActionLabel(summary, hasWeb, webBusy === app.id)}</button><Link className="amv2-manage-action" href={app.href}>Quản trị</Link></div>;
         })}
         {!visibleItems.length ? <div className="amv2-empty"><strong>Không tìm thấy ứng dụng hoặc Tool phù hợp.</strong></div> : null}

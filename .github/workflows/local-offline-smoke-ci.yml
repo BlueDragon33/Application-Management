@@ -9,6 +9,77 @@ on:
       - 'package.json'
       - 'vite.config.ts'
       - 'package-lock.json'
+      - 'scripts/local-ops-daemon.mjs'
+      - 'scripts/windows-readonly-acceptance.ps1'
+      - 'scripts/windows-readonly-acceptance.mjs'
+      - 'tests/windows-readonly-node.test.mjs'
+      - 'scripts/candidate-pr360-isolated-qa.mjs'
+      - 'tests/local-ops-candidate-acceptance.test.mjs'
+      - 'QA_PR360_CANDIDATE.vbs'
+      - 'QA_PR360_RUNTIME.vbs'
+      - 'scripts/pr360-disposable-runtime-qa.mjs'
+      - 'tests/pr360-disposable-runtime.test.mjs'
+      - 'tests/windows-readonly-acceptance.test.mjs'
+      - 'QA_BAUMANWEB_READONLY.vbs'
+      - 'scripts/local-ops-web-launcher.mjs'
+      - 'scripts/local-ops-growup-static.mjs'
+      - 'scripts/local-ops-math-qa-static.mjs'
+      - 'tests/local-ops-math-qa.test.mjs'
+      - 'app/management-dashboard-v2.tsx'
+      - 'scripts/local-ops-single-app-real-process-qa.mjs'
+      - 'tests/local-ops-web-launcher.test.mjs'
+      - 'tests/local-ops-daemon.test.mjs'
+      - 'tests/local-ops-git-real.test.mjs'
+      - 'control/local-ops-apps.json'
+      - 'app/offline-ops-client.ts'
+      - 'app/offline-ops-panel.tsx'
+      - 'scripts/run-all.mjs'
+      - 'scripts/run-local-system.mjs'
+      - 'scripts/local-ops-shutdown-contract.mjs'
+      - 'scripts/local-ops-shutdown-evidence.mjs'
+      - 'scripts/local-ops-managed-process.mjs'
+      - 'scripts/local-ops-windows-process-tree.mjs'
+      - 'scripts/local-ops-drain-adapter.mjs'
+      - 'scripts/local-ops-runtime-drain-preflight.mjs'
+      - 'scripts/local-ops-wrangler-ingress.mjs'
+      - 'scripts/local-ops-private-wrangler-proof.mjs'
+      - 'scripts/local-ops-managed-startup-policy.mjs'
+      - 'scripts/local-ops-control-source-audit.mjs'
+      - 'scripts/local-ops-isolate-drain-ledger.mjs'
+      - 'tests/local-ops-isolate-drain-ledger.test.mjs'
+      - 'scripts/local-ops-process-bound-gateway-qa.mjs'
+      - 'scripts/local-ops-real-workerd-process-bound-qa.mjs'
+      - 'tests/fixtures/local-ops-real-workerd-d1-child.mjs'
+      - 'tests/fixtures/local-ops-graceful-gateway-child.mjs'
+      - 'scripts/local-ops-managed-wrangler-candidate.mjs'
+      - 'tests/local-ops-managed-wrangler-candidate.test.mjs'
+      - 'tests/local-ops-control-source-audit.test.mjs'
+      - 'tests/local-ops-managed-startup-policy.test.mjs'
+      - 'tests/local-ops-private-wrangler-proof.test.mjs'
+      - 'tests/blueprint-guidance-required.test.mjs'
+      - 'app/management-quick-actions.tsx'
+      - 'app/offline-ops-panel.css'
+      - 'scripts/local-ops-real-wrangler-drain-smoke.mjs'
+      - 'scripts/local-ops-wrangler-api-process-bound-qa.mjs'
+      - 'tests/fixtures/local-ops-wrangler-api-d1-child.mjs'
+      - 'tests/local-ops-wrangler-ingress.test.mjs'
+      - 'tests/fixtures/wrangler-d1-flight-worker.mjs'
+      - 'tests/local-ops-managed-process.test.mjs'
+      - 'tests/local-ops-drain-adapter.test.mjs'
+      - 'tests/local-ops-runtime-drain-preflight.test.mjs'
+      - 'tests/local-ops-blocked-adapter-plan.test.mjs'
+      - 'control/local-ops-blocked-adapter-plan.json'
+      - 'docs/OFFLINE_10_BLOCKED_ADAPTER_ROADMAP_2026-10-17.md'
+      - 'control/local-ops-shutdown-evidence.json'
+      - 'tests/local-ops-shutdown-evidence.test.mjs'
+      - 'docs/OFFLINE_SHUTDOWN_13_UNIT_AUDIT_2026-10-17.md'
+      - 'tests/local-ops-shutdown-contract.test.mjs'
+      - 'tests/local-ops-shutdown-evidence.test.mjs'
+      - 'scripts/local-ops-source-identity.mjs'
+      - 'scripts/local-ops-supervised-restart-smoke.mjs'
+      - 'tests/local-ops-windows-smoke.test.mjs'
+      - 'scripts/local-d1-persistence-smoke.mjs'
+      - 'docs/BAUMANWEB_LOCAL_OPS.md'
   workflow_dispatch:
 
 permissions:
@@ -28,8 +99,50 @@ jobs:
           package-manager-cache: false
       - name: Install dependencies before disconnecting runtime
         run: npm ci --no-audit --no-fund
+      - name: Git fast-forward fixtures and localhost protocol regression
+        run: node --test tests/local-ops-daemon.test.mjs tests/local-ops-git-real.test.mjs tests/local-ops-shutdown-contract.test.mjs tests/local-ops-shutdown-evidence.test.mjs tests/local-ops-managed-process.test.mjs tests/local-ops-drain-adapter.test.mjs tests/local-ops-runtime-drain-preflight.test.mjs tests/local-ops-blocked-adapter-plan.test.mjs tests/local-ops-wrangler-ingress.test.mjs tests/local-ops-private-wrangler-proof.test.mjs tests/blueprint-guidance-required.test.mjs tests/local-ops-managed-startup-policy.test.mjs tests/local-ops-control-source-audit.test.mjs tests/local-ops-managed-wrangler-candidate.test.mjs tests/local-ops-isolate-drain-ledger.test.mjs
+      - name: Math QA detached source and standalone localhost static gate (disposable fixture)
+        run: node --test tests/local-ops-math-qa.test.mjs tests/local-ops-web-launcher.test.mjs tests/application-launcher-grid.test.mjs
+      - name: Verify one app opens exactly one local PID and port with real Git SHA
+        run: node scripts/local-ops-single-app-real-process-qa.mjs
+      - name: Verify guarded stack restart with real Git HEAD and mock local ports
+        run: node scripts/local-ops-supervised-restart-smoke.mjs
+      - name: Read-only 13-unit matrix audit (never a release approval)
+        run: node scripts/local-ops-shutdown-evidence.mjs
+      - name: Check local D1 process-to-process persistence in disposable storage
+        run: node scripts/local-d1-persistence-smoke.mjs
+      - name: Process-bound real Node gateway graceful ACK (scope fixture-only)
+        run: node scripts/local-ops-process-bound-gateway-qa.mjs
+      - name: Real workerd D1 and process-bound Miniflare.dispose graceful QA
+        run: node scripts/local-ops-real-workerd-process-bound-qa.mjs
+      - name: Real Wrangler API D1 process-bound graceful ACK (temporary only)
+        run: node scripts/local-ops-wrangler-api-process-bound-qa.mjs
+      - name: Actual Wrangler/Miniflare D1 in-flight HTTP over localhost (temporary only)
+        run: node scripts/local-ops-real-wrangler-drain-smoke.mjs
       - name: Acquire sandbox image at build time
         run: docker pull node:22-bookworm-slim
+      - name: Verify localhost security protocol inside network-denied container
+        run: |
+          docker run --rm \
+            --network none \
+            --user "$(id -u):$(id -g)" \
+            --memory 1g --cpus 1 \
+            -v "$GITHUB_WORKSPACE:/workspace" \
+            -w /workspace \
+            -e CI=1 \
+            node:22-bookworm-slim \
+            node --test tests/local-ops-daemon.test.mjs
+      - name: Verify disposable D1 persistence with external network denied
+        run: |
+          docker run --rm \
+            --network none \
+            --user "$(id -u):$(id -g)" \
+            --memory 2g --cpus 2 \
+            -v "$GITHUB_WORKSPACE:/workspace" \
+            -w /workspace \
+            -e CI=1 \
+            node:22-bookworm-slim \
+            node scripts/local-d1-persistence-smoke.mjs
       - name: Test local standalone root in network-denied process
         run: |
           docker run --rm \
@@ -44,3 +157,56 @@ jobs:
             node scripts/local-isolated-network-none-smoke.mjs
       - name: Accurate scoped result
         run: echo "NO claim about cross-app orchestration, private storage, real UX or Product Acceptance."
+
+  windows-helper-and-d1:
+    runs-on: windows-latest
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22.13.0'
+          package-manager-cache: false
+      - name: Windows PR360 disposable runtime negative-gate tests (do not launch Docker)
+        run: node --test tests/pr360-disposable-runtime.test.mjs
+      - name: Windows PR360 candidate isolated preparation fail-closed fixture
+        run: node --test tests/local-ops-candidate-acceptance.test.mjs
+      - name: Windows Node-only passive QA must fail closed (no PowerShell)
+        run: node --test tests/windows-readonly-node.test.mjs
+      - name: Windows read-only acceptance script checks fail-closed (disposable fixture)
+        shell: pwsh
+        run: |
+          $qaRoot = Join-Path $env:RUNNER_TEMP 'BaumanWeb'
+          $manager = Join-Path $qaRoot 'Application-Management'
+          New-Item -ItemType Directory -Force (Join-Path $manager 'control') | Out-Null
+          Copy-Item control/local-ops-apps.json (Join-Path $manager 'control/local-ops-apps.json')
+          $report = Join-Path $env:RUNNER_TEMP 'read-only-qa-report'
+          & powershell.exe -NoProfile -NonInteractive -File scripts/windows-readonly-acceptance.ps1 -WorkspaceRoot $qaRoot -ReportDirectory $report
+          if ($LASTEXITCODE -ne 0) { throw 'Read-only collector failed' }
+          $json = Get-Content (Join-Path $report 'latest.json') -Raw | ConvertFrom-Json
+          if ($json.verdict -ne 'BLOCKED_NEEDS_HUMAN_REVIEW') { throw 'Must never self-approve' }
+          if ($json.d1Shutdown -ne 'BLOCKED_NOT_TESTED') { throw 'Must never fake D1 drain' }
+          if ($json.manager.git.state -eq 'MAIN_TRACKED_CLEAN') { throw 'Fixture cannot be treated as exact owner checkout' }
+          if ($json.secretsCaptured -ne $false) { throw 'Secrets must not be captured' }
+      - name: Windows helper cold-start/restart + real Git SHA fixtures
+        run: node --test tests/local-ops-windows-smoke.test.mjs tests/local-ops-git-real.test.mjs tests/local-ops-daemon.test.mjs tests/local-ops-shutdown-contract.test.mjs tests/local-ops-shutdown-evidence.test.mjs tests/local-ops-managed-process.test.mjs tests/local-ops-drain-adapter.test.mjs tests/local-ops-runtime-drain-preflight.test.mjs tests/local-ops-blocked-adapter-plan.test.mjs tests/local-ops-wrangler-ingress.test.mjs tests/local-ops-private-wrangler-proof.test.mjs tests/blueprint-guidance-required.test.mjs tests/local-ops-managed-startup-policy.test.mjs tests/local-ops-control-source-audit.test.mjs tests/local-ops-managed-wrangler-candidate.test.mjs tests/local-ops-isolate-drain-ledger.test.mjs
+      - name: Install local D1 tooling
+        run: npm ci --no-audit --no-fund
+      - name: Windows one-app localhost PID/port/SHA smoke (disposable fixture)
+        run: node scripts/local-ops-single-app-real-process-qa.mjs
+      - name: Windows guarded stack restart with mocked child and real Git HEADs
+        run: node scripts/local-ops-supervised-restart-smoke.mjs
+      - name: Disposable Windows D1 write-stop-read persistence
+        run: node scripts/local-d1-persistence-smoke.mjs
+      - name: Process-bound Windows Node gateway graceful ACK and port release (QA only)
+        run: node scripts/local-ops-process-bound-gateway-qa.mjs
+      - name: Real Windows workerd D1 and process-bound Miniflare.dispose graceful QA
+        run: node scripts/local-ops-real-workerd-process-bound-qa.mjs
+      - name: Windows Wrangler API D1 process-bound graceful ACK (temporary only)
+        run: node scripts/local-ops-wrangler-api-process-bound-qa.mjs
+      - name: Actual Windows Wrangler D1 in-flight HTTP and process-tree fixture
+        run: node scripts/local-ops-real-wrangler-drain-smoke.mjs
+      - name: Scope note
+        run: echo "Helper/D1 fixture only; full BaumanWeb multi-app Windows acceptance remains BLOCKED."

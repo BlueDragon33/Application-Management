@@ -1,5 +1,9 @@
 import { randomBytes } from "node:crypto";
-import { createReadStream, existsSync, statSync } from "node:fs";
+import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
+import { readSourceSnapshot } from "./local-ops-source-identity.mjs";
+import { SHUTDOWN_PROTOCOL, unsupportedFullStack } from "./local-ops-shutdown-contract.mjs";
+import { managedRuntimePlan, childOwnershipEvidence } from "./local-ops-managed-process.mjs";
+import { assertManagedControlAdmission, assertNoManagedArgvSecrets } from "./local-ops-managed-startup-policy.mjs";
 import { createServer } from "node:http";
 import { dirname, extname, join, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,6 +12,25 @@ import { spawn, spawnSync } from "node:child_process";
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const centralRoot = resolve(scriptDir, "..");
 const defaultAppsRoot = resolve(centralRoot, "..");
+const localOpsApps = JSON.parse(readFileSync(join(centralRoot, "control", "local-ops-apps.json"), "utf8")).apps;
+// The actual nested graph contains Vite, Wrangler, npm.cmd wrappers and D1.
+// There is currently no authenticated per-service drain/exit contract.
+// A request MUST be denied before signaling/terminating any of these children.
+process.on("message", message => {
+  if (message?.protocol !== SHUTDOWN_PROTOCOL ||
+      message?.nonce !== process.env.LOCAL_OPS_BOOT_NONCE ||
+      typeof message?.requestId !== "string" ||
+      !/^[0-9a-f]{40}$/.test(message.requestId)) return;
+  if (message.type === "local-ops-shutdown-preflight") {
+    process.send?.({ type: "local-ops-shutdown-preflight-result",
+      nonce: message.nonce, requestId: message.requestId, ...unsupportedFullStack() });
+  } else if (message.type === "local-ops-shutdown-commit") {
+    // Never accept stop before a full verified preflight+drain contract exists.
+    process.send?.({ type: "local-ops-shutdown-complete",
+      nonce: message.nonce, requestId: message.requestId,
+      ...unsupportedFullStack(), shutdownCompleted: false });
+  }
+});
 const isWindows = process.platform === "win32";
 const npm = isWindows ? "npm.cmd" : "npm";
 const npx = isWindows ? "npx.cmd" : "npx";
@@ -134,7 +157,16 @@ function startStaticServer(root, port) {
 }
 
 function spawnService({ name, command, args, cwd, env = {} }) {
-  const spec = commandSpec(command, args);
+  assertNoManagedArgvSecrets({managed:Boolean(process.env.LOCAL_OPS_BOOT_NONCE),command,args});
+  const managedPlan = managedRuntimePlan({
+    command, args, cwd, managed: Boolean(process.env.LOCAL_OPS_BOOT_NONCE),
+  });
+  const spec = managedPlan.verifiedDirectChild
+    ? { file: managedPlan.command, args: managedPlan.args }
+    : commandSpec(command, args);
+  if (process.env.LOCAL_OPS_BOOT_NONCE && !managedPlan.verifiedDirectChild
+      && managedPlan.mode === "wrapper-unverified")
+    console.warn("[Local Ops] " + name + " still uses unverified npm wrapper; shutdown gate remains BLOCKED.");
   const child = spawn(spec.file, spec.args, {
     cwd,
     env: { ...process.env, ...env },
@@ -144,6 +176,11 @@ function spawnService({ name, command, args, cwd, env = {} }) {
   const prefix = `[${name}]`;
   child.stdout.on("data", (chunk) => process.stdout.write(`${prefix} ${String(chunk).replace(/\n/g, `\n${prefix} `)}`));
   child.stderr.on("data", (chunk) => process.stderr.write(`${prefix} ${String(chunk).replace(/\n/g, `\n${prefix} `)}`));
+  if (process.env.LOCAL_OPS_BOOT_NONCE) {
+    const ownership = childOwnershipEvidence(managedPlan, child);
+    console.log("[Local Ops] "+ name + " process PID="+ (ownership.pid ?? "unknown") +
+      " directChild="+ownership.directChild+" drainedD1=false");
+  }
   return child;
 }
 
@@ -240,6 +277,8 @@ function kill(child, signal = "SIGTERM") {
 
 async function main() {
   const { appsRoot, forwarded } = parseArgs(process.argv.slice(2));
+  // First action: reject unsupported managed child sources before D1 or spawn.
+  assertManagedControlAdmission({managed:Boolean(process.env.LOCAL_OPS_BOOT_NONCE),appsRoot:appsRoot});
   const growUpRoot = join(appsRoot, "GrowUP_MyChildren");
   const growUpControlScript = join(growUpRoot, "control-service", "local-control.mjs");
   const priceRoot = join(appsRoot, "PriceReport_Tunggiabao");
@@ -403,6 +442,14 @@ async function main() {
     console.log(" Secret liên-app chỉ tồn tại trong process hiện tại; không ghi vào GitHub.");
     console.log(" 6 client quản trị + NC03 local runtime đã được khởi động trong cùng hệ thống.");
     console.log("===============================================================\n");
+    if (typeof process.send === "function" && process.env.LOCAL_OPS_BOOT_NONCE) {
+      // Bound to this actual run-all child and emitted only AFTER all existing
+      // contract/readiness gates. It is a process-bound Git source readback,
+      // not individual apps attesting an HTTP build SHA.
+      const sources = await readSourceSnapshot(appsRoot, localOpsApps);
+      process.send({ type: "local-ops-stack-ready", protocol: "local-ops-source/v1",
+        nonce: process.env.LOCAL_OPS_BOOT_NONCE, sources });
+    }
   } catch (error) {
     close();
     throw error;

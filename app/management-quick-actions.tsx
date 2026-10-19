@@ -10,6 +10,7 @@ export default function ManagementQuickActions() {
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState("");
   const [webOpen, setWebOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
   const apps = useMemo(() => applicationRegistry.filter((app) => PRIMARY_APP_IDS.has(app.id)), []);
 
   function go(view: string) {
@@ -126,8 +127,15 @@ export default function ManagementQuickActions() {
       <button type="button" disabled={Boolean(busy)} onClick={() => void refresh("sync")}><span>↻</span><b>{busy === "sync" ? "Đang đồng bộ…" : "Đồng bộ tất cả"}</b></button>
       <button type="button" disabled={Boolean(busy)} onClick={() => void refresh("refresh")}><span>⟳</span><b>{busy === "refresh" ? "Đang làm mới…" : "Làm mới trạng thái"}</b></button>
       <button type="button" onClick={() => go("audit")}><span>▤</span><b>Xem nhật ký</b></button>
+      <button type="button" data-blueprint-required="guidance" aria-expanded={guideOpen}
+        onClick={() => setGuideOpen(current => !current)}><span>?</span><b>Hướng dẫn · Next Action</b></button>
     </div>
 
+    {guideOpen ? <div className="qtQuickDockNotice" role="region" aria-label="Hướng dẫn Blueprint OS">
+      <strong>Blueprint OS 1.3.0</strong>
+      <p>Thiếu bằng chứng D1, exit, SHA hoặc review → BLOCKED. Không tự merge, publish hay phê duyệt.</p>
+      <button type="button" onClick={() => go("audit")}>Xem nhật ký & Quality Gates →</button>
+    </div> : null}
     {webOpen ? <div className="qtQuickWebMenu">
       <strong>Mở website sử dụng</strong>
       <small>Chọn đúng ứng dụng cần truy cập.</small>

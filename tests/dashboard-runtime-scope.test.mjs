@@ -30,7 +30,7 @@ test("runtime URL fallbacks stay guarded by the explicit localRuntime prop", () 
 
   const helper = dashboard.slice(helperStart, helperEnd);
   assert.match(helper, /summary\?\.webAccessPolicy === "deny"/);
-  assert.match(helper, /localRuntime && app\.localUrl/);
+  assert.match(helper, /mode === "offline"\) return localRuntime &&/);
 
-  assert.match(dashboard, /const hasWeb = webAccessAvailable\(app, summary, localRuntime\)/);
+  assert.match(dashboard, /const hasWeb = webAccessAvailable\(app, summary, localRuntime, operatingMode\)/);
 });

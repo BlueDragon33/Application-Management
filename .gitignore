@@ -43,5 +43,10 @@ next-env.d.ts
 /dist/
 /.wrangler/
 /.sites-runtime/
+.local-ops-bootstrap.log
+.local-ops-cold-pull.log
+.local-ops-runtime.log
+.local-ops-center.log
+.local-ops-web-*.log
 /outputs/
 /work/
