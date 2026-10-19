@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {parseNodeTestSummary,classifySavedNodeContract} from '../scripts/local-ops-node-contract-report.mjs';
+import {parseNodeTestSummary,classifySavedNodeContract,decodeSavedBuffer} from '../scripts/local-ops-node-contract-report.mjs';
 const sha='8c84784f73f653cc99d6a8851e9b1f4bda822a60';
 const prior={exactSHA:sha,exactSHAPass:true,primaryCheckoutUnchanged:true,nodeContract:'BLOCKED'};
 const tap='# tests 7\n# suites 0\n# pass 7\n# fail 0\n# skipped 0\n# cancelled 0\n# todo 0\n';
@@ -32,4 +32,12 @@ test('exit nonzero cannot be overridden by an all-green log',()=>{
 });
 test('untrusted free-form text cannot impersonate reporter summary',()=>{
   assert.equal(parseNodeTestSummary('PRINT tests 7\nPRINT pass 7\nPRINT fail 0').verdict,'BLOCKED_NO_SUMMARY');
+});
+
+test('PowerShell 5 UTF-16LE Tee-Object and UTF-8-BOM JSON decode safely',()=>{
+  const utf16=Buffer.concat([Buffer.from([0xff,0xfe]),Buffer.from(mojibake,'utf16le')]);
+  const utf8bom=Buffer.concat([Buffer.from([0xef,0xbb,0xbf]),Buffer.from(JSON.stringify(prior),'utf8')]);
+  const log=decodeSavedBuffer(utf16),originalReport=JSON.parse(decodeSavedBuffer(utf8bom));
+  assert.equal(classifySavedNodeContract({originalReport,log,expectedSha:sha}).verdict,'PASS_LOG_ONLY');
+  assert.throws(()=>decodeSavedBuffer(Buffer.from([0xfe,0xff,0,1])),/EVIDENCE_UTF16BE_UNSUPPORTED/);
 });
