@@ -495,7 +495,10 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       if (standaloneModeAvailable) {
         const saved = window.localStorage.getItem(operatingModeStorageKey);
         if (saved === "local" || saved === "online" || saved === "hybrid") {
-          if (availableOperatingMode(saved, standaloneModeAvailable)) setOperatingMode(saved);
+          if (availableOperatingMode(saved, standaloneModeAvailable) && saved !== operatingMode) {
+            modeEpochRef.current++;
+            setOperatingMode(saved);
+          }
         }
       }
     } catch {
@@ -821,9 +824,13 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       setWebMenu(false);
       return;
     }
-    const fallback = app?.previewUrl ?? app?.publicUrl ?? (localRuntime ? app?.localUrl : undefined);
-    if (!summary?.webHref && !fallback) {
-      setNotice("Ứng dụng chưa công bố URL website hợp lệ.");
+    const fallback = operatingMode === "local"
+      ? (localRuntime ? app?.localUrl : undefined)
+      : (app?.previewUrl ?? app?.publicUrl ?? (localRuntime ? app?.localUrl : undefined));
+    if ((operatingMode === "local" && !fallback) || (!summary?.webHref && !fallback)) {
+      setNotice(operatingMode === "local"
+        ? "Ứng dụng chưa có địa chỉ local được khai báo. Không tự mở link online khi đang chọn Cục bộ."
+        : "Ứng dụng chưa công bố URL website hợp lệ.");
       return;
     }
     const actionKey = `web:${appId}`;
@@ -831,7 +838,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
     setWebBusy(appId);
     setNotice("");
     try {
-      if (summary?.managedWebLaunch && approvalGateEnabled) {
+      if (summary?.managedWebLaunch && hasProtectedOperationAccess(operatingMode, managedAccessVerified)) {
         const popup = window.open("about:blank", "_blank");
         if (popup) popup.opener = null;
         try {
@@ -844,7 +851,11 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
           throw caught;
         }
       } else {
-        window.open(app?.ssoStartUrl ?? app?.previewUrl ?? summary?.webHref ?? fallback, "_blank", "noopener,noreferrer");
+        const launchUrl = operatingMode === "local"
+          ? fallback
+          : app?.ssoStartUrl ?? app?.previewUrl ?? summary?.webHref ?? fallback;
+        if (!launchUrl) throw new Error("Không có đường mở ứng dụng phù hợp chế độ hiện tại.");
+        window.open(launchUrl, "_blank", "noopener,noreferrer");
       }
       setWebMenu(false);
     } catch (caught) {
@@ -1154,7 +1165,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
         <button className="amv2-access-mode" data-operating-mode={operatingMode} onClick={() => setModeDialogOpen(true)} title="Chọn Cục bộ, Trực tuyến hoặc Kết hợp — không thay đổi quyền máy chủ"><span>◉</span><div><small>Chế độ vận hành</small><strong>{operatingModeLabel(operatingMode)} ▾</strong></div></button>
         <button className="amv2-bell" aria-label={notificationCount ? `Mở Cảnh báo: ${notificationCount} thông báo` : "Mở Cảnh báo"} onClick={() => switchView("alerts")}>♧{notificationCount ? <b>{notificationCount}</b> : null}</button>
         <span className="amv2-online" data-standalone={offline}><i/><strong>{operatingModeLabel(operatingMode)} · {offline ? "Bản lưu" : "LIVE"}</strong><small>{syncing ? "Đang đồng bộ…" : offline ? "Chưa có readback LIVE" : "Dữ liệu đã cập nhật"}</small></span>
-        <details className="amv2-account"><summary><span>{initials(user.displayName)}</span><div><strong>{user.displayName}</strong><small>{approvalGateEnabled ? roleLabels[access.role] : "Standalone Owner"}</small></div><b>⌄</b></summary><div><small>{user.email}</small>{authMode === "cloudflare-production" ? <a href="/__account">Tài khoản & bảo mật</a> : <button onClick={() => setAccountSecurityOpen(true)}>Tài khoản & bảo mật</button>}<button onClick={() => switchView("settings")}>Cấu hình</button>{authMode === "cloudflare-production" ? <form method="post" action="/__logout"><button type="submit">Đăng xuất</button></form> : <a href="/signout-with-chatgpt?return_to=%2F">Đăng xuất</a>}</div></details>
+        <details className="amv2-account"><summary><span>{initials(user.displayName)}</span><div><strong>{user.displayName}</strong><small>{operatingMode === "hybrid" && !managedAccessVerified ? "Bản lưu · Chỉ xem" : operatingMode === "local" ? "Cục bộ · Chỉ xem" : roleLabels[access.role]}</small></div><b>⌄</b></summary><div><small>{user.email}</small>{authMode === "cloudflare-production" ? <a href="/__account">Tài khoản & bảo mật</a> : <button onClick={() => setAccountSecurityOpen(true)}>Tài khoản & bảo mật</button>}<button onClick={() => switchView("settings")}>Cấu hình</button>{authMode === "cloudflare-production" ? <form method="post" action="/__logout"><button type="submit">Đăng xuất</button></form> : <a href="/signout-with-chatgpt?return_to=%2F">Đăng xuất</a>}</div></details>
       </header>
 
       <div className="amv2-content" data-view={view}>
