@@ -57,3 +57,8 @@
   .dialogFooter { bottom: -13px; }
   .dialogFooter > div { display: grid; grid-template-columns: 1fr 1fr; }
 }
+
+/* Authenticator entry is visible inside the modal, not behind its scrim. */
+.authHelp { margin: 0 0 10px; padding: 9px 12px; border: 1px solid rgba(111,194,165,.32); border-radius: 8px; color: #d9efe5; background: rgba(4,32,24,.7); font-size: .81rem; line-height: 1.45; }
+.authHelp a { color: #b6ffe4; text-decoration: underline; text-underline-offset: 3px; font-weight: 700; }
+.authHelp a:focus-visible { outline: 2px solid #bbffe7; outline-offset: 3px; }
