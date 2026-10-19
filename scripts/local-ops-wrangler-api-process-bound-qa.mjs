@@ -24,7 +24,7 @@ const marker=randomBytes(16).toString("hex");
 const backgroundMarker=randomBytes(16).toString("hex");
 const {stdout:rev}=await exec("git",["rev-parse","HEAD"],{cwd:ROOT,windowsHide:true});
 const sha=rev.trim();assert.match(sha,/^[0-9a-f]{40}$/);
-let child=null,port=null,tree=null,log="",stopAcknowledged=false;
+let child=null,port=null,tree=null,lateTree=null,log="",stopAcknowledged=false;
 async function sql(query){
   const {stdout}=await exec(process.execPath,[WRANGLER,"d1","execute",DB,
     "--local","--config",configFile,"--persist-to",persistDir,
@@ -134,6 +134,8 @@ try{
   assert.equal(readyFixture.declaredBackgroundD1ReadbackVerified,true);
   assert.equal(readyFixture.allWaitUntilJobsInstrumented,false);
   assert.equal(readyFixture.allIsolateInventoryVerified,false);
+  // A second snapshot captures descendants that may have appeared after boot.
+  if(process.platform==="win32")lateTree=await captureWindowsTree(child.pid);
   const stop=await ask("qa-stop");
   assert.equal(stop.type,"qa-stop-ack");
   assert.equal(stop.wranglerApiStopCompleted,true);
@@ -145,6 +147,7 @@ try{
   stopAcknowledged=true;
   await waitExit();
   if(tree)assert.equal((await verifyWindowsTreeGone(tree)).stopped,true);
+  if(lateTree)assert.equal((await verifyWindowsTreeGone(lateTree)).stopped,true);
   await requirePortFreed(port);
   const durable=await sql("SELECT val FROM flight_qa WHERE id='"+marker+"'");
   assert.equal(durable[0]?.val,"COMMITTED");
@@ -154,7 +157,9 @@ try{
   console.log(JSON.stringify({result:"WRANGLER_API_D1_PID_NONCE_SHA_ACK_QA_PASS",
     platform:process.platform,processPid:child.pid,sourceSha:sha,
     genuineD1Write:true,d1ReadbackAfterWranglerStop:true,
-    apiStopAwaitedBeforeAck:stopAcknowledged,windowsTreeExited:tree?true:"not-windows",
+    apiStopAwaitedBeforeAck:stopAcknowledged,windowsTreeExited:tree&&lateTree?true:"not-windows",
+    windowsSnapshotsChecked:tree&&lateTree?2:0,
+    windowsProcessTreeScope:"captured PID descendants only, not full isolate census",
     localPortReleased:true,wrongPidShaNonceRejected:true,
     activeD1RequestStopsDenied:true,backgroundD1StopDeniedUntilReadback:true,
     actualWaitUntilBackgroundWrite:true,backgroundD1ReadbackAfterApiStop:true,
