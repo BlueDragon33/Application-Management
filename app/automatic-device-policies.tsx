@@ -99,7 +99,7 @@ function draftChanged(policy: OperationsAutomationPolicy, draft: AutomationAppDr
     && (policy.current.freeAccessDays !== days || policy.current.freeDeviceLimit !== limit);
 }
 
-export default function AutomaticDevicePolicies({ apps, settings, verified, busy, close, sync, save }: {
+export default function AutomaticDevicePolicies({ apps, settings, verified, busy, close, sync, save, verifyAuthenticatorHref }: {
   apps: readonly AutomationApp[];
   settings: OperationsSettings | undefined;
   verified: boolean;
@@ -107,6 +107,7 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
   sync: () => Promise<unknown>;
   close: () => void;
   save: (selection: AutomationSelection) => Promise<OperationsSettings | null | undefined>;
+  verifyAuthenticatorHref?: string;
 }) {
   const [drafts, setDrafts] = useState<Record<string, AutomationAppDraft>>(() => initialDrafts(apps, settings));
   const submitLockRef = useRef(false);
@@ -226,6 +227,7 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
       </header>
       <p className={styles.intro}><strong>Đang áp dụng</strong> là dữ liệu readback. Các ô bên dưới là bản nháp; sau khi lưu thành công chúng tự đồng bộ lại đúng trạng thái client.</p>
       {!verified ? <p className={styles.warning}>Dữ liệu đang hiển thị chưa được xác minh LIVE trong phiên này. Đồng bộ online trước khi thay đổi quy tắc.</p> : null}
+      {verifyAuthenticatorHref ? <p className={styles.authHelp}>Thao tác duyệt và lưu cấu hình nhạy cảm cần Google Authenticator. <a href={verifyAuthenticatorHref} target="_blank" rel="noopener noreferrer">Mở xác minh Authenticator ↗</a> ở tab riêng, rồi quay lại lưu.</p> : null}
       {hasUnverifiedPolicy ? <p className={styles.warning}>Ứng dụng LAST KNOWN/UNAVAILABLE chỉ hiển thị tham chiếu và không được ghi mù. READ-ONLY là app chưa công bố automation contract an toàn.</p> : null}
 
       <div className={styles.list}>
@@ -324,7 +326,7 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
       </div>
 
       <footer className={styles.dialogFooter}>
-        <span className={styles.saveState}>{locked ? "Đang ghi và đọc lại client…" : !verified ? "Chưa xác minh LIVE" : hasChanges ? "Có thay đổi chưa lưu" : "Cấu hình đang khớp trạng thái đã đọc"}</span>
+        <span className={styles.saveState}>{locked ? "Đang ghi và đọc lại client…" : !verified ? "Chưa xác minh LIVE" : hasChanges ? "Có thay đổi chưa lưu; chưa công nhận đã ghi" : "Cấu hình đang khớp trạng thái đã đọc"}</span>
         <div><button type="button" onClick={() => void sync()} disabled={locked}>Đồng bộ LIVE</button><button onClick={close} disabled={locked}>Đóng</button><button className={styles.save} disabled={!canSave} onClick={() => void submit()}>{locked ? "Đang lưu…" : "Lưu thay đổi"}</button></div>
       </footer>
     </section>
