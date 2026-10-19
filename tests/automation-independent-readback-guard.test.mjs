@@ -11,28 +11,29 @@ const source=dashboard.slice(dashboard.indexOf("async function saveAutomation(")
 test("staged client mutation is NOT an independent applied receipt",()=>{
   assert.match(contract,/automation_policy_changes/);
   assert.match(source,/await Promise\.allSettled\(executions\)/);
-  assert.match(source,/await connectOperationsDashboard\(\)/);
+  assert.match(source,/await operationsAction\(\{ action: "read-automation", targetAppIds: changedAppIds \}\)/);
   assert.ok(source.indexOf("await Promise.allSettled(executions)") <
-    source.indexOf("await connectOperationsDashboard()"));
+    source.indexOf('await operationsAction({ action: "read-automation", targetAppIds: changedAppIds })'));
 });
 test("independent authenticated GET must exist and carry verified live field state",()=>{
-  assert.match(source,/observed\.access\.status === "approved"/);
-  assert.match(source,/independentReadback\.settings, task/);
+  assert.match(source,/changedAppIds\.every\(\(appId\) => observedIds\.has\(appId\)\)/);
+  assert.match(source,/taskMatchesReadback\(independentSettings, task\)/);
   assert.match(source,/policy\?\.verification\.state === "live"/);
   assert.match(source,/policy\?\.current\.autoApprove === desired/);
   assert.match(source,/policy\?\.current\.autoBlockPending === desired/);
 });
 test("write-response merge is not used to mark applied policy success",()=>{
   assert.doesNotMatch(source,/taskMatchesReadback\(mergedSettings, task\)/);
-  assert.doesNotMatch(source,/return mergedSettings;/);
-  assert.match(source,/if \(failedFields\.length \|\| !independentReadback\?\.settings\) return null;/);
-  assert.match(source,/if \(independentReadback\) setOperations\(independentReadback\);/);
-  assert.match(source,/return independentReadback\.settings/);
+  assert.match(source,/for \(const policy of independentSettings\?\.automationPolicies \?\? \[\]\)/);
+  assert.match(source,/return mergedSettings;/);
+  assert.match(source,/if \(failedFields\.length \|\| !independentSettings\) return null;/);
+  assert.match(source,/if \(independentSettings\) setOperations\(/);
+  assert.match(source,/return mergedSettings;/);
 });
 test("unavailable GET is blocked even after successful POST",()=>{
   assert.match(source,/INDEPENDENT_READBACK_UNAVAILABLE/);
-  assert.match(source,/independentReadback: OperationsBootstrap \| null = null/);
-  assert.match(source,/catch \{\s*\/\/ Fail closed:/);
+  assert.match(source,/independentSettings: OperationsBootstrap\["settings"\] \| null = null/);
+  assert.match(source,/catch \{\s*\/\/ No GET receipt;/);
   assert.match(editor,/if \(!readback\) \{/);
 });
 test("each field has source and exact value readback, including Boi limits",()=>{
