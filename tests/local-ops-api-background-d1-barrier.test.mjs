@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {createApiBackgroundD1Barrier} from '../scripts/local-ops-api-background-d1-barrier.mjs';
+import {readFileSync} from 'node:fs';
 const marker='ab'.repeat(16), other='cd'.repeat(16);
 test('cannot stop before any background work has been verified',()=>{
   const b=createApiBackgroundD1Barrier();
@@ -51,4 +52,20 @@ test('no signed global isolate or production shutdown claim',()=>{
   assert.equal(v.allWorkerIsolatesEnumerated,false);
   assert.equal(v.allWaitUntilJobsInstrumented,false);
   assert.equal(v.productionStopAuthorized,false);
+});
+
+test('QA source binds worker waitUntil background state to real API stop and post-stop CLI readback',()=>{
+  const worker=readFileSync(new URL('./fixtures/wrangler-d1-flight-worker.mjs',import.meta.url),'utf8');
+  const child=readFileSync(new URL('./fixtures/local-ops-wrangler-api-d1-child.mjs',import.meta.url),'utf8');
+  const parent=readFileSync(new URL('../scripts/local-ops-wrangler-api-process-bound-qa.mjs',import.meta.url),'utf8');
+  assert.match(worker,/ctx\.waitUntil\s*\(/);
+  assert.match(worker,/BACKGROUND_COMMITTED/);
+  assert.match(child,/background\.status\(\)\.fixtureStopMayProceed/);
+  assert.match(child,/D1_BACKGROUND_UNVERIFIED/);
+  assert.match(child,/await runtime\.stop\(\)/);
+  assert.match(parent,/assert\.equal\(deniedBackground\.reason,"D1_BACKGROUND_UNVERIFIED"\)/);
+  assert.match(parent,/persistedBackground=await sql/);
+  assert.match(parent,/assert\.equal\(persistedBackground\[0\]\?\.val,"BACKGROUND_COMMITTED"\)/);
+  assert.match(parent,/allWaitUntilJobsInstrumented:false/);
+  assert.match(parent,/allWorkerIsolatesEnumerated:false/);
 });
