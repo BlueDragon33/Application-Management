@@ -5,6 +5,20 @@ import {dirname,join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
 
+ // PowerShell 5's Tee-Object commonly writes UTF-16LE with BOM; Set-Content
+ // -Encoding UTF8 commonly writes UTF-8 BOM. Unsupported encodings fail closed.
+ export function decodeSavedBuffer(bytes) {
+   if(!Buffer.isBuffer(bytes))throw Error('EVIDENCE_BYTES_INVALID');
+   if(bytes.length>=2&&bytes[0]===0xff&&bytes[1]===0xfe)
+     return bytes.subarray(2).toString('utf16le');
+   if(bytes.length>=2&&bytes[0]===0xfe&&bytes[1]===0xff)
+     throw Error('EVIDENCE_UTF16BE_UNSUPPORTED');
+   const utf8=bytes.length>=3&&bytes[0]===0xef&&bytes[1]===0xbb&&bytes[2]===0xbf;
+   const source=utf8?bytes.subarray(3):bytes;
+   if(source.includes(0))throw Error('EVIDENCE_ENCODING_UNSUPPORTED');
+   return source.toString('utf8');
+ }
+
 export function parseNodeTestSummary(log,{expectedTests=7,exitCode=null}={}) {
   if(typeof log!=='string'||!Number.isSafeInteger(expectedTests)||expectedTests<1||
      (exitCode!==null&&(!Number.isInteger(exitCode)||exitCode<0)))
@@ -52,8 +66,8 @@ if(process.argv[1]&&fileURLToPath(import.meta.url)===process.argv[1]) {
     process.exitCode=2;
   } else {
     try {
-      const originalReport=JSON.parse(readFileSync(join(dirname(logPath),'result.json'),'utf8'));
-      const log=readFileSync(logPath,'utf8');
+      const originalReport=JSON.parse(decodeSavedBuffer(readFileSync(join(dirname(logPath),'result.json'))));
+      const log=decodeSavedBuffer(readFileSync(logPath));
       const report=classifySavedNodeContract({originalReport,log,expectedSha});
       const output={...report,logSha256:createHash('sha256').update(log).digest('hex'),
         evidenceType:'NODE_TEST_LOG_RECLASSIFICATION_NOT_RUNTIME_QA'};
