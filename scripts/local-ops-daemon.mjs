@@ -187,13 +187,14 @@ async function pullAll() {
     state.busy = "";
   }
 }
-export async function probe(port, path = "/") {
+export async function probe(port, path = "/", expectedSha = null) {
   try {
     const response = await fetch("http://127.0.0.1:" + port + path, {
       signal: AbortSignal.timeout(900), cache: "no-store", redirect: "manual",
     });
     // 30x may point to a published site; a redirect never proves local readiness.
-    return response.status >= 200 && response.status < 300;
+    return response.status >= 200 && response.status < 300 &&
+      (!expectedSha || response.headers.get("x-math-qa-sha") === expectedSha);
   } catch { return false; }
 }
 export function portOccupied(port, timeout = 700) {
@@ -246,7 +247,7 @@ async function status() {
       try {
         const now = await readSourceSnapshot(WORKSPACE, [app]);
         if (exactSourceMatch(frontend.sources, now)) {
-          singleReady = Boolean(await probe(app.port, app.path || "/"));
+          singleReady = Boolean(await probe(app.port, app.path || "/",app.qaSha || null));
           sourceSha = now[app.id] || null;
         } else {
           state.restartRequired = true;
@@ -257,7 +258,7 @@ async function status() {
         webErrors.set(app.id, "WEB_SOURCE_READBACK_BLOCKED: " + String(error).slice(0, 160));
       }
     }
-    const globalReady = Boolean(verified && app.port && await probe(app.port, app.path || "/"));
+    const globalReady = Boolean(!app.qaWorktree && verified && app.port && await probe(app.port, app.path || "/"));
     return {
       id: app.id, port: app.port,
       url: app.port ? "http://127.0.0.1:" + app.port + (app.path || "/") : null,
@@ -266,7 +267,9 @@ async function status() {
       sourceSha: globalReady ? (state.sourceSnapshot?.[app.id] ?? null) : sourceSha,
       phase: frontend?.phase || "stopped", pid: frontend?.child.pid || null,
       error: webErrors.get(app.id) || null,
-      evidence: singleReady ? "owned PID + Git main SHA + localhost HTTP (not signed app build)" : null,
+      evidence: singleReady ? (app.qaWorktree
+        ? "QA ONLY: owned PID + exact detached Git SHA + matching localhost HTTP header (not signed app build)"
+        : "owned PID + Git main SHA + localhost HTTP (not signed app build)") : null,
     };
   }));
   return { ok: true, workspace: basename(WORKSPACE), agent: "localhost", busy: state.busy, runtime: state.runtime,
@@ -311,7 +314,7 @@ async function startWebFrontend(id) {
     for(let i=0;i<45;i+=1){
       if (entry.phase==="blocked" || child.exitCode !== null || child.signalCode !== null)
         throw Error(webErrors.get(id) || "WEB_EXIT_BEFORE_READY");
-      if (await probe(app.port,app.path||"/")) {
+      if (await probe(app.port,app.path||"/",app.qaSha||null)) {
         const after = await readSourceSnapshot(WORKSPACE,[app]);
         if (!exactSourceMatch(before,after)) {
           state.restartRequired=true;
