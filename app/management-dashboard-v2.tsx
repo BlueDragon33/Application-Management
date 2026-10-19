@@ -489,6 +489,9 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   }
 
   useEffect(() => {
+    // Development and disposable Chromium QA must show real Vite/network errors.
+    // A cached PWA offline.html otherwise masks a failed QA runtime as app content.
+    if (process.env.NODE_ENV !== "production") return;
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => undefined);
     }
