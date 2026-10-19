@@ -5,6 +5,7 @@ import {readFileSync} from "node:fs";
 const dashboard=readFileSync("app/management-dashboard-v2.tsx","utf8");
 const editor=readFileSync("app/automatic-device-policies.tsx","utf8");
 const contract=readFileSync("app/automation-policy-changes.server.ts","utf8");
+const endpoint=readFileSync("app/api/operations/route.ts","utf8");
 const source=dashboard.slice(dashboard.indexOf("async function saveAutomation("),
   dashboard.indexOf("async function manageControlDevice(",dashboard.indexOf("async function saveAutomation(")));
 
@@ -55,4 +56,26 @@ test("partial readback never overwrites pending user-edited client values",()=>{
   assert.match(editor,/writeAutomationDraft\(window\.localStorage/);
   assert.match(editor,/touchedAppIdsRef\.current = new Set\(stillPending\.map/);
   assert.match(editor,/if \(!readback\) \{/);
+});
+
+test("authenticated readback action probes only changed app IDs without reloading devices",()=>{
+  const start=endpoint.indexOf('if (action === "read-automation")');
+  const stop=endpoint.indexOf('if (action === "launch-client-web")',start);
+  assert.ok(start>0&&stop>start);
+  const action=endpoint.slice(start,stop);
+  assert.match(endpoint,/const actor = await verifyControlProof\(payload/);
+  assert.match(action,/targets = \[\.\.\.new Set\(ids as string\[\]\)\]/);
+  assert.match(action,/dynamicIds = targets\.filter/);
+  assert.match(action,/await probeDynamicManagedApplications\(dynamicIds\)/);
+  assert.match(action,/await readAutoApprovalSettings\(\[\], targets, dynamic, targets\)/);
+  assert.match(action,/INVALID_AUTOMATION_READBACK_TARGETS/);
+  assert.doesNotMatch(action,/buildBootstrap\(|managedApps\(|manage-client-device/);
+});
+test("source policy readback cannot fabricate a previously live but unqueried app",()=>{
+  assert.match(source,/const observedIds = new Set\(observed\.settings\?\.automationPolicies/);
+  assert.match(source,/changedAppIds\.every\(\(appId\) => observedIds\.has\(appId\)\)/);
+  assert.match(source,/taskMatchesReadback\(independentSettings, task\)/);
+  assert.match(source,/policy\?\.verification\.state === "live"/);
+  assert.match(source,/if \(independentSettings\) setOperations\(\(previous\) => previous \?/);
+  assert.match(source,/settings: mergedSettings/);
 });
