@@ -1039,6 +1039,17 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
         return execution;
       });
       const settled = await Promise.allSettled(executions);
+      // A mutation response is NOT independent proof that its value persisted.
+      // Always require a separate authenticated read after all target writes.
+      let independentReadback: OperationsBootstrap | null = null;
+      try {
+        const observed = await connectOperationsDashboard();
+        if (observed.access.status === "approved" && observed.bootstrap?.settings?.automationPolicies?.length) {
+          independentReadback = observed.bootstrap;
+        }
+      } catch {
+        // Fail closed: the modal retains its pending desired configuration.
+      }
 
       const transportErrors = new Map<string, string>();
       const responseSettings: NonNullable<OperationsBootstrap["settings"]>[] = [];
@@ -1102,20 +1113,23 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       for (const task of tasks) {
         const policy = mergedSettings.automationPolicies?.find((item) => item.appId === task.appId);
         const label = activeApps.find((app) => app.id === task.appId)?.shortName ?? task.appId;
-        const verified = !transportErrors.has(task.appId + ":" + task.field) && taskMatchesReadback(mergedSettings, task);
+        const verified = !transportErrors.has(task.appId + ":" + task.field)
+          && independentReadback?.settings != null
+          && taskMatchesReadback(independentReadback.settings, task);
         if (!verified) {
           failedApps.add(task.appId);
           const fieldLabel = task.field === "autoApprove" ? "kiểm duyệt" : "quá hạn";
-          const detail = policy?.verification.errorCode ?? transportErrors.get(task.appId + ":" + task.field);
+          const detail = !independentReadback
+            ? "INDEPENDENT_READBACK_UNAVAILABLE"
+            : (independentReadback.settings?.automationPolicies?.find((row) => row.appId === task.appId)?.verification.errorCode
+              ?? policy?.verification.errorCode ?? transportErrors.get(task.appId + ":" + task.field));
           failedFields.push(label + " · " + fieldLabel + (detail ? " (" + detail + ")" : ""));
         }
       }
 
-      setOperations((previous) => previous ? {
-        ...previous,
-        settings: mergedSettings,
-        generatedAt: new Date().toISOString(),
-      } : previous);
+      // Only the independently retrieved snapshot may update the applied UI.
+      // Never replace the displayed source state using a write response alone.
+      if (independentReadback) setOperations(independentReadback);
 
       const succeededApps = changedAppIds.filter((appId) => !failedApps.has(appId));
       if (failedFields.length) {
@@ -1130,11 +1144,8 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
 
       // Preserve unsaved edits when ANY target failed. Do not rebase the modal
       // to old client values and falsely treat a partially applied batch as saved.
-      if (failedFields.length) return null;
-      // Full inventory refresh is eventual consistency only. It must never keep
-      // the Save button locked after target-app readback already succeeded.
-      window.setTimeout(() => void refreshOperations(true, true), 1_200);
-      return mergedSettings;
+      if (failedFields.length || !independentReadback?.settings) return null;
+      return independentReadback.settings;
     } catch (caught) {
       if (caught instanceof AdminApiError && caught.data.code === "STEP_UP_REQUIRED") {
         setStepUpRequired(true);
