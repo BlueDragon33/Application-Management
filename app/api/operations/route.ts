@@ -986,6 +986,23 @@ export async function POST(request: Request) {
     const action = typeof payload.action === "string" ? payload.action : "bootstrap";
     if (action === "bootstrap") return json(await buildBootstrap(actor));
 
+    if (action === "read-automation") {
+      // An independent, authenticated client GET, scoped to just the mutated
+      // apps. The write response and central audit ledger are never authoritative.
+      const ids = Array.isArray(payload.targetAppIds) ? payload.targetAppIds : [];
+      if (!ids.length || ids.length > 24
+        || ids.some((id) => typeof id !== "string"
+          || !/^[a-z0-9][a-z0-9-]{1,62}$/.test(id))) {
+        return json({ code: "INVALID_AUTOMATION_READBACK_TARGETS", error: "Danh sách ứng dụng cần đọc lại không hợp lệ." }, 400);
+      }
+      const targets = [...new Set(ids as string[])];
+      const specialized = new Set(["boi-ech", "health-care", "bauman-master-ai", "ru-life"]);
+      const dynamicIds = targets.filter((id) => !specialized.has(id));
+      const dynamic = dynamicIds.length ? await probeDynamicManagedApplications(dynamicIds) : [];
+      const settings = await readAutoApprovalSettings([], targets, dynamic, targets);
+      return json({ ok: true, settings });
+    }
+
     if (action === "launch-client-web") {
       const appId = text(payload.appId);
       if (appId !== "health-care") return json({ error: "Client này chưa công bố direct web launch do control-plane quản lý.", code: "WEB_LAUNCH_CONTRACT_MISSING" }, 409);
