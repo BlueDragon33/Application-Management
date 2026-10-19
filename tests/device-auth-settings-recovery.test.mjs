@@ -40,9 +40,10 @@ test('Managed/Production server gate cannot be bypassed by browser preference',(
 });
 test('Partial failed target readback does not discard unsaved policy edits',()=>{
   assert.match(dashboard,/if \(failedFields\.length\) return null;/);
-  assert.match(policy,/if \(!readback\) return;/);
+  assert.match(policy,/if \(!readback\) \{/);
   assert.match(policy,/draftEditedRef\.current = false;\s*setDrafts\(initialDrafts\(apps, readback\)\)/);
   assert.match(dashboard,/Chưa khớp readback/);
+  assert.match(dashboard,/if \(!window\.confirm\(confirmation\)\) return null;/);
 });
 test('Dashboard only promises saved state after readback verification',()=>{
   const successAt=dashboard.indexOf('setNotice("Đã lưu và readback chính xác "');
