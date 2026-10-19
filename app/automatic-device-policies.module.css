@@ -62,3 +62,9 @@
 .authHelp { margin: 0 0 10px; padding: 9px 12px; border: 1px solid rgba(111,194,165,.32); border-radius: 8px; color: #d9efe5; background: rgba(4,32,24,.7); font-size: .81rem; line-height: 1.45; }
 .authHelp a { color: #b6ffe4; text-decoration: underline; text-underline-offset: 3px; font-weight: 700; }
 .authHelp a:focus-visible { outline: 2px solid #bbffe7; outline-offset: 3px; }
+
+/* Browser-local pending state is distinct from a verified client policy. */
+.draftNotice { margin:9px 0;padding:10px 12px;border:1px solid rgba(218,180,105,.65);border-radius:8px;background:#34281b;color:#fff0d7;font-size:.83rem;line-height:1.5; }
+.dialogFooter > div {display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;}
+.dialogFooter > div button {min-height:37px;}
+@media(max-width:620px){.dialogFooter > div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));}}
