@@ -104,3 +104,47 @@ On 2026-10-18 the owner's passive `latest.json` showed Application Management `m
 ## Windows QA — PowerShell policy blocked fallback
 
 `QA_BAUMANWEB_READONLY.vbs` now invokes **Node.js** `scripts/windows-readonly-acceptance.mjs` (or a standalone flat sibling `.mjs`) rather than PowerShell. This avoids relying on the Windows PowerShell script policy **without disabling or bypassing security controls**. Node and Git should already be available for the offline app manager; when Node is missing, the VBS reports a distinct Node/PATH failure. The collector reads only Git source branch/SHA/tracked-clean state and existing Windows `netstat -ano -p TCP` listener ports/PIDs. It never calls HTTP, PowerShell, Git fetch/merge, reads secrets, or touches D1/process lifecycle. If `netstat` is unavailable it records `TCP_OBSERVATION_UNAVAILABLE` rather than STOPPED. Files: `%TEMP%\BaumanWeb-ReadOnly-QA\latest.json` and `latest.txt` (or `diagnostic.txt` for a collector failure). `BLOCKED_NEEDS_HUMAN_REVIEW` and `BLOCKED_NOT_TESTED` are permanently retained. This is a source/port observation only, not a human review or merge authorization. The previous standalone `.ps1` remains available for explicitly user-directed advanced QA, but not required for one-click read-only QA.
+
+
+## Math_Bauman · standalone QA offline (Draft PR #360, NOT RELEASED)
+
+**Product intent:** expose existing Math content offline through a one-click Bauman
+sub-client tile while preserving the owner's unmerged Math migration branch.
+This is **not** a new level-1 control-plane client, D1 integration, Production
+approval, or standalone Windows owner acceptance.
+
+- Math source: `BlueDragon33/Math_Bauman` **Draft PR #72**, fixed
+  `2d96583f034ff3c61456d52a0ef550d2c371d248` (3/3 previously scoped CI PASS).
+- User-supplied readback: `E:\\BaumanWeb\\_qa\\Math_Bauman_PR72`
+  **detached exact SHA**, original `E:\\BaumanWeb\\Math_Bauman` remains
+  `migration/full-webapp-v2` `361d597334eb2511f68abb5df41d3236e137d457`.
+- Manifest `math-bauman`: `directory=Math_Bauman` only for ownership metadata,
+  `qaWorktree=_qa/Math_Bauman_PR72` for actual source/runtime,
+  `port=3022`, `path=/index.html`, exact pinned SHA.
+  `3022` is **distinct from all registered ports** (3000–3011); the actual
+  Windows bind remains unverified and must fail closed if occupied.
+- `scripts/local-ops-math-qa-static.mjs` serves static GET/HEAD only,
+  `127.0.0.1:3022`, no package install, online fallback, process killing,
+  health D1/remote Control API or writes. Guarded path resolution, dotfile
+  and symlink traversal rejection; SHA response header is an *app-owned
+  reference*, not cryptographic runtime attestation.
+- Local-ops source admission checks detached HEAD, tracked-clean,
+  exact SHA and fixed QA directory; **all canonical managed sources continue
+  requiring clean `main`**. QA source is excluded from managed 13-unit stack
+  source contract; when opened alone, it must be process-owned and return
+  exact `x-math-qa-sha` on `/index.html`. No false global-ready status.
+- User-facing **Toán Bauman · Offline QA** tile is a tool under Bauman Hub,
+  opening via `launchOffline("math-bauman")`, never public online URL.
+  It does **not** elevate Math to an independently managed central client.
+
+**Installation / acceptance boundary:** PR #360 remains Draft; the user's
+Windows App-Manager `main` does **not** yet include this code. Running
+`START_BAUMANWEB.vbs` on existing main does not magically install this
+candidate. Never merge or overwrite active App-Manager just to demonstrate QA.
+First review independently; when an isolated candidate environment and safe
+startup are available, click the Math QA tile, verify displayed localhost
+`127.0.0.1:3022/index.html`, `x-math-qa-sha`, tabs/theme, refresh, cache and
+Internet disconnect. Stop only owned processes through safe controls.
+Screenshots, exact Windows SHA, request headers and UX notes are required
+before declaring Windows functionality PASS; independent release decision
+remains separate. CI/mock fixtures are **not Windows owner acceptance**.
