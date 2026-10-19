@@ -192,8 +192,27 @@ try{
   throw error;
 }finally{
   if(child&&child.exitCode===null&&child.signalCode===null){
-    child.kill("SIGTERM"); // FAILURE-ONLY fixture cleanup; never a product shutdown ACK.
-    await delay(350);
+    // FAILURE-ONLY disposal of our own isolated fixture. Never an ACK.
+    child.kill("SIGTERM");
+    await waitExit().catch(()=>{});
   }
-  await rm(dir,{recursive:true,force:true,maxRetries:5,retryDelay:300});
+  let safeToRemove=!child||child.exitCode!==null||child.signalCode!==null;
+  if(child&&process.platform==="win32"){
+    // If collection failed before a verified snapshot, never assume no workerd.
+    if(!tree)safeToRemove=false;
+    for(const snapshot of [tree,lateTree].filter(Boolean)){
+      try{
+        if(!(await verifyWindowsTreeGone(snapshot)).stopped)safeToRemove=false;
+      }catch{safeToRemove=false;}
+    }
+  }
+  if(port!==null){
+    try{await requirePortFreed(port);}catch{safeToRemove=false;}
+  }
+  if(safeToRemove){
+    await rm(dir,{recursive:true,force:true,maxRetries:5,retryDelay:300});
+  }else{
+    // Preserve disposable D1 state instead of deleting while a writer may live.
+    console.error("WRANGLER_API_QA_STORAGE_PRESERVED_UNVERIFIED_EXIT",dir);
+  }
 }
