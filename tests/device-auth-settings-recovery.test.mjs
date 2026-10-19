@@ -10,7 +10,7 @@ const policyCss=fs.readFileSync('app/automatic-device-policies.module.css','utf8
 test('Production 2FA required response points to a real account step-up route',()=>{
   assert.match(account,/code: "STEP_UP_REQUIRED"/);
   assert.match(account,/stepUpPath: ACCOUNT_PATH/);
-  assert.match(account,/action="${ACCOUNT_PATH}\/mfa\/step-up"/);
+  assert.ok(account.includes('action="${ACCOUNT_PATH}/mfa/step-up"'));
   assert.match(account,/Mã Authenticator/);
 });
 test('Device approval surfaces a discoverable real Authenticator link',()=>{
@@ -42,7 +42,7 @@ test('Partial failed target readback does not discard unsaved policy edits',()=>
   assert.match(dashboard,/if \(failedFields\.length\) return null;/);
   assert.match(policy,/if \(!readback\) return;/);
   assert.match(policy,/draftEditedRef\.current = false;\s*setDrafts\(initialDrafts\(apps, readback\)\)/);
-  assert.match(dashboard,/AUTO_APPROVAL/);
+  assert.match(dashboard,/Chưa khớp readback/);
 });
 test('Dashboard only promises saved state after readback verification',()=>{
   const successAt=dashboard.indexOf('setNotice("Đã lưu và readback chính xác "');
