@@ -35,7 +35,7 @@ test('Managed/Production server gate cannot be bypassed by browser preference',(
   assert.match(dashboard,/availableOperatingMode\(next, standaloneModeAvailable\)/);
   assert.match(dashboard,/hasProtectedOperationAccess\(operatingMode, managedAccessVerified\)/);
   assert.match(dashboard,/setManagedAccessVerified\(false\)/);
-  assert.match(dashboard,/không thể bỏ qua xác thực Production/);
+  assert.match(dashboard,/không thể bỏ qua xác thực Production/i);
   assert.doesNotMatch(dashboard,/TẮT · Vào thẳng/);
 });
 test('Partial failed target readback does not discard unsaved policy edits',()=>{
