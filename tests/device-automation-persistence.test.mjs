@@ -42,8 +42,9 @@ test("policy editor keeps unsupported managed apps visible but read-only", () =>
   assert.match(editor, /apps\.map/);
   assert.match(editor, /READ-ONLY/);
   assert.match(editor, /Không hỗ trợ/);
-  assert.match(editor, /disabled=\{locked \|\| !approveWritable\}/);
-  assert.match(editor, /disabled=\{locked \|\| !blockWritable\}/);
+  assert.match(editor, /disabled=\{locked\}/);
+  assert.match(editor, /canSave = Boolean\(settings\) && verified/);
+  assert.match(editor, /Chỉ lưu bản nháp; client chưa cho phép ghi LIVE/);
 });
 
 
