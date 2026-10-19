@@ -94,3 +94,8 @@ test("Apply stages exact intended draft before remote write and refuses mutation
   assert.match(modal,/drafts: \{ \.\.\.previous\?\.drafts, \.\.\.localIntent \}/);
   assert.match(modal,/Chưa xác minh áp dụng\. Bản chỉnh sửa đã giữ trên trình duyệt/);
 });
+
+test("saving one app's local draft does not erase other pending app intents",()=>{
+  assert.match(modal,/drafts: \{ \.\.\.previous\?\.drafts, \.\.\.pendingDrafts \}, days, limit/);
+  assert.match(modal,/drafts: \{ \.\.\.previous\?\.drafts, \.\.\.localIntent \}, days, limit/);
+});
