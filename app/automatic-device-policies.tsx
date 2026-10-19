@@ -257,11 +257,15 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
       const stillPending = Object.entries(intended).filter(([appId, proposed]) => {
         const policy = policyFor(readback, appId);
         if (policy.verification.state !== "live") return true;
-        if (!policy.support.autoApprove || policy.current.autoApprove !== proposed.autoApprove) return true;
-        if (!policy.support.autoBlockPending || policy.current.autoBlockPending !== proposed.autoBlock) return true;
+        // Unsupported disabled fields do not require a write; unsupported
+        // ENABLED intents remain pending rather than being accepted as applied.
+        if (proposed.autoApprove && !policy.support.autoApprove) return true;
+        if (policy.support.autoApprove && policy.current.autoApprove !== proposed.autoApprove) return true;
+        if (proposed.autoBlock && !policy.support.autoBlockPending) return true;
+        if (policy.support.autoBlockPending && policy.current.autoBlockPending !== proposed.autoBlock) return true;
         if (proposed.autoBlock && policy.current.pendingBlockAfterHours !== proposed.pendingBlockAfterHours) return true;
-        if (appId === "boi-ech" && (policy.current.freeAccessDays !== saved?.days ||
-            policy.current.freeDeviceLimit !== saved?.limit)) return true;
+        if (appId === "boi-ech" && (policy.current.freeAccessDays !== days ||
+            policy.current.freeDeviceLimit !== limit)) return true;
         return false;
       });
       let persistedPending = false;
