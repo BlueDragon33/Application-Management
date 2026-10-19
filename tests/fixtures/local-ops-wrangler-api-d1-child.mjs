@@ -1,11 +1,13 @@
 // QA only: owns a real programmatic Wrangler dev server and its D1 binding.
 // IPC receipts describe this ONE owned instance, never all production isolates.
 import { unstable_dev } from "wrangler";
+import { createApiBackgroundD1Barrier } from "../../scripts/local-ops-api-background-d1-barrier.mjs";
 const SHA=/^[0-9a-f]{40}$/;
 const NONCE=/^[A-Za-z0-9_-]{24,}$/;
 const MARKER=/^[0-9a-f]{32}$/;
 let runtime=null,bootNonce=null,sourceSha=null,active=0,stopping=false;
-let committedId=null,readbackId=null;
+let committedId=null,readbackId=null,backgroundMarker=null;
+const background=createApiBackgroundD1Barrier();
 const seen=new Set();
 function respond(type,requestId,data={}){
   process.send?.({...data,type,requestId,bootNonce,sourceSha,processPid:process.pid});
@@ -39,6 +41,9 @@ process.on("message",async message=>{
     if(message.type==="qa-preflight"){
       respond("qa-preflight",id,{active,stopping,
         completedWrite:committedId!==null,verifiedReadback:readbackId===committedId&&committedId!==null,
+        backgroundPending:background.status().backgroundPending,
+        declaredBackgroundD1ReadbackVerified:background.status().declaredBackgroundD1ReadbackVerified,
+        allWaitUntilJobsInstrumented:false,
         allIsolateInventoryVerified:false,globalD1QuiescenceVerified:false,
         permitShutdownUserRuntime:false});
       return;
@@ -56,6 +61,49 @@ process.on("message",async message=>{
            value.id!==message.marker)throw Error("WRANGLER_D1_WRITE_NOT_COMMITTED");
         committedId=message.marker;
         respond("qa-written",id,{committed:true,activeBeforeReply:active});
+      }finally{active--;}
+      return;
+    }
+    if(message.type==="qa-background-write"){
+      if(stopping||active!==0||committedId===null||readbackId!==committedId||
+         !background.start(message.marker)){
+        respond("qa-denied",id,{reason:"BACKGROUND_WRITE_NOT_ADMITTED"});return;
+      }
+      backgroundMarker=message.marker;
+      active++;
+      try{
+        const response=await runtime.fetch("http://example.com/background-write?id="+backgroundMarker,
+          {method:"POST"});
+        const value=await response.json();
+        if(response.status!==202||value.accepted!==true||
+           value.id!==backgroundMarker||value.backgroundWriteCompleted!==false)
+          throw Error("WRANGLER_BACKGROUND_WAITUNTIL_NOT_ACCEPTED");
+        respond("qa-background-accepted",id,{accepted:true,
+          backgroundCommitVerified:false,allWaitUntilJobsInstrumented:false});
+      }finally{active--;}
+      return;
+    }
+    if(message.type==="qa-background-read"){
+      if(stopping||active!==0||!MARKER.test(message.marker??"")||
+         message.marker!==backgroundMarker||background.status().tainted){
+        respond("qa-denied",id,{reason:"BACKGROUND_READBACK_NOT_ADMITTED"});return;
+      }
+      active++;
+      try{
+        let committed=false;
+        for(let i=0;i<60;i++){
+          const response=await runtime.fetch("http://example.com/read?id="+backgroundMarker);
+          const value=await response.json();
+          if(response.status===200&&value.val==="BACKGROUND_COMMITTED"){
+            committed=background.complete(backgroundMarker,value.val);break;
+          }
+          if(response.status!==200||value.val!=="PENDING")
+            throw Error("WRANGLER_BACKGROUND_D1_BAD_STATE");
+          await new Promise(ok=>setTimeout(ok,100));
+        }
+        if(!committed)throw Error("WRANGLER_BACKGROUND_D1_READBACK_TIMEOUT");
+        respond("qa-background-readback",id,{backgroundWriteCommitted:true,
+          declaredBackgroundReadbackVerified:true,globalD1QuiescenceVerified:false});
       }finally{active--;}
       return;
     }
@@ -78,13 +126,17 @@ process.on("message",async message=>{
       if(stopping||active!==0||committedId===null||readbackId!==committedId){
         respond("qa-denied",id,{reason:"D1_ACTIVE_OR_UNVERIFIED"});return;
       }
+      if(!background.status().fixtureStopMayProceed){
+        respond("qa-denied",id,{reason:"D1_BACKGROUND_UNVERIFIED"});return;
+      }
       stopping=true;
       // This is the real Wrangler dev API stop, NOT child.kill or taskkill.
       await runtime.stop();
       runtime=null;
       respond("qa-stop-ack",id,{
         wranglerApiStopCompleted:true,activeAtStop:0,
-        readbackBeforeStop:true,wholeIsolateInventoryVerified:false,
+        readbackBeforeStop:true,declaredBackgroundD1ReadbackBeforeStop:true,
+        allWaitUntilJobsInstrumented:false,wholeIsolateInventoryVerified:false,
         globallyQuiescentD1Verified:false,authorizedApplicationStop:false,
         autoRestartApproved:false});
       setImmediate(()=>process.exit(0));
