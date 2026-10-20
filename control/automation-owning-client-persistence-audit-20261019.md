@@ -53,3 +53,16 @@ The human operator supplied a real Windows console receipt for the separate Pric
 ### Exactly one next task
 
 Perform an authorized, offline isolated **Application-Management → PriceReport Universal Contract** QA against a disposable PriceReport Worker and App-Manager catalog, and verify source GET before/after write plus App-Manager UI reopen. Do not repeat the previously passed PriceReport Worker-only D1 pilot or simulate a Production result.
+
+## 2026-10-20 — Scoped App-Manager → PriceReport source integration candidate
+
+New App-Manager candidate fixes and test scope (NOT yet Windows runtime acceptance):
+- `app/open-contract.server.ts`: `probeManagedCatalogEntry(row, {automationOnly:true})` skips the unrelated device registry GET, while retaining manifest, encrypted credential, expected capability checks and fail-closed mutation. Normal inventory probes remain unchanged and fail closed on device registry read errors.
+- `probeDynamicManagedApplications(targets, {automationOnly:true})` is now used by dedicated independent policy readback, auto-approval, auto-block and the actual generic `executeUniversalAutomationCommand`.
+- `tests/price-report-app-manager-isolated-integration.test.mjs` invokes the real App-Manager catalog encryption and generic automation functions via Node TypeScript stripping against an isolated loopback HTTP fixture that models PriceReport's status/automation protocol. The scenarios cover encrypted catalog + credential, source policy write, independent GET, fresh App-Manager instance readback, stale revision, owner-only write, device endpoint outage, missing credential, and mutation persisted with failed independent GET.
+- `tests/targeted-automation-transaction.test.mjs`, `tests/automation-independent-readback-guard.test.mjs` and `tests/universal-automation-save-invariant.test.mjs` were updated to guard the new invariant. The future authorized auth/security workflow includes the isolated integration test; no GitHub-hosted Actions have been triggered.
+- In-memory V8 replay of 20 relevant source assertions PASS; new HTTP integration test syntax checked, **actual Node HTTP test and TypeScript check at latest SHA remain PENDING**.
+
+**DO NOT CLAIM PASS** for the two-Worker integrated App-Manager → PriceReport catalog/credential/write/readback path. The HTTP fixture is simulated, and actual PriceReport Worker-only Windows QA (already PASS at SHA 557bc9b27d2c7fffbfc5ecaa087b2ed18f78c0a1) is a distinct scope.
+
+**One Next Action:** Run only the newly added App-Manager isolated Node HTTP integration regression in a detached exact-SHA Windows QA worktree; if PASS, prepare actual disposable dual-Worker App-Manager → PriceReport end-to-end proof without Production data or duplication of the standalone PriceReport owner pilot.
