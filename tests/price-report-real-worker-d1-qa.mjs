@@ -12,7 +12,8 @@ import {fileURLToPath} from "node:url";
 import {stripTypeScriptTypes} from "node:module";
 import {setTimeout as sleep} from "node:timers/promises";
 
-const APP_SHA="4709e2841f92aee8f4292e857dd1e6118822e9fe";
+const APP_CONTRACT_BASELINE="4709e2841f92aee8f4292e857dd1e6118822e9fe";
+const APP_EXPECTED_HEAD=process.env.APP_MANAGER_QA_EXPECTED_HEAD||"";
 const PRICE_SHA="2b7f2787d2389596022d3f0cb96e62b66bdffcaa";
 const APP=resolve(dirname(fileURLToPath(import.meta.url)),"..");
 const PRICE=resolve(process.env.PRICE_REPORT_QA_ROOT||resolve(APP,"..","..","PriceReport_Tunggiabao"));
@@ -32,7 +33,13 @@ function pin(dir,sha,name){
   assert.equal(git(dir,["status","--porcelain","--untracked-files=no"]),"","BLOCKED_"+name+"_DIRTY");
 }
 function preflight(){
-  pin(APP,APP_SHA,"APPMANAGER");pin(PRICE,PRICE_SHA,"PRICEREPORT");
+  assert.match(APP_EXPECTED_HEAD,/^[0-9a-f]{40}$/,"BLOCKED_APP_MANAGER_QA_HEAD_REQUIRED");
+  pin(APP,APP_EXPECTED_HEAD,"APPMANAGER");pin(PRICE,PRICE_SHA,"PRICEREPORT");
+  // Source code and the previously 4/4-PASS catalog fixture must match exact blobs.
+  assert.equal(git(APP,["rev-parse","HEAD:app/open-contract.server.ts"]),
+    "342f744ae90ec37e379dce9f6b647e454a3ceccd","BLOCKED_APP_CONTRACT_SOURCE_CHANGED");
+  assert.equal(git(APP,["rev-parse","HEAD:tests/price-report-app-manager-isolated-integration.test.mjs"]),
+    "19c40b09d41ce05caa0baa9ba2d24accfc03bf4c","BLOCKED_TESTED_CATALOG_SOURCE_CHANGED");
   assert.ok(existsSync(BIN),"BLOCKED_PINNED_WRANGLER_MISSING: "+BIN);
   assert.equal(JSON.parse(readFileSync(join(CONTROL,"node_modules","wrangler","package.json"),"utf8")).version,
     "4.151.1","BLOCKED_WRANGLER_VERSION");
@@ -195,7 +202,8 @@ async function main(){
   }
   if(!clean)throw Error("BLOCKED_QA_LISTENER_NOT_CLOSED");
   console.log(JSON.stringify({result:"P0_REAL_PRICE_WORKER_D1_INTEGRATION_PASS",
-    appManagerSha:APP_SHA,priceReportSha:PRICE_SHA,appManagerSource:"REAL",
+    appManagerSha:APP_EXPECTED_HEAD,appManagerContractBaseline:APP_CONTRACT_BASELINE,
+    priceReportSha:PRICE_SHA,appManagerSource:"REAL",
     priceReportWorker:"REAL",priceReportD1:"DISPOSABLE_REAL",
     appManagerCatalog:"IN_MEMORY_FIXTURE",encryptedCredential:true,
     sourceWrite:true,independentHttpGet:true,independentCliD1Read:true,
