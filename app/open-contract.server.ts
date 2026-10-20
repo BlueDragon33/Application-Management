@@ -649,7 +649,10 @@ function automationPolicyFromPayload(payload: Record<string, unknown>, capabilit
   return result;
 }
 
-export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<DynamicContractSnapshot> {
+export async function probeManagedCatalogEntry(
+  row: ManagedCatalogRow,
+  options: { automationOnly?: boolean } = {},
+): Promise<DynamicContractSnapshot> {
   const category = normalizeCategory(row.category);
   const credential = await decryptCredential(row);
   try {
@@ -664,7 +667,7 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
       manifest.endpoints.automation
       && (manifest.capabilities.deviceAutoApproval === true || manifest.capabilities.deviceAutoBlockPending === true),
     );
-    const deviceRead = remoteAdminReady && manifest.endpoints.devices
+    const deviceRead = !options.automationOnly && remoteAdminReady && manifest.endpoints.devices
       ? fetchJson(row.origin, manifest.endpoints.devices, credential).then((devicePayload) => {
           const rawDevices = Array.isArray(devicePayload.devices) ? devicePayload.devices : [];
           return rawDevices.map(universalDevice).filter((item): item is UniversalContractDevice => Boolean(item));
@@ -682,8 +685,8 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
           }))
       : Promise.resolve({ policy: null as UniversalAutomationPolicy | null, error: undefined as string | undefined });
 
-    // Device and automation reads are independent GETs. Keep device failure
-    // fail-closed as before, while automation failure remains a read-only signal.
+    // A policy-only probe must never depend on the device registry GET.
+    // Inventory-mode probes retain their existing fail-closed device behavior.
     const [devices, automationResult] = await Promise.all([deviceRead, automationRead]);
     const automation = automationResult.policy;
     const automationError = automationResult.error;
@@ -763,10 +766,13 @@ export async function probeManagedCatalogEntry(row: ManagedCatalogRow): Promise<
   }
 }
 
-export async function probeDynamicManagedApplications(appIds?: readonly string[]) {
+export async function probeDynamicManagedApplications(
+  appIds?: readonly string[],
+  options: { automationOnly?: boolean } = {},
+) {
   const allow = appIds?.length ? new Set(appIds) : null;
   const rows = (await listManagedCatalog()).filter((row) => row.enabled === 1 && (!allow || allow.has(row.id)));
-  return Promise.all(rows.map((row) => probeManagedCatalogEntry(row)));
+  return Promise.all(rows.map((row) => probeManagedCatalogEntry(row, options)));
 }
 
 export async function executeUniversalAutomationCommand(input: {
@@ -779,7 +785,7 @@ export async function executeUniversalAutomationCommand(input: {
   const rows = await listManagedCatalog();
   const row = rows.find((item) => item.id === input.appId && item.enabled === 1);
   if (!row) throw new Error("Ứng dụng không nằm trong catalog động.");
-  const snapshot = await probeManagedCatalogEntry(row);
+  const snapshot = await probeManagedCatalogEntry(row, { automationOnly: true });
   const manifest = snapshot.manifest;
   if (!manifest || manifest.policy?.remoteAdminReady === false) throw new Error("Universal automation contract chưa sẵn sàng.");
   if (!manifest.endpoints.automation) throw new Error("Client chưa công bố automation endpoint.");
