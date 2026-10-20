@@ -18,7 +18,8 @@ const PRICE_SHA="2b7f2787d2389596022d3f0cb96e62b66bdffcaa";
 const APP=resolve(dirname(fileURLToPath(import.meta.url)),"..");
 const PRICE=resolve(process.env.PRICE_REPORT_QA_ROOT||resolve(APP,"..","..","PriceReport_Tunggiabao"));
 const CONTROL=join(PRICE,"control-service");
-const BIN=join(CONTROL,"node_modules","wrangler","bin","wrangler.js");
+const DEPS_ROOT=resolve(process.env.PRICE_REPORT_QA_DEPS_ROOT||CONTROL);
+const BIN=join(DEPS_ROOT,"node_modules","wrangler","bin","wrangler.js");
 const ID="price-report-tunggiabao";
 const env={...process.env,CI:"1",WRANGLER_SEND_METRICS:"false",GIT_TERMINAL_PROMPT:"0"};
 for(const k of ["CLOUDFLARE_API_TOKEN","CLOUDFLARE_API_KEY","CLOUDFLARE_ACCOUNT_ID","CF_API_TOKEN"])delete env[k];
@@ -40,8 +41,8 @@ function preflight(){
     "342f744ae90ec37e379dce9f6b647e454a3ceccd","BLOCKED_APP_CONTRACT_SOURCE_CHANGED");
   assert.equal(git(APP,["rev-parse","HEAD:tests/price-report-app-manager-isolated-integration.test.mjs"]),
     "19c40b09d41ce05caa0baa9ba2d24accfc03bf4c","BLOCKED_TESTED_CATALOG_SOURCE_CHANGED");
-  assert.ok(existsSync(BIN),"BLOCKED_PINNED_WRANGLER_MISSING: "+BIN);
-  assert.equal(JSON.parse(readFileSync(join(CONTROL,"node_modules","wrangler","package.json"),"utf8")).version,
+  assert.ok(existsSync(BIN),"BLOCKED_LOCKED_WRANGLER_MISSING: "+BIN);
+  assert.equal(JSON.parse(readFileSync(join(DEPS_ROOT,"node_modules","wrangler","package.json"),"utf8")).version,
     "4.151.1","BLOCKED_WRANGLER_VERSION");
   for(const p of ["src/index.ts","migrations/0001_device_control.sql","migrations/0002_automation_policy.sql"])
     assert.ok(existsSync(join(CONTROL,p)),"BLOCKED_PRICE_FILE_MISSING: "+p);
