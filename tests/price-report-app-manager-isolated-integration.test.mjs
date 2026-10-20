@@ -33,7 +33,10 @@ function memoryCatalog(){
           },
           async all(){assert.match(sql,/FROM managed_app_catalog/);return {results:[...rows.values()]};},
         };
-      }};
+      },
+      // D1 supports prepare(sql).all() without bind(), as well as bind(...).all().
+      async all(){assert.match(sql,/FROM managed_app_catalog/);return {results:[...rows.values()]};},
+      };
     }};
   }};
 }
