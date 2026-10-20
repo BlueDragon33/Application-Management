@@ -998,7 +998,7 @@ export async function POST(request: Request) {
       const targets = [...new Set(ids as string[])];
       const specialized = new Set(["boi-ech", "health-care", "bauman-master-ai", "ru-life"]);
       const dynamicIds = targets.filter((id) => !specialized.has(id));
-      const dynamic = dynamicIds.length ? await probeDynamicManagedApplications(dynamicIds) : [];
+      const dynamic = dynamicIds.length ? await probeDynamicManagedApplications(dynamicIds, { automationOnly: true }) : [];
       const settings = await readAutoApprovalSettings([], targets, dynamic, targets);
       return json({ ok: true, settings });
     }
@@ -1036,7 +1036,7 @@ export async function POST(request: Request) {
       if (![24, 168, 720].includes(pendingBlockAfterHours)) return json({ error: "Ngưỡng tự động khóa phải là 24 giờ, 7 ngày hoặc 30 ngày.", code: "INVALID_AUTO_BLOCK_THRESHOLD" }, 400);
 
       const specializedTargets = appId === "health-care" ? ["health-care"] : [];
-      const dynamicSnapshots = specializedTargets.length ? [] : await probeDynamicManagedApplications([appId]);
+      const dynamicSnapshots = specializedTargets.length ? [] : await probeDynamicManagedApplications([appId], { automationOnly: true });
       const current = await readAutoApprovalSettings([], [appId], dynamicSnapshots, specializedTargets);
       const policy = current.automationPolicies.find((item) => item.appId === appId);
       if (!policy?.support.autoBlockPending || !policy.mutation.autoBlockPending || policy.verification.state !== "live") {
@@ -1088,7 +1088,7 @@ export async function POST(request: Request) {
         }
 
         await rememberAutoBlockPending(actor.email, appId, payload.enabled, pendingBlockAfterHours);
-        const refreshed = specializedTargets.length ? [] : await probeDynamicManagedApplications([appId]);
+        const refreshed = specializedTargets.length ? [] : await probeDynamicManagedApplications([appId], { automationOnly: true });
         const settings = await readAutoApprovalSettings([], [appId], refreshed, specializedTargets);
         const observed = settings.automationPolicies.find((item) => item.appId === appId);
         const matched = observed?.verification.state === "live"
