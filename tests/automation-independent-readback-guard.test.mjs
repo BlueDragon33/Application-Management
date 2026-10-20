@@ -66,7 +66,7 @@ test("authenticated readback action probes only changed app IDs without reloadin
   assert.match(endpoint,/const actor = await verifyControlProof\(payload/);
   assert.match(action,/targets = \[\.\.\.new Set\(ids as string\[\]\)\]/);
   assert.match(action,/dynamicIds = targets\.filter/);
-  assert.match(action,/await probeDynamicManagedApplications\(dynamicIds\)/);
+  assert.match(action,/await probeDynamicManagedApplications\(dynamicIds, \{ automationOnly: true \}\)/);
   assert.match(action,/await readAutoApprovalSettings\(\[\], targets, dynamic, targets\)/);
   assert.match(action,/INVALID_AUTOMATION_READBACK_TARGETS/);
   assert.doesNotMatch(action,/buildBootstrap\(|managedApps\(|manage-client-device/);
