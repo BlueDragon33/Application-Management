@@ -154,7 +154,7 @@ export async function POST(request: Request) {
       CANDIDATE_APP_IDS.includes(appId as CandidateAppId),
     );
     const needsDynamicProbe = specializedTargets.length !== targets.length;
-    const dynamicSnapshots = needsDynamicProbe ? await probeDynamicManagedApplications(targets) : [];
+    const dynamicSnapshots = needsDynamicProbe ? await probeDynamicManagedApplications(targets, { automationOnly: true }) : [];
     const known = new Set([
       ...applicationRegistry.map((item) => item.id),
       ...CANDIDATE_APP_IDS,
@@ -251,7 +251,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const refreshedDynamic = needsDynamicProbe ? await probeDynamicManagedApplications(targets) : [];
+    const refreshedDynamic = needsDynamicProbe ? await probeDynamicManagedApplications(targets, { automationOnly: true }) : [];
     const settings = await readAutoApprovalSettings([], targets, refreshedDynamic, specializedTargets);
     const mismatches: string[] = [];
     for (const change of staged) {
