@@ -39,7 +39,8 @@ test("explicit Save has one targeted readback invariant for static and dynamic a
 
   assert.match(block, /Promise\.allSettled/);
   assert.match(block, /const chains = new Map/);
-  assert.match(block, /responseSettings/);
+  assert.match(block, /independentSettings/);
+  assert.doesNotMatch(block, /const responseSettings/);
   assert.match(block, /taskMatchesReadback/);
   assert.match(block, /return mergedSettings/);
   assert.doesNotMatch(block, /return synced\.settings/);
