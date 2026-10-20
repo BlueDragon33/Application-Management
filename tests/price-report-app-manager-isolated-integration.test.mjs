@@ -65,7 +65,10 @@ function priceReportLoopback(secret){
       counts.devices++;return reply(503,{code:"SIMULATED_DEVICE_REGISTRY_OUTAGE"});
     }
     if(req.method==="GET" && path==="/api/control/automation"){
-      counts.policyGet++;return reply(200,{ok:true,automation:{...policy}});
+      counts.policyGet++;
+      if(behavior.failReadback && policy.revision>1)
+        return reply(503,{code:"SIMULATED_INDEPENDENT_POLICY_READBACK_FAILURE"});
+      return reply(200,{ok:true,automation:{...policy}});
     }
     if(req.method==="POST" && path==="/api/control/automation"){
       counts.policyPost++;
@@ -97,8 +100,9 @@ function priceReportLoopback(secret){
   });
   const policy={autoApproveDevices:false,autoBlockPendingDevices:false,pendingBlockAfterHours:168,revision:1};
   const counts={all:0,denied:0,status:0,devices:0,policyGet:0,policyPost:0};
+  const behavior={failReadback:false};
   const replays=new Map();
-  return {server,policy,counts};
+  return {server,policy,counts,behavior};
 }
 
 test("real App-Manager catalog AES credential + PriceReport legacy contract HTTP + write/GET/reopen",async t=>{
@@ -189,4 +193,29 @@ test("missing catalog credential cannot be interpreted as live writable automati
     appId:"price-report-tunggiabao",commandId:randomUUID(),
     expected:{autoApproveDevices:false},desired:{autoApproveDevices:true},
   },{role:"owner",email:"qa-owner@example.invalid"}),/Universal automation contract chưa sẵn sàng|Credential quản trị/);
+});
+
+test("App-Manager refuses applied receipt if owning client POST persisted but independent GET fails",async t=>{
+  const secret=randomBytes(48).toString("base64url");
+  const database=memoryCatalog(),target=priceReportLoopback(secret);
+  target.server.listen(0,"127.0.0.1");await once(target.server,"listening");
+  t.after(()=>new Promise(resolve=>target.server.close(resolve)));
+  const manager=entry(database.getControlDatabase,{"Báo cáo":{}},i=>({...i}),
+    fetch,webcrypto,{env:{...process.env,LOCAL_DEV_AUTH:"1",
+      CONTROL_PLANE_NETWORK_MODE:"local",
+      MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY:randomBytes(32).toString("base64url")}});
+  const owner={email:"qa-owner@example.invalid",role:"owner",deviceId:"0".repeat(64)};
+  await manager.upsertManagedCatalog({id:"price-report-tunggiabao",
+    name:"PriceReport",category:"Báo cáo",
+    origin:"http://127.0.0.1:"+target.server.address().port,
+    contractPath:"/api/control/status",credential:secret},owner);
+  target.behavior.failReadback=true;
+  await assert.rejects(manager.executeUniversalAutomationCommand({
+    appId:"price-report-tunggiabao",commandId:randomUUID(),
+    expected:{autoApproveDevices:false},desired:{autoApproveDevices:true},
+  },owner),/HTTP_503|SIMULATED_INDEPENDENT_POLICY_READBACK_FAILURE/);
+  assert.equal(target.policy.autoApproveDevices,true,
+    "source mutation persisted, but App-Manager must still refuse a false applied receipt");
+  assert.ok(target.counts.policyPost===1 && target.counts.policyGet>=2);
+  assert.equal(target.counts.devices,0);
 });
