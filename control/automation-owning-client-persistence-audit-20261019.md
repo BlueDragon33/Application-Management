@@ -37,10 +37,19 @@ No merge, ratify, publish, auto-restart, privilege escalation, GitHub-hosted Act
 
 **Single next task:** Audit/correct exact-source regression conflicts for the new independent-GET and per-field pending semantics; obtain one Windows source/typecheck QA receipt at the new SHA, then isolated Bauman/PriceReport D1 restart-readback pilot. No repeat of unrelated prior PASS.
 
-## PriceReport disposable D1 source-pilot checkpoint
+## PriceReport owning-client Windows D1 QA — ACCEPTED IN ISOLATED SCOPE (2026-10-20)
 
-A separate, unmerged PriceReport branch `candidate/automation-persisted-readback-pilot-20261019` now extends `control-service/scripts/real-worker-wrangler-gate-smoke.mjs` to submit a real owner-role `set-device-automation` command against a temporary D1 database, compare all 3 fields and revision via a separate authenticated GET, then query D1 through a separate subprocess after the disposable Worker child exits. `control-service/tests/automation-persisted-readback-qa.test.mjs` guards these steps and preserves disposable storage if the Worker process exit is unverified.
+The human operator supplied a real Windows console receipt for the separate PriceReport candidate branch, at the previously verified QA worktree HEAD 557bc9b27d2c7fffbfc5ecaa087b2ed18f78c0a1. Details are archived in PriceReport at control-service/evidence/qa-20261020-price-policy-persistence.md. The evidence is user-supplied, not independently replayed by CI.
 
-**Current proof:** JavaScript parse plus 7/7 source assertion cases in V8, not Windows, not runtime/physical device acceptance. This branch has not modified PriceReport PR #133 or Production. CLI SIGTERM used solely for disposable QA teardown is not a graceful ACK and does not advance global D1 quiescence.
+- Node regressions: **20/20 PASS**, NEW_REGRESSION_EXIT=0.
+- Real source Worker: **SOURCE_WORKER_PRIVATE_DOTENV_GATE_PASS**, WORKER_D1_PILOT_EXIT=0, QA_RECOVERY_EXIT=0.
+- Real disposable D1 policy owner write and separate GET: **PASS** for autoApproveDevices, autoBlockPendingDevices, pendingBlockAfterHours and revision.
+- Idempotent replay, stale revision rejection and post-Worker-exit D1 SQL readback: **PASS**.
+- QA TCP ports released; captured descendant PIDs exited; two Windows process snapshots reported.
+- Original PriceReport PR #133 remains Draft and unmerged. Actual Production and real user database: **NOT_TESTED**.
 
-Bauman already has source Worker + disposable D1 policy write/independent readback QA for autoApprove. Neither owner's production policy may be certified from these source checks alone.
+**Scope boundary:** The above only closes standalone PriceReport *owning-client* persistence acceptance. It does **not** verify an actual Application-Management catalog registration, App-Manager credential exchange, authentication step-up, App-Manager → PriceReport write/readback roundtrip, browser reload, a global process census, native Wrangler CLI shutdown ACK or D1 quiescence. Keep 10/10 local-ops D1 adapters BLOCKED, 0 READY, CI PENDING, and PR #360/#366/#133 Draft.
+
+### Exactly one next task
+
+Perform an authorized, offline isolated **Application-Management → PriceReport Universal Contract** QA against a disposable PriceReport Worker and App-Manager catalog, and verify source GET before/after write plus App-Manager UI reopen. Do not repeat the previously passed PriceReport Worker-only D1 pilot or simulate a Production result.
