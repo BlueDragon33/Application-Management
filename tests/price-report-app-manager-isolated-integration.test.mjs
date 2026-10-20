@@ -66,12 +66,18 @@ function priceReportLoopback(secret){
     }
     if(req.method==="GET" && path==="/api/control/automation"){
       counts.policyGet++;
+      if(behavior.failAllPolicyReads)
+        return reply(503,{code:"SIMULATED_PREWRITE_GET_FAILURE"});
       if(behavior.failReadback && policy.revision>1)
         return reply(503,{code:"SIMULATED_INDEPENDENT_POLICY_READBACK_FAILURE"});
       return reply(200,{ok:true,automation:{...policy}});
     }
     if(req.method==="POST" && path==="/api/control/automation"){
       counts.policyPost++;
+      if(behavior.redirectWrite){
+        res.writeHead(307,{location:"/api/control/automation"});
+        res.end();return;
+      }
       if(req.headers["x-control-role"]!=="owner")
         return reply(403,{code:"OWNER_REQUIRED"});
       let body="";
@@ -100,7 +106,7 @@ function priceReportLoopback(secret){
   });
   const policy={autoApproveDevices:false,autoBlockPendingDevices:false,pendingBlockAfterHours:168,revision:1};
   const counts={all:0,denied:0,status:0,devices:0,policyGet:0,policyPost:0};
-  const behavior={failReadback:false};
+  const behavior={failReadback:false,failAllPolicyReads:false,redirectWrite:false};
   const replays=new Map();
   return {server,policy,counts,behavior};
 }
@@ -218,4 +224,34 @@ test("App-Manager refuses applied receipt if owning client POST persisted but in
     "source mutation persisted, but App-Manager must still refuse a false applied receipt");
   assert.ok(target.counts.policyPost===1 && target.counts.policyGet>=2);
   assert.equal(target.counts.devices,0);
+});
+
+test("P0: absent pre-write source GET blocks POST; redirects cannot replay credentialed POST",async t=>{
+  const secret=randomBytes(48).toString("base64url");
+  const database=memoryCatalog(),target=priceReportLoopback(secret);
+  target.server.listen(0,"127.0.0.1");await once(target.server,"listening");
+  t.after(()=>new Promise(resolve=>target.server.close(resolve)));
+  const manager=entry(database.getControlDatabase,{"Báo cáo":{}},i=>({...i}),
+    fetch,webcrypto,{env:{...process.env,LOCAL_DEV_AUTH:"1",
+      CONTROL_PLANE_NETWORK_MODE:"local",
+      MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY:randomBytes(32).toString("base64url")}});
+  const owner={email:"qa-owner@example.invalid",role:"owner",deviceId:"0".repeat(64)};
+  const appId="price-report-tunggiabao";
+  await manager.upsertManagedCatalog({id:appId,name:"PriceReport",category:"Báo cáo",
+    origin:"http://127.0.0.1:"+target.server.address().port,
+    contractPath:"/api/control/status",credential:secret},owner);
+  const command=()=>({appId,commandId:randomUUID(),
+    expected:{autoApproveDevices:false},desired:{autoApproveDevices:true}});
+  target.behavior.failAllPolicyReads=true;
+  await assert.rejects(manager.executeUniversalAutomationCommand(command(),owner),
+    /AUTOMATION_PREWRITE_READBACK_UNAVAILABLE/);
+  assert.equal(target.counts.policyPost,0,"never write when the owning GET is unavailable");
+  assert.equal(target.policy.revision,1);
+
+  target.behavior.failAllPolicyReads=false;
+  target.behavior.redirectWrite=true;
+  await assert.rejects(manager.executeUniversalAutomationCommand(command(),owner),
+    /HTTP_307/);
+  assert.equal(target.counts.policyPost,1,"manual redirect must not follow/replay POST");
+  assert.equal(target.policy.revision,1);
 });
