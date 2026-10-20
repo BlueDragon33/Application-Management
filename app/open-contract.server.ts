@@ -788,6 +788,11 @@ export async function executeUniversalAutomationCommand(input: {
   const snapshot = await probeManagedCatalogEntry(row, { automationOnly: true });
   const manifest = snapshot.manifest;
   if (!manifest || manifest.policy?.remoteAdminReady === false) throw new Error("Universal automation contract chưa sẵn sàng.");
+  // Require a fresh owning-client GET before POST. A catalog manifest, cached policy,
+  // or mutation response cannot establish the client source-of-truth state.
+  // Do not compare stale expected fields here: the owning client must adjudicate
+  // CAS and safe commandId replay itself (including a previously applied command).
+  if (!snapshot.automation) throw new Error("AUTOMATION_PREWRITE_READBACK_UNAVAILABLE");
   if (!manifest.endpoints.automation) throw new Error("Client chưa công bố automation endpoint.");
   if (!manifest.capabilities.automationIdempotentCommands || !manifest.capabilities.automationOptimisticConcurrency) {
     throw new Error("Automation contract chưa xác nhận idempotent commands và optimistic concurrency.");
@@ -804,24 +809,39 @@ export async function executeUniversalAutomationCommand(input: {
   const credential = await decryptCredential(row);
   if (!credential) throw new Error("Credential quản trị chưa được cấu hình.");
 
-  const response = await fetch(`${row.origin}${manifest.endpoints.automation}`, {
-    method: "POST",
-    cache: "no-store",
-    headers: {
-      authorization: `Bearer ${credential}`,
-      "content-type": "application/json",
-      "x-control-actor": actor.email,
-      "x-control-role": actor.role,
-      "x-control-device": actor.deviceId,
-    },
-    body: JSON.stringify({
-      commandId: input.commandId,
-      operation: "set-device-automation",
-      expected: input.expected,
-      desired: input.desired,
-    }),
-  });
-  const data = await response.json().catch(() => ({})) as Record<string, unknown>;
+  // A timed-out POST may already have reached the owner. Surface uncertainty,
+  // never issue an automatic second write with a fresh commandId.
+  const writeController = new AbortController();
+  const writeTimer = setTimeout(() => writeController.abort(), CONTRACT_TIMEOUT_MS);
+  let response: Response;
+  let data: Record<string, unknown>;
+  try {
+    response = await fetch(`${row.origin}${manifest.endpoints.automation}`, {
+      method: "POST",
+      cache: "no-store",
+      redirect: "manual",
+      signal: writeController.signal,
+      headers: {
+        authorization: `Bearer ${credential}`,
+        "content-type": "application/json",
+        "x-control-actor": actor.email,
+        "x-control-role": actor.role,
+        "x-control-device": actor.deviceId,
+      },
+      body: JSON.stringify({
+        commandId: input.commandId,
+        operation: "set-device-automation",
+        expected: input.expected,
+        desired: input.desired,
+      }),
+    });
+    data = await response.json().catch(() => ({})) as Record<string, unknown>;
+  } catch (error) {
+    if (writeController.signal.aborted) throw new Error("AUTOMATION_WRITE_TIMEOUT_UNCERTAIN");
+    throw error;
+  } finally {
+    clearTimeout(writeTimer);
+  }
   if (!response.ok) throw new Error(text(data.error) || `HTTP_${response.status}`);
 
   const desiredMatches = (policy: UniversalAutomationPolicy) => Object.entries(input.desired).every(
