@@ -18,8 +18,10 @@ const EXPECTED_HEAD=process.env.APP_MANAGER_NATIVE_D1_QA_HEAD??"";
 const VITE=join(QA_ROOT,"node_modules","vite","bin","vite.js");
 const WRANGLER=join(QA_ROOT,"node_modules","wrangler","bin","wrangler.js");
 const QA_DIR=join(QA_ROOT,".wrangler","p0-native-api-qa");
-const STATE=join(QA_ROOT,".wrangler","state");
+// Do not touch the Vite/Wrangler default .wrangler/state; it may contain prior QA evidence.
+const STATE=join(QA_DIR,"persist");
 const CONFIG=join(QA_DIR,"wrangler.qa.jsonc");
+const QA_VITE_CONFIG=join(QA_DIR,"vite.qa.mjs");
 const DB_NAME="app-native-p0-"+randomBytes(6).toString("hex");
 const APP_ID="price-report-tunggiabao";
 const OWNER="p0-native-qa@example.invalid";
@@ -64,8 +66,10 @@ function preflight(){
   const vite=JSON.parse(readFileSync(join(QA_ROOT,"node_modules","vite","package.json"),"utf8"));
   assert.equal(pkg.version,"4.92.0","BLOCKED_NATIVE_WRANGLER_LOCK_MISMATCH");
   assert.equal(vite.version,"8.0.13","BLOCKED_NATIVE_VITE_LOCK_MISMATCH");
-  assert.ok(!existsSync(STATE)&&!existsSync(QA_DIR),
-    "BLOCKED_QA_STATE_ALREADY_EXISTS: do not reuse/delete earlier QA D1");
+  assert.ok(!existsSync(QA_DIR),
+    "BLOCKED_QA_PRIVATE_NAMESPACE_ALREADY_EXISTS: retain earlier QA state");
+  assert.ok(existsSync(join(QA_ROOT,"build","sites-vite-plugin.ts")),
+    "BLOCKED_REQUIRED_SITES_VITE_PLUGIN_MISSING");
 }
 function freePort(){
   return new Promise((ok,fail)=>{
@@ -100,8 +104,8 @@ function launch(port){
     // enables the localhost signature-bypass because requests use 127.0.0.1.
     CONTROL_PLANE_NETWORK_MODE:"local",
     WRANGLER_SEND_METRICS:"false"};
-  const child=spawn(process.execPath,[VITE,"--host","127.0.0.1",
-    "--port",String(port),"--strictPort"],{
+  const child=spawn(process.execPath,[VITE,"--config",QA_VITE_CONFIG,
+    "--host","127.0.0.1","--port",String(port),"--strictPort"],{
     cwd:QA_ROOT,env,windowsHide:true,shell:false,stdio:["ignore","pipe","pipe"]
   });
   const logs=[];
@@ -200,6 +204,27 @@ async function main(){
   const secret=randomBytes(48).toString("base64url");
   const master=randomBytes(32).toString("base64url");
   mkdirSync(QA_DIR,{recursive:true});
+  // Only the QA Vite configuration can override persistState. The real
+  // application Vite config is not modified, and the plugin suite remains
+  // Vinext + sites + Cloudflare as in the app's source vite.config.ts.
+  const viteQaSource=[
+    'import vinext from "vinext";',
+    'import {defineConfig} from "vite";',
+    'import {cloudflare} from "@cloudflare/vite-plugin";',
+    'import {sites} from "../../build/sites-vite-plugin.ts";',
+    'export default defineConfig({',
+    'server:{host:"127.0.0.1",allowedHosts:["127.0.0.1","localhost"],',
+    'watch:{ignored:["**/.wrangler/**"]}},',
+    'plugins:[vinext(),sites(),cloudflare({',
+    "configPath:"+JSON.stringify(CONFIG)+",",
+    "persistState:{path:"+JSON.stringify(STATE)+"},",
+    'viteEnvironment:{name:"rsc",childEnvironments:["ssr"]},',
+    'inspectorPort:false',
+    '})]',
+    '});'
+  ].join("\n");
+  writeFileSync(QA_VITE_CONFIG,viteQaSource,{mode:0o600,flag:"wx"});
+  assert.ok(!existsSync(STATE),"BLOCKED_NONEMPTY_NEW_PRIVATE_D1_NAMESPACE");
   // Temporary credentials are disposable QA-only. This file is never committed.
   writeFileSync(CONFIG,JSON.stringify({
     name:DB_NAME,
@@ -288,6 +313,7 @@ async function main(){
     try{rmSync(CONFIG,{force:true});configErased=!existsSync(CONFIG)}
     catch(e){console.error("BLOCKED_QA_SECRET_CONFIG_ERASURE:",e.message||String(e))}
     console.log("QA_NATIVE_D1_STATE_RETAINED_FOR_SEPARATE_CENSUS: "+STATE);
+    console.log("QA_DEFAULT_WRANGLER_STATE_UNTOUCHED_BY_DESIGN: "+join(QA_ROOT,".wrangler","state"));
     if(!safeStop||!configErased||!passed){
       if(!safeStop)console.error("BLOCKED_CAPTURED_QA_PROCESS_NOT_EXITED");
       if(!configErased)console.error("BLOCKED_QA_SECRET_CONFIG_REMAINS");
