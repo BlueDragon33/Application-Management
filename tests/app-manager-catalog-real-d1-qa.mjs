@@ -22,7 +22,7 @@ const APP_EXPECTED_HEAD=process.env.APP_MANAGER_D1_QA_EXPECTED_HEAD||"";
 const BASELINE_BLOB="342f744ae90ec37e379dce9f6b647e454a3ceccd";
 const MIGRATION_BLOB="d66ccf0399223dde36b8cbcdc8d1c7750f8d15a3";
 const WRANGLER=join(DEPS,"node_modules","wrangler","bin","wrangler.js");
-const APP_ID="price-report-p0-local-catalog";
+const APP_ID="price-report-tunggiabao";
 const allowEnv={...process.env,CI:"1",WRANGLER_SEND_METRICS:"false",
   GIT_TERMINAL_PROMPT:"0",npm_config_update_notifier:"false"};
 for(const key of ["CLOUDFLARE_API_KEY","CLOUDFLARE_API_TOKEN",
@@ -239,6 +239,7 @@ async function run(){
       independentHttpGet:"QA_ONLY_NOT_PRODUCTION_ROUTE",
       reopenedNode:true,independentD1Cli:true,
       productionTouched:false,ci:"PENDING",globalD1:"10/10 BLOCKED",
+      nativeAppManagerRoute:"NOT_TESTED",workerBoundD1:"NOT_TESTED",
       globalProcessQuiescence:"NOT_PROVEN"}));
   }finally{
     if(server){
