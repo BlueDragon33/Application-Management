@@ -118,7 +118,18 @@ async function stop(child,port){
       if(r.status!==0&&child.exitCode===null)throw Error("BLOCKED_CAPTURES_QA_TREE_NOT_STOPPED");
     }else child.kill("SIGTERM");
   }
-  for(let i=0;i<40;i++){if(!await openPort(port))return;await sleep(250)}
+  for(let i=0;i<40;i++){
+    if(!await openPort(port)){
+      // A released listener does not prove root Wrangler process exit.
+      if(child){
+        for(let j=0;j<60&&child.exitCode===null&&child.signalCode===null;j++)await sleep(100);
+        if(child.exitCode===null&&child.signalCode===null)
+          throw Error("BLOCKED_QA_WRANGLER_ROOT_STILL_RUNNING");
+      }
+      return;
+    }
+    await sleep(250);
+  }
   throw Error("BLOCKED_QA_PORT_STILL_LISTENING");
 }
 function independentSql(config,store,db){
@@ -190,18 +201,32 @@ async function main(){
     const [reopen]=await managers.create().probeDynamicManagedApplications([ID],{automationOnly:true});
     for(const [k,v] of Object.entries(desired))assert.equal(reopen.automation[k],v);
     passed=true;
+    console.log(JSON.stringify({checkpoint:"P0_REAL_D1_SOURCE_READBACK_VERIFIED_BEFORE_CLEANUP",
+      appManagerContractBaseline:APP_CONTRACT_BASELINE,priceReportSha:PRICE_SHA,
+      independentHttpGet:true,independentCliD1Read:true,workerRestartGet:true,
+      reopenedManager:true,productionTouched:false,globalD1Quiescence:"BLOCKED"}));
   }finally{
+    // Windows can retain workerd/SQLite handles after the HTTP port closes.
+    // Recursive deletion may cause EPERM and partly destroy D1 evidence.
+    // Retain this brand-new disposable QA D1 until a separate verified census.
+    let configErased=false;
     try{await stop(child,port);clean=!await openPort(port)}
     catch(e){console.error("BLOCKED_QA_SHUTDOWN:",String(e));clean=false}
-    try{rmSync(config,{force:true})}catch{}
-    if(clean&&passed)rmSync(temp,{recursive:true,force:true,maxRetries:4,retryDelay:250});
-    else{
-      console.error("QA_DISPOSABLE_EVIDENCE_RETAINED: "+temp);
+    try{
+      rmSync(config,{force:true});
+      configErased=!existsSync(config);
+    }catch(e){
+      console.error("BLOCKED_QA_SECRET_CONFIG_ERASURE:",e instanceof Error?e.message:String(e));
+    }
+    console.log("QA_DISPOSABLE_D1_RETAINED_FOR_SAFE_CLEANUP: "+temp);
+    if(!clean||!configErased||!passed){
       if(!clean)console.error("BLOCKED_QA_PROCESS_QUIESCENCE");
+      if(!configErased)console.error("BLOCKED_QA_SECRET_CONFIG_REMAINS");
       process.exitCode=1;
     }
   }
   if(!clean)throw Error("BLOCKED_QA_LISTENER_NOT_CLOSED");
+  if(process.exitCode)throw Error("BLOCKED_QA_CLEANUP_INCOMPLETE");
   console.log(JSON.stringify({result:"P0_REAL_PRICE_WORKER_D1_INTEGRATION_PASS",
     appManagerSha:APP_EXPECTED_HEAD,appManagerContractBaseline:APP_CONTRACT_BASELINE,
     priceReportSha:PRICE_SHA,appManagerSource:"REAL",
@@ -209,6 +234,8 @@ async function main(){
     appManagerCatalog:"IN_MEMORY_FIXTURE",encryptedCredential:true,
     sourceWrite:true,independentHttpGet:true,independentCliD1Read:true,
     restartGet:true,reopenedManager:true,productionTouched:false,
-    ci:"PENDING",globalD1:"10/10 BLOCKED"}));
+    ci:"PENDING",globalD1:"10/10 BLOCKED",
+    disposableD1Cleanup:"RETAINED_FOR_SEPARATE_CENSUS",
+    globalProcessQuiescence:"NOT_PROVEN"}));
 }
 main().catch(e=>{console.error("P0_REAL_D1_NOT_PASSED:",e.message||String(e));process.exitCode=1});
