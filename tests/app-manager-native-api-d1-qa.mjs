@@ -17,7 +17,7 @@ const QA_ROOT=resolve(dirname(fileURLToPath(import.meta.url)),"..");
 const EXPECTED_HEAD=process.env.APP_MANAGER_NATIVE_D1_QA_HEAD??"";
 const VITE=join(QA_ROOT,"node_modules","vite","bin","vite.js");
 const WRANGLER=join(QA_ROOT,"node_modules","wrangler","bin","wrangler.js");
-const QA_DIR=join(QA_ROOT,".wrangler","p0-native-api-qa");
+const QA_DIR=join(QA_ROOT,".wrangler","p0-native-api-qa-"+randomBytes(8).toString("hex"));
 // Do not touch the Vite/Wrangler default .wrangler/state; it may contain prior QA evidence.
 const STATE=join(QA_DIR,"persist");
 const CONFIG=join(QA_DIR,"wrangler.qa.jsonc");
@@ -64,8 +64,12 @@ function preflight(){
       "BLOCKED_UNEXPECTED_QA_ENV_FILE: "+p);
   const pkg=JSON.parse(readFileSync(join(QA_ROOT,"node_modules","wrangler","package.json"),"utf8"));
   const vite=JSON.parse(readFileSync(join(QA_ROOT,"node_modules","vite","package.json"),"utf8"));
+  const pluginPath=join(QA_ROOT,"node_modules","@cloudflare","vite-plugin","package.json");
+  assert.ok(existsSync(pluginPath),"BLOCKED_NATIVE_CLOUDFLARE_VITE_PLUGIN_MISSING");
+  const plugin=JSON.parse(readFileSync(pluginPath,"utf8"));
   assert.equal(pkg.version,"4.92.0","BLOCKED_NATIVE_WRANGLER_LOCK_MISMATCH");
   assert.equal(vite.version,"8.0.13","BLOCKED_NATIVE_VITE_LOCK_MISMATCH");
+  assert.equal(plugin.version,"1.37.1","BLOCKED_NATIVE_CLOUDFLARE_PLUGIN_LOCK_MISMATCH");
   assert.ok(!existsSync(QA_DIR),
     "BLOCKED_QA_PRIVATE_NAMESPACE_ALREADY_EXISTS: retain earlier QA state");
   assert.ok(existsSync(join(QA_ROOT,"build","sites-vite-plugin.ts")),
