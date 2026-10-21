@@ -26,8 +26,10 @@ const OWNER="p0-native-qa@example.invalid";
 const cliEnv={...process.env,CI:"1",WRANGLER_SEND_METRICS:"false",
   GIT_TERMINAL_PROMPT:"0",npm_config_update_notifier:"false",
   CLOUDFLARE_SEND_METRICS:"false"};
-for(const key of ["CLOUDFLARE_API_TOKEN","CLOUDFLARE_API_KEY","CLOUDFLARE_ACCOUNT_ID",
-  "CF_API_TOKEN","WRANGLER_API_TOKEN","CLOUDFLARE_ENV"])delete cliEnv[key];
+for(const key of Object.keys(cliEnv)){
+  if(/(?:^|_)(?:API_KEY|API_TOKEN|SECRET|PASSWORD|PRIVATE_KEY|ACCESS_TOKEN)$|^(?:NEON|VERCEL|GOOGLE|CLOUDFLARE)_/i.test(key)
+    || key==="CLOUDFLARE_ENV" || key==="NODE_OPTIONS")delete cliEnv[key];
+}
 function exec(cmd,args,extra={}){
   const r=spawnSync(cmd,args,{cwd:QA_ROOT,env:cliEnv,encoding:"utf8",windowsHide:true,
     timeout:130000,maxBuffer:4*1024*1024,...extra});
@@ -54,6 +56,10 @@ function preflight(){
   exactSource("drizzle/0005_managed_app_catalog.sql","d66ccf0399223dde36b8cbcdc8d1c7750f8d15a3");
   assert.ok(existsSync(VITE)&&existsSync(WRANGLER),
     "BLOCKED_QA_NODE_MODULES_MISSING: Only offline npm ci in this detached QA worktree is permitted");
+  // Never inherit user/Production credential dotenv files into disposable Worker.
+  for(const p of [".dev.vars",".env",".env.local",".dev.vars.local"])
+    assert.equal(existsSync(join(QA_ROOT,p)),false,
+      "BLOCKED_UNEXPECTED_QA_ENV_FILE: "+p);
   const pkg=JSON.parse(readFileSync(join(QA_ROOT,"node_modules","wrangler","package.json"),"utf8"));
   const vite=JSON.parse(readFileSync(join(QA_ROOT,"node_modules","vite","package.json"),"utf8"));
   assert.equal(pkg.version,"4.92.0","BLOCKED_NATIVE_WRANGLER_LOCK_MISMATCH");
@@ -189,13 +195,6 @@ async function unauthorizedChecks(origin,secret,deviceId,key){
   assert.equal(bad.status,403,"BLOCKED_INVALID_P256_SIGNATURE_ACCEPTED");
   assert.equal(bad.data.code,"DEVICE_MISMATCH","BLOCKED_P256_SIGNATURE_CHECK_UNPROVEN");
 }
-async function closeAndRestart(origin,port,secret,child){
-  await stop(child,port);
-  assert.equal(await openPort(port),false,"BLOCKED_PORT_AFTER_STOP");
-  const reopened=launch(port);
-  await ready(origin,secret,reopened);
-  return reopened;
-}
 async function main(){
   preflight(); // Must happen BEFORE touching QA disk or starting network services.
   const secret=randomBytes(48).toString("base64url");
@@ -260,7 +259,11 @@ async function main(){
     assert.equal(persisted.name,updatedName,"BLOCKED_NATIVE_D1_READBACK_STALE");
     assert.equal(Buffer.from(persisted.credential_ciphertext+"."+persisted.credential_iv)
       .toString("base64url"),encryptedHash,"BLOCKED_BLANK_CREDENTIAL_REWRITTEN");
-    child=await closeAndRestart(origin,port,secret,child);
+    await stop(child,port);
+    child=null;
+    assert.equal(await openPort(port),false,"BLOCKED_PORT_AFTER_STOP");
+    child=launch(port); // Assign before readiness so finally always captures the PID.
+    await ready(origin,secret,child);
     const reopened=await command(origin,secret,deviceId,key,"list");
     assert.equal(reopened.status,200,"BLOCKED_NATIVE_API_REOPEN_GET_FAILED");
     const final=reopened.data.apps?.find(x=>x.id===APP_ID);
