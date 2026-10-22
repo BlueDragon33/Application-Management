@@ -25,6 +25,13 @@ const QA_VITE_CONFIG=join(QA_DIR,"vite.qa.mjs");
 const DB_NAME="app-native-p0-"+randomBytes(6).toString("hex");
 const APP_ID="price-report-tunggiabao";
 const OWNER="p0-native-qa@example.invalid";
+const WORKERD_ROOT=process.env.APP_MANAGER_NATIVE_QA_WORKERD_DEPS_ROOT
+  ? resolve(process.env.APP_MANAGER_NATIVE_QA_WORKERD_DEPS_ROOT):null;
+const VERIFIED_WORKERD=WORKERD_ROOT
+  ? join(WORKERD_ROOT,"node_modules","@cloudflare","workerd-windows-64","bin","workerd.exe"):null;
+const WORKERD_OVERRIDE_PACKAGE="1.20261012.1";
+const WORKERD_REQUIRED_DATE="2026-09-10";
+const WORKERD_APPROVED_DATE="2026-10-12";
 const childDiagnostics=new WeakMap();
 const qaEphemeralSecrets=[];
 function safeStartupError(child){
@@ -47,7 +54,8 @@ const cliEnv={...process.env,CI:"1",WRANGLER_SEND_METRICS:"false",
   CLOUDFLARE_SEND_METRICS:"false"};
 for(const key of Object.keys(cliEnv)){
   if(/(?:^|_)(?:API_KEY|API_TOKEN|SECRET|PASSWORD|PRIVATE_KEY|ACCESS_TOKEN)$|^(?:NEON|VERCEL|GOOGLE|CLOUDFLARE)_/i.test(key)
-    || key==="CLOUDFLARE_ENV" || key==="NODE_OPTIONS")delete cliEnv[key];
+    || key==="CLOUDFLARE_ENV" || key==="NODE_OPTIONS"
+    || key==="MINIFLARE_WORKERD_PATH")delete cliEnv[key];
 }
 function exec(cmd,args,extra={}){
   const r=spawnSync(cmd,args,{cwd:QA_ROOT,env:cliEnv,encoding:"utf8",windowsHide:true,
@@ -87,6 +95,30 @@ function preflight(){
   assert.equal(pkg.version,"4.92.0","BLOCKED_NATIVE_WRANGLER_LOCK_MISMATCH");
   assert.equal(vite.version,"8.0.13","BLOCKED_NATIVE_VITE_LOCK_MISMATCH");
   assert.equal(plugin.version,"1.37.1","BLOCKED_NATIVE_CLOUDFLARE_PLUGIN_LOCK_MISMATCH");
+  // Miniflare permits an explicit local workerd override. This is a QA-only
+  // cross-version experiment; never claim that the App-Manager lockfile passed.
+  assert.ok(WORKERD_ROOT&&VERIFIED_WORKERD,
+    "BLOCKED_VERIFIED_QA_WORKERD_ROOT_REQUIRED");
+  assert.ok(existsSync(VERIFIED_WORKERD),
+    "BLOCKED_QA_WORKERD_EXE_MISSING: "+VERIFIED_WORKERD);
+  for(const [packageName,expected] of [
+    ["workerd",WORKERD_OVERRIDE_PACKAGE],
+    ["@cloudflare/workerd-windows-64",WORKERD_OVERRIDE_PACKAGE],
+  ]){
+    const pkgFile=join(WORKERD_ROOT,"node_modules",...packageName.split("/"),"package.json");
+    assert.ok(existsSync(pkgFile),"BLOCKED_QA_WORKERD_PACKAGE_MISSING: "+packageName);
+    const actual=JSON.parse(readFileSync(pkgFile,"utf8")).version;
+    assert.equal(actual,expected,"BLOCKED_QA_WORKERD_PACKAGE_VERSION: "+packageName);
+  }
+  const native=spawnSync(VERIFIED_WORKERD,["--version"],{
+    encoding:"utf8",windowsHide:true,timeout:10000,env:cliEnv
+  });
+  assert.equal(native.status,0,
+    "BLOCKED_QA_WORKERD_BINARY_VERSION: "+String(native.error?.message||native.stderr).slice(0,160));
+  const release=(String(native.stdout||"")+"\n"+String(native.stderr||""))
+    .match(/\b(20\d{2}-\d{2}-\d{2})\b/)?.[1]||"";
+  assert.equal(release,WORKERD_APPROVED_DATE,"BLOCKED_QA_WORKERD_RELEASE_DATE");
+  assert.ok(release>=WORKERD_REQUIRED_DATE,"BLOCKED_QA_WORKERD_TOO_OLD_FOR_APP_SOURCE");
   assert.ok(!existsSync(QA_DIR),
     "BLOCKED_QA_PRIVATE_NAMESPACE_ALREADY_EXISTS: retain earlier QA state");
   assert.ok(existsSync(join(QA_ROOT,"build","sites-vite-plugin.ts")),
@@ -124,6 +156,9 @@ function launch(port){
     // Force local-only resolution for contract-origin validation. This never
     // enables the localhost signature-bypass because requests use 127.0.0.1.
     CONTROL_PLANE_NETWORK_MODE:"local",
+    // Overrides only Vite/Miniflare's runtime binary, not the locked Wrangler
+    // or app dependency tree, and not the D1 CLI migration process.
+    MINIFLARE_WORKERD_PATH:VERIFIED_WORKERD,
     WRANGLER_SEND_METRICS:"false"};
   const child=spawn(process.execPath,[VITE,"--config",QA_VITE_CONFIG,
     "--host","127.0.0.1","--port",String(port),"--strictPort"],{
@@ -335,6 +370,8 @@ async function main(){
       nativeWrite:true,independentD1CliRead:true,workerRestartGet:true,
       plaintextCredentialExposure:false,productionTouched:false,
       nativeProductionAuth:"NOT_TESTED",mfa:"NOT_TESTED",
+      localRuntimeBinary:"QA_VERIFIED_WORKERD_1.20261012.1_OVERRIDE",
+      lockedAppWorkerd:"1.20260515.1",fullLockParity:false,
       globalD1Quiescence:"BLOCKED"}));
   }finally{
     try{if(child&&port)await stop(child,port);safeStop=port?!(await openPort(port)):true}
@@ -354,6 +391,8 @@ async function main(){
     sha:EXPECTED_HEAD,ownerProof:"P256_VERIFIED",unauthorized:"REJECTED",
     savedAndReopened:true,independentCliReadback:true,
     productionTouched:false,ci:"PENDING",globalD1:"10/10 BLOCKED",
+    localRuntimeBinary:"QA_VERIFIED_WORKERD_1.20261012.1_OVERRIDE",
+    fullLockParity:false,
     globalProcessQuiescence:"NOT_PROVEN"}));
 }
 main().catch(e=>{
