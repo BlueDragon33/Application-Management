@@ -25,6 +25,23 @@ const QA_VITE_CONFIG=join(QA_DIR,"vite.qa.mjs");
 const DB_NAME="app-native-p0-"+randomBytes(6).toString("hex");
 const APP_ID="price-report-tunggiabao";
 const OWNER="p0-native-qa@example.invalid";
+const childDiagnostics=new WeakMap();
+const qaEphemeralSecrets=[];
+function safeStartupError(child){
+  let report=String(childDiagnostics.get(child)?.text||"").slice(-7000);
+  for(const item of qaEphemeralSecrets)if(item)report=report.replaceAll(item,"[REDACTED_QA_SECRET]");
+  report=report.replace(/\x1b\[[0-9;]*m/g,"");
+  // Startup errors can accidentally print configuration vars. Suppress long
+  // opaque tokens, Bearer headers, cookie values and PEM-like material.
+  report=report.replace(/\bBearer\s+\S+/gi,"Bearer [REDACTED]");
+  report=report.replace(/(authorization|cookie|token|password|secret|private_key)(\s*[:=]\s*)([^\s,}]+)/gi,
+    "$1$2[REDACTED]");
+  report=report.replace(/\b[A-Za-z0-9_-]{42,}\b/g,"[REDACTED_OPAQUE]");
+  return JSON.stringify({
+    exitCode:child.exitCode,signal:child.signalCode,
+    diagnostic:report.slice(-3800)||"NO_CAPTURED_STARTUP_LOGS",
+  });
+}
 const cliEnv={...process.env,CI:"1",WRANGLER_SEND_METRICS:"false",
   GIT_TERMINAL_PROMPT:"0",npm_config_update_notifier:"false",
   CLOUDFLARE_SEND_METRICS:"false"};
@@ -112,10 +129,13 @@ function launch(port){
     "--host","127.0.0.1","--port",String(port),"--strictPort"],{
     cwd:QA_ROOT,env,windowsHide:true,shell:false,stdio:["ignore","pipe","pipe"]
   });
-  const logs=[];
+  const diagnostic={text:""};
+  childDiagnostics.set(child,diagnostic);
   for(const stream of [child.stdout,child.stderr])
-    stream.on("data",v=>{logs.push(String(v).slice(-1400));if(logs.length>12)logs.shift()});
-  child.on("error",e=>{logs.push(String(e.message||e))});
+    stream.on("data",v=>{diagnostic.text=(diagnostic.text+String(v)).slice(-12000)});
+  child.on("error",e=>{
+    diagnostic.text=(diagnostic.text+"\n"+String(e.message||e)).slice(-12000)
+  });
   return child;
 }
 async function stop(child,port){
@@ -148,7 +168,11 @@ async function request(origin,secret,path,body){
 }
 async function ready(origin,secret,child){
   for(let i=0;i<100;i++){
-    if(child.exitCode!==null||child.signalCode!==null)throw Error("BLOCKED_VITE_WORKER_EXITED");
+    if(child.exitCode!==null||child.signalCode!==null){
+      // Give the captured stdout/stderr pipes a chance to drain on Windows.
+      await delay(150);
+      throw Error("BLOCKED_VITE_WORKER_EXITED: "+safeStartupError(child));
+    }
     try{
       const r=await fetch(origin+"/__deployment",{redirect:"manual",
         headers:{authorization:"Bearer "+secret},signal:AbortSignal.timeout(1500)});
@@ -160,7 +184,7 @@ async function ready(origin,secret,child){
     }catch(e){if(String(e).includes("BLOCKED_WRONG"))throw e}
     await delay(250);
   }
-  throw Error("BLOCKED_APP_WORKER_OR_NATIVE_D1_NOT_READY");
+  throw Error("BLOCKED_APP_WORKER_OR_NATIVE_D1_NOT_READY: "+safeStartupError(child));
 }
 function base64url(bytes){return Buffer.from(bytes).toString("base64url")}
 async function register(origin,secret,key){
@@ -207,6 +231,7 @@ async function main(){
   preflight(); // Must happen BEFORE touching QA disk or starting network services.
   const secret=randomBytes(48).toString("base64url");
   const master=randomBytes(32).toString("base64url");
+  qaEphemeralSecrets.push(secret,master);
   mkdirSync(QA_DIR,{recursive:true});
   // Only the QA Vite configuration can override persistState. The real
   // application Vite config is not modified, and the plugin suite remains
