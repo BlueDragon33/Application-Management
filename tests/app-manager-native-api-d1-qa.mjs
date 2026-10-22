@@ -80,6 +80,14 @@ function preflight(){
   exactSource("worker/preview-access.ts","333b09468c5ddcef7b88c9e5d32a0bc18639c231");
   exactSource("app/control-device.server.ts","21848f7f98466bd57d5238f91a4ab90a9885dbdf");
   exactSource("app/api/managed-apps/route.ts","e8089df2ef208c66918b3547612ba92c8b8e1057");
+  exactSource("app/application-registry.ts","1a72ab309db0fca3b11cbd45e5a5b099a3a4e9dd");
+  // Test inputs MUST use a category the real App-Manager supports.
+  // "Báo cáo" is only a category profile capability, not an ApplicationCategory.
+  const registrySource=readFileSync(join(QA_ROOT,"app","application-registry.ts"),"utf8");
+  const appAt=registrySource.indexOf('id: "price-report-tunggiabao"');
+  assert.ok(appAt>=0,"BLOCKED_PRICE_REPORT_REGISTRY_MISSING");
+  assert.match(registrySource.slice(appAt,appAt+650),/category:\s*"Kế toán"/,
+    "BLOCKED_PRICE_REPORT_CATEGORY_DRIFT");
   exactSource("drizzle/0005_managed_app_catalog.sql","d66ccf0399223dde36b8cbcdc8d1c7750f8d15a3");
   assert.ok(existsSync(VITE)&&existsSync(WRANGLER),
     "BLOCKED_QA_NODE_MODULES_MISSING: Only offline npm ci in this detached QA worktree is permitted");
@@ -349,7 +357,7 @@ async function main(){
     const deviceId=await register(origin,secret,key);
     await unauthorizedChecks(origin,secret,deviceId,key);
     const item={id:APP_ID,name:"PriceReport P0 Native API",
-      shortName:"PriceReport QA",category:"Báo cáo",
+      shortName:"PriceReport QA",category:"Kế toán",
       origin:"http://127.0.0.1:1",contractPath:"/api/control/status",
       credential:randomBytes(48).toString("base64url")};
     qaEphemeralSecrets.push(item.credential);
