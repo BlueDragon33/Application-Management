@@ -376,39 +376,60 @@ async function main(){
     assert.equal(entry?.name,item.name,"BLOCKED_NATIVE_API_GET_ROW_MISSING");
     assert.equal(entry?.credentialConfigured,true,"BLOCKED_NATIVE_API_CREDENTIAL_MISSING");
     assert.ok(!JSON.stringify(list.data).includes(item.credential),"BLOCKED_API_PLAINTEXT_EXPOSED");
+    // Independent Wrangler CLI must read from a QUIESCED QA Worker.
+    // The first live-CLI census failed while Vite owned this SQLite backend.
+    // Never substitute an in-memory catalog or mark CLI read as PASS.
+    await stop(child,port);
+    child=null;
+    assert.equal(await openPort(port),false,"BLOCKED_PORT_AFTER_INITIAL_WRITE_STOP");
     const before=sqlRead();
     assert.equal(before.created_by,OWNER);
     assert.ok(!JSON.stringify(before).includes(item.credential),"BLOCKED_D1_CREDENTIAL_PLAINTEXT");
     const encryptedHash=Buffer.from(before.credential_ciphertext+"."+before.credential_iv)
       .toString("base64url");
+    // This is the first real Worker restart. Retain the same disposable D1.
+    child=launch(port);
+    await ready(origin,secret,child);
+    const firstReopen=await command(origin,secret,deviceId,key,"list");
+    assert.equal(firstReopen.status,200,"BLOCKED_NATIVE_API_FIRST_REOPEN_GET_FAILED");
+    assert.equal(firstReopen.data.apps?.find(x=>x.id===APP_ID)?.name,item.name,
+      "BLOCKED_NATIVE_FIRST_REOPEN_NOT_PERSISTED");
     const updatedName="PriceReport P0 Native API Reopen";
     const updated=await command(origin,secret,deviceId,key,"upsert",
       {...item,name:updatedName,credential:""});
-    assert.equal(updated.status,200,"BLOCKED_NATIVE_API_UPDATE_FAILED");
+    if(updated.status!==200){
+      const detail=safeApiFailure(updated);
+      console.error("QA_NATIVE_UPDATE_FAILURE_DETAILS: "+JSON.stringify(detail));
+      throw Error("BLOCKED_NATIVE_API_UPDATE_FAILED: HTTP_"+updated.status+
+        " API_CODE="+detail.apiCode);
+    }
+    const updatedList=await command(origin,secret,deviceId,key,"list");
+    assert.equal(updatedList.status,200,"BLOCKED_NATIVE_API_UPDATED_GET_FAILED");
+    assert.equal(updatedList.data.apps?.find(x=>x.id===APP_ID)?.name,updatedName,
+      "BLOCKED_NATIVE_API_UPDATED_GET_STALE");
+    await stop(child,port);
+    child=null;
+    assert.equal(await openPort(port),false,"BLOCKED_PORT_AFTER_UPDATE_STOP");
     const persisted=sqlRead();
     assert.equal(persisted.name,updatedName,"BLOCKED_NATIVE_D1_READBACK_STALE");
     assert.equal(Buffer.from(persisted.credential_ciphertext+"."+persisted.credential_iv)
       .toString("base64url"),encryptedHash,"BLOCKED_BLANK_CREDENTIAL_REWRITTEN");
-    await stop(child,port);
-    child=null;
-    assert.equal(await openPort(port),false,"BLOCKED_PORT_AFTER_STOP");
-    child=launch(port); // Assign before readiness so finally always captures the PID.
+    // Second real Worker restart validates that the native binding reopens
+    // the same persistent D1. No CLI queries run concurrently with Vite.
+    child=launch(port);
     await ready(origin,secret,child);
     const reopened=await command(origin,secret,deviceId,key,"list");
     assert.equal(reopened.status,200,"BLOCKED_NATIVE_API_REOPEN_GET_FAILED");
     const final=reopened.data.apps?.find(x=>x.id===APP_ID);
     assert.equal(final?.name,updatedName,"BLOCKED_NATIVE_RESTART_CATALOG_NOT_PERSISTED");
     assert.equal(final?.credentialConfigured,true,"BLOCKED_NATIVE_RESTART_CREDENTIAL_MISSING");
-    const row=sqlRead();
-    assert.equal(row.name,updatedName,"BLOCKED_INDEPENDENT_D1_AFTER_RESTART");
-    assert.equal(Buffer.from(row.credential_ciphertext+"."+row.credential_iv)
-      .toString("base64url"),encryptedHash,"BLOCKED_D1_AES_CIPHER_CHANGED_AFTER_RESTART");
     passed=true;
     console.log(JSON.stringify({checkpoint:"APP_NATIVE_WORKER_API_D1_READBACK_VERIFIED",
       appManagerSha:EXPECTED_HEAD,api:"/api/managed-apps",
       httpWorker:"ACTUAL_VINEXT_APP_ROUTER",d1:"NATIVE_CLOUDFLARE_BINDING",
       p256DeviceSignature:true,previewSecretGate:true,
       nativeWrite:true,independentD1CliRead:true,workerRestartGet:true,
+      cliReadsAfterCapturedWorkerStop:true,concurrentCliRead:"NOT_TESTED",
       plaintextCredentialExposure:false,productionTouched:false,
       nativeProductionAuth:"NOT_TESTED",mfa:"NOT_TESTED",
       localRuntimeBinary:"QA_VERIFIED_WORKERD_1.20261012.1_OVERRIDE",
