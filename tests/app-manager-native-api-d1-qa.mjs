@@ -161,8 +161,8 @@ function safeApiFailure(result){
   const payload=result?.data&&typeof result.data==="object"?result.data:{};
   let message=String(payload.error||"").slice(0,500);
   for(const secret of qaEphemeralSecrets)if(secret)message=message.replaceAll(secret,"[REDACTED_QA_SECRET]");
-  message=message.replace(/\\bBearer\\s+\\S+/gi,"Bearer [REDACTED]");
-  message=message.replace(/\\b[A-Za-z0-9_-]{42,}\\b/g,"[REDACTED_OPAQUE]");
+  message=message.replace(/\bBearer\s+\S+/gi,"Bearer [REDACTED]");
+  message=message.replace(/\b[A-Za-z0-9_-]{42,}\b/g,"[REDACTED_OPAQUE]");
   return {httpStatus:result?.status,apiCode:
     String(payload.code||"UNSPECIFIED").slice(0,90),apiError:message||"NO_API_ERROR_TEXT",
     d1:independentCatalogCensus()};
@@ -352,6 +352,7 @@ async function main(){
       shortName:"PriceReport QA",category:"Báo cáo",
       origin:"http://127.0.0.1:1",contractPath:"/api/control/status",
       credential:randomBytes(48).toString("base64url")};
+    qaEphemeralSecrets.push(item.credential);
     const first=await command(origin,secret,deviceId,key,"upsert",item);
     if(first.status!==200){
       const failure=safeApiFailure(first);
