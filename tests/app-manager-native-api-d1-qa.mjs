@@ -141,6 +141,32 @@ function openPort(port){return new Promise(done=>{
 function argsD1(parts){
   return [WRANGLER,"d1",...parts,"--local","--config",CONFIG,"--persist-to",STATE];
 }
+// Independent Wrangler D1 read with no plaintext or credential material emitted.
+function independentCatalogCensus(){
+  try{
+    const output=exec(process.execPath,argsD1(["execute",DB_NAME,"--command",
+      "SELECT COUNT(*) AS qa_count FROM managed_app_catalog WHERE id='price-report-tunggiabao'",
+      "--json"]));
+    const offset=output.indexOf("[");
+    assert.ok(offset>=0,"BLOCKED_CENSUS_JSON_ABSENT");
+    const rows=JSON.parse(output.slice(offset)).flatMap(x=>x.results||[]);
+    return {cliReachable:true,cliRowCount:Number(rows[0]?.qa_count||0)};
+  }catch(e){
+    return {cliReachable:false,cliErrorCode:
+      String(e?.message||e).includes("no such table")
+        ? "MISSING_MANAGED_APP_CATALOG_TABLE":"INDEPENDENT_CLI_FAILED"};
+  }
+}
+function safeApiFailure(result){
+  const payload=result?.data&&typeof result.data==="object"?result.data:{};
+  let message=String(payload.error||"").slice(0,500);
+  for(const secret of qaEphemeralSecrets)if(secret)message=message.replaceAll(secret,"[REDACTED_QA_SECRET]");
+  message=message.replace(/\\bBearer\\s+\\S+/gi,"Bearer [REDACTED]");
+  message=message.replace(/\\b[A-Za-z0-9_-]{42,}\\b/g,"[REDACTED_OPAQUE]");
+  return {httpStatus:result?.status,apiCode:
+    String(payload.code||"UNSPECIFIED").slice(0,90),apiError:message||"NO_API_ERROR_TEXT",
+    d1:independentCatalogCensus()};
+}
 function sqlRead(){
   const out=exec(process.execPath,argsD1(["execute",DB_NAME,"--command",
     "SELECT id,name,category,origin,contract_path,created_by,credential_ciphertext,credential_iv FROM managed_app_catalog WHERE id='price-report-tunggiabao'","--json"]));
@@ -327,6 +353,12 @@ async function main(){
       origin:"http://127.0.0.1:1",contractPath:"/api/control/status",
       credential:randomBytes(48).toString("base64url")};
     const first=await command(origin,secret,deviceId,key,"upsert",item);
+    if(first.status!==200){
+      const failure=safeApiFailure(first);
+      console.error("QA_NATIVE_UPSERT_FAILURE_DETAILS: "+JSON.stringify(failure));
+      throw Error("BLOCKED_NATIVE_API_UPSERT_FAILED: HTTP_"+first.status+
+        " API_CODE="+failure.apiCode);
+    }
     assert.equal(first.status,200,"BLOCKED_NATIVE_API_UPSERT_FAILED");
     assert.equal(first.data.ok,true,"BLOCKED_NATIVE_API_UPSERT_NOT_OK");
     const list=await command(origin,secret,deviceId,key,"list");
