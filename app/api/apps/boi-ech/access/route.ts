@@ -7,7 +7,7 @@ const TIMEOUT_MS = 4_500;
 const MAX_PAYMENT_PROOF_BYTES = 8 * 1024 * 1024;
 const PAYMENT_PROOF_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 type UnknownRecord = Record<string, unknown>;
-type AccessOperation = "grant-free" | "require-payment" | "renew-access" | "verify-payment" | "reject-payment";
+type AccessOperation = "grant-free" | "require-payment" | "renew-access" | "verify-payment" | "reject-payment" | "block" | "unblock";
 
 type Bridge = Awaited<ReturnType<typeof issueBoiBrowserBridge>>;
 
@@ -146,7 +146,12 @@ function accessDevice(row: UnknownRecord) {
   };
 }
 
-function readbackMatches(operation: AccessOperation, row: UnknownRecord) {
+function readbackMatches(operation: AccessOperation, row: UnknownRecord, before: UnknownRecord) {
+  if (operation === "block" || operation === "unblock") {
+    const expectedStatus = operation === "block" ? "blocked" : ["free_approved", "paid_verified"].includes(text(before.paymentStatus)) ? "approved" : "pending";
+    return text(row.status) === expectedStatus && text(row.paymentStatus) === text(before.paymentStatus)
+      && text(row.accessGroup) === text(before.accessGroup) && text(row.accessExpiresAt) === text(before.accessExpiresAt);
+  }
   if (operation === "grant-free") return text(row.accessGroup) === "free" && text(row.paymentStatus) === "free_approved";
   if (operation === "require-payment") return text(row.accessGroup) === "paid" && text(row.paymentStatus) === "awaiting_payment";
   if (operation === "verify-payment") return text(row.status) === "approved" && text(row.accessGroup) === "paid" && text(row.paymentStatus) === "paid_verified"
@@ -223,7 +228,7 @@ export async function POST(request: Request) {
       const deviceId = text(payload.deviceId).toLowerCase();
       const operation = text(payload.operation) as AccessOperation;
       if (!/^[a-f0-9]{64}$/.test(deviceId)) return json({ error: "Mã thiết bị Bơi ếch không hợp lệ.", code: "INVALID_DEVICE_ID" }, 400);
-      if (!["grant-free", "require-payment", "renew-access", "verify-payment", "reject-payment"].includes(operation)) return json({ error: "Thao tác thanh toán/quyền không hợp lệ.", code: "INVALID_ACCESS_OPERATION" }, 400);
+      if (!["grant-free", "require-payment", "renew-access", "verify-payment", "reject-payment", "block", "unblock"].includes(operation)) return json({ error: "Thao tác thanh toán/quyền không hợp lệ.", code: "INVALID_ACCESS_OPERATION" }, 400);
 
       const before = await overview(bridge);
       if (!before.ok) return json(before.payload, before.status);
@@ -231,11 +236,16 @@ export async function POST(request: Request) {
       if (!current) return json({ error: "Thiết bị Bơi ếch không còn trong registry.", code: "DEVICE_NOT_FOUND" }, 404);
       const expectedPaymentStatus = text(payload.expectedPaymentStatus);
       const expectedAccessGroup = text(payload.expectedAccessGroup);
+      const expectedStatus = text(payload.expectedStatus);
+      if (!["pending", "approved", "blocked"].includes(expectedStatus) || !expectedPaymentStatus || !expectedAccessGroup) return json({ error: "Cần đủ trạng thái dự kiến của thiết bị, thanh toán và nhóm quyền.", code: "INVALID_EXPECTED_STATE" }, 400);
+      if (text(current.status) !== expectedStatus) return json({ error: "Trạng thái thiết bị đã thay đổi. Hãy đồng bộ lại.", code: "DEVICE_STATE_CONFLICT" }, 409);
       const currentPaymentStatus = text(current.paymentStatus);
       const currentAccessGroup = text(current.accessGroup);
       if (expectedPaymentStatus && currentPaymentStatus !== expectedPaymentStatus) return json({ error: "Trạng thái thanh toán đã thay đổi. Hãy đồng bộ lại.", code: "PAYMENT_STATE_CONFLICT" }, 409);
       if (expectedAccessGroup && currentAccessGroup !== expectedAccessGroup) return json({ error: "Nhóm quyền đã thay đổi. Hãy đồng bộ lại.", code: "ACCESS_STATE_CONFLICT" }, 409);
-      if (!bool(current.registrationComplete)) return json({ error: "Hồ sơ người học chưa đầy đủ nên chưa thể thay đổi quyền.", code: "REGISTRATION_INCOMPLETE" }, 409);
+      if (operation !== "block" && operation !== "unblock" && text(current.status) === "blocked") return json({ error: "Hãy mở khóa thiết bị trước khi thay đổi quyền.", code: "DEVICE_STATE_CONFLICT" }, 409);
+      if (operation === "unblock" && text(current.status) !== "blocked" || operation === "block" && text(current.status) === "blocked") return json({ error: "Trạng thái thiết bị đã thay đổi. Hãy đồng bộ lại.", code: "DEVICE_STATE_CONFLICT" }, 409);
+      if (operation !== "block" && operation !== "unblock" && !bool(current.registrationComplete)) return json({ error: "Hồ sơ người học chưa đầy đủ nên chưa thể thay đổi quyền.", code: "REGISTRATION_INCOMPLETE" }, 409);
       if (operation === "require-payment" && (currentAccessGroup !== "unassigned" || currentPaymentStatus !== "unassigned")) return json({ error: "Tài khoản đã bắt đầu hoặc hoàn tất luồng thanh toán/phân quyền; không gửi lại yêu cầu thanh toán.", code: "PAYMENT_STATE_CONFLICT" }, 409);
       if (operation === "renew-access" && (text(current.status) !== "approved" || !["free_approved", "paid_verified"].includes(currentPaymentStatus))) {
         return json({ error: "Chỉ gia hạn khi quyền miễn phí hoặc thanh toán đã được xác nhận.", code: "ACCESS_STATE_CONFLICT" }, 409);
@@ -251,15 +261,15 @@ export async function POST(request: Request) {
 
       const command = await bridgeJson(bridge, "/api/control/overview", {
         method: "POST",
-        body: { action: operation, deviceId, ...(operation === "reject-payment" ? { note } : {}),
+        body: { action: operation, deviceId, expectedStatus, expectedPaymentStatus, expectedAccessGroup, ...(operation === "reject-payment" ? { note } : {}),
           ...(operation === "verify-payment" ? { paidAccessDays } : {}) },
       });
       if (!command.ok) return json(command.payload, command.status);
       const after = await overview(bridge);
-      if (!after.ok) return json(after.payload, after.status);
+      if (!after.ok) return json({ error: "App đã nhận lệnh nhưng Trung tâm chưa đọc lại được trạng thái. Hãy đồng bộ để kiểm tra trước khi gửi lệnh khác.", code: "ACCESS_READBACK_UNAVAILABLE", applied: true, verified: false }, 502);
       const updated = deviceById(after.payload, deviceId);
-      if (!updated || !readbackMatches(operation, updated) || operation === "verify-payment" && Number(updated.accessDaysRemaining) !== paidAccessDays) {
-        return json({ error: "Bơi ếch chưa xác nhận trạng thái thanh toán/quyền và thời hạn sau thao tác.", code: "ACCESS_READBACK_MISMATCH" }, 502);
+      if (!updated || !readbackMatches(operation, updated, current) || operation === "verify-payment" && Number(updated.accessDaysRemaining) !== paidAccessDays) {
+        return json({ error: "App đã nhận lệnh nhưng trạng thái đọc lại chưa khớp. Hãy đồng bộ để kiểm tra trước khi gửi lệnh khác.", code: "ACCESS_READBACK_MISMATCH", applied: true, verified: false }, 502);
       }
       return json({ ok: true, verified: true, device: accessDevice(updated) });
     }

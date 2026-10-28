@@ -7,7 +7,7 @@ import { issueRuLifeBrowserBridge } from "../../ru-life.server";
 import { issueBaumanBrowserBridge } from "../../bauman.server";
 import { issueGrowUpBrowserBridge, probeGrowUpManagementContract } from "../../growup.server";
 import { issuePriceReportBrowserBridge, probePriceReportManagementContract } from "../../price-report.server";
-import { executeUniversalAutomationCommand, executeUniversalDeviceCommand, probeDynamicManagedApplications, type DynamicContractSnapshot } from "../../open-contract.server";
+import { executeUniversalAutomationCommand, executeUniversalDeviceCommand, probeDynamicManagedApplications, UniversalDeviceCommandError, type DynamicContractSnapshot } from "../../open-contract.server";
 import { resolveClientOrigin } from "../../client-origin.server";
 import {
   dismissedNotificationHashes,
@@ -45,6 +45,7 @@ type ClientDevice = {
   canRemove: boolean;
   canUnblock: boolean;
   canEditPermission: boolean;
+  canManageAccess?: boolean;
   editEnabled: boolean;
   registryInstanceId?: string | null;
 };
@@ -370,8 +371,8 @@ function deviceFromUniversal(snapshot: DynamicContractSnapshot, raw: DynamicCont
     canApprove: canManage && raw.status === "pending" && capabilities.deviceApproval === true,
     canRemove: canManage && (raw.status === "pending" || raw.status === "approved") && capabilities.deviceBlock === true,
     canUnblock: canManage && raw.status === "blocked" && capabilities.deviceUnblock === true,
-    canEditPermission: canManage && raw.status === "approved" && capabilities.deviceEditPermission === true,
-    editEnabled: raw.editEnabled,
+    canEditPermission: canManage && raw.status === "approved" && capabilities.deviceEditPermission === true && typeof raw.editEnabled === "boolean",
+    editEnabled: raw.editEnabled === true,
     registryInstanceId: raw.registryInstanceId ?? null,
   };
 }
@@ -414,10 +415,10 @@ async function loadBoi(actor: ControlDeviceState) {
       { code: authMismatch ? "BOI_ECH_CONTROL_AUTH_MISMATCH" : apiMissing ? "BOI_ECH_CONTROL_API_MISSING" : "BOI_ECH_CONTROL_UNAVAILABLE" },
     );
   }
-  const devices = rows(data).map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
+  const devices = rows(data).map((row) => ({ ...deviceFrom(config.id, config.shortName, config.href, row, {
     typeKey: "deviceType", userKeys: ["learnerName", "personCode"],
     approve: actor.role === "publisher" || actor.role === "owner", remove: actor.role === "owner",
-  }));
+  }), canManageAccess: actor.role === "publisher" || actor.role === "owner" }));
   return {
     config,
     devices,
@@ -1099,7 +1100,7 @@ export async function POST(request: Request) {
       const appId = text(payload.appId);
       const deviceId = text(payload.deviceId);
       const deviceCode = text(payload.deviceCode).toUpperCase();
-      if (operation !== "approve" && operation !== "remove") return json({ error: "Thao tác thiết bị không hợp lệ.", code: "INVALID_DEVICE_OPERATION" }, 400);
+      if (operation !== "approve" && operation !== "remove" && operation !== "unblock" && operation !== "set-edit-permission") return json({ error: "Thao tác thiết bị không hợp lệ.", code: "INVALID_DEVICE_OPERATION" }, 400);
 
       const dynamicSnapshot = (await probeDynamicManagedApplications([appId])).find((snapshot) => snapshot.config.id === appId);
       const dynamicCapabilities = dynamicSnapshot?.manifest?.capabilities ?? {};
@@ -1112,7 +1113,9 @@ export async function POST(request: Request) {
         && (
           operation === "approve"
             ? dynamicCapabilities.deviceApproval === true
-            : dynamicCapabilities.deviceBlock === true
+            : operation === "remove" ? dynamicCapabilities.deviceBlock === true
+              : operation === "unblock" ? dynamicCapabilities.deviceUnblock === true
+                : dynamicCapabilities.deviceEditPermission === true
         )
       );
 
@@ -1129,6 +1132,7 @@ export async function POST(request: Request) {
           return json({ error: "commandId không hợp lệ.", code: "INVALID_COMMAND_ID" }, 400);
         }
         const commandId = suppliedCommandId || crypto.randomUUID();
+        if (operation === "set-edit-permission" && typeof payload.editEnabled !== "boolean") return json({ error: "Cần giá trị quyền sửa boolean.", code: "INVALID_EDIT_PERMISSION" }, 400);
         try {
           const result = await executeUniversalDeviceCommand({
             appId,
@@ -1136,23 +1140,27 @@ export async function POST(request: Request) {
             deviceId,
             expectedStatus: suppliedExpected as "pending" | "approved" | "blocked",
             commandId,
+            ...(operation === "set-edit-permission" ? { editEnabled: payload.editEnabled as boolean } : {}),
           }, actor);
           return json({
             ok: true,
             verified: true,
-            verifiedStatus: operation === "approve" ? "approved" : "blocked",
+            verifiedStatus: operation === "remove" ? "blocked" : "approved",
             commandId,
             commandReplayed: result.commandReplayed,
             contractPath: "universal",
             ...(operation === "approve" ? { approvedDeviceId: deviceId } : { removedDeviceId: deviceId }),
           });
         } catch (error) {
+          if (error instanceof UniversalDeviceCommandError) return json({ error: error.message, code: error.code, commandId: error.commandId, applied: error.applied, verified: error.verified }, 502);
           return json({
             error: error instanceof Error ? error.message : "Universal Contract chưa hoàn tất thao tác.",
             code: "UNIVERSAL_CONTRACT_ACTION_FAILED",
           }, 409);
         }
       }
+
+      if (operation === "unblock" || operation === "set-edit-permission") return json({ error: "Ứng dụng chưa công bố contract live cho thao tác này.", code: "CLIENT_ACTION_UNAVAILABLE" }, 409);
 
       const legacyDeviceIdApp = ["health-care", "ru-life", "growup-mychildren", "price-report-tunggiabao", "bauman-master-ai", "boi-ech"].includes(appId);
       if (legacyDeviceIdApp && !/^[a-f0-9]{64}$/.test(deviceId)) return json({ error: "Mã thiết bị không hợp lệ.", code: "INVALID_DEVICE_ID" }, 400);

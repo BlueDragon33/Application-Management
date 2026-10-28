@@ -11,7 +11,7 @@ const css = source("app/management-dashboard-v2.css");
 
 test("bulk pending-device action is explicitly destructive instead of ambiguous", () => {
   assert.match(dashboard, /Từ chối & khóa/);
-  assert.match(dashboard, /aria-label="Từ chối và khóa các thiết bị chờ kiểm duyệt đang hiển thị"/);
+  assert.match(source("app/central-device-inventory.tsx"), /aria-label="Từ chối và khóa các thiết bị chờ kiểm duyệt đang hiển thị"/);
   assert.doesNotMatch(dashboard, /Xử lý tất cả chờ duyệt/);
 });
 

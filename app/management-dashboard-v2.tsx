@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { applicationRegistry, standardDeviceExperiences, type ApplicationConfig } from "./application-registry";
 import BoiAccessView from "./boi-access-view";
+import CentralDeviceInventory, { type CentralDeviceOperation } from "./central-device-inventory";
 import AutomaticDevicePolicies, { type AutomationSelection } from "./automatic-device-policies";
 import {
   AdminApiError,
@@ -167,7 +168,7 @@ const viewTitles: Record<View, { title: string; subtitle: string }> = {
   },
   approvals: { title: "Hộp việc", subtitle: "Các yêu cầu và sự kiện cần xử lý được gom về một hàng đợi thống nhất." },
   applications: { title: "Ứng dụng", subtitle: "Quản trị client và mở đúng website sử dụng của từng ứng dụng." },
-  devices: { title: "Kiểm duyệt thiết bị", subtitle: "Chỉ xử lý thiết bị đang chờ duyệt; mỗi lệnh đều kiểm tra quyền, capability và trạng thái live trước khi thay đổi registry." },
+  devices: { title: "Kiểm duyệt thiết bị", subtitle: "Quản trị thiết bị chung và xác minh thay đổi trực tiếp tại các app liên quan." },
   access: { title: "Thanh toán & Quyền", subtitle: "Xử lý quyền truy cập và thanh toán chỉ trên các ứng dụng đã công bố contract nghiệp vụ thật." },
   alerts: { title: "Cảnh báo", subtitle: "Theo dõi mất kết nối, thay đổi môi trường và contract chưa hoàn tất." },
   audit: { title: "Nhật ký", subtitle: "Theo dõi lịch sử thao tác quản trị và các sự kiện bảo mật gần nhất." },
@@ -369,6 +370,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   const [clock, setClock] = useState<Date | null>(null);
   const [webMenu, setWebMenu] = useState(false);
   const [autoPolicyOpen, setAutoPolicyOpen] = useState(false);
+  const [boiAccessDevice, setBoiAccessDevice] = useState<OperationsDevice | null>(null);
   const [accountSecurityOpen, setAccountSecurityOpen] = useState(false);
   const [fontScale, setFontScale] = useState<FontScale>("compact");
   const [localRuntime, setLocalRuntime] = useState(false);
@@ -575,7 +577,6 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
     if (appFilter !== "all" && device.appId !== appFilter) return false;
     return !searchValue || `${device.appName} ${device.deviceCode} ${device.userLabel} ${device.deviceTypeLabel}`.toLowerCase().includes(searchValue);
   });
-  const filteredPendingDevices = filteredDevices.filter((device) => device.status === "pending");
   const filteredWork = workItems.filter((item) => {
     if (appFilter !== "all" && item.appId !== appFilter) return false;
     return !searchValue || `${item.appName} ${item.title} ${item.detail}`.toLowerCase().includes(searchValue);
@@ -602,10 +603,19 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
     actionLocksRef.current.delete(key);
   }
 
-  async function manageDevice(device: OperationsDevice, operation: "approve" | "remove") {
+  function openBoiAccess(device: OperationsDevice) {
+    if (!requireManagedAccess("Quản trị quyền truy cập")) return;
+    if (device.appId !== "boi-ech" || !(device.canManageAccess || device.canApprove)) return;
+    setBoiAccessDevice(device);
+  }
+
+  async function manageDevice(device: OperationsDevice, operation: CentralDeviceOperation) {
     if (!requireManagedAccess("Kiểm duyệt thiết bị")) return;
-    if (device.status !== "pending") {
-      setNotice(`Thiết bị ${device.deviceCode} không còn ở trạng thái chờ kiểm duyệt. Hãy đồng bộ lại hoặc mở Quản trị của ${device.appName} để thay đổi quyền.`);
+    if (operation === "approve" && device.status !== "pending"
+      || operation === "remove" && !["pending", "approved"].includes(device.status)
+      || operation === "unblock" && (device.status !== "blocked" || !device.canUnblock)
+      || operation === "set-edit-permission" && (device.status !== "approved" || !device.canEditPermission)) {
+      setNotice(`Thiết bị ${device.deviceCode} chưa đủ điều kiện cho thao tác này. Hãy đồng bộ lại.`);
       return;
     }
     if (operation === "approve" && !device.canApprove) {
@@ -617,9 +627,8 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       return;
     }
     if (operation === "approve" && device.appId === "boi-ech") {
-      setAppFilter("boi-ech");
-      switchView("access");
-      setNotice("Bơi ếch cần chọn rõ Miễn phí hoặc Trả phí trong Thanh toán & Quyền; không tự động cấp miễn phí từ hàng kiểm duyệt.");
+      openBoiAccess(device);
+      setNotice("Chọn rõ Miễn phí hoặc Trả phí ngay trong bảng quyền truy cập của thiết bị.");
       return;
     }
     if (operation === "remove") {
@@ -648,10 +657,15 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
         deviceCode: device.deviceCode,
         expectedStatus: device.status,
         registryInstanceId: device.registryInstanceId ?? undefined,
+        ...(operation === "set-edit-permission" ? { editEnabled: !device.editEnabled } : {}),
       });
       await refreshOperations(true);
       if (result.code === "STALE_DEVICE_REMOVED") {
         setNotice(`Thiết bị ${device.deviceCode} không còn trong registry; hàng kiểm duyệt đã được đồng bộ lại.`);
+      } else if (operation === "unblock") {
+        setNotice(`Đã mở khóa ${device.deviceCode} và xác minh tại ${device.appName}.`);
+      } else if (operation === "set-edit-permission") {
+        setNotice(`Đã ${device.editEnabled ? "tắt" : "bật"} quyền sửa ${device.deviceCode} và xác minh tại ${device.appName}.`);
       } else if (operation === "approve") {
         setNotice(`Đã duyệt ${device.deviceCode}.`);
       } else if (device.appId === "boi-ech") {
@@ -1145,7 +1159,11 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
           /> : null}
           {view === "approvals" ? <ApprovalView devices={filteredApprovalDevices} actionBusy={actionBusy} manageDevice={manageDevice}/> : null}
           {view === "applications" ? <ApplicationsView apps={filteredApps} tools={filteredTools} summaryMap={summaryMap} devices={devices} webBusy={webBusy} launchWeb={launchWeb} localRuntime={localRuntime} offline={offline} lastUpdatedAt={operations?.generatedAt}/> : null}
-          {view === "devices" ? <DevicesView devices={filteredPendingDevices} actionBusy={actionBusy} manageDevice={manageDevice} bulkRemovePendingDevices={bulkRemovePendingDevices} openAutomation={openAutomationPolicies}/> : null}
+          {boiAccessDevice ? <section className="amv2-page-panel" aria-label={`Quyền truy cập ${boiAccessDevice.deviceCode}`}>
+            <header className="amv2-device-bulk-toolbar"><strong>{boiAccessDevice.deviceCode} · {boiAccessDevice.userLabel}</strong><button onClick={() => setBoiAccessDevice(null)}>Đóng bảng quyền</button></header>
+            <BoiAccessView key={boiAccessDevice.deviceId} deviceId={boiAccessDevice.deviceId} onChanged={() => refreshOperations(true, true)}/>
+          </section> : null}
+          {view === "devices" ? <CentralDeviceInventory devices={filteredDevices} actionBusy={actionBusy} manageDevice={manageDevice} openBoiAccess={openBoiAccess} bulkRemovePendingDevices={bulkRemovePendingDevices} openAutomation={openAutomationPolicies}/> : null}
           {view === "access" ? <BoiAccessView query={search}/> : null}
           {view === "alerts" ? <AlertsView apps={filteredApps} summaryMap={summaryMap} workItems={filteredWork} lastUpdated={lastUpdated} offline={offline}/> : null}
           {view === "audit" ? <AuditView center={center}/> : null}
@@ -2064,23 +2082,6 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
         </footer>
       </div> : null}
     </div>
-  </section>;
-}
-
-function DevicesView({ devices, actionBusy, manageDevice, bulkRemovePendingDevices, openAutomation }: {
-  devices: OperationsDevice[];
-  actionBusy: string;
-  manageDevice: (device: OperationsDevice, operation: "approve" | "remove") => Promise<void>;
-  bulkRemovePendingDevices: (devices: OperationsDevice[]) => Promise<void>;
-  openAutomation: () => void;
-}) {
-  const bulkTargets = devices.filter((device) => device.status === "pending" && device.canRemove && device.appId !== "boi-ech").slice(0, 24);
-  return <section className="amv2-page-panel">
-    <div className="amv2-device-bulk-toolbar">
-      <div><strong>Hàng đợi kiểm duyệt</strong><small>Chỉ hiển thị thiết bị đang chờ duyệt. Sau khi được duyệt, mọi thay đổi quyền, khóa hoặc xóa phải thực hiện trong Quản trị của từng app. Bơi ếch là xóa vĩnh viễn nên không được xử lý hàng loạt.</small></div>
-      <div className="amv2-device-bulk-actions"><button disabled={Boolean(actionBusy)} onClick={openAutomation}>⚙ Tự động</button><button data-danger="true" aria-label="Từ chối và khóa các thiết bị chờ kiểm duyệt đang hiển thị" disabled={!bulkTargets.length || Boolean(actionBusy)} onClick={() => void bulkRemovePendingDevices(devices)}>{actionBusy === "bulk-pending" ? "Đang xử lý…" : `Từ chối & khóa (${bulkTargets.length})`}</button></div>
-    </div>
-    <div className="amv2-view-table devices"><div className="head"><span>Ứng dụng</span><span>Thiết bị</span><span>Người dùng</span><span>Trạng thái</span><span>Hoạt động</span><span>Thao tác</span></div>{devices.map((device) => { const rowBusy = actionBusy === `${device.appId}:${device.deviceId}` || actionBusy === "bulk-pending"; return <div className="row" key={`${device.appId}:${device.deviceId}`}><AppCell appId={device.appId} name={device.appName}/><div><strong>{deviceKind(device)}</strong><small>{device.deviceCode}</small></div><span>{device.userLabel}</span><b>Chờ kiểm duyệt</b><span>{device.active ? "● Online" : relativeTime(device.lastSeenAt)}</span><div>{device.canApprove ? <button disabled={rowBusy} onClick={() => void manageDevice(device, "approve")}>{device.appId === "boi-ech" ? "Phân quyền" : "Duyệt"}</button> : null}{device.canRemove ? <button data-danger="true" disabled={rowBusy} onClick={() => void manageDevice(device, "remove")}>{device.appId === "boi-ech" ? "Xóa vĩnh viễn" : "Từ chối & khóa"}</button> : null}<Link href={device.href}>Quản trị</Link></div></div>; })}{!devices.length ? <div className="amv2-empty"><strong>Không có thiết bị chờ kiểm duyệt.</strong><small>Hàng đợi hiện đã sạch hoặc bộ lọc không có kết quả phù hợp.</small></div> : null}</div>
   </section>;
 }
 

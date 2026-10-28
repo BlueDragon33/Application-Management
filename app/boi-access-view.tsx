@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { applicationRegistry } from "./application-registry";
 import {
   connectBoiAccessManagement,
@@ -53,7 +53,7 @@ function accessTone(device: BoiAccessDevice) {
 
 type ProofState = { device: BoiAccessDevice; url: string };
 
-export default function BoiAccessView({ query = "" }: { query?: string }) {
+export default function BoiAccessView({ query = "", deviceId, onChanged }: { query?: string; deviceId?: string; onChanged?: () => Promise<unknown> }) {
   const [data, setData] = useState<BoiAccessBootstrap | null>(null);
   const [busy, setBusy] = useState(true);
   const [actionBusy, setActionBusy] = useState("");
@@ -63,6 +63,7 @@ export default function BoiAccessView({ query = "" }: { query?: string }) {
   const [paidAccessDays, setPaidAccessDays] = useState(60);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const actionLock = useRef(false);
 
   const canManage = data?.role === "publisher" || data?.role === "owner";
   const unsupportedApps = applicationRegistry.filter((app) => app.id !== "boi-ech");
@@ -94,6 +95,7 @@ export default function BoiAccessView({ query = "" }: { query?: string }) {
 
   const normalizedQuery = query.trim().toLowerCase();
   const devices = useMemo(() => (data?.devices ?? []).filter((device) => {
+    if (deviceId) return device.deviceId === deviceId;
     if (!normalizedQuery) return true;
     return [
       device.learnerName,
@@ -102,31 +104,37 @@ export default function BoiAccessView({ query = "" }: { query?: string }) {
       paymentLabels[device.paymentStatus],
       accessLabels[device.accessGroup],
     ].join(" ").toLowerCase().includes(normalizedQuery);
-  }), [data?.devices, normalizedQuery]);
+  }), [data?.devices, normalizedQuery, deviceId]);
 
-  async function manage(device: BoiAccessDevice, operation: Extract<BoiAccessOperation, "grant-free" | "require-payment" | "renew-access">) {
-    const label = operation === "grant-free" ? "cấp quyền miễn phí" : operation === "require-payment" ? "chuyển sang luồng trả phí" : "gia hạn quyền";
+  async function manage(device: BoiAccessDevice, operation: Extract<BoiAccessOperation, "grant-free" | "require-payment" | "renew-access" | "block" | "unblock">) {
+    if (actionLock.current || busy || !canManage) return;
+    const label = operation === "grant-free" ? "cấp quyền miễn phí" : operation === "require-payment" ? "chuyển sang luồng trả phí" : operation === "block" ? "khóa thiết bị" : operation === "unblock" ? "mở khóa (giữ nguyên thời hạn)" : "gia hạn quyền";
     if (!window.confirm(`Xác nhận ${label} cho ${device.learnerName || device.deviceCode}?`)) return;
+    actionLock.current = true;
     setActionBusy(device.deviceId);
     setError("");
     setNotice("");
     try {
       await manageBoiAccess(device, operation);
       const synced = await refresh();
+      await onChanged?.();
       setNotice(synced ? `Đã ${label} và đọc lại trạng thái từ Bơi ếch.` : `Backend đã ${label}, nhưng chưa đọc lại được trạng thái.`);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Không thể cập nhật thanh toán/quyền.");
       await refresh();
+      setError(caught instanceof Error ? caught.message : "Không thể cập nhật thanh toán/quyền.");
     } finally {
+      actionLock.current = false;
       setActionBusy("");
     }
   }
 
   async function openProof(device: BoiAccessDevice) {
+    if (actionLock.current || busy) return;
     if (!canManage) {
       setError("Chỉ Publisher/Owner mới được xem chứng từ thanh toán.");
       return;
     }
+    actionLock.current = true;
     setProofBusy(device.deviceId);
     setError("");
     setNotice("");
@@ -140,9 +148,10 @@ export default function BoiAccessView({ query = "" }: { query?: string }) {
         return { device, url };
       });
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Không thể tải chứng từ thanh toán.");
       await refresh();
+      setError(caught instanceof Error ? caught.message : "Không thể tải chứng từ thanh toán.");
     } finally {
+      actionLock.current = false;
       setProofBusy("");
     }
   }
@@ -156,11 +165,12 @@ export default function BoiAccessView({ query = "" }: { query?: string }) {
   }
 
   async function reviewProof(operation: "verify-payment" | "reject-payment") {
-    if (!proof) return;
+    if (!proof || actionLock.current || busy) return;
     if (operation === "reject-payment" && rejectNote.trim().length < 5) {
       setError("Lý do từ chối cần ít nhất 5 ký tự.");
       return;
     }
+    actionLock.current = true;
     const device = proof.device;
     setActionBusy(device.deviceId);
     setError("");
@@ -169,13 +179,15 @@ export default function BoiAccessView({ query = "" }: { query?: string }) {
       await manageBoiAccess(device, operation, rejectNote, paidAccessDays);
       closeProof();
       const synced = await refresh();
+      await onChanged?.();
       setNotice(synced
         ? operation === "verify-payment" ? "Đã xác minh thanh toán và đọc lại quyền truy cập." : "Đã từ chối chứng từ và đọc lại trạng thái."
         : "Backend đã xử lý chứng từ nhưng Trung tâm chưa đọc lại được trạng thái.");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Không thể xử lý chứng từ.");
       await refresh();
+      setError(caught instanceof Error ? caught.message : "Không thể xử lý chứng từ.");
     } finally {
+      actionLock.current = false;
       setActionBusy("");
     }
   }
@@ -208,16 +220,16 @@ export default function BoiAccessView({ query = "" }: { query?: string }) {
           <span>Người học</span><span>Thiết bị</span><span>Quyền</span><span>Thanh toán</span><span>Hạn truy cập</span><span>Hoạt động</span><span>Thao tác</span>
         </div>
         {devices.map((device) => {
-          const rowBusy = actionBusy === device.deviceId;
+          const rowBusy = busy || Boolean(actionBusy) || Boolean(proofBusy);
           const proofLoading = proofBusy === device.deviceId;
-          const canStartFlow = canManage && device.registrationComplete && device.accessGroup === "unassigned" && device.paymentStatus === "unassigned";
+          const canStartFlow = canManage && device.status !== "blocked" && device.registrationComplete && device.accessGroup === "unassigned" && device.paymentStatus === "unassigned";
           const canRenew = canManage
             && device.registrationComplete
             && device.status === "approved"
             && (device.paymentStatus === "free_approved" || device.paymentStatus === "paid_verified");
           return <article className={styles.row} key={device.deviceId}>
             <div><strong>{device.learnerName}</strong><small>{device.personCode || (device.registrationComplete ? "Đã hoàn tất hồ sơ" : "Hồ sơ chưa hoàn tất")}</small></div>
-            <div><code>{device.deviceCode}</code><small>{device.active ? "● Online" : "Offline"}</small></div>
+            <div><code>{device.deviceCode}</code><small>{device.status === "blocked" ? "Đã khóa" : device.status === "approved" ? "Đã duyệt" : "Chờ duyệt"} · {device.active ? "● Online" : "Offline"}</small></div>
             <span className={styles.badge} data-tone={accessTone(device)}>{accessLabels[device.accessGroup]}</span>
             <div><span className={styles.badge} data-tone={paymentTone(device.paymentStatus)}>{paymentLabels[device.paymentStatus]}</span><small>{device.paymentAmount > 0 ? formatMoney(device.paymentAmount) : "—"}</small></div>
             <div><strong>{formatDate(device.accessExpiresAt)}</strong><small>{device.accessExpired ? "Đã hết hạn" : device.accessDaysRemaining !== null ? `Còn ${device.accessDaysRemaining} ngày` : "—"}</small></div>
@@ -226,6 +238,8 @@ export default function BoiAccessView({ query = "" }: { query?: string }) {
               {canStartFlow ? <button disabled={rowBusy} onClick={() => void manage(device, "grant-free")}>Miễn phí</button> : null}
               {canStartFlow ? <button disabled={rowBusy} onClick={() => void manage(device, "require-payment")}>Yêu cầu trả phí</button> : null}
               {canRenew ? <button disabled={rowBusy} onClick={() => void manage(device, "renew-access")}>Gia hạn</button> : null}
+              {canManage && device.status !== "blocked" ? <button disabled={rowBusy} onClick={() => void manage(device, "block")}>Khóa</button> : null}
+              {canManage && device.status === "blocked" ? <button disabled={rowBusy} onClick={() => void manage(device, "unblock")}>Mở khóa</button> : null}
               {canManage && device.paymentProofAvailable && device.paymentStatus === "proof_submitted"
                 ? <button className={styles.reviewButton} disabled={proofLoading || rowBusy} onClick={() => void openProof(device)}>{proofLoading ? "Đang tải…" : "Xem chứng từ"}</button>
                 : null}
@@ -239,11 +253,11 @@ export default function BoiAccessView({ query = "" }: { query?: string }) {
       </div>
     </section>
 
-    <aside className={styles.contractPanel}>
+    {!deviceId ? <aside className={styles.contractPanel}>
       <header><span>PHẠM VI QUẢN TRỊ</span><h3>Contract theo từng ứng dụng</h3><p>Chỉ Bơi ếch hiện công bố luồng payment/access cho Trung tâm. Các app khác không bị dựng nút giả.</p></header>
       <article className={styles.supported}><i>✓</i><div><strong>Bơi ếch</strong><small>Miễn phí · Trả phí · Chứng từ · Gia hạn · Readback</small></div><b>Đã hỗ trợ</b></article>
       {unsupportedApps.map((app) => <article key={app.id}><i>—</i><div><strong>{app.shortName}</strong><small>Chưa công bố payment/access contract cho Trung tâm</small></div><b>Không tạo thao tác</b></article>)}
-    </aside>
+    </aside> : null}
 
     {proof ? <div className={styles.modalBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeProof(); }}>
       <section className={styles.modal} role="dialog" aria-modal="true" aria-label="Xác minh chứng từ thanh toán">
