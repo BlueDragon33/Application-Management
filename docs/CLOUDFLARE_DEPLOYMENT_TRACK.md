@@ -2,7 +2,13 @@
 
 ## Trạng thái
 
-Cloudflare là môi trường preview/production thay thế ChatGPT Sites. `Application-Management` vẫn là **control-plane canonical duy nhất**; mỗi ứng dụng tiếp tục sở hữu runtime, database, registry thiết bị và audit của chính nó.
+### Đích chuyển đổi đã được chủ hệ thống yêu cầu · 2026-10-28
+
+Cloudflare là đích Production chính thức được yêu cầu cho Bơi Ếch và đường kết nối quản trị của ứng dụng. Quá trình chuyển đổi **chưa thực hiện**: cần xác minh quyền truy cập nhà cung cấp, sao lưu/đối chiếu dữ liệu, danh tính theo origin và các cổng phát hành trước khi ngừng đầu vào ChatGPT Sites cũ. Các bản Sites hiện tại vẫn được giữ để bảo toàn truy cập và dữ liệu.
+
+Kế hoạch và điểm tiếp tục: [Cloudflare canonical cutover](superpowers/plans/2026-10-28-cloudflare-canonical-cutover.md). Workflow Production đang giữ fail-closed; yêu cầu chọn Cloudflare không tự thay thế bằng chứng sẵn sàng hay cho phép bỏ qua cổng phát hành.
+
+Đợt chuyển dùng track preview/production Cloudflare hiện có. `Application-Management` vẫn là **control-plane canonical duy nhất**; mỗi ứng dụng tiếp tục sở hữu runtime, database, registry thiết bị và audit của chính nó.
 
 Preview Application Management **không phụ thuộc Cloudflare Zero Trust**. Lớp bảo vệ preview nằm ngay tại Worker trong `worker/preview-access.ts` và dùng secret riêng `APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET`.
 
