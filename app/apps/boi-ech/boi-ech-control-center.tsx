@@ -498,7 +498,7 @@ function ContentReviewCenter({ bridge, access, automation, saveAutomation }: {
   bridge: BoiBridge;
   access: Access;
   automation?: AccessAutomation;
-  saveAutomation: (enabled: boolean, defaultAccessDays: number, defaultDeviceLimit: number) => void;
+  saveAutomation: (enabled: boolean, defaultAccessDays: number, defaultDeviceLimit: number) => Promise<boolean>;
 }) {
   const [versions, setVersions] = useState<ContentVersion[]>([]);
   const [currentSection, setCurrentSection] = useState<unknown>(null);
@@ -655,15 +655,26 @@ function ActivityChart({ title, data, value, summary, color }: {
 function AutomationCenter({ automation, canManage, save }: {
   automation: AccessAutomation;
   canManage: boolean;
-  save: (enabled: boolean, defaultAccessDays: number, defaultDeviceLimit: number) => void;
+  save: (enabled: boolean, defaultAccessDays: number, defaultDeviceLimit: number) => Promise<boolean>;
 }) {
-  const [enabled, setEnabled] = useState(automation.enabled);
+  const enabled = automation.enabled;
   const [days, setDays] = useState(automation.defaultAccessDays);
   const [deviceLimit, setDeviceLimit] = useState(automation.defaultDeviceLimit);
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  async function persistAutomation(nextEnabled: boolean) {
+    if (!canManage || savingRef.current) return false;
+    savingRef.current = true;
+    setSaving(true);
+    try {
+      return await save(nextEnabled, days, deviceLimit);
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
+  }
   function toggleAutomation() {
-    const next = !enabled;
-    setEnabled(next);
-    save(next, days, deviceLimit);
+    return persistAutomation(!enabled);
   }
   return (
     <section className="automation-inline" aria-labelledby="automatic-edit-title">
@@ -672,10 +683,10 @@ function AutomationCenter({ automation, canManage, save }: {
         <h2 id="automatic-edit-title">Tự động duyệt quyền sửa cục bộ</h2>
         <p>Khi bật, hồ sơ <strong>Giảng viên</strong> mới nhập đủ thông tin được dùng miễn phí và sửa bản riêng ngay trên thiết bị. Bản sửa chỉ lưu tại client; không gửi, không duyệt và không cập nhật nội dung máy chủ.</p>
       </div>
-      <button className={`automation-switch ${enabled ? "on" : "off"}`} onClick={toggleAutomation} disabled={!canManage} aria-pressed={enabled}><i /><span>{enabled ? "Đang bật" : "Đang tắt"}</span></button>
-      <label className="automation-days"><span>Thời hạn miễn phí</span><div><input type="number" min={1} max={365} value={days} onChange={(event) => setDays(Math.max(1, Math.min(365, Number(event.target.value) || 60)))} disabled={!canManage} /><b>ngày</b></div></label>
-      <label className="automation-days automation-device-limit"><span>Số thiết bị tự động</span><div><input type="number" min={1} max={1000} value={deviceLimit} onChange={(event) => setDeviceLimit(Math.max(1, Math.min(1000, Number(event.target.value) || 20)))} disabled={!canManage} /><b>thiết bị</b></div></label>
-      <button className="button" disabled={!canManage || (days === automation.defaultAccessDays && deviceLimit === automation.defaultDeviceLimit)} onClick={() => save(enabled, days, deviceLimit)}>Lưu quy tắc</button>
+      <button className={`automation-switch ${enabled ? "on" : "off"}`} onClick={toggleAutomation} disabled={!canManage || saving} aria-pressed={enabled} aria-busy={saving}><i /><span>{saving ? "Đang lưu…" : enabled ? "Đang bật" : "Đang tắt"}</span></button>
+      <label className="automation-days"><span>Thời hạn miễn phí</span><div><input type="number" min={1} max={365} value={days} onChange={(event) => setDays(Math.max(1, Math.min(365, Number(event.target.value) || 60)))} disabled={!canManage || saving} /><b>ngày</b></div></label>
+      <label className="automation-days automation-device-limit"><span>Số thiết bị tự động</span><div><input type="number" min={1} max={1000} value={deviceLimit} onChange={(event) => setDeviceLimit(Math.max(1, Math.min(1000, Number(event.target.value) || 20)))} disabled={!canManage || saving} /><b>thiết bị</b></div></label>
+      <button className="button" disabled={!canManage || saving || (days === automation.defaultAccessDays && deviceLimit === automation.defaultDeviceLimit)} onClick={() => persistAutomation(enabled)}>Lưu quy tắc</button>
       <small className="automation-usage"><b>{automation.activeAutoFreeDeviceCount}/{automation.defaultDeviceLimit}</b> thiết bị tự động đang còn quyền · còn {automation.remainingAutoFreeDeviceSlots} suất</small>
       <small className="automation-boundary"><b>Không tự động xuất bản.</b> Khi đủ hạn mức, hồ sơ mới chuyển sang chờ duyệt thủ công. Học viên không được cấp quyền sửa; bản sửa của Giảng viên chỉ trở thành nội dung máy chủ sau một lần duyệt riêng.</small>
     </section>
@@ -793,6 +804,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
   const [appearance, setAppearance] = useState<AdminAppearance>(defaultAdminAppearance);
   const refreshRunning = useRef(false);
   const dashboardRef = useRef<Dashboard | null>(null);
+  const automationWriteRef = useRef(false);
   const detailRequest = useRef(0);
 
   function commitDashboard(next: Dashboard) {
@@ -1000,6 +1012,9 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
 
   async function dashboardAction(body: Record<string, unknown>, success: string) {
     if (!dashboard?.boiBridge) return false;
+    const automationUpdate = body.action === "manage-learning-device" && body.operation === "update-automation";
+    if (automationUpdate && automationWriteRef.current) return false;
+    if (automationUpdate) automationWriteRef.current = true;
     setNotice("");
     try {
       if (body.action !== "manage-learning-device") throw new Error("Khu Bơi ếch chỉ chấp nhận thao tác nghiệp vụ của client.");
@@ -1018,6 +1033,11 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
         confirmDeviceCode: body.confirmDeviceCode,
         deleteReason: body.deleteReason,
       } });
+      if (body.operation === "update-automation" && (
+        !data.automation || data.automation.enabled !== body.enabled
+        || data.automation.defaultAccessDays !== body.defaultAccessDays
+        || data.automation.defaultDeviceLimit !== body.defaultDeviceLimit
+      )) throw new Error("Máy chủ chưa xác nhận đúng quy tắc tự động duyệt; chưa thể báo đã lưu.");
       if (data.deletedDeviceId) {
         const devices = dashboard.learningDevices.filter((device) => device.deviceId !== data.deletedDeviceId);
         commitDashboard({ ...dashboard, learningDevices: devices });
@@ -1036,6 +1056,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
       setNotice(success);
       return true;
     } catch (caught) { setNotice(caught instanceof Error ? caught.message : "Không thể thực hiện thao tác."); return false; }
+    finally { if (automationUpdate) automationWriteRef.current = false; }
   }
 
   async function locateManualCode() {
@@ -1186,7 +1207,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
 
         {tab === "ai" && dashboard?.boiBridge ? <AiControlCenter role={access.role} api={(init) => boiApi<AiControlData>(dashboard.boiBridge, "/api/control/ai", init)} onNotice={setNotice} /> : null}
 
-        {tab === "content" && dashboard?.boiBridge ? <ContentReviewCenter bridge={dashboard.boiBridge} access={access} automation={dashboard.automation} saveAutomation={(enabled, defaultAccessDays, defaultDeviceLimit) => void dashboardAction({ action: "manage-learning-device", operation: "update-automation", enabled, defaultAccessDays, defaultDeviceLimit }, `Đã ${enabled ? "bật" : "tắt"} tự động duyệt; mặc định ${defaultAccessDays} ngày cho tối đa ${defaultDeviceLimit} thiết bị.`)} /> : null}
+        {tab === "content" && dashboard?.boiBridge ? <ContentReviewCenter bridge={dashboard.boiBridge} access={access} automation={dashboard.automation} saveAutomation={(enabled, defaultAccessDays, defaultDeviceLimit) => dashboardAction({ action: "manage-learning-device", operation: "update-automation", enabled, defaultAccessDays, defaultDeviceLimit }, `Đã ${enabled ? "bật" : "tắt"} tự động duyệt; mặc định ${defaultAccessDays} ngày cho tối đa ${defaultDeviceLimit} thiết bị.`)} /> : null}
       </section>
 
       {installPrompt ? <button className="install-fab" onClick={() => void installWebApp()} aria-label="Cài khu quản trị Bơi ếch" title="Cài ứng dụng"><span aria-hidden="true">⇩</span><b>Cài ứng dụng</b></button> : null}
