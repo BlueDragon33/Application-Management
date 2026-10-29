@@ -41,12 +41,8 @@ test("live Boi bridge can self-heal without a manually configured GitHub secret"
 });
 
 
-test("manual production deploy self-heals the same shared Boi bridge secret", () => {
-  assert.match(production, /- name: Establish shared Bơi ếch bridge secret/);
-  assert.match(production, /crypto\.randomBytes\(32\)\.toString\('base64url'\)/);
-  assert.match(production, /secret put CONTROL_SERVICE_SECRET --config wrangler\.production\.jsonc/);
-  assert.match(production, /secret put CONTROL_SERVICE_SECRET --name boi-ech/);
-  assert.match(production, /- name: Verify Bơi ếch live automation bridge/);
-  assert.match(production, /Bơi ếch Production automation bridge PASS/);
-  assert.doesNotMatch(production, /CONTROL_SERVICE_SECRET is required when Bơi ếch production is configured/);
+test("manual production update preserves the shared Boi secret and tests Central device readback", () => {
+  assert.doesNotMatch(production, /secret put CONTROL_SERVICE_SECRET|BOI_RUNTIME_BRIDGE_SECRET|Establish shared Bơi ếch bridge secret/);
+  assert.match(production, /production-release-control\.mjs preserve-vars/);
+  assert.match(production, /production-release-control\.mjs smoke-central/);
 });

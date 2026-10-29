@@ -88,37 +88,22 @@ test("production template is isolated, Worker-first, and secret-free", () => {
   assert.ok(artifact.includes("must contain both CSS and JavaScript bundles"));
 });
 
-test("production deploy is hard-held offline; future manual contract remains in source", () => {
+test("production deploy is manual-only with owner and exact revision confirmation", () => {
   assert.ok(deploy.includes("workflow_dispatch"));
   assert.equal(/\n\s*push\s*:/.test(deploy), false);
   assert.equal(/\n\s*issue_comment\s*:/.test(deploy), false);
-  assert.match(deploy, /deploy-production:\s*\n(?:\s*#[^\n]*\n)*\s*if: \$\{\{ false \}\}/);
+  assert.match(deploy, /github\.actor == 'BlueDragon33' && inputs\.confirm == 'DEPLOY_PRODUCTION' && inputs\.release_revision == github\.sha/);
   assert.equal(deploy.includes("/deploy-production-open-contract"), false);
   assert.equal(deploy.includes("/deploy-production-browser-fix"), false);
   assert.equal(deploy.includes("/deploy-production-qa-final"), false);
   assert.equal(deploy.includes("/deploy-production-bootstrap-e2e"), false);
   assert.ok(deploy.includes("DEPLOY_PRODUCTION"));
-  assert.ok(deploy.includes("GROWUP_CONTROL_PRODUCTION_ORIGIN"));
-  assert.ok(deploy.includes("secret put GROWUP_CONTROL_SERVICE_SECRET"));
-  assert.ok(deploy.includes("PRICE_REPORT_CONTROL_PRODUCTION_ORIGIN"));
-  assert.ok(deploy.includes("secret put PRICE_REPORT_CONTROL_SERVICE_SECRET"));
-  assert.ok(deploy.includes("APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD"));
   assert.ok(deploy.includes("APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET"));
-  const finalArtifactRestore = deploy.indexOf("Restore generated Production artifact after secret versions");
-  const lastSecretUpdate = Math.max(
-    deploy.lastIndexOf("secret put APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD"),
-    deploy.lastIndexOf("secret put APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET"),
-    deploy.lastIndexOf("secret put CONTROL_SERVICE_SECRET"),
-    deploy.lastIndexOf("secret put HEALTH_CONTROL_SERVICE_SECRET"),
-    deploy.lastIndexOf("secret put RU_LIFE_CONTROL_SERVICE_SECRET"),
-    deploy.lastIndexOf("secret put BAUMAN_CONTROL_SERVICE_SECRET"),
-    deploy.lastIndexOf("secret put GROWUP_CONTROL_SERVICE_SECRET"),
-    deploy.lastIndexOf("secret put PRICE_REPORT_CONTROL_SERVICE_SECRET"),
-  );
-  const loginVerification = deploy.indexOf("Verify production login route and anonymous protection");
-  assert.ok(lastSecretUpdate >= 0, "Production deploy must install at least one Worker secret.");
-  assert.ok(finalArtifactRestore > lastSecretUpdate, "Generated Production artifact must be restored after all secret-created versions.");
-  assert.ok(loginVerification > finalArtifactRestore, "Login verification must run against the restored asset-bearing Worker version.");
+  assert.doesNotMatch(deploy, /secret put|wrangler secret list|GENERATED_MFA_KEY|GENERATED_KEY|BOI_RUNTIME_BRIDGE_SECRET/,
+    "code-only updates must preserve initialized production secrets");
+  assert.ok(deploy.indexOf("production-release-control.mjs preserve-vars") < deploy.indexOf("Materialize isolated production config"));
+  assert.ok(deploy.indexOf("production-release-control.mjs smoke-central") > deploy.indexOf("Create short-lived owner contract probe session"));
+  assert.doesNotMatch(deploy, /source "\$GITHUB_ENV"/);
   assert.ok(deploy.includes("Expected Production /__login to return 200"));
   assert.ok(deploy.includes("Browser-like same-origin Production login POST was incorrectly rejected as Forbidden."));
   assert.ok(deploy.includes("Privacy-browser Production login POST was incorrectly rejected as Forbidden."));
@@ -126,7 +111,7 @@ test("production deploy is hard-held offline; future manual contract remains in 
   assert.ok(deploy.includes("Application Management Cloudflare production read-back PASS"));
   assert.ok(deploy.includes("for attempt in {1..12}"));
   assert.ok(deploy.includes("waiting for Cloudflare secret/version propagation"));
-  assert.ok(deploy.includes("did not become ready within 60 seconds"));
+  assert.ok(deploy.includes("Exact approved Production revision did not become ready"));
   assert.ok(deploy.includes("expectedAccessMode"));
   assert.ok(deploy.includes("google-oauth+account-session"));
   assert.ok(deploy.includes("value.googleAuthConfigured"));

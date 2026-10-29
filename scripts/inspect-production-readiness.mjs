@@ -3,6 +3,7 @@ import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { pathToFileURL } from "node:url";
+import { preservedProductionEnvironment } from "./production-release-control.mjs";
 
 const origin = "https://application-management.boiech-ai.workers.dev";
 const databaseName = "application-management-production-db";
@@ -53,6 +54,8 @@ export async function inspectProduction({ env, runWrangler, fetch: http = fetch,
   if (value(2)?.status !== 200) blockers.push("OWNER_LOGIN_UNAVAILABLE");
   const bindings = value(3)?.body?.result?.bindings;
   if (value(3)?.status !== 200 || value(3)?.body?.success !== true || !Array.isArray(bindings) || !bindings.some(binding => binding.name === "DB" && binding.type === "d1" && typeof binding.id === "string" && binding.id.toLowerCase() === productionId)) blockers.push("LIVE_DATABASE_BINDING_MISMATCH");
+  let liveVariablesPreservable = false;
+  try { preservedProductionEnvironment(value(3)?.body); liveVariablesPreservable = true; } catch { blockers.push("LIVE_VARIABLE_PRESERVATION_UNAVAILABLE"); }
   const database = value(4);
   let pendingMigrations = null;
   if (!Array.isArray(database) || database.length !== 3 || database.some(result => result.success !== true || !Array.isArray(result.results))) blockers.push("DATABASE_INSPECTION_UNAVAILABLE");
@@ -82,7 +85,8 @@ export async function inspectProduction({ env, runWrangler, fetch: http = fetch,
   if (!validVersions) blockers.push("ROLLBACK_WORKER_VERSION_UNAVAILABLE");
   return { schema: "application-management.release-readiness/v1", observedAt: now().toISOString(), candidateRevision: env.GITHUB_SHA,
     liveRevision: /^[a-f0-9]{40}$/i.test(live?.revision ?? "") ? live.revision : null,
-    readyForReleaseReview: blockers.length === 0, blockers, pendingMigrations,
+    liveAccessMode: ["account-session", "google-oauth+account-session"].includes(live?.accessMode) ? live.accessMode : null,
+    readyForReleaseReview: blockers.length === 0, blockers, pendingMigrations, liveVariablesPreservable,
     rollback: { databaseBookmark: validBookmark ? bookmark : null, workerVersionIds: versionIds,
       workerDeploymentId: validVersions ? latest.id.toLowerCase() : null, workerDeployedAt: validVersions ? new Date(latest.created_on).toISOString() : null },
     publicationAuthorized: false, authenticatedOwnerAcceptance: "not-performed" };

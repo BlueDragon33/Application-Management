@@ -14,7 +14,7 @@ const versionId = "33333333-3333-4333-8333-333333333333";
 const env = { CLOUDFLARE_ACCOUNT_ID: "1".repeat(32), CLOUDFLARE_API_TOKEN: "test-token-never-log".repeat(3), APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID: prodId,
   APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID: "22222222-2222-4222-8222-222222222222", APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET: "test-readback-never-log".repeat(3), APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN: "https://application-management.boiech-ai.workers.dev", GITHUB_SHA: "a".repeat(40) };
 const tables = ["control_accounts", "control_sessions", "control_members", "control_devices", "control_audit_log", "managed_app_catalog"];
-function boundaries({ activeOwners = 1, bookmark = bookmarkId, bindingId = prodId, missingMigration = false, badAuth = false, healthOverride = {}, ownerAggregate, workerDeployments } = {}) {
+function boundaries({ activeOwners = 1, bookmark = bookmarkId, bindingId = prodId, missingMigration = false, badAuth = false, healthOverride = {}, ownerAggregate, workerDeployments, liveVariables = {} } = {}) {
   const commands = [];
   return { commands, env, expectedMigrations: ["0001_test.sql"], now: () => new Date("2026-10-29T10:00:00Z"),
     runWrangler: async args => {
@@ -27,7 +27,7 @@ function boundaries({ activeOwners = 1, bookmark = bookmarkId, bindingId = prodI
       return [{ success: true, results: tables.map(name => ({ name })) }, { success: true, results: missingMigration ? [] : [{ name: "0001_test.sql" }] }, { success: true, results: [ownerAggregate ?? { total: 2, active_owners: activeOwners }] }];
     },
     fetch: async (url, init) => {
-      if (url.endsWith("/settings")) return Response.json({ success: true, result: { bindings: [{ name: "DB", type: "d1", id: bindingId }] } });
+      if (url.endsWith("/settings")) return Response.json({ success: true, result: { bindings: [{ name: "DB", type: "d1", id: bindingId }, ...Object.entries({ CONTROL_OWNER_EMAILS: "owner@example.test", CONTROL_PLANE_NETWORK_MODE: "production", APPLICATION_MANAGEMENT_DEPLOYMENT_CHANNEL: "cloudflare-production", APPLICATION_MANAGEMENT_ACCESS_MODE: "managed", BOI_ECH_BASE_URL: "https://boi-ech.boiech-ai.workers.dev", ...liveVariables }).map(([name, text]) => ({ name, text, type: "plain_text" }))] } });
       if (url.endsWith("/__login")) return new Response("Private login HTML is never logged", { status: 200 });
       if (!init.headers?.authorization) return new Response(null, { status: 401 });
       if (badAuth) return new Response(`Sensitive failure: ${env.APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET}`, { status: 403 });
@@ -42,6 +42,13 @@ test("inspection captures live revision, isolated binding and rollback metadata 
   assert.equal(result.rollback.databaseBookmark, bookmarkId); assert.equal(result.rollback.workerVersionIds[0], versionId);
   assert.deepEqual(result.pendingMigrations, []); assert.equal(fixture.commands.length, 3);
   assert.doesNotMatch(JSON.stringify(result), /private@example|test-token-never-log|test-readback-never-log|Private login/);
+});
+
+test("inspection blocks code-only release when live client variables cannot be preserved", async () => {
+  const result = await (await inspector())(boundaries({ liveVariables: { UNREVIEWED_FLAG: "PRIVATE_NEVER_LOG" } }));
+  assert.equal(result.readyForReleaseReview, false); assert.equal(result.liveVariablesPreservable, false);
+  assert.ok(result.blockers.includes("LIVE_VARIABLE_PRESERVATION_UNAVAILABLE"));
+  assert.doesNotMatch(JSON.stringify(result), /PRIVATE_NEVER_LOG|owner@example/);
 });
 
 test("inspection rejects preview/database binding collisions before claiming readiness", async () => {

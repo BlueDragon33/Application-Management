@@ -14,8 +14,8 @@ test("Authenticator secrets are encrypted at rest with a dedicated AES-256-GCM k
   assert.match(migration, /secret_ciphertext/);
   assert.match(migration, /secret_iv/);
   assert.doesNotMatch(migration, /secret_plaintext/);
-  assert.match(workflow, /APPLICATION_MANAGEMENT_MFA_ENCRYPTION_KEY/);
-  assert.match(workflow, /randomBytes\(32\)\.toString\('base64url'\)/);
+  assert.doesNotMatch(workflow, /secret put APPLICATION_MANAGEMENT_MFA_ENCRYPTION_KEY|GENERATED_MFA_KEY/);
+  assert.match(workflow, /production-release-control\.mjs preserve-vars/);
 });
 
 test("TOTP follows six-digit 30-second RFC 6238 compatible parameters", () => {
