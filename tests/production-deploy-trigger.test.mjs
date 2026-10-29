@@ -38,5 +38,6 @@ test("Production checks the checkout and fresh rollback readiness before provide
   assert.match(deploy, /node scripts\/production-release-control\.mjs normalize-account/);
   assert.match(deploy, /node scripts\/production-release-control\.mjs readback/);
   assert.match(deploy, /production-release-readiness/);
+  assert.match(deploy, /run: npx wrangler deploy --keep-vars/);
   assert.doesNotMatch(deploy, /cat \/tmp\/application-management-production\.json/);
 });
