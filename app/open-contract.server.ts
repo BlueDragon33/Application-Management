@@ -66,7 +66,7 @@ export type UniversalContractDevice = {
   createdAt: string | null;
   lastSeenAt: string | null;
   environmentChanged: boolean;
-  editEnabled: boolean;
+  editEnabled?: boolean;
   registryInstanceId?: string | null;
 };
 
@@ -586,7 +586,7 @@ function universalDevice(raw: unknown): UniversalContractDevice | null {
     createdAt: text(row.createdAt) || null,
     lastSeenAt: text(row.lastSeenAt) || null,
     environmentChanged: row.environmentChanged === true,
-    editEnabled: row.editEnabled === true,
+    editEnabled: typeof row.editEnabled === "boolean" ? row.editEnabled : undefined,
     registryInstanceId: text(row.registryInstanceId) || null,
   };
 }
@@ -839,12 +839,26 @@ export async function executeUniversalAutomationCommand(input: {
   throw new Error(`AUTOMATION_READBACK_MISMATCH_${mismatch?.[0] ?? "UNKNOWN"}`);
 }
 
+export class UniversalDeviceCommandError extends Error {
+  readonly verified = false;
+  readonly code: string;
+  readonly commandId: string;
+  readonly applied: boolean | null;
+  constructor(message: string, code: string, commandId: string, applied: boolean | null) {
+    super(message);
+    this.code = code;
+    this.commandId = commandId;
+    this.applied = applied;
+  }
+}
+
 export async function executeUniversalDeviceCommand(input: {
   appId: string;
-  operation: "approve" | "remove";
+  operation: "approve" | "remove" | "unblock" | "set-edit-permission";
   deviceId: string;
   expectedStatus: "pending" | "approved" | "blocked";
   commandId: string;
+  editEnabled?: boolean;
 }, actor: ControlDeviceState) {
   if (actor.role !== "publisher" && actor.role !== "owner") throw new Error("Vai trò hiện tại không được thay đổi thiết bị.");
   const rows = await listManagedCatalog();
@@ -858,9 +872,20 @@ export async function executeUniversalDeviceCommand(input: {
   }
   if (input.operation === "approve" && !manifest.capabilities.deviceApproval) throw new Error("Client chưa công bố capability duyệt thiết bị.");
   if (input.operation === "remove" && !manifest.capabilities.deviceBlock) throw new Error("Client chưa công bố capability khóa thiết bị.");
+  if (input.operation === "unblock" && !manifest.capabilities.deviceUnblock) throw new Error("Client chưa công bố capability mở khóa thiết bị.");
+  if (input.operation === "set-edit-permission" && (!manifest.capabilities.deviceEditPermission || typeof input.editEnabled !== "boolean")) throw new Error("Client chưa công bố quyền sửa hoặc thiếu giá trị quyền sửa.");
+  // The app checks optimistic concurrency AFTER recovering an existing command
+  // receipt. A central comparison with current state would reject valid retries.
+  if (input.operation === "approve" && input.expectedStatus !== "pending"
+    || input.operation === "remove" && !["pending", "approved"].includes(input.expectedStatus)
+    || input.operation === "unblock" && input.expectedStatus !== "blocked"
+    || input.operation === "set-edit-permission" && input.expectedStatus !== "approved") throw new Error("Thao tác không phù hợp trạng thái dự kiến.");
   const credential = await decryptCredential(row);
   if (!credential) throw new Error("Credential quản trị chưa được cấu hình.");
-  const response = await fetch(`${row.origin}${manifest.endpoints.deviceCommands}`, {
+  let response: Response;
+  let data: Record<string, unknown>;
+  try {
+    response = await fetch(`${row.origin}${manifest.endpoints.deviceCommands}`, {
     method: "POST",
     cache: "no-store",
     headers: {
@@ -872,17 +897,26 @@ export async function executeUniversalDeviceCommand(input: {
     },
     body: JSON.stringify({
       commandId: input.commandId,
-      operation: input.operation === "remove" ? "block" : "approve",
+      operation: input.operation === "remove" ? "block" : input.operation === "set-edit-permission" ? "set_edit_permission" : input.operation,
       deviceId: input.deviceId,
       expectedStatus: input.expectedStatus,
+      ...(input.operation === "set-edit-permission" ? { editEnabled: input.editEnabled } : {}),
     }),
-  });
-  const data = await response.json().catch(() => ({})) as Record<string, unknown>;
+    signal: AbortSignal.timeout(CONTRACT_TIMEOUT_MS),
+    });
+    data = await response.json().catch(() => ({})) as Record<string, unknown>;
+  } catch {
+    throw new UniversalDeviceCommandError("Chưa xác định được kết quả gửi lệnh. Hãy đồng bộ trạng thái trước khi thử lại.", "DEVICE_COMMAND_OUTCOME_UNKNOWN", input.commandId, null);
+  }
+  if (response.status >= 500 || response.status === 408) throw new UniversalDeviceCommandError("App chưa xác nhận được kết quả lệnh. Hãy đồng bộ trạng thái trước khi thử lại.", "DEVICE_COMMAND_OUTCOME_UNKNOWN", input.commandId, null);
   if (!response.ok) throw new Error(text(data.error) || `HTTP_${response.status}`);
+  const expected = input.operation === "remove" ? "blocked" : "approved";
+  if (data.commandId !== input.commandId || data.status !== expected) throw new UniversalDeviceCommandError("App trả về xác nhận lệnh chưa khớp. Hãy đồng bộ trạng thái trước khi thử lại.", "DEVICE_COMMAND_OUTCOME_UNKNOWN", input.commandId, null);
   const after = await probeManagedCatalogEntry(row);
+  if (after.connection !== "connected" || !after.remoteAdminReady) throw new UniversalDeviceCommandError("App đã nhận lệnh nhưng chưa đọc lại được trạng thái. Hãy đồng bộ để xác minh kết quả.", "DEVICE_COMMAND_READBACK_UNAVAILABLE", input.commandId, true);
   const current = after.devices.find((device) => device.deviceId === input.deviceId);
-  const expected = input.operation === "approve" ? "approved" : "blocked";
-  if (!current || current.status !== expected) throw new Error(`Client chưa read-back trạng thái ${expected} sau command.`);
+  if (!current || current.status !== expected) throw new UniversalDeviceCommandError(`App đã nhận lệnh nhưng trạng thái đọc lại chưa khớp ${expected}.`, "DEVICE_COMMAND_READBACK_MISMATCH", input.commandId, true);
+  if (input.operation === "set-edit-permission" && current.editEnabled !== input.editEnabled) throw new UniversalDeviceCommandError("App đã nhận lệnh nhưng chưa xác minh được quyền sửa.", "DEVICE_COMMAND_READBACK_MISMATCH", input.commandId, true);
   return { ok: true, commandReplayed: data.replayed === true, device: current };
 }
 

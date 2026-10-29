@@ -44,7 +44,7 @@ export type BoiAccessBootstrap = {
   generatedAt: string;
 };
 
-export type BoiAccessOperation = "grant-free" | "require-payment" | "renew-access" | "verify-payment" | "reject-payment";
+export type BoiAccessOperation = "grant-free" | "require-payment" | "renew-access" | "verify-payment" | "reject-payment" | "block" | "unblock";
 type ErrorPayload = { error?: string; code?: string; [key: string]: unknown };
 
 function base64Url(bytes: Uint8Array) {
@@ -139,14 +139,21 @@ export async function loadBoiPaymentProof(device: BoiAccessDevice) {
   return await response.blob();
 }
 
+const pendingDeviceWrites = new Map<string, Promise<ErrorPayload>>();
+
 export async function manageBoiAccess(device: BoiAccessDevice, operation: BoiAccessOperation, note = "", paidAccessDays = 60) {
-  return await call({
+  if (pendingDeviceWrites.has(device.deviceId)) throw new Error("Thiết bị đang được xử lý. Hãy chờ kết quả và đồng bộ lại.");
+  const task = call({
     action: "manage-access",
     operation,
     deviceId: device.deviceId,
+    expectedStatus: device.status,
     expectedPaymentStatus: device.paymentStatus,
     expectedAccessGroup: device.accessGroup,
     ...(operation === "reject-payment" ? { note: note.trim().slice(0, 500) } : {}),
     ...(operation === "verify-payment" ? { paidAccessDays } : {}),
   });
+  pendingDeviceWrites.set(device.deviceId, task);
+  try { return await task; }
+  finally { if (pendingDeviceWrites.get(device.deviceId) === task) pendingDeviceWrites.delete(device.deviceId); }
 }

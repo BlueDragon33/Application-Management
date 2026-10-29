@@ -135,6 +135,7 @@ export type OperationsDevice = {
   canApprove: boolean;
   canRemove: boolean;
   canUnblock?: boolean;
+  canManageAccess?: boolean;
   canEditPermission?: boolean;
   editEnabled?: boolean;
   registryInstanceId?: string | null;

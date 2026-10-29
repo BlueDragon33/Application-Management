@@ -3,16 +3,16 @@ import fs from "node:fs";
 import test from "node:test";
 
 const dashboard = fs.readFileSync("app/management-dashboard-v2.tsx", "utf8");
+const inventory = fs.readFileSync("app/central-device-inventory.tsx", "utf8");
 
-test("device review tab is explicitly named and only receives pending devices", () => {
+test("device review tab receives the full inventory while overview stays pending", () => {
   assert.match(dashboard, /label: "Kiểm duyệt thiết bị"/);
   assert.match(dashboard, /title: "Kiểm duyệt thiết bị"/);
-  assert.match(dashboard, /const filteredPendingDevices = filteredDevices\.filter\(\(device\) => device\.status === "pending"\)/);
-  assert.match(dashboard, /<DevicesView devices=\{filteredPendingDevices\}/);
+  assert.match(dashboard, /<CentralDeviceInventory devices=\{filteredDevices\}/);
   assert.match(dashboard, /pendingDevices\.slice\(0, 4\)\.map/);
 });
 
-test("client device mutation is guarded by pending state and advertised capability", () => {
+test("client device mutation is guarded by operation state and advertised capability", () => {
   const start = dashboard.indexOf("async function manageDevice");
   const end = dashboard.indexOf("async function bulkRemovePendingDevices", start);
   assert.ok(start >= 0 && end > start);
@@ -45,13 +45,10 @@ test("client actions use verified API mutation then read-only refresh", () => {
 });
 
 test("device view keeps direct app administration separate from review mutation", () => {
-  const start = dashboard.indexOf("function DevicesView");
-  const end = dashboard.indexOf("function AlertsView", start);
-  const block = dashboard.slice(start, end);
-  assert.match(block, /<Link href=\{device\.href\}>Quản trị<\/Link>/);
-  assert.match(block, /device\.canApprove/);
-  assert.match(block, /device\.canRemove/);
-  assert.match(block, /Bơi ếch là xóa vĩnh viễn nên không được xử lý hàng loạt/);
+  assert.match(inventory, /<Link href=\{device\.href\}>Quản trị chuyên sâu<\/Link>/);
+  assert.match(inventory, /device\.canApprove/);
+  assert.match(inventory, /device\.canRemove/);
+  assert.match(inventory, /Bơi ếch là xóa vĩnh viễn nên không được xử lý hàng loạt/);
 });
 
 test("non-pending environment cases in work queue route to app administration instead of dead mutation buttons", () => {

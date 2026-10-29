@@ -9,7 +9,7 @@ function source(path) {
 test("bulk device handling is bounded to actionable pending non-Boi devices", () => {
   const ui = source("app/management-dashboard-v2.tsx");
   assert.match(ui, /visibleDevices\.filter\(\(device\) => device\.status === "pending" && device\.canRemove && device\.appId !== "boi-ech"\)\.slice\(0, 24\)/);
-  assert.match(ui, /bulkTargets = devices\.filter\(\(device\) => device\.status === "pending" && device\.canRemove && device\.appId !== "boi-ech"\)\.slice\(0, 24\)/);
+  assert.match(source("app/central-device-inventory.tsx"), /bulkTargets = visible\.filter\(device => device\.status === "pending" && device\.canRemove && device\.appId !== "boi-ech"\)\.slice\(0, 24\)/);
   assert.match(ui, /boiTargets = visibleDevices\.filter\(\(device\) => device\.status === "pending" && device\.canRemove && device\.appId === "boi-ech"\)/);
 });
 
@@ -40,7 +40,7 @@ test("Boi permanent deletion is excluded from bulk operations", () => {
 test("device bulk toolbar is explicit and responsive", () => {
   const ui = source("app/management-dashboard-v2.tsx");
   const css = source("app/management-dashboard-v2.css");
-  assert.match(ui, /Hàng đợi kiểm duyệt/);
+  assert.match(source("app/central-device-inventory.tsx"), /Quản trị thiết bị chung/);
   assert.match(ui, /Từ chối & khóa/);
   assert.doesNotMatch(ui, /Khóa \/ loại chờ duyệt/);
   assert.match(css, /\.amv2-device-bulk-toolbar/);

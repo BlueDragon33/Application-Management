@@ -17,9 +17,9 @@ test("Boi payment/access API is proof-gated, concurrency-safe and read-back veri
   assert.match(api, /expectedAccessGroup/);
   assert.match(api, /PAYMENT_STATE_CONFLICT/);
   assert.match(api, /ACCESS_STATE_CONFLICT/);
-  assert.match(api, /readbackMatches\(operation, updated\)/);
+  assert.match(api, /readbackMatches\(operation, updated, current\)/);
   assert.match(api, /ACCESS_READBACK_MISMATCH/);
-  assert.match(api, /\["grant-free", "require-payment", "renew-access", "verify-payment", "reject-payment"\]/);
+  assert.match(api, /\["grant-free", "require-payment", "renew-access", "verify-payment", "reject-payment", "block", "unblock"\]/);
 });
 
 test("Boi payment transitions keep real backend invariants", () => {
@@ -52,7 +52,7 @@ test("current dashboard exposes real Boi access controls without inventing payme
   assert.doesNotMatch(view, /ru-life[^\n]*(grant-free|require-payment|verify-payment)/i);
   assert.doesNotMatch(view, /growup-mychildren[^\n]*(grant-free|require-payment|verify-payment)/i);
   assert.doesNotMatch(view, /price-report-tunggiabao[^\n]*(grant-free|require-payment|verify-payment)/i);
-  assert.match(dashboard, /device\.appId === "boi-ech"[\s\S]*switchView\("access"\)/);
+  assert.match(dashboard, /openBoiAccess\(device\)/);
   assert.match(dashboard, /device\.appId === "boi-ech" \? "Phân quyền" : "Duyệt"/);
 });
 
