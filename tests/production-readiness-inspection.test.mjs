@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
 import { pathToFileURL } from "node:url";
+import { spawnSync } from "node:child_process";
 
 async function inspector() {
   assert.ok(fs.existsSync("scripts/inspect-production-readiness.mjs"), "read-only production inspection is not implemented");
@@ -85,4 +86,10 @@ test("malformed or partial rollback metadata is blocked and never copied into th
     assert.equal(result.readyForReleaseReview, false);
     assert.doesNotMatch(JSON.stringify(result), /Sensitive body|not-a-uuid/);
   }
+});
+
+test("entry point identifies missing configuration with a whitelisted code without revealing values", () => {
+  const run = spawnSync(process.execPath, ["scripts/inspect-production-readiness.mjs"], { env: { ...env, APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET: "" }, encoding: "utf8" });
+  assert.equal(run.status, 1); assert.match(run.stderr, /PRODUCTION_READBACK_NOT_CONFIGURED/);
+  assert.doesNotMatch(run.stderr, /test-token-never-log|test-readback-never-log/);
 });

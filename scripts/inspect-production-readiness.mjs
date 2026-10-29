@@ -107,5 +107,10 @@ async function main() {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
-  main().catch(() => { console.error("PRODUCTION_INSPECTION_FAILED: configuration or protected read access unavailable; no write attempted."); process.exitCode = 1; });
+  main().catch(error => {
+    const safeCodes = new Set(["DATABASE_BOUNDARY_INVALID", "PRODUCTION_ORIGIN_INVALID", "CLOUDFLARE_READ_ACCESS_NOT_CONFIGURED", "PRODUCTION_READBACK_NOT_CONFIGURED", "CANDIDATE_REVISION_INVALID"]);
+    const code = safeCodes.has(error?.message) ? error.message : "INSPECTION_INTERNAL_ERROR";
+    console.error(`PRODUCTION_INSPECTION_FAILED: ${code}; no write attempted.`);
+    process.exitCode = 1;
+  });
 }
