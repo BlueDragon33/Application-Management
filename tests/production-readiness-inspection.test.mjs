@@ -93,3 +93,10 @@ test("entry point identifies missing configuration with a whitelisted code witho
   assert.equal(run.status, 1); assert.match(run.stderr, /PRODUCTION_READBACK_NOT_CONFIGURED/);
   assert.doesNotMatch(run.stderr, /test-token-never-log|test-readback-never-log/);
 });
+
+test("Cloudflare configuration failure reveals only safe presence and shape evidence", () => {
+  const run = spawnSync(process.execPath, ["scripts/inspect-production-readiness.mjs"], { env: { ...env, CLOUDFLARE_ACCOUNT_ID: "private-invalid-account", CLOUDFLARE_API_TOKEN: "private-short" }, encoding: "utf8" });
+  assert.equal(run.status, 1); assert.match(run.stderr, /"accountTagShapeValid":false/);
+  assert.match(run.stderr, /"apiTokenPresent":true/); assert.match(run.stderr, /"apiTokenLengthGatePasses":false/);
+  assert.doesNotMatch(run.stderr, /private-invalid-account|private-short|test-readback-never-log/);
+});

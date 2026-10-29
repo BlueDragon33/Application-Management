@@ -111,6 +111,16 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
     const safeCodes = new Set(["DATABASE_BOUNDARY_INVALID", "PRODUCTION_ORIGIN_INVALID", "CLOUDFLARE_READ_ACCESS_NOT_CONFIGURED", "PRODUCTION_READBACK_NOT_CONFIGURED", "CANDIDATE_REVISION_INVALID"]);
     const code = safeCodes.has(error?.message) ? error.message : "INSPECTION_INTERNAL_ERROR";
     console.error(`PRODUCTION_INSPECTION_FAILED: ${code}; no write attempted.`);
+    if (code === "CLOUDFLARE_READ_ACCESS_NOT_CONFIGURED") {
+      const account = process.env.CLOUDFLARE_ACCOUNT_ID ?? "";
+      const token = process.env.CLOUDFLARE_API_TOKEN ?? "";
+      console.error(JSON.stringify({ configurationEvidence: {
+        accountPresent: Boolean(account), accountTagShapeValid: /^[a-f0-9]{32}$/i.test(account),
+        trimmedAccountTagShapeValid: /^[a-f0-9]{32}$/i.test(account.trim()),
+        apiTokenPresent: Boolean(token.trim()), apiTokenLengthGatePasses: token.length >= 20,
+        authorizationTestPerformed: false,
+      } }));
+    }
     process.exitCode = 1;
   });
 }
