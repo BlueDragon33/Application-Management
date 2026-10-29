@@ -100,3 +100,14 @@ test("Cloudflare configuration failure reveals only safe presence and shape evid
   assert.match(run.stderr, /"apiTokenPresent":true/); assert.match(run.stderr, /"apiTokenLengthGatePasses":false/);
   assert.doesNotMatch(run.stderr, /private-invalid-account|private-short|test-readback-never-log/);
 });
+
+test("surrounding whitespace in an account ID is normalized before actual provider reads", async () => {
+  const fixture = boundaries();
+  const request = fixture.fetch; const providerUrls = [];
+  const result = await (await inspector())({ ...fixture, env: { ...env, CLOUDFLARE_ACCOUNT_ID: ` \n${env.CLOUDFLARE_ACCOUNT_ID}\r\n` }, fetch: async (url, init) => {
+    if (url.startsWith("https://api.cloudflare.com/")) providerUrls.push(url);
+    return request(url, init);
+  } });
+  assert.equal(result.readyForReleaseReview, true);
+  assert.deepEqual(providerUrls, [`https://api.cloudflare.com/client/v4/accounts/${"1".repeat(32)}/workers/scripts/application-management/settings`]);
+});

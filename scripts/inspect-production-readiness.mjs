@@ -15,18 +15,19 @@ const inspectionSql = "SELECT name FROM sqlite_master WHERE type='table'; SELECT
 function configuration(env) {
   const productionId = String(env.APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID ?? "").toLowerCase();
   const previewId = String(env.APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID ?? "").toLowerCase();
+  const accountId = String(env.CLOUDFLARE_ACCOUNT_ID ?? "").trim();
   if (!uuid.test(productionId ?? "") || !uuid.test(previewId ?? "") || productionId === previewId
     || ["1cf8f6b4-6c23-4479-8751-47703ecac92b", "7816425d-ce8a-4b3c-b303-7697fd4a529c"].includes(productionId)
     || productionId.startsWith("00000000-")) throw new Error("DATABASE_BOUNDARY_INVALID");
   if (env.APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN !== origin) throw new Error("PRODUCTION_ORIGIN_INVALID");
-  if (!/^[a-f0-9]{32}$/i.test(env.CLOUDFLARE_ACCOUNT_ID ?? "") || (env.CLOUDFLARE_API_TOKEN?.length ?? 0) < 20) throw new Error("CLOUDFLARE_READ_ACCESS_NOT_CONFIGURED");
+  if (!/^[a-f0-9]{32}$/i.test(accountId) || (env.CLOUDFLARE_API_TOKEN?.length ?? 0) < 20) throw new Error("CLOUDFLARE_READ_ACCESS_NOT_CONFIGURED");
   if ((env.APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET?.length ?? 0) < 32) throw new Error("PRODUCTION_READBACK_NOT_CONFIGURED");
   if (!/^[a-f0-9]{40}$/i.test(env.GITHUB_SHA ?? "")) throw new Error("CANDIDATE_REVISION_INVALID");
-  return { productionId };
+  return { productionId, accountId };
 }
 
 export async function inspectProduction({ env, runWrangler, fetch: http = fetch, expectedMigrations, now = () => new Date() }) {
-  const { productionId } = configuration(env);
+  const { productionId, accountId } = configuration(env);
   const read = async (url, headers) => {
     const response = await http(url, { method: "GET", redirect: "manual", headers, signal: AbortSignal.timeout(20_000) });
     return { status: response.status, body: response.ok ? await response.json().catch(() => null) : null };
@@ -35,7 +36,7 @@ export async function inspectProduction({ env, runWrangler, fetch: http = fetch,
     read(`${origin}/__deployment`, { authorization: `Bearer ${env.APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET}` }),
     read(`${origin}/__deployment`),
     http(`${origin}/__login`, { method: "GET", redirect: "manual", signal: AbortSignal.timeout(20_000) }).then(response => ({ status: response.status })),
-    read(`https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/workers/scripts/application-management/settings`, { authorization: `Bearer ${env.CLOUDFLARE_API_TOKEN}` }),
+    read(`https://api.cloudflare.com/client/v4/accounts/${accountId}/workers/scripts/application-management/settings`, { authorization: `Bearer ${env.CLOUDFLARE_API_TOKEN}` }),
     runWrangler(["d1", "execute", databaseName, "--remote", "--json", "--command", inspectionSql]),
     runWrangler(["d1", "time-travel", "info", databaseName, "--json"]),
     runWrangler(["deployments", "list", "--name", "application-management", "--json"]),
@@ -89,14 +90,14 @@ export async function inspectProduction({ env, runWrangler, fetch: http = fetch,
 
 async function main() {
   const env = process.env;
-  const { productionId } = configuration(env);
+  const { productionId, accountId } = configuration(env);
   const directory = path.resolve(".sites-runtime/production-inspection");
   await fs.mkdir(directory, { recursive: true, mode: 0o700 });
   const configFile = path.join(directory, "wrangler.json");
   await fs.writeFile(configFile, JSON.stringify({ name: "application-management", compatibility_date: "2026-09-10", d1_databases: [{ binding: "DB", database_name: databaseName, database_id: productionId }] }), { mode: 0o600 });
   const execute = promisify(execFile);
   const runWrangler = async args => {
-    const { stdout } = await execute(process.execPath, ["node_modules/wrangler/bin/wrangler.js", ...args, "--config", configFile], { timeout: 60_000, maxBuffer: 4 * 1024 * 1024, env: { ...env, WRANGLER_SEND_METRICS: "false" } });
+    const { stdout } = await execute(process.execPath, ["node_modules/wrangler/bin/wrangler.js", ...args, "--config", configFile], { timeout: 60_000, maxBuffer: 4 * 1024 * 1024, env: { ...env, CLOUDFLARE_ACCOUNT_ID: accountId, WRANGLER_SEND_METRICS: "false" } });
     return JSON.parse(stdout);
   };
   const expectedMigrations = (await fs.readdir("drizzle")).filter(name => name.endsWith(".sql")).sort();
