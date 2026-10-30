@@ -99,11 +99,13 @@ function draftChanged(policy: OperationsAutomationPolicy, draft: AutomationAppDr
     && (policy.current.freeAccessDays !== days || policy.current.freeDeviceLimit !== limit);
 }
 
-export default function AutomaticDevicePolicies({ apps, settings, verified, busy, close, sync, save }: {
+export default function AutomaticDevicePolicies({ apps, settings, verified, busy, notice, stepUpRequired = false, close, sync, save }: {
   apps: readonly AutomationApp[];
   settings: OperationsSettings | undefined;
   verified: boolean;
   busy: boolean;
+  notice?: string;
+  stepUpRequired?: boolean;
   sync: () => Promise<unknown>;
   close: () => void;
   save: (selection: AutomationSelection) => Promise<OperationsSettings | null | undefined>;
@@ -324,6 +326,7 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
       </div>
 
       <footer className={styles.dialogFooter}>
+        {notice ? <p role="status" className={`${styles.warning} ${styles.feedback}`}>{notice}{stepUpRequired ? <><br/><a href="/__account" target="_blank" rel="noopener noreferrer">Xác minh Authenticator</a> rồi quay lại bấm Lưu thay đổi. Bản nháp của bạn được giữ nguyên.</> : null}</p> : null}
         <span className={styles.saveState}>{locked ? "Đang ghi và đọc lại client…" : !verified ? "Chưa xác minh LIVE" : hasChanges ? "Có thay đổi chưa lưu" : "Cấu hình đang khớp trạng thái đã đọc"}</span>
         <div><button type="button" onClick={() => void sync()} disabled={locked}>Đồng bộ LIVE</button><button onClick={close} disabled={locked}>Đóng</button><button className={styles.save} disabled={!canSave} onClick={() => void submit()}>{locked ? "Đang lưu…" : "Lưu thay đổi"}</button></div>
       </footer>

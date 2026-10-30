@@ -69,7 +69,7 @@ function errorCode(error: unknown) {
 }
 
 function liveSource(appId: string) {
-  if (appId === "boi-ech") return "Bơi ếch /api/control/overview";
+  if (appId === "boi-ech") return "Bơi ếch /api/control/automation";
   if (appId === "health-care") return "Health_Care /api/control/automation";
   if (appId === "bauman-master-ai") return "Bauman /api/control/automation";
   if (appId === "ru-life") return "RU_LIFE /api/control/automation";
