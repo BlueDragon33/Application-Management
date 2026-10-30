@@ -738,10 +738,17 @@ export async function handleProductionAccount(request: Request, env: ProductionA
   }
 
   if (url.pathname === `${ACCOUNT_PATH}/mfa/step-up`) {
-    const ok = await verifyTotp(env, identity.email, form.get("code"));
-    if (!ok) return responseHtml(accountPage(identity, await accountPageData(env, identity), "Lỗi: Mã Authenticator không đúng hoặc đã hết hạn."), 401);
+    const json = request.headers.get("accept")?.includes("application/json");
+    const state = await totpState(env, identity.email);
+    const ok = state.enabled && await verifyTotp(env, identity.email, form.get("code"));
+    if (!ok) {
+      const error = "Mã Authenticator không đúng hoặc đã hết hạn.";
+      if (json) return Response.json({ ok: false, error }, { status: 401, headers: secureHeaders("application/json; charset=utf-8") });
+      return responseHtml(accountPage(identity, await accountPageData(env, identity), "Lỗi: " + error), 401);
+    }
     const now = Math.floor(Date.now() / 1000);
     await env.DB.prepare("UPDATE control_sessions SET step_up_at=?2 WHERE session_id_hash=?1").bind(identity.sessionHash, now).run();
+    if (json) return Response.json({ ok: true }, { headers: secureHeaders("application/json; charset=utf-8") });
     return responseHtml(accountPage({ ...identity, stepUpAt: now }, await accountPageData(env, identity), "Đã xác minh tăng cường. Thao tác nhạy cảm được mở trong 15 phút."));
   }
 
