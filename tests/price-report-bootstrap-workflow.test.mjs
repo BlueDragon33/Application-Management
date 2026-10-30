@@ -25,7 +25,8 @@ test("PriceReport production origin has a stable fallback after bootstrap", () =
   for (const text of [live, production]) {
     assert.match(text, /price-report-control-service\.boiech-ai\.workers\.dev/);
   }
-  assert.match(production, /secret already exists on the Worker; preserving it/);
+  assert.match(production, /production-release-control\.mjs preserve-vars/);
+  assert.doesNotMatch(production, /secret put PRICE_REPORT_CONTROL_SERVICE_SECRET/);
 });
 
 test("catalog recovery promotes a credential-free public bootstrap directly to live transport", () => {

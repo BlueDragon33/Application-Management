@@ -4,8 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: "Gõ DEPLOY_PRODUCTION để triển khai Application Management Production lên Cloudflare"
+        description: "INSPECT_PRODUCTION để chỉ kiểm tra; DEPLOY_PRODUCTION để phát hành bản đã duyệt"
         required: true
+        type: string
+      release_revision:
+        description: "SHA 40 ký tự của bản đã duyệt, phải trùng nhánh được chọn; bỏ trống khi chỉ kiểm tra"
+        required: false
         type: string
 
 permissions:
@@ -46,24 +50,19 @@ jobs:
           retention-days: 7
 
   deploy-production:
-    # DORMANT: requires future audited offline exit criteria and owner-approved reactivation PR.
-    if: ${{ false }}
+    # Manual-only reactivation proposal: requires owner approval of this PR before release.
+    if: ${{ github.event_name == 'workflow_dispatch' && github.actor == 'BlueDragon33' && inputs.confirm == 'DEPLOY_PRODUCTION' && inputs.release_revision == github.sha }}
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     environment: application-management-production
     env:
+      RELEASE_CONFIRM: ${{ inputs.confirm }}
+      RELEASE_REVISION: ${{ inputs.release_revision }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID: ${{ secrets.APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID }}
       APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID: ${{ secrets.APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID }}
-      APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD: ${{ secrets.APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD }}
       APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET: ${{ secrets.APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET }}
-      GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
-      GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
-      APPLICATION_MANAGEMENT_MFA_ENCRYPTION_KEY: ${{ secrets.APPLICATION_MANAGEMENT_MFA_ENCRYPTION_KEY }}
-      MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY: ${{ secrets.MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY }}
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
       CONTROL_OWNER_EMAILS: ${{ vars.CONTROL_OWNER_EMAILS }}
       APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN: ${{ vars.APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN }}
       BOI_ECH_BASE_URL: ${{ vars.BOI_ECH_PRODUCTION_ORIGIN || 'https://boi-ech.boiech-ai.workers.dev' }}
@@ -73,31 +72,9 @@ jobs:
       BAUMAN_APP_ORIGIN: ${{ vars.BAUMAN_RUNTIME_PRODUCTION_ORIGIN }}
       GROWUP_BASE_URL: ${{ vars.GROWUP_PRODUCTION_ORIGIN }}
       GROWUP_CONTROL_BASE_URL: ${{ vars.GROWUP_CONTROL_PRODUCTION_ORIGIN }}
-      GROWUP_CONTROL_SERVICE_SECRET: ${{ secrets.GROWUP_CONTROL_SERVICE_SECRET }}
       PRICE_REPORT_CONTROL_BASE_URL: ${{ vars.PRICE_REPORT_CONTROL_PRODUCTION_ORIGIN || 'https://price-report-control-service.boiech-ai.workers.dev' }}
-      PRICE_REPORT_CONTROL_SERVICE_SECRET: ${{ secrets.PRICE_REPORT_CONTROL_SERVICE_SECRET }}
-      CONTROL_SERVICE_SECRET: ${{ secrets.CONTROL_SERVICE_SECRET }}
-      HEALTH_CONTROL_SERVICE_SECRET: ${{ secrets.HEALTH_CONTROL_SERVICE_SECRET }}
-      RU_LIFE_CONTROL_SERVICE_SECRET: ${{ secrets.RU_LIFE_CONTROL_SERVICE_SECRET }}
-      BAUMAN_CONTROL_SERVICE_SECRET: ${{ secrets.BAUMAN_CONTROL_SERVICE_SECRET }}
 
     steps:
-      - name: Require explicit production confirmation
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            if [[ "${{ inputs.confirm }}" != "DEPLOY_PRODUCTION" ]]; then
-              echo '::error::Deployment cancelled. Enter DEPLOY_PRODUCTION exactly.'
-              exit 1
-            fi
-          else
-            if [[ "${{ github.actor }}" != "BlueDragon33" || "${{ github.event.comment.body }}" != "/deploy-production" ]]; then
-              echo '::error::Only the repository owner exact /deploy-production command may deploy Production.'
-              exit 1
-            fi
-          fi
-
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -107,32 +84,24 @@ jobs:
           node-version: "22.13.0"
           cache: npm
 
+      - name: Require owner confirmation of the exact checked-out revision
+        run: node scripts/production-release-control.mjs check
+
+      - name: Normalize consumed Cloudflare account identifier
+        run: node scripts/production-release-control.mjs normalize-account
+
       - name: Validate required production configuration
         shell: bash
         run: |
           set -euo pipefail
-          for key in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET CONTROL_OWNER_EMAILS APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN; do
+          for key in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN; do
             if [[ -z "${!key:-}" ]]; then
               echo "::error::$key is required in the application-management-production GitHub environment."
               exit 1
             fi
           done
-          if [[ ${#APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD} -lt 14 ]]; then
-            echo '::error::APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD must contain at least 14 characters.'
-            exit 1
-          fi
           if [[ ${#APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET} -lt 32 ]]; then
             echo '::error::APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET must contain at least 32 characters.'
-            exit 1
-          fi
-          if [[ -n "${GOOGLE_OAUTH_CLIENT_ID:-}" || -n "${GOOGLE_OAUTH_CLIENT_SECRET:-}" ]]; then
-            if [[ -z "${GOOGLE_OAUTH_CLIENT_ID:-}" || -z "${GOOGLE_OAUTH_CLIENT_SECRET:-}" ]]; then
-              echo '::error::GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET must be configured together.'
-              exit 1
-            fi
-          fi
-          if [[ -n "${MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY:-}" && ! "$MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY" =~ ^[A-Za-z0-9_-]{43}$ ]]; then
-            echo '::error::MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY must be a 32-byte URL-safe base64 key (43 chars, no padding).'
             exit 1
           fi
           if [[ "$APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID" == "$APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID" ]]; then
@@ -144,21 +113,27 @@ jobs:
             echo '::error::Cloudflare Production must not use ChatGPT Sites origin.'
             exit 1
           fi
-          if [[ -n "${HEALTH_CARE_BASE_URL:-}" && ${#HEALTH_CONTROL_SERVICE_SECRET} -lt 32 ]]; then
-            echo '::error::HEALTH_CONTROL_SERVICE_SECRET is required when Health production is configured.'; exit 1
-          fi
-          if [[ -n "${RU_LIFE_BASE_URL:-}" && ${#RU_LIFE_CONTROL_SERVICE_SECRET} -lt 32 ]]; then
-            echo '::error::RU_LIFE_CONTROL_SERVICE_SECRET is required when RU_LIFE production is configured.'; exit 1
-          fi
-          if [[ -n "${BAUMAN_CONTROL_BASE_URL:-}" && ${#BAUMAN_CONTROL_SERVICE_SECRET} -lt 32 ]]; then
-            echo '::error::BAUMAN_CONTROL_SERVICE_SECRET is required when Bauman production is configured.'; exit 1
-          fi
 
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
 
+      - name: Refresh read-only readiness and rollback evidence before release
+        run: node scripts/inspect-production-readiness.mjs
+
+      - name: Preserve sanitized pre-release rollback evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-release-readiness
+          path: .sites-runtime/production-inspection/readiness.json
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Production regression gate
         run: npm test
+
+      - name: Preserve live production variables without credential changes
+        run: node scripts/production-release-control.mjs preserve-vars
 
       - name: Materialize isolated production config
         run: npm run cloudflare:production:prepare
@@ -178,137 +153,7 @@ jobs:
         run: npx wrangler d1 migrations apply application-management-production-db --remote --config wrangler.production.jsonc
 
       - name: Deploy Application Management production Worker
-        run: npx wrangler deploy
-
-      - name: Install initial administrator password
-        shell: bash
-        run: printf '%s' "$APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD" | npx wrangler secret put APPLICATION_MANAGEMENT_INITIAL_ADMIN_PASSWORD --config wrangler.production.jsonc
-
-      - name: Install production read-back secret
-        shell: bash
-        run: printf '%s' "$APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET" | npx wrangler secret put APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET --config wrangler.production.jsonc
-
-      - name: Install Google OAuth credentials when configured
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ -n "${GOOGLE_OAUTH_CLIENT_ID:-}" && -n "${GOOGLE_OAUTH_CLIENT_SECRET:-}" ]]; then
-            printf '%s' "$GOOGLE_OAUTH_CLIENT_ID" | npx wrangler secret put GOOGLE_OAUTH_CLIENT_ID --config wrangler.production.jsonc
-            printf '%s' "$GOOGLE_OAUTH_CLIENT_SECRET" | npx wrangler secret put GOOGLE_OAUTH_CLIENT_SECRET --config wrangler.production.jsonc
-            echo 'Google OAuth credentials installed as protected Worker secrets.'
-          else
-            echo 'Google OAuth credentials not supplied; password recovery login remains available.'
-          fi
-
-      - name: Ensure MFA encryption key
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ -n "${APPLICATION_MANAGEMENT_MFA_ENCRYPTION_KEY:-}" ]]; then
-            if [[ ! "$APPLICATION_MANAGEMENT_MFA_ENCRYPTION_KEY" =~ ^[A-Za-z0-9_-]{43}$ ]]; then
-              echo '::error::APPLICATION_MANAGEMENT_MFA_ENCRYPTION_KEY must be a 32-byte URL-safe base64 key (43 chars, no padding).'
-              exit 1
-            fi
-            printf '%s' "$APPLICATION_MANAGEMENT_MFA_ENCRYPTION_KEY" | npx wrangler secret put APPLICATION_MANAGEMENT_MFA_ENCRYPTION_KEY --config wrangler.production.jsonc
-            echo 'MFA encryption key installed from protected environment secret.'
-          elif npx wrangler secret list --config wrangler.production.jsonc 2>/dev/null | grep -q 'APPLICATION_MANAGEMENT_MFA_ENCRYPTION_KEY'; then
-            echo 'MFA encryption key already exists; keeping the current key.'
-          else
-            GENERATED_MFA_KEY="$(node --input-type=module -e "import crypto from 'node:crypto'; process.stdout.write(crypto.randomBytes(32).toString('base64url'))")"
-            printf '%s' "$GENERATED_MFA_KEY" | npx wrangler secret put APPLICATION_MANAGEMENT_MFA_ENCRYPTION_KEY --config wrangler.production.jsonc
-            unset GENERATED_MFA_KEY
-            echo 'MFA encryption key created once as a Worker secret.'
-          fi
-
-      - name: Ensure managed app credential encryption key
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ -n "${MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY:-}" ]]; then
-            printf '%s' "$MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY" | npx wrangler secret put MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY --config wrangler.production.jsonc
-            echo 'Managed app credential encryption key installed from protected environment secret.'
-          elif npx wrangler secret list --config wrangler.production.jsonc 2>/dev/null | grep -q 'MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY'; then
-            echo 'Managed app credential encryption key already exists; keeping the current key.'
-          else
-            GENERATED_KEY="$(node --input-type=module -e "import crypto from 'node:crypto'; process.stdout.write(crypto.randomBytes(32).toString('base64url'))")"
-            printf '%s' "$GENERATED_KEY" | npx wrangler secret put MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY --config wrangler.production.jsonc
-            unset GENERATED_KEY
-            echo 'Managed app credential encryption key created once as a Worker secret.'
-          fi
-
-      - name: Install Deploy & Ops provider secrets
-        shell: bash
-        run: |
-          set -euo pipefail
-          for key in VERCEL_TOKEN NEON_API_KEY; do
-            value="${!key:-}"
-            if [[ -n "$value" ]]; then
-              printf '%s' "$value" | npx wrangler secret put "$key" --config wrangler.production.jsonc
-              echo "$key installed as protected Worker secret."
-            else
-              echo "$key not supplied by GitHub environment; existing Worker secret, if any, is left unchanged."
-            fi
-          done
-
-      - name: Establish shared Bơi ếch bridge secret
-        if: ${{ env.BOI_ECH_BASE_URL != '' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          bridge_secret="${CONTROL_SERVICE_SECRET:-}"
-          if [[ ${#bridge_secret} -lt 32 ]]; then
-            bridge_secret="$(node --input-type=module -e "import crypto from 'node:crypto'; process.stdout.write(crypto.randomBytes(32).toString('base64url'))")"
-            echo "Generated a fresh Bơi ếch bridge secret because the protected environment did not supply one."
-          else
-            echo "Using the protected Bơi ếch bridge secret from the deployment environment."
-          fi
-          echo "::add-mask::$bridge_secret"
-          printf 'BOI_RUNTIME_BRIDGE_SECRET=%s\n' "$bridge_secret" >> "$GITHUB_ENV"
-          printf '%s' "$bridge_secret" | npx wrangler secret put CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
-          printf '%s' "$bridge_secret" | npx wrangler secret put CONTROL_SERVICE_SECRET --name boi-ech
-
-      - name: Install Health bridge secret
-        if: ${{ env.HEALTH_CARE_BASE_URL != '' }}
-        shell: bash
-        run: printf '%s' "$HEALTH_CONTROL_SERVICE_SECRET" | npx wrangler secret put HEALTH_CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
-
-      - name: Install RU_LIFE bridge secret
-        if: ${{ env.RU_LIFE_BASE_URL != '' }}
-        shell: bash
-        run: printf '%s' "$RU_LIFE_CONTROL_SERVICE_SECRET" | npx wrangler secret put RU_LIFE_CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
-
-      - name: Install Bauman bridge secret
-        if: ${{ env.BAUMAN_CONTROL_BASE_URL != '' }}
-        shell: bash
-        run: printf '%s' "$BAUMAN_CONTROL_SERVICE_SECRET" | npx wrangler secret put BAUMAN_CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
-
-      - name: Install GrowUP bridge secret
-        if: ${{ env.GROWUP_CONTROL_BASE_URL != '' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ -z "${GROWUP_CONTROL_SERVICE_SECRET:-}" ]]; then
-            echo '::error::GROWUP_CONTROL_SERVICE_SECRET is required when GROWUP_CONTROL_BASE_URL is configured.'
-            exit 1
-          fi
-          printf '%s' "$GROWUP_CONTROL_SERVICE_SECRET" | npx wrangler secret put GROWUP_CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
-
-      - name: Install or preserve PriceReport bridge secret
-        if: ${{ env.PRICE_REPORT_CONTROL_BASE_URL != '' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ -n "${PRICE_REPORT_CONTROL_SERVICE_SECRET:-}" ]]; then
-            printf '%s' "$PRICE_REPORT_CONTROL_SERVICE_SECRET" | npx wrangler secret put PRICE_REPORT_CONTROL_SERVICE_SECRET --config wrangler.production.jsonc
-          elif npx wrangler secret list --config wrangler.production.jsonc | grep -q 'PRICE_REPORT_CONTROL_SERVICE_SECRET'; then
-            echo 'PriceReport bridge secret already exists on the Worker; preserving it.'
-          else
-            echo '::error::PriceReport control origin is configured but no Worker bridge secret exists. Run Bootstrap PriceReport Control Service first.'
-            exit 1
-          fi
-
-      - name: Restore generated Production artifact after secret versions
-        run: npx wrangler deploy
+        run: npx wrangler deploy --keep-vars
 
       - name: Verify production login route and anonymous protection
         shell: bash
@@ -323,9 +168,9 @@ jobs:
             echo '::error::Production login page must not expose Preview login wording.'
             exit 1
           fi
-          if [[ -n "${GOOGLE_OAUTH_CLIENT_ID:-}" && -n "${GOOGLE_OAUTH_CLIENT_SECRET:-}" ]]; then
+          if node --input-type=module -e 'import fs from "node:fs"; process.exit(JSON.parse(fs.readFileSync(".sites-runtime/production-inspection/readiness.json", "utf8")).liveAccessMode === "google-oauth+account-session" ? 0 : 1)'; then
             if ! grep -q 'Tiếp tục với Google' /tmp/production-login.html; then
-              echo '::error::Google OAuth credentials were supplied but the Production login page does not expose Google sign-in.'
+              echo '::error::Production login no longer exposes its existing Google sign-in.'
               exit 1
             fi
             GOOGLE_START_CODE="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 15 "$APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/__auth/google")"
@@ -375,21 +220,19 @@ jobs:
           READY=0
           for attempt in {1..12}; do
             CODE="$(curl --silent --show-error --output /tmp/application-management-production.json --write-out '%{http_code}' --max-time 20 -H "Authorization: Bearer $APPLICATION_MANAGEMENT_PRODUCTION_READBACK_SECRET" "$APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN/__deployment" || true)"
-            if [[ "$CODE" == "200" ]]; then
+            if [[ "$CODE" == "200" ]] && node scripts/production-release-control.mjs readback /tmp/application-management-production.json; then
               READY=1
               break
             fi
-            if [[ "$CODE" != "401" && "$CODE" != "403" && "$CODE" != "404" && "$CODE" != "000" ]]; then
+            if [[ "$CODE" != "200" && "$CODE" != "401" && "$CODE" != "403" && "$CODE" != "404" && "$CODE" != "000" ]]; then
               echo "::error::Unexpected Production read-back HTTP $CODE."
-              cat /tmp/application-management-production.json || true
               exit 1
             fi
             echo "Production read-back not ready yet (HTTP $CODE, attempt $attempt/12); waiting for Cloudflare secret/version propagation..."
             sleep 5
           done
           if [[ "$READY" != "1" ]]; then
-            echo '::error::Production read-back did not become ready within 60 seconds after secret installation.'
-            cat /tmp/application-management-production.json || true
+            echo '::error::Exact approved Production revision did not become ready after deployment.'
             exit 1
           fi
           node --input-type=module - <<'NODE'
@@ -397,70 +240,28 @@ jobs:
           const value = JSON.parse(fs.readFileSync('/tmp/application-management-production.json', 'utf8'));
           if (value.application !== 'application-management' || value.runtime !== 'control-plane') throw new Error('Production deployment identity mismatch.');
           if (value.channel !== 'cloudflare-production') throw new Error('Production deployment channel mismatch.');
-          if (!value.revision || value.revision === 'unknown') throw new Error('Production build revision missing.');
+          if (value.revision !== process.env.RELEASE_REVISION) throw new Error('Production build revision differs from the approved release.');
           if (!value.databaseReady) throw new Error('Production D1 schema is not ready.');
           if (!value.assetsReady) throw new Error('Production static assets are not ready on the live Worker version.');
           if (!value.productionAuthConfigured) throw new Error('Production account authentication is not configured.');
-          const googleExpected = Boolean(process.env.GOOGLE_OAUTH_CLIENT_ID && process.env.GOOGLE_OAUTH_CLIENT_SECRET);
+          const baseline = JSON.parse(fs.readFileSync('.sites-runtime/production-inspection/readiness.json', 'utf8'));
+          const googleExpected = baseline.liveAccessMode === 'google-oauth+account-session';
           if (googleExpected && !value.googleAuthConfigured) throw new Error('Google OAuth secrets were supplied but the live Worker did not enable Google authentication.');
-          const expectedAccessMode = googleExpected ? 'google-oauth+account-session' : 'account-session';
+          const expectedAccessMode = baseline.liveAccessMode;
           if (value.accessMode !== expectedAccessMode) throw new Error(`Unexpected Production access mode: ${value.accessMode}; expected ${expectedAccessMode}.`);
           if (!value.ownerPolicyConfigured) throw new Error('Production owner policy is missing.');
           if (value.networkMode !== 'production') throw new Error('Production must use production network resolution.');
           console.log('Application Management Cloudflare production read-back PASS.');
           NODE
 
-      - name: Verify Bơi ếch live automation bridge
-        if: ${{ env.BOI_ECH_BASE_URL != '' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          TOKEN="$(node --input-type=module <<'NODE'
-          import crypto from "node:crypto";
-          const secret = process.env.BOI_RUNTIME_BRIDGE_SECRET ?? "";
-          if (secret.length < 32) process.exit(2);
-          const payload = Buffer.from(JSON.stringify({
-            iss: "quan-ly-hoc-tap",
-            aud: "boi-ech-control",
-            actor: "automation-state@application-management.local",
-            role: "viewer",
-            exp: Date.now() + 5 * 60 * 1000,
-          })).toString("base64url");
-          const signedInput = "v1." + payload;
-          const signature = crypto.createHmac("sha256", secret).update(signedInput).digest("base64url");
-          process.stdout.write(signedInput + "." + signature);
-          NODE
-          )"
-          CODE="$(curl --silent --show-error --output /tmp/boi-production-automation.json --write-out '%{http_code}' --max-time 20 \
-            -H "Authorization: Bearer $TOKEN" \
-            "$BOI_ECH_BASE_URL/api/control/overview?activityDays=0" || true)"
-          if [[ "$CODE" != "200" ]]; then
-            echo "::error::Bơi ếch Production automation bridge returned HTTP $CODE."
-            cat /tmp/boi-production-automation.json || true
-            exit 1
-          fi
-          node --input-type=module <<'NODE'
-          import fs from "node:fs";
-          const value = JSON.parse(fs.readFileSync("/tmp/boi-production-automation.json", "utf8"));
-          const automation = value?.automation ?? {};
-          if (typeof automation.enabled !== "boolean") throw new Error("Bơi ếch automation.enabled missing.");
-          if (!Number.isInteger(Number(automation.defaultAccessDays))) throw new Error("Bơi ếch defaultAccessDays missing.");
-          if (!Number.isInteger(Number(automation.defaultDeviceLimit))) throw new Error("Bơi ếch defaultDeviceLimit missing.");
-          console.log("Bơi ếch Production automation bridge PASS.");
-          NODE
-
       - name: Create short-lived owner contract probe session
         shell: bash
         run: |
           set -euo pipefail
-          node --input-type=module <<'NODE' >> "$GITHUB_ENV"
-          import crypto from "node:crypto";
-          const token = crypto.randomBytes(32).toString("base64url");
-          const hash = crypto.createHash("sha256").update(token).digest("base64url");
-          console.log(`CATALOG_QA_SESSION_TOKEN=${token}`);
-          console.log(`CATALOG_QA_SESSION_HASH=${hash}`);
-          NODE
-          source "$GITHUB_ENV"
+          CATALOG_QA_SESSION_TOKEN="$(node --input-type=module -e 'import crypto from "node:crypto"; process.stdout.write(crypto.randomBytes(32).toString("base64url"))')"
+          echo "::add-mask::$CATALOG_QA_SESSION_TOKEN"
+          CATALOG_QA_SESSION_HASH="$(printf '%s' "$CATALOG_QA_SESSION_TOKEN" | node --input-type=module -e 'import crypto from "node:crypto"; let value=""; for await (const chunk of process.stdin) value+=chunk; process.stdout.write(crypto.createHash("sha256").update(value).digest("base64url"))')"
+          printf 'CATALOG_QA_SESSION_TOKEN=%s\nCATALOG_QA_SESSION_HASH=%s\n' "$CATALOG_QA_SESSION_TOKEN" "$CATALOG_QA_SESSION_HASH" >> "$GITHUB_ENV"
           NOW="$(date +%s)"
           EXPIRES="$((NOW + 600))"
           npx wrangler d1 execute application-management-production-db --remote --config wrangler.production.jsonc --command             "INSERT INTO control_sessions (session_id_hash,email,expires_at,created_at,last_seen_at)
@@ -477,6 +278,9 @@ jobs:
             echo "::error::Could not create the short-lived Production contract probe session."
             exit 1
           fi
+
+      - name: Verify shared Boi device reads through the deployed Central bridge
+        run: node scripts/production-release-control.mjs smoke-central
 
       - name: Reconcile managed app catalog before Production probe
         shell: bash
@@ -586,5 +390,5 @@ jobs:
           echo 'Application Management Production deployment completed.'
           echo 'Worker: application-management'
           echo 'D1: application-management-production-db'
-          echo 'Access: email/password account session; Preview secret is not used.'
+          echo 'Access: existing production authentication and Worker secrets preserved.'
           echo 'Deployment remains manual-only.'

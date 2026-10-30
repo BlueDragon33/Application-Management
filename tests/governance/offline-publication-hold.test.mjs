@@ -17,11 +17,6 @@ const workflows=[
     "path": ".github/workflows/deploy-application-management-preview.yml",
     "job": "deploy-preview",
     "marker": "Application Management Cloudflare preview read-back PASS"
-  },
-  {
-    "path": ".github/workflows/deploy-application-management-production.yml",
-    "job": "deploy-production",
-    "marker": "Deploy Application Management production Worker"
   }
 ];
 for(const wf of workflows){
@@ -37,6 +32,17 @@ for(const wf of workflows){
   assert.ok(text.includes(wf.marker),"retain dormant workflow for later reviewed reactivation");
  });
 }
+test("only the reviewed Production path can publish, with explicit owner and revision gates",()=>{
+ const text=readFileSync(".github/workflows/deploy-application-management-production.yml","utf8");
+ const eventBlock=text.slice(text.indexOf("\non:"),text.indexOf("\npermissions:"));
+ assert.doesNotMatch(eventBlock,/\bpush:|\bworkflow_run:|\bissue_comment:/);
+ const job=text.slice(text.indexOf("  deploy-production:"),text.indexOf("    runs-on:",text.indexOf("  deploy-production:")));
+ assert.match(job,/github\.event_name == 'workflow_dispatch'/);
+ assert.match(job,/github\.actor == 'BlueDragon33'/);
+ assert.match(job,/inputs\.confirm == 'DEPLOY_PRODUCTION'/);
+ assert.match(job,/inputs\.release_revision == github\.sha/);
+ assert.match(text,/environment: application-management-production/);
+});
 test("offline hold is not proof that an installed app works without internet",()=>{
  const a=readFileSync(".github/workflows/live-development-deploy.yml","utf8");
  assert.match(a,/DORMANT|offline-first/i);

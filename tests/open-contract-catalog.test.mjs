@@ -55,13 +55,13 @@ test("dynamic credentials are AES-GCM encrypted with a one-time root key", () =>
   assert.ok(contract.includes('{ name: "AES-GCM"'));
   assert.ok(contract.includes("credential_ciphertext"));
   assert.ok(contract.includes("credential_iv"));
-  assert.ok(production.includes("MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY"));
+  assert.doesNotMatch(production, /secret put MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY/);
   assert.ok(preview.includes("MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY"));
-  assert.ok(production.includes("Ensure managed app credential encryption key"));
+  assert.match(production, /production-release-control\.mjs preserve-vars/);
   assert.ok(preview.includes("Ensure managed app credential encryption key"));
-  assert.ok(production.includes("crypto.randomBytes(32).toString('base64url')"));
+  assert.doesNotMatch(production, /GENERATED_KEY/);
   assert.ok(preview.includes("crypto.randomBytes(32).toString('base64url')"));
-  assert.ok(production.includes("secret list --config wrangler.production.jsonc"));
+  assert.doesNotMatch(production, /wrangler secret list/);
   assert.ok(preview.includes("secret list --config wrangler.cloudflare.jsonc"));
 });
 
@@ -133,7 +133,7 @@ test("new apps do not need new workflow secret names", () => {
   assert.equal(contract.includes("HEALTH_CONTROL_SERVICE_SECRET"), false);
   assert.equal(contract.includes("BAUMAN_CONTROL_SERVICE_SECRET"), false);
   assert.ok(contract.includes("credential_ciphertext"));
-  assert.ok(production.includes("MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY"));
+  assert.doesNotMatch(production, /secret put MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY/);
 });
 
 

@@ -35,11 +35,12 @@ test("GrowUP bridge secret is installed only when a real control origin exists",
   assert.match(live, /GROWUP_CONTROL_PRODUCTION_ORIGIN/);
   assert.match(production, /GROWUP_CONTROL_PRODUCTION_ORIGIN/);
   assert.match(preview, /GROWUP_CONTROL_PREVIEW_ORIGIN/);
-  for (const workflow of [live, production, preview]) {
+  for (const workflow of [live, preview]) {
     assert.match(workflow, /GROWUP_CONTROL_SERVICE_SECRET/);
     assert.match(workflow, /wrangler secret put GROWUP_CONTROL_SERVICE_SECRET/);
   }
-  assert.match(production, /GROWUP_CONTROL_SERVICE_SECRET is required when GROWUP_CONTROL_BASE_URL is configured/);
+  assert.doesNotMatch(production, /secret put GROWUP_CONTROL_SERVICE_SECRET/);
+  assert.match(production, /production-release-control\.mjs preserve-vars/);
   assert.match(live, /GrowUP remains fail-closed\/read-only/);
   assert.match(preview, /GrowUP stays read-only/);
 });
