@@ -841,7 +841,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
     }
   }
 
-  async function saveAutomation(selection: AutomationSelection) {
+  async function saveAutomation(selection: AutomationSelection, authenticate?: () => Promise<boolean>) {
     if (automationSaveLockRef.current) return null;
     setNotice("");
     setAutomationStepUpRequired(false);
@@ -957,10 +957,23 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       setNotice("");
 
       // Same app = sequential writes. Different apps may proceed in parallel.
+      // Only an explicit pre-mutation authorization rejection is safe to retry.
+      // All rejected tasks in this Save share one in-session verification.
+      let authentication: Promise<boolean> | undefined;
+      async function runTask(task: PolicySaveTask) {
+        try {
+          return await task.run();
+        } catch (error) {
+          if (!(error instanceof AdminApiError) || error.data.code !== "STEP_UP_REQUIRED" || !authenticate) throw error;
+          authentication ??= Promise.resolve().then(authenticate);
+          if (!await authentication) throw error;
+          return task.run();
+        }
+      }
       const chains = new Map<string, Promise<unknown>>();
       const executions = tasks.map((task) => {
         const previous = chains.get(task.appId) ?? Promise.resolve();
-        const execution = previous.then(() => task.run());
+        const execution = previous.then(() => runTask(task));
         chains.set(task.appId, execution.catch(() => undefined));
         return execution;
       });

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { OperationsAutomationPolicy, OperationsSettings } from "./admin-device-client";
 import styles from "./automatic-device-policies.module.css";
+import AuthenticatorStepUp from "./authenticator-step-up";
 
 export type AutomationSelection = {
   appIds: string[];
@@ -108,7 +109,7 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
   stepUpRequired?: boolean;
   sync: () => Promise<unknown>;
   close: () => void;
-  save: (selection: AutomationSelection) => Promise<OperationsSettings | null | undefined>;
+  save: (selection: AutomationSelection, authenticate?: () => Promise<boolean>) => Promise<OperationsSettings | null | undefined>;
 }) {
   const [drafts, setDrafts] = useState<Record<string, AutomationAppDraft>>(() => initialDrafts(apps, settings));
   const submitLockRef = useRef(false);
@@ -117,6 +118,8 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const openerRef = useRef<HTMLElement | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [authenticating, setAuthenticating] = useState(false);
+  const authenticationRef = useRef<((verified: boolean) => void) | null>(null);
   const boiPolicy = policyFor(settings, "boi-ech");
   const [days, setDays] = useState(boiPolicy.current.freeAccessDays ?? settings?.freeAccessDaysByApp?.["boi-ech"] ?? 0);
   const [limit, setLimit] = useState(boiPolicy.current.freeDeviceLimit ?? settings?.freeDeviceLimitByApp?.["boi-ech"] ?? 0);
@@ -154,6 +157,7 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
     openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     closeButtonRef.current?.focus();
     return () => {
+      authenticationRef.current?.(false);
       openerRef.current?.focus();
     };
   }, []);
@@ -196,6 +200,18 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
     }));
   }
 
+  function authenticate() {
+    setAuthenticating(true);
+    return new Promise<boolean>((resolve) => { authenticationRef.current = resolve; });
+  }
+
+  function finishAuthentication(verified: boolean) {
+    setAuthenticating(false);
+    authenticationRef.current?.(verified);
+    authenticationRef.current = null;
+    window.setTimeout(() => dialogRef.current?.focus(), 0);
+  }
+
   async function submit() {
     if (!canSave || submitLockRef.current) return;
     submitLockRef.current = true;
@@ -206,7 +222,7 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
       const pendingBlockAfterHoursByApp = Object.fromEntries(
         apps.map((app) => [app.id, drafts[app.id]?.pendingBlockAfterHours ?? 168]),
       ) as Record<string, number>;
-      const readback = await save({ appIds, autoBlockAppIds, pendingBlockAfterHoursByApp, defaultAccessDays: days, defaultDeviceLimit: limit });
+      const readback = await save({ appIds, autoBlockAppIds, pendingBlockAfterHoursByApp, defaultAccessDays: days, defaultDeviceLimit: limit }, authenticate);
       if (!readback) return;
 
       draftEditedRef.current = false;
@@ -221,7 +237,7 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
   }
 
   return <div className={styles.scrim} onMouseDown={(event) => { if (event.currentTarget === event.target && !locked) close(); }}>
-    <section ref={dialogRef} className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="device-auto-title" tabIndex={-1} onKeyDown={handleDialogKeyDown}>
+    <section ref={dialogRef} className={styles.dialog} role="dialog" aria-modal={!authenticating} aria-hidden={authenticating || undefined} inert={authenticating} aria-labelledby="device-auto-title" tabIndex={-1} onKeyDown={handleDialogKeyDown}>
       <header className={styles.dialogHeader}>
         <div><small>KIỂM DUYỆT THIẾT BỊ</small><h2 id="device-auto-title">Quy tắc theo từng ứng dụng</h2></div>
         <button ref={closeButtonRef} onClick={close} disabled={locked} aria-label="Đóng">×</button>
@@ -326,10 +342,11 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
       </div>
 
       <footer className={styles.dialogFooter}>
-        {notice ? <p role="status" className={`${styles.warning} ${styles.feedback}`}>{notice}{stepUpRequired ? <><br/><a href="/__account" target="_blank" rel="noopener noreferrer">Xác minh Authenticator</a> rồi quay lại bấm Lưu thay đổi. Bản nháp của bạn được giữ nguyên.</> : null}</p> : null}
+        {notice ? <p role="status" className={`${styles.warning} ${styles.feedback}`}>{notice}{stepUpRequired ? <><br/>Bấm Lưu thay đổi để xác minh tại đây. Bản nháp của bạn được giữ nguyên.</> : null}</p> : null}
         <span className={styles.saveState}>{locked ? "Đang ghi và đọc lại client…" : !verified ? "Chưa xác minh LIVE" : hasChanges ? "Có thay đổi chưa lưu" : "Cấu hình đang khớp trạng thái đã đọc"}</span>
         <div><button type="button" onClick={() => void sync()} disabled={locked}>Đồng bộ LIVE</button><button onClick={close} disabled={locked}>Đóng</button><button className={styles.save} disabled={!canSave} onClick={() => void submit()}>{locked ? "Đang lưu…" : "Lưu thay đổi"}</button></div>
       </footer>
     </section>
+    {authenticating ? <AuthenticatorStepUp finish={finishAuthentication}/> : null}
   </div>;
 }

@@ -78,7 +78,7 @@ test("changing only Boi duration and capacity persists both fields and records i
   } finally { f.sqlite.close(); }
 });
 
-function dashboardWriter(settings, action, confirm = true) {
+function dashboardWriter(settings, action, confirm = true, appIds = ["boi-ech"]) {
   const source = fs.readFileSync("app/management-dashboard-v2.tsx", "utf8");
   const start = source.indexOf("  async function saveAutomation(");
   const end = source.indexOf("\n  async function manageControlDevice", start);
@@ -96,7 +96,7 @@ function dashboardWriter(settings, action, confirm = true) {
     setAutomationStepUpRequired: value => { stepUp = value; }, AdminApiError: client.AdminApiError,
   };
   const write = new Function(...Object.keys(values), `${stripTypeScriptTypes(source.slice(start, end))}; return saveAutomation;`)(...Object.values(values));
-  return { write: () => write({ appIds: ["boi-ech"], autoBlockAppIds: [], pendingBlockAfterHoursByApp: {}, defaultAccessDays: 90, defaultDeviceLimit: 80 }),
+  return { write: authenticate => write({ appIds, autoBlockAppIds: [], pendingBlockAfterHoursByApp: {}, defaultAccessDays: 90, defaultDeviceLimit: 80 }, authenticate),
     busy, notices, get settings() { return current.settings; }, get stepUp() { return stepUp; } };
 }
 
@@ -149,5 +149,93 @@ test("an unavailable full device inventory cannot fail a successfully persisted 
     assert.equal(result.settings.freeAccessDaysByApp["boi-ech"], 90);
     assert.equal(result.settings.freeDeviceLimitByApp["boi-ech"], 80);
     assert.equal(f.requests.filter(request => request.method === "POST").length, 1);
+  } finally { f.sqlite.close(); }
+});
+
+
+test("a required step-up resumes the pending exact policy save without a second confirmation", async () => {
+  const f = fixture();
+  try {
+    let authenticated = false; let prompts = 0; let attempts = 0;
+    const writer = dashboardWriter(await f.read(), async (body, AdminApiError) => {
+      attempts++;
+      if (!authenticated) throw new AdminApiError("Authenticator required", { code: "STEP_UP_REQUIRED" });
+      return f.save(body.defaultAccessDays, body.defaultDeviceLimit);
+    });
+    const result = await writer.write(async () => { prompts++; authenticated = true; return true; });
+    assert.equal(prompts, 1); assert.equal(attempts, 2);
+    assert.equal(result.freeAccessDaysByApp["boi-ech"], 90);
+    assert.deepEqual(f.state(), { enabled: true, defaultAccessDays: 90, defaultDeviceLimit: 80 });
+    assert.equal(f.requests.filter(item => item.method === "POST").length, 1);
+    assert.equal(writer.busy.at(-1), "");
+  } finally { f.sqlite.close(); }
+});
+
+test("cancelled authentication preserves the draft and repeated gate rejection never loops", async () => {
+  const f = fixture();
+  try {
+    for (const approved of [false, true]) {
+      let prompts = 0; let attempts = 0;
+      const writer = dashboardWriter(await f.read(), async (_body, AdminApiError) => {
+        attempts++;
+        throw new AdminApiError("Authenticator required", { code: "STEP_UP_REQUIRED" });
+      });
+      assert.equal(await writer.write(async () => { prompts++; return approved; }), null);
+      assert.equal(prompts, 1); assert.equal(attempts, approved ? 2 : 1);
+      assert.equal(writer.busy.at(-1), "");
+      assert.deepEqual(f.state(), { enabled: true, defaultAccessDays: 30, defaultDeviceLimit: 25 });
+    }
+  } finally { f.sqlite.close(); }
+});
+
+test("uncertain transport failures are never replayed or sent to Authenticator", async () => {
+  const f = fixture();
+  try {
+    let attempts = 0; let prompts = 0;
+    const writer = dashboardWriter(await f.read(), async () => { attempts++; throw new Error("Connection lost"); });
+    assert.equal(await writer.write(async () => { prompts++; return true; }), null);
+    assert.equal(attempts, 1); assert.equal(prompts, 0);
+  } finally { f.sqlite.close(); }
+});
+
+
+test("concurrent policy gates share one confirmation and retry only rejected tasks", async () => {
+  const f = fixture();
+  try {
+    const settings = await f.read();
+    const healthPolicy = { appId: "health-care", support: { autoApprove: true, autoBlockPending: false }, current: { autoApprove: false }, mutation: { autoApprove: true }, verification: { state: "live" } };
+    settings.automationPolicies.push(healthPolicy);
+    let authenticated = false; let prompts = 0; let attempts = 0; let accept;
+    const waiting = new Promise(resolve => { accept = resolve; });
+    const writer = dashboardWriter(settings, async (body, AdminApiError) => {
+      attempts++;
+      if (!authenticated) throw new AdminApiError("Authenticator required", { code: "STEP_UP_REQUIRED" });
+      if (body.targetAppIds[0] === "boi-ech") return f.save(body.defaultAccessDays, body.defaultDeviceLimit);
+      return { settings: { ...settings, automationPolicies: [{ ...healthPolicy, current: { autoApprove: true } }] } };
+    }, true, ["boi-ech", "health-care"]);
+    const running = writer.write(() => { prompts++; return waiting; });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(prompts, 1); assert.equal(attempts, 2);
+    authenticated = true; accept(true);
+    const result = await running;
+    assert.equal(attempts, 4);
+    assert.equal(result.freeAccessDaysByApp["boi-ech"], 90);
+    assert.ok(result.autoApproveAppIds.includes("health-care"));
+  } finally { f.sqlite.close(); }
+});
+
+test("successful authentication cannot turn an unchanged policy readback into Save success", async () => {
+  const f = fixture();
+  try {
+    let authenticated = false;
+    const writer = dashboardWriter(await f.read(), async (_body, AdminApiError) => {
+      if (!authenticated) throw new AdminApiError("Authenticator required", { code: "STEP_UP_REQUIRED" });
+      return { settings: await f.read() };
+    });
+    assert.equal(await writer.write(async () => { authenticated = true; return true; }), null);
+    assert.equal(authenticated, true);
+    assert.equal(writer.settings.freeAccessDaysByApp["boi-ech"], 30);
+    assert.match(writer.notices.at(-1), /Chưa khớp readback/);
+    assert.equal(writer.busy.at(-1), "");
   } finally { f.sqlite.close(); }
 });
