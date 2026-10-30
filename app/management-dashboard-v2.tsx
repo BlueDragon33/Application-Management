@@ -370,6 +370,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   const [clock, setClock] = useState<Date | null>(null);
   const [webMenu, setWebMenu] = useState(false);
   const [autoPolicyOpen, setAutoPolicyOpen] = useState(false);
+  const [automationStepUpRequired, setAutomationStepUpRequired] = useState(false);
   const [boiAccessDevice, setBoiAccessDevice] = useState<OperationsDevice | null>(null);
   const [accountSecurityOpen, setAccountSecurityOpen] = useState(false);
   const [fontScale, setFontScale] = useState<FontScale>("compact");
@@ -413,6 +414,8 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   }
 
   function openAutomationPolicies() {
+    setNotice("");
+    setAutomationStepUpRequired(false);
     setAutoPolicyOpen(true);
     // Avoid a full bootstrap for a fresh snapshot, but never treat an old
     // cached policy as live simply because its original source was live.
@@ -840,6 +843,8 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
 
   async function saveAutomation(selection: AutomationSelection) {
     if (automationSaveLockRef.current) return null;
+    setNotice("");
+    setAutomationStepUpRequired(false);
     if (!automationSnapshotVerified) {
       setNotice("Cấu hình automation chưa được xác minh LIVE với quyền quản trị. Hãy đồng bộ trước khi lưu.");
       return null;
@@ -912,7 +917,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
         "",
         "Mỗi policy được ghi vào đúng client và chỉ được coi là thành công sau readback.",
       ].join("\n");
-      if (!window.confirm(confirmation)) return current;
+      if (!window.confirm(confirmation)) return null;
 
       type PolicySaveTask = {
         appId: string;
@@ -966,6 +971,9 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       settled.forEach((result, index) => {
         const task = tasks[index];
         if (result.status === "rejected") {
+          if (result.reason instanceof AdminApiError && result.reason.data.code === "STEP_UP_REQUIRED") {
+            setAutomationStepUpRequired(true);
+          }
           transportErrors.set(task.appId + ":" + task.field, result.reason instanceof Error ? result.reason.message : "Lệnh cập nhật thất bại.");
           return;
         }
@@ -1052,8 +1060,10 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       // Full inventory refresh is eventual consistency only. It must never keep
       // the Save button locked after target-app readback already succeeded.
       window.setTimeout(() => void refreshOperations(true, true), 1_200);
+      if (failedFields.length) return null;
       return mergedSettings;
     } catch (caught) {
+      if (caught instanceof AdminApiError && caught.data.code === "STEP_UP_REQUIRED") setAutomationStepUpRequired(true);
       setNotice(caught instanceof Error ? caught.message : "Không thể cập nhật quy tắc tự động.");
       return null;
     } finally {
@@ -1094,7 +1104,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
 
   return <main className="amv2-shell" data-font-scale={fontScale}>
     {accountSecurityOpen ? <AccountSecurityDialog user={user} role={roleLabels[access.role]} authMode={authMode} close={() => setAccountSecurityOpen(false)}/> : null}
-    {autoPolicyOpen ? <AutomaticDevicePolicies apps={activeApps} settings={operations?.settings} verified={automationSnapshotVerified} busy={actionBusy === "auto-policy"} close={() => setAutoPolicyOpen(false)} sync={syncOperationsNow} save={saveAutomation}/> : null}
+    {autoPolicyOpen ? <AutomaticDevicePolicies apps={activeApps} settings={operations?.settings} verified={automationSnapshotVerified} busy={actionBusy === "auto-policy"} notice={notice} stepUpRequired={automationStepUpRequired} close={() => setAutoPolicyOpen(false)} sync={syncOperationsNow} save={saveAutomation}/> : null}
     <aside className="amv2-sidebar">
       <div className="amv2-brand"><div>QT</div><span><small>TRUNG TÂM ĐIỀU PHỐI</small><strong>QUẢN TRỊ ỨNG DỤNG</strong><em>Kết nối · Kiểm soát · Phát triển</em></span></div>
       <nav aria-label="Điều hướng quản trị">{navItems.map((item) => <button key={item.view} data-active={view === item.view} onClick={() => switchView(item.view)}><i>{item.icon}</i><span>{item.label}</span>{!offline && item.view === "devices" && pendingDevices.length ? <b>{pendingDevices.length}</b> : null}{!offline && item.view === "approvals" && approvalCount ? <b>{approvalCount}</b> : null}</button>)}</nav>

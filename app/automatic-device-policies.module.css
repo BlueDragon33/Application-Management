@@ -37,7 +37,9 @@
 .limits label { display: grid; gap: 6px; font-size: .82rem; }
 .limits small { grid-column: 1 / -1; }
 .appReason { margin: 0; padding: 8px 10px; border-radius: 7px; background: rgba(0, 20, 15, .24); color: #a9cabb; font-size: .8rem; line-height: 1.4; }
-.dialogFooter { position: sticky; bottom: -20px; padding: 12px 0 0; background: #073126; }
+.dialogFooter { position: sticky; bottom: -20px; padding: 12px 0 0; background: #073126; flex-wrap: wrap; }
+.feedback { flex: 1 0 100%; margin: 0; }
+.feedback a { color: inherit; font-weight: 600; text-decoration: underline; }
 .dialogFooter > div { display: flex; gap: 8px; }
 .saveState { color: #a9cabb; font-size: .8rem; }
 .dialog .save { background: #17694f; border-color: #56aa89; font-weight: 700; }

@@ -91,7 +91,7 @@ async function setBoi(actor: { email: string; role: "viewer" | "reviewer" | "pub
   }
   await waitForBridgeAutomationReadback(
     bridge,
-    "/api/control/overview?activityDays=0",
+    "/api/control/automation",
     (value) => boiAutomationMatches(value, enabled, defaultAccessDays, defaultDeviceLimit),
     "Bơi ếch",
   );
