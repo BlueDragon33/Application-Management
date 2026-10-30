@@ -24,7 +24,12 @@ async function fixture() {
   const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(secret));
   sqlite.prepare("INSERT INTO control_mfa_factors VALUES (?,'totp',?,?,1,1)").run("owner@example.test", Buffer.from(ciphertext).toString("base64url"), Buffer.from(iv).toString("base64url"));
   const env = { APPLICATION_MANAGEMENT_MFA_ENCRYPTION_KEY: "A".repeat(43), DB: { prepare(sql) {
-    return { bind(...values) { const statement = sqlite.prepare(sql); return { first: async () => statement.get(...values) ?? null, run: async () => statement.run(...values) }; } };
+    return { bind(...values) {
+      const statement = sqlite.prepare(sql);
+      // D1's numbered placeholders are named bindings in Node 22 SQLite.
+      const parameters = Object.fromEntries(values.map((value, index) => [`?${index + 1}`, value]));
+      return { first: async () => statement.get(parameters) ?? null, run: async () => statement.run(parameters) };
+    } };
   } } };
   const identity = { email: "owner@example.test", displayName: "Owner", sessionHash: "current", authMethod: "google", mustChangePassword: false, stepUpAt: null };
   const auth = loadTs("worker/production-auth.ts");

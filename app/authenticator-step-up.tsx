@@ -9,6 +9,7 @@ export default function AuthenticatorStepUp({ finish }: { finish: (verified: boo
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
   const input = useRef<HTMLInputElement | null>(null);
+  const dialog = useRef<HTMLElement | null>(null);
   const abort = useRef<AbortController | null>(null);
   const mounted = useRef(true);
 
@@ -17,7 +18,11 @@ export default function AuthenticatorStepUp({ finish }: { finish: (verified: boo
     return () => { mounted.current = false; abort.current?.abort(); };
   }, []);
 
-  useEffect(() => { if (!busy) input.current?.focus(); }, [busy]);
+  useEffect(() => {
+    // Disabling the focused control can otherwise move focus to the page body.
+    if (busy) dialog.current?.focus();
+    else input.current?.focus();
+  }, [busy]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -59,7 +64,7 @@ export default function AuthenticatorStepUp({ finish }: { finish: (verified: boo
   }
 
   return <div className={styles.scrim}>
-    <section className={styles.dialog} role="dialog" aria-modal="true" aria-label="Xác minh Authenticator" tabIndex={-1} onKeyDown={keyDown}>
+    <section ref={dialog} className={styles.dialog} role="dialog" aria-modal="true" aria-busy={busy} aria-label="Xác minh Authenticator" tabIndex={-1} onKeyDown={keyDown}>
       <h2>Xác minh thay đổi</h2>
       <p>Nhập mã 6 số từ Authenticator. Xác minh đúng sẽ tiếp tục lưu các thay đổi đang chờ.</p>
       <form onSubmit={(event) => void submit(event)}>

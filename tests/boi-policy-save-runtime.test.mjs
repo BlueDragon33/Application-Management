@@ -223,3 +223,19 @@ test("concurrent policy gates share one confirmation and retry only rejected tas
     assert.ok(result.autoApproveAppIds.includes("health-care"));
   } finally { f.sqlite.close(); }
 });
+
+test("successful authentication cannot turn an unchanged policy readback into Save success", async () => {
+  const f = fixture();
+  try {
+    let authenticated = false;
+    const writer = dashboardWriter(await f.read(), async (_body, AdminApiError) => {
+      if (!authenticated) throw new AdminApiError("Authenticator required", { code: "STEP_UP_REQUIRED" });
+      return { settings: await f.read() };
+    });
+    assert.equal(await writer.write(async () => { authenticated = true; return true; }), null);
+    assert.equal(authenticated, true);
+    assert.equal(writer.settings.freeAccessDaysByApp["boi-ech"], 30);
+    assert.match(writer.notices.at(-1), /Chưa khớp readback/);
+    assert.equal(writer.busy.at(-1), "");
+  } finally { f.sqlite.close(); }
+});

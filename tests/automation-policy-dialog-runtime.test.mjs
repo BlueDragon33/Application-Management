@@ -131,3 +131,19 @@ test("a verification timeout unlocks code retry without changing the policy", as
   await act(async () => { f.prompt().querySelector('button[type="button"]').click(); });
   assert.equal(f.button.disabled, false);
 });
+
+test("pending verification retains keyboard focus in the pop-up while every control is disabled", async t => {
+  let complete;
+  const response = new Promise(resolve => { complete = resolve; });
+  const f = await inlineDialog(t, async () => response);
+  await act(async () => { f.button.click(); });
+  await f.submit("123456");
+  assert.ok([...f.prompt().querySelectorAll("input,button")].every(item => item.disabled));
+  assert.ok(document.activeElement === f.prompt(), "the dialog must receive focus while its controls are disabled");
+  act(() => f.prompt().dispatchEvent(new window.KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true })));
+  assert.ok(document.activeElement === f.prompt());
+  act(() => f.prompt().dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
+  assert.ok(f.prompt(), "an in-flight verification cannot be cancelled into an ambiguous save");
+  await act(async () => { complete(Response.json({ ok: false, error: "Mã hết hạn" }, { status: 401 })); });
+  assert.ok(document.activeElement === f.prompt().querySelector("input"));
+});
