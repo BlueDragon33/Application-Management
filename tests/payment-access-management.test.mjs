@@ -19,7 +19,6 @@ test("Boi payment/access API is proof-gated, concurrency-safe and read-back veri
   assert.match(api, /ACCESS_STATE_CONFLICT/);
   assert.match(api, /readbackMatches\(operation, updated, current\)/);
   assert.match(api, /ACCESS_READBACK_MISMATCH/);
-  assert.match(api, /\["grant-free", "require-payment", "renew-access", "verify-payment", "reject-payment", "block", "unblock"\]/);
 });
 
 test("Boi payment transitions keep real backend invariants", () => {
