@@ -1,0 +1,11 @@
+# Boi training manager permission
+
+Companion to BOIECH_AI's three-role registration and training workspace. This change keeps permission administration inside Application Management, in the Boi device drawer. A registered manager does not receive management permission from ordinary free/paid device approval.
+
+Only Owner sees the grant/revoke action. The request passes through the existing signed Central access API (`manage-access`), protected by the production Authenticator step-up gate. When required, the existing in-place Authenticator pop-up resumes this one intended command; cancellation leaves permission unchanged. The owning Boi control endpoint independently requires Owner and matches the expected registered person code. Central confirms actual management configuration by an independent owning overview read and checks that paid/free state, device status and expiry remain unchanged.
+
+Deploy the Boi counterpart first: additive migration0017, default-off `management_enabled`, identity-change revocation trigger, Owner-only management endpoint and returned management fields. Existing production users receive no new grants merely from deployment. This Central code neither changes credentials nor creates a parallel people registry. The current trusted Boi Owner bridge model is preserved.
+
+Local validation: full npm test PASS (typecheck, verified build, 806 tests); changed-file lint clean, including the Boi control center (base also zero errors/warnings); whitespace check clean. New runtime tests cover Owner grant/revoke, publisher rejection, unchanged paid entitlement and failed independent readback. One obsolete assertion pinning the exact seven-element operation source array was replaced by behavior coverage when adding the eighth operation.
+
+The first local build hit a generated dist-directory ENOTEMPTY error; removing only ignored generated dist and rerunning produced a verified green build. No source workaround or test gate was disabled. Human Owner entry, actual production grants, physical mobile acceptance and final rendered/composited contrast remain unperformed. Independent review and exact-head CI are required before integration. Production remains behind the existing separate explicit release gate.

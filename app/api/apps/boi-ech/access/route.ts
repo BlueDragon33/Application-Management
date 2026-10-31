@@ -7,7 +7,7 @@ const TIMEOUT_MS = 4_500;
 const MAX_PAYMENT_PROOF_BYTES = 8 * 1024 * 1024;
 const PAYMENT_PROOF_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 type UnknownRecord = Record<string, unknown>;
-type AccessOperation = "grant-free" | "require-payment" | "renew-access" | "verify-payment" | "reject-payment" | "block" | "unblock";
+type AccessOperation = "manager-access" | "grant-free" | "require-payment" | "renew-access" | "verify-payment" | "reject-payment" | "block" | "unblock";
 
 type Bridge = Awaited<ReturnType<typeof issueBoiBrowserBridge>>;
 
@@ -132,6 +132,8 @@ function accessDevice(row: UnknownRecord) {
     accessGroup: ["unassigned", "free", "paid"].includes(accessGroup) ? accessGroup : "unassigned",
     paymentStatus: ["unassigned", "awaiting_payment", "proof_submitted", "free_approved", "paid_verified"].includes(paymentStatus) ? paymentStatus : "unassigned",
     paymentAmount: numberOrNull(row.paymentAmount) ?? 0,
+    managementConfigured: bool(row.managementConfigured),
+    managementEnabled: bool(row.managementEnabled),
     paymentProofAvailable: bool(row.paymentProofAvailable),
     paymentSubmittedAt: text(row.paymentSubmittedAt) || null,
     paymentVerifiedAt: text(row.paymentVerifiedAt) || null,
@@ -228,7 +230,7 @@ export async function POST(request: Request) {
       const deviceId = text(payload.deviceId).toLowerCase();
       const operation = text(payload.operation) as AccessOperation;
       if (!/^[a-f0-9]{64}$/.test(deviceId)) return json({ error: "Mã thiết bị Bơi ếch không hợp lệ.", code: "INVALID_DEVICE_ID" }, 400);
-      if (!["grant-free", "require-payment", "renew-access", "verify-payment", "reject-payment", "block", "unblock"].includes(operation)) return json({ error: "Thao tác thanh toán/quyền không hợp lệ.", code: "INVALID_ACCESS_OPERATION" }, 400);
+      if (!["manager-access", "grant-free", "require-payment", "renew-access", "verify-payment", "reject-payment", "block", "unblock"].includes(operation)) return json({ error: "Thao tác thanh toán/quyền không hợp lệ.", code: "INVALID_ACCESS_OPERATION" }, 400);
 
       const before = await overview(bridge);
       if (!before.ok) return json(before.payload, before.status);
@@ -236,6 +238,20 @@ export async function POST(request: Request) {
       if (!current) return json({ error: "Thiết bị Bơi ếch không còn trong registry.", code: "DEVICE_NOT_FOUND" }, 404);
       const expectedPaymentStatus = text(payload.expectedPaymentStatus);
       const expectedAccessGroup = text(payload.expectedAccessGroup);
+      if (operation === "manager-access") {
+        if (actor.role !== "owner") return json({ error: "Chỉ Owner được cấp/thu hồi quyền điều phối.", code: "OWNER_REQUIRED" },403);
+        if (typeof payload.enabled !== "boolean" || text(payload.expectedPersonCode) !== text(current.personCode)
+          || text(payload.expectedStatus) !== text(current.status) || text(payload.expectedPaymentStatus) !== text(current.paymentStatus)
+          || text(payload.expectedAccessGroup) !== text(current.accessGroup) || text(current.personRole) !== "manager") return json({error:"Hồ sơ đã thay đổi. Đồng bộ trước khi cấp quyền.",code:"MANAGEMENT_GRANT_CONFLICT"},409);
+        if (payload.enabled && (!bool(current.registrationComplete) || text(current.status)!=="approved" || bool(current.accessExpired))) return json({error:"Hồ sơ cán bộ phải được duyệt và còn hạn.",code:"MANAGEMENT_GRANT_CONFLICT"},409);
+        const command=await bridgeJson(bridge,"/api/control/management-access",{method:"POST",body:{deviceId,expectedPersonCode:text(current.personCode),enabled:payload.enabled}});
+        if(!command.ok)return json(command.payload,command.status);
+        const after=await overview(bridge);const updated=after.ok?deviceById(after.payload,deviceId):null;
+        if(!updated || bool(updated.managementConfigured)!==payload.enabled || text(updated.personCode)!==text(current.personCode)
+          || ["status","paymentStatus","accessGroup","accessExpiresAt"].some(key=>text(updated[key])!==text(current[key]))) return json({error:"Đã gửi lệnh nhưng chưa xác minh được quyền điều phối. Đồng bộ trước khi thử lại.",code:"MANAGEMENT_READBACK_MISMATCH",applied:true,verified:false},502);
+        return json({ok:true,verified:true,device:accessDevice(updated)});
+      }
+
       const expectedStatus = text(payload.expectedStatus);
       if (!["pending", "approved", "blocked"].includes(expectedStatus) || !expectedPaymentStatus || !expectedAccessGroup) return json({ error: "Cần đủ trạng thái dự kiến của thiết bị, thanh toán và nhóm quyền.", code: "INVALID_EXPECTED_STATE" }, 400);
       if (text(current.status) !== expectedStatus) return json({ error: "Trạng thái thiết bị đã thay đổi. Hãy đồng bộ lại.", code: "DEVICE_STATE_CONFLICT" }, 409);

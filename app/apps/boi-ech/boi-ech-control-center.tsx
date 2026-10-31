@@ -5,6 +5,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import AuthenticatorStepUp from "../../authenticator-step-up";
 import AiControlCenter, { type AiControlData } from "../../ai-control-center";
 import { csvCell } from "../../report-exports";
 
@@ -40,7 +41,9 @@ type LearningDevice = {
   learnerName: string | null;
   learnerFamilyName: string | null;
   learnerGivenName: string | null;
-  personRole: "learner" | "teacher" | null;
+  personRole: "learner" | "manager" | "teacher" | null;
+  managementConfigured?: boolean;
+  managementEnabled?: boolean;
   personCode: string | null;
   className: string | null;
   phone: string | null;
@@ -708,11 +711,12 @@ function DeletedDevicesPanel({ devices, restore }: {
   );
 }
 
-function DeviceDrawer({ device, bridge, canManage, canDelete, activityLoading, close, action }: {
+function DeviceDrawer({ device, bridge, canManage, canDelete, managementBusy, activityLoading, close, action }: {
   device: LearningDevice;
   bridge: BoiBridge;
   canManage: boolean;
   canDelete: boolean;
+  managementBusy: boolean;
   activityLoading: boolean;
   close: () => void;
   action: (operation: string, success: string, extra?: Record<string, unknown>) => Promise<boolean>;
@@ -745,7 +749,7 @@ function DeviceDrawer({ device, bridge, canManage, canDelete, activityLoading, c
 
   useEffect(() => () => { if (proofUrl) URL.revokeObjectURL(proofUrl); }, [proofUrl]);
   useEffect(() => {
-    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") close(); };
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape" && !event.defaultPrevented) close(); };
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [close]);
@@ -770,13 +774,13 @@ function DeviceDrawer({ device, bridge, canManage, canDelete, activityLoading, c
 
         <section className="activity-panel"><div><span>Hoạt động theo thiết bị</span><h3>{activityLoading ? "Đang tải biểu đồ…" : "Biểu đồ 30 ngày gần nhất"}</h3></div><div className="activity-grid"><ActivityChart title="Lần đăng nhập" data={timeline} value={(day) => day.loginCount} summary={`${loginTotal} lượt`} color="#247f77" /><ActivityChart title="Thời gian làm bài" data={timeline} value={(day) => day.studyMinutes} summary={`${studyTotal} phút`} color="#be7a3a" /><ActivityChart title="Lượt kiểm tra" data={timeline} value={(day) => day.quizAttempts} summary={`${quizTotal} lượt`} color="#7656a8" /><ActivityChart title="Tiến độ" data={timeline} value={(day) => day.progressPercent} summary={`${lastProgress}%`} color="#3b739b" /></div></section>
 
-        <dl className="device-facts"><div><dt>Họ và tên</dt><dd>{device.learnerName || "Chưa gửi"}</dd></div><div><dt>Vai trò</dt><dd>{device.personRole === "teacher" ? "Giảng viên" : device.personRole === "learner" ? "Học viên" : "Chưa chọn"}</dd></div><div><dt>{device.personRole === "teacher" ? "Số hiệu SQ/QNCN" : "Mã số học viên"}</dt><dd>{device.personCode || "Chưa gửi"}</dd></div><div><dt>Lớp / đơn vị</dt><dd>{device.className || "Chưa gửi"}</dd></div><div><dt>Số điện thoại</dt><dd>{device.phone || "Chưa gửi"}</dd></div><div><dt>Đang ở</dt><dd>{device.lastLesson ? `Bài ${device.lastLesson} · ${device.lastPart ?? "—"}` : "Chưa bắt đầu"}</dd></div><div><dt>Thời gian học</dt><dd>{duration(device.totalActiveSeconds)}</dd></div><div><dt>Trạng thái quyền</dt><dd>{device.accessExpired ? "Đã hết hạn · cần duyệt lại" : device.accessExpiringSoon ? `Sắp hết hạn · còn ${device.accessDaysRemaining ?? 0} ngày` : statusLabels[device.status]}</dd></div><div><dt>Thanh toán</dt><dd>{paymentStatusLabels[device.paymentStatus]}</dd></div><div><dt>Sửa bản riêng</dt><dd>{device.personRole !== "teacher" ? "Không áp dụng cho Học viên" : device.personalEditConfigured ? device.accessExpired ? "Tạm dừng vì hết hạn" : "Đang bật · chỉ thiết bị này" : "Đang tắt"}</dd></div><div><dt>Tự xác nhận lúc</dt><dd>{formatDate(device.autoConfirmedAt)}</dd></div><div><dt>Chi tiết thanh toán</dt><dd>{device.paymentReviewNote || paymentStatusNotes[device.paymentStatus]}</dd></div><div><dt>Tín hiệu thiết bị cuối</dt><dd>{formatDate(device.lastPresenceAt)}</dd></div><div><dt>Offline từ</dt><dd>{device.active ? "—" : formatDate(device.offlineSinceAt)}</dd></div><div><dt>Hoạt động học cuối</dt><dd>{formatDate(device.lastLearningActivityAt)}</dd></div><div><dt>Hết hạn</dt><dd>{formatDate(device.accessExpiresAt)}</dd></div></dl>
+        <dl className="device-facts"><div><dt>Họ và tên</dt><dd>{device.learnerName || "Chưa gửi"}</dd></div><div><dt>Vai trò</dt><dd>{device.personRole === "teacher" ? "Giảng viên" : device.personRole === "manager" ? "Cán bộ quản lý" : device.personRole === "learner" ? "Học viên" : "Chưa chọn"}</dd></div><div><dt>{(device.personRole === "teacher" || device.personRole === "manager") ? "Số hiệu cán bộ / SQ / QNCN" : "Mã số học viên"}</dt><dd>{device.personCode || "Chưa gửi"}</dd></div><div><dt>Lớp / đơn vị</dt><dd>{device.className || "Chưa gửi"}</dd></div><div><dt>Số điện thoại</dt><dd>{device.phone || "Chưa gửi"}</dd></div><div><dt>Đang ở</dt><dd>{device.lastLesson ? `Bài ${device.lastLesson} · ${device.lastPart ?? "—"}` : "Chưa bắt đầu"}</dd></div><div><dt>Thời gian học</dt><dd>{duration(device.totalActiveSeconds)}</dd></div><div><dt>Trạng thái quyền</dt><dd>{device.accessExpired ? "Đã hết hạn · cần duyệt lại" : device.accessExpiringSoon ? `Sắp hết hạn · còn ${device.accessDaysRemaining ?? 0} ngày` : statusLabels[device.status]}</dd></div><div><dt>Thanh toán</dt><dd>{paymentStatusLabels[device.paymentStatus]}</dd></div><div><dt>Sửa bản riêng</dt><dd>{device.personRole !== "teacher" ? "Không áp dụng cho Học viên" : device.personalEditConfigured ? device.accessExpired ? "Tạm dừng vì hết hạn" : "Đang bật · chỉ thiết bị này" : "Đang tắt"}</dd></div><div><dt>Tự xác nhận lúc</dt><dd>{formatDate(device.autoConfirmedAt)}</dd></div><div><dt>Chi tiết thanh toán</dt><dd>{device.paymentReviewNote || paymentStatusNotes[device.paymentStatus]}</dd></div><div><dt>Tín hiệu thiết bị cuối</dt><dd>{formatDate(device.lastPresenceAt)}</dd></div><div><dt>Offline từ</dt><dd>{device.active ? "—" : formatDate(device.offlineSinceAt)}</dd></div><div><dt>Hoạt động học cuối</dt><dd>{formatDate(device.lastLearningActivityAt)}</dd></div><div><dt>Hết hạn</dt><dd>{formatDate(device.accessExpiresAt)}</dd></div></dl>
 
         <section className={`payment-review ${device.accessGroup}`}><div><span>Trạng thái thanh toán</span><h3>{paymentStatusLabels[device.paymentStatus]}</h3><p>{device.paymentReviewNote || paymentStatusNotes[device.paymentStatus]} {device.accessGroup === "paid" ? `Mức phí tài khoản: ${device.paymentAmount.toLocaleString("vi-VN")}đ.` : ""}</p></div>{device.paymentProofAvailable && canManage ? <button className="button" onClick={() => void loadProof()} disabled={proofLoading}>{proofLoading ? "Đang tải ảnh…" : proofUrl ? "Tải lại ảnh" : "Xem ảnh chuyển khoản"}</button> : null}{proofError ? <div className="alert warning">{proofError}</div> : null}{proofUrl ? <figure><img src={proofUrl} alt={`Ảnh chuyển khoản của ${device.learnerName || device.deviceCode}`} /><figcaption>Ảnh do thiết bị gửi lúc {formatDate(device.paymentSubmittedAt)}. Người quản trị cần đối chiếu trước khi xác minh.</figcaption></figure> : null}{device.paymentStatus === "proof_submitted" && canManage ? <label className="payment-note"><span>Lý do nếu ảnh chưa hợp lệ</span><textarea value={paymentReviewNote} onChange={(event) => setPaymentReviewNote(event.target.value)} placeholder="Ví dụ: Chưa thấy đúng số tiền hoặc nội dung chuyển khoản…" maxLength={500} /></label> : null}</section>
 
         <section className="profile-form"><label><span>Họ</span><input value={profile.learnerFamilyName} onChange={(event) => setProfile({ ...profile, learnerFamilyName: event.target.value })} /></label><label><span>Tên</span><input value={profile.learnerGivenName} onChange={(event) => setProfile({ ...profile, learnerGivenName: event.target.value })} /></label><label><span>Tên gợi nhớ thiết bị</span><input value={profile.label} onChange={(event) => setProfile({ ...profile, label: event.target.value })} /></label><label><span>Ngày hết hạn</span><input type="date" value={profile.accessExpiresAt} onChange={(event) => setProfile({ ...profile, accessExpiresAt: event.target.value })} /></label></section>
         {!device.registrationComplete ? <div className="alert warning">Chưa thể duyệt: thiết bị phải gửi đủ vai trò, mã định danh, họ tên, lớp/đơn vị và số điện thoại.</div> : null}
-        {canManage ? <>{device.personRole === "teacher" ? <section className={`personal-edit-control ${device.personalEditConfigured ? "enabled" : "disabled"}`}><div><span>Quyền sửa cục bộ của Giảng viên</span><h3>{device.personalEditConfigured ? "Đang cho phép sửa bản riêng" : "Chưa bật sửa bản riêng"}</h3><p>{paidEditBlocked ? "Tài khoản đang ở luồng trả phí; cần xác minh thanh toán trước khi thay đổi quyền sửa cục bộ." : "Khi bật: tự mở tài khoản miễn phí theo thời hạn mặc định; nội dung sửa chỉ có tác dụng trên thiết bị và không thể cập nhật máy chủ."}</p></div><button className={`automation-switch ${device.personalEditConfigured ? "on" : "off"}`} disabled={paidEditBlocked} onClick={() => void action("toggle-personal-edit", device.personalEditConfigured ? "Đã tắt quyền sửa bản riêng trên thiết bị." : "Đã bật tài khoản miễn phí và quyền sửa bản riêng theo thời hạn mặc định.", { enabled: !device.personalEditConfigured })} aria-pressed={device.personalEditConfigured}><i /><span>{device.personalEditConfigured ? "Đang bật" : "Đang tắt"}</span></button></section> : <div className="personal-edit-na"><strong>Hồ sơ Học viên</strong><span>Không có quyền xin hoặc sửa nội dung bài giảng.</span></div>}<div className="drawer-actions"><button className="button" onClick={() => void action("profile", "Đã lưu hồ sơ và thời hạn thiết bị.", profile)}>Lưu hồ sơ & thời hạn</button>{device.registrationComplete && accessFinalized ? <button className="button primary" onClick={() => void action("renew-access", "Đã duyệt lại và gia hạn thiết bị theo thời hạn mặc định.")}>Duyệt lại · gia hạn</button> : null}{canGrantFree ? <button className="button primary" onClick={() => void action("grant-free", "Đã mở tài khoản miễn phí và đưa vào nhóm Miễn phí.")}>Duyệt miễn phí</button> : null}{device.registrationComplete && device.accessGroup === "unassigned" && device.paymentStatus === "unassigned" ? <button className="button accent" onClick={() => void action("require-payment", "Đã gửi QR và yêu cầu thanh toán 50.000đ tới thiết bị.")}>Yêu cầu trả phí</button> : null}{device.paymentStatus === "proof_submitted" ? <button className="button danger" onClick={() => void action("reject-payment", "Đã từ chối ảnh và gửi lý do để người học nộp lại.", { note: paymentReviewNote })}>Yêu cầu gửi lại ảnh</button> : null}{device.paymentStatus === "proof_submitted" ? <button className="button primary" onClick={() => { if (window.confirm("Đã đối chiếu đúng giao dịch và mở tài khoản này?")) void action("verify-payment", "Đã xác minh chuyển khoản, mở tài khoản và đưa vào nhóm Trả phí."); }}>Xác minh & mở tài khoản</button> : null}{device.status === "blocked" ? <button className="button primary" onClick={() => void action("unblock", "Đã mở khóa thiết bị theo trạng thái tài khoản hiện tại.")}>Mở khóa thiết bị</button> : <button className="button danger" onClick={() => { if (window.confirm(`Khóa thiết bị ${device.deviceCode}?`)) void action("block", "Đã khóa thiết bị."); }}>Khóa thiết bị</button>}<button className="button danger" onClick={() => { if (window.confirm(`Đặt lại toàn bộ tiến độ của ${device.learnerName || device.deviceCode}?`)) void action("reset-progress", "Đã đặt lại tiến độ học."); }}>Đặt lại tiến độ</button></div></> : null}
+        {canManage ? <>{device.personRole === "teacher" ? <section className={`personal-edit-control ${device.personalEditConfigured ? "enabled" : "disabled"}`}><div><span>Quyền sửa cục bộ của Giảng viên</span><h3>{device.personalEditConfigured ? "Đang cho phép sửa bản riêng" : "Chưa bật sửa bản riêng"}</h3><p>{paidEditBlocked ? "Tài khoản đang ở luồng trả phí; cần xác minh thanh toán trước khi thay đổi quyền sửa cục bộ." : "Khi bật: tự mở tài khoản miễn phí theo thời hạn mặc định; nội dung sửa chỉ có tác dụng trên thiết bị và không thể cập nhật máy chủ."}</p></div><button className={`automation-switch ${device.personalEditConfigured ? "on" : "off"}`} disabled={paidEditBlocked} onClick={() => void action("toggle-personal-edit", device.personalEditConfigured ? "Đã tắt quyền sửa bản riêng trên thiết bị." : "Đã bật tài khoản miễn phí và quyền sửa bản riêng theo thời hạn mặc định.", { enabled: !device.personalEditConfigured })} aria-pressed={device.personalEditConfigured}><i /><span>{device.personalEditConfigured ? "Đang bật" : "Đang tắt"}</span></button></section> : <div className="personal-edit-na"><strong>{device.personRole === "manager" ? "Hồ sơ Cán bộ quản lý" : "Hồ sơ Học viên"}</strong><span>Không có quyền xin hoặc sửa nội dung bài giảng.</span></div>}{device.personRole === "manager" ? <section className="personal-edit-control"><div><span>Quyền điều phối đào tạo</span><h3>{device.managementConfigured ? "Đã được Owner cấp quyền" : "Chưa cấp quyền điều phối"}</h3><p>Quản lý lịch, lớp, phòng và phân công nhân sự; quyền học tập/thanh toán được giữ riêng.</p></div>{canDelete ? <button disabled={managementBusy || (!device.managementConfigured && (!device.registrationComplete || device.status !== "approved" || device.accessExpired))} onClick={() => { if (window.confirm(`${device.managementConfigured ? "Thu hồi" : "Cấp"} quyền điều phối toàn bộ lớp/phòng cho ${device.learnerName || device.deviceCode}?`)) void action("manager-access", device.managementConfigured ? "Đã thu hồi quyền điều phối." : "Đã cấp và xác minh quyền điều phối.", { enabled: !device.managementConfigured }); }}>{managementBusy ? "Đang xác minh…" : device.managementConfigured ? "Thu hồi quyền điều phối" : "Cấp quyền điều phối"}</button> : <span>Chỉ Owner được thay đổi.</span>}</section> : null}<div className="drawer-actions"><button className="button" onClick={() => void action("profile", "Đã lưu hồ sơ và thời hạn thiết bị.", profile)}>Lưu hồ sơ & thời hạn</button>{device.registrationComplete && accessFinalized ? <button className="button primary" onClick={() => void action("renew-access", "Đã duyệt lại và gia hạn thiết bị theo thời hạn mặc định.")}>Duyệt lại · gia hạn</button> : null}{canGrantFree ? <button className="button primary" onClick={() => void action("grant-free", "Đã mở tài khoản miễn phí và đưa vào nhóm Miễn phí.")}>Duyệt miễn phí</button> : null}{device.registrationComplete && device.accessGroup === "unassigned" && device.paymentStatus === "unassigned" ? <button className="button accent" onClick={() => void action("require-payment", "Đã gửi QR và yêu cầu thanh toán 50.000đ tới thiết bị.")}>Yêu cầu trả phí</button> : null}{device.paymentStatus === "proof_submitted" ? <button className="button danger" onClick={() => void action("reject-payment", "Đã từ chối ảnh và gửi lý do để người học nộp lại.", { note: paymentReviewNote })}>Yêu cầu gửi lại ảnh</button> : null}{device.paymentStatus === "proof_submitted" ? <button className="button primary" onClick={() => { if (window.confirm("Đã đối chiếu đúng giao dịch và mở tài khoản này?")) void action("verify-payment", "Đã xác minh chuyển khoản, mở tài khoản và đưa vào nhóm Trả phí."); }}>Xác minh & mở tài khoản</button> : null}{device.status === "blocked" ? <button className="button primary" onClick={() => void action("unblock", "Đã mở khóa thiết bị theo trạng thái tài khoản hiện tại.")}>Mở khóa thiết bị</button> : <button className="button danger" onClick={() => { if (window.confirm(`Khóa thiết bị ${device.deviceCode}?`)) void action("block", "Đã khóa thiết bị."); }}>Khóa thiết bị</button>}<button className="button danger" onClick={() => { if (window.confirm(`Đặt lại toàn bộ tiến độ của ${device.learnerName || device.deviceCode}?`)) void action("reset-progress", "Đã đặt lại tiến độ học."); }}>Đặt lại tiến độ</button></div></> : null}
         {canDelete ? <section className="device-danger-zone"><div><span>Quyền Chủ hệ thống</span><h3>Xóa thiết bị rác khỏi Bơi ếch</h3><p>Thao tác này xóa đăng ký, tiến độ, phiên học và dữ liệu AI của thiết bị Bơi ếch. Nhật ký xóa vẫn được giữ tại client. Tài khoản đã xác minh thanh toán hoặc đã có chứng chỉ sẽ được bảo vệ và không thể xóa.</p></div><label><span>Lý do xóa</span><select value={deleteReason} onChange={(event) => setDeleteReason(event.target.value)}><option value="spam">Thiết bị rác / spam</option><option value="duplicate">Đăng ký trùng</option><option value="test">Thiết bị thử nghiệm</option><option value="other">Lý do khác</option></select></label><label><span>Nhập đúng mã <b>{device.deviceCode}</b></span><input value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value.toUpperCase())} placeholder={device.deviceCode} autoComplete="off" /></label><button className="button danger permanent-delete" disabled={deleteSubmitting || deleteConfirmation.trim().toUpperCase() !== device.deviceCode} onClick={async () => { setDeleteSubmitting(true); const ok = await action("delete-spam-device", `Đã xóa thiết bị ${device.deviceCode} và dữ liệu rác liên quan.`, { confirmDeviceCode: deleteConfirmation, deleteReason }); if (!ok) setDeleteSubmitting(false); }}>{deleteSubmitting ? "Đang xóa…" : "Xóa vĩnh viễn thiết bị"}</button></section> : null}
       </aside>
     </div>
@@ -805,6 +809,14 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
   const refreshRunning = useRef(false);
   const dashboardRef = useRef<Dashboard | null>(null);
   const automationWriteRef = useRef(false);
+  const managerWriteRef = useRef(false);
+  const [managementBusy, setManagementBusy] = useState(false);
+  const [managementAuth, setManagementAuth] = useState(false);
+  const managementAuthRef = useRef<((verified: boolean) => void) | null>(null);
+  useEffect(() => () => { managementAuthRef.current?.(false); }, []);
+  function authenticateManagement() { setManagementAuth(true); return new Promise<boolean>(resolve => { managementAuthRef.current = resolve; }); }
+  function finishManagementAuth(verified: boolean) { setManagementAuth(false); managementAuthRef.current?.(verified); managementAuthRef.current = null; }
+
   const detailRequest = useRef(0);
 
   function commitDashboard(next: Dashboard) {
@@ -970,7 +982,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
     const rows = visibleDevices.map((device, index) => [
       index + 1,
       device.learnerName ?? "",
-      device.personRole === "teacher" ? "Giảng viên" : device.personRole === "learner" ? "Học viên" : "",
+      device.personRole === "teacher" ? "Giảng viên" : device.personRole === "manager" ? "Cán bộ quản lý" : device.personRole === "learner" ? "Học viên" : "",
       device.personCode ?? "",
       device.className ?? "",
       device.phone ?? "",
@@ -1013,12 +1025,31 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
   async function dashboardAction(body: Record<string, unknown>, success: string) {
     if (!dashboard?.boiBridge) return false;
     const automationUpdate = body.action === "manage-learning-device" && body.operation === "update-automation";
+    const managementUpdate = body.operation === "manager-access";
+    if (managementUpdate && managerWriteRef.current) return false;
+    if (managementUpdate) { managerWriteRef.current = true; setManagementBusy(true); }
     if (automationUpdate && automationWriteRef.current) return false;
     if (automationUpdate) automationWriteRef.current = true;
     setNotice("");
     try {
       if (body.action !== "manage-learning-device") throw new Error("Khu Bơi ếch chỉ chấp nhận thao tác nghiệp vụ của client.");
-      const data = await boiApi(dashboard.boiBridge, "/api/control/overview", { method: "POST", body: {
+      async function managerUpdate(): Promise<ApiData> {
+        if (!credential || !access || access.role !== "owner") throw new Error("Chỉ Owner được cấp quyền điều phối.");
+        const target = dashboard!.learningDevices.find(device => device.deviceId === body.targetDeviceId);
+        if (!target) throw new Error("Không tìm thấy hồ sơ. Hãy đồng bộ lại.");
+        const run = () => secureApi("/api/apps/boi-ech/access", credential!, access!, { action: "manage-access", operation: "manager-access", deviceId: target.deviceId, enabled: body.enabled, expectedPersonCode: target.personCode, expectedStatus: target.status, expectedPaymentStatus: target.paymentStatus, expectedAccessGroup: target.accessGroup });
+        let reply: ApiData;
+        try { reply = await run(); }
+        catch (error) {
+          if (!(error instanceof ApiError) || error.data.code !== "STEP_UP_REQUIRED") throw error;
+          if (!await authenticateManagement()) throw new Error("Đã hủy xác minh; quyền điều phối được giữ nguyên.");
+          reply = await run();
+        }
+        const readback = reply.device as unknown as Partial<LearningDevice> | undefined;
+        if (!readback || readback.deviceId !== target.deviceId || readback.managementConfigured !== body.enabled) throw new Error("Chưa đọc lại được đúng quyền điều phối.");
+        return { devices: [{ ...target, ...readback }] };
+      }
+      const data = managementUpdate ? await managerUpdate() : await boiApi(dashboard.boiBridge, "/api/control/overview", { method: "POST", body: {
         action: body.operation,
         deviceId: body.targetDeviceId,
         learnerName: body.learnerName,
@@ -1056,7 +1087,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
       setNotice(success);
       return true;
     } catch (caught) { setNotice(caught instanceof Error ? caught.message : "Không thể thực hiện thao tác."); return false; }
-    finally { if (automationUpdate) automationWriteRef.current = false; }
+    finally { if (automationUpdate) automationWriteRef.current = false; if (managementUpdate) { managerWriteRef.current = false; setManagementBusy(false); } }
   }
 
   async function locateManualCode() {
@@ -1156,7 +1187,9 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
   const activeFont = adminFonts.find((item) => item.id === appearance.font) ?? adminFonts[0];
 
   return (
-    <main
+    <><main
+      inert={managementAuth}
+      aria-hidden={managementAuth || undefined}
       className="control-shell"
       data-text-size={appearance.textSize}
       style={{
@@ -1199,7 +1232,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
           <section className="manual-device-card"><div><span>Nhập mã dự phòng</span><strong>Thiết bị mới được quét khi bấm “Cập nhật thiết bị”; danh sách đang có luôn được giữ cố định.</strong><small><b>BE-…</b> là thiết bị học của Bơi ếch. <b>QT-…</b> thuộc Application Management và không được quản trị tại đây.</small></div><label><input value={manualCode} onChange={(event) => setManualCode(event.target.value.toUpperCase())} onKeyDown={(event) => { if (event.key === "Enter") void locateManualCode(); }} placeholder="BE-1234-5678-9ABC-DEF0" aria-label="Mã thiết bị cần tìm" /><button className="button primary" onClick={() => void locateManualCode()}>Tìm thiết bị</button></label></section>
           <section className="device-toolbar"><div className="filter-pills">{(["all", "active", "pending", "incomplete", "paid", "free", "expired", "blocked"] as const).map((item) => <button key={item} className={filter === item ? "active" : ""} onClick={() => setFilter(item)}>{item === "all" ? "Tất cả" : item === "active" ? "Đang hoạt động" : item === "pending" ? "Chờ xử lý" : item === "incomplete" ? "Chưa nhập thông tin" : item === "paid" ? "Trả phí" : item === "free" ? "Miễn phí" : item === "expired" ? "Hết hạn" : "Đã khóa"}</button>)}</div><div className="report-actions"><button className="button" onClick={exportDevices}>Xuất CSV</button><label><span>⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm tên, mã số, lớp, SĐT hoặc thiết bị" /></label></div></section>
           <section className="laptop-grid">
-            {visibleDevices.map((device) => <button key={device.deviceId} className={`account-card ${device.active ? "active" : "idle"} ${device.status} ${device.accessExpired ? "expired" : device.accessExpiringSoon ? "expiring" : ""}`} onClick={() => void openDetail(device)}><Laptop active={device.active} status={device.status} /><div className="account-copy"><span>{device.status === "pending" ? "Hồ sơ mới chờ duyệt" : device.learnerName || device.label || "Chưa gửi hồ sơ"}</span><strong className={device.status === "pending" ? "learner-identity" : undefined}>{device.status === "pending" ? pendingLearnerLabel(device) : device.deviceCode}</strong><small>{device.personRole === "teacher" ? "Giảng viên" : device.personRole === "learner" ? "Học viên" : "Chưa chọn vai trò"}{device.status !== "pending" && device.personCode ? ` · ${device.personCode}` : ""}</small><small>{device.className ? `${device.className} · ` : ""}{device.accessExpired ? "Đã hết hạn" : device.accessExpiringSoon ? `Sắp hết hạn · ${formatDate(device.accessExpiresAt)}` : device.active ? "Online" : `Offline từ ${formatDate(device.offlineSinceAt)}`}</small>{!device.registrationComplete ? <em className="profile-warning">Chưa nhập đủ thông tin</em> : device.personalEditConfigured ? <em>Bản sửa riêng</em> : null}</div><span className={`group-chip ${device.accessGroup}`}>{paymentStatusLabels[device.paymentStatus]}</span><div className="account-progress"><span><i style={{ width: `${device.completionPercent}%` }} /></span><strong>{device.completionPercent}%</strong></div></button>)}
+            {visibleDevices.map((device) => <button key={device.deviceId} className={`account-card ${device.active ? "active" : "idle"} ${device.status} ${device.accessExpired ? "expired" : device.accessExpiringSoon ? "expiring" : ""}`} onClick={() => void openDetail(device)}><Laptop active={device.active} status={device.status} /><div className="account-copy"><span>{device.status === "pending" ? "Hồ sơ mới chờ duyệt" : device.learnerName || device.label || "Chưa gửi hồ sơ"}</span><strong className={device.status === "pending" ? "learner-identity" : undefined}>{device.status === "pending" ? pendingLearnerLabel(device) : device.deviceCode}</strong><small>{device.personRole === "teacher" ? "Giảng viên" : device.personRole === "manager" ? "Cán bộ quản lý" : device.personRole === "learner" ? "Học viên" : "Chưa chọn vai trò"}{device.status !== "pending" && device.personCode ? ` · ${device.personCode}` : ""}</small><small>{device.className ? `${device.className} · ` : ""}{device.accessExpired ? "Đã hết hạn" : device.accessExpiringSoon ? `Sắp hết hạn · ${formatDate(device.accessExpiresAt)}` : device.active ? "Online" : `Offline từ ${formatDate(device.offlineSinceAt)}`}</small>{!device.registrationComplete ? <em className="profile-warning">Chưa nhập đủ thông tin</em> : device.personalEditConfigured ? <em>Bản sửa riêng</em> : null}</div><span className={`group-chip ${device.accessGroup}`}>{paymentStatusLabels[device.paymentStatus]}</span><div className="account-progress"><span><i style={{ width: `${device.completionPercent}%` }} /></span><strong>{device.completionPercent}%</strong></div></button>)}
             {visibleDevices.length === 0 ? <div className="empty-state"><Laptop active={false} status="pending" /><h3>Chưa có thiết bị phù hợp</h3><p>Thay đổi bộ lọc hoặc chờ người học gửi yêu cầu mới.</p></div> : null}
           </section>
           {access.role === "owner" ? <DeletedDevicesPanel devices={dashboard?.deletedDevices ?? []} restore={(device, confirmation) => dashboardAction({ action: "manage-learning-device", operation: "restore-deleted-device", targetDeviceId: device.deviceId, confirmDeviceCode: confirmation }, `Đã cho phép ${device.deviceCode} đăng ký lại. Thiết bị sẽ xuất hiện như hồ sơ mới khi mở Site Bơi ếch.`)} /> : null}
@@ -1211,7 +1244,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
       </section>
 
       {installPrompt ? <button className="install-fab" onClick={() => void installWebApp()} aria-label="Cài khu quản trị Bơi ếch" title="Cài ứng dụng"><span aria-hidden="true">⇩</span><b>Cài ứng dụng</b></button> : null}
-      {selected && dashboard?.boiBridge ? <DeviceDrawer key={selected.deviceId} device={selected} bridge={dashboard.boiBridge} canManage={["publisher", "owner"].includes(access.role)} canDelete={access.role === "owner"} activityLoading={selectedActivityLoading} close={closeDetail} action={(operation, success, extra = {}) => dashboardAction({ action: "manage-learning-device", operation, targetDeviceId: selected.deviceId, ...extra }, success)} /> : null}
-    </main>
+      {selected && dashboard?.boiBridge ? <DeviceDrawer key={selected.deviceId} device={selected} bridge={dashboard.boiBridge} canManage={["publisher", "owner"].includes(access.role)} canDelete={access.role === "owner"} managementBusy={managementBusy} activityLoading={selectedActivityLoading} close={closeDetail} action={(operation, success, extra = {}) => dashboardAction({ action: "manage-learning-device", operation, targetDeviceId: selected.deviceId, ...extra }, success)} /> : null}
+    </main>{managementAuth ? <AuthenticatorStepUp finish={finishManagementAuth}/> : null}</>
   );
 }
