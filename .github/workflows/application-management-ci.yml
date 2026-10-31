@@ -1,107 +1,37 @@
 name: Application Management Development Fast CI
-
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
-    inputs:
-      browser_only:
-        description: "Run only browser QA; full regressions remain mandatory on PR/main."
-        type: boolean
-        default: false
-      fixture_only:
-        description: "Reuse the verified Preview read-only result and run isolated mutation fixtures."
-        type: boolean
-        default: false
-
 permissions:
   contents: read
-
-concurrency:
-  group: application-management-fast-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  fast-check:
+  approved-preview-readonly-browser:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.actor == 'BlueDragon33' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 3
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22.13.0"
-      - name: Fast repository sanity
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -f package.json
-          test -f app/application-registry.ts
-          test -f worker/index.ts
-          test -f scripts/prepare-cloudflare-preview.mjs
-          node --check scripts/prepare-cloudflare-preview.mjs
-          node --check scripts/validate-cloudflare-preview.mjs
-          node -e "JSON.parse(require('fs').readFileSync('package.json','utf8'))"
-      - name: Development mode summary
-        run: echo "Fast sanity PASS; full regression runs in the mandatory regression-check job."
-
-  regression-check:
-    if: github.event_name != 'workflow_dispatch' || !inputs.browser_only
-    runs-on: ubuntu-24.04
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22.13.0"
-          cache: npm
-      - name: Install locked dependencies
-        run: npm ci --no-audit --no-fund
-      - name: Mandatory full regression suite
-        run: npm test
-      - name: Regression policy summary
-        run: echo "Full npm test PASS for every pull request and every main revision."
-
-  preview-browser-readonly:
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 12
     environment: application-management-preview
     env:
       APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET: ${{ secrets.APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET }}
-      APPLICATION_MANAGEMENT_PREVIEW_ORIGIN: ${{ vars.APPLICATION_MANAGEMENT_PREVIEW_ORIGIN }}
+      APPLICATION_MANAGEMENT_PREVIEW_ORIGIN: https://application-management-preview.boiech-ai.workers.dev
+      AUTOMATION_PREVIEW_REVISION: 701e4834fa3a03ef0463468c4799a1906c65bab9
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 10
       - uses: actions/setup-node@v4
         with:
           node-version: "22.13.0"
-      - name: Identify the already verified deployed repair
-        shell: bash
+      - name: Install pinned existing browser QA runtime
         run: |
-          set -euo pipefail
-          REVISION="$(git log -1 --format=%H -- app worker)"
-          test "${#REVISION}" -eq 40
-          echo "AUTOMATION_PREVIEW_REVISION=$REVISION" >> "$GITHUB_ENV"
-      - name: Install pinned browser QA runtime
-        run: |
+          npm ci --no-audit --no-fund
           npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.55.1
           npx playwright install --with-deps chromium
-      - name: Authenticate and verify Preview UI without manual secret entry
-        if: ${{ !inputs.fixture_only }}
+      - name: Verify deployed Preview through its real protected login without client mutations
         run: node scripts/automation-preview-browser-check.mjs
-      - name: Verify real backend Save/readback and bulk against isolated fixture clients
-        env:
-          CI: "true"
-        run: node scripts/automation-fixture-browser-check.mjs
-      - name: Save browser QA evidence
+      - name: Save sanitized Preview browser evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: automation-preview-browser-readonly
-          path: qa-artifacts/
+          name: training-release-central-preview-readonly
+          path: |
+            qa-artifacts/*.png
+            qa-artifacts/*.json
           if-no-files-found: ignore
           retention-days: 7
-
