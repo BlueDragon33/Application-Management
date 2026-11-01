@@ -9,9 +9,9 @@ const root = resolve(here, "../public/russian-daily");
 const html = readFileSync(resolve(root, "index.html"), "utf8");
 const script = html.match(/<script>([\s\S]*?)<\/script>/i)?.[1];
 
-function harness() {
+function harness(options = {}) {
   const elements = new Map();
-  const store = new Map();
+  const store = options.store ?? new Map();
   const exported = [];
   const tabs = ["home", "schedule", "vocab", "lock", "settings"].map(tab => ({
     dataset: { tab }, setAttribute(key, value) { this[key] = value; }, addEventListener(key, fn) { this[key] = fn; },
@@ -39,13 +39,13 @@ function harness() {
     createElement,
     body: { append() {} },
   };
-  const localStorage = { getItem: key => store.get(key) ?? null, setItem: (key, value) => store.set(key, value) };
+  const localStorage = { getItem: key => store.get(key) ?? null, setItem: (key, value) => { if (options.blockWrite) throw Error("Storage unavailable"); store.set(key, value); } };
   const Blob = class { constructor(parts, options) { this.content = parts.join(""); this.type = options.type; exported.push(this); } };
   const URL = { createObjectURL: () => "blob:mock", revokeObjectURL() {} };
   new Function("document", "navigator", "localStorage", "window", "URL", "Blob", "SpeechSynthesisUtterance", "confirm", "alert", "location", script)(
     document, {}, localStorage, {}, URL, Blob, class {}, () => true, () => {}, { protocol: "http:" },
   );
-  return { $: id => document.getElementById(id), exported, root: document.documentElement };
+  return { $: id => document.getElementById(id), exported, root: document.documentElement, store };
 }
 
 test("candidate manifest is isolated and zero-credential", () => {
@@ -184,4 +184,42 @@ test("premium Russian Daily UI offers persistent dark and light themes without c
   $("savePrefs").onclick();
   assert.equal(root.dataset.theme, "midnight");
   assert.equal(($("eventList").innerHTML.match(/data-edit=/g) ?? []).length, 7);
+});
+
+test("premium themes persist across reloads with original localStorage keys", () => {
+  const store = new Map();
+  const first = harness({ store });
+  first.$("visualTheme").value = "snow";
+  first.$("savePrefs").onclick();
+  assert.equal(first.root.dataset.theme, "snow");
+  assert.ok(store.has("russian-daily-03-prefs"), "Keep the original preferences key");
+  assert.equal(JSON.parse(store.get("russian-daily-03-prefs")).visualTheme, "snow");
+  const second = harness({ store });
+  assert.equal(second.root.dataset.theme, "snow");
+  assert.equal(second.$("visualTheme").value, "snow");
+  assert.equal((second.$("eventList").innerHTML.match(/data-edit=/g) ?? []).length, 7);
+});
+
+test("blocked Safari storage must never claim theme changes were persisted", () => {
+  const { $, root } = harness({ blockWrite: true });
+  $("visualTheme").value = "snow";
+  $("savePrefs").onclick();
+  assert.equal(root.dataset.theme, "snow", "Allow temporary in-memory theme preview");
+  assert.match($("savedPrefs").textContent, /Không lưu được/);
+  assert.doesNotMatch($("savedPrefs").textContent, /Đã lưu trên thiết bị/);
+});
+
+test("restoring a backup applies theme and preserves existing offline data keys", async () => {
+  const { $, root, store } = harness();
+  const backup = {
+    version: 3,
+    events: [{id:"recovered-1",date:"2026-11-08",title:"Tiếng Nga",room:"0201",start:"10:15",end:"11:50"}],
+    prefs: {visualTheme:"snow",night:true,min60:true,min15:true,wordsNotifications:true,daily:5},
+    progress: {day:"",count:0,offset:0}
+  };
+  await $("restoreJson").onchange({target:{files:[{text:async()=>JSON.stringify(backup)}]}});
+  assert.equal(root.dataset.theme, "snow");
+  assert.equal($("visualTheme").value, "snow");
+  assert.equal(JSON.parse(store.get("russian-daily-03-events")).length, 1);
+  assert.match($("savedPrefs").textContent, /Đã khôi phục/);
 });
