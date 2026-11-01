@@ -261,6 +261,10 @@ async function main(){
   const appOrigin="http://127.0.0.1:"+appPort;
   const priceOrigin="http://127.0.0.1:"+pricePort;
   mkdirSync(QA,{recursive:true});
+  let app=null,price=null,passed=false,appStopped=false,priceStopped=false,erased=false;
+  try{
+  // Creation of temporary secret-bearing QA configs is inside finally scope:
+  // even a partial write failure must remove any config created so far.
   config(PRICE_CONFIG,{
     name:"price-universal-e2e-"+randomBytes(5).toString("hex"),
     main:join(CONTROL,"src","index.ts"),
@@ -301,8 +305,6 @@ async function main(){
     'viteEnvironment:{name:"rsc",childEnvironments:["ssr"]},inspectorPort:false',
     '})]});'
   ].join("\n"),{flag:"wx",mode:0o600});
-  let app=null,price=null,passed=false,appStopped=false,priceStopped=false,erased=false;
-  try{
     console.log("E2E_PHASE=PRICE_MIGRATIONS");
     priceCLI(["migrations","apply",PRICE_DB]);
     console.log("E2E_PHASE=APP_MIGRATIONS");
