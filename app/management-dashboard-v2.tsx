@@ -111,6 +111,16 @@ function standaloneCenter(user: { displayName: string; email: string }): CenterB
 }
 const systemTools: readonly SystemTool[] = [
   {
+    id: "tool-russian-daily",
+    name: "Russian Daily · Lịch học & từ vựng",
+    href: "/tools/russian-daily",
+    category: "Tool",
+    note: "Bản thử nghiệm riêng cho iPhone: lịch STANKIN, 5 từ Nga/ngày, nhập Telegram có duyệt, Next Action có hướng dẫn. Chưa đồng bộ API hoặc WidgetKit; không có quyền Production.",
+    parentAppId: "bauman-master-ai",
+    parentLabel: "Bauman Hub",
+    manageHref: "/apps/bauman-master-ai",
+  },
+  {
     id: "tool-study-plan",
     name: "Phân tích lịch học Bauman",
     href: "/tools/study-plan",

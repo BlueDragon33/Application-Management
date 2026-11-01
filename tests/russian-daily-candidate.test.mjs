@@ -1,0 +1,139 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const root = resolve(here, "../public/russian-daily");
+const html = readFileSync(resolve(root, "index.html"), "utf8");
+const script = html.match(/<script>([\s\S]*?)<\/script>/i)?.[1];
+
+function harness() {
+  const elements = new Map();
+  const store = new Map();
+  const exported = [];
+  const tabs = ["home", "schedule", "vocab", "lock", "settings"].map(tab => ({
+    dataset: { tab }, setAttribute(key, value) { this[key] = value; }, addEventListener(key, fn) { this[key] = fn; },
+  }));
+  function createElement() {
+    const styles = new Set();
+    return {
+      value: "", files: [], innerHTML: "", textContent: "", checked: false,
+      style: {}, dataset: {},
+      classList: {
+        contains(name) { return styles.has(name); },
+        add(name) { styles.add(name); },
+        remove(name) { styles.delete(name); },
+        toggle(name, active) { if (active === undefined) active = !styles.has(name); active ? styles.add(name) : styles.delete(name); },
+      },
+      scrollIntoView() {}, setAttribute() {}, focus() {}, remove() {}, append() {},
+      addEventListener(key, fn) { this[key] = fn; },
+      click() { this.onclick?.(); },
+    };
+  }
+  const document = {
+    getElementById(id) { if (!elements.has(id)) elements.set(id, createElement()); return elements.get(id); },
+    querySelectorAll() { return tabs; },
+    createElement,
+    body: { append() {} },
+  };
+  const localStorage = { getItem: key => store.get(key) ?? null, setItem: (key, value) => store.set(key, value) };
+  const Blob = class { constructor(parts, options) { this.content = parts.join(""); this.type = options.type; exported.push(this); } };
+  const URL = { createObjectURL: () => "blob:mock", revokeObjectURL() {} };
+  new Function("document", "navigator", "localStorage", "window", "URL", "Blob", "SpeechSynthesisUtterance", "confirm", "alert", "location", script)(
+    document, {}, localStorage, {}, URL, Blob, class {}, () => true, () => {}, { protocol: "http:" },
+  );
+  return { $: id => document.getElementById(id), exported };
+}
+
+test("candidate manifest is isolated and zero-credential", () => {
+  assert.ok(script, "Client JavaScript exists");
+  assert.doesNotThrow(() => new Function(script));
+  const manifest = JSON.parse(readFileSync(resolve(root, "manifest.webmanifest"), "utf8"));
+  assert.equal(manifest.scope, "./");
+  assert.equal(manifest.start_url, "./index.html");
+  assert.equal(manifest.id, "/russian-daily/");
+  const sw = readFileSync(resolve(root, "sw.js"), "utf8");
+  assert.match(sw, /\/russian-daily\//);
+  assert.match(sw, /event\.respondWith\(fetch\(event\.request\)/, "Use network-first to avoid stale iPhone preview");
+  assert.match(html, /id="includeSeed"/, "Default-off seeded export opt-in must exist");
+  assert.match(html, /Chưa kết nối API/);
+  assert.match(html, /chưa tự nhận dạng chữ trong ảnh/);
+  assert.equal((html.match(/id="primaryAction"/g) ?? []).length, 1);
+});
+
+test("next action, ICS with one nightly reminder per day, manual import and five words", () => {
+  const { $, exported } = harness();
+  assert.equal(($("eventList").innerHTML.match(/data-edit=/g) ?? []).length, 7);
+  $("primaryAction").onclick();
+  assert.equal($("schedule").classList.contains("hide"), false);
+  assert.equal($("scheduleGuide").classList.contains("hide"), false);
+  $("exportIcs").onclick();
+  assert.equal(exported.length, 0, "Do not duplicate existing Google Calendar lessons");
+  assert.match($("exportStatus").textContent, /Chưa có buổi mới/);
+  $("includeSeed").checked = true;
+  $("exportIcs").onclick();
+  const ics = exported.find(item => item.type.startsWith("text/calendar"))?.content;
+  assert.ok(ics);
+  assert.equal((ics.match(/BEGIN:VEVENT/g) ?? []).length, 11);
+  assert.equal((ics.match(/UID:night-/g) ?? []).length, 4);
+  assert.equal((ics.match(/BEGIN:VALARM/g) ?? []).length, 16);
+  assert.match(ics, /DTSTART;TZID=Europe\/Moscow:20261103T101500/);
+  assert.match(ics, /DTSTART;TZID=Europe\/Moscow:20261102T210000/);
+  $("includeSeed").checked = false;
+  $("telegramText").value = "31/02/2026 10:15-11:50 phòng 9999\n03/11/2026 25:99-26:88 phòng 7777\n07/11/2026 10:15-11:50 phòng 0209";
+  $("parseTelegram").onclick();
+  assert.match($("draftList").innerHTML, /0209/);
+  assert.doesNotMatch($("draftList").innerHTML, /9999|7777/, "Reject bad dates and clock times");
+  $("confirmDraft").onclick();
+  $("exportIcs").onclick();
+  const newIcs = exported.at(-1).content;
+  assert.equal((newIcs.match(/BEGIN:VEVENT/g) ?? []).length, 2);
+  assert.equal((newIcs.match(/UID:night-/g) ?? []).length, 1);
+  assert.doesNotMatch(newIcs, /stankin-202611-/);
+  assert.match($("eventList").innerHTML, /0209/);
+  for (let i = 0; i < 7; i++) $("markWord").onclick();
+  assert.equal($("counter").textContent, "5/5");
+});
+
+
+test("rejects malformed JSON restore without replacing local lessons", async () => {
+  const { $ } = harness();
+  const before = $("eventList").innerHTML;
+  const malformed = JSON.stringify({events:[{id:"malformed\\r\\n",date:"2026-02-31",title:"Unsafe",room:"0204",start:"25:99",end:"26:00"}]});
+  await $("restoreJson").onchange({target:{files:[{text:async()=>malformed}]}});
+  assert.match($("savedPrefs").textContent, /không hợp lệ/);
+  assert.equal($("eventList").innerHTML, before);
+});
+
+
+test("Russian Daily HTML uses the existing authentication for Preview and Production", () => {
+  const worker = readFileSync(resolve(here, "../worker/index.ts"), "utf8");
+  const previewGate = worker.indexOf("if (isPreview) {\n      if (!previewAccessConfigured");
+  const previewSessionCheck = worker.indexOf("previewRequestAuthorized(request, env.APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET)");
+  const productionGate = worker.indexOf("const identity = await productionIdentity(request, env)");
+  const htmlRoute = worker.indexOf('url.pathname === "/russian-daily/index.html")');
+  const aliasRoute = worker.indexOf('url.pathname === "/russian-daily" || url.pathname === "/russian-daily/"');
+  const generalStatic = worker.indexOf('if ((isPreview || isProduction) && isCloudflareClientAsset(request, url))');
+  assert.ok(previewGate >= 0 && previewSessionCheck > previewGate);
+  assert.ok(productionGate > previewSessionCheck);
+  assert.ok(aliasRoute > productionGate && htmlRoute > productionGate, "Russian Daily must be behind both login flows");
+  assert.ok(generalStatic > htmlRoute);
+  assert.match(worker.slice(htmlRoute, htmlRoute + 155), /env\.ASSETS\.fetch\(request\)/);
+  assert.doesNotMatch(worker.slice(worker.indexOf("function isPublicPwaAsset"), worker.indexOf("function isCloudflareClientAsset")), /russian-daily/, "Do not allow unauthenticated pilot assets");
+  assert.match(worker.slice(aliasRoute - 170, aliasRoute), /isPreview \|\| isProduction/);
+});
+
+
+test("same-origin deployment requires existing authentication and retains offline publish hold", () => {
+  const worker = readFileSync(resolve(here, "../worker/index.ts"), "utf8");
+  const preview = readFileSync(resolve(here, "../.github/workflows/deploy-application-management-preview.yml"), "utf8");
+  const prod = readFileSync(resolve(here, "../.github/workflows/deploy-application-management-production.yml"), "utf8");
+  assert.match(worker, /url\.pathname === "\/russian-daily\/index\.html"/);
+  assert.match(worker, /isPreview \|\| isProduction/);
+  assert.doesNotMatch(worker.slice(worker.indexOf("function isPublicPwaAsset"), worker.indexOf("function isCloudflareClientAsset")), /russian-daily/);
+  assert.match(preview, /deploy-preview:\n(?:    #[^\n]*\n)*    if: \$\{\{ false \}\}/);
+  assert.match(prod, /inputs\.release_revision == github\.sha/);
+  assert.match(prod, /inputs\.confirm == 'DEPLOY_PRODUCTION'/);
+});

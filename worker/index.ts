@@ -329,6 +329,19 @@ const worker = {
       return repairBrowserCache(env);
     }
 
+    // Russian Daily is an opt-in local-first utility under the existing
+    // Application Management origin. Serve only after Preview or Production
+    // authentication has succeeded above; never add this subtree to
+    // isPublicPwaAsset, never create a dedicated database or deployment.
+    if ((isPreview || isProduction) && (request.method === "GET" || request.method === "HEAD")
+      && (url.pathname === "/russian-daily" || url.pathname === "/russian-daily/")) {
+      return Response.redirect(new URL("/russian-daily/index.html", url.origin).toString(), 302);
+    }
+    if ((isPreview || isProduction) && (request.method === "GET" || request.method === "HEAD")
+      && url.pathname === "/russian-daily/index.html") {
+      return freshDynamicResponse(await env.ASSETS.fetch(request), true);
+    }
+
     if ((isPreview || isProduction) && isCloudflareClientAsset(request, url)) {
       return env.ASSETS.fetch(request);
     }
