@@ -159,7 +159,8 @@ export function totpEnvironmentConfigured(env: TotpEnv) {
 
 export async function totpState(env: TotpEnv, email: string): Promise<TotpState> {
   const configured = totpEnvironmentConfigured(env);
-  if (!configured) return { configured: false, enabled: false, pending: false, verifiedAt: null };
+  // Never hide a previously enabled factor if an encryption key is missing.
+  // Query D1 regardless of key availability so protected mutations fail closed.
   const row = await factorRow(env, email);
   return {
     configured: true,
