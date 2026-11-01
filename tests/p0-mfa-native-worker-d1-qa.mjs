@@ -159,7 +159,8 @@ function protectedPost(base,cookie){
   return fetch(base+"/api/managed-apps",{
     method:"POST",redirect:"manual",
     headers:{origin:base,cookie,"content-type":"application/json"},
-    body:JSON.stringify({action:"upsert",id:"p0-mfa-qa-invalid"}),
+    // Deliberately invalid payload: must never create/update catalog data.
+    body:JSON.stringify({action:"upsert"}),
     signal:AbortSignal.timeout(18000)});
 }
 function base32Decode(secret){
