@@ -87,7 +87,7 @@ async function main(){
   assert.equal(git("rev-parse","HEAD"),QA_HEAD,"BLOCKED_QA_SHA_DRIFT");
   assert.equal(git("status","--porcelain","--untracked-files=no"),"",
     "BLOCKED_QA_TRACKED_FILES_DIRTY");
-  const TOTPBLOB="809e0263b63a07f82c01dc13796d39635e81ec4b";
+  const TOTPBLOB="46af10e11b2bdd6e6c207fe1ff7cd27e548d85dd";
   const AUTHBLOB="9edf75a2c34b3762ed655a3de8c34acc7aa100ac";
   const MIGRATIONBLOB="811674ebe704bcd1a8a1a374277d3930d98ce226";
   for(const [path,blob] of [
@@ -221,7 +221,7 @@ async function main(){
     const broken={DB:env.DB};
     const state=await totp.totpState(broken,OWNER);
     assert.equal(state.enabled,true,"BLOCKED_MISSING_KEY_MASKED_ENABLED_FACTOR");
-    assert.equal(state.configured,false);
+    assert.equal(state.configured,false,"BLOCKED_MISSING_KEY_REPORTED_AS_CONFIGURED");
     assert.equal((await gate(auth,broken,current))?.status,403,
       "BLOCKED_MISSING_MFA_KEY_BYPASSED");
     calls.missingMfaKeyFailClosed=true;
