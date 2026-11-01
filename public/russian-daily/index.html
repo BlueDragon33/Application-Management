@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#14283b">
+<meta name="theme-color" id="themeColor" content="#081322">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Russian Daily">
@@ -114,7 +114,7 @@ hr{border-top-color:var(--rd-line)}
 #lock .notification{background:rgba(239,250,255,.13);border:1px solid rgba(239,250,255,.1);backdrop-filter:blur(10px)}
 .tabs{background:var(--rd-glass);border-top:1px solid var(--rd-line);box-shadow:0 -12px 30px var(--rd-shadow);
   backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);padding:10px 8px max(9px,env(safe-area-inset-bottom))}
-.tabs button{color:var(--rd-muted);border-radius:12px;min-height:52px;line-height:1.35;font-size:10px;
+.tabs button{color:var(--rd-muted);border-radius:12px;min-height:56px;line-height:1.35;font-size:11px;
   letter-spacing:.01em;transition:color .2s ease,background .2s ease}
 .tabs button[aria-current="page"]{background:rgba(99,206,234,.12);color:var(--rd-accent);font-weight:800}
 .tabIcon{display:block;width:21px;height:21px;margin:0 auto 5px}
@@ -131,7 +131,7 @@ hr{border-top-color:var(--rd-line)}
 :root[data-theme="snow"] #lock .preview{color:#fff}
 :root[data-theme="snow"] #lock .preview small{color:#d5e5f5}
 @media(max-width:360px){main{padding-left:12px;padding-right:12px}.twoCol{gap:9px}.twoCol>.card{padding:15px 13px}
-  .brandTitle{font-size:22px}.headerMode{font-size:9px}.tabs button{font-size:9px}}
+  .brandTitle{font-size:22px}.headerMode{font-size:9px}.tabs button{font-size:10px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 
 </style>
@@ -164,7 +164,7 @@ const fromStore=(key,fallback)=>{try{const raw=localStorage.getItem(key);return 
 let events=fromStore("russian-daily-03-events",seed);
 if(!Array.isArray(events))events=seed;
 let prefs={...defaults,...fromStore("russian-daily-03-prefs",defaults)},progress=fromStore("russian-daily-03-progress",{day:"",count:0,offset:0}),editing=null,drafts=[];
-function save(){try{localStorage.setItem("russian-daily-03-events",JSON.stringify(events));localStorage.setItem("russian-daily-03-prefs",JSON.stringify(prefs));localStorage.setItem("russian-daily-03-progress",JSON.stringify(progress))}catch{$("savedPrefs").textContent="Bộ nhớ bị chặn, hãy sao lưu trước khi thoát."}}
+function save(){try{localStorage.setItem("russian-daily-03-events",JSON.stringify(events));localStorage.setItem("russian-daily-03-prefs",JSON.stringify(prefs));localStorage.setItem("russian-daily-03-progress",JSON.stringify(progress));return true}catch{$("savedPrefs").textContent="Không lưu được trên thiết bị. Hãy kiểm tra bộ nhớ Safari và sao lưu JSON trước khi thoát.";return false}}
 function esc(value){return String(value||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function validDate(s){if(!/^\d{4}-\d{2}-\d{2}$/.test(s))return false;const d=new Date(s+"T12:00:00Z");return !isNaN(d.valueOf())&&d.toISOString().slice(0,10)===s}
 function validTime(s){return /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(s)}
@@ -181,14 +181,15 @@ $("saveEvent").onclick=()=>{const e={id:editing||"rd-"+Date.now().toString(36),t
 $("markWord").onclick=()=>{const day=moscowDay();if(progress.day!==day){progress.day=day;progress.count=0}if(progress.count<prefs.daily){progress.count++;progress.offset=(Number(progress.offset)||0)+1}save();render()};
 $("meaning").onclick=()=>$("translation").classList.toggle("hide");
 $("speak").onclick=()=>{if(!("speechSynthesis" in window)){$("wordStatus").textContent="Thiết bị chưa hỗ trợ đọc giọng Nga.";return}const u=new SpeechSynthesisUtterance(words[((progress.offset||0)%words.length+words.length)%words.length][0]);u.lang="ru-RU";u.rate=.83;speechSynthesis.cancel();speechSynthesis.speak(u)};
-$("savePrefs").onclick=()=>{prefs={night:$("remindNight").checked,min60:$("remind60").checked,min15:$("remind15").checked,wordsNotifications:$("notificationWords").checked,daily:Number($("targetWords").value),visualTheme:$("visualTheme").value};if(document.documentElement)document.documentElement.dataset.theme=prefs.visualTheme;save();$("savedPrefs").textContent="Đã lưu trên thiết bị. Các thay đổi nhắc lịch chỉ áp dụng khi xuất .ics lần tới."};
+function applyTheme(theme){const selected=theme==="snow"?"snow":"midnight";if(document.documentElement)document.documentElement.dataset.theme=selected;$("themeColor").setAttribute("content",selected==="snow"?"#eff4fb":"#081322")}
+$("savePrefs").onclick=()=>{prefs={night:$("remindNight").checked,min60:$("remind60").checked,min15:$("remind15").checked,wordsNotifications:$("notificationWords").checked,daily:Number($("targetWords").value),visualTheme:$("visualTheme").value};applyTheme(prefs.visualTheme);const saved=save();$("savedPrefs").textContent=saved?"Đã lưu trên thiết bị. Các thay đổi nhắc lịch chỉ áp dụng khi xuất .ics lần tới.":"Không lưu được trên thiết bị. Hãy sao lưu JSON trước khi thoát."};
 function download(name,text,mime){const url=URL.createObjectURL(new Blob([text],{type:mime}));const a=document.createElement("a");a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 function icsEscape(s){return String(s||"").replace(/\\/g,"\\\\").replace(/\r?\n/g,"\\n").replace(/,/g,"\\,").replace(/;/g,"\\;")}
 function fmtDay(s){return s.replace(/-/g,"")}function fmtTime(s){return s.replace(":","")+"00"}function prevDay(s){let d=new Date(s+"T12:00:00Z");d.setUTCDate(d.getUTCDate()-1);return d.toISOString().slice(0,10)}function nextDay(s){let d=new Date(s+"T12:00:00Z");d.setUTCDate(d.getUTCDate()+1);return d.toISOString().slice(0,10)}
 function vevent(e){const out=["BEGIN:VEVENT","UID:"+e.id+"@russian-daily.local","DTSTAMP:20261101T000000Z","SUMMARY:"+icsEscape(e.title),"LOCATION:"+icsEscape(e.room||"STANKIN")];if(e.start&&e.end){out.push("DTSTART;TZID=Europe/Moscow:"+fmtDay(e.date)+"T"+fmtTime(e.start),"DTEND;TZID=Europe/Moscow:"+fmtDay(e.date)+"T"+fmtTime(e.end));for(const min of [prefs.min60?60:null,prefs.min15?15:null].filter(Boolean))out.push("BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:"+icsEscape(e.title),"TRIGGER:-PT"+min+"M","END:VALARM")}else out.push("DTSTART;VALUE=DATE:"+fmtDay(e.date),"DTEND;VALUE=DATE:"+fmtDay(nextDay(e.date)));out.push("END:VEVENT");return out}
 function exportIcs(){const selected=sorted().filter(e=>$("includeSeed").checked||!e.id.startsWith("stankin-202611-"));if(!selected.length){$("exportStatus").textContent="Chưa có buổi mới cần xuất. 7 sự kiện STANKIN gốc được loại khỏi tệp để tránh trùng.";return}const out=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Russian Daily//Candidate 0.3//VI","CALSCALE:GREGORIAN","X-WR-CALNAME:Russian Daily","BEGIN:VTIMEZONE","TZID:Europe/Moscow","BEGIN:STANDARD","DTSTART:19700101T000000","TZOFFSETFROM:+0300","TZOFFSETTO:+0300","TZNAME:MSK","END:STANDARD","END:VTIMEZONE"];selected.forEach(e=>out.push(...vevent(e)));if(prefs.night){const dates=[...new Set(selected.map(e=>e.date))];dates.forEach(date=>{const datePrev=prevDay(date);out.push("BEGIN:VEVENT","UID:night-"+date+"@russian-daily.local","DTSTAMP:20261101T000000Z","SUMMARY:"+icsEscape("Chuẩn bị lịch STANKIN ngày "+date),"DTSTART;TZID=Europe/Moscow:"+fmtDay(datePrev)+"T210000","DTEND;TZID=Europe/Moscow:"+fmtDay(datePrev)+"T210500","BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:Kiểm tra giờ và phòng học ngày mai","TRIGGER:PT0M","END:VALARM","END:VEVENT")})}out.push("END:VCALENDAR");download("russian-daily-stankin.ics",out.join("\r\n")+"\r\n","text/calendar;charset=utf-8");$("exportStatus").textContent="Đã xuất "+selected.length+" sự kiện mới; kiểm tra lại Calendar trước khi nhập."}
 $("exportIcs").onclick=exportIcs;$("backup").onclick=()=>download("russian-daily-backup.json",JSON.stringify({version:3,events,prefs,progress},null,2),"application/json");
-$("restoreJson").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const obj=JSON.parse(await f.text());if(!Array.isArray(obj.events)||obj.events.length>500||!obj.events.every(x=>x&&typeof x.id==="string"&&/^[a-zA-Z0-9_-]{1,100}$/.test(x.id)&&typeof x.title==="string"&&x.title.length>0&&x.title.length<=90&&validDate(x.date)&&typeof x.room==="string"&&x.room.length<=70&&(x.start===""&&x.end===""||validTime(x.start)&&validTime(x.end)&&x.end>x.start))||new Set(obj.events.map(x=>x.id)).size!==obj.events.length)throw Error("Dữ liệu không hợp lệ");if(!confirm("Khôi phục sẽ thay lịch trên thiết bị này, không thay Google/Apple. Tiếp tục?"))return;events=obj.events;prefs={...defaults,...obj.prefs};progress=obj.progress||{day:"",count:0};save();render();$("savedPrefs").textContent="Đã khôi phục."}catch{$("savedPrefs").textContent="Tệp JSON không hợp lệ."}};
+$("restoreJson").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const obj=JSON.parse(await f.text());if(!Array.isArray(obj.events)||obj.events.length>500||!obj.events.every(x=>x&&typeof x.id==="string"&&/^[a-zA-Z0-9_-]{1,100}$/.test(x.id)&&typeof x.title==="string"&&x.title.length>0&&x.title.length<=90&&validDate(x.date)&&typeof x.room==="string"&&x.room.length<=70&&(x.start===""&&x.end===""||validTime(x.start)&&validTime(x.end)&&x.end>x.start))||new Set(obj.events.map(x=>x.id)).size!==obj.events.length)throw Error("Dữ liệu không hợp lệ");if(!confirm("Khôi phục sẽ thay lịch trên thiết bị này, không thay Google/Apple. Tiếp tục?"))return;events=obj.events;prefs={...defaults,...obj.prefs};progress=obj.progress||{day:"",count:0};applyTheme(prefs.visualTheme);const saved=save();render();$("savedPrefs").textContent=saved?"Đã khôi phục.":"Đã đọc bản sao lưu nhưng không lưu được trên thiết bị. Hãy kiểm tra bộ nhớ Safari."}catch{$("savedPrefs").textContent="Tệp JSON không hợp lệ."}};
 $("telegramPhoto").onchange=e=>{const file=e.target.files[0];if(!file||!file.type.startsWith("image/"))return;const url=URL.createObjectURL(file),img=$("imagePreview");img.onload=()=>URL.revokeObjectURL(url);img.src=url;img.classList.remove("hide")};
 $("parseTelegram").onclick=()=>{drafts=[];const lines=$("telegramText").value.split(/\n/);for(const line of lines){const m=line.match(/(\d{1,2})[./-](\d{1,2})(?:[./-](\d{4}))?.*?(\d{1,2}:\d{2})\s*[-–—]\s*(\d{1,2}:\d{2}).*?(?:phòng|room|ауд\.?|каб\.?)\s*([0-9a-zа-я-]+)/i);if(!m)continue;const pad=n=>String(n).padStart(2,"0"),date=(m[3]||moscowDay().slice(0,4))+"-"+pad(m[2])+"-"+pad(m[1]);const item={id:"rd-import-"+date+"-"+m[4].replace(":","")+"-"+m[6],date,title:"Tiếng Nga (Telegram)",start:pad(m[4].split(":")[0])+":"+m[4].split(":")[1],end:pad(m[5].split(":")[0])+":"+m[5].split(":")[1],room:m[6]};if(validDate(date)&&validTime(item.start)&&validTime(item.end)&&item.end>item.start)drafts.push(item)}$("draftBox").classList.toggle("hide",!drafts.length);$("draftList").innerHTML=drafts.map(e=>'<p>'+esc(e.date+" "+e.start+"–"+e.end+" phòng "+e.room)+(events.some(x=>x.date===e.date&&x.start===e.start&&x.room===e.room)?" · Đã có":"")+'</p>').join("");$("importStatus").textContent=drafts.length?"Đã phát hiện "+drafts.length+" buổi. Kiểm tra lại từng dòng trước khi xác nhận.":"Chưa nhận được dòng hợp lệ; nếu là ảnh, nhập nội dung thủ công theo mẫu."};
 $("confirmDraft").onclick=()=>{const newItems=drafts.filter(e=>!events.some(x=>x.date===e.date&&x.start===e.start&&x.room===e.room));if(!newItems.length){$("importStatus").textContent="Không có buổi mới để thêm.";return}if(!confirm("Thêm "+newItems.length+" buổi vào dữ liệu cục bộ?"))return;events=events.concat(newItems);drafts=[];$("draftBox").classList.add("hide");save();render();$("importStatus").textContent="Đã thêm "+newItems.length+" buổi; chưa đồng bộ lên Calendar."};
@@ -196,7 +197,7 @@ $("primaryAction").onclick=()=>{$("scheduleGuide").classList.remove("hide");tab(
 $("actionLabel").textContent="Kiểm tra buổi học, luyện từ vựng và xuất lịch khi cần.";
 $("actionHelp").textContent="Nút đưa bạn tới lịch học có thể chỉnh sửa, nhập Telegram và xuất .ics. Nếu cần liên kết Google/Apple tự động: hiện BLOCKED vì chưa có OAuth/EventKit và kiểm thử.";
 if("serviceWorker" in navigator&&location.protocol==="https:")navigator.serviceWorker.register("./sw.js",{scope:"./"}).catch(()=>{});
-if(document.documentElement)document.documentElement.dataset.theme=prefs.visualTheme==="snow"?"snow":"midnight";
+applyTheme(prefs.visualTheme);
 render();
 })();
 </script>
