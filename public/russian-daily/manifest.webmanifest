@@ -14,5 +14,8 @@
       "type": "image/svg+xml",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "id": "/russian-daily/",
+  "lang": "vi",
+  "orientation": "portrait"
 }
