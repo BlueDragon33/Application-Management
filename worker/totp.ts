@@ -163,7 +163,7 @@ export async function totpState(env: TotpEnv, email: string): Promise<TotpState>
   // Query D1 regardless of key availability so protected mutations fail closed.
   const row = await factorRow(env, email);
   return {
-    configured: true,
+    configured,
     enabled: row?.enabled === 1,
     pending: Boolean(row && row.enabled !== 1),
     verifiedAt: row?.verified_at ?? null,
