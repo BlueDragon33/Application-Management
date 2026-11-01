@@ -47,12 +47,21 @@ function codeFor(secret,epochMs){
   return String((hash.readUInt32BE(i)&0x7fffffff)%1_000_000).padStart(6,"0");
 }
 function d1Adapter(db){
+  // D1 accepts ?1, ?2 as positional indices. node:sqlite treats numbered
+  // placeholders as named parameters; convert deterministically for the
+  // isolated DB adapter. Never change the owner SQL or its bind arguments.
   return {prepare(sql){
+    const indexes=[...sql.matchAll(/[?]([1-9][0-9]*)/g)]
+      .map(match=>Number(match[1])-1);
+    const stmt=db.prepare(sql.replace(/[?]([1-9][0-9]*)/g,"?"));
     return {bind(...args){
+      const values=indexes.length?indexes.map(i=>{
+        assert.ok(i>=0&&i<args.length,"BLOCKED_D1_BIND_INDEX_RANGE");return args[i]
+      }):args;
       return {
-        first:async()=>db.prepare(sql).get(...args)||null,
-        all:async()=>({results:db.prepare(sql).all(...args)}),
-        run:async()=>{const out=db.prepare(sql).run(...args);return {meta:{changes:out.changes}}}
+        first:async()=>stmt.get(...values)||null,
+        all:async()=>({results:stmt.all(...values)}),
+        run:async()=>{const out=stmt.run(...values);return {meta:{changes:out.changes}}}
       };
     }};
   }};
