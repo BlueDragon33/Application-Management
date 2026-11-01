@@ -53,6 +53,7 @@ test("candidate manifest is isolated and zero-credential", () => {
   const manifest = JSON.parse(readFileSync(resolve(root, "manifest.webmanifest"), "utf8"));
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.start_url, "./index.html");
+  assert.equal(manifest.id, "/russian-daily/");
   const sw = readFileSync(resolve(root, "sw.js"), "utf8");
   assert.match(sw, /\/russian-daily\//);
   assert.match(sw, /event\.respondWith\(fetch\(event\.request\)/, "Use network-first to avoid stale iPhone preview");
@@ -114,6 +115,10 @@ test("Russian Daily Preview HTML is served only after authentication and not in 
   const appHtmlRoute = worker.indexOf('if (isPreview && request.method === "GET" && url.pathname === "/russian-daily/index.html")');
   assert.ok(previewGate >= 0 && previewSessionCheck > previewGate);
   assert.ok(appHtmlRoute > previewSessionCheck, "No unauthenticated HTML access");
+  const prodDeny = worker.indexOf('if (isProduction && (url.pathname === "/russian-daily" || url.pathname.startsWith("/russian-daily/")))');
+  const previewAssetGate = worker.indexOf('if ((isPreview || isProduction) && isCloudflareClientAsset(request, url))');
+  assert.ok(prodDeny > previewSessionCheck && prodDeny < appHtmlRoute && prodDeny < previewAssetGate, "Production must explicitly deny all pilot assets before generic asset serving");
+
   const following = worker.slice(appHtmlRoute, appHtmlRoute + 220);
   assert.match(following, /env\.ASSETS\.fetch\(request\)/);
   assert.doesNotMatch(worker.slice(worker.indexOf("function isPublicPwaAsset"), worker.indexOf("function isCloudflareClientAsset")), /russian-daily/, "Pilot assets cannot be globally allow-listed");
