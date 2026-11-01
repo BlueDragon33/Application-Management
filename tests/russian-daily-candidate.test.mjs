@@ -33,6 +33,7 @@ function harness() {
     };
   }
   const document = {
+    documentElement: { dataset: { theme: "midnight" } },
     getElementById(id) { if (!elements.has(id)) elements.set(id, createElement()); return elements.get(id); },
     querySelectorAll() { return tabs; },
     createElement,
@@ -44,7 +45,7 @@ function harness() {
   new Function("document", "navigator", "localStorage", "window", "URL", "Blob", "SpeechSynthesisUtterance", "confirm", "alert", "location", script)(
     document, {}, localStorage, {}, URL, Blob, class {}, () => true, () => {}, { protocol: "http:" },
   );
-  return { $: id => document.getElementById(id), exported };
+  return { $: id => document.getElementById(id), exported, root: document.documentElement };
 }
 
 test("candidate manifest is isolated and zero-credential", () => {
@@ -165,4 +166,22 @@ test("same-origin deployment requires existing authentication and retains offlin
   assert.match(preview, /deploy-preview:\n(?:    #[^\n]*\n)*    if: \$\{\{ false \}\}/);
   assert.match(prod, /inputs\.release_revision == github\.sha/);
   assert.match(prod, /inputs\.confirm == 'DEPLOY_PRODUCTION'/);
+});
+
+test("premium Russian Daily UI offers persistent dark and light themes without changing app behavior", () => {
+  const { $, root } = harness();
+  assert.match(html, /data-theme="midnight"/);
+  assert.match(html, /class="brandMark"/);
+  assert.equal((html.match(/class="tabIcon"/g) ?? []).length, 5);
+  assert.match(html, /prefers-reduced-motion:reduce/);
+  assert.equal(root.dataset.theme, "midnight");
+  assert.equal($("visualTheme").value, "midnight");
+  $("visualTheme").value = "snow";
+  $("savePrefs").onclick();
+  assert.equal(root.dataset.theme, "snow");
+  assert.match($("savedPrefs").textContent, /Đã lưu trên thiết bị/);
+  $("visualTheme").value = "midnight";
+  $("savePrefs").onclick();
+  assert.equal(root.dataset.theme, "midnight");
+  assert.equal(($("eventList").innerHTML.match(/data-edit=/g) ?? []).length, 7);
 });
