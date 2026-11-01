@@ -687,7 +687,8 @@ export async function handleProductionLogout(request: Request, env: ProductionAu
 
 function stepUpFresh(identity: ProductionIdentity) {
   if (!identity.stepUpAt) return false;
-  return Math.floor(Date.now() / 1000) - identity.stepUpAt <= STEP_UP_TTL_SECONDS;
+  const age = Math.floor(Date.now() / 1000) - identity.stepUpAt;
+  return age >= 0 && age < STEP_UP_TTL_SECONDS;
 }
 
 async function accountPageData(env: ProductionAuthEnv, identity: ProductionIdentity): Promise<AccountPageData> {
@@ -706,7 +707,7 @@ async function accountPageData(env: ProductionAuthEnv, identity: ProductionIdent
 
 async function requireAccountStepUp(env: ProductionAuthEnv, identity: ProductionIdentity) {
   const state = await totpState(env, identity.email);
-  return !state.enabled || stepUpFresh(identity);
+  return !state.enabled || (state.configured && stepUpFresh(identity));
 }
 
 export async function handleProductionAccount(request: Request, env: ProductionAuthEnv, identity: ProductionIdentity) {
@@ -884,7 +885,7 @@ export async function productionStepUpGate(
   }
 
   const state = await totpState(env, identity.email);
-  if (!state.enabled || stepUpFresh(identity)) return null;
+  if (!state.enabled || (state.configured && stepUpFresh(identity))) return null;
 
   const pathname = new URL(request.url).pathname;
   let payload: Record<string, unknown> = {};
