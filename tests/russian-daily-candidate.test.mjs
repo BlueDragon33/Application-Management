@@ -105,3 +105,16 @@ test("rejects malformed JSON restore without replacing local lessons", async () 
   assert.match($("savedPrefs").textContent, /không hợp lệ/);
   assert.equal($("eventList").innerHTML, before);
 });
+
+
+test("Russian Daily Preview HTML is served only after authentication and not in Production", () => {
+  const worker = readFileSync(resolve(here, "../worker/index.ts"), "utf8");
+  const previewGate = worker.indexOf("if (isPreview) {\n      if (!previewAccessConfigured");
+  const previewSessionCheck = worker.indexOf("previewRequestAuthorized(request, env.APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET)");
+  const appHtmlRoute = worker.indexOf('if (isPreview && request.method === "GET" && url.pathname === "/russian-daily/index.html")');
+  assert.ok(previewGate >= 0 && previewSessionCheck > previewGate);
+  assert.ok(appHtmlRoute > previewSessionCheck, "No unauthenticated HTML access");
+  const following = worker.slice(appHtmlRoute, appHtmlRoute + 220);
+  assert.match(following, /env\.ASSETS\.fetch\(request\)/);
+  assert.doesNotMatch(worker.slice(worker.indexOf("function isPublicPwaAsset"), worker.indexOf("function isCloudflareClientAsset")), /russian-daily/, "Pilot assets cannot be globally allow-listed");
+});
