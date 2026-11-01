@@ -27,7 +27,7 @@ function harness(options = {}) {
         remove(name) { styles.delete(name); },
         toggle(name, active) { if (active === undefined) active = !styles.has(name); active ? styles.add(name) : styles.delete(name); },
       },
-      scrollIntoView() {}, setAttribute() {}, focus() {}, remove() {}, append() {},
+      scrollIntoView() {}, setAttribute(key, value) { (this.attrs ??= {})[key] = value; }, focus() {}, remove() {}, append() {},
       addEventListener(key, fn) { this[key] = fn; },
       click() { this.onclick?.(); },
     };
@@ -179,10 +179,12 @@ test("premium Russian Daily UI offers persistent dark and light themes without c
   $("visualTheme").value = "snow";
   $("savePrefs").onclick();
   assert.equal(root.dataset.theme, "snow");
+  assert.equal($("themeColor").attrs.content, "#eff4fb");
   assert.match($("savedPrefs").textContent, /Đã lưu trên thiết bị/);
   $("visualTheme").value = "midnight";
   $("savePrefs").onclick();
   assert.equal(root.dataset.theme, "midnight");
+  assert.equal($("themeColor").attrs.content, "#081322");
   assert.equal(($("eventList").innerHTML.match(/data-edit=/g) ?? []).length, 7);
 });
 
@@ -222,4 +224,24 @@ test("restoring a backup applies theme and preserves existing offline data keys"
   assert.equal($("visualTheme").value, "snow");
   assert.equal(JSON.parse(store.get("russian-daily-03-events")).length, 1);
   assert.match($("savedPrefs").textContent, /Đã khôi phục/);
+});
+
+test("Polar Day buttons and small labels meet accessible text contrast", () => {
+  // White-text endpoints of the light-theme primary gradient must both be >= WCAG AA 4.5:1.
+  function luminance(hex) {
+    const rgb = hex.slice(1).match(/../g).map(part => Number.parseInt(part, 16) / 255);
+    const linear = rgb.map(c => c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+    return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+  }
+  const ratio = (first, second) => {
+    const a = luminance(first), b = luminance(second);
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  };
+  assert.match(html, /linear-gradient\(110deg,#0d6f9e,#08766f\)/);
+  assert.ok(ratio("#ffffff", "#0d6f9e") >= 4.5);
+  assert.ok(ratio("#ffffff", "#08766f") >= 4.5);
+  assert.ok(ratio("#a0b3cd", "#14243a") >= 4.5);
+  assert.ok(ratio("#5a718e", "#ffffff") >= 4.5);
+  assert.equal((html.match(/class="tabIcon"/g) ?? []).length, 5);
+  assert.match(html, /aria-label="Điều hướng"/);
 });
