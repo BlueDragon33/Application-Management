@@ -12,8 +12,9 @@ test("security UI is opt-in and no bootstrap reset wall is rendered on opening S
   assert.match(account,/Đổi mật khẩu khôi phục/);
   assert.doesNotMatch(account,/Cần hoàn tất bảo mật tài khoản trước khi mở Blueprint Hub/);
   assert.doesNotMatch(account,/Bước bắt buộc: đổi mật khẩu khởi tạo/);
-  assert.match(account,/return !state\.enabled \|\| stepUpFresh\(identity\)/);
-  assert.match(account,/if \(!state\.enabled \|\| stepUpFresh\(identity\)\) return null/);
+  assert.match(account,/return !state\.enabled \|\| \(state\.configured && stepUpFresh\(identity\)\)/);
+  assert.match(account,/if \(!state\.enabled \|\| \(state\.configured && stepUpFresh\(identity\)\)\) return null/);
+  assert.match(account,/age >= 0 && age < STEP_UP_TTL_SECONDS/);
 });
 
 test("recovery password not being rotated never auto-elevates an unverified password session to SSO", () => {
