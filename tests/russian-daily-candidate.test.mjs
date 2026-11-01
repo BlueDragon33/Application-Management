@@ -124,3 +124,16 @@ test("Russian Daily HTML uses the existing authentication for Preview and Produc
   assert.doesNotMatch(worker.slice(worker.indexOf("function isPublicPwaAsset"), worker.indexOf("function isCloudflareClientAsset")), /russian-daily/, "Do not allow unauthenticated pilot assets");
   assert.match(worker.slice(aliasRoute - 170, aliasRoute), /isPreview \|\| isProduction/);
 });
+
+
+test("same-origin deployment requires existing authentication and retains offline publish hold", () => {
+  const worker = readFileSync(resolve(here, "../worker/index.ts"), "utf8");
+  const preview = readFileSync(resolve(here, "../.github/workflows/deploy-application-management-preview.yml"), "utf8");
+  const prod = readFileSync(resolve(here, "../.github/workflows/deploy-application-management-production.yml"), "utf8");
+  assert.match(worker, /url\.pathname === "\/russian-daily\/index\.html"/);
+  assert.match(worker, /isPreview \|\| isProduction/);
+  assert.doesNotMatch(worker.slice(worker.indexOf("function isPublicPwaAsset"), worker.indexOf("function isCloudflareClientAsset")), /russian-daily/);
+  assert.match(preview, /deploy-preview:\n(?:    #[^\n]*\n)*    if: \$\{\{ false \}\}/);
+  assert.match(prod, /inputs\.release_revision == github\.sha/);
+  assert.match(prod, /inputs\.confirm == 'DEPLOY_PRODUCTION'/);
+});
