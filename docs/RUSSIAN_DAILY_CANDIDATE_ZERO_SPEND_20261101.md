@@ -43,3 +43,15 @@ Central candidate: `Software-Blueprint-Hub`, `feat/unified-project-next-action`,
 ## User guidance
 
 Open Russian Daily → inspect lessons → correct lesson times/rooms → export `.ics` (7 STANKIN seed events excluded unless deliberately opted back in) → open in Apple Calendar. In iPhone Settings, enable the linked Google calendar if using Google sync separately. To install as a Home Screen app, the **existing Application-Management host** must first be updated by the authorized release and the resulting HTTPS URL read back successfully.
+
+## Production canonical URL and redirect-loop repair (2026-11-01)
+
+- Affected live symptom: after successful Application-Management login, clicking `HƯỚNG DẪN / MỞ RUSSIAN DAILY` previously produced `ERR_TOO_MANY_REDIRECTS` in Chrome.
+- Cause: Cloudflare's default `assets.html_handling=auto-trailing-slash` returns `/russian-daily/index.html → /russian-daily/`; the old Worker simultaneously redirected `/russian-daily/ → /russian-daily/index.html`, causing a two-URL cycle. Reference: https://developers.cloudflare.com/workers/static-assets/routing/advanced/html-handling/.
+- Correct canonical URL is now **`/russian-daily/`**, matching the Cloudflare folder index. `/russian-daily` and `/russian-daily/index.html` redirect once to the canonical path. An authenticated `/russian-daily/` request is served by the existing `ASSETS` binding without another Worker redirect. Production/Preview identity gates remain in force.
+- Launch button href, PWA manifest start URL and offline service-worker precache follow the canonical slash. The service worker does not cache a redirected login page.
+- Local isolated tests assert absence of redirect cycles and preserve five-word vocabulary, STANKIN schedule, Telegram text and ICS behavior. The real device's authenticated route is still **NOT VERIFIED** until a reviewed and authorized deployment of this fix.
+- User network constraint: the owner uses a VPN in Russia and cannot safely turn it off. This repair is server-side and does not require disabling VPN, changing browser flags or clearing login cookies.
+- Acceptance after deploying exact approved SHA: from existing authenticated Application-Management session, click **HƯỚNG DẪN / MỞ RUSSIAN DAILY**; confirm **one** canonical navigation to `/russian-daily/`, response 200 with app UI, five tabs, local storage, manifest, Home Screen installation and no infinite redirects. Anonymous requests must still follow existing login/auth policy.
+- No new Cloudflare Worker/site/D1, no automatic merge/deploy/Production gate changes, no P0/RU03 approval claim.
+

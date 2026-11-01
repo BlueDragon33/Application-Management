@@ -21,7 +21,7 @@ export default async function RussianDailyEntry() {
         Calendar tự động, nhận dạng ảnh Telegram hay WidgetKit iOS native.
       </p>
       <a
-        href="/russian-daily/index.html"
+        href="/russian-daily/"
         style={{
           display: "inline-block",
           borderRadius: 12,

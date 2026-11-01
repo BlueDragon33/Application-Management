@@ -333,12 +333,17 @@ const worker = {
     // Application Management origin. Serve only after Preview or Production
     // authentication has succeeded above; never add this subtree to
     // isPublicPwaAsset, never create a dedicated database or deployment.
+    // Cloudflare's default auto-trailing-slash HTML handling canonicalizes
+    // /russian-daily/index.html -> /russian-daily/. Do NOT redirect the
+    // trailing-slash URL back to index.html: those two redirects form a loop.
+    // Resolve the canonical folder index through the existing ASSETS binding
+    // after Preview/Production identity checks above.
     if ((isPreview || isProduction) && (request.method === "GET" || request.method === "HEAD")
-      && (url.pathname === "/russian-daily" || url.pathname === "/russian-daily/")) {
-      return Response.redirect(new URL("/russian-daily/index.html", url.origin).toString(), 302);
+      && (url.pathname === "/russian-daily" || url.pathname === "/russian-daily/index.html")) {
+      return Response.redirect(new URL("/russian-daily/", request.url).toString(), 308);
     }
     if ((isPreview || isProduction) && (request.method === "GET" || request.method === "HEAD")
-      && url.pathname === "/russian-daily/index.html") {
+      && url.pathname === "/russian-daily/") {
       return freshDynamicResponse(await env.ASSETS.fetch(request), true);
     }
 

@@ -52,11 +52,13 @@ test("candidate manifest is isolated and zero-credential", () => {
   assert.doesNotThrow(() => new Function(script));
   const manifest = JSON.parse(readFileSync(resolve(root, "manifest.webmanifest"), "utf8"));
   assert.equal(manifest.scope, "./");
-  assert.equal(manifest.start_url, "./index.html");
+  assert.equal(manifest.start_url, "./");
   assert.equal(manifest.id, "/russian-daily/");
   const sw = readFileSync(resolve(root, "sw.js"), "utf8");
   assert.match(sw, /\/russian-daily\//);
   assert.match(sw, /event\.respondWith\(fetch\(event\.request\)/, "Use network-first to avoid stale iPhone preview");
+  assert.match(sw, /ASSETS = \["\.\/", "\.\/manifest\.webmanifest"/, "Cache the canonical directory index for offline iPhone access");
+  assert.match(sw, /!response\.redirected/, "Never cache redirected Production login");
   assert.match(html, /id="includeSeed"/, "Default-off seeded export opt-in must exist");
   assert.match(html, /Chưa kết nối API/);
   assert.match(html, /chưa tự nhận dạng chữ trong ảnh/);
@@ -108,23 +110,50 @@ test("rejects malformed JSON restore without replacing local lessons", async () 
 });
 
 
-test("Russian Daily HTML uses the existing authentication for Preview and Production", () => {
+test("Russian Daily uses canonical trailing slash after existing Preview and Production authentication", () => {
   const worker = readFileSync(resolve(here, "../worker/index.ts"), "utf8");
-  const previewGate = worker.indexOf("if (isPreview) {\n      if (!previewAccessConfigured");
-  const previewSessionCheck = worker.indexOf("previewRequestAuthorized(request, env.APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET)");
+  const entry = readFileSync(resolve(here, "../app/tools/russian-daily/page.tsx"), "utf8");
+  const previewGate = worker.indexOf("previewRequestAuthorized(request, env.APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET)");
   const productionGate = worker.indexOf("const identity = await productionIdentity(request, env)");
-  const htmlRoute = worker.indexOf('url.pathname === "/russian-daily/index.html")');
-  const aliasRoute = worker.indexOf('url.pathname === "/russian-daily" || url.pathname === "/russian-daily/"');
+  const alias = worker.indexOf('url.pathname === "/russian-daily" || url.pathname === "/russian-daily/index.html"');
+  const canonical = worker.indexOf('url.pathname === "/russian-daily/")');
   const generalStatic = worker.indexOf('if ((isPreview || isProduction) && isCloudflareClientAsset(request, url))');
-  assert.ok(previewGate >= 0 && previewSessionCheck > previewGate);
-  assert.ok(productionGate > previewSessionCheck);
-  assert.ok(aliasRoute > productionGate && htmlRoute > productionGate, "Russian Daily must be behind both login flows");
-  assert.ok(generalStatic > htmlRoute);
-  assert.match(worker.slice(htmlRoute, htmlRoute + 155), /env\.ASSETS\.fetch\(request\)/);
-  assert.doesNotMatch(worker.slice(worker.indexOf("function isPublicPwaAsset"), worker.indexOf("function isCloudflareClientAsset")), /russian-daily/, "Do not allow unauthenticated pilot assets");
-  assert.match(worker.slice(aliasRoute - 170, aliasRoute), /isPreview \|\| isProduction/);
-});
+  assert.ok(previewGate > 0 && productionGate > previewGate);
+  assert.ok(alias > productionGate && canonical > alias && generalStatic > canonical,
+    "Both canonical routes must follow the existing login gates and precede generic static handling");
 
+  const aliasBlock = worker.slice(alias, canonical);
+  const canonicalBlock = worker.slice(canonical, generalStatic);
+  assert.match(aliasBlock, /Response\.redirect\(new URL\("\/russian-daily\/", request\.url\)\.toString\(\), 308\)/);
+  assert.doesNotMatch(aliasBlock, /Response\.redirect\(new URL\("\/russian-daily\/index\.html"/,
+    "Never redirect the canonical folder URL back to index.html");
+  assert.match(canonicalBlock, /env\.ASSETS\.fetch\(request\)/,
+    "The trailing-slash URL must serve the index via the existing ASSETS binding");
+  assert.doesNotMatch(canonicalBlock, /Response\.redirect\(/);
+  assert.match(entry, /href="\/russian-daily\/"/);
+  assert.doesNotMatch(entry, /href="\/russian-daily\/index\.html"/);
+  assert.doesNotMatch(worker.slice(worker.indexOf("function isPublicPwaAsset"), worker.indexOf("function isCloudflareClientAsset")), /russian-daily/,
+    "Do not allow unauthenticated Russian Daily static assets");
+
+  // Cloudflare's documented default HTML handling maps directory/index.html to directory/.
+  // The old Worker redirected directory/ back to index.html, creating ERR_TOO_MANY_REDIRECTS.
+  // Guard the resulting canonical route as a single terminating path.
+  function route(path) {
+    if (path === "/russian-daily" || path === "/russian-daily/index.html") return "/russian-daily/";
+    if (path === "/russian-daily/") return "200 HTML from ASSETS";
+    throw Error("Unexpected route " + path);
+  }
+  for (const path of ["/russian-daily", "/russian-daily/index.html", "/russian-daily/"]) {
+    let current = path;
+    const visited = new Set();
+    while (current !== "200 HTML from ASSETS") {
+      assert.equal(visited.has(current), false, "Redirect cycle detected for " + path);
+      visited.add(current);
+      current = route(current);
+    }
+    assert.ok(visited.size <= 2, "At most one HTTP redirect is allowed");
+  }
+});
 
 test("same-origin deployment requires existing authentication and retains offline publish hold", () => {
   const worker = readFileSync(resolve(here, "../worker/index.ts"), "utf8");

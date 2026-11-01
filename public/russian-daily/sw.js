@@ -1,6 +1,6 @@
 /* Russian Daily candidate service worker, isolated to this subpath. */
-const CACHE = "russian-daily-candidate-0.3.2";
-const ASSETS = ["./index.html", "./manifest.webmanifest", "./icon.svg"];
+const CACHE = "russian-daily-candidate-0.3.3";
+const ASSETS = ["./", "./manifest.webmanifest", "./icon.svg"];
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)));
   self.skipWaiting();
@@ -12,9 +12,12 @@ self.addEventListener("activate", event => {
 self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
   const url = new URL(event.request.url);
-  if (url.origin !== self.location.origin || !url.pathname.includes("/russian-daily/")) return;
+  if (url.origin !== self.location.origin || !url.pathname.startsWith("/russian-daily/")) return;
   event.respondWith(fetch(event.request).then(response => {
-    if (response.ok) {
+    // Never persist a redirected login page after the session expires.
+    const finalUrl = new URL(response.url);
+    if (response.ok && !response.redirected && finalUrl.origin === self.location.origin
+        && finalUrl.pathname.startsWith("/russian-daily/")) {
       const copy = response.clone();
       event.waitUntil(caches.open(CACHE).then(cache => cache.put(event.request, copy)));
     }
