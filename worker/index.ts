@@ -329,6 +329,13 @@ const worker = {
       return repairBrowserCache(env);
     }
 
+    // Russian Daily is an explicitly preview-only static HTML pilot.
+    // Route after preview session authorization. Never expose the HTML from
+    // Production or through the public PWA-asset exemption above.
+    if (isPreview && request.method === "GET" && url.pathname === "/russian-daily/index.html") {
+      return freshDynamicResponse(await env.ASSETS.fetch(request), true);
+    }
+
     if ((isPreview || isProduction) && isCloudflareClientAsset(request, url)) {
       return env.ASSETS.fetch(request);
     }
