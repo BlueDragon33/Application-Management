@@ -329,17 +329,16 @@ const worker = {
       return repairBrowserCache(env);
     }
 
-    // Fail closed for the entire Russian Daily static path on Production.
-    // Protects against accidental publication of preview-only HTML, SW or manifest
-    // if these public files later enter a Production build.
-    if (isProduction && (url.pathname === "/russian-daily" || url.pathname.startsWith("/russian-daily/"))) {
-      return new Response("Not Found", { status: 404, headers: { "cache-control": "no-store", "x-content-type-options": "nosniff" } });
+    // Russian Daily is an opt-in local-first utility under the existing
+    // Application Management origin. Serve only after Preview or Production
+    // authentication has succeeded above; never add this subtree to
+    // isPublicPwaAsset, never create a dedicated database or deployment.
+    if ((isPreview || isProduction) && (request.method === "GET" || request.method === "HEAD")
+      && (url.pathname === "/russian-daily" || url.pathname === "/russian-daily/")) {
+      return Response.redirect(new URL("/russian-daily/index.html", url.origin).toString(), 302);
     }
-
-    // Russian Daily is an explicitly preview-only static HTML pilot.
-    // Route after preview session authorization. Never expose the HTML from
-    // Production or through the public PWA-asset exemption above.
-    if (isPreview && request.method === "GET" && url.pathname === "/russian-daily/index.html") {
+    if ((isPreview || isProduction) && (request.method === "GET" || request.method === "HEAD")
+      && url.pathname === "/russian-daily/index.html") {
       return freshDynamicResponse(await env.ASSETS.fetch(request), true);
     }
 
