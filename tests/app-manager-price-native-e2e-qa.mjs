@@ -74,9 +74,12 @@ function preflight(){
   assert.equal(git(PRICE,"status","--porcelain","--untracked-files=no"),"","BLOCKED_PRICE_DIRTY");
   blob(APP,"app/open-contract.server.ts","342f744ae90ec37e379dce9f6b647e454a3ceccd");
   blob(APP,"app/api/managed-apps/route.ts","e8089df2ef208c66918b3547612ba92c8b8e1057");
+  blob(APP,"app/api/operations-auto-approval/route.ts","ec6bcaab9c6a60dd69591df4830e97017e8b7485");
+  blob(APP,"app/operations-settings.server.ts","5d3a7865b157262d1e92dd26210bac696a4bb435");
   blob(APP,"app/application-registry.ts","1a72ab309db0fca3b11cbd45e5a5b099a3a4e9dd");
   blob(APP,"worker/index.ts","cd7af7e929238ae47e960308bdff82fdf80a9517");
   blob(PRICE,"control-service/src/index.ts","828f1e1f5f7783b5b18e98b3c9d74bc439d6c120");
+  blob(PRICE,"control-service/src/automation-store.ts","2c044c9b28466a06d80ec3d5b149ecb03f3eb7a2");
   blob(PRICE,"control-service/migrations/0002_automation_policy.sql",
     "c4761db2a0481e355e612434299fec63233f48e8");
   for(const p of [".env",".dev.vars",".env.local",".dev.vars.local"]){
@@ -220,10 +223,10 @@ async function sourceGet(origin,secret){
   assert.equal(r.status,200,"BLOCKED_SOURCE_INDEPENDENT_HTTP_GET");
   return (await r.json()).automation;
 }
-async function sourcePost(origin,secret,payload){
+async function sourcePost(origin,secret,payload,role="owner"){
   const r=await fetch(origin+"/api/control/automation",{method:"POST",redirect:"manual",
     headers:{"content-type":"application/json",authorization:"Bearer "+secret,
-      "x-control-actor":OWNER,"x-control-role":"owner",
+      "x-control-actor":OWNER,"x-control-role":role,
       "x-control-device":"e2e-device-verified"},
     body:JSON.stringify(payload),signal:AbortSignal.timeout(12000)});
   return {status:r.status,data:await r.json().catch(()=>({}))};
@@ -322,6 +325,11 @@ async function main(){
     const bad=await api(appOrigin,appSecret,"/api/managed-apps",
       {action:"list",proofDeviceId:deviceId});
     assert.notEqual(bad.status,200,"BLOCKED_NO_SIGNATURE_ACCEPTED");
+    const guest=await sourcePost(priceOrigin,controlSecret,{
+      commandId:randomUUID(),operation:"set-device-automation",
+      expected:{autoApproveDevices:false},desired:{autoApproveDevices:true}
+    },"viewer");
+    assert.equal(guest.status,403,"BLOCKED_SOURCE_NON_OWNER_WRITE_ACCEPTED");
     const initial=await sourceGet(priceOrigin,controlSecret);
     assert.deepEqual({autoApprove:initial.autoApproveDevices,
       autoBlock:initial.autoBlockPendingDevices,hours:initial.pendingBlockAfterHours},
@@ -419,6 +427,7 @@ async function main(){
       appWorker:"REAL_VINEXT",priceWorker:"REAL_WRANGLER",
       appD1:"NATIVE_LOCAL",priceD1:"NATIVE_LOCAL",
       actor:"QA_OWNER_P256",unauthorizedRejected:true,
+      sourceViewerMutationRejected:true,
       catalogNotInMemory:true,encryptedCredential:true,
       centralAutomationWrite:true,sourceCasReject:true,sourceReplay:true,
       physicalD1Independent:true,dualWorkerRestartGet:true,
