@@ -108,18 +108,19 @@ test("rejects malformed JSON restore without replacing local lessons", async () 
 });
 
 
-test("Russian Daily Preview HTML is served only after authentication and not in Production", () => {
+test("Russian Daily HTML uses the existing authentication for Preview and Production", () => {
   const worker = readFileSync(resolve(here, "../worker/index.ts"), "utf8");
   const previewGate = worker.indexOf("if (isPreview) {\n      if (!previewAccessConfigured");
   const previewSessionCheck = worker.indexOf("previewRequestAuthorized(request, env.APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET)");
-  const appHtmlRoute = worker.indexOf('if (isPreview && request.method === "GET" && url.pathname === "/russian-daily/index.html")');
+  const productionGate = worker.indexOf("const identity = await productionIdentity(request, env)");
+  const htmlRoute = worker.indexOf('url.pathname === "/russian-daily/index.html")');
+  const aliasRoute = worker.indexOf('url.pathname === "/russian-daily" || url.pathname === "/russian-daily/"');
+  const generalStatic = worker.indexOf('if ((isPreview || isProduction) && isCloudflareClientAsset(request, url))');
   assert.ok(previewGate >= 0 && previewSessionCheck > previewGate);
-  assert.ok(appHtmlRoute > previewSessionCheck, "No unauthenticated HTML access");
-  const prodDeny = worker.indexOf('if (isProduction && (url.pathname === "/russian-daily" || url.pathname.startsWith("/russian-daily/")))');
-  const previewAssetGate = worker.indexOf('if ((isPreview || isProduction) && isCloudflareClientAsset(request, url))');
-  assert.ok(prodDeny > previewSessionCheck && prodDeny < appHtmlRoute && prodDeny < previewAssetGate, "Production must explicitly deny all pilot assets before generic asset serving");
-
-  const following = worker.slice(appHtmlRoute, appHtmlRoute + 220);
-  assert.match(following, /env\.ASSETS\.fetch\(request\)/);
-  assert.doesNotMatch(worker.slice(worker.indexOf("function isPublicPwaAsset"), worker.indexOf("function isCloudflareClientAsset")), /russian-daily/, "Pilot assets cannot be globally allow-listed");
+  assert.ok(productionGate > previewSessionCheck);
+  assert.ok(aliasRoute > productionGate && htmlRoute > productionGate, "Russian Daily must be behind both login flows");
+  assert.ok(generalStatic > htmlRoute);
+  assert.match(worker.slice(htmlRoute, htmlRoute + 155), /env\.ASSETS\.fetch\(request\)/);
+  assert.doesNotMatch(worker.slice(worker.indexOf("function isPublicPwaAsset"), worker.indexOf("function isCloudflareClientAsset")), /russian-daily/, "Do not allow unauthenticated pilot assets");
+  assert.match(worker.slice(aliasRoute - 170, aliasRoute), /isPreview \|\| isProduction/);
 });
