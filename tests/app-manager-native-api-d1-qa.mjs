@@ -7,7 +7,8 @@
 import assert from "node:assert/strict";
 import {spawn,spawnSync} from "node:child_process";
 import {randomBytes,randomUUID,webcrypto} from "node:crypto";
-import {existsSync,readFileSync,writeFileSync,mkdirSync,rmSync} from "node:fs";
+import {existsSync,readFileSync,writeFileSync,mkdirSync,rmSync,readdirSync} from "node:fs";
+import {DatabaseSync} from "node:sqlite";
 import {createServer,connect} from "node:net";
 import {join,resolve,dirname} from "node:path";
 import {fileURLToPath} from "node:url";
@@ -102,6 +103,11 @@ function preflight(){
   const plugin=JSON.parse(readFileSync(pluginPath,"utf8"));
   assert.equal(pkg.version,"4.92.0","BLOCKED_NATIVE_WRANGLER_LOCK_MISMATCH");
   assert.equal(vite.version,"8.0.13","BLOCKED_NATIVE_VITE_LOCK_MISMATCH");
+  const sqliteProbe=new DatabaseSync(":memory:");
+  try {
+    assert.equal(sqliteProbe.prepare("SELECT 1 AS ok").get()?.ok,1,
+      "BLOCKED_NATIVE_NODE_SQLITE_UNAVAILABLE")
+  }finally{sqliteProbe.close()}
   assert.equal(plugin.version,"1.37.1","BLOCKED_NATIVE_CLOUDFLARE_PLUGIN_LOCK_MISMATCH");
   // Miniflare permits an explicit local workerd override. This is a QA-only
   // cross-version experiment; never claim that the App-Manager lockfile passed.
@@ -151,19 +157,8 @@ function argsD1(parts){
 }
 // Independent Wrangler D1 read with no plaintext or credential material emitted.
 function independentCatalogCensus(){
-  try{
-    const output=exec(process.execPath,argsD1(["execute",DB_NAME,"--command",
-      "SELECT COUNT(*) AS qa_count FROM managed_app_catalog WHERE id='price-report-tunggiabao'",
-      "--json"]));
-    const offset=output.indexOf("[");
-    assert.ok(offset>=0,"BLOCKED_CENSUS_JSON_ABSENT");
-    const rows=JSON.parse(output.slice(offset)).flatMap(x=>x.results||[]);
-    return {cliReachable:true,cliRowCount:Number(rows[0]?.qa_count||0)};
-  }catch(e){
-    return {cliReachable:false,cliErrorCode:
-      String(e?.message||e).includes("no such table")
-        ? "MISSING_MANAGED_APP_CATALOG_TABLE":"INDEPENDENT_CLI_FAILED"};
-  }
+  // Do not launch the Wrangler CLI while the Worker is running.
+  return {independentReadback:"DEFERRED_UNTIL_WORKER_STOP"};
 }
 function safeApiFailure(result){
   const payload=result?.data&&typeof result.data==="object"?result.data:{};
@@ -175,14 +170,48 @@ function safeApiFailure(result){
     String(payload.code||"UNSPECIFIED").slice(0,90),apiError:message||"NO_API_ERROR_TEXT",
     d1:independentCatalogCensus()};
 }
+// Independent physical readback after native Vite Worker is fully stopped.
+// Uses Node 24 SQLite readOnly=true. This does NOT prove Wrangler CLI readback.
+function findSqliteFiles(dir,depth=0){
+  assert.ok(depth<=9,"BLOCKED_QA_SQLITE_DIRECTORY_DEPTH");
+  if(!existsSync(dir))return [];
+  const entries=readdirSync(dir,{withFileTypes:true});
+  assert.ok(entries.length<=300,"BLOCKED_QA_SQLITE_DIRECTORY_WIDTH");
+  const files=[];
+  for(const entry of entries){
+    const full=join(dir,entry.name);
+    assert.ok(!entry.isSymbolicLink(),"BLOCKED_QA_SQLITE_SYMLINK");
+    if(entry.isDirectory())files.push(...findSqliteFiles(full,depth+1));
+    else if(entry.isFile()&&/\.(?:sqlite|sqlite3|db)$/i.test(entry.name))files.push(full);
+  }
+  assert.ok(files.length<=80,"BLOCKED_QA_SQLITE_FILE_COUNT");
+  return files;
+}
 function sqlRead(){
-  const out=exec(process.execPath,argsD1(["execute",DB_NAME,"--command",
-    "SELECT id,name,category,origin,contract_path,created_by,credential_ciphertext,credential_iv FROM managed_app_catalog WHERE id='price-report-tunggiabao'","--json"]));
-  const at=out.indexOf("[");
-  assert.ok(at>=0,"BLOCKED_D1_CLI_JSON_MISSING");
-  const data=JSON.parse(out.slice(at));
-  const row=data.flatMap(x=>x.results||[])[0];
-  assert.ok(row?.credential_ciphertext&&row?.credential_iv,"BLOCKED_REAL_D1_ROW_MISSING");
+  const files=findSqliteFiles(STATE);
+  console.log("QA_INDEPENDENT_SQLITE_CANDIDATES="+files.length);
+  assert.ok(files.length>0,"BLOCKED_PHYSICAL_D1_SQLITE_MISSING");
+  const catalogs=[];
+  for(const file of files){
+    let db;
+    try {
+      db=new DatabaseSync(file,{readOnly:true});
+      const table=db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='managed_app_catalog'").get();
+      if(!table)continue;
+      const row=db.prepare("SELECT id,name,category,origin,contract_path,created_by,credential_ciphertext,credential_iv FROM managed_app_catalog WHERE id=?").get(APP_ID);
+      catalogs.push({row});
+    }catch(error){
+      throw Error("BLOCKED_SQLITE_READ_ONLY_FAILURE: "+
+        String(error?.code||error?.message||error).slice(0,180));
+    }finally{db?.close()}
+  }
+  assert.equal(catalogs.length,1,"BLOCKED_D1_CATALOG_DB_AMBIGUOUS_OR_MISSING");
+  const row=catalogs[0].row;
+  assert.ok(row?.credential_ciphertext&&row?.credential_iv,"BLOCKED_PHYSICAL_D1_ROW_MISSING");
+  console.log("QA_PHYSICAL_D1_READ_ONLY_OK: "+JSON.stringify({
+    catalogDatabases:catalogs.length,appId:row.id,category:row.category,
+    credentialStoredEncrypted:true
+  }));
   return row;
 }
 function launch(port){
@@ -344,7 +373,9 @@ async function main(){
   },null,2),{mode:0o600,flag:"wx"});
   let child=null,port=0,passed=false,safeStop=false,configErased=false;
   try{
+    console.log("QA_PHASE=PRE_WORKER_MIGRATION_CLI");
     exec(process.execPath,argsD1(["migrations","apply",DB_NAME]));
+    console.log("QA_PHASE=PRE_WORKER_D1_CLI_TABLE_CHECK");
     const rowPre=exec(process.execPath,argsD1(["execute",DB_NAME,
       "--command","SELECT count(*) AS n FROM managed_app_catalog","--json"]));
     assert.ok(rowPre.includes('"n"'),"BLOCKED_QA_D1_PREMIGRATION_CHECK");
@@ -361,6 +392,7 @@ async function main(){
       origin:"http://127.0.0.1:1",contractPath:"/api/control/status",
       credential:randomBytes(48).toString("base64url")};
     qaEphemeralSecrets.push(item.credential);
+    console.log("QA_PHASE=API_NATIVE_UPSERT");
     const first=await command(origin,secret,deviceId,key,"upsert",item);
     if(first.status!==200){
       const failure=safeApiFailure(first);
@@ -379,9 +411,11 @@ async function main(){
     // Independent Wrangler CLI must read from a QUIESCED QA Worker.
     // The first live-CLI census failed while Vite owned this SQLite backend.
     // Never substitute an in-memory catalog or mark CLI read as PASS.
+    console.log("QA_PHASE=CAPTURED_WORKER_STOP_BEFORE_SQLITE");
     await stop(child,port);
     child=null;
     assert.equal(await openPort(port),false,"BLOCKED_PORT_AFTER_INITIAL_WRITE_STOP");
+    console.log("QA_PHASE=PHYSICAL_D1_READ_ONLY_FIRST");
     const before=sqlRead();
     assert.equal(before.created_by,OWNER);
     assert.ok(!JSON.stringify(before).includes(item.credential),"BLOCKED_D1_CREDENTIAL_PLAINTEXT");
@@ -410,6 +444,7 @@ async function main(){
     await stop(child,port);
     child=null;
     assert.equal(await openPort(port),false,"BLOCKED_PORT_AFTER_UPDATE_STOP");
+    console.log("QA_PHASE=PHYSICAL_D1_READ_ONLY_SECOND");
     const persisted=sqlRead();
     assert.equal(persisted.name,updatedName,"BLOCKED_NATIVE_D1_READBACK_STALE");
     assert.equal(Buffer.from(persisted.credential_ciphertext+"."+persisted.credential_iv)
@@ -428,8 +463,9 @@ async function main(){
       appManagerSha:EXPECTED_HEAD,api:"/api/managed-apps",
       httpWorker:"ACTUAL_VINEXT_APP_ROUTER",d1:"NATIVE_CLOUDFLARE_BINDING",
       p256DeviceSignature:true,previewSecretGate:true,
-      nativeWrite:true,independentD1CliRead:true,workerRestartGet:true,
-      cliReadsAfterCapturedWorkerStop:true,concurrentCliRead:"NOT_TESTED",
+      nativeWrite:true,independentPhysicalD1Readback:true,workerRestartGet:true,
+      nativeNodeSqliteReadOnly:true,postWorkerWranglerCliReadback:"NOT_TESTED",
+      concurrentCliRead:"NOT_TESTED",
       plaintextCredentialExposure:false,productionTouched:false,
       nativeProductionAuth:"NOT_TESTED",mfa:"NOT_TESTED",
       localRuntimeBinary:"QA_VERIFIED_WORKERD_1.20261012.1_OVERRIDE",
@@ -451,7 +487,8 @@ async function main(){
   assert.ok(safeStop&&configErased&&passed,"BLOCKED_NATIVE_QA_CLEANUP_OR_VERIFICATION");
   console.log(JSON.stringify({result:"P0_APP_MANAGER_NATIVE_API_D1_PASS",
     sha:EXPECTED_HEAD,ownerProof:"P256_VERIFIED",unauthorized:"REJECTED",
-    savedAndReopened:true,independentCliReadback:true,
+    savedAndReopened:true,independentPhysicalD1Readback:true,
+    postWorkerWranglerCliReadback:"NOT_TESTED",
     productionTouched:false,ci:"PENDING",globalD1:"10/10 BLOCKED",
     localRuntimeBinary:"QA_VERIFIED_WORKERD_1.20261012.1_OVERRIDE",
     fullLockParity:false,
