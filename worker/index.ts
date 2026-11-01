@@ -329,6 +329,13 @@ const worker = {
       return repairBrowserCache(env);
     }
 
+    // Fail closed for the entire Russian Daily static path on Production.
+    // Protects against accidental publication of preview-only HTML, SW or manifest
+    // if these public files later enter a Production build.
+    if (isProduction && (url.pathname === "/russian-daily" || url.pathname.startsWith("/russian-daily/"))) {
+      return new Response("Not Found", { status: 404, headers: { "cache-control": "no-store", "x-content-type-options": "nosniff" } });
+    }
+
     // Russian Daily is an explicitly preview-only static HTML pilot.
     // Route after preview session authorization. Never expose the HTML from
     // Production or through the public PWA-asset exemption above.
