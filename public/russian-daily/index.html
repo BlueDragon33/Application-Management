@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="vi">
+<html lang="vi" data-theme="midnight">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#14283b">
+<meta name="theme-color" id="themeColor" content="#081322">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Russian Daily">
@@ -11,15 +11,138 @@
 <title>Russian Daily · STANKIN</title>
 <style>
 :root{font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;background:#f5f7fa;color:#182b3d}*{box-sizing:border-box}body{margin:0}main{max-width:640px;margin:auto;padding:16px 16px 172px}h1{font-size:24px;margin:4px 0}h2{font-size:18px;margin:0 0 12px}h3{font-size:16px}p{line-height:1.5}.muted,small{color:#617083}.tiny{font-size:12px}.eyebrow{letter-spacing:.06em;font-size:11px;color:#52687d;font-weight:700}.card{background:#fff;border:1px solid #dce5ed;border-radius:18px;padding:17px;margin:14px 0;box-shadow:0 3px 16px #11243706}.hero{background:#183c5d;color:#fff;border-color:#183c5d}.hero .muted,.hero small{color:#d2e4ee}.row{display:flex;align-items:center;justify-content:space-between;gap:12px}.col{display:flex;flex-direction:column;gap:5px}.pill{border-radius:99px;padding:5px 9px;font-size:12px;background:#e8f0f8;color:#315275}.hero .pill{background:#365b79;color:white}.btn{border:0;border-radius:12px;background:#1764a1;color:white;padding:12px 15px;font-weight:700;min-height:44px;cursor:pointer}.btn.alt{background:#eaf0f6;color:#254967}.btn.warn{background:#fae7e5;color:#9f3d3a}.btn:disabled{opacity:.5}.actions{display:flex;gap:8px;flex-wrap:wrap}.actions .btn{flex:1}.item{padding:13px 0;border-top:1px solid #e1e8ef}.item:first-child{border-top:0}.event-time{font-variant-numeric:tabular-nums;font-size:13px;color:#1764a1}.hide{display:none!important}label{font-size:13px;display:block;font-weight:600;margin:12px 0 5px}input,textarea,select{width:100%;font-size:16px;border:1px solid #bdcbd8;border-radius:10px;background:white;padding:11px;color:#1c3447}input[type=checkbox]{width:auto;accent-color:#1764a1}.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}.notice{padding:11px;background:#eff5fa;border-radius:10px;font-size:13px;line-height:1.45}.warning{background:#fff3e6}.danger{color:#a13830}.tabs{position:fixed;z-index:5;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #dce5ed;padding:7px 3px max(8px,env(safe-area-inset-bottom));display:flex;justify-content:center;gap:2px}.tabs button{background:transparent;border:0;padding:8px 3px;min-height:48px;flex:1;min-width:0;max-width:135px;color:#5d6f80;font-size:12px}.tabs button[aria-current=page]{color:#1764a1;font-weight:750}.nextDock{position:fixed;z-index:6;left:12px;right:12px;bottom:calc(71px + env(safe-area-inset-bottom));display:flex;justify-content:center;pointer-events:none}.nextDock button{width:min(100%,610px);box-shadow:0 6px 19px #0f395344;pointer-events:auto}.ru{font-size:32px;font-weight:750;letter-spacing:.01em;margin:12px 0}.preview{background:#142132;color:white;border-radius:28px;max-width:295px;margin:auto;text-align:center;padding:25px 14px 32px;min-height:310px}.preview strong{font-size:46px}.preview .notification{background:#344657;border-radius:14px;text-align:left;padding:12px;margin:24px 0 0}.status{font-size:12px;font-weight:700;border-radius:10px;background:#fff4dc;padding:7px;color:#84600d}.guide{border-left:3px solid #1764a1;padding-left:12px}.stack{display:grid;gap:9px}button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid #7cb8f1}a{color:#1764a1}hr{border:0;border-top:1px solid #e1e8ef;margin:16px 0}@media(min-width:600px){.twoCol{display:grid;grid-template-columns:1fr 1fr;gap:14px}}
+
+/* Moscow Midnight — optional premium presentation layer; no network fonts or new runtime. */
+:root[data-theme="midnight"]{
+  color-scheme:dark;--rd-bg:#081322;--rd-surface:#14243a;--rd-glass:rgba(20,37,62,.92);
+  --rd-line:rgba(150,190,231,.16);--rd-ink:#f5f8ff;--rd-muted:#a0b3cd;
+  --rd-soft:#1b314d;--rd-accent:#80d4ff;--rd-mint:#86eed4;--rd-gold:#ffd18a;
+  --rd-input:#122238;--rd-button-ink:#07172a;--rd-shadow:rgba(0,6,20,.38);
+}
+:root[data-theme="snow"]{
+  color-scheme:light;--rd-bg:#eff4fb;--rd-surface:#fff;--rd-glass:rgba(255,255,255,.96);
+  --rd-line:rgba(23,65,103,.12);--rd-ink:#182c45;--rd-muted:#5a718e;
+  --rd-soft:#e7f0fc;--rd-accent:#1476b3;--rd-mint:#057e70;--rd-gold:#ad6a17;
+  --rd-input:#f4f8ff;--rd-button-ink:#fff;--rd-shadow:rgba(33,69,103,.1);
+}
+html{background:var(--rd-bg);scroll-behavior:smooth}
+body{min-height:100dvh;background:
+  radial-gradient(ellipse 100% 35% at 85% -5%,rgba(36,111,164,.27),transparent 76%),
+  radial-gradient(ellipse 75% 22% at -30% 25%,rgba(40,137,136,.10),transparent 85%),var(--rd-bg);
+  color:var(--rd-ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased}
+main{max-width:620px;padding:20px 16px 190px}
+h1,h2,h3{letter-spacing:-.045em;color:var(--rd-ink)}
+h2{font-size:19px}h3{font-size:17px}
+p{line-height:1.56}
+.muted,small,.tiny,.eyebrow{color:var(--rd-muted)}
+.eyebrow{font-size:10px;letter-spacing:.17em;font-weight:850;text-transform:uppercase}
+.appHeader{display:flex;align-items:center;gap:11px;padding:7px 2px 13px}
+.brandMark{width:46px;height:46px;display:grid;place-items:center;flex:none;border-radius:16px;
+  font-size:26px;font-weight:800;color:#06263c;background:linear-gradient(135deg,#bcf1ff,#6bd8d5);
+  box-shadow:0 7px 20px rgba(75,190,217,.2);transform:rotate(-4deg)}
+.brandTitle{font-size:25px;font-weight:850;line-height:1.12;letter-spacing:-.06em;margin-top:3px}
+.brandTag{font-size:11px;font-weight:700;color:var(--rd-muted)}
+.headerMode{margin-left:auto;align-self:flex-start;flex:none;font-size:10px;padding:7px 10px;
+  border:1px solid var(--rd-line);border-radius:999px;color:var(--rd-muted);letter-spacing:.07em;
+  background:var(--rd-glass)}
+.card{position:relative;margin:13px 0;border-radius:23px;border:1px solid var(--rd-line);
+  padding:20px;background:var(--rd-glass);box-shadow:0 12px 35px var(--rd-shadow);overflow:hidden}
+.card h2{margin:0 0 10px}
+.hero{background:linear-gradient(125deg,#193b5b 0%,#16415d 55%,#154d5b 100%);
+  border:1px solid rgba(130,217,248,.31);padding:24px 22px;min-height:195px;
+  box-shadow:0 16px 35px rgba(9,46,77,.3);isolation:isolate}
+.hero:before{content:"";position:absolute;width:210px;height:210px;right:-65px;top:-85px;
+  border:1px solid rgba(255,255,255,.14);border-radius:50%;
+  box-shadow:0 0 0 34px rgba(255,255,255,.035),0 0 0 70px rgba(255,255,255,.025);z-index:-1}
+.hero:after{content:"";position:absolute;width:120px;height:120px;right:-35px;bottom:-80px;
+  background:rgba(111,227,207,.17);filter:blur(35px);z-index:-1}
+.hero h2,.hero small{color:#fff}
+.hero h2{font-size:clamp(29px,6vw,38px);font-weight:850;line-height:1.15;margin:25px 0 11px!important;letter-spacing:-.055em;
+  overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.hero .muted{color:#c8e4f0;font-size:15px}
+.hero .pill{background:rgba(245,255,255,.13);color:#e7fbff;border:1px solid rgba(210,255,255,.19)}
+.hero .upcoming{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#b9ecff}
+.hero .upcoming:before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:#8ef3ce;
+  margin-right:8px;box-shadow:0 0 12px #8ef3ce}
+.twoCol{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.twoCol>.card{margin:0;padding:19px 17px;min-height:157px}
+.twoCol h2{font-size:13px;color:var(--rd-muted);letter-spacing:0;font-weight:700;margin:0 0 16px}
+.twoCol .ru{font-size:clamp(22px,5.3vw,35px);font-weight:800;line-height:1.15;margin:0 0 9px;
+  color:var(--rd-mint);overflow-wrap:anywhere}
+#todaySummary{font-size:17px;font-weight:700;line-height:1.42;overflow-wrap:anywhere}
+.twoCol .muted{font-size:11px;line-height:1.5}
+#nextActionCard{border:1px solid rgba(131,217,238,.19);background:linear-gradient(130deg,var(--rd-glass),rgba(25,77,103,.23))}
+#nextActionCard h2{margin:0;font-size:18px}
+#nextActionCard #actionLabel{color:var(--rd-ink);font-weight:600;font-size:13px;margin:13px 0}
+#nextActionCard .tiny{font-size:11px}
+.status{font-size:10px;color:var(--rd-mint);background:rgba(89,202,166,.11);border:1px solid rgba(107,208,189,.2);
+  border-radius:999px;padding:6px 9px;white-space:nowrap}
+.pill{background:var(--rd-soft);color:var(--rd-accent);border:1px solid var(--rd-line)}
+.btn{background:linear-gradient(115deg,#75d4ff,#74eed6);color:#092439;border:0;border-radius:14px;
+  min-height:45px;padding:12px 17px;font-weight:850;box-shadow:0 8px 20px rgba(30,128,156,.12);
+  transition:transform .16s ease,box-shadow .16s ease}
+.btn:active{transform:scale(.97)}
+.btn.alt{background:var(--rd-soft);color:var(--rd-ink);border:1px solid var(--rd-line);box-shadow:none}
+.btn.warn{background:rgba(239,100,122,.12);color:#ff9eb5;box-shadow:none}
+.notice{background:var(--rd-soft);color:var(--rd-ink);border:1px solid var(--rd-line);padding:13px 14px;border-radius:15px}
+.warning{background:rgba(235,171,76,.09);border-color:rgba(235,171,76,.24);color:var(--rd-ink)}
+.guide{border-left:3px solid var(--rd-mint)}
+.danger{color:#ff8296}
+.item{padding:15px 0;border-top:1px solid var(--rd-line);gap:8px}
+.item .actions{flex:0 0 auto;gap:6px}
+.item .btn{font-size:12px;padding:8px 10px;min-height:38px;border-radius:10px}
+.item b{font-size:15px;font-weight:780}
+.event-time{color:var(--rd-accent);font-size:12px;margin:0 0 4px}
+input,textarea,select{border-radius:13px;background:var(--rd-input);border:1px solid var(--rd-line);
+  color:var(--rd-ink);padding:12px 13px;accent-color:var(--rd-accent)}
+input[type="date"],input[type="time"]{min-width:0}
+input::placeholder,textarea::placeholder{color:var(--rd-muted);opacity:.9}
+input[type="checkbox"]{width:18px;height:18px;vertical-align:middle;margin-right:5px}
+label{color:var(--rd-ink);font-size:12px}
+.stack label{padding:8px 4px;font-size:14px;font-weight:550}
+hr{border-top-color:var(--rd-line)}
+#vocab .card{padding:26px 22px;min-height:390px;
+  background:radial-gradient(ellipse at 90% -10%,rgba(88,200,176,.14),transparent 45%),var(--rd-glass)}
+#vocab .ru{font-size:clamp(42px,10vw,66px);color:var(--rd-mint);margin:36px 0 18px;line-height:1.06;overflow-wrap:anywhere}
+#vocab #exampleRu{font-size:19px;line-height:1.5;color:var(--rd-ink);margin:0 0 12px}
+#vocab #translation{color:var(--rd-muted);font-size:16px}
+#vocab .actions{margin:28px 0}
+#lock .preview{border:1px solid rgba(186,226,245,.22);background:
+  radial-gradient(circle at 90% 0%,rgba(93,161,217,.24),transparent 60%),#101b2e;
+  min-height:390px;box-shadow:0 20px 40px #030b1877}
+#lock .notification{background:rgba(239,250,255,.13);border:1px solid rgba(239,250,255,.1);backdrop-filter:blur(10px)}
+.tabs{background:var(--rd-glass);border-top:1px solid var(--rd-line);box-shadow:0 -12px 30px var(--rd-shadow);
+  backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);padding:10px 8px max(9px,env(safe-area-inset-bottom))}
+.tabs button{color:var(--rd-muted);border-radius:12px;min-height:56px;line-height:1.35;font-size:11px;
+  letter-spacing:.01em;transition:color .2s ease,background .2s ease}
+.tabs button[aria-current="page"]{background:rgba(99,206,234,.12);color:var(--rd-accent);font-weight:800}
+.tabIcon{display:block;width:21px;height:21px;margin:0 auto 5px}
+.tabIcon path,.tabIcon rect,.tabIcon circle{stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.nextDock{bottom:calc(80px + env(safe-area-inset-bottom));left:16px;right:16px}
+.nextDock button{border-radius:16px;min-height:51px;width:min(100%,620px);color:#082338;
+  box-shadow:0 13px 30px rgba(33,160,180,.23);letter-spacing:.01em;font-size:13px}
+:root[data-theme="snow"] .hero{background:linear-gradient(125deg,#20618e,#237b8e)}
+:root[data-theme="snow"] .btn{color:var(--rd-button-ink);background:linear-gradient(110deg,#0d6f9e,#08766f)}
+:root[data-theme="snow"] .btn.alt{color:var(--rd-ink);background:var(--rd-soft)}
+:root[data-theme="snow"] .nextDock button{color:#fff}
+:root[data-theme="snow"] .btn.warn{background:#ffedef;color:#aa3f55}
+:root[data-theme="snow"] .status{color:#12685b;background:#e0faf0}
+:root[data-theme="snow"] #lock .preview{color:#fff}
+:root[data-theme="snow"] #lock .preview small{color:#d5e5f5}
+@media(max-width:360px){main{padding-left:12px;padding-right:12px}.twoCol{gap:9px}.twoCol>.card{padding:15px 13px}
+  .brandTitle{font-size:22px}.headerMode{font-size:9px}.tabs button{font-size:10px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
 </style>
 </head>
 <body>
 <main>
-<header class="row"><div><div class="eyebrow">STANKIN · EUROPE/MOSCOW</div><h1>Russian Daily 🇷🇺</h1></div><span class="pill">CANDIDATE 0.3</span></header>
+<header class="appHeader"><div class="brandMark" aria-hidden="true">Я</div><div><div class="eyebrow">STANKIN · МОСКВА</div><div class="brandTitle">Russian Daily</div><div class="brandTag">Học tiếng Nga mỗi ngày</div></div><span class="headerMode">USER TEST</span></header>
 <section id="home">
-<div class="card hero"><div class="row"><small>Buổi học tiếp theo</small><span class="pill">Giờ Moscow</span></div><h2 id="nextLesson" style="margin:15px 0 7px">Đang tải lịch</h2><div id="nextPlace" class="muted"></div></div>
-<div class="twoCol"><div class="card"><h2>Lịch của tôi</h2><div id="todaySummary"></div></div><div class="card"><h2>5 từ mỗi ngày</h2><div class="ru" id="dailyWord">Расписание</div><div class="muted">Chạm mục Từ vựng để nghe phát âm</div></div></div>
-<div class="card" id="nextActionCard"><div class="row"><h2>Next Action</h2><span class="status">USER TEST · chưa phát hành</span></div><p id="actionLabel"></p><div id="actionHelp" class="notice guide">Ứng dụng không tự sửa Google/Apple Calendar hay vượt qua cổng phê duyệt.</div><p class="tiny muted">Nút hỗ trợ luôn ở phía dưới, kể cả khi chuyển tab. Thao tác này chỉ dẫn đến công việc thực tế, không cấp quyền phát hành.</p></div>
+<div class="card hero"><div class="row"><span class="upcoming">Buổi học tiếp theo</span><span class="pill">MSK · UTC+3</span></div><h2 id="nextLesson" style="margin:15px 0 7px">Đang tải lịch</h2><div id="nextPlace" class="muted"></div></div>
+<div class="twoCol"><div class="card"><h2>▦ &nbsp;Lịch hôm nay</h2><div id="todaySummary"></div></div><div class="card"><h2>✧ &nbsp;Từ vựng hôm nay</h2><div class="ru" id="dailyWord">Расписание</div><div class="muted">Nghe · Nói · Ghi nhớ</div></div></div>
+<div class="card" id="nextActionCard"><div class="row"><h2>Hướng dẫn thông minh</h2><span class="status">NEXT ACTION</span></div><p id="actionLabel"></p><div id="actionHelp" class="notice guide">Ứng dụng không tự sửa Google/Apple Calendar hay vượt qua cổng phê duyệt.</div><p class="tiny muted">Hướng dẫn các bước tiếp theo mà không thay đổi Calendar hay cấp quyền phát hành.</p></div>
 </section>
 <section id="schedule" class="hide"><div class="card"><div class="row"><h2>Lịch học</h2><button id="addEvent" class="btn alt" type="button">+ Thêm</button></div><p class="tiny muted">Dữ liệu cá nhân lưu trên iPhone này; không sửa lịch trên Google/Apple cho tới khi bạn tự nhập tệp .ics.</p><div id="scheduleGuide" class="notice guide hide" aria-live="polite">Bước 1: Kiểm tra ngày, giờ, phòng. Bước 2: Chỉ xuất .ics khi chưa có các buổi này trong Apple/Google Calendar. Bước 3: Mở tệp .ics để nhập thủ công. Giới hạn: chưa có đồng bộ hai chiều hoặc WidgetKit.</div><div id="eventList"></div><div class="notice warning"><b>Tránh trùng lịch Google:</b> 7 buổi STANKIN gốc đã từng được tạo trong Google Calendar. Mặc định chỉ xuất những buổi thêm mới.<label><input id="includeSeed" type="checkbox"> Xuất lại lịch STANKIN gốc (chỉ bật sau khi kiểm tra Google Calendar)</label></div><div style="height:12px"></div><div class="actions"><button id="exportIcs" class="btn" type="button">Xuất lịch .ics</button><button id="backup" class="btn alt" type="button">Sao lưu JSON</button></div><p id="exportStatus" class="tiny muted" role="status" aria-live="polite">Lịch .ics không đồng bộ hai chiều. Nếu thay đổi một buổi đã có trong Google Calendar, hãy sửa sự kiện gốc trên Google.</p></div>
 <div class="card hide" id="eventEditor"><h2 id="editorTitle">Thêm buổi học</h2><label for="eventName">Tên</label><input id="eventName" value="Tiếng Nga" maxlength="90"><div class="two"><div><label for="eventDate">Ngày</label><input id="eventDate" type="date"></div><div><label for="eventRoom">Phòng</label><input id="eventRoom" maxlength="70" placeholder="0204"></div><div><label for="eventStart">Bắt đầu</label><input id="eventStart" type="time" value="10:15"></div><div><label for="eventEnd">Kết thúc</label><input id="eventEnd" type="time" value="11:50"></div></div><p id="editorError" class="danger" role="alert"></p><div class="actions"><button class="btn" type="button" id="saveEvent">Lưu trên thiết bị</button><button class="btn alt" type="button" id="cancelEvent">Hủy</button></div></div>
@@ -27,21 +150,21 @@
 </section>
 <section id="vocab" class="hide"><div class="card"><div class="row"><h2>Từ vựng hôm nay</h2><span class="pill" id="counter">0/5</span></div><p class="muted tiny">Russian-first · bộ 12 từ minh họa, không phải giáo trình RU03 đã duyệt.</p><div class="ru" id="word"></div><p id="exampleRu" lang="ru"></p><p id="translation" class="hide"></p><div class="actions"><button id="speak" class="btn alt" type="button">🔊 Nghe</button><button id="meaning" class="btn alt" type="button">Hiện nghĩa</button><button id="markWord" class="btn" type="button">Đã ôn</button></div><p id="wordStatus" class="muted tiny"></p></div></section>
 <section id="lock" class="hide"><div class="card"><h2>Màn hình khóa — bản xem trước</h2><div class="preview"><span>Russian Daily · Москва</span><div style="margin-top:28px"><strong>21:00</strong></div><div class="notification"><b>Слово дня</b><p id="lockWord" lang="ru">Расписание</p><small>5 từ/ngày · chạm để ôn</small></div></div><p class="notice warning">Đây chỉ là mô phỏng giao diện. WidgetKit trên màn hình khóa thật cần app native iOS và kiểm thử trên thiết bị. Web app không thể bảo đảm rung khi đóng.</p></div></section>
-<section id="settings" class="hide"><div class="card"><h2>Cài đặt đơn giản</h2><div class="stack"><label><input id="remindNight" type="checkbox"> 21:00 tối trước ngày học (mỗi ngày 1 lần)</label><label><input id="remind60" type="checkbox"> Trước mỗi tiết 60 phút</label><label><input id="remind15" type="checkbox"> Trước mỗi tiết 15 phút</label><label><input id="notificationWords" type="checkbox"> Đề xuất nhắc ôn từ vựng (chưa có push)</label></div><label for="targetWords">Số từ/ngày</label><select id="targetWords"><option value="5">5</option><option value="8">8</option><option value="12">12</option></select><button id="savePrefs" class="btn" type="button" style="margin-top:14px">Lưu cài đặt</button><p id="savedPrefs" class="tiny muted"></p></div><div class="card"><h2>Trạng thái kết nối</h2><p><b>Google Calendar:</b> <span class="danger">Chưa kết nối API</span></p><p><b>Apple Calendar:</b> Nhập tệp .ics hoặc đồng bộ tài khoản Google trên iPhone.</p><p><b>WidgetKit:</b> Chưa có bản native đã kiểm chứng.</p><p><b>RU03 / P0:</b> BLOCKED · Không cấp PASS hoặc Production.</p><hr><p class="tiny muted">Dữ liệu lưu cục bộ trên trình duyệt. Không dùng làm nguồn dữ liệu học thuật chính thức.</p><label for="restoreJson">Khôi phục JSON</label><input id="restoreJson" type="file" accept=".json,application/json"></div></section>
+<section id="settings" class="hide"><div class="card"><h2>Cài đặt đơn giản</h2><div class="stack"><label><input id="remindNight" type="checkbox"> 21:00 tối trước ngày học (mỗi ngày 1 lần)</label><label><input id="remind60" type="checkbox"> Trước mỗi tiết 60 phút</label><label><input id="remind15" type="checkbox"> Trước mỗi tiết 15 phút</label><label><input id="notificationWords" type="checkbox"> Đề xuất nhắc ôn từ vựng (chưa có push)</label></div><label for="visualTheme">Giao diện</label><select id="visualTheme"><option value="midnight">🌙 Moscow Midnight</option><option value="snow">☀️ Polar Day</option></select><label for="targetWords">Số từ/ngày</label><select id="targetWords"><option value="5">5</option><option value="8">8</option><option value="12">12</option></select><button id="savePrefs" class="btn" type="button" style="margin-top:14px">Lưu cài đặt</button><p id="savedPrefs" class="tiny muted"></p></div><div class="card"><h2>Trạng thái kết nối</h2><p><b>Google Calendar:</b> <span class="danger">Chưa kết nối API</span></p><p><b>Apple Calendar:</b> Nhập tệp .ics hoặc đồng bộ tài khoản Google trên iPhone.</p><p><b>WidgetKit:</b> Chưa có bản native đã kiểm chứng.</p><p><b>RU03 / P0:</b> BLOCKED · Không cấp PASS hoặc Production.</p><hr><p class="tiny muted">Dữ liệu lưu cục bộ trên trình duyệt. Không dùng làm nguồn dữ liệu học thuật chính thức.</p><label for="restoreJson">Khôi phục JSON</label><input id="restoreJson" type="file" accept=".json,application/json"></div></section>
 </main>
-<nav class="tabs" aria-label="Điều hướng"><button data-tab="home" aria-current="page">⌂<br>Hôm nay</button><button data-tab="schedule">▦<br>Lịch học</button><button data-tab="vocab">▤<br>Từ vựng</button><button data-tab="lock">▣<br>Màn hình khóa</button><button data-tab="settings">⚙<br>Cài đặt</button></nav><div class="nextDock"><button id="primaryAction" class="btn" type="button">HƯỚNG DẪN / NEXT ACTION →</button></div>
+<nav class="tabs" aria-label="Điều hướng"><button data-tab="home" aria-current="page"><svg class="tabIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10H3z"/><path d="M9 20v-7h6v7"/></svg>Hôm nay</button><button data-tab="schedule"><svg class="tabIcon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18M8 15h3"/></svg>Lịch học</button><button data-tab="vocab"><svg class="tabIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6c-3-2-6-2-9-1v15c3-1 6-1 9 1 3-2 6-2 9-1V5c-3-1-6-1-9 1zM12 6v15M6 10h3M15 10h3"/></svg>Từ vựng</button><button data-tab="lock"><svg class="tabIcon" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M10 5h4M11 18h2M9 13c0-2 6-2 6 0"/></svg>Màn hình khóa</button><button data-tab="settings"><svg class="tabIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="9" cy="7" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="11" cy="17" r="2"/></svg>Cài đặt</button></nav><div class="nextDock"><button id="primaryAction" class="btn" type="button">HƯỚNG DẪN / NEXT ACTION →</button></div>
 <script>
 (function(){
 "use strict";
 const $=id=>document.getElementById(id);
 const seed=[["2026-11-02","","","Nhận giáo trình và tìm phòng học","STANKIN"],["2026-11-03","10:15","11:50","Tiếng Nga","0204"],["2026-11-03","12:20","17:25","Tiếng Nga","312"],["2026-11-05","10:15","11:50","Tiếng Nga","0301"],["2026-11-05","12:20","13:55","Tiếng Nga","0202"],["2026-11-05","14:05","15:40","Tiếng Nga","0303"],["2026-11-06","15:50","19:30","Tiếng Nga","0301"]].map((e,i)=>({id:"stankin-202611-"+i,date:e[0],start:e[1],end:e[2],title:e[3],room:e[4]}));
 const words=[["расписание","У меня есть расписание.","thời khóa biểu"],["аудитория","Где аудитория?","phòng học"],["учебник","Это мой учебник.","giáo trình"],["тетрадь","Где моя тетрадь?","vở ghi"],["преподаватель","Преподаватель здесь.","giảng viên"],["занятие","Сегодня занятие.","buổi học"],["перерыв","Сейчас перерыв.","giờ nghỉ"],["сегодня","Сегодня понедельник.","hôm nay"],["завтра","Завтра занятия.","ngày mai"],["время","Сколько времени?","thời gian"],["вопрос","У меня вопрос.","câu hỏi"],["университет","Это университет.","đại học"]];
-const defaults={night:true,min60:true,min15:true,wordsNotifications:true,daily:5};
+const defaults={night:true,min60:true,min15:true,wordsNotifications:true,daily:5,visualTheme:"midnight"};
 const fromStore=(key,fallback)=>{try{const raw=localStorage.getItem(key);return raw===null?fallback:JSON.parse(raw)}catch{return fallback}};
 let events=fromStore("russian-daily-03-events",seed);
 if(!Array.isArray(events))events=seed;
 let prefs={...defaults,...fromStore("russian-daily-03-prefs",defaults)},progress=fromStore("russian-daily-03-progress",{day:"",count:0,offset:0}),editing=null,drafts=[];
-function save(){try{localStorage.setItem("russian-daily-03-events",JSON.stringify(events));localStorage.setItem("russian-daily-03-prefs",JSON.stringify(prefs));localStorage.setItem("russian-daily-03-progress",JSON.stringify(progress))}catch{$("savedPrefs").textContent="Bộ nhớ bị chặn, hãy sao lưu trước khi thoát."}}
+function save(){try{localStorage.setItem("russian-daily-03-events",JSON.stringify(events));localStorage.setItem("russian-daily-03-prefs",JSON.stringify(prefs));localStorage.setItem("russian-daily-03-progress",JSON.stringify(progress));return true}catch{$("savedPrefs").textContent="Không lưu được trên thiết bị. Hãy kiểm tra bộ nhớ Safari và sao lưu JSON trước khi thoát.";return false}}
 function esc(value){return String(value||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function validDate(s){if(!/^\d{4}-\d{2}-\d{2}$/.test(s))return false;const d=new Date(s+"T12:00:00Z");return !isNaN(d.valueOf())&&d.toISOString().slice(0,10)===s}
 function validTime(s){return /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(s)}
@@ -50,7 +173,7 @@ function moscowDay(){return moscowClock().slice(0,10)}
 function sorted(){return [...events].sort((a,b)=>(a.date+(a.start||"")).localeCompare(b.date+(b.start||"")))}
 function tab(name){for(const section of ["home","schedule","vocab","lock","settings"])$(section).classList.toggle("hide",section!==name);document.querySelectorAll("[data-tab]").forEach(b=>b.setAttribute("aria-current",b.dataset.tab===name?"page":"false"));render()}
 document.querySelectorAll("[data-tab]").forEach(b=>b.addEventListener("click",()=>tab(b.dataset.tab)));
-function render(){const today=moscowDay(),now=moscowClock(),ordered=sorted(),future=ordered.find(e=>e.date+"T"+(e.start||"00:00")>=now);$("nextLesson").textContent=future?future.date+" · "+(future.start||"Cả ngày"):"Chưa có lịch sắp tới";$("nextPlace").textContent=future?future.title+" · "+future.room:"Hãy thêm buổi học mới";$("todaySummary").textContent=ordered.filter(e=>e.date===today).map(e=>(e.start||"Cả ngày")+" · "+e.title).join(" / ")||"Không có lịch học";const w=words[((progress.offset||0)%words.length+words.length)%words.length];$("dailyWord").textContent=w[0];$("word").textContent=w[0];$("exampleRu").textContent=w[1];$("translation").textContent=w[2];$("translation").classList.add("hide");$("lockWord").textContent=w[0];$("counter").textContent=progress.day===today?Math.min(progress.count,prefs.daily)+"/"+prefs.daily:"0/"+prefs.daily;$("wordStatus").textContent="5 từ/ngày mặc định · giọng nói theo khả năng iPhone";$("eventList").innerHTML=ordered.map(e=>'<div class="item row"><div><div class="event-time">'+esc(e.date)+' · '+esc(e.start||"Cả ngày")+(e.end?"–"+esc(e.end):"")+'</div><b>'+esc(e.title)+'</b><div class="tiny muted">'+esc(e.room)+'</div></div><div class="actions"><button class="btn alt" type="button" data-edit="'+esc(e.id)+'">Sửa</button><button class="btn warn" type="button" data-remove="'+esc(e.id)+'">Xóa</button></div></div>').join("")||"Chưa có sự kiện";$("remindNight").checked=prefs.night;$("remind60").checked=prefs.min60;$("remind15").checked=prefs.min15;$("notificationWords").checked=prefs.wordsNotifications;$("targetWords").value=String(prefs.daily);}
+function render(){const today=moscowDay(),now=moscowClock(),ordered=sorted(),future=ordered.find(e=>e.date+"T"+(e.start||"00:00")>=now);$("nextLesson").textContent=future?future.date+" · "+(future.start||"Cả ngày"):"Chưa có lịch sắp tới";$("nextPlace").textContent=future?future.title+" · "+future.room:"Hãy thêm buổi học mới";$("todaySummary").textContent=ordered.filter(e=>e.date===today).map(e=>(e.start||"Cả ngày")+" · "+e.title).join(" / ")||"Không có lịch học";const w=words[((progress.offset||0)%words.length+words.length)%words.length];$("dailyWord").textContent=w[0];$("word").textContent=w[0];$("exampleRu").textContent=w[1];$("translation").textContent=w[2];$("translation").classList.add("hide");$("lockWord").textContent=w[0];$("counter").textContent=progress.day===today?Math.min(progress.count,prefs.daily)+"/"+prefs.daily:"0/"+prefs.daily;$("wordStatus").textContent="5 từ/ngày mặc định · giọng nói theo khả năng iPhone";$("eventList").innerHTML=ordered.map(e=>'<div class="item row"><div><div class="event-time">'+esc(e.date)+' · '+esc(e.start||"Cả ngày")+(e.end?"–"+esc(e.end):"")+'</div><b>'+esc(e.title)+'</b><div class="tiny muted">'+esc(e.room)+'</div></div><div class="actions"><button class="btn alt" type="button" data-edit="'+esc(e.id)+'">Sửa</button><button class="btn warn" type="button" data-remove="'+esc(e.id)+'">Xóa</button></div></div>').join("")||"Chưa có sự kiện";$("remindNight").checked=prefs.night;$("remind60").checked=prefs.min60;$("remind15").checked=prefs.min15;$("notificationWords").checked=prefs.wordsNotifications;$("targetWords").value=String(prefs.daily);$("visualTheme").value=prefs.visualTheme==="snow"?"snow":"midnight";}
 $("eventList").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;if(b.dataset.edit)openEditor(b.dataset.edit);if(b.dataset.remove){if(!confirm("Chỉ xóa khỏi Russian Daily? Không xóa lịch Google/Apple."))return;events=events.filter(x=>x.id!==b.dataset.remove);save();render()}});
 function openEditor(id){editing=id||null;const e=events.find(x=>x.id===id)||{title:"Tiếng Nga",date:moscowDay(),room:"",start:"10:15",end:"11:50"};for(const [key,field] of [["title","eventName"],["date","eventDate"],["room","eventRoom"],["start","eventStart"],["end","eventEnd"]])$(field).value=e[key]||"";$("editorTitle").textContent=editing?"Sửa buổi học":"Thêm buổi học";$("editorError").textContent="";$("eventEditor").classList.remove("hide");$("eventEditor").scrollIntoView({behavior:"smooth",block:"start"})}
 $("addEvent").onclick=()=>openEditor(null);$("cancelEvent").onclick=()=>$("eventEditor").classList.add("hide");
@@ -58,21 +181,23 @@ $("saveEvent").onclick=()=>{const e={id:editing||"rd-"+Date.now().toString(36),t
 $("markWord").onclick=()=>{const day=moscowDay();if(progress.day!==day){progress.day=day;progress.count=0}if(progress.count<prefs.daily){progress.count++;progress.offset=(Number(progress.offset)||0)+1}save();render()};
 $("meaning").onclick=()=>$("translation").classList.toggle("hide");
 $("speak").onclick=()=>{if(!("speechSynthesis" in window)){$("wordStatus").textContent="Thiết bị chưa hỗ trợ đọc giọng Nga.";return}const u=new SpeechSynthesisUtterance(words[((progress.offset||0)%words.length+words.length)%words.length][0]);u.lang="ru-RU";u.rate=.83;speechSynthesis.cancel();speechSynthesis.speak(u)};
-$("savePrefs").onclick=()=>{prefs={night:$("remindNight").checked,min60:$("remind60").checked,min15:$("remind15").checked,wordsNotifications:$("notificationWords").checked,daily:Number($("targetWords").value)};save();$("savedPrefs").textContent="Đã lưu trên thiết bị. Các thay đổi nhắc lịch chỉ áp dụng khi xuất .ics lần tới."};
+function applyTheme(theme){const selected=theme==="snow"?"snow":"midnight";if(document.documentElement)document.documentElement.dataset.theme=selected;$("themeColor").setAttribute("content",selected==="snow"?"#eff4fb":"#081322")}
+$("savePrefs").onclick=()=>{prefs={night:$("remindNight").checked,min60:$("remind60").checked,min15:$("remind15").checked,wordsNotifications:$("notificationWords").checked,daily:Number($("targetWords").value),visualTheme:$("visualTheme").value};applyTheme(prefs.visualTheme);const saved=save();$("savedPrefs").textContent=saved?"Đã lưu trên thiết bị. Các thay đổi nhắc lịch chỉ áp dụng khi xuất .ics lần tới.":"Không lưu được trên thiết bị. Hãy sao lưu JSON trước khi thoát."};
 function download(name,text,mime){const url=URL.createObjectURL(new Blob([text],{type:mime}));const a=document.createElement("a");a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 function icsEscape(s){return String(s||"").replace(/\\/g,"\\\\").replace(/\r?\n/g,"\\n").replace(/,/g,"\\,").replace(/;/g,"\\;")}
 function fmtDay(s){return s.replace(/-/g,"")}function fmtTime(s){return s.replace(":","")+"00"}function prevDay(s){let d=new Date(s+"T12:00:00Z");d.setUTCDate(d.getUTCDate()-1);return d.toISOString().slice(0,10)}function nextDay(s){let d=new Date(s+"T12:00:00Z");d.setUTCDate(d.getUTCDate()+1);return d.toISOString().slice(0,10)}
 function vevent(e){const out=["BEGIN:VEVENT","UID:"+e.id+"@russian-daily.local","DTSTAMP:20261101T000000Z","SUMMARY:"+icsEscape(e.title),"LOCATION:"+icsEscape(e.room||"STANKIN")];if(e.start&&e.end){out.push("DTSTART;TZID=Europe/Moscow:"+fmtDay(e.date)+"T"+fmtTime(e.start),"DTEND;TZID=Europe/Moscow:"+fmtDay(e.date)+"T"+fmtTime(e.end));for(const min of [prefs.min60?60:null,prefs.min15?15:null].filter(Boolean))out.push("BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:"+icsEscape(e.title),"TRIGGER:-PT"+min+"M","END:VALARM")}else out.push("DTSTART;VALUE=DATE:"+fmtDay(e.date),"DTEND;VALUE=DATE:"+fmtDay(nextDay(e.date)));out.push("END:VEVENT");return out}
 function exportIcs(){const selected=sorted().filter(e=>$("includeSeed").checked||!e.id.startsWith("stankin-202611-"));if(!selected.length){$("exportStatus").textContent="Chưa có buổi mới cần xuất. 7 sự kiện STANKIN gốc được loại khỏi tệp để tránh trùng.";return}const out=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Russian Daily//Candidate 0.3//VI","CALSCALE:GREGORIAN","X-WR-CALNAME:Russian Daily","BEGIN:VTIMEZONE","TZID:Europe/Moscow","BEGIN:STANDARD","DTSTART:19700101T000000","TZOFFSETFROM:+0300","TZOFFSETTO:+0300","TZNAME:MSK","END:STANDARD","END:VTIMEZONE"];selected.forEach(e=>out.push(...vevent(e)));if(prefs.night){const dates=[...new Set(selected.map(e=>e.date))];dates.forEach(date=>{const datePrev=prevDay(date);out.push("BEGIN:VEVENT","UID:night-"+date+"@russian-daily.local","DTSTAMP:20261101T000000Z","SUMMARY:"+icsEscape("Chuẩn bị lịch STANKIN ngày "+date),"DTSTART;TZID=Europe/Moscow:"+fmtDay(datePrev)+"T210000","DTEND;TZID=Europe/Moscow:"+fmtDay(datePrev)+"T210500","BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:Kiểm tra giờ và phòng học ngày mai","TRIGGER:PT0M","END:VALARM","END:VEVENT")})}out.push("END:VCALENDAR");download("russian-daily-stankin.ics",out.join("\r\n")+"\r\n","text/calendar;charset=utf-8");$("exportStatus").textContent="Đã xuất "+selected.length+" sự kiện mới; kiểm tra lại Calendar trước khi nhập."}
 $("exportIcs").onclick=exportIcs;$("backup").onclick=()=>download("russian-daily-backup.json",JSON.stringify({version:3,events,prefs,progress},null,2),"application/json");
-$("restoreJson").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const obj=JSON.parse(await f.text());if(!Array.isArray(obj.events)||obj.events.length>500||!obj.events.every(x=>x&&typeof x.id==="string"&&/^[a-zA-Z0-9_-]{1,100}$/.test(x.id)&&typeof x.title==="string"&&x.title.length>0&&x.title.length<=90&&validDate(x.date)&&typeof x.room==="string"&&x.room.length<=70&&(x.start===""&&x.end===""||validTime(x.start)&&validTime(x.end)&&x.end>x.start))||new Set(obj.events.map(x=>x.id)).size!==obj.events.length)throw Error("Dữ liệu không hợp lệ");if(!confirm("Khôi phục sẽ thay lịch trên thiết bị này, không thay Google/Apple. Tiếp tục?"))return;events=obj.events;prefs={...defaults,...obj.prefs};progress=obj.progress||{day:"",count:0};save();render();$("savedPrefs").textContent="Đã khôi phục."}catch{$("savedPrefs").textContent="Tệp JSON không hợp lệ."}};
+$("restoreJson").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const obj=JSON.parse(await f.text());if(!Array.isArray(obj.events)||obj.events.length>500||!obj.events.every(x=>x&&typeof x.id==="string"&&/^[a-zA-Z0-9_-]{1,100}$/.test(x.id)&&typeof x.title==="string"&&x.title.length>0&&x.title.length<=90&&validDate(x.date)&&typeof x.room==="string"&&x.room.length<=70&&(x.start===""&&x.end===""||validTime(x.start)&&validTime(x.end)&&x.end>x.start))||new Set(obj.events.map(x=>x.id)).size!==obj.events.length)throw Error("Dữ liệu không hợp lệ");if(!confirm("Khôi phục sẽ thay lịch trên thiết bị này, không thay Google/Apple. Tiếp tục?"))return;events=obj.events;prefs={...defaults,...obj.prefs};progress=obj.progress||{day:"",count:0};applyTheme(prefs.visualTheme);const saved=save();render();$("savedPrefs").textContent=saved?"Đã khôi phục.":"Đã đọc bản sao lưu nhưng không lưu được trên thiết bị. Hãy kiểm tra bộ nhớ Safari."}catch{$("savedPrefs").textContent="Tệp JSON không hợp lệ."}};
 $("telegramPhoto").onchange=e=>{const file=e.target.files[0];if(!file||!file.type.startsWith("image/"))return;const url=URL.createObjectURL(file),img=$("imagePreview");img.onload=()=>URL.revokeObjectURL(url);img.src=url;img.classList.remove("hide")};
 $("parseTelegram").onclick=()=>{drafts=[];const lines=$("telegramText").value.split(/\n/);for(const line of lines){const m=line.match(/(\d{1,2})[./-](\d{1,2})(?:[./-](\d{4}))?.*?(\d{1,2}:\d{2})\s*[-–—]\s*(\d{1,2}:\d{2}).*?(?:phòng|room|ауд\.?|каб\.?)\s*([0-9a-zа-я-]+)/i);if(!m)continue;const pad=n=>String(n).padStart(2,"0"),date=(m[3]||moscowDay().slice(0,4))+"-"+pad(m[2])+"-"+pad(m[1]);const item={id:"rd-import-"+date+"-"+m[4].replace(":","")+"-"+m[6],date,title:"Tiếng Nga (Telegram)",start:pad(m[4].split(":")[0])+":"+m[4].split(":")[1],end:pad(m[5].split(":")[0])+":"+m[5].split(":")[1],room:m[6]};if(validDate(date)&&validTime(item.start)&&validTime(item.end)&&item.end>item.start)drafts.push(item)}$("draftBox").classList.toggle("hide",!drafts.length);$("draftList").innerHTML=drafts.map(e=>'<p>'+esc(e.date+" "+e.start+"–"+e.end+" phòng "+e.room)+(events.some(x=>x.date===e.date&&x.start===e.start&&x.room===e.room)?" · Đã có":"")+'</p>').join("");$("importStatus").textContent=drafts.length?"Đã phát hiện "+drafts.length+" buổi. Kiểm tra lại từng dòng trước khi xác nhận.":"Chưa nhận được dòng hợp lệ; nếu là ảnh, nhập nội dung thủ công theo mẫu."};
 $("confirmDraft").onclick=()=>{const newItems=drafts.filter(e=>!events.some(x=>x.date===e.date&&x.start===e.start&&x.room===e.room));if(!newItems.length){$("importStatus").textContent="Không có buổi mới để thêm.";return}if(!confirm("Thêm "+newItems.length+" buổi vào dữ liệu cục bộ?"))return;events=events.concat(newItems);drafts=[];$("draftBox").classList.add("hide");save();render();$("importStatus").textContent="Đã thêm "+newItems.length+" buổi; chưa đồng bộ lên Calendar."};
 $("primaryAction").onclick=()=>{$("scheduleGuide").classList.remove("hide");tab("schedule");$("scheduleGuide").scrollIntoView({behavior:"smooth",block:"start"});$("importStatus").textContent="NEXT ACTION: xác minh lịch trước khi xuất. Google/Apple chưa đồng bộ tự động."};
-$("actionLabel").textContent="Xác minh giờ/phòng học và chuẩn bị nhập Calendar. Không giả trạng thái đã đồng bộ.";
+$("actionLabel").textContent="Kiểm tra buổi học, luyện từ vựng và xuất lịch khi cần.";
 $("actionHelp").textContent="Nút đưa bạn tới lịch học có thể chỉnh sửa, nhập Telegram và xuất .ics. Nếu cần liên kết Google/Apple tự động: hiện BLOCKED vì chưa có OAuth/EventKit và kiểm thử.";
 if("serviceWorker" in navigator&&location.protocol==="https:")navigator.serviceWorker.register("./sw.js",{scope:"./"}).catch(()=>{});
+applyTheme(prefs.visualTheme);
 render();
 })();
 </script>
