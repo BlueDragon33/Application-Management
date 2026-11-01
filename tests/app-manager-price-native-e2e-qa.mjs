@@ -91,8 +91,12 @@ function preflight(){
   version(PRICE_DEPS,"@cloudflare/workerd-windows-64","1.20261012.1");
   assert.ok(existsSync(VERIFIED_WORKERD)&&existsSync(VITE)&&existsSync(PRICE_WRANGLER),
     "BLOCKED_OFFLINE_BINARIES_MISSING");
-  const v=exec(VERIFIED_WORKERD,["--version"],CONTROL);
-  assert.ok(v.includes("2026-10-12"),"BLOCKED_WORKERD_UNSUPPORTED_DATE");
+  const workerBinary=spawnSync(VERIFIED_WORKERD,["--version"],{
+    cwd:CONTROL,env,encoding:"utf8",windowsHide:true,timeout:12000
+  });
+  assert.equal(workerBinary.status,0,"BLOCKED_WORKERD_BINARY_EXIT");
+  assert.ok((String(workerBinary.stdout||"")+"\n"+String(workerBinary.stderr||""))
+    .includes("2026-10-12"),"BLOCKED_WORKERD_UNSUPPORTED_DATE");
   const sqlite=new DatabaseSync(":memory:");
   try{assert.equal(sqlite.prepare("SELECT 1 AS x").get().x,1)}
   finally{sqlite.close()}
@@ -144,12 +148,12 @@ async function stop(child,p,label){
 function workerError(child){
   return "EXIT="+child.exitCode+" "+redact(logs.get(child)?.text);
 }
-async function waitReady(child,url,verify,label){
+async function waitReady(child,url,verify,label,headers={}){
   for(let i=0;i<115;i++){
     if(child.exitCode!==null||child.signalCode!==null)
       throw Error("BLOCKED_"+label+"_WORKER_EXIT: "+workerError(child));
     try{
-      const r=await fetch(url,{signal:AbortSignal.timeout(1100)});
+      const r=await fetch(url,{headers,signal:AbortSignal.timeout(1100)});
       const data=await r.json().catch(()=>({}));
       if(r.ok&&verify(data))return;
     }catch{}
@@ -311,7 +315,7 @@ async function main(){
       "--port",String(appPort),"--strictPort"],APP,
       {MINIFLARE_WORKERD_PATH:VERIFIED_WORKERD});
     await waitReady(app,appOrigin+"/__deployment",d=>d.databaseReady===true,
-      "APP");
+      "APP",{authorization:"Bearer "+appSecret});
     const key=await webcrypto.subtle.generateKey({name:"ECDSA",namedCurve:"P-256"},
       true,["sign","verify"]);
     const deviceId=await register(appOrigin,appSecret,key);
@@ -364,9 +368,16 @@ async function main(){
     const commands=inspect(PRICE_STATE,"kt_automation_commands",
       "SELECT command_id,state,actor FROM kt_automation_commands");
     assert.equal(commands.length,1,"BLOCKED_PRICE_COMMAND_COUNT_NOT_ONE");
-    assert.equal(commands[0].state,"applied","BLOCKED_PRICE_COMMAND_NOT_APPLIED");
+    assert.equal(commands[0].state,"completed","BLOCKED_PRICE_COMMAND_NOT_COMPLETED");
     assert.equal(commands[0].actor,OWNER,"BLOCKED_PRICE_ACTOR_NOT_OWNER");
     const cmdId=commands[0].command_id;
+    const appLedger=inspect(APP_STATE,"automation_policy_changes",
+      "SELECT change_id,app_id,state,requested_by FROM automation_policy_changes");
+    assert.equal(appLedger.length,1,"BLOCKED_APP_CHANGE_LEDGER_COUNT");
+    assert.equal(appLedger[0].change_id,cmdId,"BLOCKED_NOT_THE_APP_MANAGER_COMMAND");
+    assert.equal(appLedger[0].app_id,APP_ID,"BLOCKED_LEDGER_TARGET_MISMATCH");
+    assert.equal(appLedger[0].requested_by,OWNER,"BLOCKED_LEDGER_OWNER_MISMATCH");
+    assert.equal(appLedger[0].state,"applied","BLOCKED_APP_LEDGER_UNRESOLVED");
     const sqlPolicy=inspect(PRICE_STATE,"kt_automation_policy",
       "SELECT auto_approve_devices,auto_block_pending_devices,pending_block_after_hours,revision FROM kt_automation_policy WHERE id=1");
     assert.equal(sqlPolicy.length,1,"BLOCKED_PRICE_PHYSICAL_POLICY_MISSING");
@@ -382,7 +393,7 @@ async function main(){
       "--port",String(appPort),"--strictPort"],APP,
       {MINIFLARE_WORKERD_PATH:VERIFIED_WORKERD});
     await waitReady(app,appOrigin+"/__deployment",d=>d.databaseReady===true,
-      "APP_REOPEN");
+      "APP_REOPEN",{authorization:"Bearer "+appSecret});
     const reopened=await owned(appOrigin,appSecret,deviceId,key,
       "/api/managed-apps","probe",{id:APP_ID});
     assert.equal(reopened.status,200,"BLOCKED_APP_REOPEN_PROBE");
