@@ -191,28 +191,62 @@ function physicalDatabases(dir){
   assert.ok(files.length>0&&files.length<=80,"BLOCKED_PHYSICAL_SQLITE_FILE_CENSUS");
   return files;
 }
-function inspect(dir,table,query,args=[]){
+// The previous retained receipt proves both D1/WAL files are readable later,
+// but physical readback immediately after forced Windows shutdown saw IOERR.
+// Bounded retries observe only transient SQLite IOERR/BUSY on read-only files;
+// permanent errors and missing tables stay BLOCKED. No SQL mutation occurs.
+const transientReadEvents=[];
+function isTransientSqliteReadFailure(error){
+  const code=String(error?.code||"");
+  const message=String(error?.message||"");
+  return /^SQLITE_(?:IOERR|BUSY|LOCKED)(?:_|$)/.test(code)
+    || (/disk I[/]O error|database is locked|database is busy/i.test(message)
+      && (!code||/^SQLITE_(?:IOERR|BUSY|LOCKED)/.test(code)));
+}
+async function inspect(dir,table,query,args=[]){
+  const area=dir===APP_STATE?"APP_D1":"PRICE_D1";
   const matches=[];
   for(const file of physicalDatabases(dir)){
-    let db,step="OPEN_READONLY";
-    try {
-      db=new DatabaseSync(file,{readOnly:true});
-      step="CHECK_SQLITE_MASTER";
-      if(!db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(table))continue;
-      step="READ_"+table;
-      matches.push(db.prepare(query).all(...args));
-    }catch(e){
-      const rel=relative(dir,file);
-      console.error("E2E_SQLITE_INSPECT_FAILED: "+JSON.stringify({
-        area:dir===APP_STATE?"APP_D1":"PRICE_D1",
-        table,step,file:rel,code:String(e?.code||"UNKNOWN").slice(0,100),
-        message:String(e?.message||e).slice(0,180)
+    let result=null;
+    for(let attempt=1;attempt<=7;attempt++){
+      let db,step="OPEN_READONLY",error=null,observed=null;
+      try{
+        db=new DatabaseSync(file,{readOnly:true});
+        step="CHECK_SQLITE_MASTER";
+        const exists=db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(table);
+        if(exists){
+          step="READ_"+table;
+          observed={present:true,rows:db.prepare(query).all(...args)};
+        }else observed={present:false};
+      }catch(e){error=e}
+      finally{
+        if(db){
+          try{db.close()}
+          catch(e){if(!error)error=e}
+        }
+      }
+      if(!error){result=observed;break}
+      const code=String(error?.code||"UNKNOWN").slice(0,100);
+      const temporary=isTransientSqliteReadFailure(error);
+      console.error("E2E_SQLITE_READ_ATTEMPT: "+JSON.stringify({
+        area,table,file:relative(dir,file),step,attempt,
+        code,message:String(error?.message||error).slice(0,160),
+        transient:temporary,retryAllowed:temporary&&attempt<7
       }));
-      throw Error("BLOCKED_PHYSICAL_SQLITE_READ: "+
-        (dir===APP_STATE?"APP_D1":"PRICE_D1")+"/"+table+"/"+step);
-    }finally{db?.close()}
+      if(!temporary||attempt===7)
+        throw Error("BLOCKED_PHYSICAL_SQLITE_READ: "+area+"/"+table+"/"+step);
+      transientReadEvents.push({area,table,step,attempt,code});
+      // Measured retry: only after a real transient SQLite error, bounded.
+      // This is not evidence of global process quiescence.
+      await sleep(Math.min(100*attempt,500));
+    }
+    if(result?.present)matches.push(result.rows);
   }
   assert.equal(matches.length,1,"BLOCKED_SQLITE_TABLE_OWNER_AMBIGUOUS_"+table);
+  console.log("E2E_D1_TABLE_READBACK: "+JSON.stringify({
+    area,table,rowCount:matches[0].length,
+    transientObserved:transientReadEvents.some(e=>e.area===area&&e.table===table)
+  }));
   return matches[0];
 }
 async function api(url,secret,path,payload){
@@ -379,7 +413,7 @@ async function main(){
     // canonical D1 after stopping both Worker trees; do not forge an ID.
     await stop(app,appPort,"APP");app=null;appStopped=true;
     await stop(price,pricePort,"PRICE");price=null;priceStopped=true;
-    const catalog=inspect(APP_STATE,"managed_app_catalog",
+    const catalog=await inspect(APP_STATE,"managed_app_catalog",
       "SELECT id,category,created_by,credential_ciphertext,credential_iv FROM managed_app_catalog WHERE id=?",[APP_ID]);
     assert.equal(catalog.length,1,"BLOCKED_NATIVE_APP_D1_CATALOG_ABSENT");
     assert.equal(catalog[0].category,"Kế toán");
@@ -387,20 +421,20 @@ async function main(){
     assert.ok(catalog[0].credential_ciphertext&&catalog[0].credential_iv,
       "BLOCKED_NATIVE_APP_D1_AES_NOT_PERSISTED");
     assert.ok(!JSON.stringify(catalog).includes(controlSecret),"BLOCKED_CATALOG_PLAINTEXT_SECRET");
-    const commands=inspect(PRICE_STATE,"kt_automation_commands",
+    const commands=await inspect(PRICE_STATE,"kt_automation_commands",
       "SELECT command_id,state,actor FROM kt_automation_commands");
     assert.equal(commands.length,1,"BLOCKED_PRICE_COMMAND_COUNT_NOT_ONE");
     assert.equal(commands[0].state,"completed","BLOCKED_PRICE_COMMAND_NOT_COMPLETED");
     assert.equal(commands[0].actor,OWNER,"BLOCKED_PRICE_ACTOR_NOT_OWNER");
     const cmdId=commands[0].command_id;
-    const appLedger=inspect(APP_STATE,"automation_policy_changes",
+    const appLedger=await inspect(APP_STATE,"automation_policy_changes",
       "SELECT change_id,app_id,state,requested_by FROM automation_policy_changes");
     assert.equal(appLedger.length,1,"BLOCKED_APP_CHANGE_LEDGER_COUNT");
     assert.equal(appLedger[0].change_id,cmdId,"BLOCKED_NOT_THE_APP_MANAGER_COMMAND");
     assert.equal(appLedger[0].app_id,APP_ID,"BLOCKED_LEDGER_TARGET_MISMATCH");
     assert.equal(appLedger[0].requested_by,OWNER,"BLOCKED_LEDGER_OWNER_MISMATCH");
     assert.equal(appLedger[0].state,"applied","BLOCKED_APP_LEDGER_UNRESOLVED");
-    const sqlPolicy=inspect(PRICE_STATE,"kt_automation_policy",
+    const sqlPolicy=await inspect(PRICE_STATE,"kt_automation_policy",
       "SELECT auto_approve_devices,auto_block_pending_devices,pending_block_after_hours,revision FROM kt_automation_policy WHERE id=1");
     assert.equal(sqlPolicy.length,1,"BLOCKED_PRICE_PHYSICAL_POLICY_MISSING");
     assert.equal(sqlPolicy[0].auto_approve_devices,1);
@@ -447,7 +481,8 @@ async function main(){
       physicalD1Independent:true,dualWorkerRestartGet:true,
       qaWorkerdOverride:true,fullLockParity:false,
       productionAuth:"NOT_TESTED",twoFactor:"NOT_TESTED",
-      globalQuiescence:"BLOCKED",productionTouched:false}));
+      globalQuiescence:"BLOCKED",productionTouched:false,
+      transientSqliteReadAttempts:transientReadEvents.length}));
   }finally{
     try {if(app)await stop(app,appPort,"APP");appStopped=true}
     catch(e){console.error("BLOCKED_APP_SHUTDOWN: "+redact(e.message))}
@@ -473,7 +508,8 @@ async function main(){
     writer:"APP_MANAGER_REAL_OPERATIONS_API",independentSource:true,
     productionTouched:false,ci:"PENDING",globalD1:"10/10 BLOCKED",
     fullLockParity:false,postWorkerWranglerCliReadback:"NOT_TESTED",
-    globalProcessQuiescence:"NOT_PROVEN"}));
+    globalProcessQuiescence:"NOT_PROVEN",
+    transientSqliteReadAttempts:transientReadEvents.length}));
 }
 // Forensic-only mode for an already retained disposable QA D1. It deliberately
 // avoids app/price preflight, Worker startup, credential loading, migrations and
