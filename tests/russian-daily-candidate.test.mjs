@@ -53,7 +53,10 @@ test("candidate manifest is isolated and zero-credential", () => {
   const manifest = JSON.parse(readFileSync(resolve(root, "manifest.webmanifest"), "utf8"));
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.start_url, "./index.html");
-  assert.match(readFileSync(resolve(root, "sw.js"), "utf8"), /\/russian-daily\//);
+  const sw = readFileSync(resolve(root, "sw.js"), "utf8");
+  assert.match(sw, /\/russian-daily\//);
+  assert.match(sw, /event\.respondWith\(fetch\(event\.request\)/, "Use network-first to avoid stale iPhone preview");
+  assert.match(html, /id="includeSeed"/, "Default-off seeded export opt-in must exist");
   assert.match(html, /Chưa kết nối API/);
   assert.match(html, /chưa tự nhận dạng chữ trong ảnh/);
   assert.equal((html.match(/id="primaryAction"/g) ?? []).length, 1);
@@ -91,4 +94,14 @@ test("next action, ICS with one nightly reminder per day, manual import and five
   assert.match($("eventList").innerHTML, /0209/);
   for (let i = 0; i < 7; i++) $("markWord").onclick();
   assert.equal($("counter").textContent, "5/5");
+});
+
+
+test("rejects malformed JSON restore without replacing local lessons", async () => {
+  const { $ } = harness();
+  const before = $("eventList").innerHTML;
+  const malformed = JSON.stringify({events:[{id:"malformed\\r\\n",date:"2026-02-31",title:"Unsafe",room:"0204",start:"25:99",end:"26:00"}]});
+  await $("restoreJson").onchange({target:{files:[{text:async()=>malformed}]}});
+  assert.match($("savedPrefs").textContent, /không hợp lệ/);
+  assert.equal($("eventList").innerHTML, before);
 });
