@@ -5,9 +5,9 @@
 import assert from "node:assert/strict";
 import {spawn,spawnSync} from "node:child_process";
 import {randomBytes,randomUUID,webcrypto} from "node:crypto";
-import {existsSync,mkdirSync,writeFileSync,rmSync,readFileSync,readdirSync} from "node:fs";
+import {existsSync,mkdirSync,writeFileSync,rmSync,readFileSync,readdirSync,statSync,lstatSync} from "node:fs";
 import {DatabaseSync} from "node:sqlite";
-import {dirname,join,resolve} from "node:path";
+import {dirname,join,resolve,relative,sep} from "node:path";
 import {fileURLToPath} from "node:url";
 import {createServer,connect} from "node:net";
 import {setTimeout as sleep} from "node:timers/promises";
@@ -194,10 +194,22 @@ function physicalDatabases(dir){
 function inspect(dir,table,query,args=[]){
   const matches=[];
   for(const file of physicalDatabases(dir)){
-    let db;try{
+    let db,step="OPEN_READONLY";
+    try {
       db=new DatabaseSync(file,{readOnly:true});
+      step="CHECK_SQLITE_MASTER";
       if(!db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(table))continue;
+      step="READ_"+table;
       matches.push(db.prepare(query).all(...args));
+    }catch(e){
+      const rel=relative(dir,file);
+      console.error("E2E_SQLITE_INSPECT_FAILED: "+JSON.stringify({
+        area:dir===APP_STATE?"APP_D1":"PRICE_D1",
+        table,step,file:rel,code:String(e?.code||"UNKNOWN").slice(0,100),
+        message:String(e?.message||e).slice(0,180)
+      }));
+      throw Error("BLOCKED_PHYSICAL_SQLITE_READ: "+
+        (dir===APP_STATE?"APP_D1":"PRICE_D1")+"/"+table+"/"+step);
     }finally{db?.close()}
   }
   assert.equal(matches.length,1,"BLOCKED_SQLITE_TABLE_OWNER_AMBIGUOUS_"+table);
@@ -463,7 +475,81 @@ async function main(){
     fullLockParity:false,postWorkerWranglerCliReadback:"NOT_TESTED",
     globalProcessQuiescence:"NOT_PROVEN"}));
 }
-main().catch(e=>{
-  console.error("P0_UNIVERSAL_CONTRACT_NATIVE_E2E_NOT_PASSED: "+redact(e.message||e));
+// Forensic-only mode for an already retained disposable QA D1. It deliberately
+// avoids app/price preflight, Worker startup, credential loading, migrations and
+// database recovery. It is NOT a test retry or an E2E completion receipt.
+function inspectRetainedEvidence(){
+  const value=process.env.APP_MANAGER_E2E_RETAINED_ROOT||"";
+  assert.ok(value,"BLOCKED_RETAINED_ROOT_REQUIRED");
+  const retained=resolve(value);
+  const parent=join(APP,".wrangler");
+  const rel=relative(parent,retained);
+  assert.ok(/^p0-universal-native-e2e-[0-9a-f]{16}$/i.test(rel)&&
+    !rel.includes(sep),"BLOCKED_NOT_AN_ISOLATED_QA_RECEIPT_ROOT");
+  assert.ok(existsSync(retained)&&lstatSync(retained).isDirectory()&&
+    !lstatSync(retained).isSymbolicLink(),"BLOCKED_E2E_RECEIPT_ROOT_MISSING");
+  const report=[];
+  for(const [area,subdir,tables] of [
+    ["APP_D1","app-state",["managed_app_catalog","automation_policy_changes"]],
+    ["PRICE_D1","price-state",["kt_automation_commands","kt_automation_policy"]],
+  ]){
+    const root=join(retained,subdir);
+    const files=physicalDatabases(root);
+    for(const file of files){
+      const relpath=relative(root,file);
+      const metadata={area,file:relpath,size:statSync(file).size,
+        walExists:existsSync(file+"-wal"),
+        walBytes:existsSync(file+"-wal")?statSync(file+"-wal").size:0,
+        shmExists:existsSync(file+"-shm"),
+        shmBytes:existsSync(file+"-shm")?statSync(file+"-shm").size:0};
+      let db,step="OPEN_READONLY";
+      try{
+        db=new DatabaseSync(file,{readOnly:true});
+        step="READ_SCHEMA";
+        const known=db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all()
+          .map(x=>x.name).filter(x=>tables.includes(x));
+        metadata.tables=known;
+        for(const table of known){
+          step="COUNT_"+table;
+          metadata[table+"_count"]=Number(db.prepare("SELECT COUNT(*) AS n FROM "+table).get().n);
+        }
+        metadata.result="READONLY_OK";
+      }catch(e){
+        metadata.result="READONLY_BLOCKED";
+        metadata.step=step;
+        metadata.code=String(e?.code||"UNKNOWN").slice(0,100);
+        metadata.message=String(e?.message||e).slice(0,180);
+      }finally{db?.close()}
+      report.push(metadata);
+    }
+  }
+  for(const record of report)console.log("E2E_FORENSIC_FILE: "+JSON.stringify(record));
+  const expectedTables=["managed_app_catalog","automation_policy_changes",
+    "kt_automation_commands","kt_automation_policy"];
+  const allTables=new Set(report.flatMap(r=>r.tables||[]));
+  const blocked=report.filter(r=>r.result!=="READONLY_OK");
+  const missing=expectedTables.filter(t=>!allTables.has(t));
+  const summary={mode:"READ_ONLY_DIAGNOSTIC_NOT_E2E",
+    fileCount:report.length,blockedFiles:blocked.length,
+    blockedStages:blocked.map(r=>r.area+"/"+r.file+"/"+r.step),
+    missingTables:missing,retainedD1WasModifiedByThisTool:false};
+  console.log("E2E_FORENSIC_SUMMARY: "+JSON.stringify(summary));
+  if(blocked.length||missing.length)
+    throw Error("BLOCKED_RETAINED_D1_FORENSIC_READ_ONLY_INCOMPLETE");
+  console.log("E2E_FORENSIC_READONLY_INSPECTION_COMPLETE_NOT_E2E_PASS");
+}
+if(process.argv[2]==="--inspect-retained"){
+  try{inspectRetainedEvidence()}
+  catch(e){
+    console.error("P0_E2E_FORENSIC_NOT_PASSED: "+redact(e.message||e));
+    process.exitCode=1;
+  }
+}else if(process.argv.length===2){
+  main().catch(e=>{
+    console.error("P0_UNIVERSAL_CONTRACT_NATIVE_E2E_NOT_PASSED: "+redact(e.message||e));
+    process.exitCode=1;
+  });
+}else{
+  console.error("BLOCKED_UNKNOWN_QA_MODE");
   process.exitCode=1;
-});
+}
