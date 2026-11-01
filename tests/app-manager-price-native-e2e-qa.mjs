@@ -519,7 +519,17 @@ function inspectRetainedEvidence(){
         metadata.step=step;
         metadata.code=String(e?.code||"UNKNOWN").slice(0,100);
         metadata.message=String(e?.message||e).slice(0,180);
-      }finally{db?.close()}
+      }finally{
+        if(db){
+          try{db.close()}
+          catch(e){
+            metadata.result="READONLY_CLOSE_BLOCKED";
+            metadata.step="CLOSE_READONLY";
+            metadata.closeCode=String(e?.code||"UNKNOWN").slice(0,100);
+            metadata.closeMessage=String(e?.message||e).slice(0,180);
+          }
+        }
+      }
       report.push(metadata);
     }
   }
@@ -532,7 +542,7 @@ function inspectRetainedEvidence(){
   const summary={mode:"READ_ONLY_DIAGNOSTIC_NOT_E2E",
     fileCount:report.length,blockedFiles:blocked.length,
     blockedStages:blocked.map(r=>r.area+"/"+r.file+"/"+r.step),
-    missingTables:missing,retainedD1WasModifiedByThisTool:false};
+    missingTables:missing,sqlWriteStatementsIssued:false};
   console.log("E2E_FORENSIC_SUMMARY: "+JSON.stringify(summary));
   if(blocked.length||missing.length)
     throw Error("BLOCKED_RETAINED_D1_FORENSIC_READ_ONLY_INCOMPLETE");
