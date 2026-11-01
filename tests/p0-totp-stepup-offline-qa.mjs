@@ -12,6 +12,8 @@ const ROOT=resolve(dirname(fileURLToPath(import.meta.url)),"..");
 const QA_HEAD=process.env.APP_MANAGER_MFA_QA_HEAD||"";
 const shaRE=/^[a-f0-9]{40}$/;
 const OWNER="owner-p0-mfa@example.invalid";
+let qaPhase="PRE_FLIGHT";
+function markPhase(name){qaPhase=name;console.log("MFA_QA_PHASE="+name)}
 function decodeModule(path,knownExports,dependencies={}){
   const source=readFileSync(join(ROOT,path),"utf8");
   // Pure TS type stripping, followed by import/export stripping for runtime
@@ -93,6 +95,7 @@ async function main(){
     ["drizzle/0013_totp_step_up.sql",MIGRATIONBLOB]
   ])assert.equal(git("rev-parse","HEAD:"+path),blob,
     "BLOCKED_OWNER_IMPLEMENTATION_DRIFT: "+path);
+  markPhase("SQLITE_SETUP");
   const db=new DatabaseSync(":memory:");
   const originalNow=Date.now;
   const calls={};
@@ -119,6 +122,7 @@ async function main(){
       .run(OWNER,"QA Owner");
     db.prepare("INSERT INTO control_sessions(session_id_hash,email,expires_at,created_at,last_seen_at,auth_method,step_up_at) VALUES(?,?,?,?,?,'google',NULL)")
       .run(tokenHash,OWNER,now+7200,now,now);
+    markPhase("OWNER_MODULE_LOAD");
     const totp=decodeModule("worker/totp.ts",[
       "totpEnvironmentConfigured","totpState","beginTotpEnrollment",
       "verifyTotp","completeTotpEnrollment","removeTotp"
@@ -128,6 +132,7 @@ async function main(){
     ],{...totp});
     const cookie={"cookie":"__Host-am_prod_session="+token};
     const identityRequest=req("/api/managed-apps",{headers:cookie});
+    markPhase("OWNER_SESSION_READ");
     let identity=await auth.productionIdentity(identityRequest,env);
     assert.equal(identity?.email,OWNER,"BLOCKED_REAL_OWNER_SESSION_NOT_FOUND");
     assert.equal(query(db,"SELECT role FROM control_accounts WHERE email=?",OWNER)?.role,
@@ -140,15 +145,17 @@ async function main(){
     calls.noSessionRejected=true;
     assert.equal(await gate(auth,env,identity),null,
       "BLOCKED_DISABLED_MFA_POLICY_CHANGED");
+    markPhase("TOTP_ENROLLMENT");
     const enrolled=await totp.beginTotpEnrollment(env,OWNER,"QA Owner");
-    assert.match(enrolled.secret,/^[A-Z2-7]{32}$/);
-    assert.equal(new URL(enrolled.uri).protocol,"otpauth:");
+    assert.match(enrolled.secret,/^[A-Z2-7]{32}$/,"BLOCKED_TOTP_SECRET_FORMAT");
+    assert.equal(new URL(enrolled.uri).protocol,"otpauth:","BLOCKED_TOTP_URI_PROTOCOL");
     const factor=query(db,"SELECT secret_ciphertext,secret_iv,enabled FROM control_mfa_factors WHERE account_email=?",OWNER);
     assert.equal(factor?.enabled,0);
     assert.ok(factor.secret_ciphertext&&factor.secret_iv);
     assert.ok(!JSON.stringify(factor).includes(enrolled.secret),
       "BLOCKED_TOTP_SECRET_PLAINTEXT");
     assert.equal((await totp.totpState(env,OWNER)).pending,true);
+    markPhase("TOTP_CRYPTO_NEGATIVE");
     const good=codeFor(enrolled.secret,fakeMs);
     const bad=String((Number(good)+1)%1_000_000).padStart(6,"0");
     assert.equal(await totp.verifyTotp(env,OWNER,bad),false,
@@ -157,6 +164,7 @@ async function main(){
       APPLICATION_MANAGEMENT_MFA_ENCRYPTION_KEY:randomBytes(32).toString("base64url")},
       OWNER,good),false,"BLOCKED_WRONG_AES_KEY_ACCEPTED");
     calls.encryptedMfaSecret=true;
+    markPhase("MFA_ENROLLMENT_HTTP");
     const wrong=await auth.handleProductionAccount(req("/__account/mfa/verify",{
       method:"POST",body:new URLSearchParams({code:bad})}),env,identity);
     assert.equal(wrong.status,401,"BLOCKED_INVALID_ENROLLMENT_CODE_NOT_401");
@@ -172,6 +180,7 @@ async function main(){
     calls.totpBadRejectedGoodAccepted=true;
     calls.stepUpSessionScoped=true;
     // A separate owner session does not inherit the first session's step-up.
+    markPhase("STEPUP_SESSION_SCOPING");
     const another={...identity,sessionHash:"another-session",stepUpAt:null};
     assert.equal((await gate(auth,env,another))?.status,403,
       "BLOCKED_CROSS_SESSION_STEP_UP_REUSE");
@@ -180,6 +189,7 @@ async function main(){
     identity=await auth.productionIdentity(identityRequest,env);
     assert.equal((await gate(auth,env,identity))?.status,403,
       "BLOCKED_SENSITIVE_ACTION_WITHOUT_STEPUP");
+    markPhase("STEPUP_AUTH_HTTP");
     const badStep=await auth.handleProductionAccount(req("/__account/mfa/step-up",{
       method:"POST",body:new URLSearchParams({code:bad})}),env,identity);
     assert.equal(badStep.status,401,"BLOCKED_BAD_STEPUP_NOT_401");
@@ -189,6 +199,7 @@ async function main(){
     assert.equal(validStep.status,200,"BLOCKED_VALID_STEPUP");
     assert.equal(query(db,"SELECT step_up_at FROM control_sessions WHERE session_id_hash=?",tokenHash).step_up_at,now);
     calls.stepUpWrongRejectedGoodAccepted=true;
+    markPhase("STEPUP_TTL_BOUNDARIES");
     for(const [name,age,expected] of [
       ["fifteen_minute_edge",900,403],
       ["fresh_prior",899,null],
@@ -206,6 +217,7 @@ async function main(){
     db.prepare("UPDATE control_sessions SET step_up_at=? WHERE session_id_hash=?")
       .run(now,tokenHash);
     const current=await auth.productionIdentity(identityRequest,env);
+    markPhase("MISSING_MFA_KEY_FAIL_CLOSED");
     const broken={DB:env.DB};
     const state=await totp.totpState(broken,OWNER);
     assert.equal(state.enabled,true,"BLOCKED_MISSING_KEY_MASKED_ENABLED_FACTOR");
@@ -215,6 +227,7 @@ async function main(){
     calls.missingMfaKeyFailClosed=true;
     // Defensive test: the protected API never creates a new session on its own.
     assert.equal(query(db,"SELECT count(*) AS n FROM control_sessions").n,1);
+    markPhase("FINAL_RECEIPT_GATES");
     const checkpoint={
       checkpoint:"P0_TOTP_STEPUP_OFFLINE_RUNTIME_VERIFIED",
       sha:QA_HEAD, ownerSource:"EXACT_PRODUCTION_AUTH_AND_TOTP_TS",
@@ -234,6 +247,16 @@ async function main(){
   }finally{Date.now=originalNow;db.close()}
 }
 main().catch(e=>{
-  console.error("P0_TOTP_STEPUP_OFFLINE_NODE_NOT_PASSED: "+String(e?.code||e?.message||e));
+  const errorCode=String(e?.code||e?.name||"UNKNOWN").slice(0,80);
+  // Do not print e.actual/e.expected, TOTP secrets, URI, cookies or keys.
+  // Only our explicit assertion messages are safe to surface verbatim.
+  const explicit=typeof e?.message==="string" && /^BLOCKED_[A-Z0-9_ :./-]+$/.test(e.message)
+    ? e.message.slice(0,180) : "NON_EXPLICIT_ASSERTION_OR_RUNTIME_FAILURE";
+  const frame=String(e?.stack||"").split("\n")
+    .find(line=>/p0-totp-stepup-offline-qa[.]mjs:\d+:\d+/.test(line))||"";
+  console.error("P0_TOTP_STEPUP_OFFLINE_NODE_NOT_PASSED: "+JSON.stringify({
+    phase:qaPhase,code:errorCode,reason:explicit,
+    qaSourceFrame:frame.trim().slice(0,200)
+  }));
   process.exitCode=1;
 });
