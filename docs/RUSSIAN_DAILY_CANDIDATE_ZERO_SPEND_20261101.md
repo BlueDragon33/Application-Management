@@ -5,7 +5,8 @@ Status: **CANDIDATE / USER TEST SCOPE APPROVED BY USER / NOT DEPLOYED**. User ap
 ## Source and routing
 
 - iPhone-first static app: `public/russian-daily/index.html` served at `/russian-daily/index.html` if and only if this candidate is deployed through a separately authorized preview process.
-- App Management integration route: `/tools/russian-daily`, using existing `requireChatGPTUser` gate. The public static UI holds no secrets; personal state stays on-device only.
+- App Management integration route: `/tools/russian-daily`, using existing `requireChatGPTUser` gate. The static UI holds no secrets; personal state stays on-device only.
+- Candidate `worker/index.ts` now serves exact `/russian-daily/index.html` **only in `cloudflare-preview`** after the existing Preview session/secret check. Production does not serve this HTML via the candidate worker path; it is not in the unauthenticated PWA asset allow-list. This is a temporary QA integration, not adoption of Russian Daily's linguistic or learner source-of-truth into the control plane.
 - Discoverability in the Dashboard system tools list (candidate only). Do not add as a connected Dynamic Catalog app without contract/credential/readback.
 - No changes to existing production slug, sealed Constitution, repo identity, or authentication contract.
 
@@ -23,6 +24,8 @@ Status: **CANDIDATE / USER TEST SCOPE APPROVED BY USER / NOT DEPLOYED**. User ap
 
 - Google OAuth/Calendar API, event-ID/ETag authoritative readback, real bidirectional sync, Apple EventKit, iOS WidgetKit, real push/haptics, OCR from Telegram screenshots, RU03-approved vocabulary dataset, iPhone physical-device QA.
 - This branch contains no deployed website. The existing Preview deploy workflow is dormant and must not be reactivated automatically.
+- OWNER USER TEST approval in chat on 2026-11-01 was acknowledged on Issue #372 (comment #6561456286). Its GitHub checkboxes are checked without matching actual deployment/cost/e2e evidence; these **must not** be presented as technical PASS.
+- Local V8 mock interaction checks confirmed script syntax, seeded schedule 7 events, one persistent Next Action, opt-in-only ICS export of seeded events, Telegram validation, newly added ICS only, five-word daily cap and preview HTML gate ordering. **This is not `npm test`, a hosted readback or Safari iPhone acceptance.**
 
 ## Tests and safe next step
 
