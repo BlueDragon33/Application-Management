@@ -16,7 +16,7 @@ test("Owner UI writes global 50\/5 limits only after independent GET",()=>{
  assert.match(ui,/useState\("50"\)/);
  assert.match(ui,/useState\("5"\)/);
  assert.match(ui,/action:"set-tier-limits"/);
- assert.match(ui,/await invoke\(\{action:"get-tier-limits"\}\)/);
+ assert.match(ui,/await invokeRef\.current\(\{action:"get-tier-limits"\}\)/);
  assert.match(ui,/verified\.learnerLimit!==l\|\|verified\.teacherLimit!==t/);
 });
 test("manager grant and revocation require separate D1 verification",()=>{
@@ -51,4 +51,11 @@ test("Owner cards adopt only independently D1-verified grant and approval state"
  assert.match(ui,/const effectiveApproved=confirmed\?\.approved\?\?m\.approved/);
  assert.match(ui,/const effectiveEnabled=confirmed\?\.enabled\?\?m\.managementEnabled/);
  assert.match(ui,/grant\(\{\.\.\.m,approved:effectiveApproved,managementEnabled:effectiveEnabled\},!effectiveEnabled\)/);
+});
+
+test("Owner quota mount read is stable across inline parent callback re-renders",()=>{
+ assert.match(ui,/const invokeRef=useRef\(invoke\)/);
+ assert.match(ui,/invokeRef\.current=invoke/);
+ assert.match(ui,/const refresh=useCallback\(async\(\)=>/);
+ assert.match(ui,/\},\[\]\);\s*useEffect\(\(\)=>\{void refresh\(\)\},\[refresh\]\)/);
 });
