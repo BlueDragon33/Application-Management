@@ -6,6 +6,8 @@ import styles from "./automatic-device-policies.module.css";
 import { readAutomationDraft, writeAutomationDraft, clearAutomationDraft } from "./device-automation-draft.mjs";
 
 export type AutomationSelection = {
+  // Explicit mutation scope: do not interpret omitted apps as disabled.
+  targetAppIds: string[];
   appIds: string[];
   autoBlockAppIds: string[];
   pendingBlockAfterHoursByApp: Record<string, number>;
@@ -244,8 +246,8 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
       // Capture pending user intentions before any network transaction or re-render.
       const localIntent = Object.fromEntries(Object.entries(drafts)
         .filter(([appId]) => touchedAppIdsRef.current.has(appId)));
-      // Stage and read back the desired policy before any network mutation.
-      // A failed browser-store write must NOT produce a half-completed remote command.
+      // Browser storage is only a best-effort draft backup. It must never
+      // prevent an authenticated owner write to the actual owning-client D1.
       let persisted;
       try {
         const previous = readAutomationDraft(window.localStorage);
@@ -255,20 +257,28 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
       } catch {
         persisted = { saved: false, reason: "LOCAL_STORAGE_UNAVAILABLE" };
       }
-      if (!persisted.saved) {
-        setDraftNotice("Không thể ghi nhận cấu hình cần áp dụng (" + persisted.reason
-          + "). Chưa gửi lệnh tới ứng dụng. Hãy kiểm tra khả năng lưu cục bộ; giá trị đang chỉnh vẫn được giữ.");
-        return;
-      }
-      setDraftNotice("Đã giữ bản nháp trên máy; đang xác minh ghi vào ứng dụng nguồn.");
+      setDraftNotice(persisted.saved
+        ? "Đã giữ bản nháp trên máy; đang xác minh ghi vào ứng dụng nguồn."
+        : "Không lưu được bản nháp trình duyệt (" + persisted.reason
+          + "). Vẫn đang áp dụng trực tiếp vào ứng dụng nguồn và sẽ xác minh GET độc lập; giữ hộp này mở để không mất phần chưa lưu.");
       const appIds = apps.filter((app) => drafts[app.id]?.autoApprove).map((app) => app.id);
       const autoBlockAppIds = apps.filter((app) => drafts[app.id]?.autoBlock).map((app) => app.id);
       const pendingBlockAfterHoursByApp = Object.fromEntries(
         apps.map((app) => [app.id, drafts[app.id]?.pendingBlockAfterHours ?? 168]),
       ) as Record<string, number>;
-      const readback = await save({ appIds, autoBlockAppIds, pendingBlockAfterHoursByApp, defaultAccessDays: days, defaultDeviceLimit: limit });
+      // Only changed, writable policy rows may be mutated. Untouched apps
+      // must retain their own configuration even when dashboard data is stale.
+      const targetAppIds = apps.filter((app) => draftChanged(
+        policyFor(settings, app.id),
+        drafts[app.id] ?? { autoApprove: false, autoBlock: false, pendingBlockAfterHours: 168 },
+        app.id, days, limit,
+      )).map((app) => app.id);
+      const readback = await save({ targetAppIds, appIds, autoBlockAppIds,
+        pendingBlockAfterHoursByApp, defaultAccessDays: days, defaultDeviceLimit: limit });
       if (!readback) {
-        setDraftNotice("Chưa xác minh áp dụng. Bản chỉnh sửa đã giữ trên trình duyệt, chưa công nhận client được cập nhật.");
+        setDraftNotice(persisted.saved
+          ? "Chưa xác minh áp dụng. Bản chỉnh sửa đã giữ trên trình duyệt, chưa công nhận client được cập nhật."
+          : "Chưa xác minh áp dụng. Kho bản nháp trình duyệt không khả dụng; phần chỉnh sửa vẫn ở hộp này, chưa công nhận client được cập nhật.");
         return;
       }
       let saved;
@@ -313,7 +323,9 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
           + (persistedPending ? " Đã lưu phần còn lại trên trình duyệt." : " Không lưu được phần còn lại; giữ nguyên trong hộp chỉnh sửa.")
         : cleared
           ? "Đã áp dụng, đọc lại từ client và xóa bản nháp trình duyệt."
-          : "Client đã readback nhưng chưa xóa được bản nháp trình duyệt; sẽ không tự nhận là hết bản nháp.");
+          : persisted.saved
+            ? "Client đã readback nhưng chưa xóa được bản nháp trình duyệt; sẽ không tự nhận là hết bản nháp."
+            : "Đã áp dụng và đọc lại LIVE từ client. Kho bản nháp trình duyệt không khả dụng; kết quả lưu ở ứng dụng nguồn đã được xác minh.");
       const nextBoi = policyFor(readback, "boi-ech");
       const boiPending = stillPending.some(([appId]) => appId === "boi-ech");
       setDays(boiPending && saved ? saved.days :
