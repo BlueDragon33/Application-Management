@@ -15,3 +15,10 @@ test("Bơi Ếch queue reads the signed client overview, not local guessed state
   assert.match(source,/const devices = rows\(data\)/);
   assert.match(source,/Missing\/unknown roles are fail-closed/);
 });
+
+test("Bơi Ếch specialist admin also displays only manager accounts",()=>{
+  const control=readFileSync(new URL("../app/apps/boi-ech/boi-ech-control-center.tsx",import.meta.url),"utf8");
+  assert.match(control,/if \(device\.personRole !== "manager"\) return false/);
+  assert.match(control,/const managerDevices = dashboard\?\.learningDevices\.filter\(\(device\) => device\.personRole === "manager"\)/);
+  assert.match(control,/Chỉ xét duyệt cấp quản lý/);
+});
