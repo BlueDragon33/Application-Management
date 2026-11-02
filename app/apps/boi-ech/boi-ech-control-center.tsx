@@ -1181,6 +1181,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
 
         {tab === "devices" ? <>
           {access.role === "owner" ? <BoiManagerGrants
+            onUpdated={async()=>{await refresh(credential,access,{discoverNew:true});}}
             invoke={async(body)=>await operationsAction({action:"boi-manager-access",operation:body.action,...Object.fromEntries(Object.entries(body).filter(([key])=>key!=="action"))}) as Record<string,unknown>}
             managers={(dashboard?.learningDevices??[]).filter(d=>d.personRole==="manager").map(d=>({deviceId:d.deviceId,deviceCode:d.deviceCode,personCode:d.personCode??"",name:d.learnerName??"",approved:d.status==="approved"&&!d.accessExpired,managementEnabled:Boolean(d.managementEnabled)}))}
           /> : null}
