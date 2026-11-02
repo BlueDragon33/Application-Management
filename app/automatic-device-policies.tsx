@@ -8,6 +8,8 @@ import { readAutomationDraft, writeAutomationDraft, clearAutomationDraft } from 
 export type AutomationSelection = {
   // Explicit mutation scope: do not interpret omitted apps as disabled.
   targetAppIds: string[];
+  approvalTargetAppIds: string[];
+  blockTargetAppIds: string[];
   appIds: string[];
   autoBlockAppIds: string[];
   pendingBlockAfterHoursByApp: Record<string, number>;
@@ -268,13 +270,25 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
       ) as Record<string, number>;
       // Only changed, writable policy rows may be mutated. Untouched apps
       // must retain their own configuration even when dashboard data is stale.
-      const targetAppIds = apps.filter((app) => draftChanged(
-        policyFor(settings, app.id),
-        drafts[app.id] ?? { autoApprove: false, autoBlock: false, pendingBlockAfterHours: 168 },
-        app.id, days, limit,
-      )).map((app) => app.id);
-      const readback = await save({ targetAppIds, appIds, autoBlockAppIds,
-        pendingBlockAfterHoursByApp, defaultAccessDays: days, defaultDeviceLimit: limit });
+      const approvalTargetAppIds = apps.filter((app) => {
+        const policy = policyFor(settings, app.id);
+        const draft = drafts[app.id];
+        return policy.mutation.autoApprove && Boolean(draft)
+          && (policy.current.autoApprove !== draft!.autoApprove
+            || (app.id === "boi-ech" && (policy.current.freeAccessDays !== days
+              || policy.current.freeDeviceLimit !== limit)));
+      }).map((app) => app.id);
+      const blockTargetAppIds = apps.filter((app) => {
+        const policy = policyFor(settings, app.id);
+        const draft = drafts[app.id];
+        return policy.mutation.autoBlockPending && Boolean(draft)
+          && (policy.current.autoBlockPending !== draft!.autoBlock
+            || (draft!.autoBlock && policy.current.pendingBlockAfterHours !== draft!.pendingBlockAfterHours));
+      }).map((app) => app.id);
+      const targetAppIds = [...new Set([...approvalTargetAppIds, ...blockTargetAppIds])];
+      const readback = await save({ targetAppIds, approvalTargetAppIds, blockTargetAppIds,
+        appIds, autoBlockAppIds, pendingBlockAfterHoursByApp,
+        defaultAccessDays: days, defaultDeviceLimit: limit });
       if (!readback) {
         setDraftNotice(persisted.saved
           ? "Chưa xác minh áp dụng. Bản chỉnh sửa đã giữ trên trình duyệt, chưa công nhận client được cập nhật."
