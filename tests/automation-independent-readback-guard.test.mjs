@@ -79,3 +79,36 @@ test("source policy readback cannot fabricate a previously live but unqueried ap
   assert.match(source,/if \(independentSettings\) setOperations\(\(previous\) => previous \?/);
   assert.match(source,/settings: mergedSettings/);
 });
+
+
+test("P0 save uses an independent LIVE owner GET before any changed-field POST",()=>{
+  const pre=source.indexOf('const beforeWrite = await operationsAction({ action: "read-automation", targetAppIds });');
+  const run=source.indexOf('const settled = await Promise.allSettled(executions);');
+  const post=source.indexOf('const observed = await operationsAction({ action: "read-automation", targetAppIds: changedAppIds });');
+  assert.ok(pre>=0 && run>pre && post>run);
+  assert.match(source,/policy\.verification\.state !== "live"/);
+  assert.match(source,/const currentMap = new Map/);
+  assert.match(source,/for \(const policy of livePolicies\) currentMap\.set\(policy\.appId, policy\)/);
+  assert.match(source,/settingsFromPolicies\(current, automationPolicies\)/);
+  assert.match(source,/if \(!changedAppIds\.length\) \{/);
+  assert.match(source,/Không cần ghi thêm: cấu hình đã khớp policy LIVE/);
+});
+test("P0 updates only explicitly changed app fields and never turns unselected apps off",()=>{
+  assert.match(editor,/approvalTargetAppIds: string\[\]/);
+  assert.match(editor,/blockTargetAppIds: string\[\]/);
+  assert.match(source,/const approvalScope = new Set\(selection\.approvalTargetAppIds\)/);
+  assert.match(source,/const blockScope = new Set\(selection\.blockTargetAppIds\)/);
+  assert.match(source,/!approvalScope\.has\(policy\.appId\) \|\| !policy\.mutation\.autoApprove/);
+  assert.match(source,/!blockScope\.has\(policy\.appId\) \|\| !policy\.mutation\.autoBlockPending/);
+  assert.match(source,/approvalScope\.has\(appId\) && !policy\.mutation\.autoApprove/);
+  assert.match(source,/blockScope\.has\(appId\) && !policy\.mutation\.autoBlockPending/);
+  assert.match(source,/targetAppIds\.some\(\(appId\) => !approvalScope\.has\(appId\) && !blockScope\.has\(appId\)\)/);
+});
+test("localStorage failure cannot report applied and cannot suppress owner write",()=>{
+  const apply=editor.slice(editor.indexOf("async function submit()"),editor.indexOf("return <div className={styles.scrim}"));
+  assert.match(apply,/const readback = await save\(/);
+  assert.match(apply,/persisted\.saved/);
+  assert.doesNotMatch(apply,/if \(!persisted\.saved\) \{[\s\S]*?return;/);
+  assert.match(apply,/if \(!readback\) \{/);
+  assert.match(apply,/Kho bản nháp trình duyệt không khả dụng/);
+});
