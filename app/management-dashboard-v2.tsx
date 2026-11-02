@@ -930,10 +930,14 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       // changed app policies from the owning clients before calculating writes.
       // This also prevents an old UI snapshot from silently turning a save
       // into a no-op or changing unrelated app policies.
+      const approvalScope = new Set(selection.approvalTargetAppIds);
+      const blockScope = new Set(selection.blockTargetAppIds);
       const targetAppIds = [...new Set(selection.targetAppIds)];
       const knownIds = new Set(activeApps.map((app) => app.id));
       if (!targetAppIds.length || targetAppIds.length > 24
-        || targetAppIds.some((appId) => !knownIds.has(appId))) {
+        || targetAppIds.some((appId) => !knownIds.has(appId))
+        || [...approvalScope, ...blockScope].some((appId) => !targetAppIds.includes(appId))
+        || targetAppIds.some((appId) => !approvalScope.has(appId) && !blockScope.has(appId))) {
         setNotice("Phạm vi ứng dụng cần lưu không hợp lệ. Hãy đồng bộ LIVE và mở lại cấu hình.");
         return null;
       }
@@ -943,7 +947,8 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       if (targetAppIds.some((appId) => {
         const policy = liveMap.get(appId);
         return !policy || policy.verification.state !== "live"
-          || (!policy.mutation.autoApprove && !policy.mutation.autoBlockPending);
+          || (approvalScope.has(appId) && !policy.mutation.autoApprove)
+          || (blockScope.has(appId) && !policy.mutation.autoBlockPending);
       })) {
         setNotice("Không xác minh được policy LIVE hoặc quyền ghi của ứng dụng cần lưu. Chưa gửi lệnh; bản chỉnh sửa vẫn được giữ.");
         return null;
@@ -984,7 +989,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       const policyMap = new Map(current.automationPolicies.map((policy) => [policy.appId, policy]));
       const approvalTargets = current.automationPolicies
         .filter((policy) => {
-          if (!targetAppIds.includes(policy.appId) || !policy.mutation.autoApprove) return false;
+          if (!approvalScope.has(policy.appId) || !policy.mutation.autoApprove) return false;
           const desired = selection.appIds.includes(policy.appId);
           if (policy.current.autoApprove !== desired) return true;
           return policy.appId === "boi-ech" && (
@@ -995,7 +1000,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
         .map((policy) => policy.appId);
       const blockTargets = current.automationPolicies
         .filter((policy) => {
-          if (!targetAppIds.includes(policy.appId) || !policy.mutation.autoBlockPending) return false;
+          if (!blockScope.has(policy.appId) || !policy.mutation.autoBlockPending) return false;
           const desired = selection.autoBlockAppIds.includes(policy.appId);
           if (policy.current.autoBlockPending !== desired) return true;
           const desiredHours = selection.pendingBlockAfterHoursByApp[policy.appId] ?? 168;
