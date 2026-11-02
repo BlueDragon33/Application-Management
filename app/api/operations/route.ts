@@ -414,10 +414,15 @@ async function loadBoi(actor: ControlDeviceState) {
       { code: authMismatch ? "BOI_ECH_CONTROL_AUTH_MISMATCH" : apiMissing ? "BOI_ECH_CONTROL_API_MISSING" : "BOI_ECH_CONTROL_UNAVAILABLE" },
     );
   }
-  const devices = rows(data).map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
-    typeKey: "deviceType", userKeys: ["learnerName", "personCode"],
-    approve: actor.role === "publisher" || actor.role === "owner", remove: actor.role === "owner",
-  }));
+  // Bơi Ếch owns learner/teacher enrollment and approval. The central
+  // queue may review manager accounts ONLY, and only Owner may decide.
+  // Missing/unknown roles are fail-closed rather than treated as manager.
+  const devices = rows(data)
+    .filter((row) => text(row.personRole) === "manager")
+    .map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
+      typeKey: "deviceType", userKeys: ["learnerName", "personCode"],
+      approve: actor.role === "owner", remove: false,
+    }));
   return {
     config,
     devices,
