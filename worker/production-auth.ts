@@ -829,6 +829,10 @@ function sensitiveProductionMutation(pathname: string, payload: Record<string, u
   if (pathname === "/api/operations") {
     if (action === "set-auto-approval" || action === "set-auto-block-pending") return true;
     if (action === "manage-client-device") return true;
+    // Owner manager grants and tier quota changes require production TOTP step-up.
+    // D1 reads remain available without unnecessary step-up.
+    if (action === "boi-manager-access" &&
+      !["get-tier-limits", "get-manager-grant"].includes(operation)) return true;
   }
 
   if (pathname === "/api/managed-apps") {
