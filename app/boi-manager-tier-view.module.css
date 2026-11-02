@@ -1,0 +1,11 @@
+.root{display:grid;gap:20px;padding:18px;color:var(--foreground,inherit)}
+.root header{display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap}
+.root h2,.root h3{margin:0 0 9px}.root p{line-height:1.5}
+.root button{border:1px solid #56877e;border-radius:8px;padding:9px 13px;background:#17483c;color:white;cursor:pointer}
+.root button:disabled{opacity:.5;cursor:not-allowed}
+.limits{border:1px solid #a0b1ad55;padding:16px;border-radius:12px}
+.controls{display:flex;gap:12px;flex-wrap:wrap;align-items:end}
+.controls label{display:grid;gap:5px}.controls input{border:1px solid #879e97;padding:8px;border-radius:8px;max-width:135px;color:inherit;background:transparent}
+.manager{border:1px solid #a0b1ad55;border-radius:11px;padding:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;flex-wrap:wrap}
+.manager>div:first-child{display:grid;gap:5px}.manager small{opacity:.75}
+.actions{display:flex;gap:8px;flex-wrap:wrap}.error{color:#d55858}.notice{color:#257962}
