@@ -986,6 +986,82 @@ export async function POST(request: Request) {
     const action = typeof payload.action === "string" ? payload.action : "bootstrap";
     if (action === "bootstrap") return json(await buildBootstrap(actor));
 
+    if (action === "boi-manager-tier") {
+      // Central owns manager-account decisions only. Learner and teacher
+      // approvals are exclusively handled by signed Bơi Ếch manager devices.
+      if (actor.role !== "owner") return json({code:"OWNER_REQUIRED",error:"Chỉ Chủ hệ thống được xét duyệt cấp Cán bộ quản lý."},403);
+      const bridge = await issueBoiBrowserBridge(actor.email,actor.role);
+      const operation = text(payload.operation,"list");
+      if (operation==="list") {
+        const [overview,quota] = await Promise.all([
+          bridgeReadJson(bridge,"/api/control/overview?activityDays=0"),
+          bridgeJson(bridge,"/api/control/management-access",{method:"POST",body:{action:"get-tier-limits"}})
+        ]);
+        const managers=rows(overview).filter(row=>text(row.personRole)==="manager").map(row=>({
+          deviceId:text(row.deviceId),deviceCode:text(row.deviceCode),
+          name:text(row.learnerName),personCode:text(row.personCode),
+          status:normalizedStatus(row.status),registrationComplete:bool(row.registrationComplete),
+          managementEnabled:bool(row.managementEnabled),
+          accessExpired:bool(row.accessExpired),paymentStatus:text(row.paymentStatus),
+          accessGroup:text(row.accessGroup),
+        }));
+        return json({ok:true,managers,scope:"manager-tier",
+          learnerLimit:Number(quota.learnerLimit),teacherLimit:Number(quota.teacherLimit)});
+      }
+      if (operation==="set-tier-limits") {
+        const learnerLimit=payload.learnerLimit,teacherLimit=payload.teacherLimit;
+        if (!Number.isInteger(learnerLimit)||Number(learnerLimit)<0||Number(learnerLimit)>5000
+          ||!Number.isInteger(teacherLimit)||Number(teacherLimit)<0||Number(teacherLimit)>500)
+          return json({code:"MANAGER_LIMIT_INVALID",error:"Hạn mức cấp độ quản lý không hợp lệ."},400);
+        await bridgeJson(bridge,"/api/control/management-access",{
+          method:"POST",body:{action:"set-tier-limits",learnerLimit,teacherLimit}
+        });
+        const confirmed=await bridgeJson(bridge,"/api/control/management-access",{
+          method:"POST",body:{action:"get-tier-limits"}
+        });
+        if(confirmed.learnerLimit!==learnerLimit||confirmed.teacherLimit!==teacherLimit)
+          return json({code:"MANAGER_LIMIT_READBACK_FAILED",error:"Hạn mức chưa khớp D1 độc lập."},503);
+        return json({ok:true,scope:"manager-tier",learnerLimit,teacherLimit});
+      }
+      const deviceId=text(payload.deviceId),expectedPersonCode=text(payload.expectedPersonCode);
+      if(!/^[a-f0-9]{64}$/.test(deviceId)||!expectedPersonCode||expectedPersonCode.length>32)
+        return json({code:"MANAGER_TARGET_INVALID",error:"Thiếu mã thiết bị hoặc mã cán bộ."},400);
+      // Always check actual role via a fresh read at the owning client.
+      const current=await bridgeReadJson(bridge,"/api/control/overview?deviceCodes="+encodeURIComponent(text(payload.deviceCode)));
+      const row=rows(current).find(item=>text(item.deviceId)===deviceId);
+      if(!row||text(row.personRole)!=="manager"||text(row.personCode)!==expectedPersonCode)
+        return json({code:"MANAGER_ROLE_MISMATCH",error:"Chỉ xét duyệt hồ sơ Cán bộ quản lý đã xác minh."},403);
+      if(operation==="approve-account"){
+        if(normalizedStatus(row.status)!=="pending"||!bool(row.registrationComplete)
+          ||text(row.paymentStatus)!=="unassigned")
+          return json({code:"MANAGER_APPROVAL_STATE",error:"Hồ sơ cán bộ không còn chờ duyệt hoặc chưa đủ thông tin."},409);
+        await bridgeJson(bridge,"/api/control/overview",{
+          method:"POST",body:{action:"grant-free",deviceId,expectedStatus:"pending",
+            expectedPaymentStatus:"unassigned",expectedAccessGroup:"unassigned"}
+        });
+        const verified=await bridgeReadJson(bridge,"/api/control/overview?deviceCodes="+encodeURIComponent(text(payload.deviceCode)));
+        if(!rows(verified).some(item=>text(item.deviceId)===deviceId && text(item.personRole)==="manager"
+          && normalizedStatus(item.status)==="approved"))
+          return json({code:"MANAGER_APPROVAL_READBACK_FAILED",error:"D1 chưa xác nhận tài khoản Cán bộ đã được duyệt."},503);
+        return json({ok:true,deviceId,status:"approved"});
+      }
+      if(operation==="grant-manager"){
+        if(normalizedStatus(row.status)!=="approved"||bool(row.accessExpired))
+          return json({code:"MANAGER_ACCOUNT_NOT_ACTIVE",error:"Phải duyệt tài khoản Cán bộ còn hiệu lực trước khi cấp quyền."},409);
+      } else if(operation!=="revoke-manager") {
+        return json({code:"INVALID_MANAGER_ACTION",error:"Thao tác Cán bộ quản lý không hợp lệ."},400);
+      }
+      await bridgeJson(bridge,"/api/control/management-access",{
+        method:"POST",body:{action:"grant-manager",deviceId,
+          expectedPersonCode,enabled:operation==="grant-manager"}
+      });
+      const verified=await bridgeReadJson(bridge,"/api/control/overview?deviceCodes="+encodeURIComponent(text(payload.deviceCode)));
+      if(!rows(verified).some(item=>text(item.deviceId)===deviceId&&text(item.personRole)==="manager"
+        && bool(item.managementEnabled)===(operation==="grant-manager")))
+        return json({code:"MANAGER_GRANT_READBACK_FAILED",error:"Chưa xác minh D1 quyền Cán bộ."},503);
+      return json({ok:true,deviceId,managementEnabled:operation==="grant-manager"});
+    }
+
     if (action === "read-automation") {
       // An independent, authenticated client GET, scoped to just the mutated
       // apps. The write response and central audit ledger are never authoritative.
