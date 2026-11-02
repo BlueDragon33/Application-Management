@@ -34,7 +34,9 @@ export default function BoiManagerGrants({invoke,managers,onUpdated}:{invoke:Inv
    }
    lock.current=true;setBusy(true);setNotice("");setFault(false);
    try{
-     await invoke({action:"set-tier-limits",learnerLimit:l,teacherLimit:t});
+     if(!limits)throw new Error("Chưa có hạn mức D1 để so sánh.");
+    await invoke({action:"set-tier-limits",learnerLimit:l,teacherLimit:t,
+      expectedLearnerLimit:limits.learnerLimit,expectedTeacherLimit:limits.teacherLimit});
      const verified=await invoke({action:"get-tier-limits"});
      if(verified.scope!=="manager-tier"||verified.learnerLimit!==l||verified.teacherLimit!==t)
        throw new Error("D1 GET độc lập chưa xác nhận hạn mức mới.");
@@ -70,7 +72,12 @@ export default function BoiManagerGrants({invoke,managers,onUpdated}:{invoke:Inv
    if(!window.confirm((enabled?"Cấp":"Thu hồi")+" quyền quản lý cho "+manager.deviceCode+"?"))return;
    lock.current=true;setBusy(true);setFault(false);setNotice("");
    try{
-     const written=await invoke({action:"grant-manager",deviceId:manager.deviceId,expectedPersonCode:manager.personCode,enabled});
+     const before=await invoke({action:"get-manager-grant",deviceId:manager.deviceId,expectedPersonCode:manager.personCode});
+    if(before.deviceId!==manager.deviceId||before.managementEnabled!==manager.managementEnabled)
+      throw new Error("Trạng thái quyền đã đổi, hãy đồng bộ trước khi thao tác.");
+    const written=await invoke({action:"grant-manager",deviceId:manager.deviceId,
+      expectedPersonCode:manager.personCode,enabled,
+      expectedManagementEnabled:before.managementEnabled});
      if(written.managementEnabled!==enabled)throw new Error("Lệnh chưa xác nhận quyền cán bộ.");
      // Independent new authority read: do not treat the POST receipt as sole evidence.
      const read=await invoke({action:"get-manager-grant",deviceId:manager.deviceId,expectedPersonCode:manager.personCode});
