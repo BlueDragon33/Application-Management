@@ -991,6 +991,40 @@ export async function POST(request: Request) {
     const action = typeof payload.action === "string" ? payload.action : "bootstrap";
     if (action === "bootstrap") return json(await buildBootstrap(actor));
 
+    if (action === "boi-manager-access") {
+      if (actor.role !== "owner") return json({
+        code:"OWNER_REQUIRED",error:"Chỉ Owner được cấp quyền cán bộ quản lý và chỉnh hạn mức chung."
+      },403);
+      const command=text(payload.operation);
+      if (!["get-tier-limits","set-tier-limits","grant-manager","get-manager-grant"].includes(command))
+        return json({code:"MANAGER_ACTION_INVALID",error:"Thao tác cấp quyền không hợp lệ."},400);
+      const body: UnknownRecord={action:command};
+      if (command==="set-tier-limits"){
+        if (!Number.isInteger(payload.learnerLimit)||!Number.isInteger(payload.teacherLimit)
+          ||Number(payload.learnerLimit)<0||Number(payload.learnerLimit)>5000
+          ||Number(payload.teacherLimit)<0||Number(payload.teacherLimit)>500)
+          return json({code:"MANAGER_LIMIT_INVALID",error:"Hạn mức không hợp lệ."},400);
+        body.learnerLimit=payload.learnerLimit;
+        body.teacherLimit=payload.teacherLimit;
+      }
+      if (command==="grant-manager"||command==="get-manager-grant"){
+        if(typeof payload.deviceId!=="string"||!/^[a-f0-9]{64}$/.test(payload.deviceId)
+          ||typeof payload.expectedPersonCode!=="string"||payload.expectedPersonCode.length>64)
+          return json({code:"MANAGER_ID_INVALID",error:"Thiếu mã thiết bị hoặc số hiệu cán bộ."},400);
+        body.deviceId=payload.deviceId;
+        body.expectedPersonCode=payload.expectedPersonCode;
+        if(command==="grant-manager"){
+          if(typeof payload.enabled!=="boolean")return json({code:"MANAGER_GRANT_INVALID",error:"Thiếu lựa chọn cấp/thu hồi quyền."},400);
+          body.enabled=payload.enabled;
+        }
+      }
+      const bridge=await issueBoiBrowserBridge(actor.email,actor.role);
+      const data=await bridgeJson(bridge,"/api/control/management-access",{
+        method:"POST",body,
+      });
+      return json({ok:true,...data});
+    }
+
     if (action === "read-automation") {
       // An independent, authenticated client GET, scoped to just the mutated
       // apps. The write response and central audit ledger are never authoritative.
