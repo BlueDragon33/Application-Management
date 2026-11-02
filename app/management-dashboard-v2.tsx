@@ -985,6 +985,17 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       const currentMap = new Map((baseline.automationPolicies ?? []).map((policy) => [policy.appId, policy]));
       for (const policy of livePolicies) currentMap.set(policy.appId, policy);
       const current = settingsFromPolicies(baseline, [...currentMap.values()]);
+      function reconcileDashboardPolicies(observedPolicies: NonNullable<OperationsBootstrap["settings"]>["automationPolicies"]) {
+        // Merge only independently observed rows into the latest React state.
+        // Never replace a concurrent refresh of another app with this save's
+        // older render-closure snapshot.
+        setOperations((previous) => {
+          if (!previous) return previous;
+          const latest = new Map((previous.settings.automationPolicies ?? []).map((policy) => [policy.appId, policy]));
+          for (const policy of observedPolicies ?? []) latest.set(policy.appId, policy);
+          return { ...previous, settings: settingsFromPolicies(previous.settings, [...latest.values()]) };
+        });
+      }
 
       const policyMap = new Map(current.automationPolicies.map((policy) => [policy.appId, policy]));
       const approvalTargets = current.automationPolicies
@@ -1012,7 +1023,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       if (!changedAppIds.length) {
         // A concurrent owner may already have applied the desired policy.
         // Return real readback, not a stale or browser-local assumption.
-        setOperations((previous) => previous ? { ...previous, settings: current } : previous);
+        reconcileDashboardPolicies(livePolicies);
         setNotice("Không cần ghi thêm: cấu hình đã khớp policy LIVE vừa đọc lại từ ứng dụng nguồn.");
         return current;
       }
@@ -1167,9 +1178,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
 
       // Only independently queried app policies may refresh the applied UI.
       // Keep unrelated devices/notifications and their original freshness.
-      if (independentSettings) setOperations((previous) => previous ? {
-        ...previous, settings: mergedSettings,
-      } : previous);
+      if (independentSettings) reconcileDashboardPolicies(independentSettings.automationPolicies);
 
       const succeededApps = changedAppIds.filter((appId) => !failedApps.has(appId));
       if (stepUpDuringSave) setStepUpRequired(true);
