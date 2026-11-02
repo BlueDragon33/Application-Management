@@ -926,19 +926,65 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
     setActionBusy("auto-policy");
 
     try {
-      // The modal already owns a verified snapshot. Do not block a single-app
-      // mutation on a fresh full-dashboard bootstrap. The mutation endpoint
-      // reads that target live again before writing and returns its own readback.
-      const current = operations?.settings ?? (await refreshOperations(true, true))?.settings;
-      if (!current?.automationPolicies?.length) {
-        setNotice("Không lấy được snapshot policy để lưu an toàn. Kiểm tra quyền quản trị/kết nối rồi thử lại.");
+      // A browser/cache snapshot is not the source of truth. Read the exact
+      // changed app policies from the owning clients before calculating writes.
+      // This also prevents an old UI snapshot from silently turning a save
+      // into a no-op or changing unrelated app policies.
+      const targetAppIds = [...new Set(selection.targetAppIds)];
+      const knownIds = new Set(activeApps.map((app) => app.id));
+      if (!targetAppIds.length || targetAppIds.length > 24
+        || targetAppIds.some((appId) => !knownIds.has(appId))) {
+        setNotice("Phạm vi ứng dụng cần lưu không hợp lệ. Hãy đồng bộ LIVE và mở lại cấu hình.");
         return null;
       }
+      const beforeWrite = await operationsAction({ action: "read-automation", targetAppIds });
+      const livePolicies = beforeWrite.settings?.automationPolicies ?? [];
+      const liveMap = new Map(livePolicies.map((policy) => [policy.appId, policy]));
+      if (targetAppIds.some((appId) => {
+        const policy = liveMap.get(appId);
+        return !policy || policy.verification.state !== "live"
+          || (!policy.mutation.autoApprove && !policy.mutation.autoBlockPending);
+      })) {
+        setNotice("Không xác minh được policy LIVE hoặc quyền ghi của ứng dụng cần lưu. Chưa gửi lệnh; bản chỉnh sửa vẫn được giữ.");
+        return null;
+      }
+      const baseline = operations?.settings ?? beforeWrite.settings;
+      if (!baseline) return null;
+      function settingsFromPolicies(
+        source: NonNullable<OperationsBootstrap["settings"]>,
+        automationPolicies: NonNullable<OperationsBootstrap["settings"]>["automationPolicies"],
+      ): NonNullable<OperationsBootstrap["settings"]> {
+        const policies = automationPolicies ?? [];
+        return {
+          ...source,
+          automationPolicies: policies,
+          autoApproveAppIds: policies.filter((policy) => policy.current.autoApprove === true).map((policy) => policy.appId),
+          autoApproveSupportedAppIds: policies
+            .filter((policy) => policy.verification.state === "live" && policy.support.autoApprove)
+            .map((policy) => policy.appId),
+          autoBlockPendingAppIds: policies.filter((policy) => policy.current.autoBlockPending === true).map((policy) => policy.appId),
+          autoBlockPendingSupportedAppIds: policies
+            .filter((policy) => policy.verification.state === "live" && policy.support.autoBlockPending)
+            .map((policy) => policy.appId),
+          pendingBlockAfterHoursByApp: Object.fromEntries(policies
+            .filter((policy) => typeof policy.current.pendingBlockAfterHours === "number")
+            .map((policy) => [policy.appId, policy.current.pendingBlockAfterHours!])),
+          freeAccessDaysByApp: Object.fromEntries(policies
+            .filter((policy) => typeof policy.current.freeAccessDays === "number")
+            .map((policy) => [policy.appId, policy.current.freeAccessDays!])),
+          freeDeviceLimitByApp: Object.fromEntries(policies
+            .filter((policy) => typeof policy.current.freeDeviceLimit === "number")
+            .map((policy) => [policy.appId, policy.current.freeDeviceLimit!])),
+        };
+      }
+      const currentMap = new Map((baseline.automationPolicies ?? []).map((policy) => [policy.appId, policy]));
+      for (const policy of livePolicies) currentMap.set(policy.appId, policy);
+      const current = settingsFromPolicies(baseline, [...currentMap.values()]);
 
       const policyMap = new Map(current.automationPolicies.map((policy) => [policy.appId, policy]));
       const approvalTargets = current.automationPolicies
         .filter((policy) => {
-          if (!policy.mutation.autoApprove) return false;
+          if (!targetAppIds.includes(policy.appId) || !policy.mutation.autoApprove) return false;
           const desired = selection.appIds.includes(policy.appId);
           if (policy.current.autoApprove !== desired) return true;
           return policy.appId === "boi-ech" && (
@@ -949,7 +995,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
         .map((policy) => policy.appId);
       const blockTargets = current.automationPolicies
         .filter((policy) => {
-          if (!policy.mutation.autoBlockPending) return false;
+          if (!targetAppIds.includes(policy.appId) || !policy.mutation.autoBlockPending) return false;
           const desired = selection.autoBlockAppIds.includes(policy.appId);
           if (policy.current.autoBlockPending !== desired) return true;
           const desiredHours = selection.pendingBlockAfterHoursByApp[policy.appId] ?? 168;
@@ -959,7 +1005,10 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       const changedAppIds = [...new Set([...approvalTargets, ...blockTargets])];
 
       if (!changedAppIds.length) {
-        setNotice("Không có thay đổi cấu hình kiểm duyệt cần lưu.");
+        // A concurrent owner may already have applied the desired policy.
+        // Return real readback, not a stale or browser-local assumption.
+        setOperations((previous) => previous ? { ...previous, settings: current } : previous);
+        setNotice("Không cần ghi thêm: cấu hình đã khớp policy LIVE vừa đọc lại từ ứng dụng nguồn.");
         return current;
       }
 
@@ -1070,27 +1119,8 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
         mergedPolicies.set(policy.appId, policy);
       }
       const automationPolicies = [...mergedPolicies.values()];
-      const mergedSettings: NonNullable<OperationsBootstrap["settings"]> = {
-        ...current,
-        automationPolicies,
-        autoApproveAppIds: automationPolicies.filter((policy) => policy.current.autoApprove === true).map((policy) => policy.appId),
-        autoApproveSupportedAppIds: automationPolicies
-          .filter((policy) => policy.verification.state === "live" && policy.support.autoApprove)
-          .map((policy) => policy.appId),
-        autoBlockPendingAppIds: automationPolicies.filter((policy) => policy.current.autoBlockPending === true).map((policy) => policy.appId),
-        autoBlockPendingSupportedAppIds: automationPolicies
-          .filter((policy) => policy.verification.state === "live" && policy.support.autoBlockPending)
-          .map((policy) => policy.appId),
-        pendingBlockAfterHoursByApp: Object.fromEntries(automationPolicies
-          .filter((policy) => typeof policy.current.pendingBlockAfterHours === "number")
-          .map((policy) => [policy.appId, policy.current.pendingBlockAfterHours!])),
-        freeAccessDaysByApp: Object.fromEntries(automationPolicies
-          .filter((policy) => typeof policy.current.freeAccessDays === "number")
-          .map((policy) => [policy.appId, policy.current.freeAccessDays!])),
-        freeDeviceLimitByApp: Object.fromEntries(automationPolicies
-          .filter((policy) => typeof policy.current.freeDeviceLimit === "number")
-          .map((policy) => [policy.appId, policy.current.freeDeviceLimit!])),
-      };
+      const mergedSettings: NonNullable<OperationsBootstrap["settings"]> =
+        settingsFromPolicies(current, automationPolicies);
 
       function taskMatchesReadback(settings: NonNullable<OperationsBootstrap["settings"]>, task: PolicySaveTask) {
         const policy = settings.automationPolicies?.find((item) => item.appId === task.appId);
