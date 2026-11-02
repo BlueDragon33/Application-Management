@@ -28,7 +28,7 @@ test("write-response merge is not used to mark applied policy success",()=>{
   assert.match(source,/for \(const policy of independentSettings\?\.automationPolicies \?\? \[\]\)/);
   assert.match(source,/return mergedSettings;/);
   assert.match(source,/if \(failedFields\.length \|\| !independentSettings\) return null;/);
-  assert.match(source,/if \(independentSettings\) setOperations\(/);
+  assert.match(source,/if \(independentSettings\) reconcileDashboardPolicies\(independentSettings\.automationPolicies\)/);
   assert.match(source,/return mergedSettings;/);
 });
 test("unavailable GET is blocked even after successful POST",()=>{
@@ -76,8 +76,9 @@ test("source policy readback cannot fabricate a previously live but unqueried ap
   assert.match(source,/changedAppIds\.every\(\(appId\) => observedIds\.has\(appId\)\)/);
   assert.match(source,/taskMatchesReadback\(independentSettings, task\)/);
   assert.match(source,/policy\?\.verification\.state === "live"/);
-  assert.match(source,/if \(independentSettings\) setOperations\(\(previous\) => previous \?/);
-  assert.match(source,/settings: mergedSettings/);
+  assert.match(source,/if \(independentSettings\) reconcileDashboardPolicies\(independentSettings\.automationPolicies\)/);
+  assert.match(source,/const latest = new Map\(\(previous\.settings\.automationPolicies \?\? \[\]\)/);
+  assert.match(source,/settings: settingsFromPolicies\(previous\.settings, \[\.\.\.latest\.values\(\)\]\)/);
 });
 
 
@@ -111,4 +112,13 @@ test("localStorage failure cannot report applied and cannot suppress owner write
   assert.doesNotMatch(apply,/if \(!persisted\.saved\) \{[\s\S]*?return;/);
   assert.match(apply,/if \(!readback\) \{/);
   assert.match(apply,/Kho bản nháp trình duyệt không khả dụng/);
+});
+
+test("a concurrent dashboard refresh is not overwritten by an older automation snapshot",()=>{
+  assert.match(source,/function reconcileDashboardPolicies\(/);
+  assert.match(source,/setOperations\(\(previous\) => \{/);
+  assert.match(source,/const latest = new Map\(\(previous\.settings\.automationPolicies \?\? \[\]\)/);
+  assert.match(source,/for \(const policy of observedPolicies \?\? \[\]\) latest\.set\(policy\.appId, policy\)/);
+  assert.match(source,/reconcileDashboardPolicies\(livePolicies\)/);
+  assert.match(source,/reconcileDashboardPolicies\(independentSettings\.automationPolicies\)/);
 });
