@@ -30,6 +30,14 @@ type AutomationAppDraft = {
 
 function policyFor(settings: OperationsSettings | undefined, appId: string): OperationsAutomationPolicy {
   const explicit = settings?.automationPolicies?.find((policy) => policy.appId === appId);
+  // Bơi Ếch now delegates learner/teacher approval to signed manager devices.
+  // Keep source state visible (including legacy Auto if still live) but prevent
+  // a stale central toggle from re-enabling blanket approval.
+  if (appId === "boi-ech" && explicit) return {
+    ...explicit,
+    mutation:{...explicit.mutation,autoApprove:false,
+      reason:"Bơi Ếch đã chuyển quyền duyệt học viên/giảng viên cho Cán bộ quản lý."},
+  };
   if (explicit) return explicit;
   const autoApproveSupported = settings?.autoApproveSupportedAppIds.includes(appId) ?? false;
   const autoBlockSupported = settings?.autoBlockPendingSupportedAppIds?.includes(appId) ?? false;
@@ -81,9 +89,11 @@ function verificationLabel(policy: OperationsAutomationPolicy, verified: boolean
 }
 
 function approvalLabel(policy: OperationsAutomationPolicy, appId: string) {
+  if (appId === "boi-ech") return policy.current.autoApprove === true
+    ? "Auto cũ đang bật · chờ chuyển đổi phân quyền"
+    : "Cán bộ quản lý xét duyệt · hạn mức chung";
   if (!policy.support.autoApprove) return "Không hỗ trợ";
   if (policy.current.autoApprove === undefined) return "Chưa xác minh";
-  if (appId === "boi-ech") return policy.current.autoApprove ? "Miễn phí · tự động duyệt" : "Có phí · xác minh thủ công";
   return policy.current.autoApprove ? "Tự động duyệt" : "Duyệt thủ công";
 }
 
