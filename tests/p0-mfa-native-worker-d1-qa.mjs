@@ -304,22 +304,29 @@ async function main(){
     const allowed=await formPost(base,"/__account/mfa/verify",{code},cookie1);
     assert.equal(allowed.status,200,"BLOCKED_MFA_NATIVE_VALID_CODE");
     mark("STEPUP_SECOND_SESSION_NATIVE");
+    mark("SECOND_SESSION_LOGIN_REQUEST");
     const second=await formPost(base,"/__login",{email:OWNER,password:ownerPassword});
     assert.equal(second.status,303,"BLOCKED_MFA_SECOND_LOGIN");
+    mark("SECOND_SESSION_COOKIE_CHECK");
     const cookie2=(second.headers.get("set-cookie")||"").match(
       /__Host-am_prod_session=[A-Za-z0-9_-]+/)?.[0];
     assert.ok(cookie2&&cookie2!==cookie1,"BLOCKED_MFA_SESSION_ISOLATION");
+    mark("STEPUP_UNVERIFIED_GATE");
     const denied=await protectedPost(base,cookie2);
     assert.equal(denied.status,403,"BLOCKED_MFA_STEPUP_HTTP_STATUS");
     const deniedJSON=await denied.json().catch(()=>({}));
     assert.equal(deniedJSON.code,"STEP_UP_REQUIRED","BLOCKED_MFA_STEPUP_GATE_MISSING");
+    mark("STEPUP_INVALID_CODE");
     const badStep=await formPost(base,"/__account/mfa/step-up",{code:wrong},cookie2);
     assert.equal(badStep.status,401,"BLOCKED_MFA_INVALID_STEPUP_HTTP");
+    mark("STEPUP_INVALID_STILL_DENIED");
     const deniedAgain=await protectedPost(base,cookie2);
     assert.equal((await deniedAgain.json().catch(()=>({})).code),"STEP_UP_REQUIRED",
       "BLOCKED_MFA_INVALID_STEPUP_CHANGED_SESSION");
+    mark("STEPUP_VALID_CODE");
     const goodStep=await formPost(base,"/__account/mfa/step-up",{code},cookie2);
     assert.equal(goodStep.status,200,"BLOCKED_MFA_VALID_STEPUP_HTTP");
+    mark("STEPUP_VERIFIED_DOWNSTREAM_GATE");
     const afterStep=await protectedPost(base,cookie2);
     const afterJSON=await afterStep.json().catch(()=>({}));
     assert.notEqual(afterJSON.code,"STEP_UP_REQUIRED",
@@ -374,9 +381,13 @@ async function main(){
 }
 main().catch(e=>{
   const msg=String(e?.message||e);
+  // Never expose raw HTTP responses, cookie, TOTP secret or full stack.
+  const sourceFrame=String(e?.stack||"").match(/p0-mfa-native-worker-d1-qa[.]mjs:(\d+):(\d+)/);
   console.error("P0_MFA_NATIVE_WORKER_D1_NOT_PASSED: "+JSON.stringify({
     phase,code:String(e?.code||e?.name||"UNKNOWN").slice(0,90),
-    reason:/^BLOCKED_[A-Z0-9_]+$/.test(msg)?msg:"NON_EXPLICIT_QA_FAILURE"
+    reason:/^BLOCKED_[A-Z0-9_]+$/.test(msg)?msg:"NON_EXPLICIT_QA_FAILURE",
+    qaLine:sourceFrame?Number(sourceFrame[1]):null,
+    qaColumn:sourceFrame?Number(sourceFrame[2]):null
   }));
   process.exitCode=1;
 });
