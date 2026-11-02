@@ -7,6 +7,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import AiControlCenter, { type AiControlData } from "../../ai-control-center";
 import { csvCell } from "../../report-exports";
+import { operationsAction } from "../../admin-device-client";
+import BoiManagerGrants from "./boi-manager-grants";
 
 type ControlRole = "viewer" | "reviewer" | "publisher" | "owner";
 type DeviceStatus = "pending" | "approved" | "blocked";
@@ -1177,6 +1179,10 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
         </> : null}
 
         {tab === "devices" ? <>
+          {access.role === "owner" ? <BoiManagerGrants
+            invoke={async(body)=>await operationsAction({action:"boi-manager-access",operation:body.action,...Object.fromEntries(Object.entries(body).filter(([key])=>key!=="action"))}) as Record<string,unknown>}
+            managers={(dashboard?.learningDevices??[]).filter(d=>d.personRole==="manager").map(d=>({deviceId:d.deviceId,deviceCode:d.deviceCode,personCode:d.personCode??"",name:d.learnerName??"",approved:d.status==="approved"&&!d.accessExpired,managementEnabled:Boolean(d.managementEnabled)}))}
+          /> : null}
           <section className="summary-grid"><article><span>Tổng thiết bị</span><strong>{counts.total}</strong><small>Bơi ếch</small></article><article><span>Online</span><strong>{counts.active}</strong><small>Tín hiệu ký số mỗi 60 giây</small></article><article><span>Chờ xử lý</span><strong>{counts.pending}</strong><small>Hồ sơ hoặc thanh toán</small></article><article><span>Nhóm trả phí</span><strong>{counts.paid}</strong><small>Tài khoản 50.000đ</small></article><article><span>Nhóm miễn phí</span><strong>{counts.free}</strong><small>Đã sàng lọc</small></article><article><span>Sửa bản riêng</span><strong>{counts.personalEdit}</strong><small>Không cập nhật máy chủ</small></article><article><span>Sắp/đã hết hạn</span><strong>{counts.expiring + counts.expired}</strong><small>{counts.expired} đã hết hạn</small></article><article><span>Đã khóa</span><strong>{counts.blocked}</strong><small>Không thể truy cập</small></article><article><span>Đã loại bỏ</span><strong>{counts.deleted}</strong><small>Không thể tự đăng ký lại</small></article></section>
           <section className="operations-inbox"><div><span>Hộp việc cần xử lý</span><strong>Ưu tiên những tài khoản đang chờ quyết định</strong></div><button onClick={() => setFilter("incomplete")}><span>Hồ sơ chưa đủ</span><strong>{counts.incomplete}</strong></button><button onClick={() => setFilter("payment")}><span>Ảnh chuyển khoản</span><strong>{counts.paymentReview}</strong></button><button onClick={() => setFilter("expired")}><span>Tài khoản hết hạn</span><strong>{counts.expired}</strong></button>{["reviewer", "publisher", "owner"].includes(access.role) ? <button onClick={() => setTab("content")}><span>Duyệt nội dung</span><strong>→</strong></button> : null}</section>
           <section className="manual-device-card"><div><span>Nhập mã dự phòng</span><strong>Thiết bị mới được quét khi bấm “Cập nhật thiết bị”; danh sách đang có luôn được giữ cố định.</strong><small><b>BE-…</b> là thiết bị học của Bơi ếch. <b>QT-…</b> thuộc Application Management và không được quản trị tại đây.</small></div><label><input value={manualCode} onChange={(event) => setManualCode(event.target.value.toUpperCase())} onKeyDown={(event) => { if (event.key === "Enter") void locateManualCode(); }} placeholder="BE-1234-5678-9ABC-DEF0" aria-label="Mã thiết bị cần tìm" /><button className="button primary" onClick={() => void locateManualCode()}>Tìm thiết bị</button></label></section>
