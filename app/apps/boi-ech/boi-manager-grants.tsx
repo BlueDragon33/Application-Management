@@ -2,7 +2,7 @@
 import {useCallback,useEffect,useRef,useState} from "react";
 
 type Limits={learnerLimit:number;teacherLimit:number;scope:"manager-tier"};
-type Manager={deviceId:string;deviceCode:string;personCode:string;name:string;approved:boolean;managementEnabled:boolean};
+type Manager={deviceId:string;deviceCode:string;personCode:string;name:string;approved:boolean;status:"pending"|"approved"|"blocked";managementEnabled:boolean};
 type Invoke=(payload:Record<string,unknown>)=>Promise<Record<string,unknown>>;
 
 export default function BoiManagerGrants({invoke,managers,onUpdated}:{invoke:Invoke;managers:Manager[];onUpdated:()=>Promise<void>}){
@@ -43,6 +43,26 @@ export default function BoiManagerGrants({invoke,managers,onUpdated}:{invoke:Inv
    }catch(e){setFault(true);setNotice(e instanceof Error?e.message:"Chưa xác minh được hạn mức.");}
    finally{lock.current=false;setBusy(false)}
  }
+ async function approve(manager:Manager){
+   if(lock.current)return;
+   if(manager.status!=="pending"||!manager.personCode){
+     setFault(true);setNotice("Chỉ xét duyệt cán bộ đang chờ với số hiệu hợp lệ.");return;
+   }
+   if(!window.confirm("Duyệt tài khoản và cấp quyền Cán bộ quản lý cho "+manager.deviceCode+"?"))return;
+   lock.current=true;setBusy(true);setFault(false);setNotice("");
+   try{
+     await invoke({action:"approve-manager",deviceId:manager.deviceId,
+       expectedPersonCode:manager.personCode,expectedStatus:"pending"});
+     // New independent query, not the approval mutation response.
+     const read=await invoke({action:"get-manager-grant",deviceId:manager.deviceId,
+       expectedPersonCode:manager.personCode});
+     if(read.deviceId!==manager.deviceId||read.accountApproved!==true||read.managementEnabled!==true)
+       throw new Error("D1 chưa xác nhận đã duyệt và cấp quyền cán bộ. Đồng bộ trước khi thử lại.");
+     await onUpdated();
+     setNotice("Đã xét duyệt cán bộ và xác minh quyền tại D1 Bơi Ếch.");
+   }catch(e){setFault(true);setNotice(e instanceof Error?e.message:"Chưa xác minh được xét duyệt cán bộ.");}
+   finally{lock.current=false;setBusy(false)}
+ }
  async function grant(manager:Manager,enabled:boolean){
    if(lock.current)return;
    if(!manager.approved&&enabled){setFault(true);setNotice("Cán bộ phải được Owner duyệt tài khoản trước.");return;}
@@ -74,7 +94,9 @@ export default function BoiManagerGrants({invoke,managers,onUpdated}:{invoke:Inv
    {notice?<p role={fault?"alert":"status"}>{notice}</p>:null}
    <div>{managers.map(m=><div key={m.deviceId} style={{display:"flex",justifyContent:"space-between",gap:12,padding:10,borderTop:"1px solid #999"}}>
      <div><strong>{m.name||m.deviceCode}</strong><p>{m.deviceCode} · {m.personCode} · {m.approved?"Tài khoản đã duyệt":"Chưa duyệt tài khoản"} · {m.managementEnabled?"Được quản lý":"Chưa cấp quản lý"}</p></div>
-     <button type="button" disabled={busy||!m.approved} onClick={()=>void grant(m,!m.managementEnabled)}>{m.managementEnabled?"Thu hồi quyền":"Cấp quyền"}</button>
+     {m.status==="pending"
+       ? <button type="button" disabled={busy||!m.personCode} onClick={()=>void approve(m)}>Duyệt cán bộ</button>
+       : <button type="button" disabled={busy||!m.approved} onClick={()=>void grant(m,!m.managementEnabled)}>{m.managementEnabled?"Thu hồi quyền":"Cấp quyền"}</button>}
    </div>)}</div>
    {!managers.length?<p>Chưa có hồ sơ cán bộ được xác minh từ Bơi Ếch.</p>:null}
  </section>;
