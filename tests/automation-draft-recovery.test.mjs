@@ -85,14 +85,23 @@ test("unsupported disabled field does not cause phantom pending after valid supp
  assert.match(modal,/policy\.current\.freeDeviceLimit !== limit/);
 });
 
-test("Apply stages exact intended draft before remote write and refuses mutation on store failure",()=>{
+test("Apply uses browser draft only as best-effort backup, never as an owning-client write gate",()=>{
   const staging=modal.indexOf("persisted = writeAutomationDraft(window.localStorage");
   const mutation=modal.indexOf("const readback = await save(");
   assert.ok(staging>=0 && mutation>staging);
-  assert.match(modal,/if \(!persisted\.saved\) \{/);
-  assert.match(modal,/Chưa gửi lệnh tới ứng dụng/);
-  assert.match(modal,/drafts: \{ \.\.\.previous\?\.drafts, \.\.\.localIntent \}/);
-  assert.match(modal,/Chưa xác minh áp dụng\. Bản chỉnh sửa đã giữ trên trình duyệt/);
+  const submit=modal.slice(modal.indexOf("async function submit()"),modal.indexOf("return <div className={styles.scrim}"));
+  assert.doesNotMatch(submit,/if \(!persisted\.saved\) \{[\s\S]*?return;/);
+  assert.match(submit,/Không lưu được bản nháp trình duyệt/);
+  assert.match(submit,/Vẫn đang áp dụng trực tiếp vào ứng dụng nguồn/);
+  assert.match(submit,/drafts: \{ \.\.\.previous\?\.drafts, \.\.\.localIntent \}/);
+  assert.match(submit,/if \(!readback\) \{/);
+  assert.match(submit,/Chưa xác minh áp dụng/);
+});
+test("explicit per-field app intent is passed to Dashboard, not every registered app",()=>{
+  assert.match(modal,/const approvalTargetAppIds = apps\.filter/);
+  assert.match(modal,/const blockTargetAppIds = apps\.filter/);
+  assert.match(modal,/const targetAppIds = \[\.\.\.new Set\(\[\.\.\.approvalTargetAppIds, \.\.\.blockTargetAppIds\]\)\]/);
+  assert.match(modal,/await save\(\{ targetAppIds, approvalTargetAppIds, blockTargetAppIds/);
 });
 
 test("saving one app's local draft does not erase other pending app intents",()=>{
