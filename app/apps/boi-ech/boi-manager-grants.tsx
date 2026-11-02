@@ -12,6 +12,8 @@ export default function BoiManagerGrants({invoke,managers,onUpdated}:{invoke:Inv
  const [busy,setBusy]=useState(false);
  const [notice,setNotice]=useState("");
  const [fault,setFault]=useState(false);
+ // Keep only values confirmed by an independent D1 read after mutation.
+ const [verifiedGrants,setVerifiedGrants]=useState<Record<string,{approved:boolean;enabled:boolean}>>({});
  const lock=useRef(false);
  const refresh=useCallback(async()=>{
    if(lock.current)return;
@@ -60,6 +62,7 @@ export default function BoiManagerGrants({invoke,managers,onUpdated}:{invoke:Inv
        expectedPersonCode:manager.personCode});
      if(read.deviceId!==manager.deviceId||read.accountApproved!==true||read.managementEnabled!==true)
        throw new Error("D1 chưa xác nhận đã duyệt và cấp quyền cán bộ. Đồng bộ trước khi thử lại.");
+     setVerifiedGrants(current=>({...current,[manager.deviceId]:{approved:true,enabled:true}}));
      await onUpdated();
      setNotice("Đã xét duyệt cán bộ và xác minh quyền tại D1 Bơi Ếch.");
    }catch(e){setFault(true);setNotice(e instanceof Error?e.message:"Chưa xác minh được xét duyệt cán bộ.");}
@@ -81,7 +84,9 @@ export default function BoiManagerGrants({invoke,managers,onUpdated}:{invoke:Inv
      if(written.managementEnabled!==enabled)throw new Error("Lệnh chưa xác nhận quyền cán bộ.");
      // Independent new authority read: do not treat the POST receipt as sole evidence.
      const read=await invoke({action:"get-manager-grant",deviceId:manager.deviceId,expectedPersonCode:manager.personCode});
-     if(read.managementEnabled!==enabled)throw new Error("D1 GET độc lập chưa xác minh quyền cán bộ.");
+     if(read.deviceId!==manager.deviceId||read.managementEnabled!==enabled||read.accountApproved!==true)
+       throw new Error("D1 GET độc lập chưa xác minh quyền cán bộ.");
+     setVerifiedGrants(current=>({...current,[manager.deviceId]:{approved:true,enabled}}));
      await onUpdated();
      setNotice(enabled?"Đã cấp quyền cán bộ và xác minh D1.":"Đã thu hồi quyền cán bộ và xác minh D1.");
    }catch(e){setFault(true);setNotice(e instanceof Error?e.message:"Chưa xác minh được quyền.");}
@@ -99,12 +104,21 @@ export default function BoiManagerGrants({invoke,managers,onUpdated}:{invoke:Inv
    </div>
    <p>Áp dụng chung cho tất cả cán bộ, không nhân theo số cán bộ. {limits?"D1 LIVE: "+limits.learnerLimit+" học viên / "+limits.teacherLimit+" giảng viên.":"Chưa có readback D1."}</p>
    {notice?<p role={fault?"alert":"status"}>{notice}</p>:null}
-   <div>{managers.map(m=><div key={m.deviceId} style={{display:"flex",justifyContent:"space-between",gap:12,padding:10,borderTop:"1px solid #999"}}>
-     <div><strong>{m.name||m.deviceCode}</strong><p>{m.deviceCode} · {m.personCode} · {m.approved?"Tài khoản đã duyệt":"Chưa duyệt tài khoản"} · {m.managementEnabled?"Được quản lý":"Chưa cấp quản lý"}</p></div>
-     {m.status==="pending"
-       ? <button type="button" disabled={busy||!m.personCode} onClick={()=>void approve(m)}>Duyệt cán bộ</button>
-       : <button type="button" disabled={busy||!m.approved} onClick={()=>void grant(m,!m.managementEnabled)}>{m.managementEnabled?"Thu hồi quyền":"Cấp quyền"}</button>}
-   </div>)}</div>
+   <div>{managers.map(m=>{
+     const confirmed=verifiedGrants[m.deviceId];
+     const effectiveApproved=confirmed?.approved??m.approved;
+     const effectiveEnabled=confirmed?.enabled??m.managementEnabled;
+     const stillPending=m.status==="pending"&&!effectiveApproved;
+     return <div key={m.deviceId} style={{display:"flex",justifyContent:"space-between",gap:12,padding:10,borderTop:"1px solid #999"}}>
+       <div><strong>{m.name||m.deviceCode}</strong><p>{m.deviceCode} · {m.personCode} · {effectiveApproved?"Tài khoản đã duyệt":"Chưa duyệt tài khoản"} · {effectiveEnabled?"Được quản lý":"Chưa cấp quản lý"}{confirmed?" · D1 đã xác minh":""}</p></div>
+       {stillPending
+         ? <button type="button" disabled={busy||!m.personCode} onClick={()=>void approve(m)}>Duyệt cán bộ</button>
+         : <button type="button" disabled={busy||!effectiveApproved}
+             onClick={()=>void grant({...m,approved:effectiveApproved,managementEnabled:effectiveEnabled},!effectiveEnabled)}>
+             {effectiveEnabled?"Thu hồi quyền":"Cấp quyền"}
+           </button>}
+     </div>;
+   })}</div>
    {!managers.length?<p>Chưa có hồ sơ cán bộ được xác minh từ Bơi Ếch.</p>:null}
  </section>;
 }
