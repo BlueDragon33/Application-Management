@@ -44,3 +44,11 @@ test("Owner quota and manager grants use CAS and production 2FA",()=>{
  assert.match(security,/action === "boi-manager-access"/);
  assert.match(security,/\["get-tier-limits", "get-manager-grant"\]\.includes\(operation\)/);
 });
+
+test("Owner cards adopt only independently D1-verified grant and approval state",()=>{
+ assert.match(ui,/setVerifiedGrants\(current=>/);
+ assert.match(ui,/read\.deviceId!==manager\.deviceId\|\|read\.managementEnabled!==enabled\|\|read\.accountApproved!==true/);
+ assert.match(ui,/const effectiveApproved=confirmed\?\.approved\?\?m\.approved/);
+ assert.match(ui,/const effectiveEnabled=confirmed\?\.enabled\?\?m\.managementEnabled/);
+ assert.match(ui,/grant\(\{\.\.\.m,approved:effectiveApproved,managementEnabled:effectiveEnabled\},!effectiveEnabled\)/);
+});
