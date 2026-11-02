@@ -40,7 +40,7 @@ type LearningDevice = {
   learnerName: string | null;
   learnerFamilyName: string | null;
   learnerGivenName: string | null;
-  personRole: "learner" | "teacher" | null;
+  personRole: "learner" | "teacher" | "manager" | null;
   personCode: string | null;
   className: string | null;
   phone: string | null;
@@ -1103,6 +1103,9 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
   const visibleDevices = useMemo(() => {
     const source = dashboard?.learningDevices ?? [];
     return source.filter((device) => {
+      // Central app review is manager-only; learners/teachers stay inside the
+      // Bơi Ếch manager workspace and must not appear in this admin list.
+      if (device.personRole !== "manager") return false;
       const matchesFilter = filter === "all"
         || (filter === "active" ? device.active
           : filter === "incomplete" ? !device.registrationComplete
@@ -1117,18 +1120,19 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
 
   if (!access || access.status !== "approved") return <DeviceGate access={access} checking={checking} error={error} retry={() => void initialize()} />;
 
+  const managerDevices = dashboard?.learningDevices.filter((device) => device.personRole === "manager") ?? [];
   const counts = {
-    total: dashboard?.learningDevices.length ?? 0,
-    active: dashboard?.learningDevices.filter((item) => item.active).length ?? 0,
-    pending: dashboard?.learningDevices.filter((item) => item.status === "pending").length ?? 0,
-    paid: dashboard?.learningDevices.filter((item) => item.accessGroup === "paid").length ?? 0,
-    free: dashboard?.learningDevices.filter((item) => item.accessGroup === "free").length ?? 0,
-    blocked: dashboard?.learningDevices.filter((item) => item.status === "blocked").length ?? 0,
-    expired: dashboard?.learningDevices.filter((item) => item.accessExpired).length ?? 0,
-    expiring: dashboard?.learningDevices.filter((item) => item.accessExpiringSoon).length ?? 0,
-    paymentReview: dashboard?.learningDevices.filter((item) => item.paymentStatus === "proof_submitted").length ?? 0,
-    personalEdit: dashboard?.learningDevices.filter((item) => item.personalEditConfigured).length ?? 0,
-    incomplete: dashboard?.learningDevices.filter((item) => !item.registrationComplete).length ?? 0,
+    total: managerDevices.length,
+    active: managerDevices.filter((item) => item.active).length ?? 0,
+    pending: managerDevices.filter((item) => item.status === "pending").length ?? 0,
+    paid: managerDevices.filter((item) => item.accessGroup === "paid").length ?? 0,
+    free: managerDevices.filter((item) => item.accessGroup === "free").length ?? 0,
+    blocked: managerDevices.filter((item) => item.status === "blocked").length ?? 0,
+    expired: managerDevices.filter((item) => item.accessExpired).length ?? 0,
+    expiring: managerDevices.filter((item) => item.accessExpiringSoon).length ?? 0,
+    paymentReview: managerDevices.filter((item) => item.paymentStatus === "proof_submitted").length ?? 0,
+    personalEdit: managerDevices.filter((item) => item.personalEditConfigured).length ?? 0,
+    incomplete: managerDevices.filter((item) => !item.registrationComplete).length ?? 0,
     deleted: dashboard?.deletedDevices?.length ?? 0,
   };
   const activeTheme = adminThemes.find((item) => item.id === appearance.theme) ?? adminThemes[0];
@@ -1152,7 +1156,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
         <div className="control-brand"><div className="brand-seal">BE</div><div><span>CLIENT CẤP 1</span><strong>Quản trị Bơi ếch</strong></div></div>
         <nav aria-label="Quản trị Bơi ếch">
           <button className={tab === "overview" ? "active" : ""} onClick={() => setTab("overview")}><i>01</i><span><strong>Tổng quan</strong><small>Control & trạng thái</small></span></button>
-          <button className={tab === "devices" ? "active" : ""} onClick={() => setTab("devices")}><i>02</i><span><strong>Thiết bị & tiến độ</strong><small>Registry BE & học tập</small></span></button>
+          <button className={tab === "devices" ? "active" : ""} onClick={() => setTab("devices")}><i>02</i><span><strong>Tài khoản cán bộ</strong><small>Chỉ xét duyệt cấp quản lý</small></span></button>
           <button className={tab === "ai" ? "active" : ""} onClick={() => setTab("ai")}><i>03</i><span><strong>Điều hành AI</strong><small>AI của Bơi ếch</small></span></button>
           {["reviewer", "publisher", "owner"].includes(access.role) ? <button className={tab === "content" ? "active" : ""} onClick={() => setTab("content")}><i>04</i><span><strong>Duyệt chỉnh sửa</strong><small>Content review</small></span></button> : null}
         </nav>
@@ -1161,7 +1165,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
       </aside>
 
       <section className="control-main">
-        <header className="topbar"><div><span>BƠI ẾCH · CLIENT CONTROL</span><h1>{tab === "overview" ? "Quản trị Bơi ếch" : tab === "devices" ? "Thiết bị học tập" : tab === "ai" ? "Điều hành AI" : "Duyệt chỉnh sửa"}</h1><p>{tab === "overview" ? "Theo dõi registry BE, quyền truy cập, trạng thái học tập và hàng đợi kiểm duyệt theo cùng cấu trúc Bauman Hub." : tab === "devices" ? "Thiết bị học và tiến độ thuộc Bơi ếch; quyền quản trị Trung tâm vẫn tách riêng." : tab === "ai" ? "Điều hành AI chỉ tác động tới client Bơi ếch." : "Duyệt các thay đổi nội dung do Bơi ếch gửi lên."}</p></div><div className="topbar-actions"><span className={`sync-state ${boiOnline && online ? "" : "sync-warning"}`}><i /> {!online ? "Máy quản trị đang offline" : boiOnline ? "Trạng thái tự động · 60 giây/lần" : "Đang giữ dữ liệu gần nhất"}</span><button className="button appearance-control" onClick={() => setAppearanceOpen(true)} aria-expanded={appearanceOpen} aria-controls="admin-appearance-panel"><b>Aa</b> Giao diện</button><button className="button" onClick={() => void refresh(credential, access, { discoverNew: true })} disabled={checking || !online}>{checking ? "Đang cập nhật…" : "Cập nhật thiết bị"}</button></div></header>
+        <header className="topbar"><div><span>BƠI ẾCH · CLIENT CONTROL</span><h1>{tab === "overview" ? "Quản trị Bơi ếch" : tab === "devices" ? "Tài khoản cán bộ quản lý" : tab === "ai" ? "Điều hành AI" : "Duyệt chỉnh sửa"}</h1><p>{tab === "overview" ? "Theo dõi registry BE, quyền truy cập, trạng thái học tập và hàng đợi kiểm duyệt theo cùng cấu trúc Bauman Hub." : tab === "devices" ? "Chỉ quản lý xét duyệt tài khoản cấp Cán bộ quản lý; thiết bị học viên và giảng viên được duyệt trong Bơi Ếch." : tab === "ai" ? "Điều hành AI chỉ tác động tới client Bơi ếch." : "Duyệt các thay đổi nội dung do Bơi ếch gửi lên."}</p></div><div className="topbar-actions"><span className={`sync-state ${boiOnline && online ? "" : "sync-warning"}`}><i /> {!online ? "Máy quản trị đang offline" : boiOnline ? "Trạng thái tự động · 60 giây/lần" : "Đang giữ dữ liệu gần nhất"}</span><button className="button appearance-control" onClick={() => setAppearanceOpen(true)} aria-expanded={appearanceOpen} aria-controls="admin-appearance-panel"><b>Aa</b> Giao diện</button><button className="button" onClick={() => void refresh(credential, access, { discoverNew: true })} disabled={checking || !online}>{checking ? "Đang cập nhật…" : "Cập nhật thiết bị"}</button></div></header>
         {appearanceOpen ? <><button className="admin-appearance-scrim" aria-label="Đóng bảng Giao diện" onClick={() => setAppearanceOpen(false)} /><aside id="admin-appearance-panel" className="admin-appearance-panel" role="dialog" aria-modal="true" aria-labelledby="admin-appearance-title"><header><div><span>Tùy chỉnh hiển thị</span><h2 id="admin-appearance-title">Giao diện quản trị</h2></div><button onClick={() => setAppearanceOpen(false)} aria-label="Đóng">×</button></header><section><label>Màu nền</label><p>Chỉ lưu trên máy quản trị hiện tại.</p><div className="admin-theme-options">{adminThemes.map((item) => <button key={item.id} className={appearance.theme === item.id ? "active" : ""} onClick={() => setAppearance((current) => ({ ...current, theme: item.id }))}><i style={{ background: item.paper }} /><span>{item.name}</span></button>)}</div></section><section><label>Font tiếng Việt</label><div className="admin-font-options">{adminFonts.map((item) => <button key={item.id} className={appearance.font === item.id ? "active" : ""} style={{ fontFamily: item.ui }} onClick={() => setAppearance((current) => ({ ...current, font: item.id }))}><strong>{item.name}</strong><span>{item.sample}</span></button>)}</div></section><section><label>Cỡ giao diện</label><div className="admin-size-options">{([{ id: "normal", label: "Tiêu chuẩn" }, { id: "large", label: "Lớn" }, { id: "xlarge", label: "Rất lớn" }] as const).map((item) => <button key={item.id} className={appearance.textSize === item.id ? "active" : ""} onClick={() => setAppearance((current) => ({ ...current, textSize: item.id }))}>{item.label}</button>)}</div></section><footer><button onClick={() => setAppearance(defaultAdminAppearance)}>Khôi phục mặc định</button><span>Tự lưu trên thiết bị</span></footer></aside></> : null}
         {error || dashboard?.upstreamError ? <div className="alert warning">{error || dashboard?.upstreamError}</div> : null}
         {notice ? <div className="notice" role="status">{notice}</div> : null}
