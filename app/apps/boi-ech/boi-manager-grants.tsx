@@ -15,18 +15,22 @@ export default function BoiManagerGrants({invoke,managers,onUpdated}:{invoke:Inv
  // Keep only values confirmed by an independent D1 read after mutation.
  const [verifiedGrants,setVerifiedGrants]=useState<Record<string,{approved:boolean;enabled:boolean}>>({});
  const lock=useRef(false);
+ // Parent supplies an inline API adapter; avoid a fresh mount GET on every
+ // parent render while still invoking its newest authenticated callback.
+ const invokeRef=useRef(invoke);
+ invokeRef.current=invoke;
  const refresh=useCallback(async()=>{
    if(lock.current)return;
    lock.current=true;setBusy(true);setFault(false);setNotice("");
    try{
-     const result=await invoke({action:"get-tier-limits"});
+     const result=await invokeRef.current({action:"get-tier-limits"});
      if(result.scope!=="manager-tier"||!Number.isInteger(result.learnerLimit)||!Number.isInteger(result.teacherLimit))
        throw new Error("D1 chưa xác nhận hạn mức cấp quản lý.");
      const confirmed={scope:"manager-tier" as const,learnerLimit:Number(result.learnerLimit),teacherLimit:Number(result.teacherLimit)};
      setLimits(confirmed);setLearner(String(confirmed.learnerLimit));setTeacher(String(confirmed.teacherLimit));
    }catch(e){setFault(true);setNotice(e instanceof Error?e.message:"Không đọc được D1.");}
    finally{lock.current=false;setBusy(false)}
- },[invoke]);
+ },[]);
  useEffect(()=>{void refresh()},[refresh]);
  async function saveLimits(){
    if(lock.current)return;
