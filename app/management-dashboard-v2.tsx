@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { applicationRegistry, standardDeviceExperiences, type ApplicationConfig } from "./application-registry";
-import BoiAccessView from "./boi-access-view";
+import BoiManagerTierView from "./boi-manager-tier-view";
 import AutomaticDevicePolicies, { type AutomationSelection } from "./automatic-device-policies";
 import OperatingModeDialog, { availableOperatingMode, hasProtectedOperationAccess, operatingModeLabel, type OperatingMode } from "./operating-mode-dialog";
 import { deviceTimePresentation, deviceUserPresentation, deviceActivityPresentation } from "./device-row-presentation.mjs";
@@ -1322,7 +1322,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
           {view === "approvals" ? <ApprovalView devices={filteredApprovalDevices} actionBusy={actionBusy} manageDevice={manageDevice}/> : null}
           {view === "applications" ? <ApplicationsView apps={filteredApps} tools={filteredTools} summaryMap={summaryMap} devices={devices} webBusy={webBusy} launchWeb={launchWeb} localRuntime={localRuntime} offline={offline} lastUpdatedAt={operations?.generatedAt}/> : null}
           {view === "devices" ? <DevicesView devices={filteredPendingDevices} snapshotVerified={!offline && managedAccessVerified} now={clock?.getTime() ?? Date.now()} actionBusy={actionBusy} manageDevice={manageDevice} bulkRemovePendingDevices={bulkRemovePendingDevices} openAutomation={openAutomationPolicies}/> : null}
-          {view === "access" ? <BoiAccessView query={search}/> : null}
+          {view === "access" ? access?.role === "owner" && managedAccessVerified && !offline ? <BoiManagerTierView/> : <section className="amv2-page-panel"><p>Chỉ Chủ hệ thống có quyền xét duyệt tài khoản Cán bộ quản lý Bơi Ếch. Cần kết nối LIVE đã xác minh.</p></section> : null}
           {view === "alerts" ? <AlertsView apps={filteredApps} summaryMap={summaryMap} workItems={filteredWork} lastUpdated={lastUpdated} offline={offline}/> : null}
           {view === "audit" ? <AuditView center={center}/> : null}
           {view === "settings" ? <SettingsView center={center} access={access} actionBusy={actionBusy} fontScale={fontScale} changeFontScale={changeFontScale} manageControlDevice={manageControlDevice} operatingMode={operatingMode} openModes={() => setModeDialogOpen(true)} managedAccessVerified={managedAccessVerified}/> : null}
