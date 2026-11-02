@@ -5,7 +5,7 @@ type Limits={learnerLimit:number;teacherLimit:number;scope:"manager-tier"};
 type Manager={deviceId:string;deviceCode:string;personCode:string;name:string;approved:boolean;managementEnabled:boolean};
 type Invoke=(payload:Record<string,unknown>)=>Promise<Record<string,unknown>>;
 
-export default function BoiManagerGrants({invoke,managers}:{invoke:Invoke;managers:Manager[]}){
+export default function BoiManagerGrants({invoke,managers,onUpdated}:{invoke:Invoke;managers:Manager[];onUpdated:()=>Promise<void>}){
  const [limits,setLimits]=useState<Limits|null>(null);
  const [learner,setLearner]=useState("50");
  const [teacher,setTeacher]=useState("5");
@@ -55,6 +55,7 @@ export default function BoiManagerGrants({invoke,managers}:{invoke:Invoke;manage
      // Independent new authority read: do not treat the POST receipt as sole evidence.
      const read=await invoke({action:"get-manager-grant",deviceId:manager.deviceId,expectedPersonCode:manager.personCode});
      if(read.managementEnabled!==enabled)throw new Error("D1 GET độc lập chưa xác minh quyền cán bộ.");
+     await onUpdated();
      setNotice(enabled?"Đã cấp quyền cán bộ và xác minh D1.":"Đã thu hồi quyền cán bộ và xác minh D1.");
    }catch(e){setFault(true);setNotice(e instanceof Error?e.message:"Chưa xác minh được quyền.");}
    finally{lock.current=false;setBusy(false)}
