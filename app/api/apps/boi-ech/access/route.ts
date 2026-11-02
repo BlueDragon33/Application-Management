@@ -172,11 +172,17 @@ export async function POST(request: Request) {
     const actor = await verifyControlProof(controlProofPayload, undefined, previewRequest);
     const bridge = await issueBoiBrowserBridge(actor.email, actor.role);
     const action = text(payload.action) || "bootstrap";
+    // Legacy Bơi Ếch payment/learner actions are no longer central authority.
+    // All learner/teacher approvals require a manager's real signed device proof.
+    if (actor.role !== "owner" || action !== "bootstrap") {
+      return json({code:"MANAGER_ONLY_CENTRAL_REVIEW",
+        error:"App-Manager chỉ xét duyệt Cán bộ quản lý. Thao tác học viên/giảng viên thuộc ứng dụng Bơi Ếch."},403);
+    }
 
     if (action === "bootstrap") {
       const result = await overview(bridge);
       if (!result.ok) return json(result.payload, result.status);
-      const devices = rows(result.payload).map(accessDevice);
+      const devices = rows(result.payload).filter(row => text(row.personRole) === "manager").map(accessDevice);
       return json({
         ok: true,
         application: "boi-ech",
