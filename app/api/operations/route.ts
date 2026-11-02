@@ -414,10 +414,13 @@ async function loadBoi(actor: ControlDeviceState) {
       { code: authMismatch ? "BOI_ECH_CONTROL_AUTH_MISMATCH" : apiMissing ? "BOI_ECH_CONTROL_API_MISSING" : "BOI_ECH_CONTROL_UNAVAILABLE" },
     );
   }
-  const devices = rows(data).map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
-    typeKey: "deviceType", userKeys: ["learnerName", "personCode"],
-    approve: actor.role === "publisher" || actor.role === "owner", remove: actor.role === "owner",
-  }));
+  // App-Manager sees only candidate manager accounts. Learner/teacher device
+  // registry and approvals belong to the signed manager workspace in Bơi Ếch.
+  const devices = rows(data).filter((row) => text(row.personRole) === "manager")
+    .map((row) => deviceFrom(config.id, config.shortName, config.href, row, {
+      typeKey: "deviceType", userKeys: ["learnerName", "personCode"],
+      approve: actor.role === "owner", remove: false,
+    }));
   return {
     config,
     devices,
