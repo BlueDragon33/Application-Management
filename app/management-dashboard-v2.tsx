@@ -996,7 +996,10 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
         setOperations((previous) => {
           if (!previous) return previous;
           const latest = new Map((previous.settings.automationPolicies ?? []).map((policy) => [policy.appId, policy]));
-          for (const policy of observedPolicies ?? []) latest.set(policy.appId, policy);
+          // Fallback/unavailable GET cannot replace a verified applied policy.
+          for (const policy of observedPolicies ?? []) {
+            if (policy.verification.state === "live") latest.set(policy.appId, policy);
+          }
           return { ...previous, settings: settingsFromPolicies(previous.settings, [...latest.values()]) };
         });
       }
@@ -1131,6 +1134,10 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
           }
           transportErrors.set(task.appId + ":" + task.field, result.reason instanceof Error ? result.reason.message : "Lệnh cập nhật thất bại.");
           return;
+        }
+        // HTTP success alone is not a verified client mutation receipt.
+        if (result.value.ok !== true) {
+          transportErrors.set(task.appId + ":" + task.field, "MUTATION_RECEIPT_NOT_CONFIRMED");
         }
       });
 
