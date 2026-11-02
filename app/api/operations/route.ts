@@ -996,7 +996,7 @@ export async function POST(request: Request) {
         code:"OWNER_REQUIRED",error:"Chỉ Owner được cấp quyền cán bộ quản lý và chỉnh hạn mức chung."
       },403);
       const command=text(payload.operation);
-      if (!["get-tier-limits","set-tier-limits","grant-manager","get-manager-grant"].includes(command))
+      if (!["get-tier-limits","set-tier-limits","grant-manager","get-manager-grant","approve-manager"].includes(command))
         return json({code:"MANAGER_ACTION_INVALID",error:"Thao tác cấp quyền không hợp lệ."},400);
       const body: UnknownRecord={action:command};
       if (command==="set-tier-limits"){
@@ -1007,7 +1007,7 @@ export async function POST(request: Request) {
         body.learnerLimit=payload.learnerLimit;
         body.teacherLimit=payload.teacherLimit;
       }
-      if (command==="grant-manager"||command==="get-manager-grant"){
+      if (command==="grant-manager"||command==="get-manager-grant"||command==="approve-manager"){
         if(typeof payload.deviceId!=="string"||!/^[a-f0-9]{64}$/.test(payload.deviceId)
           ||typeof payload.expectedPersonCode!=="string"||payload.expectedPersonCode.length>64)
           return json({code:"MANAGER_ID_INVALID",error:"Thiếu mã thiết bị hoặc số hiệu cán bộ."},400);
@@ -1016,6 +1016,11 @@ export async function POST(request: Request) {
         if(command==="grant-manager"){
           if(typeof payload.enabled!=="boolean")return json({code:"MANAGER_GRANT_INVALID",error:"Thiếu lựa chọn cấp/thu hồi quyền."},400);
           body.enabled=payload.enabled;
+        }
+        if(command==="approve-manager"){
+          if(payload.expectedStatus!=="pending")
+            return json({code:"MANAGER_APPROVE_STALE",error:"Chỉ duyệt tài khoản cán bộ còn chờ."},409);
+          body.expectedStatus="pending";
         }
       }
       const bridge=await issueBoiBrowserBridge(actor.email,actor.role);
