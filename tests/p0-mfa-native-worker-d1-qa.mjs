@@ -317,14 +317,20 @@ async function main(){
     const deniedJSON=await denied.json().catch(()=>({}));
     assert.equal(deniedJSON.code,"STEP_UP_REQUIRED","BLOCKED_MFA_STEPUP_GATE_MISSING");
     mark("STEPUP_INVALID_CODE");
-    const badStep=await formPost(base,"/__account/mfa/step-up",{code:wrong},cookie2);
+    // The code from initial enrollment may be outside the 30-second TOTP
+    // window by now. Generate a fresh invalid 6-digit code for this request.
+    const invalidStepCode=String((Number(otp(secret))+1)%1_000_000).padStart(6,"0");
+    const badStep=await formPost(base,"/__account/mfa/step-up",{code:invalidStepCode},cookie2);
     assert.equal(badStep.status,401,"BLOCKED_MFA_INVALID_STEPUP_HTTP");
     mark("STEPUP_INVALID_STILL_DENIED");
     const deniedAgain=await protectedPost(base,cookie2);
     assert.equal((await deniedAgain.json().catch(()=>({})).code),"STEP_UP_REQUIRED",
       "BLOCKED_MFA_INVALID_STEPUP_CHANGED_SESSION");
     mark("STEPUP_VALID_CODE");
-    const goodStep=await formPost(base,"/__account/mfa/step-up",{code},cookie2);
+    // Always sample the authenticator immediately before the valid step-up;
+    // do not reuse the enrollment code after a second PBKDF2 login/HTTP round trips.
+    const stepCode=otp(secret);
+    const goodStep=await formPost(base,"/__account/mfa/step-up",{code:stepCode},cookie2);
     assert.equal(goodStep.status,200,"BLOCKED_MFA_VALID_STEPUP_HTTP");
     mark("STEPUP_VERIFIED_DOWNSTREAM_GATE");
     const afterStep=await protectedPost(base,cookie2);
