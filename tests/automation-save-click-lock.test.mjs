@@ -29,8 +29,9 @@ test("dashboard has a second mutex that prevents duplicate automation transactio
   assert.match(block, /automationSaveLockRef\.current = true/);
   assert.match(block, /setActionBusy\("auto-policy"\)/);
   assert.ok(
-    block.indexOf('setActionBusy("auto-policy")') < block.indexOf("await refreshOperations"),
-    "busy state must start before the first await",
+    block.indexOf('setActionBusy("auto-policy")') >= 0
+      && block.indexOf('setActionBusy("auto-policy")') < block.indexOf('await operationsAction({ action: "read-automation", targetAppIds })'),
+    "busy state must start before the first source-owned GET",
   );
   assert.match(block, /finally \{\s*automationSaveLockRef\.current = false;\s*setActionBusy\(""\);/s);
 });
