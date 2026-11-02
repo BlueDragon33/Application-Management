@@ -985,6 +985,10 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       const currentMap = new Map((baseline.automationPolicies ?? []).map((policy) => [policy.appId, policy]));
       for (const policy of livePolicies) currentMap.set(policy.appId, policy);
       const current = settingsFromPolicies(baseline, [...currentMap.values()]);
+      if (!current.automationPolicies?.length) {
+        setNotice("Không lấy được policy LIVE để lưu an toàn. Chưa gửi lệnh cập nhật.");
+        return null;
+      }
       function reconcileDashboardPolicies(observedPolicies: NonNullable<OperationsBootstrap["settings"]>["automationPolicies"]) {
         // Merge only independently observed rows into the latest React state.
         // Never replace a concurrent refresh of another app with this save's
