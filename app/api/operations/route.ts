@@ -1004,8 +1004,12 @@ export async function POST(request: Request) {
           ||Number(payload.learnerLimit)<0||Number(payload.learnerLimit)>5000
           ||Number(payload.teacherLimit)<0||Number(payload.teacherLimit)>500)
           return json({code:"MANAGER_LIMIT_INVALID",error:"Hạn mức không hợp lệ."},400);
+        if(!Number.isInteger(payload.expectedLearnerLimit)||!Number.isInteger(payload.expectedTeacherLimit))
+          return json({code:"MANAGER_LIMIT_CAS_REQUIRED",error:"Cần giá trị hạn mức đã đọc từ D1 trước khi ghi."},409);
         body.learnerLimit=payload.learnerLimit;
         body.teacherLimit=payload.teacherLimit;
+        body.expectedLearnerLimit=payload.expectedLearnerLimit;
+        body.expectedTeacherLimit=payload.expectedTeacherLimit;
       }
       if (command==="grant-manager"||command==="get-manager-grant"||command==="approve-manager"){
         if(typeof payload.deviceId!=="string"||!/^[a-f0-9]{64}$/.test(payload.deviceId)
@@ -1015,7 +1019,10 @@ export async function POST(request: Request) {
         body.expectedPersonCode=payload.expectedPersonCode;
         if(command==="grant-manager"){
           if(typeof payload.enabled!=="boolean")return json({code:"MANAGER_GRANT_INVALID",error:"Thiếu lựa chọn cấp/thu hồi quyền."},400);
+          if(typeof payload.expectedManagementEnabled!=="boolean")
+            return json({code:"MANAGER_GRANT_CAS_REQUIRED",error:"Cần trạng thái quyền D1 trước khi cấp hoặc thu hồi."},409);
           body.enabled=payload.enabled;
+          body.expectedManagementEnabled=payload.expectedManagementEnabled;
         }
         if(command==="approve-manager"){
           if(payload.expectedStatus!=="pending")
