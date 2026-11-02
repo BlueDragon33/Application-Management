@@ -43,6 +43,7 @@ type LearningDevice = {
   learnerFamilyName: string | null;
   learnerGivenName: string | null;
   personRole: "learner" | "teacher" | "manager" | null;
+  managementEnabled?: boolean;
   personCode: string | null;
   className: string | null;
   phone: string | null;
