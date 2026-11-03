@@ -19,7 +19,7 @@ export default async function RussianDailyControlPage() {
       </p>
       <section aria-label="Trạng thái triển khai" style={{ border: "1px solid #8a9baa", borderRadius: 16, padding: 18 }}>
         <h2>Trạng thái hiện tại: SOURCE CANDIDATE / CHƯA PHÁT HÀNH</h2>
-        <p>Hosting dự kiến: ChatGPT Sites. Chưa được cấp URL thật, chưa kiểm thử Safari thật, chưa có SSO hoặc Control API để điều hành từ xa.</p>
+        <p>Hosting ưu tiên: Vercel Hobby Preview; ChatGPT Sites dự phòng. Chưa được cấp URL thật, chưa kiểm thử Safari thật, chưa có SSO hoặc Control API để điều hành từ xa.</p>
         <p>Blueprint OS 1.3.0: REVIEW BLOCKED; không có quyền tự phê duyệt, merge, publish hay công nhận RU03.</p>
         {siteUrl ? (
           <p><a href={siteUrl} target="_blank" rel="noopener noreferrer">Mở web-app độc lập</a></p>

@@ -32,7 +32,7 @@ export const projectRepositories: readonly ProjectRepositoryConfig[] = [
     defaultBranch: "main",
     group: "learning",
     state: "developing",
-    summary: "Web-app/PWA độc lập đang ở candidate, chuẩn bị hosting ChatGPT Sites. Không sử dụng Application-Management làm nơi phát hành bản web-app sau khi chuyển đổi; chưa có URL thật hoặc runtime approval.",
+    summary: "Web-app/PWA độc lập đang ở candidate, chuẩn bị hosting Vercel Hobby/ChatGPT Sites (chưa triển khai). Không sử dụng Application-Management làm nơi phát hành bản web-app sau khi chuyển đổi; chưa có URL thật hoặc runtime approval.",
     managementHref: "/apps/russian-daily",
     relatedTo: "Bauman Russian iOS / STANKIN",
   },
