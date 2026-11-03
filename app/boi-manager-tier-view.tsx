@@ -37,13 +37,16 @@ export default function BoiManagerTierView(){
   async function submit(operation:"approve-account"|"grant-manager"|"revoke-manager"|"set-tier-limits",device?:ManagerRecord){
     if(lock.current)return;
     if(device&&!window.confirm(
-      operation==="approve-account"?"Duyệt tài khoản cán bộ "+device.deviceCode+"?"
+      operation==="approve-account"?"Duyệt tài khoản và cấp quyền Cán bộ quản lý cho "+device.deviceCode+"?"
         :operation==="grant-manager"?"Cấp quyền Cán bộ quản lý cho "+device.deviceCode+"?"
         :"Thu hồi quyền Cán bộ quản lý "+device.deviceCode+"?"))return;
     lock.current=true;setBusy(true);setError(false);setMessage("");
     try{
       const r=await operationsAction({action:"boi-manager-tier",operation,
-        ...(device?{deviceId:device.deviceId,deviceCode:device.deviceCode,expectedPersonCode:device.personCode}:limits)
+        ...(device?{deviceId:device.deviceId,deviceCode:device.deviceCode,
+          expectedPersonCode:device.personCode,expectedManagementEnabled:device.managementEnabled}
+          :{...limits,expectedLearnerLimit:data?.learnerLimit,
+            expectedTeacherLimit:data?.teacherLimit})
       }) as unknown as ManagerResponse;
       if(r.ok!==true)throw new Error(r.error||"Bơi Ếch chưa xác nhận thay đổi.");
       await reload();
@@ -85,7 +88,7 @@ export default function BoiManagerTierView(){
         </div>
         <div className={styles.actions}>
           {m.status==="pending"?<button disabled={busy||!m.registrationComplete||m.paymentStatus!=="unassigned"}
-            onClick={()=>void submit("approve-account",m)}>Duyệt tài khoản</button>:null}
+            onClick={()=>void submit("approve-account",m)}>Duyệt &amp; cấp quyền</button>:null}
           {m.status==="approved"&&!m.managementEnabled?<button disabled={busy||m.accessExpired}
             onClick={()=>void submit("grant-manager",m)}>Cấp quyền Cán bộ</button>:null}
           {m.managementEnabled?<button type="button" disabled={busy}

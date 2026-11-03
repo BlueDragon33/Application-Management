@@ -1013,16 +1013,19 @@ export async function POST(request: Request) {
       }
       if (operation==="set-tier-limits") {
         const learnerLimit=payload.learnerLimit,teacherLimit=payload.teacherLimit;
-        if (!Number.isInteger(learnerLimit)||Number(learnerLimit)<0||Number(learnerLimit)>5000
-          ||!Number.isInteger(teacherLimit)||Number(teacherLimit)<0||Number(teacherLimit)>500)
-          return json({code:"MANAGER_LIMIT_INVALID",error:"Hạn mức cấp độ quản lý không hợp lệ."},400);
+        const expectedLearnerLimit=payload.expectedLearnerLimit,expectedTeacherLimit=payload.expectedTeacherLimit;
+        const validLimit=(value:unknown,max:number)=>Number.isInteger(value)&&Number(value)>=0&&Number(value)<=max;
+        if (!validLimit(learnerLimit,5000)||!validLimit(teacherLimit,500)
+          ||!validLimit(expectedLearnerLimit,5000)||!validLimit(expectedTeacherLimit,500))
+          return json({code:"MANAGER_LIMIT_INVALID",error:"Hạn mức hoặc phiên bản D1 trước đó không hợp lệ."},400);
         await bridgeJson(bridge,"/api/control/management-access",{
-          method:"POST",body:{action:"set-tier-limits",learnerLimit,teacherLimit}
+          method:"POST",body:{action:"set-tier-limits",learnerLimit,teacherLimit,
+            expectedLearnerLimit,expectedTeacherLimit}
         });
         const confirmed=await bridgeJson(bridge,"/api/control/management-access",{
           method:"POST",body:{action:"get-tier-limits"}
         });
-        if(confirmed.learnerLimit!==learnerLimit||confirmed.teacherLimit!==teacherLimit)
+        if(confirmed.scope!=="manager-tier"||confirmed.learnerLimit!==learnerLimit||confirmed.teacherLimit!==teacherLimit)
           return json({code:"MANAGER_LIMIT_READBACK_FAILED",error:"Hạn mức chưa khớp D1 độc lập."},503);
         return json({ok:true,scope:"manager-tier",learnerLimit,teacherLimit});
       }
@@ -1038,10 +1041,15 @@ export async function POST(request: Request) {
         if(normalizedStatus(row.status)!=="pending"||!bool(row.registrationComplete)
           ||text(row.paymentStatus)!=="unassigned")
           return json({code:"MANAGER_APPROVAL_STATE",error:"Hồ sơ cán bộ không còn chờ duyệt hoặc chưa đủ thông tin."},409);
-        await bridgeJson(bridge,"/api/control/overview",{
-          method:"POST",body:{action:"grant-free",deviceId,expectedStatus:"pending",
-            expectedPaymentStatus:"unassigned",expectedAccessGroup:"unassigned"}
+        await bridgeJson(bridge,"/api/control/management-access",{
+          method:"POST",body:{action:"approve-manager",deviceId,expectedPersonCode,expectedStatus:"pending"}
         });
+        const approvedReadback=await bridgeJson(bridge,"/api/control/management-access",{
+          method:"POST",body:{action:"get-manager-grant",deviceId,expectedPersonCode}
+        });
+        if(approvedReadback.deviceId!==deviceId||approvedReadback.accountApproved!==true
+          ||approvedReadback.managementEnabled!==true)
+          return json({code:"MANAGER_APPROVAL_READBACK_FAILED",error:"D1 chưa xác nhận quyền cán bộ sau khi duyệt."},503);
         const verified=await bridgeReadJson(bridge,"/api/control/overview?deviceCodes="+encodeURIComponent(text(payload.deviceCode)));
         if(!rows(verified).some(item=>text(item.deviceId)===deviceId && text(item.personRole)==="manager"
           && normalizedStatus(item.status)==="approved"))
@@ -1054,13 +1062,19 @@ export async function POST(request: Request) {
       } else if(operation!=="revoke-manager") {
         return json({code:"INVALID_MANAGER_ACTION",error:"Thao tác Cán bộ quản lý không hợp lệ."},400);
       }
+      const expectedManagementEnabled=payload.expectedManagementEnabled;
+      if(typeof expectedManagementEnabled!=="boolean"
+        ||expectedManagementEnabled!==bool(row.managementEnabled))
+        return json({code:"MANAGER_GRANT_CAS_CONFLICT",error:"Quyền cán bộ đã đổi; cần đồng bộ D1."},409);
       await bridgeJson(bridge,"/api/control/management-access",{
         method:"POST",body:{action:"grant-manager",deviceId,
-          expectedPersonCode,enabled:operation==="grant-manager"}
+          expectedPersonCode,enabled:operation==="grant-manager",expectedManagementEnabled}
       });
-      const verified=await bridgeReadJson(bridge,"/api/control/overview?deviceCodes="+encodeURIComponent(text(payload.deviceCode)));
-      if(!rows(verified).some(item=>text(item.deviceId)===deviceId&&text(item.personRole)==="manager"
-        && bool(item.managementEnabled)===(operation==="grant-manager")))
+      const verified=await bridgeJson(bridge,"/api/control/management-access",{
+        method:"POST",body:{action:"get-manager-grant",deviceId,expectedPersonCode}
+      });
+      if(verified.deviceId!==deviceId||typeof verified.managementEnabled!=="boolean"
+        ||verified.managementEnabled!==(operation==="grant-manager"))
         return json({code:"MANAGER_GRANT_READBACK_FAILED",error:"Chưa xác minh D1 quyền Cán bộ."},503);
       return json({ok:true,deviceId,managementEnabled:operation==="grant-manager"});
     }
