@@ -3,11 +3,11 @@
 Status: **SOURCE-ONLY / PENDING / NOT HOSTED / NOT DEPLOYED**.
 
 - Child application id: `russian-daily`.
-- Standalone source: `BlueDragon33/Bauman-Russian-iOS` / `web/russian-daily`, candidate bdb5d50be3337a0094f3cf38566be2e59b0e8e61.
-- Planned cloud host: **Vercel Hobby Preview**, ChatGPT Sites fallback, **not yet provisioned**. Free account quota/plan is not verified. No `publicUrl` until real HTTPS readback.
+- Standalone source: `BlueDragon33/Bauman-Russian-iOS` / `web/russian-daily`, candidate ba9f38d967e47195e74ff5e776c656d81fbe81a6; tested functional/test source 0e35819f1036e28386383038a596f56979fe382e.
+- Planned cloud host: **Vercel Hobby Preview**, ChatGPT Sites fallback, **not yet provisioned**. Read-only Vercel account plan confirmed active Hobby; exact remaining quota is not verified. No `publicUrl` until real HTTPS readback.
 - Vercel source-ready commit: `a0d7e1ef53f96e0bc736f8d77ffc33748f5fabb6` with root `web/russian-daily`, output directory `public`, framework `Other`, build command `null`. Static test suite staged in `tests/source-contract.test.mjs`, not executed on a real runtime.
 - Vercel Preview protection is required. Vercel's 2026-09-09 announcement says Vercel Authentication with All Deployments protection, including production, is free on all plans: https://vercel.com/changelog/protect-production-deployments-for-free-on-every-plan . Verify it in the actual account settings; provider protection does not waive human review or Production authority. Do not create production deployment or blindly import a default branch still missing the web app.
-- Vercel plugin is available but not installed/connected; no account, project ID, deployment URL, usage or billing state was inspected.
+- Vercel connector is now authenticated and read-only verified on active Hobby. Russian Daily project/URL is absent; exact usage/quota and scoped Preview authority remain unverified.
 - New Application-Management catalog/management route: `/apps/russian-daily` (source candidate only), while existing legacy `/tools/russian-daily` and `/russian-daily/` continue untouched until a reviewed transition.
 - Do not infer SSO/control API from the catalog entry. `status=planned`, `contractState=pending`.
 - User data cannot be transparently copied across origins. Require backup on the old app, confirmation and restore on the new Site, then verify Safari.
@@ -16,7 +16,7 @@ Status: **SOURCE-ONLY / PENDING / NOT HOSTED / NOT DEPLOYED**.
 - No GitHub Actions, server, database, release, merge, approval, credential, or Site was created by this candidate.
 
 ## Current scope correction (2026-11-03)
-- Latest corrected standalone candidate SHA: b759634fad1b7a09092bbd6fa5160cdc37ac68c0. Active app JS remains the reviewed learning-only source from 56a1af0da925ac3978290f67f8b7f55b9d2db383.
+- Latest standalone candidate SHA: ba9f38d967e47195e74ff5e776c656d81fbe81a6. The source/test behavior changed at 0e35819f1036e28386383038a596f56979fe382e to address localStorage partial-write rollback and JSON-restore failure. Scope remains learning-only, not project task orchestration.
 - Active Next Action has been removed from both Russian Daily PWA and this app catalog candidate; project-task buttons belong to the ChatGPT Project conversation only.
 - The route /apps/russian-daily remains authenticated metadata-only, and Vercel Hobby account is authenticated and active (read-only check 2026-11-03); quota/billing readback and scoped Preview authorization remain unverified.
 - Original Next Action pilot and Active Next Action sections below are SUPERSEDED HISTORICAL EVIDENCE, not current product UI or deployment acceptance.
@@ -38,3 +38,12 @@ Status: **SOURCE-ONLY / PENDING / NOT HOSTED / NOT DEPLOYED**.
 - Vercel connector is available but `installed=false` and there is no authenticated Hobby quota/plan, Vercel project or scope-limited Preview grant. Thus Vercel Preview remains `NOT_DEPLOYED` and authority `BLOCKED_PROVIDER_AUTH`.
 - Existing Bauman-Russian-iOS PR #1 is Draft, unmerged, and lists no requested reviewers. Neither source candidate has a separate PR. No independent review PASS, merge, Production or ratification.
 - Keep management `status=planned`, `contractState=pending`, no `publicUrl`. The runtime and control plane remain independent.
+
+## Latest independent source readback (2026-11-03, supersedes earlier status lines)
+
+- GitHub candidate at `ba9f38d967e47195e74ff5e776c656d81fbe81a6`; functional JS/test source pin `0e35819f1036e28386383038a596f56979fe382e`.
+- A local V8 **simulated DOM/localStorage harness**, using exact GitHub HTML and Node-style test source at the pinned SHA, completed **7/7 scenarios**: original three + four new JSON restore and settings rollback cases. This is **not Node execution on an actual checkout, real Safari/device QA or hosted Vercel readback**.
+- Evidence: `Bauman-Russian-iOS/web/russian-daily/docs/SOURCE_RESTORE_REGRESSION_EVIDENCE_20261103.md` on the source candidate.
+- No app-local Active Next Action controls were restored. They remain in the ChatGPT Project conversation only. The Application-Management catalog remains `planned/pending` with no fabricated `publicUrl`.
+- Vercel: only the `software-blueprint-hub` project appears in the connected Hobby team's read-only project list. No Russian Daily project or authorized protected Preview was created; quota and issuer scope remain unverified.
+- Reviewer, authorization for Preview, Safari device QA, merge, and Production remain `BLOCKED`. Candidate commits include `[skip ci]`; no GitHub-hosted Actions were manually dispatched.
