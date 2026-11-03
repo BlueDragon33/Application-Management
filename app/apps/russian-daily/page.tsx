@@ -27,7 +27,7 @@ export default async function RussianDailyControlPage() {
           <p>Liên kết web-app độc lập sẽ chỉ hiển thị sau khi chủ dự án cấp URL thật và QA đọc lại thành công.</p>
         )}
         <p>
-          <a href="https://github.com/BlueDragon33/Bauman-Russian-iOS/tree/candidate/russian-daily-standalone-chatgpt-sites-20261103/web/russian-daily" target="_blank" rel="noopener noreferrer">
+          <a href="https://github.com/BlueDragon33/Bauman-Russian-iOS/tree/candidate/russian-daily-standalone-sites-pwa-20261103-v2/web/russian-daily-standalone" target="_blank" rel="noopener noreferrer">
             Xem nguồn Russian Daily đã tách
           </a>
         </p>
