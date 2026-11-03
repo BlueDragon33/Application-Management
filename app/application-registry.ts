@@ -82,6 +82,24 @@ const baumanChildren: readonly SubClientConfig[] = [
 
 export const applicationRegistry: readonly ApplicationConfig[] = [
   {
+    id: "russian-daily",
+    name: "Russian Daily — STANKIN",
+    shortName: "Russian Daily",
+    href: "/apps/russian-daily",
+    initials: "RD",
+    category: "Nga",
+    tier: "client",
+    status: "planned",
+    contractState: "pending",
+    repository: "BlueDragon33/Bauman-Russian-iOS",
+    scope: "Standalone PWA cho lịch học STANKIN, nhập nội dung Telegram thủ công, luyện từ tiếng Nga cá nhân và xuất iCalendar. Mã nguồn riêng ở web/russian-daily; ChatGPT Sites là hosting dự kiến, chưa được cấp URL hay triển khai.",
+    contractNote: "Source candidate bdb5d50; metadata-only. Không đồng nhất với native iOS WidgetKit, không kế thừa RU03 approval. Site thực chưa tạo, kiểm thử Safari và runtime readback chưa PASS.",
+    devicePolicy: "Local-first trên iPhone/iPad/desktop; chưa có SSO, device registry, quyền remote admin hay đồng bộ server. Application-Management không chặn việc cập nhật nội dung web-app riêng.",
+    deviceExperiences: standardDeviceExperiences,
+    capabilities: ["Lịch học Moscow/STANKIN", "Nhập Telegram dạng văn bản", "Xuất iCalendar (.ics)", "Luyện từ vựng cá nhân", "Sao lưu và khôi phục JSON", "Giao diện PWA offline"],
+    guardrails: ["Chỉ tạo link truy cập khi Site thật được cấp và xác minh", "Không gán connected, online hay QA PASS trước live readback", "Không giả quản trị thiết bị, SSO hoặc D1", "Không dùng dữ liệu RU03 chưa duyệt làm nội dung đã kiểm định", "Không di chuyển localStorage giữa hai origin mà không có sao lưu/khôi phục do người dùng xác nhận"],
+  },
+  {
     id: "software-blueprint-hub", name: "Software Blueprint Hub", shortName: "Blueprint OS", href: "/apps/software-blueprint-hub", publicUrl: "https://software-blueprint-hub.vercel.app/", previewUrl: "https://software-blueprint-hub-git-main-dinhnam3391-4708.vercel.app/", ssoStartUrl: "https://software-blueprint-hub-git-main-dinhnam3391-4708.vercel.app/api/sso/start",
     contractSource: "repository",
     initials: "BP", category: "Kỹ thuật", tier: "client", status: "warning", contractState: "migrating",
