@@ -1,5 +1,6 @@
 import { getApplicationConfig } from "../../application-registry";
 import { requireChatGPTUser } from "../../chatgpt-auth";
+import RussianDailyNextAction from "./next-action-controls";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,7 @@ export default async function RussianDailyControlPage() {
           </a>
         </p>
       </section>
+      <RussianDailyNextAction />
       <section aria-label="Chuyển đổi từ phiên bản cũ" style={{ marginTop: 18 }}>
         <h2>Chuyển dữ liệu cá nhân an toàn</h2>
         <p>Bản Russian Daily hiện tại vẫn nằm ở Application-Management, chưa bị xóa hoặc chuyển hướng. Trước khi dùng Site mới, cần xuất bản sao JSON từ bản cũ rồi nhập thủ công vào Site mới và xác minh lịch học.</p>
