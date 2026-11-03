@@ -21,3 +21,14 @@ Status: **SOURCE-ONLY / PENDING / NOT HOSTED / NOT DEPLOYED**.
 - A contextual optional CMD QA section displays a source-test command and lets the operator paste local output; this evidence is **UNVERIFIED**, kept client-side and never forwarded as an approval.
 - The guided-help contract remains a **Hub candidate**, not a ratified constitutional implementation. No automatic Work/Codex launch, privileged execution or human review impersonation.
 - Candidate source pin: `ac15d64d1d9ba8f790de46d7889b4a24dd8dc9f6`; update only with verified readback when the web-app source moves.
+
+## Active Next Action — bounded verification update (2026-11-03)
+
+- Verified read-only candidate branch `candidate/register-russian-daily-standalone-20261103` initially at `7d15418a02da03310232c47671752de50d3c3099`; no GitHub-hosted Actions launched.
+- Reviewed the actual `runRussianDailyActiveNextAction` server action and `next-action-controls.tsx`; the button makes **one authenticated server request** and returns all six admitted preflight stages in one terminal receipt. It does **not** deploy a site.
+- Executed the action logic in a JavaScript V8 sandbox with stubbed authentication and application registry. **6/6 cases passed**: matching pending state; unexpectedly connected state; existing public URL; incorrect repo; missing registry; authentication rejection. This is *not* a deployed Next.js/Cloudflare runtime test.
+- Added reusable Node VM runtime test source in `tests/russian-daily-active-action-runtime.test.mjs`, **not yet executed by Node**. No CI PASS is claimed.
+- Exact Russian Daily source linked after functional tests: `1909ef964d4b518c8e8d9d319775f64744ab5b46`. Its source JS was executed through an in-memory DOM/localStorage harness: **17/17 simulated scenarios passed** at that exact SHA, including persistence failures, duplicate IDs, valid/invalid dates, Telegram confirmation, ICS and one-click execution. This is **not** Safari/iPhone acceptance.
+- Vercel connector is available but `installed=false` and there is no authenticated Hobby quota/plan, Vercel project or scope-limited Preview grant. Thus Vercel Preview remains `NOT_DEPLOYED` and authority `BLOCKED_PROVIDER_AUTH`.
+- Existing Bauman-Russian-iOS PR #1 is Draft, unmerged, and lists no requested reviewers. Neither source candidate has a separate PR. No independent review PASS, merge, Production or ratification.
+- Keep management `status=planned`, `contractState=pending`, no `publicUrl`. The runtime and control plane remain independent.

@@ -23,7 +23,7 @@ export type RussianDailyActiveRunReceipt = {
   developerApproval: false;
 };
 
-const SOURCE_REVISION = "de9b865e19df52ee5a84d59e94ea541328b1e690";
+const SOURCE_REVISION = "1909ef964d4b518c8e8d9d319775f64744ab5b46";
 
 /**
  * One-click bounded executor: automatically evaluates all admitted read-only
