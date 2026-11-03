@@ -9,6 +9,7 @@ Nguồn chuẩn để đối chiếu các repo thuộc tài khoản `BlueDragon3
 | `BlueDragon33/Application-Management` | Control-plane trung tâm | Quản trị lõi |
 | `BlueDragon33/Software-Blueprint-Hub` | Blueprint OS / engineering compass | Có khu quản trị metadata-only · Phase 9 Compass Construction |
 | `BlueDragon33/Bauman-master-ai-system` | Bauman Hub | Có khu quản trị |
+| `BlueDragon33/Bauman-Russian-iOS` | Client iPhone SwiftUI + WidgetKit của Bauman | **developing** — source P2 Draft PR #3, simulator CI đạt tại SHA `fe7e8d44cbf7`; chưa merge, chưa có bản cài iPhone, RU03, quản trị runtime hay native launcher được xác thực. Không phải `connected`. |
 | `BlueDragon33/Math_Bauman` | Site Toán Bauman | Theo dõi repo / liên kết Bauman |
 | `BlueDragon33/BOIECH_AI` | Bơi ếch AI | Có khu quản trị |
 | `BlueDragon33/Health_Care` | Sức khỏe Y tế | Có khu quản trị |
@@ -21,7 +22,7 @@ Nguồn chuẩn để đối chiếu các repo thuộc tài khoản `BlueDragon3
 | `BlueDragon33/MPC_PID_System` | Control Research Workbench | Theo dõi dự án kỹ thuật |
 | `BlueDragon33/CAD_CAM_3D` | CAD/CAM cho chi tiết in 3D | v1.0.0 Production · Universal Contract live · local-first observe/launch · Remote Admin fail-closed |
 
-Tổng: **14 repo hiện hữu**.
+Tổng: **15 repo hiện hữu**.
 
 ## Blueprint OS / engineering compass
 
