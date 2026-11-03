@@ -3,7 +3,7 @@
 Status: **SOURCE-ONLY / PENDING / NOT HOSTED / NOT DEPLOYED**.
 
 - Child application id: `russian-daily`.
-- Standalone source: `BlueDragon33/Bauman-Russian-iOS` / `web/russian-daily`, candidate ba9f38d967e47195e74ff5e776c656d81fbe81a6; tested functional/test source 0e35819f1036e28386383038a596f56979fe382e.
+- Standalone source: `BlueDragon33/Bauman-Russian-iOS` / `web/russian-daily`, candidate dd9481042167f6fd7d60e3249f449439058580fa; tested functional/test source 1445b9e437799b1840d3b5a4723ea7dc68e960dd.
 - Planned cloud host: **Vercel Hobby Preview**, ChatGPT Sites fallback, **not yet provisioned**. Read-only Vercel account plan confirmed active Hobby; exact remaining quota is not verified. No `publicUrl` until real HTTPS readback.
 - Vercel source-ready commit: `a0d7e1ef53f96e0bc736f8d77ffc33748f5fabb6` with root `web/russian-daily`, output directory `public`, framework `Other`, build command `null`. Static test suite staged in `tests/source-contract.test.mjs`, not executed on a real runtime.
 - Vercel Preview protection is required. Vercel's 2026-09-09 announcement says Vercel Authentication with All Deployments protection, including production, is free on all plans: https://vercel.com/changelog/protect-production-deployments-for-free-on-every-plan . Verify it in the actual account settings; provider protection does not waive human review or Production authority. Do not create production deployment or blindly import a default branch still missing the web app.
@@ -47,3 +47,14 @@ Status: **SOURCE-ONLY / PENDING / NOT HOSTED / NOT DEPLOYED**.
 - No app-local Active Next Action controls were restored. They remain in the ChatGPT Project conversation only. The Application-Management catalog remains `planned/pending` with no fabricated `publicUrl`.
 - Vercel: only the `software-blueprint-hub` project appears in the connected Hobby team's read-only project list. No Russian Daily project or authorized protected Preview was created; quota and issuer scope remain unverified.
 - Reviewer, authorization for Preview, Safari device QA, merge, and Production remain `BLOCKED`. Candidate commits include `[skip ci]`; no GitHub-hosted Actions were manually dispatched.
+
+## Latest read-only recovery and gate checkpoint (2026-11-03)
+
+**Canonical Bauman candidate HEAD:** `dd9481042167f6fd7d60e3249f449439058580fa`; behavior/test exact QA SHA `1445b9e437799b1840d3b5a4723ea7dc68e960dd` and PWA HTML fix commit `b4d733e78ec16fc1ca2257c805e9048640750104`.
+
+- On older source `ba9f38d`, deliberately malformed Safari storage `progress=null` or `events=[null]` reproduced startup exceptions in a **V8-simulated environment**.
+- New learning-app safe mode retains raw corrupt localStorage values, shows an explicit blocked notice, prohibits ordinary overwrites, exports a diagnostic raw rescue JSON and allows only explicit validated restore to clear the block. It does not install ChatGPT Project Active Next Action in app UI.
+- Exact-source **13/13 simulated DOM/localStorage** regression cases and **6/6 V8-adapted static source contracts** passed at the noted functional/test pins. Not an actual Node test process, on-device Safari, service-worker network acceptance, independent review or hosted QA.
+- Supporting evidence: Bauman candidate `web/russian-daily/docs/SOURCE_RESTORE_REGRESSION_EVIDENCE_20261103.md`.
+- Read-only Vercel `get_git_deployment_context` confirmed the connected team's `hobby` plan, and project listing still showed only `software-blueprint-hub`. Billing `list_billing_charges` from 2026-11-01 to 2026-11-04 returned `404 costs_not_found`, **not proof of zero spend or available quota**. No verified scoped Russian Daily Preview issuer grant, protected preview deployment, or independent reviewer approval.
+- Registry remains `planned/pending`, no invented `publicUrl`, runtime SSO, iOS WidgetKit acceptance, merge or Production. Do not create a project or deploy until all required gates pass. If quota or Preview protection cannot be verified, keep `PROVIDER_AUTH_BLOCKED` and perform only standalone safe source QA.
