@@ -49,3 +49,11 @@ test("Owner UI rejects unchecked manager-tier response shapes and keeps revoked 
   assert.match(ui,/m\.managementEnabled\?<button type="button" disabled=\{busy\}/);
   assert.doesNotMatch(ui,/disabled=\{busy\|\|!m\.approved\}/);
 });
+
+test("Owner revoke compares raw persisted manager permission, not expired or blocked effective access",()=>{
+  assert.match(api,/managementEnabled:row\.managementConfigured/);
+  assert.match(api,/expectedManagementEnabled!==row\.managementConfigured/);
+  assert.match(api,/MANAGER_SOURCE_CONTRACT_INVALID/);
+  assert.doesNotMatch(api,/managementEnabled:bool\(row\.managementEnabled\)/);
+  assert.doesNotMatch(api,/expectedManagementEnabled!==bool\(row\.managementEnabled\)/);
+});
