@@ -33,10 +33,12 @@ test("manager approval uses owner-only atomic endpoint, never legacy grant-free"
 });
 test("manager grant or revoke carries expected permission and separate authority readback",()=>{
   assert.match(ui,/expectedManagementEnabled:device\.managementEnabled/);
-  assert.match(api,/expectedManagementEnabled!==bool\(row\.managementEnabled\)/);
+  assert.match(api,/expectedManagementEnabled!==row\.managementConfigured/);
   assert.match(api,/expectedPersonCode,enabled:operation==="grant-manager",expectedManagementEnabled/);
   assert.match(api,/action:"get-manager-grant",deviceId,expectedPersonCode/);
-  assert.match(api,/verified\.deviceId!==deviceId\|\|typeof verified\.managementEnabled!=="boolean"/);
+  assert.match(api,/verified\.deviceId!==deviceId\|\|typeof verified\.managementConfigured!=="boolean"/);
+  assert.match(api,/verified\.managementConfigured!==\(operation==="grant-manager"\)/);
+  assert.match(api,/verified\.managementEnabled!==\(operation==="grant-manager"\)/);
   assert.match(ui,/const lock=useRef\(false\)/);
 });
 
@@ -56,4 +58,11 @@ test("Owner revoke compares raw persisted manager permission, not expired or blo
   assert.match(api,/MANAGER_SOURCE_CONTRACT_INVALID/);
   assert.doesNotMatch(api,/managementEnabled:bool\(row\.managementEnabled\)/);
   assert.doesNotMatch(api,/expectedManagementEnabled!==bool\(row\.managementEnabled\)/);
+});
+
+test("Owner approval and permission change reject missing raw D1 readback",()=>{
+  assert.match(api,/approvedReadback\.managementConfigured!==true/);
+  assert.match(api,/verified\.managementConfigured!==\(operation==="grant-manager"\)/);
+  assert.match(api,/verified\.managementEnabled!==\(operation==="grant-manager"\)/);
+  assert.match(api,/action:"get-manager-grant",deviceId,expectedPersonCode/);
 });
