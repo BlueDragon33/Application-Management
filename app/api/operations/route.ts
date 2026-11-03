@@ -1000,11 +1000,15 @@ export async function POST(request: Request) {
           bridgeReadJson(bridge,"/api/control/overview?activityDays=0"),
           bridgeJson(bridge,"/api/control/management-access",{method:"POST",body:{action:"get-tier-limits"}})
         ]);
-        const managers=rows(overview).filter(row=>text(row.personRole)==="manager").map(row=>({
+        const managerRows=rows(overview).filter(row=>text(row.personRole)==="manager");
+        if(managerRows.some(row=>typeof row.managementConfigured!=="boolean"))
+          return json({code:"MANAGER_SOURCE_CONTRACT_INVALID",
+            error:"Bơi Ếch chưa cung cấp trạng thái quyền cán bộ đã lưu D1."},503);
+        const managers=managerRows.map(row=>({
           deviceId:text(row.deviceId),deviceCode:text(row.deviceCode),
           name:text(row.learnerName),personCode:text(row.personCode),
           status:normalizedStatus(row.status),registrationComplete:bool(row.registrationComplete),
-          managementEnabled:bool(row.managementEnabled),
+          managementEnabled:row.managementConfigured,
           accessExpired:bool(row.accessExpired),paymentStatus:text(row.paymentStatus),
           accessGroup:text(row.accessGroup),
         }));
@@ -1037,6 +1041,9 @@ export async function POST(request: Request) {
       const row=rows(current).find(item=>text(item.deviceId)===deviceId);
       if(!row||text(row.personRole)!=="manager"||text(row.personCode)!==expectedPersonCode)
         return json({code:"MANAGER_ROLE_MISMATCH",error:"Chỉ xét duyệt hồ sơ Cán bộ quản lý đã xác minh."},403);
+      if(typeof row.managementConfigured!=="boolean")
+        return json({code:"MANAGER_SOURCE_CONTRACT_INVALID",
+          error:"Bơi Ếch chưa cung cấp trạng thái quyền cán bộ đã lưu D1."},503);
       if(operation==="approve-account"){
         if(normalizedStatus(row.status)!=="pending"||!bool(row.registrationComplete)
           ||text(row.paymentStatus)!=="unassigned")
@@ -1064,7 +1071,7 @@ export async function POST(request: Request) {
       }
       const expectedManagementEnabled=payload.expectedManagementEnabled;
       if(typeof expectedManagementEnabled!=="boolean"
-        ||expectedManagementEnabled!==bool(row.managementEnabled))
+        ||expectedManagementEnabled!==row.managementConfigured)
         return json({code:"MANAGER_GRANT_CAS_CONFLICT",error:"Quyền cán bộ đã đổi; cần đồng bộ D1."},409);
       await bridgeJson(bridge,"/api/control/management-access",{
         method:"POST",body:{action:"grant-manager",deviceId,
