@@ -11,3 +11,6 @@ Previous records RUSSIAN_DAILY_ONE_CLICK_NEXT_ACTION_20261103.md and RUSSIAN_DAI
 For the chat-only capability, see BlueDragon33/Bauman-Russian-iOS/docs/chatgpt-project/ACTIVE_NEXT_ACTION_CHAT_CONTRACT.md (candidate). That document is a prompt-scope convention, not a permanent UI installation. Two buttons can be rendered by the assistant in the ChatGPT conversation, and each must re-read latest project state when pressed.
 
 ZERO-SPEND: no Actions, production change, account-billing mutation, autonomous reviewer, or merge. Review gates remain BLOCKED.
+
+## Vercel access checked later on 2026-11-03
+Read-only Vercel connector calls confirmed an authenticated Hobby account in active status. The accessible project list showed Software Blueprint Hub, not Russian Daily. Billing charges readback returned costs_not_found, so remaining quota/exact cost is not proven. There is no scope-limited Preview issuer grant or independent reviewer approval. No Vercel project, Preview URL, merge or Production was created. Old statement about Vercel being unconnected is superseded for this current readback.

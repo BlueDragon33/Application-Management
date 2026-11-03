@@ -16,9 +16,9 @@ Status: **SOURCE-ONLY / PENDING / NOT HOSTED / NOT DEPLOYED**.
 - No GitHub Actions, server, database, release, merge, approval, credential, or Site was created by this candidate.
 
 ## Current scope correction (2026-11-03)
-- Latest corrected standalone source SHA: a88518d7d29e939e15b4363628572c80e9354d9a.
+- Latest corrected standalone candidate SHA: b759634fad1b7a09092bbd6fa5160cdc37ac68c0. Active app JS remains the reviewed learning-only source from 56a1af0da925ac3978290f67f8b7f55b9d2db383.
 - Active Next Action has been removed from both Russian Daily PWA and this app catalog candidate; project-task buttons belong to the ChatGPT Project conversation only.
-- The route /apps/russian-daily remains authenticated metadata-only, and Vercel Hobby still lacks verified account/Preview authorization.
+- The route /apps/russian-daily remains authenticated metadata-only, and Vercel Hobby account is authenticated and active (read-only check 2026-11-03); quota/billing readback and scoped Preview authorization remain unverified.
 - Original Next Action pilot and Active Next Action sections below are SUPERSEDED HISTORICAL EVIDENCE, not current product UI or deployment acceptance.
 
 ## SUPERSEDED HISTORICAL RECORD: Guided Next Action pilot (2026-11-03)
