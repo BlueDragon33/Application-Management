@@ -39,7 +39,7 @@ export async function prepareRussianDailyNextAction(): Promise<RussianDailyNextA
     actionId: "RD-HOBBY-PREFLIGHT",
     kind: "PERSONAL_PROVIDER_READONLY_NAVIGATION",
     projectId: "project:bauman-russian-ios",
-    sourceRevision: "b92a4d681d94e99434fc2f0c732da382fdae5dc1",
+    sourceRevision: "ac15d64d1d9ba8f790de46d7889b4a24dd8dc9f6",
     status: "SAFE_NAVIGATION_ONLY",
     providerUrl: "https://vercel.com/account",
     reason: "Chưa có Vercel account/billing/quota readback hoặc runner được cấp quyền. Ưu tiên xác minh gói Hobby trước khi đăng ký hosting.",

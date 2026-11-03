@@ -47,7 +47,7 @@ export default function RussianDailyNextAction() {
         <span style={{ fontSize: 12 }}>CANDIDATE · REVIEW BLOCKED</span>
       </div>
       <p><strong>Một bước tiếp theo:</strong> Kiểm tra tài khoản Vercel Hobby và hạn mức trước khi tạo Preview.</p>
-      <p style={{ fontSize: 13, opacity: .85 }}>Nguồn: Bauman-Russian-iOS tại SHA b92a4d68. Hiện chưa có Site riêng hoặc quyền phát hành.</p>
+      <p style={{ fontSize: 13, opacity: .85 }}>Nguồn: Bauman-Russian-iOS tại SHA ac15d64d. Hiện chưa có Site riêng hoặc quyền phát hành.</p>
       <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
         <button
           type="button"
