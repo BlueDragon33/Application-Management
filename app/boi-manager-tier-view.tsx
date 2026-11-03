@@ -12,6 +12,36 @@ type ManagerRecord={
 type ManagerResponse={
   ok?:boolean;error?:string;managers?:ManagerRecord[];learnerLimit?:number;teacherLimit?:number;
 };
+// Parse the upstream response at the UI boundary instead of asserting a shape
+// that OperationsActionResponse does not declare.
+function isManagerRecord(value:unknown):value is ManagerRecord{
+  if(typeof value!=="object"||value===null)return false;
+  const row=value as Record<string,unknown>;
+  return typeof row.deviceId==="string"&&/^[a-f0-9]{64}$/.test(row.deviceId)
+    &&typeof row.deviceCode==="string"&&typeof row.name==="string"
+    &&typeof row.personCode==="string"
+    &&typeof row.status==="string"
+    &&["pending","approved","blocked","unknown"].includes(row.status)
+    &&typeof row.registrationComplete==="boolean"
+    &&typeof row.managementEnabled==="boolean"
+    &&typeof row.accessExpired==="boolean"
+    &&typeof row.paymentStatus==="string"
+    &&typeof row.accessGroup==="string";
+}
+function isManagerResponse(value:unknown):value is ManagerResponse & {
+  ok:true;managers:ManagerRecord[];learnerLimit:number;teacherLimit:number;
+}{
+  if(typeof value!=="object"||value===null)return false;
+  const response=value as Record<string,unknown>;
+  return response.ok===true
+    &&Array.isArray(response.managers)&&response.managers.every(isManagerRecord)
+    &&typeof response.learnerLimit==="number"
+    &&Number.isInteger(response.learnerLimit)
+    &&response.learnerLimit>=0&&response.learnerLimit<=5000
+    &&typeof response.teacherLimit==="number"
+    &&Number.isInteger(response.teacherLimit)
+    &&response.teacherLimit>=0&&response.teacherLimit<=500;
+}
 export default function BoiManagerTierView(){
   const [data,setData]=useState<ManagerResponse|null>(null);
   const [limits,setLimits]=useState({learnerLimit:50,teacherLimit:5});
@@ -21,12 +51,11 @@ export default function BoiManagerTierView(){
   const lock=useRef(false);
   const mounted=useRef(true);
   const reload=useCallback(async()=>{
-    const response=await operationsAction({action:"boi-manager-tier",operation:"list"}) as unknown as ManagerResponse;
-    if(response.ok!==true||!Array.isArray(response.managers)
-      ||!Number.isInteger(response.learnerLimit)||!Number.isInteger(response.teacherLimit))
+    const response:unknown=await operationsAction({action:"boi-manager-tier",operation:"list"});
+    if(!isManagerResponse(response))
       throw new Error("Chưa xác minh được danh sách và hạn mức cán bộ từ D1 Bơi Ếch.");
     if(mounted.current){setData(response);setLimits({
-      learnerLimit:response.learnerLimit!,teacherLimit:response.teacherLimit!
+      learnerLimit:response.learnerLimit,teacherLimit:response.teacherLimit
     });}
   },[]);
   useEffect(()=>{
@@ -47,7 +76,7 @@ export default function BoiManagerTierView(){
           expectedPersonCode:device.personCode,expectedManagementEnabled:device.managementEnabled}
           :{...limits,expectedLearnerLimit:data?.learnerLimit,
             expectedTeacherLimit:data?.teacherLimit})
-      }) as unknown as ManagerResponse;
+      });
       if(r.ok!==true)throw new Error(r.error||"Bơi Ếch chưa xác nhận thay đổi.");
       await reload();
       setMessage("Đã thao tác và đọc lại quyền/hạn mức từ ứng dụng nguồn.");
