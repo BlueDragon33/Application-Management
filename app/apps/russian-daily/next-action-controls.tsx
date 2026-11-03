@@ -1,88 +1,79 @@
 "use client";
 
 import { useState } from "react";
-import { runRussianDailyNextAction, type RussianDailyNextActionReceipt } from "./actions";
+import {
+  runRussianDailyActiveNextAction,
+  type RussianDailyActiveRunReceipt
+} from "./actions";
 
 export default function RussianDailyNextAction() {
-  const [working, setWorking] = useState(false);
-  const [details, setDetails] = useState(false);
-  const [receipt, setReceipt] = useState<RussianDailyNextActionReceipt | null>(null);
-  const [failure, setFailure] = useState("");
+  const [running,setRunning] = useState(false);
+  const [receipt,setReceipt] = useState<RussianDailyActiveRunReceipt|null>(null);
+  const [failure,setFailure] = useState("");
+  const [explain,setExplain] = useState(false);
 
-  async function executeEntireAuthorizedChain() {
-    if (working) return;
-    setWorking(true);
-    setFailure("");
+  async function execute() {
+    if(running) return;
+    setRunning(true);
     setReceipt(null);
+    setFailure("");
     try {
-      // One user action invokes the whole available server-side preflight chain.
-      // No intermediary "Continue", page navigation, timer or repeated prompts.
-      const result = await runRussianDailyNextAction();
-      if (result.contractVersion !== "russian-daily-one-click/v1" ||
-          result.actionId !== "RD-ONE-CLICK-READONLY-PREFLIGHT" ||
-          result.privilegedExecution || result.workPackageExecution ||
-          result.projectAuthority !== "UNVERIFIED" ||
-          result.state !== "BLOCKED_EXTERNAL_GATE") {
-        throw new Error("Biên nhận không đúng hợp đồng quyền. Không sử dụng kết quả.");
+      const next = await runRussianDailyActiveNextAction();
+      if (next.grantedPrivileges || next.developerApproval || next.hasDeployedSite ||
+          next.actionId !== "RD-ACTIVE-E2E-PREFLIGHT-V1" ||
+          !next.steps.length) {
+        setFailure("Biên nhận vượt quyền hoặc thiếu bằng chứng; dừng ở trạng thái BLOCKED.");
+        return;
       }
-      setReceipt(result);
-      setDetails(true);
-    } catch (e) {
-      setFailure(e instanceof Error ? e.message : "Lỗi thực thi. Không xác nhận thành công.");
+      setReceipt(next);
+    } catch(error) {
+      setFailure(error instanceof Error ? error.message : "Lỗi server action; chưa thể hoàn tất kiểm tra.");
     } finally {
-      setWorking(false);
+      setRunning(false);
     }
   }
 
-  const verifiedCount = receipt?.steps.filter(step => step.state === "VERIFIED_LOCAL").length ?? 0;
-  const totalCount = receipt?.steps.length ?? 0;
   return (
-    <section aria-label="Next Action — bộ thực thi có kiểm soát"
-      style={{marginTop:20,border:"1px solid #8393a7",borderRadius:16,padding:18}}>
-      <h2 style={{marginTop:0}}>NEXT ACTION · Thực thi một lần bấm</h2>
-      <p>Không phải đường dẫn hướng dẫn: nút này chạy liên tiếp toàn bộ bước kiểm tra <strong>đã được phép</strong>, rồi trả về biên nhận và cổng chặn cụ thể.</p>
-      <button type="button" onClick={() => void executeEntireAuthorizedChain()}
-        disabled={working} aria-busy={working}
-        style={{width:"100%",minHeight:54,padding:14,border:0,borderRadius:12,
-          background:"#145d85",color:"#ffffff",fontWeight:750,cursor:working?"progress":"pointer"}}>
-        {working ? "ĐANG CHẠY CHUỖI KIỂM TRA…" : "KÍCH HOẠT NEXT ACTION — CHẠY LIÊN TỤC"}
+    <section aria-label="Active Next Action Blueprint OS 1.3.0" style={{ marginTop:22,border:"1px solid #859ab0",borderRadius:16,padding:18 }}>
+      <h2 style={{marginTop:0}}>ACTIVE NEXT ACTION · Thực thi một lần bấm</h2>
+      <p style={{fontSize:14}}>
+        Chạy liên tục toàn bộ kiểm tra được cấp quyền; chỉ dừng ở cổng quyền thực,
+        không chuyển sang Vercel rồi yêu cầu bấm lại.
+      </p>
+      <button type="button" disabled={running} onClick={() => void execute()}
+        aria-busy={running}
+        style={{width:"100%",minHeight:54,border:"none",borderRadius:12,padding:"14px 16px",
+          background:running?"#50647a":"#145d85",color:"#fff",fontWeight:750,
+          cursor:running?"wait":"pointer"}}>
+        {running ? "ĐANG THỰC THI LIÊN TỤC — KHÔNG CẦN BẤM LẠI" : "ACTIVE NEXT ACTION — THỰC HIỆN"}
       </button>
-      <p role="status" aria-live="polite" style={{marginTop:12}}>
-        {working ? "Đang xác thực phiên và kiểm tra toàn bộ điều kiện kỹ thuật trong phạm vi được cấp…" :
-         failure ? "DỪNG AN TOÀN: " + failure :
-         receipt ? "Đã hoàn thành " + verifiedCount + "/" + totalCount + " bước đọc nội bộ; các bước cần quyền ngoài vẫn BLOCKED." :
-         "Chưa chạy. Trạng thái ứng dụng hiện tại: SOURCE CANDIDATE — REVIEW BLOCKED."}
-      </p>
+      {running ? <p role="status">Đang nhận và kiểm tra bằng chứng từ server, không tạo thêm phiên thực thi.</p> : null}
+      {failure ? <p role="alert" style={{color:"#b42318"}}>{failure}</p> : null}
       {receipt ? (
-        <div style={{marginTop:14}}>
-          <p><strong>Trạng thái:</strong> {receipt.state} · Không deploy, không merge, không tự APPROVE.</p>
-          <p><strong>Cổng chặn thật:</strong> {receipt.blocker}</p>
-          <p><strong>Một Next Action tiếp theo:</strong> {receipt.oneNextAction}</p>
-          <button type="button" aria-controls="russian-daily-execution-log" aria-expanded={details}
-            onClick={() => setDetails(value => !value)}
-            style={{minHeight:44,border:"1px solid #8393a7",borderRadius:10,padding:"8px 12px",background:"transparent",color:"inherit"}}>
-            {details ? "Ẩn nhật ký 8 bước" : "Xem nhật ký 8 bước"}
-          </button>
-          {details ? (
-            <ol id="russian-daily-execution-log" style={{paddingLeft:24}}>
-              {receipt.steps.map(step => (
-                <li key={step.id} style={{marginBottom:12}}>
-                  <strong>{step.label}</strong> — {step.state}
-                  <div style={{fontSize:13,opacity:0.85}}>{step.evidence}</div>
-                </li>
-              ))}
-            </ol>
-          ) : null}
-          <p style={{fontSize:12,opacity:0.8}}>Biên nhận chỉ tồn tại trong phiên giao diện hiện tại, chưa phải nhật ký executor bền vững hoặc bằng chứng GitHub CI/Safari/Vercel.</p>
-          <a href="https://vercel.com/account" target="_blank" rel="noopener noreferrer">
-            Xem tài khoản Vercel khi cần cấp quyền
-          </a>
-        </div>
+        <section aria-label="Biên nhận thực thi" style={{marginTop:16}}>
+          <p><strong>Kết quả: {receipt.status}</strong></p>
+          <p style={{fontSize:12}}>Mã nguồn: {receipt.sourceRevision.slice(0,12)} · Kiểm tra lúc {receipt.observedAt}</p>
+          <ol style={{paddingLeft:22}}>
+            {receipt.steps.map(s=>(
+              <li key={s.key} style={{marginBottom:12}}>
+                <strong>{s.title} — {s.result}</strong>
+                <div style={{fontSize:13}}>{s.evidence}</div>
+              </li>
+            ))}
+          </ol>
+          <p><strong>Một bước cần quyền tiếp theo:</strong> {receipt.oneNextAction}</p>
+        </section>
       ) : null}
-      <p style={{fontSize:12,opacity:0.8}}>
-        Blueprint OS 1.3.0: cổng PROJECT_READ/issuer, QA và Production không được tự vượt qua.
-        Không dùng GitHub-hosted Actions, shell đặc quyền, thanh toán hay API dịch vụ chưa kết nối.
-      </p>
+      <button type="button" aria-expanded={explain} aria-controls="russian-daily-active-help"
+        onClick={()=>setExplain(!explain)}
+        style={{marginTop:12,minHeight:44,borderRadius:10,padding:"9px 14px",border:"1px solid #8296ab",background:"transparent",color:"inherit"}}>
+        {explain?"Thu gọn giải thích":"TRỢ GIÚP · Quyền hạn & cách hoạt động"}
+      </button>
+      {explain ? <div id="russian-daily-active-help" style={{marginTop:10,fontSize:13}}>
+        <p>Nút chạy tất cả bước đọc/kiểm tra nguồn đang được quyền dùng trong một server action; kết quả trả về cuối một lần, không bắt đăng nhập lại giữa từng bước.</p>
+        <p>Chỉ khi có Vercel/GitHub issuer và connector chính thức mới có thể bổ sung triển khai Preview tự động. Không thể biến một nút trình duyệt thành quyền deploy, dùng API bí mật hoặc tự duyệt PR.</p>
+        <p>Ứng dụng Russian Daily độc lập có bộ Next Action riêng để xử lý lịch, xuất .ics và kiểm tra dữ liệu cục bộ. Trang này chỉ điều phối quản trị.</p>
+      </div> : null}
     </section>
   );
 }

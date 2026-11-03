@@ -3,89 +3,76 @@
 import { requireChatGPTUser } from "../../chatgpt-auth";
 import { getApplicationConfig } from "../../application-registry";
 
-export type NextActionStep = {
-  id: "session" | "catalog" | "policy" | "source" | "provider" | "preview" | "review" | "production";
-  label: string;
-  state: "VERIFIED_LOCAL" | "BLOCKED" | "NOT_RUN";
+export type ActiveNextActionStep = {
+  key: string;
+  title: string;
+  result: "PASS" | "BLOCKED" | "NOT_VERIFIED";
   evidence: string;
 };
 
-export type RussianDailyNextActionReceipt = {
-  contractVersion: "russian-daily-one-click/v1";
-  actionId: "RD-ONE-CLICK-READONLY-PREFLIGHT";
+export type RussianDailyActiveRunReceipt = {
+  actionId: "RD-ACTIVE-E2E-PREFLIGHT-V1";
   projectId: "project:bauman-russian-ios";
-  sourceRevision: "ad6d5d1b49502036f8f6399b8f707182a16168e4";
-  state: "BLOCKED_EXTERNAL_GATE";
-  workPackageExecution: false;
-  automaticProgression: true;
-  privilegedExecution: false;
-  projectAuthority: "UNVERIFIED";
-  steps: NextActionStep[];
-  blocker: string;
+  sourceRevision: string;
+  observedAt: string;
+  status: "BLOCKED_PROVIDER_AUTH" | "BLOCKED_SOURCE_MISMATCH";
+  steps: ActiveNextActionStep[];
   oneNextAction: string;
+  hasDeployedSite: false;
+  grantedPrivileges: false;
+  developerApproval: false;
 };
 
-/**
- * One click executes every supported read-only control-plane preflight.
- * NEVER claims repository HEAD, provider quota, project authority, build,
- * review or deployment without independent verification. No redirect.
- * No timer, polling, recurring action or fake background execution.
- */
-export async function runRussianDailyNextAction(): Promise<RussianDailyNextActionReceipt> {
-  // Actual server-side authentication happens on each button invocation.
-  await requireChatGPTUser("/apps/russian-daily");
+const SOURCE_REVISION = "de9b865e19df52ee5a84d59e94ea541328b1e690";
 
-  const steps: NextActionStep[] = [
-    {
-      id: "session", label: "Xác thực phiên quản trị",
-      state: "VERIFIED_LOCAL",
-      evidence: "requireChatGPTUser đã xác thực yêu cầu hiện tại; không suy ra PROJECT_READ hay quyền executor."
-    }
-  ];
-  const app = getApplicationConfig("russian-daily");
-  if (!app || app.repository !== "BlueDragon33/Bauman-Russian-iOS" ||
-      app.href !== "/apps/russian-daily") {
-    throw new Error("Danh mục dự án sai định danh. Dừng fail-closed.");
-  }
-  steps.push({
-    id: "catalog", label: "Đối chiếu danh mục ứng dụng",
-    state: "VERIFIED_LOCAL",
-    evidence: "Đọc registry trong phiên bản Application-Management hiện hành; tên repository và route đúng. Đây không phải live GitHub HEAD."
-  });
-  if (app.status !== "planned" || app.contractState !== "pending" || app.publicUrl ||
-      app.previewUrl || app.contractSource === "repository") {
-    throw new Error("Danh mục không còn ở trạng thái candidate metadata-only. Cần kiểm tra trước khi tiếp tục.");
-  }
-  steps.push({
-    id: "policy", label: "Kiểm tra cổng ZERO-SPEND và phát hành",
-    state: "VERIFIED_LOCAL",
-    evidence: "Registry chưa gán Preview/Production URL và không công bố kết nối quản trị; chưa có quyền tạo hosting hoặc dùng tài nguyên tính phí."
-  });
-  steps.push({
-    id: "source", label: "Đối chiếu HEAD GitHub riêng",
-    state: "BLOCKED",
-    evidence: "Server không có GitHub readback đã cấp quyền cho private repository. SHA ở candidate chỉ là nguồn tham chiếu, không phải HEAD live xác minh."
-  });
-  for (const [id,label] of [
-    ["provider","Xác minh Vercel Hobby, quota và bảo vệ Preview"],
-    ["preview","Chạy build/Preview và kiểm thử thiết bị"],
-    ["review","Nhận review độc lập và quyền WorkPackage"],
-    ["production","Quyết định Production và xác minh URL"]
-  ] as const) {
-    steps.push({id, label, state:"NOT_RUN", evidence:"Chưa có bằng chứng đủ điều kiện; không được tự thực hiện hoặc tự PASS."});
-  }
+/**
+ * One-click bounded executor: automatically evaluates all admitted read-only
+ * stages and returns a complete receipt. No user prompt loop or redirect.
+ *
+ * Important: this Cloudflare app has no proven authorized Vercel/GitHub private
+ * repository executor or issuer grant. It MUST NOT fabricate a deployment,
+ * real CI, quota evidence or independent reviewer authorization.
+ */
+export async function runRussianDailyActiveNextAction(): Promise<RussianDailyActiveRunReceipt> {
+  await requireChatGPTUser("/apps/russian-daily");
+  const observedAt = new Date().toISOString();
+  const steps: ActiveNextActionStep[] = [];
+  steps.push({key:"auth",title:"1. Xác minh phiên quản trị",result:"PASS",
+    evidence:"requireChatGPTUser đã xác thực phiên cho đúng route. Không suy ra quyền reviewer hay deploy."});
+  const application = getApplicationConfig("russian-daily");
+  const sourceCorrect = application?.repository === "BlueDragon33/Bauman-Russian-iOS" &&
+    application?.id === "russian-daily" && application?.tier === "client";
+  steps.push({key:"source",title:"2. Đối chiếu ứng dụng và mã nguồn",result:sourceCorrect?"PASS":"BLOCKED",
+    evidence:sourceCorrect?"Danh mục nội bộ đúng repository. SHA mục tiêu "+SOURCE_REVISION.slice(0,12)+
+      " chỉ là SHA đã ghi nhận; chưa phải readback GitHub tại thời điểm chạy.":
+      "Danh mục không khớp repository hoặc định danh dự kiến."});
+  const independent = sourceCorrect && application?.contractState !== "connected" &&
+    !application?.publicUrl && !application?.previewUrl;
+  steps.push({key:"runtime",title:"3. Kiểm tra trạng thái runtime độc lập",
+    result:independent?"PASS":"BLOCKED",
+    evidence:independent?"Đã xác định ứng dụng còn pending và không giả URL; App-Management không sở hữu runtime.":
+       "Trạng thái phát hành đã khác dự kiến; yêu cầu đọc lại chứng cứ trước khi thực thi."});
+  steps.push({key:"zero-spend",title:"4. Cổng ZERO-SPEND / Vercel Hobby",
+    result:"NOT_VERIFIED",
+    evidence:"Không có kết nối Vercel được xác thực trong runtime, không thể đọc plan/quota/billing hoặc bảo vệ Preview. Không tạo project, không gọi API trả phí."});
+  steps.push({key:"deployment",title:"5. Tự động hóa Preview có kiểm soát",
+    result:"BLOCKED",
+    evidence:"Không có executor được issuer cấp quyền, không có Vercel project ID hoặc exact-SHA Preview readback. Không tự thay production branch, merge hay publish."});
+  steps.push({key:"release",title:"6. Kiểm tra gate review và Production",
+    result:"BLOCKED",
+    evidence:"Chưa có reviewer độc lập và Safari QA thực tế được xác minh trên runtime này. Giữ REVIEW BLOCKED / Production BLOCKED."});
   return {
-    contractVersion:"russian-daily-one-click/v1",
-    actionId:"RD-ONE-CLICK-READONLY-PREFLIGHT",
+    actionId:"RD-ACTIVE-E2E-PREFLIGHT-V1",
     projectId:"project:bauman-russian-ios",
-    sourceRevision:"ad6d5d1b49502036f8f6399b8f707182a16168e4",
-    state:"BLOCKED_EXTERNAL_GATE",
-    workPackageExecution:false,
-    automaticProgression:true,
-    privilegedExecution:false,
-    projectAuthority:"UNVERIFIED",
+    sourceRevision:SOURCE_REVISION,
+    observedAt,
+    status:sourceCorrect && independent?"BLOCKED_PROVIDER_AUTH":"BLOCKED_SOURCE_MISMATCH",
     steps,
-    blocker:"Thiếu readback GitHub private tại runtime, Vercel connector/grant và môi trường QA hợp lệ. Không tự cấp quyền hoặc mở deployment.",
-    oneNextAction:"Kết nối Vercel Hobby và cấp quyền kiểm tra repository/project có phạm vi. Sau đó tiếp tục bằng bộ executor được cấp quyền; không cần lặp lại các bước đã có bằng chứng."
+    oneNextAction:sourceCorrect && independent?
+      "Cấp kết nối Vercel Hobby và issuer grant Preview scoped thực cho repository/commit mục tiêu; sau đó mới thêm executor triển khai và readback.":
+      "Kiểm tra lại source catalog / trạng thái quản lý trước khi cấp bất kỳ quyền thực thi nào.",
+    hasDeployedSite:false,
+    grantedPrivileges:false,
+    developerApproval:false
   };
 }
