@@ -15,7 +15,13 @@ Status: **SOURCE-ONLY / PENDING / NOT HOSTED / NOT DEPLOYED**.
 - For native iOS/WidgetKit: continue separate P0/B4/RU03 and device QA gates; web PWA does not satisfy them.
 - No GitHub Actions, server, database, release, merge, approval, credential, or Site was created by this candidate.
 
-## Guided Next Action pilot (2026-11-03)
+## Current scope correction (2026-11-03)
+- Latest corrected standalone source SHA: a88518d7d29e939e15b4363628572c80e9354d9a.
+- Active Next Action has been removed from both Russian Daily PWA and this app catalog candidate; project-task buttons belong to the ChatGPT Project conversation only.
+- The route /apps/russian-daily remains authenticated metadata-only, and Vercel Hobby still lacks verified account/Preview authorization.
+- Original Next Action pilot and Active Next Action sections below are SUPERSEDED HISTORICAL EVIDENCE, not current product UI or deployment acceptance.
+
+## SUPERSEDED HISTORICAL RECORD: Guided Next Action pilot (2026-11-03)
 - App-Management route `/apps/russian-daily` now stages a client control with one primary Next Action and one toggleable `HƯỚNG DẪN`.
 - The primary control uses a **server action** re-authenticating `requireChatGPTUser` on every invocation. It checks the metadata registration is still `pending` and returns only a safe, allowlisted `https://vercel.com/account` navigation. This is NOT a Vercel API check or a project-level PROJECT_READ grant.
 - A contextual optional CMD QA section displays a source-test command and lets the operator paste local output; this evidence is **UNVERIFIED**, kept client-side and never forwarded as an approval.

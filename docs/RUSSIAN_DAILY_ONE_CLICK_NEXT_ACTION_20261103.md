@@ -1,3 +1,5 @@
+> **SUPERSEDED / MIS-SCOPED FEATURE — HISTORICAL ONLY.** The owner clarified that Active Next Action belongs in the ChatGPT Project conversation, not Application-Management or Russian Daily runtime. The button and server action described below have been removed on the source candidate. Do not count these tests as current app acceptance. See RUSSIAN_DAILY_ACTIVE_NEXT_ACTION_SCOPE_CORRECTION_20261103.md. 
+
 # Russian Daily — Next Action end-to-end pilot (Blueprint OS 1.3.0)
 
 **Status: SOURCE CANDIDATE / REVIEW BLOCKED. No production deployment or site URL.**
