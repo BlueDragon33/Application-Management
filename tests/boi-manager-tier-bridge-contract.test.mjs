@@ -39,3 +39,13 @@ test("manager grant or revoke carries expected permission and separate authority
   assert.match(api,/verified\.deviceId!==deviceId\|\|typeof verified\.managementEnabled!=="boolean"/);
   assert.match(ui,/const lock=useRef\(false\)/);
 });
+
+test("Owner UI rejects unchecked manager-tier response shapes and keeps revoked access actionable",()=>{
+  assert.match(ui,/function isManagerRecord\(value:unknown\)/);
+  assert.match(ui,/function isManagerResponse\(value:unknown\)/);
+  assert.match(ui,/response\.managers\.every\(isManagerRecord\)/);
+  assert.match(ui,/if\(!isManagerResponse\(response\)\)/);
+  assert.doesNotMatch(ui,/as unknown as ManagerResponse/);
+  assert.match(ui,/m\.managementEnabled\?<button type="button" disabled=\{busy\}/);
+  assert.doesNotMatch(ui,/disabled=\{busy\|\|!m\.approved\}/);
+});
