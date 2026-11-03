@@ -1055,7 +1055,7 @@ export async function POST(request: Request) {
           method:"POST",body:{action:"get-manager-grant",deviceId,expectedPersonCode}
         });
         if(approvedReadback.deviceId!==deviceId||approvedReadback.accountApproved!==true
-          ||approvedReadback.managementEnabled!==true)
+          ||approvedReadback.managementConfigured!==true||approvedReadback.managementEnabled!==true)
           return json({code:"MANAGER_APPROVAL_READBACK_FAILED",error:"D1 chưa xác nhận quyền cán bộ sau khi duyệt."},503);
         const verified=await bridgeReadJson(bridge,"/api/control/overview?deviceCodes="+encodeURIComponent(text(payload.deviceCode)));
         if(!rows(verified).some(item=>text(item.deviceId)===deviceId && text(item.personRole)==="manager"
@@ -1080,7 +1080,9 @@ export async function POST(request: Request) {
       const verified=await bridgeJson(bridge,"/api/control/management-access",{
         method:"POST",body:{action:"get-manager-grant",deviceId,expectedPersonCode}
       });
-      if(verified.deviceId!==deviceId||typeof verified.managementEnabled!=="boolean"
+      if(verified.deviceId!==deviceId||typeof verified.managementConfigured!=="boolean"
+        ||verified.managementConfigured!==(operation==="grant-manager")
+        ||typeof verified.managementEnabled!=="boolean"
         ||verified.managementEnabled!==(operation==="grant-manager"))
         return json({code:"MANAGER_GRANT_READBACK_FAILED",error:"Chưa xác minh D1 quyền Cán bộ."},503);
       return json({ok:true,deviceId,managementEnabled:operation==="grant-manager"});
