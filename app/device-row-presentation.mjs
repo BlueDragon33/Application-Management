@@ -35,7 +35,7 @@ export function deviceTimePresentation(device,now=Date.now(),snapshotVerified=fa
   const seen=validDeviceTimestamp(device.lastSeenAt);
   const lastPresence=validDeviceTimestamp(device.lastPresenceAt);
   const offlineSince=validDeviceTimestamp(device.offlineSinceAt);
-  const onlineAt=lastPresence ?? (device.lastPresenceAt===undefined?seen:null);
+  const onlineAt=lastPresence ?? seen;
   const elapsed=offlineSince!==null&&snapshotVerified&&Number.isFinite(now)&&now>=offlineSince
     ? Math.floor((now-offlineSince)/60_000):null;
   const offlineElapsed=elapsed===null?null:elapsed<60
@@ -51,7 +51,7 @@ export function deviceTimePresentation(device,now=Date.now(),snapshotVerified=fa
       :created!==null?formatDeviceTime(created):"Chưa có giờ yêu cầu",
     lastSeen: seen===null ? "Chưa có giờ ghi nhận" : formatDeviceTime(seen),
     onlineAt,
-    onlineLabel:lastPresence!==null?"Online gần nhất":"Tín hiệu gần nhất",
+    onlineLabel:lastPresence!==null?"Online gần nhất":"Ghi nhận gần nhất",
     online:onlineAt===null?"Chưa có dữ liệu":formatDeviceTime(onlineAt),
     offlineAt:offlineSince,
     offlineLabel:"Offline từ (ước tính)",
