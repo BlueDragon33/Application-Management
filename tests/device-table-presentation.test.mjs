@@ -149,6 +149,6 @@ test("source normalization forwards three optional timestamps without inventing 
     assert.match(ops,new RegExp(field+": timeValue\\(row\\."+field+"\\)"));
     assert.match(client,new RegExp(field+"\\?: string \\| null"));
   }
-  assert.match(dashboard,/Offline từ \\(ước tính\\)|timestamps\\.offlineLabel/);
+  assert.match(dashboard,/Offline từ \(ước tính\)|timestamps\.offlineLabel/);
   assert.match(dashboard,/Hàng đợi kiểm duyệt/);
 });
