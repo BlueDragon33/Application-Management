@@ -93,7 +93,7 @@ export const applicationRegistry: readonly ApplicationConfig[] = [
     contractState: "pending",
     repository: "BlueDragon33/Bauman-Russian-iOS",
     scope: "Standalone PWA cho lịch học STANKIN, nhập nội dung Telegram thủ công, luyện từ tiếng Nga cá nhân và xuất iCalendar. Mã nguồn riêng ở web/russian-daily; Vercel Hobby là hosting preview ưu tiên (ChatGPT Sites dự phòng), chưa được cấp URL hay triển khai.",
-    contractNote: "Source candidate dd948104 (runtime 1445b9e, V8 mô phỏng 13/13 và kiểm tra nguồn 6/6); metadata-only, có chế độ cứu hộ dữ liệu Safari lỗi. Không kế thừa WidgetKit/RU03 approval; Vercel Preview chưa tạo, chưa có Safari/hosted QA PASS.",
+    contractNote: "Source candidate 7c00fcee (Vercel Git auto-deploy disabled: git.deploymentEnabled=false; source QA mô phỏng 5/5); runtime học tập 1445b9e với QA mô phỏng 13/13. Metadata-only, không kế thừa WidgetKit/RU03 approval; Preview, Safari/hosted QA và reviewer vẫn BLOCKED.",
     devicePolicy: "Local-first trên iPhone/iPad/desktop; chưa có SSO, device registry, quyền remote admin hay đồng bộ server. Application-Management không chặn việc cập nhật nội dung web-app riêng.",
     deviceExperiences: standardDeviceExperiences,
     capabilities: ["Lịch học Moscow/STANKIN", "Nhập Telegram dạng văn bản", "Xuất iCalendar (.ics)", "Luyện từ vựng cá nhân", "Sao lưu và khôi phục JSON", "Giao diện PWA offline"],
