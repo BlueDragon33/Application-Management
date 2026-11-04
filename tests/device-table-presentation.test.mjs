@@ -77,12 +77,14 @@ test("future timestamp is flagged instead of fake verified online",()=>{
 });
 test("device queue shows aligned seventh Time column and full user identity",()=>{
   assert.match(dashboard,/<span>Người dùng \/ định danh<\/span><span>Trạng thái<\/span><span>Thời gian<\/span><span>Hoạt động<\/span>/);
-  assert.match(dashboard,/deviceTimePresentation\(device\)/);
+  assert.match(dashboard,/deviceTimePresentation\(device, now, snapshotVerified\)/);
   assert.match(dashboard,/deviceUserPresentation\(device, count\)/);
   assert.match(dashboard,/deviceActivityPresentation\(device, snapshotVerified, now\)/);
   assert.match(dashboard,/className="amv2-device-user"/);
-  assert.match(dashboard,/dateTime=\{timestamps.createdAt/);
-  assert.match(dashboard,/dateTime=\{timestamps.lastSeenAt/);
+  assert.match(dashboard,/dateTime=\{timestamps.registeredAt/);
+  assert.match(dashboard,/dateTime=\{timestamps.onlineAt/);
+  assert.match(dashboard,/dateTime=\{timestamps.offlineAt/);
+  assert.match(dashboard,/timestamps.offlineElapsed/);
 });
 test("activity is only presented as live-source data when management is verified",()=>{
   assert.match(dashboard,/snapshotVerified=\{!offline && managedAccessVerified\}/);
@@ -94,4 +96,59 @@ test("responsive seven-column styles preserve headers and contrast",()=>{
   assert.match(css,/\.amv2-device-user strong/);
   assert.match(css,/\.amv2-device-activity\[data-activity="recent"\]/);
   assert.match(css,/min-width: 1250px/);
+});
+
+test("device registration submission is distinct from first registry creation",()=>{
+  const t=deviceTimePresentation(device({
+    createdAt:"2026-11-01T08:00:00Z",
+    registrationSubmittedAt:"2026-11-02T10:30:00Z",
+  }),reference,true);
+  assert.equal(t.registrationLabel,"Đăng ký");
+  assert.equal(t.registeredAt,Date.parse("2026-11-02T10:30:00Z"));
+  const fallback=deviceTimePresentation(device({createdAt:"2026-11-01T08:00:00Z"}),reference,true);
+  assert.equal(fallback.registrationLabel,"Ghi nhận thiết bị");
+  assert.equal(fallback.registeredAt,Date.parse("2026-11-01T08:00:00Z"));
+});
+
+test("online and offline timestamps use actual source heartbeat, not activity fallbacks",()=>{
+  const t=deviceTimePresentation(device({
+    lastSeenAt:"2026-10-19T13:57:00Z",
+    lastPresenceAt:"2026-10-19T13:50:00Z",
+    offlineSinceAt:"2026-10-19T13:55:00Z",
+  }),reference,true);
+  assert.equal(t.onlineLabel,"Online gần nhất");
+  assert.equal(t.onlineAt,Date.parse("2026-10-19T13:50:00Z"));
+  assert.equal(t.offlineAt,Date.parse("2026-10-19T13:55:00Z"));
+  assert.equal(t.offlineElapsed,"5 phút");
+  const cached=deviceTimePresentation(device({
+    offlineSinceAt:"2026-10-19T13:55:00Z",
+  }),reference,false);
+  assert.equal(cached.offlineElapsed,null);
+});
+
+test("no offline or online history is fabricated and future offline time is not counted",()=>{
+  const unknown=deviceTimePresentation(device(),reference,true);
+  assert.equal(unknown.onlineAt,null);
+  assert.equal(unknown.offlineAt,null);
+  assert.equal(unknown.online,"Chưa có dữ liệu");
+  assert.equal(unknown.offline,"Chưa có dữ liệu");
+  assert.equal(unknown.offlineElapsed,null);
+  const future=deviceTimePresentation(device({offlineSinceAt:"2026-10-20T14:00:00Z"}),reference,true);
+  assert.equal(future.offlineElapsed,null);
+});
+
+test("SQLite UTC timestamp is not parsed as the viewer's browser-local timezone",()=>{
+  assert.equal(validDeviceTimestamp("2026-10-19 13:50:00"),Date.parse("2026-10-19T13:50:00Z"));
+  assert.equal(validDeviceTimestamp("not-a-time"),null);
+});
+
+test("source normalization forwards three optional timestamps without inventing historical sessions",()=>{
+  const ops=readFileSync("app/api/operations/route.ts","utf8");
+  const client=readFileSync("app/admin-device-client.ts","utf8");
+  for(const field of ["registrationSubmittedAt","lastPresenceAt","offlineSinceAt"]){
+    assert.match(ops,new RegExp(field+": timeValue\\(row\\."+field+"\\)"));
+    assert.match(client,new RegExp(field+"\\?: string \\| null"));
+  }
+  assert.match(dashboard,/Offline từ \\(ước tính\\)|timestamps\\.offlineLabel/);
+  assert.match(dashboard,/Hàng đợi kiểm duyệt/);
 });
