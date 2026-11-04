@@ -40,6 +40,9 @@ type ClientDevice = {
   active: boolean;
   createdAt: string | null;
   lastSeenAt: string | null;
+  registrationSubmittedAt?: string | null;
+  lastPresenceAt?: string | null;
+  offlineSinceAt?: string | null;
   attention: "new" | "environment" | "none";
   canApprove: boolean;
   canRemove: boolean;
@@ -338,6 +341,9 @@ function deviceFrom(
     appId, appName, href, deviceId: text(row.deviceId), deviceCode: text(row.deviceCode, "—"), deviceType,
     deviceTypeLabel: typeLabel(deviceType), userLabel, status, active: bool(row.active), createdAt,
     lastSeenAt: timeValue(row.lastSeenAt) || timeValue(row.lastActivityAt) || null,
+    registrationSubmittedAt: timeValue(row.registrationSubmittedAt) || null,
+    lastPresenceAt: timeValue(row.lastPresenceAt) || null,
+    offlineSinceAt: timeValue(row.offlineSinceAt) || null,
     attention: environmentChanged ? "environment" : recent && status === "pending" ? "new" : "none",
     canApprove: options.approve === true && status === "pending" && approvalReady,
     canRemove: options.remove === true && status !== "blocked",
