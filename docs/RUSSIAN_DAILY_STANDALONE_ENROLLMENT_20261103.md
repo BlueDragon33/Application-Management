@@ -67,3 +67,11 @@ Status: **SOURCE-ONLY / PENDING / NOT HOSTED / NOT DEPLOYED**.
 - Preflight Bauman branch has two workflows, each automatically triggers on main or relevant PR and also allows manual dispatch, but no PR has the Russian Daily candidate as head. App-Management candidate workflow directory lists 15 workflows; automated push triggers checked were limited to `main`, with other events requiring PR, scheduled execution or manual dispatch. No manual Actions or provider deployment was initiated.
 - Vercel readback: team Hobby, no Russian Daily project or deployment. App catalog remains `status=planned`, `contractState=pending`, no `publicUrl`, no device-approval, SSO or operational control.
 - Evidence and unresolved admission requirements: Bauman `web/russian-daily/docs/VERCEL_PREVIEW_RUNBOOK.md` at `7c00fcee`. Protection setup, scoped Preview issuer, independent reviewer and actual device Safari QA remain **BLOCKED**; no merge, ratification, Production or release.
+
+## 2026-11-04 — Protected evaluation deployment incident (not admission PASS)
+
+Owner requested a live testable Russian Daily link; Vercel standalone project `russian-daily-qa-preview` was created on Hobby without Git connection, with Vercel Authentication enabled for `all` deployments. Uploaded files were from Bauman commit `7c00fcee53aae2c7f1c39aacc0235f394110c811`.
+
+**Environment mismatch:** Explicit create-deployment request used `target=preview`, but Vercel created deployment `dpl_3GhUP1YGddhcxfLnroCcb5JG7au4` with `target=production`, `readyState=READY`. Cancellation immediately attempted but rejected `400 deployment_not_canceled`. The deployment's logged build completed; actual protected Safari access and anonymous access enforcement were **not tested**. Project protection was re-read as `ssoProtection.enabled=true, deploymentType=all`.
+
+**Governance:** This is an unapproved Production-*targeted* deployment by the provider, not an authorized Production release. Do not use its URL as an approved `publicUrl`, do not switch registry `status=planned` or `contractState=pending`, do not merge, ratify, approve or claim QA PASS/ZERO-SPEND PASS. Human review must address the target mismatch; future deployments remain blocked. Detailed incident record: Bauman `web/russian-daily/docs/VERCEL_PREVIEW_RUNBOOK.md` commit `50fd55f00c1862af7a732b981763d905020aafda`.
