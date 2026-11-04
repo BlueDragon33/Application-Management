@@ -1,0 +1,44 @@
+{
+  "authority": "SOURCE_ONLY_ENGINEERING_QA",
+  "review": "BLOCKED",
+  "ci": "PENDING",
+  "globalD1": "10/10 BLOCKED",
+  "featureFlag": "OFF",
+  "centralApplicationSource": "b50878d2878bf51444d033064ce9d9cb4e56a3e0",
+  "note": "Central application code unchanged. This follow-up repins the explicit integration fixture and adds evidence only; prior 833/833/type/build evidence remains tied to unchanged application source. No full-suite rerun claimed.",
+  "command": "node scripts/boi-account-source-integration.mjs ../boi-account-first",
+  "exitCode": 0,
+  "fixtureLintExitCode": 0,
+  "observed": {
+    "result": "LOCAL_SOURCE_INTEGRATION_PASS",
+    "boiSource": "040898b77b7ede9541e5f0c616656a5aa3ef20a4",
+    "migrations": 21,
+    "checks": [
+      "actual signed Owner ticket accepted",
+      "signed Publisher denied",
+      "consumer publisher cannot invoke",
+      "read-command-independent-read",
+      "account CAS stale denied",
+      "manager approval separate from broad read",
+      "one account on second device without reapproval",
+      "shared quota counts account once",
+      "broad read per-target audit and redaction",
+      "immediate revoke",
+      "tampered ticket denied"
+    ],
+    "syntheticRuntimeIdentityProbes": 2,
+    "limitations": [
+      "platform bindings mocked",
+      "HTTP in-process",
+      "SQLite not live D1",
+      "no browser/runtime-target acceptance"
+    ]
+  },
+  "remaining": [
+    "independent recheck of owning corrections",
+    "healthy managed browser QA",
+    "target runtime and CPU admission",
+    "authorized legacy snapshot and isolated D1 readback/rollback",
+    "protected production release"
+  ]
+}

@@ -6,7 +6,7 @@ import {execFileSync} from 'node:child_process';
 import {DatabaseSync} from 'node:sqlite';
 import {loadTs} from '../tests/helpers/load-ts.mjs';
 const boi=path.resolve(process.argv[2]??'../boi-account-first');
-const pinned='fbf70057a232e3c1f6115311afc0385e80e6dbb6';
+const pinned='040898b77b7ede9541e5f0c616656a5aa3ef20a4';
 // Later handoff-only commits are allowed; every owning application byte stays pinned.
 execFileSync('git',['merge-base','--is-ancestor',pinned,'HEAD'],{cwd:boi});
 execFileSync('git',['diff','--exit-code',pinned,'--','boi-ech'],{cwd:boi});
