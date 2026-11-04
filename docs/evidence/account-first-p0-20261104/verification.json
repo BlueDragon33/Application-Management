@@ -1,0 +1,62 @@
+{
+  "authority": "SOURCE_ONLY_ENGINEERING_CANDIDATE",
+  "review": "BLOCKED",
+  "ci": "PENDING",
+  "globalD1": "10/10 BLOCKED",
+  "featureFlag": "BOI_ECH_ACCOUNT_FIRST default OFF",
+  "baseline": {
+    "tests": 816,
+    "pass": 801,
+    "fail": 15,
+    "skipped": 0
+  },
+  "test": {
+    "command": "npm test",
+    "node": "v24.22.1",
+    "stats": {
+      "tests": 820,
+      "pass": 806,
+      "fail": 14,
+      "skipped": 0
+    },
+    "failures": [
+      "a concurrent dashboard refresh is not overwritten by an older automation snapshot",
+      "Blueprint launch uses the verified latest development Preview without overwriting Production",
+      "dashboard consumes targeted mutation readback instead of blocking on a full bootstrap",
+      "explicit automation save bypasses passive Standalone cache but still uses server-side admin authorization",
+      "all client automation cards use stable applied-state and isolated draft controls",
+      "Boi Ech has a physically isolated client control center",
+      "device view keeps direct app administration separate from review mutation",
+      "manual sync buttons force an online refresh even in standalone mode",
+      "verified online state is independent from the standalone access gate",
+      "no claim of live write persistence is introduced by mode switching",
+      "background operations refreshes are deduplicated instead of stacking on focus",
+      "current dashboard exposes real Boi access controls without inventing payment controls for other apps",
+      "standalone mode labels cached status as unverified instead of a live Production result",
+      "physically removes legacy central rights and audit surfaces from Boi route"
+    ],
+    "exitCode": 1
+  },
+  "newFailuresComparedWithBaseline": [],
+  "typecheck": {
+    "command": "npm run typecheck",
+    "exitCode": 0
+  },
+  "build": {
+    "command": "npm run build",
+    "exitCode": 0
+  },
+  "lint": {
+    "fullExitCode": 1,
+    "changedSourceErrors": 0,
+    "note": "Central full lint has 28 errors / 82 warnings outside changed source; changed source lint 0 errors / 2 warnings."
+  },
+  "notRun": [
+    "real browser / Safari / iPhone QA",
+    "Cloudflare target compatibility-date 2026-08-26 / CPU-budget admission",
+    "live D1 independent readback",
+    "production migration or rollback",
+    "independent authority acceptance"
+  ],
+  "spend": "No GitHub Actions dispatched; no PR event, deploy, paid provider, production write or merge."
+}

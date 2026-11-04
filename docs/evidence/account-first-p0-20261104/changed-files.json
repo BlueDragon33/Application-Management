@@ -1,0 +1,34 @@
+[
+  {
+    "path": "app/api/apps/boi-ech/access/route.ts",
+    "sha256": "c58572d65ab97e0fd535469875ec3ec9dc2f804630213139167e14ccb6ac5c9d"
+  },
+  {
+    "path": "app/api/operations/route.ts",
+    "sha256": "8efc5256d3823e6ad4ee1523cccf0e5e9bef3ab3d9ae29541183dbdffb1f178c"
+  },
+  {
+    "path": "app/boi-manager-tier-view.tsx",
+    "sha256": "df375f54e5f9401dc6f79201559e294298268b0a2000ef83df5316a4ef93abd6"
+  },
+  {
+    "path": "app/device-automation-draft.mjs",
+    "sha256": "5bb0ab5c374b803f42d2dca3af086176f843d73e2ad865cc93bac4c7a50827c2"
+  },
+  {
+    "path": "app/boi-account-permissions-view.tsx",
+    "sha256": "5f0c35366ce8bfae572eeca563b223051b79726066031470bfb2ad5711dbdc99"
+  },
+  {
+    "path": "app/boi-account-permissions.server.ts",
+    "sha256": "66fe724ce99444c3e17db5cbbe37129c3183ec722d75819738efd3b55395b078"
+  },
+  {
+    "path": "docs/handoffs/BOIECH_ACCOUNT_PERMISSIONS_P0_REVIEWER_20261104.md",
+    "sha256": "cee7516a4ac619367cd5cdd04a84889833918c6748acf33c60db6bf0b4866a72"
+  },
+  {
+    "path": "tests/boi-account-permissions.test.mjs",
+    "sha256": "812e56c08c874e035518ff459587f79e3a495f21ddb0038b9ada779b43903a1c"
+  }
+]

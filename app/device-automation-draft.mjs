@@ -7,6 +7,7 @@ export function validateAutomationDraft(data) {
   if(!data||typeof data!=="object"||Array.isArray(data)) return null;
   const entries=Object.entries(data.drafts??{});
   if(!entries.length || entries.length>80)return null;
+  /** @type {Record<string, {autoApprove:boolean, autoBlock:boolean, pendingBlockAfterHours:number}>} */
   const drafts={};
   for(const [id,value] of entries){
     if(!ID.test(id)||!value||typeof value!=="object"||Array.isArray(value))return null;

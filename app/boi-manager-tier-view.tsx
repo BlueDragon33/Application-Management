@@ -1,4 +1,5 @@
 "use client";
+import BoiAccountPermissionsView from "./boi-account-permissions-view";
 import {useCallback,useEffect,useRef,useState} from "react";
 import {operationsAction} from "./admin-device-client";
 import styles from "./boi-manager-tier-view.module.css";
@@ -125,6 +126,7 @@ export default function BoiManagerTierView(){
         </div>
       </article>)}
     </section>
+    <BoiAccountPermissionsView/>
     <p>Chế độ xem thử Cán bộ quản lý có tại ứng dụng Bơi Ếch, chỉ sử dụng dữ liệu mẫu và không có quyền ghi.</p>
   </section>;
 }

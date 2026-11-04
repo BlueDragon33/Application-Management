@@ -1,3 +1,4 @@
+import { accountPermissionOperation } from "../../boi-account-permissions.server";
 import { resolveAutomationChange, stageAutomationChange } from "../../automation-policy-changes.server";
 import { applicationRegistry, type ApplicationConfig } from "../../application-registry";
 import { verifyControlProof, type ControlDeviceState } from "../../control-device.server";
@@ -998,6 +999,19 @@ export async function POST(request: Request) {
     const actor = await verifyControlProof(payload, undefined, previewRequest);
     const action = typeof payload.action === "string" ? payload.action : "bootstrap";
     if (action === "bootstrap") return json(await buildBootstrap(actor));
+
+    if (action === "boi-account-permissions") {
+      if (actor.role !== "owner") return json({code:"OWNER_REQUIRED",error:"Chỉ Owner được cấp quyền tài khoản cán bộ."},403);
+      const bridge = await issueBoiBrowserBridge(actor.email, actor.role);
+      try {
+        return json(await accountPermissionOperation(actor.role,payload,body =>
+          bridgeJson(bridge,"/api/control/accounts",{method:"POST",body})));
+      } catch (error) {
+        if (error instanceof UpstreamError) throw error;
+        const code=error instanceof Error?error.message:"ACCOUNT_CONTROL_ERROR";
+        return json({code,error:"Chưa xác minh được quyền tài khoản. Đồng bộ lại nguồn trước khi lưu."},code.includes("CAS")?409:503);
+      }
+    }
 
     if (action === "boi-manager-tier") {
       // Central owns manager-account decisions only. Learner and teacher

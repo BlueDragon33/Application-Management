@@ -201,7 +201,6 @@ export async function POST(request: Request) {
     }
 
     if (action === "payment-proof") {
-      if (actor.role !== "publisher" && actor.role !== "owner") return json({ error: "Vai trò hiện tại không được xem chứng từ thanh toán Bơi ếch.", code: "PUBLISHER_REQUIRED" }, 403);
       const deviceId = text(payload.deviceId).toLowerCase();
       if (!/^[a-f0-9]{64}$/.test(deviceId)) return json({ error: "Mã thiết bị Bơi ếch không hợp lệ.", code: "INVALID_DEVICE_ID" }, 400);
       const before = await overview(bridge);
@@ -225,7 +224,6 @@ export async function POST(request: Request) {
     }
 
     if (action === "manage-access") {
-      if (actor.role !== "publisher" && actor.role !== "owner") return json({ error: "Vai trò hiện tại không được thay đổi thanh toán/quyền Bơi ếch.", code: "PUBLISHER_REQUIRED" }, 403);
       const deviceId = text(payload.deviceId).toLowerCase();
       const operation = text(payload.operation) as AccessOperation;
       if (!/^[a-f0-9]{64}$/.test(deviceId)) return json({ error: "Mã thiết bị Bơi ếch không hợp lệ.", code: "INVALID_DEVICE_ID" }, 400);

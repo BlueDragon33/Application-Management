@@ -1,0 +1,27 @@
+{
+  "command": "npm test",
+  "node": "v24.22.1",
+  "stats": {
+    "tests": 820,
+    "pass": 806,
+    "fail": 14,
+    "skipped": 0
+  },
+  "failures": [
+    "a concurrent dashboard refresh is not overwritten by an older automation snapshot",
+    "Blueprint launch uses the verified latest development Preview without overwriting Production",
+    "dashboard consumes targeted mutation readback instead of blocking on a full bootstrap",
+    "explicit automation save bypasses passive Standalone cache but still uses server-side admin authorization",
+    "all client automation cards use stable applied-state and isolated draft controls",
+    "Boi Ech has a physically isolated client control center",
+    "device view keeps direct app administration separate from review mutation",
+    "manual sync buttons force an online refresh even in standalone mode",
+    "verified online state is independent from the standalone access gate",
+    "no claim of live write persistence is introduced by mode switching",
+    "background operations refreshes are deduplicated instead of stacking on focus",
+    "current dashboard exposes real Boi access controls without inventing payment controls for other apps",
+    "standalone mode labels cached status as unverified instead of a live Production result",
+    "physically removes legacy central rights and audit surfaces from Boi route"
+  ],
+  "exitCode": 1
+}
