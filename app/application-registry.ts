@@ -83,7 +83,7 @@ const baumanChildren: readonly SubClientConfig[] = [
 export const applicationRegistry: readonly ApplicationConfig[] = [
   {
     id: "russian-daily",
-    name: "Russian Daily — STANKIN",
+    name: "Russian Daily — Contrast Lab",
     shortName: "Russian Daily",
     href: "/apps/russian-daily",
     initials: "RD",
@@ -92,11 +92,11 @@ export const applicationRegistry: readonly ApplicationConfig[] = [
     status: "planned",
     contractState: "pending",
     repository: "BlueDragon33/Bauman-Russian-iOS",
-    scope: "Standalone PWA cho lịch học STANKIN, nhập nội dung Telegram thủ công, luyện từ tiếng Nga cá nhân và xuất iCalendar. Mã nguồn riêng ở web/russian-daily; Vercel Hobby là hosting preview ưu tiên (ChatGPT Sites dự phòng), chưa được cấp URL hay triển khai.",
-    contractNote: "Source candidate 7c00fcee (Vercel Git auto-deploy disabled: git.deploymentEnabled=false; source QA mô phỏng 5/5); runtime học tập 1445b9e với QA mô phỏng 13/13. Metadata-only, không kế thừa WidgetKit/RU03 approval; Preview, Safari/hosted QA và reviewer vẫn BLOCKED.",
+    scope: "Standalone PWA học tiếng Nga qua cặp từ so sánh: trọng âm Cyrillic, hai hình gợi nghĩa, hai nút nghe, không dịch từ sang tiếng Việt; lịch cá nhân là chức năng phụ. Nguồn đúng: web/russian-daily-standalone, candidate 0e5775d. Đã có QA URL Vercel được bảo vệ để Owner kiểm tra, chưa công nhận public release.",
+    contractNote: "SOURCE_CORRECTION: canonical Contrast Lab candidate 0e5775d, 14/14 static V8 checks; protected Vercel Preview dpl_EMEQSMPJ9GuU63MG2YuTk5SSDdtV READY, target=null (Preview), không có Production alias. Bản STANKIN cũ SHA 7c00fcee bị đưa nhầm lên production target, không phải bản người dùng yêu cầu. Metadata-only; reviewer, Safari QA, RU03 và release vẫn BLOCKED.",
     devicePolicy: "Local-first trên iPhone/iPad/desktop; chưa có SSO, device registry, quyền remote admin hay đồng bộ server. Application-Management không chặn việc cập nhật nội dung web-app riêng.",
     deviceExperiences: standardDeviceExperiences,
-    capabilities: ["Lịch học Moscow/STANKIN", "Nhập Telegram dạng văn bản", "Xuất iCalendar (.ics)", "Luyện từ vựng cá nhân", "Sao lưu và khôi phục JSON", "Giao diện PWA offline"],
+    capabilities: ["Pair/Contrast Deck — 2 hình và 2 nút nghe", "Cyrillic có trọng âm, không hiện nghĩa từ bằng tiếng Việt", "TTS ru-RU chỉ tham khảo; đồng chữ khác trọng âm chặn TTS", "Hình cá nhân lưu cục bộ", "Lịch cá nhân và sao lưu JSON", "PWA offline — QA candidate"],
     guardrails: ["Chỉ tạo link truy cập khi Site thật được cấp và xác minh", "Không gán connected, online hay QA PASS trước live readback", "Không giả quản trị thiết bị, SSO hoặc D1", "Không dùng dữ liệu RU03 chưa duyệt làm nội dung đã kiểm định", "Không di chuyển localStorage giữa hai origin mà không có sao lưu/khôi phục do người dùng xác nhận"],
   },
   {
