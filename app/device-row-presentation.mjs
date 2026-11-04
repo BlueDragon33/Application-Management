@@ -7,7 +7,11 @@
 /** @param {unknown} input */
 export function validDeviceTimestamp(input) {
   if (typeof input !== "string" || !input.trim()) return null;
-  const value=Date.parse(input);
+  const trimmed=input.trim();
+  // SQLite CURRENT_TIMESTAMP stores UTC without an offset: never parse it as browser-local time.
+  const normalized=/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(trimmed)
+    ? trimmed.replace(" ","T")+"Z" : trimmed;
+  const value=Date.parse(normalized);
   return Number.isFinite(value) ? value : null;
 }
 
@@ -20,15 +24,40 @@ export function formatDeviceTime(timestamp) {
   }).format(timestamp);
 }
 
-/** @param {Device} device */
-export function deviceTimePresentation(device) {
+/**
+ * @param {Device} device
+ * @param {number} [now] Epoch milliseconds for duration display.
+ * @param {boolean} [snapshotVerified] A cached snapshot cannot establish current presence.
+ */
+export function deviceTimePresentation(device,now=Date.now(),snapshotVerified=false) {
   const created=validDeviceTimestamp(device.createdAt);
+  const registeredAt=validDeviceTimestamp(device.registrationSubmittedAt);
   const seen=validDeviceTimestamp(device.lastSeenAt);
+  const lastPresence=validDeviceTimestamp(device.lastPresenceAt);
+  const offlineSince=validDeviceTimestamp(device.offlineSinceAt);
+  const onlineAt=lastPresence ?? (device.lastPresenceAt===undefined?seen:null);
+  const elapsed=offlineSince!==null&&snapshotVerified&&Number.isFinite(now)&&now>=offlineSince
+    ? Math.floor((now-offlineSince)/60_000):null;
+  const offlineElapsed=elapsed===null?null:elapsed<60
+    ? `${elapsed} phút`:elapsed<1440
+      ? `${Math.floor(elapsed/60)} giờ ${elapsed%60} phút`
+      : `${Math.floor(elapsed/1440)} ngày ${Math.floor((elapsed%1440)/60)} giờ`;
   return {
     createdAt: created,
     lastSeenAt: seen,
-    registered: created===null ? "Chưa có giờ yêu cầu" : formatDeviceTime(created),
+    registeredAt: registeredAt ?? created,
+    registrationLabel: registeredAt!==null?"Đăng ký":"Ghi nhận thiết bị",
+    registered: registeredAt!==null?formatDeviceTime(registeredAt)
+      :created!==null?formatDeviceTime(created):"Chưa có giờ yêu cầu",
     lastSeen: seen===null ? "Chưa có giờ ghi nhận" : formatDeviceTime(seen),
+    onlineAt,
+    onlineLabel:lastPresence!==null?"Online gần nhất":"Tín hiệu gần nhất",
+    online:onlineAt===null?"Chưa có dữ liệu":formatDeviceTime(onlineAt),
+    offlineAt:offlineSince,
+    offlineLabel:"Offline từ (ước tính)",
+    offline:offlineSince!==null?formatDeviceTime(offlineSince)
+      : snapshotVerified&&device.active&&lastPresence!==null?"Chưa mất tín hiệu":"Chưa có dữ liệu",
+    offlineElapsed,
   };
 }
 
