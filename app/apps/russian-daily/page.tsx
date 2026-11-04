@@ -11,31 +11,32 @@ export default async function RussianDailyControlPage() {
   return (
     <main style={{ maxWidth: 840, margin: "0 auto", padding: "28px 20px", lineHeight: 1.6 }}>
       <p style={{ fontSize: 13, opacity: 0.75 }}>Application Management / Web-app riêng</p>
-      <h1>Russian Daily — STANKIN</h1>
+      <h1>Russian Daily — Contrast Lab</h1>
       <p>
-        Đây là mục quản trị / danh mục ứng dụng. Mã nguồn học tiếng Nga và lịch STANKIN
-        thuộc ứng dụng riêng, không còn yêu cầu phát hành lại App-Management để sửa giao diện
-        sau khi Site độc lập được đưa vào hoạt động.
+        Đây là mục danh mục/quản trị, không phải nơi lưu mã ứng dụng. Russian Daily Contrast Lab
+        học tiếng Nga bằng cặp từ, trọng âm, hình ảnh riêng cho mỗi nghĩa và hai nút nghe;
+        màn hình học không dịch từ sang tiếng Việt. Lịch học là tính năng phụ.
+        Ứng dụng độc lập không cần phát hành lại App-Management cho mỗi lần sửa giao diện.
       </p>
       <section aria-label="Trạng thái triển khai" style={{ border: "1px solid #8a9baa", borderRadius: 16, padding: 18 }}>
-        <h2>Trạng thái hiện tại: SOURCE CANDIDATE / CHƯA PHÁT HÀNH</h2>
-        <p>Hosting ưu tiên: Vercel Hobby Preview; ChatGPT Sites dự phòng. Chưa được cấp URL thật, chưa kiểm thử Safari thật, chưa có SSO hoặc Control API để điều hành từ xa.</p>
+        <h2>Trạng thái hiện tại: CÓ PREVIEW ĐỂ OWNER ĐÁNH GIÁ / CHƯA PHÁT HÀNH</h2>
+        <p>Vercel Hobby hiện có URL QA riêng, đã bật Vercel Authentication; chưa kiểm thử Safari thực tế, chưa có Control API hoặc reviewer. Không coi URL QA là địa chỉ Production được phê duyệt.</p>
         <p>Blueprint OS 1.3.0: REVIEW BLOCKED; không có quyền tự phê duyệt, merge, publish hay công nhận RU03.</p>
         {siteUrl ? (
           <p><a href={siteUrl} target="_blank" rel="noopener noreferrer">Mở web-app độc lập</a></p>
         ) : (
-          <p>Liên kết web-app độc lập sẽ chỉ hiển thị sau khi chủ dự án cấp URL thật và QA đọc lại thành công.</p>
+          <p>URL QA có bảo vệ hiện chỉ phục vụ đánh giá đầu ra. Chưa đăng ký URL Production được duyệt cho hệ thống quản lý.</p>
         )}
         <p>
-          <a href="https://github.com/BlueDragon33/Bauman-Russian-iOS/tree/candidate/russian-daily-standalone-chatgpt-sites-20261103/web/russian-daily" target="_blank" rel="noopener noreferrer">
+          <a href="https://github.com/BlueDragon33/Bauman-Russian-iOS/tree/candidate/russian-daily-standalone-sites-pwa-20261103-v2/web/russian-daily-standalone" target="_blank" rel="noopener noreferrer">
             Xem nguồn Russian Daily đã tách
           </a>
         </p>
       </section>
       <section aria-label="Chuyển đổi từ phiên bản cũ" style={{ marginTop: 18 }}>
-        <h2>Chuyển dữ liệu cá nhân an toàn</h2>
-        <p>Bản Russian Daily hiện tại vẫn nằm ở Application-Management, chưa bị xóa hoặc chuyển hướng. Trước khi dùng Site mới, cần xuất bản sao JSON từ bản cũ rồi nhập thủ công vào Site mới và xác minh lịch học.</p>
-        <p><a href="/tools/russian-daily">Dùng tạm bản Russian Daily hiện tại</a></p>
+        <h2>Bảo toàn dữ liệu khi thay ứng dụng</h2>
+        <p>Bản STANKIN cũ vẫn còn và không được tự chuyển dữ liệu sang Contrast Lab. Hai ứng dụng có cấu trúc dữ liệu khác nhau: không nhập chéo JSON cũ khi chưa có trình chuyển đổi được kiểm thử. Giữ bản sao dữ liệu riêng và không khẳng định đồng bộ tự động.</p>
+        <p><a href="/tools/russian-daily">Mở bản STANKIN cũ (chỉ dùng khi cần dữ liệu cũ)</a></p>
       </section>
     </main>
   );
