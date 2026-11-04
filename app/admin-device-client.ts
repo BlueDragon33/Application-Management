@@ -131,6 +131,9 @@ export type OperationsDevice = {
   active: boolean;
   createdAt: string | null;
   lastSeenAt: string | null;
+  registrationSubmittedAt?: string | null;
+  lastPresenceAt?: string | null;
+  offlineSinceAt?: string | null;
   attention: "new" | "environment" | "none";
   canApprove: boolean;
   canRemove: boolean;
