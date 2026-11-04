@@ -152,3 +152,13 @@ test("source normalization forwards three optional timestamps without inventing 
   assert.match(dashboard,/Offline từ \(ước tính\)|timestamps\.offlineLabel/);
   assert.match(dashboard,/Hàng đợi kiểm duyệt/);
 });
+
+test("mobile review cards keep all seven fields and action buttons accessible",()=>{
+  assert.match(css,/\/\* Device review mobile cards:/);
+  assert.match(css,/@media \(max-width: 700px\) \{/);
+  assert.match(css,/\.amv2-view-table\.devices \.head \{ display: none; \}/);
+  assert.match(css,/\.amv2-view-table\.devices \.row \{\s*min-width: 0;\s*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(css,/\.amv2-view-table\.devices \.row > :nth-child\(7\) \{ grid-column: 1 \/ -1; \}/);
+  assert.match(css,/\.amv2-view-table\.devices \.amv2-device-actions > \* \{\s*flex: 1 1 105px/);
+  assert.match(dashboard,/className="amv2-device-actions"/);
+});
