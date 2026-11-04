@@ -125,7 +125,16 @@ export default function ManagedAppsCatalogPage() {
     }
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    // Hydrate browser-owned state after commit; cancel startup and subscriptions on cleanup.
+    let initialCleanup: (()=>void)|undefined;
+    const initialTimer=window.setTimeout(()=>{
+      const cleanup:unknown=(()=>{ void load();
+      })();
+      if(typeof cleanup==="function")initialCleanup=cleanup as ()=>void;
+    },0);
+    return ()=>{window.clearTimeout(initialTimer);initialCleanup?.();};
+  }, []);
 
   const editing = useMemo(() => apps.find((item) => item.id === form.id), [apps, form.id]);
 

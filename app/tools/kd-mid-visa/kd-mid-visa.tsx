@@ -671,9 +671,18 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
   const [deleteDraftKeys, setDeleteDraftKeys] = useState<string[]>([]);
 
   useEffect(() => {
+    // Hydrate browser-owned state after commit; cancel startup and subscriptions on cleanup.
+    let initialCleanup: (()=>void)|undefined;
+    const initialTimer=window.setTimeout(()=>{
+      const cleanup:unknown=(()=>{
     const loaded = safeLoad();
     setStore(loaded);
     setHydrated(true);
+
+      })();
+      if(typeof cleanup==="function")initialCleanup=cleanup as ()=>void;
+    },0);
+    return ()=>{window.clearTimeout(initialTimer);initialCleanup?.();};
   }, []);
 
   useEffect(() => {

@@ -1173,6 +1173,7 @@ export default function StudyPlanTool({
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>("multivariate");
   const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceSection>("schedule");
   const [fontScale, setFontScale] = useState<StudyFontScale>("normal");
+  const [fontScaleLoaded, setFontScaleLoaded] = useState(false);
   const [courseQuery, setCourseQuery] = useState("");
   const [courseSemesterFilter, setCourseSemesterFilter] = useState<ExplorerSemester>("all");
   const [courseKindFilter, setCourseKindFilter] = useState<ExplorerKind>("all");
@@ -1187,23 +1188,39 @@ export default function StudyPlanTool({
   const [backupMessage, setBackupMessage] = useState("");
 
   useEffect(() => {
+    // Hydrate browser-owned state after commit; cancel startup and subscriptions on cleanup.
+    let initialCleanup: (()=>void)|undefined;
+    const initialTimer=window.setTimeout(()=>{
+      const cleanup:unknown=(()=>{
     try {
       const saved = window.localStorage.getItem("application-management:study-plan-font-scale:v1");
       if (saved === "normal" || saved === "large" || saved === "xlarge") setFontScale(saved);
     } catch {
       // Font preference is device-local and optional.
+    } finally {
+      setFontScaleLoaded(true);
     }
+
+      })();
+      if(typeof cleanup==="function")initialCleanup=cleanup as ()=>void;
+    },0);
+    return ()=>{window.clearTimeout(initialTimer);initialCleanup?.();};
   }, []);
 
   useEffect(() => {
+    if (!fontScaleLoaded) return;
     try {
       window.localStorage.setItem("application-management:study-plan-font-scale:v1", fontScale);
     } catch {
       // Font preference is device-local and optional.
     }
-  }, [fontScale]);
+  }, [fontScale, fontScaleLoaded]);
 
   useEffect(() => {
+    // Hydrate browser-owned state after commit; cancel startup and subscriptions on cleanup.
+    let initialCleanup: (()=>void)|undefined;
+    const initialTimer=window.setTimeout(()=>{
+      const cleanup:unknown=(()=>{
     try {
       const raw = window.localStorage.getItem("application-management:study-plan-progress:v1");
       if (raw) setCompleted(JSON.parse(raw) as Record<string, boolean>);
@@ -1212,6 +1229,11 @@ export default function StudyPlanTool({
     } finally {
       setProgressLoaded(true);
     }
+
+      })();
+      if(typeof cleanup==="function")initialCleanup=cleanup as ()=>void;
+    },0);
+    return ()=>{window.clearTimeout(initialTimer);initialCleanup?.();};
   }, []);
 
   useEffect(() => {
@@ -1224,6 +1246,10 @@ export default function StudyPlanTool({
   }, [completed, progressLoaded]);
 
   useEffect(() => {
+    // Hydrate browser-owned state after commit; cancel startup and subscriptions on cleanup.
+    let initialCleanup: (()=>void)|undefined;
+    const initialTimer=window.setTimeout(()=>{
+      const cleanup:unknown=(()=>{
     setSurvivalOwner(null);
     try {
       setSurvival(parseSurvivalState(window.localStorage.getItem(survivalStorageKey + ":" + encodeURIComponent(user.email.toLowerCase()))));
@@ -1234,9 +1260,18 @@ export default function StudyPlanTool({
     } finally {
       setSurvivalOwner(user.email);
     }
+
+      })();
+      if(typeof cleanup==="function")initialCleanup=cleanup as ()=>void;
+    },0);
+    return ()=>{window.clearTimeout(initialTimer);initialCleanup?.();};
   }, [user.email]);
 
   useEffect(() => {
+    // Hydrate browser-owned state after commit; cancel startup and subscriptions on cleanup.
+    let initialCleanup: (()=>void)|undefined;
+    const initialTimer=window.setTimeout(()=>{
+      const cleanup:unknown=(()=>{
     if (survivalOwner !== user.email) return; // Never write another account's progress on account switch.
     try {
       window.localStorage.setItem(survivalStorageKey + ":" + encodeURIComponent(user.email.toLowerCase()), JSON.stringify(survival));
@@ -1244,6 +1279,11 @@ export default function StudyPlanTool({
     } catch {
       setSurvivalSaved(false);
     }
+
+      })();
+      if(typeof cleanup==="function")initialCleanup=cleanup as ()=>void;
+    },0);
+    return ()=>{window.clearTimeout(initialTimer);initialCleanup?.();};
   }, [survival, survivalOwner, user.email]);
 
   const exportProgress = () => {

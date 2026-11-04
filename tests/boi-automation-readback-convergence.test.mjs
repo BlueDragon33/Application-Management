@@ -18,12 +18,13 @@ test("dashboard consumes targeted mutation readback instead of blocking on a ful
   const start = dashboard.indexOf("async function saveAutomation");
   const end = dashboard.indexOf("async function manageControlDevice", start);
   const block = dashboard.slice(start, end);
-  assert.match(block, /responseSettings/);
+  assert.match(block, /independentSettings/);
+  assert.match(block, /action: "read-automation", targetAppIds: changedAppIds/);
   assert.match(block, /mergedSettings/);
   assert.match(block, /taskMatchesReadback/);
   assert.doesNotMatch(block, /for \(const delay of \[180, 360, 720\]\)/);
   assert.doesNotMatch(block, /let synced = await refreshOperations/);
-  assert.match(block, /window\.setTimeout\(\(\) => void refreshOperations\(true, true\), 1_200\)/);
+  assert.match(block, /independentSettings != null\s*&& taskMatchesReadback\(independentSettings, task\)/);
 });
 
 test("Boi free policy readback compares both days and device limit", () => {
@@ -43,9 +44,9 @@ test("explicit automation save bypasses passive Standalone cache but still uses 
   const block = dashboard.slice(start, end);
   assert.match(dashboard, /async function refreshOperations\(silent = false, forceOnline = false\)/);
   assert.match(dashboard, /if \(!approvalGateEnabled && !forceOnline\)/);
-  assert.match(block, /const current = operations\?\.settings \?\? \(await refreshOperations\(true, true\)\)\?\.settings/);
+  assert.match(block, /const beforeWrite = await operationsAction\(\{ action: "read-automation", targetAppIds \}\)/);
   assert.doesNotMatch(block, /requireManagedAccess\("Lưu quy tắc tự động"\)/);
-  assert.match(block, /refreshOperations\(true, true\)/);
+  assert.match(block, /if \(!automationSnapshotVerified\)/);
   assert.match(dashboard, /connectOperationsDashboard\(\)/);
 });
 

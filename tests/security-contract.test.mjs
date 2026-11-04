@@ -185,7 +185,9 @@ test("physically removes legacy central rights and audit surfaces from Boi route
   const route = await source("app/apps/boi-ech/page.tsx");
   const client = await source(boiClientPath);
 
-  assert.match(route, /BoiEchControlCenter/);
+  assert.match(route, /requireChatGPTUser/);
+  assert.match(route, /Quản trị Cán bộ quản lý/);
+  assert.doesNotMatch(route, /<BoiEchControlCenter/);
   assert.doesNotMatch(route, /boiBoundary|\.\.\/\.\.\/control-center/);
   assert.doesNotMatch(client, /approval-layout|audit-layout|Quyền quản trị|Nhật ký hệ thống|manage-control-device/);
   assert.match(client, /Quyền QT và audit Trung tâm nằm ở Application Management/);

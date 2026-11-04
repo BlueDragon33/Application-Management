@@ -1,0 +1,178 @@
+[
+  {
+    "path": "app/application-workspace.tsx",
+    "sha256": "766cc3085b59ee6d08ac4930fe64668245791a7518421896a321f921e038d443"
+  },
+  {
+    "path": "app/authenticator-step-up.module.css",
+    "sha256": "a337e8fede5883325faad0cafc675f770d7d448fdcba1382111380cbf6fba473"
+  },
+  {
+    "path": "app/authenticator-step-up.tsx",
+    "sha256": "60fd6155e17273c4ff37e4871d6139331bd5376dcbe72f8cef5d53fdfd4a158d"
+  },
+  {
+    "path": "app/automatic-device-policies.tsx",
+    "sha256": "49c04a95b094ea644a5c6c07413e79f4d4fba177ba373f60ad4d5732c751a30b"
+  },
+  {
+    "path": "app/boi-account-permissions-view.tsx",
+    "sha256": "0afd4f4557a7ac626830a00eeea76c2ed182de0b911f0d92ff8b67ceba9bd51b"
+  },
+  {
+    "path": "app/boi-manager-tier-view.tsx",
+    "sha256": "fb1b477ae43c831c36dd1fe56ca435506cddb0dda1b9e9eb6f4e7c249723fad7"
+  },
+  {
+    "path": "app/management-dashboard-v2.tsx",
+    "sha256": "5a5287b63c645ae5e4cdec98380aae93d29eeaf9ca806bfc05b3ba0cf58a35cc"
+  },
+  {
+    "path": "app/management-dashboard.tsx",
+    "sha256": "526697a5da2341212f0f7b4d96a1332104c367de8ec11306d4660a1839563355"
+  },
+  {
+    "path": "app/management-modern-overview.tsx",
+    "sha256": "94a8d18f67572fee75e1ae903ff889c205f0a3b9fdc9c588b5b296f1b9467a31"
+  },
+  {
+    "path": "app/owner-step-up.ts",
+    "sha256": "d1b4abf89fd5f75691741ee193cdf0638cce8966932f5092b2edf067705c46e2"
+  },
+  {
+    "path": "app/tools/contract-diagnostics/page.tsx",
+    "sha256": "f051b1b5a32c5bd625a21e45a4cfa3e74b8f2e278952bfa70e3219a4d52d4e39"
+  },
+  {
+    "path": "app/tools/deploy-ops/deploy-ops.tsx",
+    "sha256": "a321f4934609e8d696660684390637c62364717fbef38ae57c64b7479e8cfa60"
+  },
+  {
+    "path": "app/tools/kd-mid-visa/kd-mid-visa.tsx",
+    "sha256": "b40a6c554dee297fbb5bc395c735a765b60e7528eb95f264cc86e23db14ffe40"
+  },
+  {
+    "path": "app/tools/managed-apps/page.tsx",
+    "sha256": "257ed5fa237ce1031aae8e1f21059788f88abf62108abca43379e1751515715e"
+  },
+  {
+    "path": "app/tools/secret-generator/secret-generator.tsx",
+    "sha256": "0fe231a113037ebd6ec7e604d2baaf00cebb9a7356ca122908978e3867bb38d6"
+  },
+  {
+    "path": "app/tools/study-plan/study-plan.tsx",
+    "sha256": "d02a7238f04affa1b21c2d6cc4ecf41a97455e1f9120a84a8617518a609d9878"
+  },
+  {
+    "path": "app/use-inline-owner-step-up.tsx",
+    "sha256": "b05c353f7af5d5b1a63a1821f5aacde2f315f79b6a2cc21cf5eb9ca92c718653"
+  },
+  {
+    "path": "app/visa-intake/page.tsx",
+    "sha256": "dca9233815058080e7f6a999a91c5d3a9f40396fc9762e46e7b3edaab215f670"
+  },
+  {
+    "path": "docs/handoffs/ACCOUNT_FIRST_P0_CONSUMER_REPAIR_20261104.md",
+    "sha256": "6fefaf4f52b2e9797053e271ecd203e73606a74a622145fd513e9d208b21e426"
+  },
+  {
+    "path": "docs/handoffs/BOIECH_ACCOUNT_PERMISSIONS_P0_REVIEWER_20261104.md",
+    "sha256": "c7ef6c31c6732a47583b899bc0439f27ee0f907eb00a7fdb68fb013bc8ab110c"
+  },
+  {
+    "path": "eslint.config.mjs",
+    "sha256": "6373b21b75572439f459d86e185200806b8752d8780fed269f59c54389b76fb7"
+  },
+  {
+    "path": "scripts/boi-account-source-integration.mjs",
+    "sha256": "2da876f5599d92ab318f85fba00815db3952dcad84794cfba00b311fafc659e3"
+  },
+  {
+    "path": "tests/account-owner-dialog-ui.test.mjs",
+    "sha256": "0b4d0b15e746db33b10a7f038591a6f68fd1d04efac68eddc84f40bd3b29c4f6"
+  },
+  {
+    "path": "tests/account-owner-step-up.test.mjs",
+    "sha256": "b05925223fecfe168ee00ed3649aaca688297afea42eae718b6b76c1c2b4be83"
+  },
+  {
+    "path": "tests/account-owner-unmount.test.mjs",
+    "sha256": "8b596d7a6361583946382b5f1907bab0a97139131a3e94470f9900601f83c62d"
+  },
+  {
+    "path": "tests/app-manager-catalog-real-d1-qa.mjs",
+    "sha256": "fd00816e22e402824a0376746438a3d871500d281606b1339ff1880d353e01bc"
+  },
+  {
+    "path": "tests/automation-independent-readback-guard.test.mjs",
+    "sha256": "3b714d83857c3131675b6fc966c0f714b2cea5dd776c6619ee2e27c901d85db0"
+  },
+  {
+    "path": "tests/automation-live-snapshot-freshness.test.mjs",
+    "sha256": "da50730f5be7a31904e0081e1ea14b447f2c4561ae76e04b847642de5635df2b"
+  },
+  {
+    "path": "tests/automation-save-click-lock.test.mjs",
+    "sha256": "c4bbe5329db790b74f6dd11ab28f4378037497fefa67176577b48fc1099dcfcf"
+  },
+  {
+    "path": "tests/blueprint-app-preview-and-sso-boundary.test.mjs",
+    "sha256": "0a788215f0821e965ea917e7607c3c8013495274c6e8e07d0198cdc896b3fd1e"
+  },
+  {
+    "path": "tests/boi-automation-readback-convergence.test.mjs",
+    "sha256": "ede17f226a05d3c8e1fc9103ded9146e3b1f7588b6750601e6d8cf2e2a7afd95"
+  },
+  {
+    "path": "tests/canonical-tools-account-ui.test.mjs",
+    "sha256": "0d8df5c3118edd919dad6a31015dcc0594f551e9a7c810ebf56572916af0600f"
+  },
+  {
+    "path": "tests/center-architecture.test.mjs",
+    "sha256": "fac18bfe4270594de4eaf811e36a5e67569055bd643ced656a21e2c2ca8f9c78"
+  },
+  {
+    "path": "tests/client-device-ui-semantics.test.mjs",
+    "sha256": "0c31c6f6c35c624948f1c912c673d1a7d6d143d2ce96a984bbce552ae2661753"
+  },
+  {
+    "path": "tests/client-initialization-cleanup.test.mjs",
+    "sha256": "adc317b99593b9f8c8082e073ab1b667321c6f0df69d6bef90de44857877c19b"
+  },
+  {
+    "path": "tests/device-auth-settings-recovery.test.mjs",
+    "sha256": "c5a58725ba92c4707b7fedca5d93c657c0089829aa853745ce75926ad40c27d5"
+  },
+  {
+    "path": "tests/helpers/load-ts.mjs",
+    "sha256": "733b8bfeb7b6a84276da885c7ae0434e5bb6ca5ad65968ebb0ad86d93729a573"
+  },
+  {
+    "path": "tests/inline-authenticator-runtime.test.mjs",
+    "sha256": "d0d28b8d928530de9898e3988f218d72b85bfab057a14d5d6b770ff5ddde3fbd"
+  },
+  {
+    "path": "tests/manual-online-sync.test.mjs",
+    "sha256": "adf76e6128b0d94d7758a924cda36282167823cdd2d3f4610f7b0acf10ebbc53"
+  },
+  {
+    "path": "tests/operating-mode-selector.test.mjs",
+    "sha256": "37969d87b58dd511df634a28d2946638a16f81d203baaa2b2ec3947c1265faef"
+  },
+  {
+    "path": "tests/operations-refresh-latency.test.mjs",
+    "sha256": "188b364829ce561cb464d0840834ff7511af06a63bf4775064f353d085fbdfba"
+  },
+  {
+    "path": "tests/payment-access-management.test.mjs",
+    "sha256": "83ccd055ae4769710c02b59a7da23be6d55fbcb6ef70f6c12249b193ace6d136"
+  },
+  {
+    "path": "tests/security-contract.test.mjs",
+    "sha256": "0f751e25ff357634ce1564a421772eb3311fb4af963a2728479a623ad2ff947f"
+  },
+  {
+    "path": "worker/production-auth.ts",
+    "sha256": "19f788f87305c4af64a3dd8f4a18514fb77e843d44cf919307ab7999514f1553"
+  }
+]

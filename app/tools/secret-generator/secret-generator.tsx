@@ -132,9 +132,18 @@ export default function SecretGenerator({ user }: { user: { displayName: string;
   };
 
   useEffect(() => {
+    // Hydrate browser-owned state after commit; cancel startup and subscriptions on cleanup.
+    let initialCleanup: (()=>void)|undefined;
+    const initialTimer=window.setTimeout(()=>{
+      const cleanup:unknown=(()=>{
     regenerate();
     // Initial generation must happen in the browser because Web Crypto is browser-owned here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
+
+      })();
+      if(typeof cleanup==="function")initialCleanup=cleanup as ()=>void;
+    },0);
+    return ()=>{window.clearTimeout(initialTimer);initialCleanup?.();};
   }, []);
 
   const applyPreset = (next: PresetId) => {

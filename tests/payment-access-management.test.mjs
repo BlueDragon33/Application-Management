@@ -43,7 +43,8 @@ test("payment client signs with the approved central P-256 device and sends expe
 test("current dashboard exposes real Boi access controls without inventing payment controls for other apps", () => {
   assert.match(dashboard, /type View = [^;]*"access"/);
   assert.match(dashboard, /label: "Thanh toán & Quyền"/);
-  assert.match(dashboard, /<BoiAccessView query=\{search\}\/>/);
+  assert.match(dashboard, /access\?\.role === "owner" && managedAccessVerified && !offline \? <BoiManagerTierView/);
+  assert.doesNotMatch(dashboard, /<BoiAccessView/);
   assert.match(view, /loadBoiPaymentProof\(device\)/);
   assert.match(view, /reviewProof\("verify-payment"\)/);
   assert.match(view, /reviewProof\("reject-payment"\)/);

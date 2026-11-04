@@ -1,0 +1,25 @@
+{
+  "result": "LOCAL_SOURCE_INTEGRATION_PASS",
+  "boiSource": "fbf70057a232e3c1f6115311afc0385e80e6dbb6",
+  "migrations": 21,
+  "checks": [
+    "actual signed Owner ticket accepted",
+    "signed Publisher denied",
+    "consumer publisher cannot invoke",
+    "read-command-independent-read",
+    "account CAS stale denied",
+    "manager approval separate from broad read",
+    "one account on second device without reapproval",
+    "shared quota counts account once",
+    "broad read per-target audit and redaction",
+    "immediate revoke",
+    "tampered ticket denied"
+  ],
+  "syntheticRuntimeIdentityProbes": 2,
+  "limitations": [
+    "platform bindings mocked",
+    "HTTP in-process",
+    "SQLite not live D1",
+    "no browser/runtime-target acceptance"
+  ]
+}

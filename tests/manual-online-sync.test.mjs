@@ -5,7 +5,7 @@ import test from "node:test";
 const source = fs.readFileSync(new URL("../app/management-dashboard-v2.tsx", import.meta.url), "utf8");
 
 test("manual sync buttons force an online refresh even in standalone mode", () => {
-  assert.match(source, /async function syncOperationsNow\(\) \{\s*setOperationsVerified\(false\);\s*return refreshOperations\(false, true\);\s*\}/s);
+  assert.match(source, /async function syncOperationsNow\(\) \{\s*if \(operatingMode === "local"\)[\s\S]*?return null;[\s\S]*?setOperationsVerified\(false\);\s*return refreshOperations\(false, true\);/);
   assert.match(source, /syncOperations=\{syncOperationsNow\}/);
   assert.match(source, /onClick=\{\(\) => void syncOperationsNow\(\)\}/);
   assert.match(source, /onClick=\{\(\) => void syncOperations\(\)\}/);
@@ -19,5 +19,6 @@ test("background focus refresh remains local-first in standalone mode", () => {
 test("verified online state is independent from the standalone access gate", () => {
   assert.match(source, /const offline = !operationsVerified;/);
   assert.doesNotMatch(source, /const offline = !approvalGateEnabled \|\| !operationsVerified;/);
-  assert.match(source, /if \(approvalGateEnabled\) return true;/);
+  assert.match(source, /hasProtectedOperationAccess\(operatingMode, managedAccessVerified\)/);
+  assert.match(source, /access\?\.status === "approved"\) return true/);
 });

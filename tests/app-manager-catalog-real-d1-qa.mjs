@@ -137,16 +137,16 @@ async function restartedReader(){
   // The AES key and fixture token arrive through the child stdin pipe,
   // not process arguments, environment variables or QA config files.
   const d1=cliContext(info.config,info.store,info.db,info.temp);
-  const module=appSource(d1,{
+  const compiledModule=appSource(d1,{
     LOCAL_DEV_AUTH:"1",CONTROL_PLANE_NETWORK_MODE:"local",
     MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY:info.masterKey});
-  const rows=await module.listManagedCatalog();
+  const rows=await compiledModule.listManagedCatalog();
   const row=rows.find(x=>x.id===APP_ID);
   assert.ok(row,"BLOCKED_RESTARTED_D1_ROW_MISSING");
   assert.equal(row.name,info.finalName,"BLOCKED_RESTARTED_D1_NAME_NOT_PERSISTED");
   assert.equal(row.contract_path,"/api/control/status","BLOCKED_RESTARTED_CONTRACT_PATH");
   assert.equal(digest(row),info.credentialHash,"BLOCKED_RESTARTED_AES_CIPHERTEXT_DRIFT");
-  assert.equal(await module.decryptCredential(row),info.secret,
+  assert.equal(await compiledModule.decryptCredential(row),info.secret,
     "BLOCKED_RESTARTED_AES_DECRYPT_FAILED");
   console.log(JSON.stringify({checkpoint:"APP_MANAGER_CATALOG_RESTART_READBACK_PASS",
     appManagerSha:APP_EXPECTED_HEAD,realD1Local:true,

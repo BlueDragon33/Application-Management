@@ -188,6 +188,10 @@ export default function ManagementDashboard({ user }: { user: { displayName: str
   }
 
   useEffect(() => {
+    // Hydrate browser-owned state after commit; cancel startup and subscriptions on cleanup.
+    let initialCleanup: (()=>void)|undefined;
+    const initialTimer=window.setTimeout(()=>{
+      const cleanup:unknown=(()=>{
     const viewFromUrl = () => {
       const requested = new URLSearchParams(window.location.search).get("view");
       setView(requested && validViews.includes(requested as View) ? requested as View : "overview");
@@ -204,6 +208,11 @@ export default function ManagementDashboard({ user }: { user: { displayName: str
       window.removeEventListener("popstate", viewFromUrl);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
+
+      })();
+      if(typeof cleanup==="function")initialCleanup=cleanup as ()=>void;
+    },0);
+    return ()=>{window.clearTimeout(initialTimer);initialCleanup?.();};
   }, []);
 
   useEffect(() => {

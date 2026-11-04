@@ -2,8 +2,11 @@
 import { useRef, useState } from "react";
 import { operationsAction } from "./admin-device-client";
 import type { AccountControlRow } from "./boi-account-permissions.server";
+import { runOwnerStepUp } from "./owner-step-up";
+import { useInlineOwnerStepUp } from "./use-inline-owner-step-up";
 import styles from "./boi-manager-tier-view.module.css";
 export default function BoiAccountPermissionsView() {
+  const stepUp=useInlineOwnerStepUp();
   const [accounts,setAccounts]=useState<AccountControlRow[]>([]),[message,setMessage]=useState("");
   const [busy,setBusy]=useState(false),[expiry,setExpiry]=useState("");const lock=useRef(false);
   async function reload() {
@@ -17,13 +20,13 @@ export default function BoiAccountPermissionsView() {
     await run(async()=>{
       const expiresAt=enabled&&operation==="read-all"?Date.parse(expiry):null;
       if(enabled&&operation==="read-all"&&(!expiresAt||expiresAt<=Date.now()))throw new Error("Chọn thời hạn hiệu lực trong tương lai cho quyền xem mở rộng.");
-      const result=await operationsAction({action:"boi-account-permissions",operation,accountId:account.accountId,
-        expectedRevision:account.revision,enabled,expiresAt});
+      const result=await runOwnerStepUp(()=>operationsAction({action:"boi-account-permissions",operation,accountId:account.accountId,
+        expectedRevision:account.revision,enabled,expiresAt}),stepUp.authenticate);
       if(result.ok!==true)throw new Error(result.error??"Chưa xác minh D1.");
       await reload();setMessage("Đã xác minh bằng lần đọc D1 độc lập; thao tác được ghi audit tại Bơi Ếch.");
     });
   }
-  return <details className={styles.root}><summary>Quyền theo tài khoản · luồng mới khi được bật</summary>
+  return <details className={styles.root} tabIndex={-1}><summary>Quyền theo tài khoản · luồng mới khi được bật</summary>
     <p>Một người được duyệt một lần trên mọi thiết bị. Quyền xét duyệt và quyền xem hồ sơ mở rộng được cấp riêng. Trung tâm chỉ lưu trạng thái quản trị.</p>
     <button type="button" disabled={busy} onClick={()=>void run(reload)}>Đọc tài khoản cán bộ từ Bơi Ếch</button>
     <label>Hết hạn quyền xem mở rộng<input type="datetime-local" value={expiry} disabled={busy} onChange={e=>setExpiry(e.target.value)}/></label>
@@ -34,5 +37,6 @@ export default function BoiAccountPermissionsView() {
       <div className={styles.actions}>{a.status==="pending"?<button disabled={busy} onClick={()=>void change(a,"approve-manager")}>Duyệt cán bộ và cấp quyền điều phối</button>:a.status==="approved"?<button disabled={busy} onClick={()=>void change(a,"management",!management?.configured)}>{management?.configured?"Thu hồi điều phối":"Cấp điều phối"}</button>:null}
         {a.status==="approved"||broad?.configured?<button disabled={busy} onClick={()=>void change(a,"read-all",!broad?.configured)}>{broad?.configured?"Thu hồi xem mở rộng":"Cấp xem mở rộng"}</button>:null}</div>
     </article>})}
+    {stepUp.dialog}
   </details>;
 }

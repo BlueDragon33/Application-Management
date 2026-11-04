@@ -72,10 +72,10 @@ test("mode selector has focus recovery, Escape, keyboard trap and readable text"
   assert.match(css,/\.option\[data-current="true"\]/);
 });
 test("no claim of live write persistence is introduced by mode switching",()=>{
-  assert.match(dashboard,/if \(failedFields.length\) return null;/);
+  assert.match(dashboard,/if \(failedFields.length \|\| !independentSettings\) return null;/);
   assert.match(dashboard,/Lưu vẫn bị khóa/);
   assert.match(modal,/không ghi mù/);
-  assert.match(dashboard,/if \(!readback\) return null;|if \(failedFields.length\) return null;/);
+  assert.match(dashboard,/independentSettings != null\s*&& taskMatchesReadback/);
 });
 
 test("stalled read-only sync cannot trap the user online while mutations remain protected",()=>{

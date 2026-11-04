@@ -2,6 +2,8 @@
 import BoiAccountPermissionsView from "./boi-account-permissions-view";
 import {useCallback,useEffect,useRef,useState} from "react";
 import {operationsAction} from "./admin-device-client";
+import { runOwnerStepUp } from "./owner-step-up";
+import { useInlineOwnerStepUp } from "./use-inline-owner-step-up";
 import styles from "./boi-manager-tier-view.module.css";
 
 type ManagerRecord={
@@ -44,6 +46,7 @@ function isManagerResponse(value:unknown):value is ManagerResponse & {
     &&response.teacherLimit>=0&&response.teacherLimit<=500;
 }
 export default function BoiManagerTierView(){
+  const stepUp=useInlineOwnerStepUp();
   const [data,setData]=useState<ManagerResponse|null>(null);
   const [limits,setLimits]=useState({learnerLimit:50,teacherLimit:5});
   const [busy,setBusy]=useState(false);
@@ -72,12 +75,12 @@ export default function BoiManagerTierView(){
         :"Thu hồi quyền Cán bộ quản lý "+device.deviceCode+"?"))return;
     lock.current=true;setBusy(true);setError(false);setMessage("");
     try{
-      const r=await operationsAction({action:"boi-manager-tier",operation,
+      const r=await runOwnerStepUp(()=>operationsAction({action:"boi-manager-tier",operation,
         ...(device?{deviceId:device.deviceId,deviceCode:device.deviceCode,
           expectedPersonCode:device.personCode,expectedManagementEnabled:device.managementEnabled}
           :{...limits,expectedLearnerLimit:data?.learnerLimit,
             expectedTeacherLimit:data?.teacherLimit})
-      });
+      }),stepUp.authenticate);
       if(r.ok!==true)throw new Error(r.error||"Bơi Ếch chưa xác nhận thay đổi.");
       await reload();
       setMessage("Đã thao tác và đọc lại quyền/hạn mức từ ứng dụng nguồn.");
@@ -85,7 +88,7 @@ export default function BoiManagerTierView(){
     finally{lock.current=false;setBusy(false);}
   }
   const managers=data?.managers??[];
-  return <section className={styles.root}>
+  return <section className={styles.root} tabIndex={-1}>
     <header><div><h2>Cán bộ quản lý · Bơi Ếch</h2>
       <p>App-Manager chỉ xét duyệt tài khoản Cán bộ quản lý và thiết lập hạn mức chung.
         Học viên và giảng viên được cán bộ đã cấp quyền xét duyệt trong Bơi Ếch.</p></div>
@@ -126,6 +129,7 @@ export default function BoiManagerTierView(){
         </div>
       </article>)}
     </section>
+    {stepUp.dialog}
     <BoiAccountPermissionsView/>
     <p>Chế độ xem thử Cán bộ quản lý có tại ứng dụng Bơi Ếch, chỉ sử dụng dữ liệu mẫu và không có quyền ghi.</p>
   </section>;

@@ -21,7 +21,7 @@ test("Blueprint launch uses the verified latest development Preview without over
   assert.match(workspace, /Mở Website/);
   assert.match(dashboard, /app\?\.ssoStartUrl \?\? app\?\.previewUrl \?\? summary\?\.webHref \?\? fallback/);
   assert.match(dashboard, /if \(summary\?\.webAccessPolicy === "deny"\)/);
-  assert.match(dashboard, /if \(summary\?\.managedWebLaunch && approvalGateEnabled\)/);
+  assert.match(dashboard, /if \(summary\?\.managedWebLaunch && hasProtectedOperationAccess\(operatingMode, managedAccessVerified\)\)/);
 });
 
 test("App-Manage launch is not yet falsely presented as completed cross-domain SSO", () => {

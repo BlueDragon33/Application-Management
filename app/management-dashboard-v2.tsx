@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { applicationRegistry, standardDeviceExperiences, type ApplicationConfig } from "./application-registry";
 import BoiManagerTierView from "./boi-manager-tier-view";
+import { runOwnerStepUp } from "./owner-step-up";
 import AutomaticDevicePolicies, { type AutomationSelection } from "./automatic-device-policies";
 import OperatingModeDialog, { availableOperatingMode, hasProtectedOperationAccess, operatingModeLabel, type OperatingMode } from "./operating-mode-dialog";
 import { deviceTimePresentation, deviceUserPresentation, deviceActivityPresentation } from "./device-row-presentation.mjs";
@@ -500,6 +501,10 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   }, []);
 
   useEffect(() => {
+    // Hydrate browser-owned state after commit; cancel startup and subscriptions on cleanup.
+    let initialCleanup: (()=>void)|undefined;
+    const initialTimer=window.setTimeout(()=>{
+      const cleanup:unknown=(()=>{
     const resolveView = () => {
       const requested = new URLSearchParams(window.location.search).get("view");
       setView(requested && validViews.includes(requested as View) ? requested as View : "overview");
@@ -531,11 +536,25 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       window.removeEventListener("focus", onFocus);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
+
+      })();
+      if(typeof cleanup==="function")initialCleanup=cleanup as ()=>void;
+    },0);
+    return ()=>{window.clearTimeout(initialTimer);initialCleanup?.();};
   }, []);
 
   useEffect(() => {
+    // Hydrate browser-owned state after commit; cancel startup and subscriptions on cleanup.
+    let initialCleanup: (()=>void)|undefined;
+    const initialTimer=window.setTimeout(()=>{
+      const cleanup:unknown=(()=>{
     void initialize();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+
+      })();
+      if(typeof cleanup==="function")initialCleanup=cleanup as ()=>void;
+    },0);
+    return ()=>{window.clearTimeout(initialTimer);initialCleanup?.();};
   }, [operatingMode]);
 
   useEffect(() => {
@@ -543,12 +562,21 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   }, [notice, syncError]);
 
   useEffect(() => {
+    // Hydrate browser-owned state after commit; cancel startup and subscriptions on cleanup.
+    let initialCleanup: (()=>void)|undefined;
+    const initialTimer=window.setTimeout(()=>{
+      const cleanup:unknown=(()=>{
     try {
       const saved = window.localStorage.getItem(fontScaleStorageKey);
       if (saved && fontScaleOptions.some((option) => option.id === saved)) setFontScale(saved as FontScale);
     } catch {
       // Appearance preference is device-local and optional.
     }
+
+      })();
+      if(typeof cleanup==="function")initialCleanup=cleanup as ()=>void;
+    },0);
+    return ()=>{window.clearTimeout(initialTimer);initialCleanup?.();};
   }, []);
 
   function changeFontScale(next: FontScale) {
@@ -631,7 +659,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   const highAlerts = workItems.filter((item) => item.priority === "high").length;
   const offline = !operationsVerified;
   const snapshotAge = operations?.generatedAt
-    ? (clock?.getTime() ?? Date.now()) - Date.parse(operations.generatedAt)
+    ? (clock?.getTime() ?? 0) - Date.parse(operations.generatedAt)
     : Infinity;
   const automationSnapshotVerified = operationsVerified
     && Number.isFinite(snapshotAge) && snapshotAge >= 0 && snapshotAge <= 120_000;
@@ -916,7 +944,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
     }
   }
 
-  async function saveAutomation(selection: AutomationSelection) {
+  async function saveAutomation(selection: AutomationSelection, authenticate?: () => Promise<boolean>) {
     if (automationSaveLockRef.current) return null;
     if (!automationSnapshotVerified) {
       setNotice("Cấu hình automation chưa được xác minh LIVE với quyền quản trị. Hãy đồng bộ trước khi lưu.");
@@ -1106,7 +1134,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       const chains = new Map<string, Promise<unknown>>();
       const executions = tasks.map((task) => {
         const previous = chains.get(task.appId) ?? Promise.resolve();
-        const execution = previous.then(() => task.run());
+        const execution = previous.then(() => runOwnerStepUp(task.run,authenticate));
         chains.set(task.appId, execution.catch(() => undefined));
         return execution;
       });
@@ -1270,7 +1298,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
         <label className="amv2-filter"><span>▽</span><select value={appFilter} onChange={(event) => setAppFilter(event.target.value)}><option value="all">Bộ lọc nhanh</option>{activeApps.map((app) => <option key={app.id} value={app.id}>{app.shortName}</option>)}{systemTools.map((tool) => <option key={tool.id} value={tool.id}>Tool · {tool.name}</option>)}</select></label>
         <button className="amv2-access-mode" data-operating-mode={operatingMode} onClick={() => setModeDialogOpen(true)} title="Chọn Cục bộ, Trực tuyến hoặc Kết hợp — không thay đổi quyền máy chủ"><span>◉</span><div><small>Chế độ vận hành</small><strong>{operatingModeLabel(operatingMode)} ▾</strong></div></button>
         <button className="amv2-bell" aria-label={notificationCount ? `Mở Cảnh báo: ${notificationCount} thông báo` : "Mở Cảnh báo"} onClick={() => switchView("alerts")}>♧{notificationCount ? <b>{notificationCount}</b> : null}</button>
-        <span className="amv2-online" data-standalone={offline}><i/><strong>{operatingModeLabel(operatingMode)} · {offline ? "Bản lưu" : "LIVE"}</strong><small>{syncing ? "Đang đồng bộ…" : offline ? "Chưa có readback LIVE" : "Dữ liệu đã cập nhật"}</small></span>
+        <span className="amv2-online" data-standalone={offline}><i/><strong>{operatingModeLabel(operatingMode)} · {offline ? "Bản lưu cục bộ" : "LIVE"}</strong><small>{syncing ? "Đang đồng bộ…" : offline ? "Chưa có readback LIVE" : "Dữ liệu đã cập nhật"}</small></span>
         <details className="amv2-account"><summary><span>{initials(user.displayName)}</span><div><strong>{user.displayName}</strong><small>{operatingMode === "hybrid" && !managedAccessVerified ? "Bản lưu · Chỉ xem" : operatingMode === "local" ? "Cục bộ · Chỉ xem" : roleLabels[access.role]}</small></div><b>⌄</b></summary><div><small>{user.email}</small>{authMode === "cloudflare-production" ? <a href="/__account">Tài khoản & bảo mật</a> : <button onClick={() => setAccountSecurityOpen(true)}>Tài khoản & bảo mật</button>}<button onClick={() => switchView("settings")}>Cấu hình</button>{authMode === "cloudflare-production" ? <form method="post" action="/__logout"><button type="submit">Đăng xuất</button></form> : <a href="/signout-with-chatgpt?return_to=%2F">Đăng xuất</a>}</div></details>
       </header>
 
@@ -1321,7 +1349,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
           /> : null}
           {view === "approvals" ? <ApprovalView devices={filteredApprovalDevices} actionBusy={actionBusy} manageDevice={manageDevice}/> : null}
           {view === "applications" ? <ApplicationsView apps={filteredApps} tools={filteredTools} summaryMap={summaryMap} devices={devices} webBusy={webBusy} launchWeb={launchWeb} localRuntime={localRuntime} offline={offline} lastUpdatedAt={operations?.generatedAt}/> : null}
-          {view === "devices" ? <DevicesView devices={filteredPendingDevices} snapshotVerified={!offline && managedAccessVerified} now={clock?.getTime() ?? Date.now()} actionBusy={actionBusy} manageDevice={manageDevice} bulkRemovePendingDevices={bulkRemovePendingDevices} openAutomation={openAutomationPolicies}/> : null}
+          {view === "devices" ? <DevicesView devices={filteredPendingDevices} snapshotVerified={!offline && managedAccessVerified} now={clock?.getTime() ?? 0} actionBusy={actionBusy} manageDevice={manageDevice} bulkRemovePendingDevices={bulkRemovePendingDevices} openAutomation={openAutomationPolicies}/> : null}
           {view === "access" ? access?.role === "owner" && managedAccessVerified && !offline ? <BoiManagerTierView/> : <section className="amv2-page-panel"><p>Chỉ Chủ hệ thống có quyền xét duyệt tài khoản Cán bộ quản lý Bơi Ếch. Cần kết nối LIVE đã xác minh.</p></section> : null}
           {view === "alerts" ? <AlertsView apps={filteredApps} summaryMap={summaryMap} workItems={filteredWork} lastUpdated={lastUpdated} offline={offline}/> : null}
           {view === "audit" ? <AuditView center={center}/> : null}
@@ -1608,6 +1636,10 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
   const gridRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Hydrate browser-owned state after commit; cancel startup and subscriptions on cleanup.
+    let initialCleanup: (()=>void)|undefined;
+    const initialTimer=window.setTimeout(()=>{
+      const cleanup:unknown=(()=>{
     try {
       const storedOrder = JSON.parse(window.localStorage.getItem(launcherOrderStorageKey) ?? "[]");
       if (Array.isArray(storedOrder) && storedOrder.every((value) => typeof value === "string")) setManualOrder(storedOrder);
@@ -1632,6 +1664,11 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
     } catch {
       // Keep the in-memory default when local storage is unavailable.
     }
+
+      })();
+      if(typeof cleanup==="function")initialCleanup=cleanup as ()=>void;
+    },0);
+    return ()=>{window.clearTimeout(initialTimer);initialCleanup?.();};
   }, []);
 
   const items = useMemo<AppLauncherItem[]>(() => {
@@ -1972,7 +2009,16 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
   }, []);
 
   useEffect(() => {
+    // Hydrate browser-owned state after commit; cancel startup and subscriptions on cleanup.
+    let initialCleanup: (()=>void)|undefined;
+    const initialTimer=window.setTimeout(()=>{
+      const cleanup:unknown=(()=>{
     if (selectedId && !visibleItems.some((item) => item.id === selectedId)) closePopover();
+
+      })();
+      if(typeof cleanup==="function")initialCleanup=cleanup as ()=>void;
+    },0);
+    return ()=>{window.clearTimeout(initialTimer);initialCleanup?.();};
   }, [selectedId, visibleItems]);
 
   useEffect(() => {

@@ -135,6 +135,10 @@ export default function ManagementModernOverview({ user }: { user: { displayName
   }
 
   useEffect(() => {
+    // Hydrate browser-owned state after commit; cancel startup and subscriptions on cleanup.
+    let initialCleanup: (()=>void)|undefined;
+    const initialTimer=window.setTimeout(()=>{
+      const cleanup:unknown=(()=>{
     setClock(new Date());
     void initialize();
     const timer = window.setInterval(() => setClock(new Date()), 1000);
@@ -145,6 +149,11 @@ export default function ManagementModernOverview({ user }: { user: { displayName
       window.removeEventListener("focus", onFocus);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
+
+      })();
+      if(typeof cleanup==="function")initialCleanup=cleanup as ()=>void;
+    },0);
+    return ()=>{window.clearTimeout(initialTimer);initialCleanup?.();};
   }, []);
 
   const summaries = useMemo(() => operations?.summaries ?? [], [operations]);

@@ -1,0 +1,11 @@
+.scrim { position: fixed; inset: 0; z-index: 110; display: grid; place-items: center; padding: 12px; background: #00130ddd; }
+.dialog { box-sizing: border-box; width: min(440px, 100%); max-height: 90dvh; overflow: auto; padding: 22px; border: 1px solid #578d76; border-radius: 14px; background: #073126; color: #f2f8f5; box-shadow: 0 22px 70px #0008; }
+.dialog h2 { margin: 0; font-size: 1.3rem; }
+.dialog p { color: #c9e2d7; line-height: 1.5; }
+.dialog label { display: block; margin-bottom: 8px; font-weight: 700; }
+.dialog input { width: 100%; min-height: 48px; box-sizing: border-box; border: 1px solid #79af98; border-radius: 8px; padding: 10px; background: #09271e; color: white; font-size: 1.25rem; letter-spacing: .2em; }
+.dialog .error { padding: 10px; border: 1px solid #af6565; border-radius: 8px; color: #ffdbdb; background: #461f25; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.actions button { flex: 1 1 160px; min-height: 46px; border: 1px solid #79af98; border-radius: 8px; padding: 10px; background: #17694f; color: white; font-size: 1rem; cursor: pointer; }
+.actions button:disabled { opacity: .6; cursor: wait; }
+.dialog :focus-visible { outline: 3px solid #a6e4ce; outline-offset: 3px; }

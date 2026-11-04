@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Keep licensed vendored distributions intact; lint the owned integration code.
+    "public/vendor/**",
   ]),
 ]);
 

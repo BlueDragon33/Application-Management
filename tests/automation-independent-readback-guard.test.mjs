@@ -118,7 +118,7 @@ test("a concurrent dashboard refresh is not overwritten by an older automation s
   assert.match(source,/function reconcileDashboardPolicies\(/);
   assert.match(source,/setOperations\(\(previous\) => \{/);
   assert.match(source,/const latest = new Map\(\(previous\.settings\.automationPolicies \?\? \[\]\)/);
-  assert.match(source,/for \(const policy of observedPolicies \?\? \[\]\) latest\.set\(policy\.appId, policy\)/);
+  assert.match(source,/for \(const policy of observedPolicies \?\? \[\]\) \{\s*if \(policy\.verification\.state === "live"\) latest\.set\(policy\.appId, policy\)/);
   assert.match(source,/reconcileDashboardPolicies\(livePolicies\)/);
   assert.match(source,/reconcileDashboardPolicies\(independentSettings\.automationPolicies\)/);
 });

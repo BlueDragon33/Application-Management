@@ -1,0 +1,101 @@
+{
+  "authority": "SOURCE_ONLY_ENGINEERING_CANDIDATE",
+  "review": "BLOCKED",
+  "ci": "PENDING",
+  "globalD1": "10/10 BLOCKED",
+  "featureFlag": "BOI_ECH_ACCOUNT_FIRST default OFF",
+  "date": "2026-11-04",
+  "startingHeads": {
+    "boi": "fbf70057a232e3c1f6115311afc0385e80e6dbb6",
+    "central": "3cf2f7d703d762f38dcfdcbbf9ac90acf3c39bf0"
+  },
+  "selectiveExistingMFASource": "f347bd0ccd5e7f7e4e4bca4a31168e1219c18370",
+  "priorFailures": {
+    "count": 14,
+    "classification": "stale source-pattern expectations against current authority, modes, independent readback, cache and draft contracts; not 14 reproduced runtime defects",
+    "previousEvidence": "../account-first-p0-20261104/verification.json"
+  },
+  "node": "v24.22.1",
+  "fullCheck": {
+    "command": "npm test",
+    "exitCode": 0,
+    "includes": [
+      "typecheck",
+      "verified build",
+      "complete Node suite"
+    ],
+    "stats": {
+      "tests": 832,
+      "pass": 832,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    }
+  },
+  "finalNodeCheck": {
+    "command": "node --test tests/*.test.mjs",
+    "exitCode": 0,
+    "stats": {
+      "tests": 833,
+      "pass": 833,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "note": "One additional real production MFA-gate test added after the complete npm test. Application code semantically unchanged afterwards; only trailing whitespace cleaned."
+  },
+  "lint": {
+    "command": "npm run lint",
+    "exitCode": 0,
+    "errors": 0,
+    "warnings": 38,
+    "vendorExclusion": "public/vendor/**, licensed third-party source unchanged; owned source checked",
+    "newIntegrationAndMFATestEslintExitCode": 0
+  },
+  "integration": {
+    "command": "node scripts/boi-account-source-integration.mjs ../boi-account-first",
+    "exitCode": 0,
+    "owningSource": "fbf70057a232e3c1f6115311afc0385e80e6dbb6",
+    "actual": [
+      "21 SQL migrations",
+      "scrypt registration and multidevice login",
+      "signed-ticket issuer and verifier",
+      "owning HTTP route",
+      "consumer revision/CAS and independent reads",
+      "Owner and Publisher decisions",
+      "per-target access audit",
+      "grant and immediate revocation"
+    ],
+    "synthetic": [
+      "in-process HTTP",
+      "platform bindings",
+      "runtime identity probe",
+      "SQLite memory DB and policy row"
+    ],
+    "notLiveD1": true
+  },
+  "engineeringReview": {
+    "kind": "read-only independent source review; no authority acceptance",
+    "importantFindings": 2,
+    "resolved": 2,
+    "focusedTests": {
+      "tests": 3,
+      "pass": 3,
+      "fail": 0
+    },
+    "remainingActionableCriticalOrImportant": 0,
+    "corrections": [
+      "font preference persistence gated until hydration completes",
+      "late MFA authentication after unmount resolves false and settles pending command"
+    ]
+  },
+  "realBrowser": "NOT_RUN; Chromium/WebKit binaries absent. Actual React interactions were exercised in JSDOM only.",
+  "notRun": [
+    "real browser / Safari / iPhone and account-switch race admission",
+    "Cloudflare target compatibility-date 2026-08-26 and CPU-budget admission",
+    "live D1 independent readback or rollback",
+    "authorized real legacy snapshot rehearsal",
+    "independent Reviewer A/B authority acceptance"
+  ],
+  "spend": "ZERO-SPEND: no Actions, PR event, deployment, production/cloud-DB write, approval, merge or ratification; source candidate refs only."
+}

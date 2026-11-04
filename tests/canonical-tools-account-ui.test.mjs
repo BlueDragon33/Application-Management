@@ -42,8 +42,9 @@ test("all client automation cards use stable applied-state and isolated draft co
   assert.match(automation, /settings\?\.automationPolicies/);
   assert.match(automation, /apps\.map/);
   assert.match(automation, /className=\{styles\.policyGrid\}/);
-  assert.match(automation, /disabled=\{locked \|\| !approveWritable\}/);
-  assert.match(automation, /disabled=\{locked \|\| !blockWritable\}/);
+  assert.match(automation, /const canSave = Boolean\(settings\) && verified && !locked && hasWritablePolicy/);
+  assert.match(automation, /disabled=\{!canSave\}/);
+  assert.match(automation, /Chỉ lưu bản nháp; client chưa cho phép ghi LIVE/);
   assert.match(automation, /Object\.fromEntries/);
   assert.doesNotMatch(automation, /type="radio"/);
 });

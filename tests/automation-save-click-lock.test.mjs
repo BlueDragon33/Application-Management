@@ -13,7 +13,8 @@ test("policy modal acquires a synchronous first-click lock before awaiting Save"
   assert.match(editor, /finally \{\s*submitLockRef\.current = false;\s*setSubmitting\(false\);/s);
   assert.match(editor, /const locked = busy \|\| submitting/);
   assert.match(editor, /disabled=\{locked\}/);
-  assert.match(editor, /const canSaveLocalDraft = !locked && touchedAppIdsRef\.current\.size > 0/);
+  assert.match(editor, /const canSaveLocalDraft = !locked && editedAppIds\.size > 0/);
+  assert.match(editor, /setEditedAppIds\(new Set\(touchedAppIdsRef\.current\)\)/);
   assert.match(editor, /disabled=\{!canSave\}/);
   assert.match(editor, /locked \? "Đang áp dụng…" : "Áp dụng & kiểm tra"/);
 });

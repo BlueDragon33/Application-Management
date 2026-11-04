@@ -226,7 +226,9 @@ test("central UI uses center and operations endpoints instead of Boi application
 test("Boi Ech has a physically isolated client control center", () => {
   const route = source("app/apps/boi-ech/page.tsx");
   const client = source("app/apps/boi-ech/boi-ech-control-center.tsx");
-  assert.match(route, /BoiEchControlCenter/);
+  assert.match(route, /requireChatGPTUser/);
+  assert.match(route, /Quản trị Cán bộ quản lý/);
+  assert.doesNotMatch(route, /<BoiEchControlCenter/);
   assert.doesNotMatch(route, /boiBoundary|\.\.\/\.\.\/control-center/);
   assert.match(client, /Application Management/);
   assert.match(client, /type Dashboard =/);

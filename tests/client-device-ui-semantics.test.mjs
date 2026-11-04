@@ -51,7 +51,8 @@ test("device view keeps direct app administration separate from review mutation"
   assert.match(block, /<Link href=\{device\.href\}>Quản trị<\/Link>/);
   assert.match(block, /device\.canApprove/);
   assert.match(block, /device\.canRemove/);
-  assert.match(block, /Bơi ếch là xóa vĩnh viễn nên không được xử lý hàng loạt/);
+  assert.match(block, /Bơi ếch không xóa hàng loạt/);
+  assert.match(block, /device\.appId !== "boi-ech"/);
 });
 
 test("non-pending environment cases in work queue route to app administration instead of dead mutation buttons", () => {

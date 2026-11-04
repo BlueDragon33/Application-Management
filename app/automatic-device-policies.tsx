@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { OperationsAutomationPolicy, OperationsSettings } from "./admin-device-client";
 import styles from "./automatic-device-policies.module.css";
+import { useInlineOwnerStepUp } from "./use-inline-owner-step-up";
 import { readAutomationDraft, writeAutomationDraft, clearAutomationDraft } from "./device-automation-draft.mjs";
 
 export type AutomationSelection = {
@@ -121,13 +122,15 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
   busy: boolean;
   sync: () => Promise<unknown>;
   close: () => void;
-  save: (selection: AutomationSelection) => Promise<OperationsSettings | null | undefined>;
+  save: (selection: AutomationSelection, authenticate?: () => Promise<boolean>) => Promise<OperationsSettings | null | undefined>;
   verifyAuthenticatorHref?: string;
 }) {
+  const stepUp = useInlineOwnerStepUp();
   const [drafts, setDrafts] = useState<Record<string, AutomationAppDraft>>(() => initialDrafts(apps, settings));
   const submitLockRef = useRef(false);
   const draftEditedRef = useRef(false);
   const touchedAppIdsRef = useRef<Set<string>>(new Set());
+  const [editedAppIds,setEditedAppIds]=useState<ReadonlySet<string>>(new Set());
   const dialogRef = useRef<HTMLElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const openerRef = useRef<HTMLElement | null>(null);
@@ -155,7 +158,7 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
     && Number.isInteger(limit) && limit >= 1 && limit <= 1_000
   );
   const canSave = Boolean(settings) && verified && !locked && hasWritablePolicy && hasChanges && boiLimitsValid;
-  const canSaveLocalDraft = !locked && touchedAppIdsRef.current.size > 0;
+  const canSaveLocalDraft = !locked && editedAppIds.size > 0;
 
   // A modal may be opened on a cached snapshot while live bootstrap is in flight.
   // Rebase only untouched drafts; never overwrite an actual user edit.
@@ -169,6 +172,10 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
 
   // Restore desired settings only. This is not a readback from any client.
   useEffect(() => {
+    // Hydrate browser-owned state after commit; cancel startup and subscriptions on cleanup.
+    let initialCleanup: (()=>void)|undefined;
+    const initialTimer=window.setTimeout(()=>{
+      const cleanup:unknown=(()=>{
     let saved;
     try { saved = readAutomationDraft(window.localStorage); }
     catch { setDraftNotice("Trình duyệt không cho truy cập kho bản nháp; không thay đổi dữ liệu ứng dụng."); return; }
@@ -179,11 +186,17 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
     if (!Object.keys(restored).length) return;
     draftEditedRef.current = true;
     for (const appId of Object.keys(restored)) touchedAppIdsRef.current.add(appId);
+    setEditedAppIds(new Set(touchedAppIdsRef.current));
     setDrafts((current) => ({ ...current, ...restored }));
     setDays(saved.days);
     setLimit(saved.limit);
     setDraftNotice("Đã khôi phục bản nháp trình duyệt. Chưa ghi vào ứng dụng nguồn.");
     // eslint-disable-next-line react-hooks/exhaustive-deps
+
+      })();
+      if(typeof cleanup==="function")initialCleanup=cleanup as ()=>void;
+    },0);
+    return ()=>{window.clearTimeout(initialTimer);initialCleanup?.();};
   }, []);
 
   useEffect(() => {
@@ -227,6 +240,7 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
   function updateDraft(appId: string, patch: Partial<AutomationAppDraft>) {
     draftEditedRef.current = true;
     touchedAppIdsRef.current.add(appId);
+    setEditedAppIds(new Set(touchedAppIdsRef.current));
     setDraftNotice("Có thay đổi chưa lưu bản nháp hoặc áp dụng.");
     setDrafts((current) => ({
       ...current,
@@ -298,7 +312,7 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
       const targetAppIds = [...new Set([...approvalTargetAppIds, ...blockTargetAppIds])];
       const readback = await save({ targetAppIds, approvalTargetAppIds, blockTargetAppIds,
         appIds, autoBlockAppIds, pendingBlockAfterHoursByApp,
-        defaultAccessDays: days, defaultDeviceLimit: limit });
+        defaultAccessDays: days, defaultDeviceLimit: limit }, stepUp.authenticate);
       if (!readback) {
         setDraftNotice(persisted.saved
           ? "Chưa xác minh áp dụng. Bản chỉnh sửa đã giữ trên trình duyệt, chưa công nhận client được cập nhật."
@@ -340,6 +354,7 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
         if (apps.some((item) => item.id === appId)) rebased[appId] = proposed;
       }
       touchedAppIdsRef.current = new Set(stillPending.map(([appId]) => appId));
+      setEditedAppIds(new Set(touchedAppIdsRef.current));
       draftEditedRef.current = stillPending.length > 0;
       setDrafts(rebased);
       setDraftNotice(stillPending.length > 0
@@ -371,7 +386,7 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
       <p className={styles.intro}><strong>Đang áp dụng</strong> là dữ liệu readback. Các ô bên dưới là bản nháp; sau khi lưu thành công chúng tự đồng bộ lại đúng trạng thái client.</p>
       {!verified ? <p className={styles.warning}>Chưa xác minh LIVE. Có thể chỉnh và lưu bản nháp cục bộ, nhưng áp dụng vào client chỉ khi có contract và quyền hợp lệ.</p> : null}
       {draftNotice ? <p className={styles.draftNotice} role="status">{draftNotice}</p> : null}
-      {verifyAuthenticatorHref ? <p className={styles.authHelp}>Thao tác duyệt và lưu cấu hình nhạy cảm cần Google Authenticator. <a href={verifyAuthenticatorHref} target="_blank" rel="noopener noreferrer">Mở xác minh Authenticator ↗</a> ở tab riêng, rồi quay lại lưu.</p> : null}
+      {verifyAuthenticatorHref ? <p className={styles.authHelp}>Khi máy chủ yêu cầu, nhập mã Authenticator ngay tại hộp thoại này; bản nháp được giữ nguyên.</p> : null}
       {hasUnverifiedPolicy ? <p className={styles.warning}>Ứng dụng LAST KNOWN/UNAVAILABLE chỉ hiển thị tham chiếu và không được ghi mù. READ-ONLY là app chưa công bố automation contract an toàn.</p> : null}
 
       <div className={styles.list}>
@@ -383,7 +398,7 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
           const approvalValue = draft.autoApprove ? "auto" : "manual";
           const blockValue = draft.autoBlock ? "block" : "keep";
           const timeValue = draft.autoBlock ? draft.pendingBlockAfterHours : 0;
-          const changed = touchedAppIdsRef.current.has(app.id) || draftChanged(policy, draft, app.id, days, limit);
+          const changed = editedAppIds.has(app.id) || draftChanged(policy, draft, app.id, days, limit);
 
           return <article key={app.id} className={styles.app} data-changed={changed}>
             <div className={styles.appHeader}>
@@ -453,8 +468,8 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
             </div>
 
             {app.id === "boi-ech" ? <div className={styles.limits} data-disabled={!approveWritable}>
-              <label>Thời hạn miễn phí <select value={days} disabled={locked} onChange={(event) => { draftEditedRef.current = true; touchedAppIdsRef.current.add("boi-ech"); setDays(Number(event.target.value)); }}><option value={0}>Chưa xác minh</option>{[30, 60, 90, 180, 365].map((value) => <option key={value} value={value}>{value} ngày</option>)}</select></label>
-              <label>Tối đa thiết bị <input type="number" min={1} max={1000} value={limit} disabled={locked} onChange={(event) => { draftEditedRef.current = true; touchedAppIdsRef.current.add("boi-ech"); setLimit(Number(event.target.value)); }}/></label>
+              <label>Thời hạn miễn phí <select value={days} disabled={locked} onChange={(event) => { draftEditedRef.current = true; touchedAppIdsRef.current.add("boi-ech"); setEditedAppIds(new Set(touchedAppIdsRef.current)); setDays(Number(event.target.value)); }}><option value={0}>Chưa xác minh</option>{[30, 60, 90, 180, 365].map((value) => <option key={value} value={value}>{value} ngày</option>)}</select></label>
+              <label>Tối đa thiết bị <input type="number" min={1} max={1000} value={limit} disabled={locked} onChange={(event) => { draftEditedRef.current = true; touchedAppIdsRef.current.add("boi-ech"); setEditedAppIds(new Set(touchedAppIdsRef.current)); setLimit(Number(event.target.value)); }}/></label>
               <small>Chỉ áp dụng cho Miễn phí · tự động duyệt. Luồng trả phí vẫn phải xác minh thanh toán.</small>
             </div> : null}
 
@@ -470,5 +485,6 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
         <div><button type="button" onClick={() => void sync()} disabled={locked}>Đồng bộ LIVE</button><button type="button" onClick={saveLocalDraft} disabled={!canSaveLocalDraft}>Lưu bản nháp</button><button onClick={close} disabled={locked}>Đóng</button><button className={styles.save} disabled={!canSave} onClick={() => void submit()}>{locked ? "Đang áp dụng…" : "Áp dụng & kiểm tra"}</button></div>
       </footer>
     </section>
+    {stepUp.dialog}
   </div>;
 }

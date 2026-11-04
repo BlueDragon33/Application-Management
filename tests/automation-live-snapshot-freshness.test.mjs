@@ -32,7 +32,7 @@ test("live readback rebases only untouched automation drafts", () => {
   assert.match(editor, /useEffect\(\(\) => \{\s*if \(draftEditedRef\.current\) return;\s*setDrafts\(initialDrafts\(apps, settings\)\)/);
   assert.match(editor, /\}, \[apps, settings\]\)/);
   assert.match(editor, /draftEditedRef\.current = true;\s*touchedAppIdsRef\.current\.add\(appId\)/);
-  assert.match(editor, /touchedAppIdsRef\.current\.add\("boi-ech"\); setDays/);
-  assert.match(editor, /touchedAppIdsRef\.current\.add\("boi-ech"\); setLimit/);
+  assert.match(editor, /touchedAppIdsRef\.current\.add\("boi-ech"\); setEditedAppIds\(new Set\(touchedAppIdsRef\.current\)\); setDays/);
+  assert.match(editor, /touchedAppIdsRef\.current\.add\("boi-ech"\); setEditedAppIds\(new Set\(touchedAppIdsRef\.current\)\); setLimit/);
   assert.match(editor, /draftEditedRef\.current = stillPending\.length > 0;\s*setDrafts\(rebased\)/);
 });

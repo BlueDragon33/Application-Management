@@ -62,9 +62,18 @@ export default function ApplicationWorkspace({ application, user }: { applicatio
   }
 
   useEffect(() => {
+    // Hydrate browser-owned state after commit; cancel startup and subscriptions on cleanup.
+    let initialCleanup: (()=>void)|undefined;
+    const initialTimer=window.setTimeout(()=>{
+      const cleanup:unknown=(()=>{
     setLocalRuntime(["127.0.0.1", "localhost"].includes(window.location.hostname));
     const timer = window.setTimeout(() => { void verifyAccess(); }, 0);
     return () => window.clearTimeout(timer);
+
+      })();
+      if(typeof cleanup==="function")initialCleanup=cleanup as ()=>void;
+    },0);
+    return ()=>{window.clearTimeout(initialTimer);initialCleanup?.();};
   }, []);
 
   const hasChildren = Boolean(application.childClients?.length);

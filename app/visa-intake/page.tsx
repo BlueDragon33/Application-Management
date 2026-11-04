@@ -346,6 +346,10 @@ export default function VisaIntakePage() {
   const correctionFields = receipt?.status === "rejected" ? (receipt.correctionFields ?? []) : [];
 
   useEffect(() => {
+    // Hydrate browser-owned state after commit; cancel startup and subscriptions on cleanup.
+    let initialCleanup: (()=>void)|undefined;
+    const initialTimer=window.setTimeout(()=>{
+      const cleanup:unknown=(()=>{
     const params = new URLSearchParams(window.location.search);
     const tokenValue = params.get("token") ?? "";
     const batchValue = params.get("batch") ?? "";
@@ -458,6 +462,11 @@ export default function VisaIntakePage() {
       })
       .catch((reason) => setError(reason instanceof Error ? reason.message : "Không thể mở form."))
       .finally(() => setLoading(false));
+
+      })();
+      if(typeof cleanup==="function")initialCleanup=cleanup as ()=>void;
+    },0);
+    return ()=>{window.clearTimeout(initialTimer);initialCleanup?.();};
   }, []);
   useEffect(() => {
     if (!accessKey) return;
@@ -489,10 +498,19 @@ export default function VisaIntakePage() {
   }
 
   useEffect(() => {
+    // Hydrate browser-owned state after commit; cancel startup and subscriptions on cleanup.
+    let initialCleanup: (()=>void)|undefined;
+    const initialTimer=window.setTimeout(()=>{
+      const cleanup:unknown=(()=>{
     if ((!token && !batch) || !receipt?.id) return;
     void refreshSubmissionStatus(false);
     const timer = window.setInterval(() => void refreshSubmissionStatus(false), 15000);
     return () => window.clearInterval(timer);
+
+      })();
+      if(typeof cleanup==="function")initialCleanup=cleanup as ()=>void;
+    },0);
+    return ()=>{window.clearTimeout(initialTimer);initialCleanup?.();};
   }, [token, batch, deviceId, receipt?.id]);
 
   const baseFields = useMemo(() => {

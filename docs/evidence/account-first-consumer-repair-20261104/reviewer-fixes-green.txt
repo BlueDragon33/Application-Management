@@ -1,0 +1,27 @@
+✔ JSDOM: Owner verifies inline and resumes the same revision-bound account command once (186.416107ms)
+✔ JSDOM: wrong code and cancellation keep the account command unapplied (32.322894ms)
+✔ late step-up after unmount resolves false and in-flight cancellation settles (143.102193ms)
+✔ cached automation snapshots cannot be labeled LIVE or written (2.029814ms)
+✔ freshness is a verified online session with a bounded age (0.795301ms)
+✔ live readback rebases only untouched automation drafts (0.48974ms)
+✔ policy modal acquires a synchronous first-click lock before awaiting Save (1.740458ms)
+✔ dashboard has a second mutex that prevents duplicate automation transactions (1.016014ms)
+✔ canceling confirmation also releases both save locks (0.671333ms)
+✔ cleanup before client initialization prevents work; active cleanup releases timers and subscriptions (102.217529ms)
+✔ deferred font hydration preserves the stored accessibility preference before persistence (76.719327ms)
+✔ Production 2FA required response points to a real account step-up route (1.310859ms)
+✔ Device approval surfaces a discoverable real Authenticator link (0.265491ms)
+✔ Step-up error notification gives visible next-step instead of dead-end (0.251019ms)
+✔ Automation modal preserves drafts during inline authentication (0.213813ms)
+✔ Managed/Production server gate cannot be bypassed by browser preference (0.386684ms)
+✔ Partial failed target readback does not discard unsaved policy edits (0.27134ms)
+✔ Dashboard only promises saved state after readback verification (0.189366ms)
+✔ Gate always offers central mode selector without bypassing authorization (0.180813ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 828.448389

@@ -24,9 +24,11 @@ test('Step-up error notification gives visible next-step instead of dead-end',()
   assert.match(dashboard,/Xác minh ngay ↗/);
   assert.match(dashboard,/target="_blank" rel="noopener noreferrer"/);
 });
-test('Automation modal has independent authentication entry while editing',()=>{
+test('Automation modal preserves drafts during inline authentication',()=>{
   assert.match(policy,/verifyAuthenticatorHref\?: string/);
-  assert.match(policy,/Mở xác minh Authenticator/);
+  assert.match(policy,/nhập mã Authenticator ngay tại hộp thoại này; bản nháp được giữ nguyên/);
+  assert.match(policy,/stepUp\.authenticate/);
+  assert.match(policy,/stepUp\.dialog/);
   assert.match(dashboard,/verifyAuthenticatorHref=\{authMode === "cloudflare-production"/);
   assert.match(policyCss,/\.authHelp a:focus-visible/);
 });

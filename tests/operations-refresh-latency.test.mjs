@@ -8,7 +8,9 @@ test("background operations refreshes are deduplicated instead of stacking on fo
   const dashboard = source("app/management-dashboard-v2.tsx");
   assert.match(dashboard, /operationsRefreshPromiseRef = useRef<Promise<OperationsBootstrap \| null> \| null>\(null\)/);
   assert.match(dashboard, /if \(!operationsRefreshPromiseRef\.current\)/);
-  assert.match(dashboard, /operationsRefreshPromiseRef\.current = \(async \(\) =>/);
+  assert.match(dashboard, /const promise = \(async \(\) =>/);
+  assert.match(dashboard, /operationsRefreshPromiseRef\.current = promise/);
+  assert.match(dashboard, /operationsRefreshPromiseRef\.current === promise/);
   assert.match(dashboard, /return await operationsRefreshPromiseRef\.current/);
   assert.match(dashboard, /operationsRefreshPromiseRef\.current = null/);
 });
