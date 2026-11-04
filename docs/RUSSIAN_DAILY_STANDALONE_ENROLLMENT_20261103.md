@@ -1,6 +1,6 @@
 # Russian Daily standalone · Application-Management enrollment candidate
 
-Status: **SOURCE-ONLY / PENDING / NOT HOSTED / NOT DEPLOYED**.
+Status: **CORRECT CONTRAST LAB PROTECTED PREVIEW READY / OWNER QA PENDING / NOT RELEASED**. Historical notes below describe earlier STANKIN candidate and are superseded by the latest correction.
 
 - Child application id: `russian-daily`.
 - Standalone source: `BlueDragon33/Bauman-Russian-iOS` / `web/russian-daily`, candidate 7c00fcee53aae2c7f1c39aacc0235f394110c811; tested static Git gate source e0fb4e1daf68fb7fc8d6232b3ffd36b7c86f4167 and unchanged functional/test source 1445b9e437799b1840d3b5a4723ea7dc68e960dd.
@@ -75,3 +75,13 @@ Owner requested a live testable Russian Daily link; Vercel standalone project `r
 **Environment mismatch:** Explicit create-deployment request used `target=preview`, but Vercel created deployment `dpl_3GhUP1YGddhcxfLnroCcb5JG7au4` with `target=production`, `readyState=READY`. Cancellation immediately attempted but rejected `400 deployment_not_canceled`. The deployment's logged build completed; actual protected Safari access and anonymous access enforcement were **not tested**. Project protection was re-read as `ssoProtection.enabled=true, deploymentType=all`.
 
 **Governance:** This is an unapproved Production-*targeted* deployment by the provider, not an authorized Production release. Do not use its URL as an approved `publicUrl`, do not switch registry `status=planned` or `contractState=pending`, do not merge, ratify, approve or claim QA PASS/ZERO-SPEND PASS. Human review must address the target mismatch; future deployments remain blocked. Detailed incident record: Bauman `web/russian-daily/docs/VERCEL_PREVIEW_RUNBOOK.md` commit `50fd55f00c1862af7a732b981763d905020aafda`.
+
+## 2026-11-04 — Owner-reported wrong version: canonical source correction (latest)
+
+**Root cause confirmed.** Former deployment `dpl_3GhUP1YGddhcxfLnroCcb5JG7au4` served STANKIN schedule-focused `Bauman-Russian-iOS/web/russian-daily/public/` source `7c00fcee`, not the Owner's updated Russian immersion Pair/Contrast Deck. Old default aliases still point to that old deployment, which Vercel unexpectedly classified as Production. It remains protected by Vercel Authentication but is **not an approved production release**.
+
+The actual current product is **Russian Daily — Contrast Lab**, in `Bauman-Russian-iOS/web/russian-daily-standalone/`, candidate source exact QA SHA `0e5775d465ea13d674304adbbc02a1de468ba8f7`, current branch documentation HEAD `ee3432b804fd68a1be60d0e4792879f2178db3bc`. Owner semantics: stress-marked Cyrillic, two separate pictures and two listening controls for contrast pairs, no Vietnamese lexical meaning/translation on study cards, visual-first/aural learning; personal calendar secondary. Demo-only content pending RU03 rights/review.
+
+**Correct Vercel evaluation deployment:** `dpl_EMEQSMPJ9GuU63MG2YuTk5SSDdtV` / `https://russian-daily-qa-preview-6iau46svm-dinhnam3391-4708.vercel.app/`; `READY`, `target=null` (included in Vercel Preview-filtered list), no Production aliases. Project SSO protection `enabled=true, deploymentType=all`. No Git connection or GitHub-hosted Actions. Source-only V8 checks 14/14 passed; live browser/Safari acceptance is still NOT_RUN. Do not assert that a protected preview is public, fully QA-passed or release-authorized.
+
+App catalog entry `russian-daily` is now corrected to Contrast Lab at the source level. Preserve `status=planned`, `contractState=pending`, do not assign `publicUrl` or override RU03/reviewer/Production gates until acceptance. The prior STANKIN app remains separate for legacy data access; its JSON backup is not automatically import-compatible with Contrast Lab, and cross-origin storage migration must not be fabricated.
