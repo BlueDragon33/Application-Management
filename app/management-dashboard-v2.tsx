@@ -2260,7 +2260,7 @@ function DevicesView({ devices, snapshotVerified, now, actionBusy, manageDevice,
   }
   return <section className="amv2-page-panel">
     <div className="amv2-device-bulk-toolbar">
-      <div><strong>Hàng đợi kiểm duyệt</strong><small>Thời gian và tín hiệu dựa vào contract ứng dụng nguồn, không chứng minh thiết bị đang online. Mọi thay đổi quyền sau duyệt phải thực hiện trong Quản trị từng app; Bơi ếch không xóa hàng loạt.</small></div>
+      <div><strong>Hàng đợi kiểm duyệt</strong><small>Đăng ký, lần online và mốc mất tín hiệu lấy từ ứng dụng nguồn; mốc offline là ước tính theo heartbeat, không phải tổng thời lượng phiên. Thiếu dữ liệu sẽ hiển thị rõ, không suy đoán. Bơi ếch không xóa hàng loạt.</small></div>
       <div className="amv2-device-bulk-actions"><button disabled={Boolean(actionBusy)} onClick={openAutomation}>⚙ Tự động</button><button data-danger="true" aria-label="Từ chối và khóa các thiết bị chờ kiểm duyệt đang hiển thị" disabled={!bulkTargets.length || Boolean(actionBusy)} onClick={() => void bulkRemovePendingDevices(devices)}>{actionBusy === "bulk-pending" ? "Đang xử lý…" : `Từ chối & khóa (${bulkTargets.length})`}</button></div>
     </div>
     <div className="amv2-view-table devices" aria-label="Bảng thiết bị chờ duyệt">
@@ -2269,7 +2269,7 @@ function DevicesView({ devices, snapshotVerified, now, actionBusy, manageDevice,
         const rowBusy = actionBusy === `${device.appId}:${device.deviceId}` || actionBusy === "bulk-pending";
         const count = labelCounts.get(device.appId + ":" + device.userLabel.trim().toLowerCase()) ?? 1;
         const user = deviceUserPresentation(device, count);
-        const timestamps = deviceTimePresentation(device);
+        const timestamps = deviceTimePresentation(device, now, snapshotVerified);
         const activity = deviceActivityPresentation(device, snapshotVerified, now);
         return <div className="row" key={`${device.appId}:${device.deviceId}`}>
           <AppCell appId={device.appId} name={device.appName}/>
@@ -2279,9 +2279,10 @@ function DevicesView({ devices, snapshotVerified, now, actionBusy, manageDevice,
             <div><strong title={user.primary}>{user.primary}</strong><small>{user.secondary}</small></div>
           </div>
           <b className="amv2-device-pending">Chờ duyệt</b>
-          <div className="amv2-device-time" title={`Yêu cầu: ${timestamps.registered} · Lần cuối: ${timestamps.lastSeen}`}>
-            <strong>Yêu cầu: <time dateTime={timestamps.createdAt !== null ? new Date(timestamps.createdAt).toISOString() : undefined}>{timestamps.registered}</time></strong>
-            <small>Lần cuối: <time dateTime={timestamps.lastSeenAt !== null ? new Date(timestamps.lastSeenAt).toISOString() : undefined}>{timestamps.lastSeen}</time></small>
+          <div className="amv2-device-time" title={`${timestamps.registrationLabel}: ${timestamps.registered} · ${timestamps.onlineLabel}: ${timestamps.online} · ${timestamps.offlineLabel}: ${timestamps.offline}`}>
+            <strong>{timestamps.registrationLabel}: <time dateTime={timestamps.registeredAt !== null ? new Date(timestamps.registeredAt).toISOString() : undefined}>{timestamps.registered}</time></strong>
+            <small>{timestamps.onlineLabel}: <time dateTime={timestamps.onlineAt !== null ? new Date(timestamps.onlineAt).toISOString() : undefined}>{timestamps.online}</time></small>
+            <small>{timestamps.offlineLabel}: <time dateTime={timestamps.offlineAt !== null ? new Date(timestamps.offlineAt).toISOString() : undefined}>{timestamps.offline}</time>{timestamps.offlineElapsed !== null ? ` · ${timestamps.offlineElapsed}` : ""}</small>
           </div>
           <div className="amv2-device-activity" data-activity={activity.tone} title={activity.detail}>
             <strong><i aria-hidden="true"/>{activity.label}</strong>
