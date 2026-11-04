@@ -355,6 +355,7 @@ function deviceFrom(
 }
 
 function deviceFromUniversal(snapshot: DynamicContractSnapshot, raw: DynamicContractSnapshot["devices"][number], actor: ControlDeviceState): ClientDevice {
+  const sourceRow = record(raw);
   const canManage = actor.role === "publisher" || actor.role === "owner";
   const capabilities = snapshot.manifest?.capabilities ?? {};
   const createdAt = raw.createdAt;
@@ -372,6 +373,9 @@ function deviceFromUniversal(snapshot: DynamicContractSnapshot, raw: DynamicCont
     active: raw.active,
     createdAt: raw.createdAt,
     lastSeenAt: raw.lastSeenAt,
+    registrationSubmittedAt: timeValue(sourceRow.registrationSubmittedAt) || null,
+    lastPresenceAt: timeValue(sourceRow.lastPresenceAt) || null,
+    offlineSinceAt: timeValue(sourceRow.offlineSinceAt) || null,
     attention: raw.environmentChanged ? "environment" : recent && raw.status === "pending" ? "new" : "none",
     canApprove: canManage && raw.status === "pending" && capabilities.deviceApproval === true,
     canRemove: canManage && (raw.status === "pending" || raw.status === "approved") && capabilities.deviceBlock === true,
