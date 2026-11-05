@@ -4,6 +4,8 @@ export const dynamic = "force-dynamic";
 
 const JSON_PATHS = new Set(["/api/control/overview", "/api/control/content", "/api/control/ai"]);
 const QUERY_KEYS = new Set(["activityDays", "deviceCodes", "deviceCode", "versionId", "deviceId"]);
+// Overview supports up to 500 display codes, including URL-encoded separators.
+const MAX_QUERY_LENGTH = 16_000;
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
 function error(message: string, status: number) {
@@ -22,7 +24,7 @@ export async function POST(request: Request) {
     const method = input.method ?? "GET";
     if (typeof baseUrl !== "string" || typeof token !== "string" || !/^v1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token) || token.length > 4096
       || typeof path !== "string" || !JSON_PATHS.has(path) && path !== "/api/control/payment-proof"
-      || typeof query !== "string" || query.length > 1000 || typeof method !== "string" || !["GET", "POST"].includes(method)) {
+      || typeof query !== "string" || query.length > MAX_QUERY_LENGTH || typeof method !== "string" || !["GET", "POST"].includes(method)) {
       return error("Yêu cầu bridge không hợp lệ.", 400);
     }
     const origin = await resolveClientOrigin("boi-ech");
