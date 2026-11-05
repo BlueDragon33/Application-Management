@@ -1,0 +1,71 @@
+{
+  "task": "BOI-MANAGER-TARGET-IDENTITY-20261105",
+  "baseHead": "f347bd0ccd5e7f7e4e4bca4a31168e1219c18370",
+  "scope": "App-Manager Boi control-center identity/query regression only; no BOIECH app or DDL changes",
+  "runtime": "Node v24.22.1",
+  "beforeFix": {
+    "regressionCommand": "node --test tests/boi-manager-target-identity.test.mjs tests/boi-browser-proxy.test.mjs",
+    "exitCode": 1,
+    "passed": 2,
+    "failed": 2,
+    "failures": [
+      "DEVICE_NOT_FOUND when real signed administrator proof overwrites selected manager deviceId",
+      "proxy returns 400 for a legitimate 75-device status query"
+    ]
+  },
+  "afterFix": {
+    "focusedCommand": "node --test tests/boi-manager-target-identity.test.mjs tests/boi-browser-proxy.test.mjs tests/control-proof-target-identity.test.mjs tests/central-manager-access-runtime.test.mjs tests/central-boi-access-runtime.test.mjs tests/central-boi-access-client-runtime.test.mjs",
+    "focusedExitCode": 0,
+    "focusedPassed": 22,
+    "fullCommand": "npm test",
+    "fullExitCode": 0,
+    "nodeTestsPassed": 819,
+    "nodeTestsFailed": 0,
+    "typecheck": "exit 0, included in npm test",
+    "build": "exit 0; validated ESM Worker and hosting manifest",
+    "changedFileEslint": "exit 0, no diagnostics",
+    "diffCheck": "exit 0"
+  },
+  "limits": {
+    "signedIntegration": "actual P256 sender/verifier and real access handler; remote owning-app transport uses synthetic fixtures",
+    "liveBrowser": "observed original errors only; no live grant/revoke or after-deploy acceptance",
+    "cloudflareDeploy": "NOT_RUN",
+    "productionMutation": "NOT_RUN",
+    "independentProductAcceptance": "NOT_RUN",
+    "hostedActions": "NOT_RUN"
+  },
+  "preservedCandidates": {
+    "boiech": "8c2b4710cb4c2802affe7d433ab0450d030a944a",
+    "appManager": "49a3f85fc42e564460732110974fd951ad8d117e"
+  },
+  "releaseState": [
+    "REVIEW BLOCKED",
+    "CI PENDING",
+    "global D1 10/10 BLOCKED",
+    "account-first flag OFF"
+  ],
+  "logs": {
+    "npm-test.log": {
+      "bytes": 79703,
+      "sha256": "1afe7874450cd43a7f61d5152e45013026937198681c0cf7aa23d8db3d633874",
+      "normalization": "trailing horizontal whitespace only; original captured output retained privately",
+      "rawCaptureSha256": "2b0dbf8a7683fa2011a457fcf1f2c6f1f4b905f4a8eba90692dbb0b094c944cb",
+      "rawCaptureBytes": 80491
+    },
+    "changed-eslint.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "boundedCodeReview": {
+    "findings": {
+      "critical": 0,
+      "important": 0,
+      "minor": 0
+    },
+    "independentTestsPassed": 11,
+    "exitCode": 0,
+    "productAcceptance": false,
+    "releaseAuthorization": false
+  }
+}
