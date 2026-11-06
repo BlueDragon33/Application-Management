@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { scheduleClientInitialization } from "../client-initialization";
 import styles from "./visa-intake.module.css";
 
 type ApplicantForm = {
@@ -345,7 +346,7 @@ export default function VisaIntakePage() {
   const [receipt, setReceipt] = useState<{ id: string; queueNo: number | null; applicantName: string; status: string; reviewNote?: string | null; correctionFields?: string[]; resubmittedFields?: string[]; revision?: number; deviceCode?: string | null; applicant?: ApplicantForm; result?: { available: true; fileName: string; fileSize: number; uploadedAt: string; downloadUrl: string } | null } | null>(null);
   const correctionFields = receipt?.status === "rejected" ? (receipt.correctionFields ?? []) : [];
 
-  useEffect(() => {
+  useEffect(() => scheduleClientInitialization(() => {
     const params = new URLSearchParams(window.location.search);
     const tokenValue = params.get("token") ?? "";
     const batchValue = params.get("batch") ?? "";
@@ -458,7 +459,7 @@ export default function VisaIntakePage() {
       })
       .catch((reason) => setError(reason instanceof Error ? reason.message : "Không thể mở form."))
       .finally(() => setLoading(false));
-  }, []);
+  }), []);
   useEffect(() => {
     if (!accessKey) return;
     try { window.localStorage.setItem(`visa-intake:draft:${accessKey}`, JSON.stringify({ applicant, receipt, mvdManuallyCleared: [...mvdManuallyClearedRef.current] })); } catch {}
@@ -490,9 +491,12 @@ export default function VisaIntakePage() {
 
   useEffect(() => {
     if ((!token && !batch) || !receipt?.id) return;
-    void refreshSubmissionStatus(false);
+    const cancelInitialization = scheduleClientInitialization(() => { void refreshSubmissionStatus(false); });
     const timer = window.setInterval(() => void refreshSubmissionStatus(false), 15000);
-    return () => window.clearInterval(timer);
+    return () => {
+      cancelInitialization();
+      window.clearInterval(timer);
+    };
   }, [token, batch, deviceId, receipt?.id]);
 
   const baseFields = useMemo(() => {

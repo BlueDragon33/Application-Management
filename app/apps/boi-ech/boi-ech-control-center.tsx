@@ -1210,6 +1210,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
           <button className={tab === "ai" ? "active" : ""} onClick={() => setTab("ai")}><i>03</i><span><strong>Điều hành AI</strong><small>AI của Bơi ếch</small></span></button>
           {["reviewer", "publisher", "owner"].includes(access.role) ? <button className={tab === "content" ? "active" : ""} onClick={() => setTab("content")}><i>04</i><span><strong>Duyệt chỉnh sửa</strong><small>Content review</small></span></button> : null}
         </nav>
+        {access.role === "owner" ? <Link className="control-back-link" href="/apps/boi-ech/cloudflare-preview">Cloudflare Preview · thời hạn kết nối</Link> : null}
         <div className="client-boundary-note"><strong>Ranh giới Bơi ếch</strong><span>Thiết bị học, tiến độ, AI, thanh toán và nội dung thuộc client này. Quyền QT và audit Trung tâm nằm ở Application Management.</span></div>
         <div className="signed-user"><span>{user.displayName.slice(0, 1).toUpperCase()}</span><div><strong>{user.displayName}</strong><small>{roleLabels[access.role]}</small></div><a href="/signout-with-chatgpt?return_to=/">Đăng xuất</a></div>
       </aside>

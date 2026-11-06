@@ -851,6 +851,7 @@ function sensitiveProductionMutation(pathname: string, payload: Record<string, u
   }
 
   if (pathname === "/api/apps/boi-ech/access" && action === "manage-access") return true;
+  if (pathname === "/api/apps/boi-ech/cloudflare-preview" && action !== "status") return true;
 
   // Preserve a fail-closed path for future destructive operation names routed
   // through the central operations endpoint.

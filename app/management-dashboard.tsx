@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { scheduleClientInitialization } from "./client-initialization";
 import { applicationRegistry, type ApplicationConfig } from "./application-registry";
 import {
   centerAdminAction,
@@ -192,14 +193,17 @@ export default function ManagementDashboard({ user }: { user: { displayName: str
       const requested = new URLSearchParams(window.location.search).get("view");
       setView(requested && validViews.includes(requested as View) ? requested as View : "overview");
     };
-    const cached = readCachedOperations();
-    if (cached) setOperations(cached);
-    viewFromUrl();
-    setClock(new Date());
-    void initialize();
+    const cancelInitialization = scheduleClientInitialization(() => {
+      const cached = readCachedOperations();
+      if (cached) setOperations(cached);
+      viewFromUrl();
+      setClock(new Date());
+      void initialize();
+    });
     const timer = window.setInterval(() => setClock(new Date()), 1_000);
     window.addEventListener("popstate", viewFromUrl);
     return () => {
+      cancelInitialization();
       window.clearInterval(timer);
       window.removeEventListener("popstate", viewFromUrl);
     };

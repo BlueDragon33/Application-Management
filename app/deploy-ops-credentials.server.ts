@@ -63,7 +63,7 @@ export async function deployOpsCredentialEncryptionReady() {
   catch { return false; }
 }
 
-async function encryptCredential(value: string) {
+export async function encryptCredential(value: string) {
   const key = await credentialKey();
   if (!key) throw new Error("CREDENTIAL_ENCRYPTION_KEY_MISSING");
   const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -78,7 +78,7 @@ async function encryptCredential(value: string) {
   };
 }
 
-async function decryptCredential(row: CredentialRow) {
+export async function decryptCredential(row: Pick<CredentialRow, "credential_ciphertext" | "credential_iv">) {
   const key = await credentialKey();
   if (!key) return "";
   try {

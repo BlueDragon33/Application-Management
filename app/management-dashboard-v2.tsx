@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { scheduleClientInitialization } from "./client-initialization";
 import { applicationRegistry, standardDeviceExperiences, type ApplicationConfig } from "./application-registry";
 import BoiAccessView from "./boi-access-view";
 import CentralDeviceInventory, { type CentralDeviceOperation } from "./central-device-inventory";
@@ -474,21 +475,24 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
       const requested = new URLSearchParams(window.location.search).get("view");
       setView(requested && validViews.includes(requested as View) ? requested as View : "overview");
     };
-    resolveView();
-    setClock(new Date());
-    setLocalRuntime(["127.0.0.1", "localhost"].includes(window.location.hostname));
-    try {
-      const saved = window.localStorage.getItem(approvalGateStorageKey);
-      if (saved === "on") setApprovalGateEnabled(true);
-      if (saved === "off") setApprovalGateEnabled(false);
-    } catch {
-      // Standalone preference is device-local and optional.
-    }
+    const cancelInitialization = scheduleClientInitialization(() => {
+      resolveView();
+      setClock(new Date());
+      setLocalRuntime(["127.0.0.1", "localhost"].includes(window.location.hostname));
+      try {
+        const saved = window.localStorage.getItem(approvalGateStorageKey);
+        if (saved === "on") setApprovalGateEnabled(true);
+        if (saved === "off") setApprovalGateEnabled(false);
+      } catch {
+        // Standalone preference is device-local and optional.
+      }
+    });
     const timer = window.setInterval(() => setClock(new Date()), 1000);
     const onFocus = () => void refreshOperations(true);
     window.addEventListener("popstate", resolveView);
     window.addEventListener("focus", onFocus);
     return () => {
+      cancelInitialization();
       window.clearInterval(timer);
       window.removeEventListener("popstate", resolveView);
       window.removeEventListener("focus", onFocus);
@@ -497,7 +501,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   }, []);
 
   useEffect(() => {
-    void initialize();
+    return scheduleClientInitialization(() => { void initialize(); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [approvalGateEnabled]);
 
@@ -506,12 +510,14 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   }, [notice, syncError]);
 
   useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem(fontScaleStorageKey);
-      if (saved && fontScaleOptions.some((option) => option.id === saved)) setFontScale(saved as FontScale);
-    } catch {
-      // Appearance preference is device-local and optional.
-    }
+    return scheduleClientInitialization(() => {
+      try {
+        const saved = window.localStorage.getItem(fontScaleStorageKey);
+        if (saved && fontScaleOptions.some((option) => option.id === saved)) setFontScale(saved as FontScale);
+      } catch {
+        // Appearance preference is device-local and optional.
+      }
+    });
   }, []);
 
   function changeFontScale(next: FontScale) {
@@ -567,8 +573,8 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   }).length;
   const highAlerts = workItems.filter((item) => item.priority === "high").length;
   const offline = !operationsVerified;
-  const snapshotAge = operations?.generatedAt
-    ? (clock?.getTime() ?? Date.now()) - Date.parse(operations.generatedAt)
+  const snapshotAge = operations?.generatedAt && clock
+    ? clock.getTime() - Date.parse(operations.generatedAt)
     : Infinity;
   const automationSnapshotVerified = operationsVerified
     && Number.isFinite(snapshotAge) && snapshotAge >= 0 && snapshotAge <= 120_000;
@@ -1482,7 +1488,7 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
   const sortMenuRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  useEffect(() => scheduleClientInitialization(() => {
     try {
       const storedOrder = JSON.parse(window.localStorage.getItem(launcherOrderStorageKey) ?? "[]");
       if (Array.isArray(storedOrder) && storedOrder.every((value) => typeof value === "string")) setManualOrder(storedOrder);
@@ -1507,7 +1513,7 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
     } catch {
       // Keep the in-memory default when local storage is unavailable.
     }
-  }, []);
+  }), []);
 
   const items = useMemo<AppLauncherItem[]>(() => {
     const toolItems = tools.map((tool) => {
@@ -1847,7 +1853,9 @@ function ApplicationsView({ apps, tools, summaryMap, devices, webBusy, launchWeb
   }, []);
 
   useEffect(() => {
-    if (selectedId && !visibleItems.some((item) => item.id === selectedId)) closePopover();
+    if (selectedId && !visibleItems.some((item) => item.id === selectedId)) {
+      return scheduleClientInitialization(closePopover);
+    }
   }, [selectedId, visibleItems]);
 
   useEffect(() => {

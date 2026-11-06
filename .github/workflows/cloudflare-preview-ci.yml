@@ -25,3 +25,4 @@ jobs:
           CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH: wrangler.cloudflare.jsonc
         run: npm run build
       - run: npm run cloudflare:artifact:check
+      - run: npx wrangler deploy --dry-run --outdir .wrangler/preview-dry-run

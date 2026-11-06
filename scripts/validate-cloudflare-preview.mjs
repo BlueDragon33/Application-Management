@@ -57,7 +57,7 @@ for (const marker of ["CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH", "configPath: cloud
   if (!vite.includes(marker)) throw new Error(`Vite migration boundary thiếu: ${marker}`);
 }
 for (const marker of ['url.pathname === "/__deployment"', "databaseReady", "previewAccessConfigured", 'isPreview ? "application-preview-secret"']) {
-  if (!worker.includes(marker)) throw new Error(`Worker thiếu preview deployment boundary: ${marker}`);
+  if (!worker.replace(/\s+/g, " ").includes(marker)) throw new Error(`Worker thiếu preview deployment boundary: ${marker}`);
 }
 
 for (const marker of ["Authorization: Bearer <preview-secret>", "HMAC-SHA-256", "HttpOnly", "SameSite=Strict", "secretNeverInUrl", "oai-authenticated-user-email"]) {

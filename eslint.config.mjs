@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Third-party minified QRCode.js; keep first-party source under the normal rules.
+    "public/vendor/qrcode.min.js",
   ]),
 ]);
 
