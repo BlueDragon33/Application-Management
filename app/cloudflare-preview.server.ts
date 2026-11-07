@@ -40,7 +40,7 @@ async function provider(path: string, key: string, method = "GET", body?: unknow
   try {
     response = await fetch(`${ORIGIN}${path}`, {
       method, headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
-      ...(body ? { body: JSON.stringify(body) } : {}), cache: "no-store", redirect: "error", signal: AbortSignal.timeout(10000),
+      ...(body ? { body: JSON.stringify(body) } : {}), cache: "no-store", redirect: "manual", signal: AbortSignal.timeout(10000),
     });
   } catch { fail("CLOUDFLARE_UNAVAILABLE", "Không kết nối được Cloudflare. Hãy đọc lại trạng thái trước khi thử lại.", 502); }
   if (!response.ok) throw new PreviewConnectionError("CLOUDFLARE_ACCESS_BLOCKED", "Cloudflare chưa cho phép thao tác này. Kiểm tra quyền và thời hạn token.", 502, false, response.status);

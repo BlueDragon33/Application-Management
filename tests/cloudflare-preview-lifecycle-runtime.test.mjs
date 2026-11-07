@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
+import { Miniflare } from 'miniflare';
 import { loadTs } from './helpers/load-ts.mjs';
 
 const account='f88a42260814230aa4a151abbfe5659d';
@@ -10,16 +11,25 @@ const permission='7e79ec33834341f28dd431ab73884400';
 const lifecyclePermission='5bc3f8b21c554832afc660159ab75fa4';
 const deploy='deployment-fixture-secret';
 const lifecycle='lifecycle-fixture-secret';
-function fixture(){
+function fixture(validateRequest=async()=>{}){
  const db=new DatabaseSync(':memory:');
  db.exec(fs.readFileSync('drizzle/0007_deploy_ops_credentials.sql','utf8'));
  db.exec('CREATE TABLE control_audit_log(actor TEXT,action TEXT,target TEXT,detail_json TEXT)');
  const database={prepare(sql){return{bind(...args){return{first:async()=>db.prepare(sql).get(...args)??null,run:async()=>db.prepare(sql).run(...args)};}};}};
  const meta={id:'a'.repeat(32),name:'boiech-preview-work-fixture',status:'active',expires_on:new Date(Date.now()+30*86400000).toISOString(),not_before:null,condition:{},policies:[{effect:'allow',permission_groups:[{id:permission}],resources:{[`com.cloudflare.api.account.${account}`]:{[`com.cloudflare.edge.worker.script.${worker}`]:'*'}}}]};
- const calls=[];let removed=false;let ignoreWrite=false;let absentReadback=false;let writeFailure='';
+ const calls=[];let removed=false;let ignoreWrite=false;let absentReadback=false;let writeFailure='';let redirectResponse=false;
  const adminPolicy={effect:'allow',permission_groups:[{id:lifecyclePermission,name:'Account API Tokens Write'}],resources:{[`com.cloudflare.api.account.${account}`]:'*'}};
  const api=loadTs('app/cloudflare-preview.server.ts',{'./control-device.server':{getControlDatabase:async()=>database}},{process:{env:{MANAGED_APP_CREDENTIAL_ENCRYPTION_KEY:'A'.repeat(43)}},fetch:async(url,init)=>{
   calls.push({url,method:init.method??'GET',body:init.body&&JSON.parse(init.body)});
+  await validateRequest(init);
+  if(redirectResponse){
+   if(init.redirect==='error')throw new TypeError('Redirect rejected by Fetch');
+   if(init.redirect!=='manual'){
+    calls.push({url:'https://unrelated.example/never-follow',method:'GET'});
+    return Response.json({success:true,result:{}});
+   }
+   return new Response(null,{status:302,headers:{location:'https://unrelated.example/never-follow'}});
+  }
   const key=init.headers.authorization.replace('Bearer ','');
   assert.ok(url.startsWith(`https://api.cloudflare.com/client/v4/accounts/${account}/`));
   if(url.endsWith('/tokens/verify'))return Response.json({success:true,result:{id:key===deploy?meta.id:'b'.repeat(32),status:removed&&key===deploy?'expired':'active',expires_on:meta.expires_on}});
@@ -37,7 +47,7 @@ function fixture(){
   return Response.json({success:true,result:structuredClone(meta)});
  }});
  const action=(payload,role='owner')=>api.cloudflarePreviewAction(payload,{role,email:'owner@example.test'});
- return {db,meta,adminPolicy,calls,action,async connect(){await action({action:'connect-lifecycle',credential:lifecycle});return action({action:'connect',credential:deploy});},ignore(){ignoreWrite=true;},failWrite(kind){writeFailure=kind;},badAbsence(){absentReadback=true;},rows:()=>db.prepare('SELECT * FROM deploy_ops_credentials').all(),audit:()=>db.prepare('SELECT * FROM control_audit_log').all()};
+ return {db,meta,adminPolicy,calls,action,async connect(){await action({action:'connect-lifecycle',credential:lifecycle});return action({action:'connect',credential:deploy});},ignore(){ignoreWrite=true;},failWrite(kind){writeFailure=kind;},redirect(){redirectResponse=true;},badAbsence(){absentReadback=true;},rows:()=>db.prepare('SELECT * FROM deploy_ops_credentials').all(),audit:()=>db.prepare('SELECT * FROM control_audit_log').all()};
 }
 test('new connection uses real vault encryption and exposes only safe provider metadata',async()=>{
  const f=fixture();try{await assert.rejects(f.action({action:'connect',credential:deploy}),{code:'LIFECYCLE_AUTHORITY_REQUIRED'});assert.equal(f.rows().length,0);const live=await f.connect();assert.equal(live.lifecycle.ready,true);assert.equal(live.deployment.scopeVerified,true);assert.ok(f.rows().every(r=>!JSON.stringify(r).includes(deploy)));assert.doesNotMatch(JSON.stringify([live,f.audit()]),new RegExp(`${deploy}|${lifecycle}`));}finally{f.db.close();}
@@ -83,4 +93,21 @@ test('account-wide deployment credentials are never staged in the vault',async()
 });
 test('provider metadata may omit the optional permission name while the exact Write ID remains authoritative',async()=>{
  const f=fixture();try{delete f.adminPolicy.permission_groups[0].name;assert.equal((await f.action({action:'connect-lifecycle',credential:lifecycle})).lifecycle.configured,true);}finally{f.db.close();}
+});
+
+test('production provider options construct a real workerd Request before connection; no external fetch or target-date acceptance',async()=>{
+ // Runtime capability probe only. The pinned binary supports this older test date;
+ // application target compatibility dates are unchanged and remain separately gated.
+ const mf=new Miniflare({modules:true,compatibilityDate:'2026-05-15',script:`export default {async fetch(request){try{const options=await request.json();new Request('https://api.cloudflare.com/client/v4/accounts/synthetic/tokens/verify',options);return Response.json({constructed:true});}catch(e){return Response.json({constructed:false,name:e.name},{status:400});}}}`});
+ const f=fixture(async init=>{
+  const response=await mf.dispatchFetch('https://runtime-probe.invalid',{method:'POST',body:JSON.stringify({redirect:init.redirect,cache:init.cache,method:init.method})});
+  if(!response.ok)throw new TypeError('Worker rejected production Request options');
+ });
+ try{const result=await f.connect();assert.equal(result.deployment.scopeVerified,true);assert.equal(result.lifecycle.ready,true);}
+ finally{f.db.close();await mf.dispose();}
+});
+test('provider redirects are exposed for rejection and never follow a credential to another origin',async()=>{
+ const f=fixture();try{f.redirect();await assert.rejects(f.action({action:'connect-lifecycle',credential:lifecycle}),{code:'CLOUDFLARE_ACCESS_BLOCKED',providerStatus:302});
+  assert.equal(f.rows().length,0);assert.equal(f.calls.length,1);
+ }finally{f.db.close();}
 });
