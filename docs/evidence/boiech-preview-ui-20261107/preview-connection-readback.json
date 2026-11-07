@@ -1,0 +1,8 @@
+{
+  "token_verification_http": 200,
+  "status": "active",
+  "expires_on": "2026-12-07T20:59:59Z",
+  "preview_settings_http": 200,
+  "production_settings_http": 403,
+  "credential_value_in_report": false
+}

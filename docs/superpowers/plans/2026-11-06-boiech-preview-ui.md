@@ -38,7 +38,7 @@ Interfaces: UI consumes safe `cloudflarePreviewAction` responses through signed 
 - [x] Run red, implement existing product style and make tests green; no redesign.
 - [x] Run guarded Node 22.16 full npm test, lint and artifact validation. Browser acceptance of the deployed candidate is still BLOCKED; DOM fixtures are not signed HTTPS acceptance.
 - [x] Obtain independent review and fix both Important findings with red/green regressions.
-- [ ] Synchronize candidate on the separate feature branch with a fresh remote lease, without creating a PR that triggers hosted Actions. Record actual credential/infrastructure/release blockers and exact SHA.
+- [x] Prepare and synchronize the candidate on the separate feature branch, preserving the verified code tree and avoiding any PR/hosted Actions. Current evidence and credential/infrastructure/release blockers are in `docs/evidence/boiech-preview-ui-20261107/README.md`.
 
 ### Publish-gate follow-up requested by Owner
 

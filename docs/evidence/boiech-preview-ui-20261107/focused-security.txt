@@ -1,0 +1,138 @@
+TAP version 13
+# Subtest: new token mutations require existing MFA step-up while status remains readable
+ok 1 - new token mutations require existing MFA step-up while status remains readable
+  ---
+  duration_ms: 202.78587
+  type: 'test'
+  ...
+# Subtest: API verifies the signed identity without any localhost signature bypass
+ok 2 - API verifies the signed identity without any localhost signature bypass
+  ---
+  duration_ms: 13.147323
+  type: 'test'
+  ...
+# (node:12) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: new connection uses real vault encryption and exposes only safe provider metadata
+ok 3 - new connection uses real vault encryption and exposes only safe provider metadata
+  ---
+  duration_ms: 203.958538
+  type: 'test'
+  ...
+# Subtest: non-Owner cannot read credentials, connect, extend or revoke
+ok 4 - non-Owner cannot read credentials, connect, extend or revoke
+  ---
+  duration_ms: 64.71044
+  type: 'test'
+  ...
+# Subtest: expiry and revoke remain BLOCKED without lifecycle authority
+ok 5 - expiry and revoke remain BLOCKED without lifecycle authority
+  ---
+  duration_ms: 56.048989
+  type: 'test'
+  ...
+# Subtest: scope widening or another Worker is rejected before lifecycle writes
+ok 6 - scope widening or another Worker is rejected before lifecycle writes
+  ---
+  duration_ms: 67.350122
+  type: 'test'
+  ...
+# Subtest: expiry update preserves exact policies/name/conditions and verifies independent readback
+ok 7 - expiry update preserves exact policies/name/conditions and verifies independent readback
+  ---
+  duration_ms: 49.7888
+  type: 'test'
+  ...
+# Subtest: stale expiry, invalid date and provider readback mismatch never report success
+ok 8 - stale expiry, invalid date and provider readback mismatch never report success
+  ---
+  duration_ms: 43.537395
+  type: 'test'
+  ...
+# Subtest: revocation requires typed exact name and verified provider absence before clearing vault
+ok 9 - revocation requires typed exact name and verified provider absence before clearing vault
+  ---
+  duration_ms: 45.959797
+  type: 'test'
+  ...
+# Subtest: revocation without absence readback retains vault and reports applied/unverified
+ok 10 - revocation without absence readback retains vault and reports applied/unverified
+  ---
+  duration_ms: 37.007924
+  type: 'test'
+  ...
+# Subtest: expired connection remains replaceable in the Owner UI while lifecycle is BLOCKED
+ok 11 - expired connection remains replaceable in the Owner UI while lifecycle is BLOCKED
+  ---
+  duration_ms: 51.24723
+  type: 'test'
+  ...
+# Subtest: read-only or account-wide lifecycle token cannot make expiry controls ready
+ok 12 - read-only or account-wide lifecycle token cannot make expiry controls ready
+  ---
+  duration_ms: 27.925605
+  type: 'test'
+  ...
+# Subtest: lost or malformed PUT and DELETE responses are reconciled using independent provider state
+ok 13 - lost or malformed PUT and DELETE responses are reconciled using independent provider state
+  ---
+  duration_ms: 170.785826
+  type: 'test'
+  ...
+# Subtest: unresolved transport failure is reported as unknown application, never false
+ok 14 - unresolved transport failure is reported as unknown application, never false
+  ---
+  duration_ms: 49.467489
+  type: 'test'
+  ...
+# Subtest: corrupted encrypted vault returns safe recovery metadata and can be disconnected
+ok 15 - corrupted encrypted vault returns safe recovery metadata and can be disconnected
+  ---
+  duration_ms: 34.703661
+  type: 'test'
+  ...
+# Subtest: account-wide deployment credentials are never staged in the vault
+ok 16 - account-wide deployment credentials are never staged in the vault
+  ---
+  duration_ms: 49.085712
+  type: 'test'
+  ...
+# Subtest: provider metadata may omit the optional permission name while the exact Write ID remains authoritative
+ok 17 - provider metadata may omit the optional permission name while the exact Write ID remains authoritative
+  ---
+  duration_ms: 25.914845
+  type: 'test'
+  ...
+# Subtest: UI defaults to 30 days and disables lifecycle mutations when authority is BLOCKED
+ok 18 - UI defaults to 30 days and disables lifecycle mutations when authority is BLOCKED
+  ---
+  duration_ms: 362.227843
+  type: 'test'
+  ...
+# Subtest: password submission is serialized and clears the draft only after saved readback
+ok 19 - password submission is serialized and clears the draft only after saved readback
+  ---
+  duration_ms: 114.347638
+  type: 'test'
+  ...
+# Subtest: failed mutation keeps draft and never announces a verified success
+ok 20 - failed mutation keeps draft and never announces a verified success
+  ---
+  duration_ms: 77.629862
+  type: 'test'
+  ...
+# Subtest: corrupt stored vault keeps the authenticated disconnect recovery control usable
+ok 21 - corrupt stored vault keeps the authenticated disconnect recovery control usable
+  ---
+  duration_ms: 62.864773
+  type: 'test'
+  ...
+1..21
+# tests 21
+# suites 0
+# pass 21
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1450.811164
