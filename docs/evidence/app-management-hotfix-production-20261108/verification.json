@@ -1,0 +1,49 @@
+{
+  "recordedAt": "2026-11-08T08:49:00.728818+00:00",
+  "scope": "Owner-approved PR378 provider/lifecycle hotfix only; excludes later auth policy and Account-first V2",
+  "ownerApproval": {
+    "channel": "Explicit user Chat attestation of completed Owner review and release approval",
+    "head": "d4e1b27cb7ff78d9de74292a29ad0fcbc997eb48",
+    "githubApprovalReviewFabricated": false
+  },
+  "merge": {
+    "pr": 378,
+    "sha": "4086fc69bf4ce04d492a6f0010b0e7e2a105fdb1",
+    "approvedTreePreserved": true,
+    "tree": "661de3031ed786d0520634809eb9bdd8e7096c68",
+    "hostedActionsRunsAtMerge": 0
+  },
+  "production": {
+    "worker": "application-management",
+    "url": "https://application-management.boiech-ai.workers.dev",
+    "codeVersion": "54bd947c",
+    "codeDeployedAt": "2026-11-08T07:26:06Z",
+    "activeAfterRevisionMetadata": "b2e8ebbc",
+    "status": "Ready",
+    "revisionVariable": "d4e1b27cb7ff78d9de74292a29ad0fcbc997eb48",
+    "activeCodeReadbackAt": "2026-11-08T07:38:15.952Z",
+    "activeIndexSha256Lf": "46d56833e71a130d9733d399bb91ba8c21a2331d76dc9b569e05c6fcb9becb48",
+    "approvedArtifactMatch": true,
+    "screenshot": "cloudflare-production-deployed.jpg",
+    "authenticatedDeploymentJson": "BLOCKED_OWNER_GOOGLE_LOGIN",
+    "vaultReplacementSaved": false,
+    "signedBusinessSmoke": "BLOCKED_OWNER_GOOGLE_LOGIN"
+  },
+  "rollbackBaseline": {
+    "version": "268c3b94",
+    "source": "b2e36758d8dab5c953e71b3aa1f36490b55d770f",
+    "indexSha256Lf": "aaeacd9f1b88351ed4a4a5c7e37365d0cb4ddc42231cc56c8f76efb07510c085",
+    "productionRollbackExecuted": false
+  },
+  "controls": {
+    "existingUrlAndDataPreserved": true,
+    "existingAssetsBindingsAndSecretsPreserved": true,
+    "schemaOrRoleChange": false,
+    "freePlanRetained": true,
+    "hostedWorkflowDispatched": false,
+    "newSiteOrWorkerCreated": false,
+    "vercelUsed": false
+  },
+  "followupAuthPolicyDeployed": false,
+  "fullIssue108Accepted": false
+}

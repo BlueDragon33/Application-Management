@@ -1,0 +1,57 @@
+{
+  "baseline": "4086fc69bf4ce04d492a6f0010b0e7e2a105fdb1",
+  "sourceCommit": "Containing commit; see PR head (avoids self-referential commit hash)",
+  "files": {
+    "worker/production-auth.ts": {
+      "gitBlob": "25721dcff010f3fe1730d518fb4e73f61192d506",
+      "sha256": "26f0e3bf867b31fb71346dffef40322482eb7cb80988cef268b18f308be3a48e"
+    },
+    "worker/index.ts": {
+      "gitBlob": "f75dcbd78b0674fb2443c93485f9b88d509ff0df",
+      "sha256": "04257a7e1347eab36ec35af9ce58231792aff3d37b1c2c98509a356fba41ef64"
+    },
+    "tests/helpers/production-auth-fixture.mjs": {
+      "gitBlob": "942d91c20488a9be78d9df67a01312fb0e9ee094",
+      "sha256": "ded579098bac23999838c16b7b94757a915a18b8200bc055d702faa69f757d65"
+    },
+    "tests/google-session-persistence-runtime.test.mjs": {
+      "gitBlob": "f6ab80f532bca3b3e7dcda1e131c817e12bdf349",
+      "sha256": "3aa423312fb1fcf0e4abb1c67abe6c393afd78e3095c69ad90f1bee5571d6728"
+    },
+    "tests/mfa-thirty-minute-runtime.test.mjs": {
+      "gitBlob": "1cd5212d1eaea198506d8e15b62fb70c2b96df58",
+      "sha256": "cef05b79d92ae821b9f70d4b22f1efacff8c7e62394a8eb6f6ad1909387a80ce"
+    },
+    "tests/production-cache-repair.test.mjs": {
+      "gitBlob": "d11ad52cfffc7a940ab7545611d5eceb5c78ebe7",
+      "sha256": "8ba53c5096950f5b70687401e3a8c91b49641c999964441e2542c4045ef3be29"
+    },
+    "tests/totp-step-up-auth.test.mjs": {
+      "gitBlob": "4d3408193da5ff63192d62473d8df7d05bedb9b5",
+      "sha256": "eec15f1a986e805af9ef59947e5dd09efc15dddfd8a17b4568709b65a5d6a10a"
+    },
+    "scripts/prepare-google-session-artifact.mjs": {
+      "gitBlob": "b60bc4d5446c68f6b5bfe09027ba734ff4ec8022",
+      "sha256": "91077724e743255805367e292debec7dff1db54a7aeaa7eeb00f1e5ca6f7a5da"
+    }
+  },
+  "logs": {
+    "google-mfa30-full-final.log": {
+      "sha256": "03a611bb76bbc48e8b59536d971503e4f74278099df07856d0c41ef8026e6b2a",
+      "storedAs": "google-mfa30-full-final.log.gz",
+      "gzipSha256": "2de921e522ce57e6e86a0c3918ca9eff760a4e5716f41197e4dafb2e62f15382"
+    },
+    "google-mfa30-node-final.log": {
+      "sha256": "eabe884c6155106e768144a5af1f5e0997117dfad7507ca76fb72188880f66d3",
+      "storedAs": "google-mfa30-node-final.log.gz",
+      "gzipSha256": "bde47ffa5da1f9348d8773c4e02d449ac3356d5d27b318f7dd0c7258b65a7709"
+    },
+    "google-mfa30-lint-release.log": {
+      "sha256": "784bf9a0b13a3806fb7aac68f61768b31d8d7578bbb438aa7f27622d022d3bce",
+      "storedAs": "google-mfa30-lint-release.log.gz",
+      "gzipSha256": "5974964838449382830934c62b96376a8af290d3279a7e6d60e8428c9a5961d0"
+    }
+  },
+  "artifactReport": "prepared-artifact.json",
+  "fullCompiledIndexCommitted": false
+}

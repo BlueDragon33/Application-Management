@@ -1,5 +1,7 @@
 # Cloudflare Preview connection/expiry hotfix — 08/11/2026
 
+> Historical pre-release acceptance snapshot. PR378 is now deployed under the exact approved artifact; current state is in [APP_MANAGEMENT_PRODUCTION_HOTFIX_RELEASE_20261108.md](APP_MANAGEMENT_PRODUCTION_HOTFIX_RELEASE_20261108.md). Authenticated Production smoke/Vault cutover still waits for Owner sign-in. The later Google-session/MFA30 package is separate.
+
 Hai token thay thế đã được xác minh và lưu trong Vault mã hóa của **App-Management Preview hiện hữu**. Thao tác đổi ngày hết hạn thật và khôi phục ngày ban đầu đã thành công, có readback độc lập từ Cloudflare. **Production chưa được triển khai; Account-first V2 / Issue #108 chưa được nghiệm thu.** Báo cáo này thay thế các trạng thái cũ “Preview chưa đăng nhập / Vault chưa lưu”.
 
 | Mốc | Giá trị / kết quả |

@@ -136,5 +136,7 @@
     "pr107Integrated": false,
     "trainingCertificationStarted": false
   },
-  "evidenceCaveat": "Recorded UI readbacks and screenshots establish the narrow live Preview observations. They do not establish full Issue108 acceptance, real DELETE, physical 3-device/load/migration gates or Production authority."
+  "evidenceCaveat": "Recorded UI readbacks and screenshots establish the narrow live Preview observations. They do not establish full Issue108 acceptance, real DELETE, physical 3-device/load/migration gates or Production authority.",
+  "recordState": "HISTORICAL_PRE_RELEASE_SNAPSHOT",
+  "supersededProductionStatus": "../app-management-hotfix-production-20261108/verification.json"
 }

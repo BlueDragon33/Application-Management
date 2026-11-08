@@ -1,0 +1,22 @@
+{
+  "baseRevision": "d4e1b27cb7ff78d9de74292a29ad0fcbc997eb48",
+  "baseVersion": "b2e8ebbc",
+  "baselineSha256Lf": "46d56833e71a130d9733d399bb91ba8c21a2331d76dc9b569e05c6fcb9becb48",
+  "candidateSha256Lf": "d665b4a23dd0dae4b1f1e44c08a90d30f084bbcdd64f15770a13421bf1d9b506",
+  "changedRegions": [
+    "worker/production-auth.ts",
+    "worker/index.ts"
+  ],
+  "outsideRegionsUnchanged": true,
+  "compilerGeneratedValuesPreserved": true,
+  "uuidOccurrences": {
+    "candidate": 4,
+    "built": 4
+  },
+  "matchesFreshBuildAfterCompilerUuidNormalization": false,
+  "canonicalSha256": "57ebebbbe63b79af335e18b84ca8694bb27c2c4cc4bad4c764b9be1c088630ce",
+  "encoding": "UTF-8; CRLF normalized to LF; no added terminator",
+  "productionDeployed": false,
+  "state": "REJECTED_NEVER_DEPLOYED",
+  "rejectionReason": "Wrong region selection omitted the compiled virtual Worker fetch body; fresh-build equivalence failed. Superseded by prepared-artifact.json."
+}
