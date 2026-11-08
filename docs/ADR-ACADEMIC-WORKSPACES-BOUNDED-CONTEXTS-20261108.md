@@ -16,6 +16,16 @@ Use two bounded academic contexts on the **existing** Application-Management ori
 
 The planned academic core is **deferred**. Reassess after real user workflows, fully restored backups, data-model compatibility evidence and explicit cross-app reuse requirements. Premature abstraction would couple independent academic policies.
 
+## Independent coursework app: target architecture and present limitation
+
+The original product request explicitly calls Coursework an **app riêng biệt**, whereas this PR currently provides an isolated route and domain *inside* the management deployment. This does NOT satisfy independent code ownership, build artifacts, deploy lifecycle, or runtime isolation. It is an extraction-ready **P0 prototype**, not the final independent app.
+
+**Target after prototype acceptance:** a dedicated Coursework repository/application owning its UI, academic records, build, tests, PWA/offline policy and release lifecycle. Application-Management should retain **only launcher metadata + an opt-in, documented management contract**, never its coursework source, user records, or scientific approval authority. Do not register a fake live client/device/SSO handshake.
+
+**Migration gate:** source repository creation and security architecture must be explicitly reviewed; establish a stable public/preview origin without new paid dependencies; export v1 backup from the prototype and restore it in independent runtime; verify ownership, auth/standalone mode, offline cold-start, storage, link/redirect and rollback **on real devices**. Only after that may the Coursework item move from a system-tool/prototype launcher entry into the independent application registry. No release without approval.
+
+**No shared academic core yet:** thesis remains an internal Application-Management tool; Coursework becomes an independent client when the above criteria are met. The future core must not depend on forcing Coursework back into the control-plane deployment.
+
 ## Required conceptual structure (P0)
 
 ```text
