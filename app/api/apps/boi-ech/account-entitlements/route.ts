@@ -31,7 +31,8 @@ export async function POST(request: Request) {
     if(!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) return json({error:"Content type không hợp lệ."},415);
     const raw=await request.text();
     if(raw.length>4096) return json({error:"Yêu cầu quá lớn."},413);
-    const input=record(JSON.parse(raw));
+    let input:Record<string,unknown>;
+    try {input=record(JSON.parse(raw));} catch {return json({error:"JSON không hợp lệ."},400);}
     const action=input.action;
     if(typeof action!=="string"||!allowed.has(action)) return json({error:"Lệnh quản lý tài khoản không hợp lệ."},400);
     const proofDeviceId=typeof input.controlDeviceId==="string"?input.controlDeviceId:undefined;
