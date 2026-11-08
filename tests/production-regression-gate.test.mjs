@@ -39,14 +39,16 @@ test("preview deploy runs full regression and validates build before remote migr
 
   const regression = workflow.indexOf("- name: Preview regression gate");
   const build = workflow.indexOf("- name: Build preview");
-  const migration = workflow.indexOf("- name: Apply preview migrations");
+  const artifact = workflow.indexOf("- name: Verify generated Preview artifact before remote D1 mutation");
+  const migration = workflow.indexOf("- name: Apply isolated Preview migrations");
   const deploy = workflow.indexOf("- name: Deploy preview artifact");
 
   assert.ok(regression >= 0);
   assert.match(workflow.slice(regression, build), /run: npm test/);
   assert.ok(regression < build);
-  assert.ok(build < migration, "preview build must complete before remote migration");
-  assert.ok(migration < deploy);
+  assert.ok(build < artifact, "preview artifact must be verified after building");
+  assert.ok(artifact < migration, "preview artifact must pass before remote D1 mutation");
+  assert.ok(migration < deploy, "remote migration must occur before Preview publication");
 });
 
 test("manual production deploy does not hide tests and builds before remote migration", () => {
