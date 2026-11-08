@@ -19,3 +19,13 @@ Date: 2026-11-08. **SOURCE-ONLY, NOT TEST-ACCEPTED, NOT DEPLOYED.**
 - Authenticated Cloudflare production, real devices, D1 migration, FREE CPU profile, legacy backup, independent review and exact-SHA Owner release gates remain pending.
 
 **Next action:** source QA on exact branch head; then browser/isolated Preview with credentialed session. No hosted Actions, merge or Production mutations without required gates.
+
+## UPDATE 2026-11-08 — Draft PR #381 and UI fixes
+
+- Open draft PR #381 targets `feat/boiech-preview-ui-lifecycle-20261106`, not main.
+- Fixed account expiration date-time picker to round-trip Moscow wall clock (+03:00), without accidentally interpreting local device timezone.
+- Owner UI now separately displays account expiration, historical device-access expiration and payment state; explicitly warns that account renewal does not rewrite a separate device/payment policy.
+- Integrated PR #377 focused manager target identity and 16k bounded overview query fixes, copied regression tests. PR #377 itself remains separate.
+- MFA step-up on sensitive Owner duration mutations is 30 min in proposed source; still requires authenticated session in live Worker.
+- No full Node22 npm tests/tsc/lint/build, Preview deployment, release or Production mutation was performed. TinyFish paid browser automation is unavailable; no payment was made and no attempt to buy service should be requested. Public repositories may use standard GitHub Actions free runners via an authorized no-deploy dispatch; the app connector lacks dispatch capability in this chat.
+- Verify active PR #381 head for latest SHA; checkpoint old SHA is superseded.
