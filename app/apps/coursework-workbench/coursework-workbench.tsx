@@ -6,7 +6,6 @@ import styles from "./coursework-workbench.module.css";
 import { createCourseworkBackup, parseCourseworkBackup, validateCourseworkProjects, type Coursework } from "./coursework-domain.mjs";
 
 type StageStatus = "todo" | "doing" | "evidence";
-type Stage = { status: StageStatus; evidence: string };
 const workTypes = [
   { value: "coursework", label: "Курсовая работа · Bài tập lớn" },
   { value: "course-project", label: "Курсовой проект · Đồ án môn học" },
