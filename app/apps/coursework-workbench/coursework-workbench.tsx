@@ -58,8 +58,18 @@ export default function CourseworkWorkbench({ user }: { user: { email: string; d
   useEffect(() => {
     if (loadedKey !== storageKey || storageBlocked) return;
     try { window.localStorage.setItem(storageKey, JSON.stringify(projects)); }
-    catch { setNotice("Không thể lưu trên thiết bị, hãy xuất JSON."); }
+    catch { setStorageBlocked(true); setNotice("Không thể lưu trên thiết bị, hãy xuất JSON."); }
   }, [projects, loadedKey, storageBlocked, storageKey]);
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.storageArea === window.localStorage && (event.key === storageKey || event.key === null)) {
+        setStorageBlocked(true);
+        setNotice("Danh sách bài tập đã thay đổi ở tab khác. Đã khóa ghi để tránh xung đột. Hãy xuất JSON trước khi tải lại.");
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [storageKey]);
   const selected = useMemo(() => projects.find((p) => p.id === selectedId) ?? projects[0] ?? null, [projects, selectedId]);
   const next = selected ? steps.find((s) => selected.stages[s.id]?.status !== "evidence") : null;
   const completed = selected ? steps.filter((s) => selected.stages[s.id]?.status === "evidence").length : 0;
@@ -122,7 +132,7 @@ export default function CourseworkWorkbench({ user }: { user: { email: string; d
           <label><span className={styles.label}>Hạn nộp</span><input className={styles.field} type="date" value={draft.dueDate} onChange={(e) => setDraft((old) => ({...old,dueDate:e.target.value}))}/></label>
           <button className={styles.button} type="submit">+ Tạo bài tập</button>
         </form></section>
-        <section className={styles.panel}><h2>Sao lưu riêng biệt</h2><p className={styles.note}>Dữ liệu lưu theo tài khoản trên trình duyệt này. Xuất JSON để chuyển máy; nhập JSON thay thế danh sách hiện tại.</p><div className={styles.actions}><button className={styles.button} type="button" onClick={() => exportJson(projects)}>Xuất JSON</button><label className={styles.button + " " + styles.secondary}>Nhập JSON<input hidden type="file" accept=".json,application/json" onChange={importFile}/></label></div></section>
+        <section className={styles.panel}><h2>Sao lưu riêng biệt</h2><p className={styles.note}>Dữ liệu cục bộ không mã hóa và không đồng bộ giữa thiết bị. Không lưu bí mật trong ghi chú. Xuất JSON để chuyển máy; nhập JSON thay thế danh sách hiện tại.</p><div className={styles.actions}><button className={styles.button} type="button" onClick={() => exportJson(projects)}>Xuất JSON</button><label className={styles.button + " " + styles.secondary}>Nhập JSON<input hidden type="file" accept=".json,application/json" onChange={importFile}/></label></div></section>
       </aside>
       <div>
         {!selected ? <section className={styles.panel}><div className={styles.empty}>Chọn hoặc tạo bài tập để mở workspace riêng của môn học.</div></section> : <>
@@ -144,7 +154,7 @@ export default function CourseworkWorkbench({ user }: { user: { email: string; d
             </article>; })}
           </section>
         </>}
-        <section className={styles.panel}><p className={styles.alert}>Đây là công cụ theo dõi công việc. “Có minh chứng” do bạn tự ghi, không chứng minh rằng bài đã đúng, đủ nguồn hoặc được giảng viên chấm đạt. Đối chiếu mẫu từng môn và quy tắc AI trực tiếp với giảng viên.</p>{notice ? <p className={styles.note} role="status">{notice}</p> : null}<p className={styles.note}>Trạng thái lưu: {storageBlocked ? "Dữ liệu cũ bị khóa ghi để tránh mất mát" : "Lưu cục bộ trên thiết bị"} · Không upload file · Không tạo tài khoản/billing/hạ tầng mới.</p></section>
+        <section className={styles.panel}><p className={styles.alert}>Đây là công cụ theo dõi công việc. “Có minh chứng” do bạn tự ghi, không chứng minh rằng bài đã đúng, đủ nguồn hoặc được giảng viên chấm đạt. Đối chiếu mẫu từng môn và quy tắc AI trực tiếp với giảng viên.</p>{notice ? <p className={styles.note} role="status">{notice}</p> : null}<p className={styles.note}>Trạng thái lưu: {storageBlocked ? "Đã khóa ghi — hãy sao lưu JSON" : "Lưu cục bộ trên thiết bị"} · Không upload file · Không tạo tài khoản/billing/hạ tầng mới.</p></section>
       </div>
     </div>
   </main>;
