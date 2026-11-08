@@ -59,7 +59,8 @@ test("coursework blocks duplicate IDs, invalid semester deadline, unsupported as
   assert.equal(validateCourseworkProjects([{...p,stages:{brief:{status:"evidence",evidence:""}}}]),null);
   assert.equal(validateCourseworkProjects([{...p,stages:{unexpected:{status:"doing",evidence:""}}}]),null);
   assert.equal(validateCourseworkProjects([{...p,id:"not a valid id"}]), null);
-  assert.equal(validateCourseworkProjects([{...p,title:"   "}]), null);
+  assert.equal(validateCourseworkProjects([{...p,title:"X".repeat(301)}]), null);
+  assert.ok(validateCourseworkProjects([{...p,title:"",subject:""}])); // In-progress edit does not corrupt storage.
   assert.equal(validateCourseworkProjects(Array.from({length:101},(_,i)=>project(String(i)))), null);
 });
 
