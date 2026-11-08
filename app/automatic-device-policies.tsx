@@ -153,6 +153,27 @@ export default function AutomaticDevicePolicies({ apps, settings, verified, busy
     setLimit(latestBoi.current.freeDeviceLimit ?? settings?.freeDeviceLimitByApp?.["boi-ech"] ?? 0);
   }, [apps, settings]);
 
+  // Fail-closed readback: a rejected write must restore the independently
+  // verified policy, not leave an unsaved value resembling a successful Save.
+  // Keep drafts for pre-write MFA challenges (handled by a different notice).
+  const handledMismatchRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!notice?.includes("Chưa khớp readback:") || !settings) {
+      handledMismatchRef.current = null;
+      return;
+    }
+    if (handledMismatchRef.current === notice) return;
+    handledMismatchRef.current = notice;
+    void Promise.resolve().then(() => {
+      if (handledMismatchRef.current !== notice) return;
+      draftEditedRef.current = false;
+      setDrafts(initialDrafts(apps, settings));
+      const verifiedBoi = policyFor(settings, "boi-ech");
+      setDays(verifiedBoi.current.freeAccessDays ?? settings.freeAccessDaysByApp?.["boi-ech"] ?? 0);
+      setLimit(verifiedBoi.current.freeDeviceLimit ?? settings.freeDeviceLimitByApp?.["boi-ech"] ?? 0);
+    });
+  }, [apps, settings, notice]);
+
   useEffect(() => {
     openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     closeButtonRef.current?.focus();
