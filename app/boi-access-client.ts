@@ -162,6 +162,7 @@ export async function manageBoiAccess(device: BoiAccessDevice, operation: BoiAcc
 /** Account-level V2 entitlement, independent from free/paid access and per-device expiry. */
 export type BoiAccountDurationPolicy = { role:"manager"|"teacher"|"learner"; defaultDays:number;revision:number;updatedAt:string };
 export type BoiAccountDurationRecord = { accountId:string;name:string;role:string;deviceStatus:string;onboardingStage:string|null;
+  deviceAccessExpiresAt?:string|null;deviceAccessExpired?:boolean;paymentStatus?:string;
   entitlement:{state:"active"|"suspended";expiresAt:string;activatedAt:string;revision:number;active:boolean}|null };
 type BoiAccountDurationResponse = {ok:true;verified?:boolean;accounts?:BoiAccountDurationRecord[];
   policies?:BoiAccountDurationPolicy[];policy?:BoiAccountDurationPolicy;
