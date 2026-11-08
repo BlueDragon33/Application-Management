@@ -39,3 +39,18 @@ test("evidence state requires a nonempty user-entered evidence reference", () =>
   assert.match(thesis, /value === "evidence" && !current\.evidence\.trim\(\)/);
   assert.match(coursework, /value === "evidence" && !prior\.evidence\.trim\(\)/);
 });
+
+test("academic modules keep independent domain schemas and per-account hydration guards", () => {
+  const thesis = file("app/tools/thesis-planner/thesis-planner.tsx");
+  const coursework = file("app/apps/coursework-workbench/coursework-workbench.tsx");
+  for (const source of [thesis, coursework]) {
+    assert.match(source, /loadedKey !== storageKey/);
+    assert.match(source, /setStorageBlocked\(true\)/);
+    assert.match(source, /addEventListener\("storage", onStorage\)/);
+    assert.match(source, /if \(loadedKey !== storageKey\) return/);
+  }
+  assert.match(thesis, /thesis-domain\.mjs/);
+  assert.match(coursework, /coursework-domain\.mjs/);
+  assert.doesNotMatch(thesis, /coursework-domain\.mjs/);
+  assert.doesNotMatch(coursework, /thesis-domain\.mjs/);
+});
