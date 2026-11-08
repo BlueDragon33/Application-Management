@@ -2,7 +2,7 @@ name: Application Management Development Fast CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, feat/boi-account-duration-ui-379-20261108]
   pull_request:
     branches: [main]
   workflow_dispatch:
