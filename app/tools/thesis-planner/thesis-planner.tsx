@@ -3,20 +3,10 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import styles from "./thesis-planner.module.css";
+import { createThesisBackup, parseThesisBackup, validateThesisState, type ThesisState } from "./thesis-domain.mjs";
 
 type Progress = "todo" | "doing" | "evidence";
 type StepState = { progress: Progress; evidence: string; note: string };
-type ThesisState = {
-  topic: string;
-  department: string;
-  advisor: string;
-  targetDate: string;
-  problem: string;
-  hypothesis: string;
-  metrics: string;
-  policy: string;
-  steps: Record<string, StepState>;
-};
 type ResearchStep = { id: string; name: string; output: string };
 const phases: ReadonlyArray<{ semester: string; steps: ReadonlyArray<ResearchStep> }> = [
   { semester: "HK 1 · Định hướng", steps: [
@@ -50,22 +40,6 @@ const statuses: { value: Progress; text: string }[] = [
   { value: "doing", text: "Đang thực hiện" },
   { value: "evidence", text: "Đã ghi minh chứng" },
 ];
-function isObject(v: unknown): v is Record<string, unknown> { return typeof v === "object" && v !== null && !Array.isArray(v); }
-function validate(value: unknown): ThesisState | null {
-  if (!isObject(value)) return null;
-  const keys = ["topic", "department", "advisor", "targetDate", "problem", "hypothesis", "metrics", "policy"] as const;
-  if (keys.some((key) => typeof value[key] !== "string" || String(value[key]).length > 12000)) return null;
-  if (!isObject(value.steps)) return null;
-  const steps: Record<string, StepState> = {};
-  for (const task of allSteps) {
-    const item = value.steps[task.id];
-    if (item === undefined) continue;
-    if (!isObject(item) || !statuses.some((s) => s.value === item.progress) || typeof item.evidence !== "string" || typeof item.note !== "string" || item.evidence.length > 8000 || item.note.length > 8000) return null;
-    if (item.progress === "evidence" && !item.evidence.trim()) return null;
-    steps[task.id] = { progress: item.progress as Progress, evidence: item.evidence, note: item.note };
-  }
-  return Object.assign({}, Object.fromEntries(keys.map((key) => [key, value[key]])), { steps }) as ThesisState;
-}
 function exportJson(name: string, value: unknown) {
   const url = URL.createObjectURL(new Blob([JSON.stringify(value, null, 2)], { type: "application/json" }));
   const link = document.createElement("a"); link.href = url; link.download = name; document.body.appendChild(link); link.click(); link.remove();
@@ -73,24 +47,27 @@ function exportJson(name: string, value: unknown) {
 }
 export default function ThesisPlanner({ user }: { user: { email: string; displayName: string } }) {
   const storageKey = "application-management:thesis-planner:v1:" + encodeURIComponent(user.email.trim().toLowerCase());
-  const [ready, setReady] = useState(false);
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [storageBlocked, setStorageBlocked] = useState(false);
   const [model, setModel] = useState<ThesisState>(emptyState);
   const [notice, setNotice] = useState("");
   useEffect(() => {
+    setStorageBlocked(false);
+    setNotice("");
     try {
       const raw = window.localStorage.getItem(storageKey);
-      const saved = raw ? validate(JSON.parse(raw) as unknown) : null;
+      const saved = raw ? validateThesisState(JSON.parse(raw) as unknown) : null;
       setModel(saved ?? emptyState);
       if (raw && !saved) { setStorageBlocked(true); setNotice("Dữ liệu cũ không hợp lệ. Chưa ghi đè; hãy kiểm tra bản sao lưu."); }
     } catch { setModel(emptyState); setStorageBlocked(true); setNotice("Không đọc được bộ nhớ cục bộ. Dữ liệu cũ được giữ nguyên để khôi phục."); }
-    setReady(true);
+    // Writes are allowed only after this exact account's data has been hydrated.
+    setLoadedKey(storageKey);
   }, [storageKey]);
   useEffect(() => {
-    if (!ready || storageBlocked) return;
+    if (loadedKey !== storageKey || storageBlocked) return;
     try { window.localStorage.setItem(storageKey, JSON.stringify(model)); }
     catch { setNotice("Không lưu được dữ liệu trên thiết bị. Hãy xuất JSON ngay."); }
-  }, [model, ready, storageBlocked, storageKey]);
+  }, [model, loadedKey, storageBlocked, storageKey]);
   const done = allSteps.filter((step) => model.steps[step.id]?.progress === "evidence").length;
   const next = allSteps.find((step) => model.steps[step.id]?.progress !== "evidence");
   const currentSemester = useMemo(() => phases.find((phase) => phase.steps.some((step) => step.id === next?.id))?.semester ?? "Đối chiếu toàn bộ minh chứng", [next]);
@@ -112,18 +89,19 @@ export default function ThesisPlanner({ user }: { user: { email: string; display
     if (file.size > 1024 * 1024) { setNotice("File lớn hơn 1 MB, từ chối nhập."); return; }
     try {
       const data = JSON.parse(await file.text()) as unknown;
-      const parsed = validate(data);
+      const parsed = parseThesisBackup(data);
       if (!parsed) throw new Error("Invalid backup schema");
       if (window.confirm("Thay thế kế hoạch luận văn trên thiết bị bằng file vừa chọn?")) { setStorageBlocked(false); setModel(parsed); setNotice("Đã nhập bản sao lưu, chưa có đồng bộ đám mây."); }
     } catch { setNotice("File JSON không đúng định dạng Thesis Planner v1."); }
   }
+  if (loadedKey !== storageKey) return <main className={styles.shell} role="status">Đang tải kế hoạch của tài khoản hiện tại…</main>;
   return <main className={styles.shell}>
     <nav className={styles.nav} aria-label="Academic navigation"><Link href="/">← Application Management</Link><Link href="/tools/study-plan">Kế hoạch học tập</Link><Link href="/apps/coursework-workbench">Ứng dụng bài tập lớn</Link></nav>
     <header className={styles.hero}><span className={styles.badge}>LOCAL-FIRST · DỰ THẢO NGHIÊN CỨU</span><h1>Thesis Planner · Luận văn Bauman</h1><p>Quản lý quá trình nghiên cứu trong 4 học kỳ: mục tiêu, bằng chứng và việc tiếp theo. Mẫu tham khảo, không thay quy định кафедра hoặc phê duyệt của giảng viên.</p></header>
     <div className={styles.stats}>
       <div className={styles.stat}><strong>{done}/{allSteps.length}</strong><span>Mốc đã ghi minh chứng</span></div>
       <div className={styles.stat}><strong>{Math.round(done / allSteps.length * 100)}%</strong><span>Độ phủ hồ sơ, không phải điểm số</span></div>
-      <div className={styles.stat}><strong>{ready ? "Cục bộ" : "Đang mở"}</strong><span>Dữ liệu trên thiết bị</span></div>
+      <div className={styles.stat}><strong>{storageBlocked ? "Lỗi lưu" : "Cục bộ"}</strong><span>Dữ liệu trên thiết bị</span></div>
     </div>
     <div className={styles.grid}><div>
       <section className={styles.panel}><h2>Thông tin đề tài · Тема диссертации</h2>
@@ -145,7 +123,7 @@ export default function ThesisPlanner({ user }: { user: { email: string; display
       </section>
     </div><aside>
       <section className={styles.panel}><h2>HƯỚNG DẪN / NEXT ACTION</h2><div className={styles.action}><strong>{currentSemester}</strong><p>{next ? next.name : "Đã ghi minh chứng cho toàn bộ mốc. Kiểm tra lại với giảng viên và hội đồng trước khi xác nhận đạt."}</p><span className={styles.meta}>{next ? "Đầu ra: " + next.output : "Không có phê duyệt tự động"}</span></div></section>
-      <section className={styles.panel}><h2>Sao lưu và khôi phục</h2><p className={styles.hint}>Dữ liệu chỉ ở trình duyệt của tài khoản này. Xóa Safari/Chrome hoặc đổi máy có thể làm mất dữ liệu nếu không sao lưu.</p><div className={styles.actions}><button type="button" className={styles.btn} onClick={() => exportJson("bauman-thesis-planner-v1.json",model)}>Xuất JSON</button><label className={styles.btn + " " + styles.btnSecondary}>Nhập JSON<input hidden type="file" accept=".json,application/json" onChange={importFile} /></label></div></section>
+      <section className={styles.panel}><h2>Sao lưu và khôi phục</h2><p className={styles.hint}>Dữ liệu chỉ ở trình duyệt của tài khoản này. Xóa Safari/Chrome hoặc đổi máy có thể làm mất dữ liệu nếu không sao lưu.</p><div className={styles.actions}><button type="button" className={styles.btn} onClick={() => exportJson("bauman-thesis-planner-v1.json",createThesisBackup(model))}>Xuất JSON</button><label className={styles.btn + " " + styles.btnSecondary}>Nhập JSON<input hidden type="file" accept=".json,application/json" onChange={importFile} /></label></div></section>
       <section className={styles.panel}><h2>Cổng học thuật</h2><p className={styles.notice}>Trạng thái “Đã ghi minh chứng” chỉ là xác nhận của người dùng, <strong>không phải PASS khoa học, phê duyệt của khoa hay xác nhận trích dẫn</strong>. Không đưa dữ liệu mật hoặc dữ liệu cá nhân vào công cụ AI ngoài phạm vi cho phép.</p>{notice ? <p role="status" className={styles.hint}>{notice}</p> : null}</section>
     </aside></div>
   </main>;
