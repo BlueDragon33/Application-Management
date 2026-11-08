@@ -1,0 +1,95 @@
+--- production-b2e8ebbc/index.js
++++ google-session-mfa30/index.js
+@@ -28173,0 +28174 @@
++var GOOGLE_COOKIE_MAX_AGE_SECONDS = 365 * 24 * 60 * 60;
+@@ -28177 +28178 @@
+-var STEP_UP_TTL_SECONDS = 900;
++var STEP_UP_TTL_SECONDS = 1800;
+@@ -28363,2 +28364,2 @@
+-        <button type="submit">Xác minh trong 15 phút</button>
+-        <p class="note">${identity.stepUpAt && Math.floor(Date.now() / 1e3) - identity.stepUpAt < STEP_UP_TTL_SECONDS ? "Phiên này vừa được xác minh tăng cường." : "Chưa có xác minh tăng cường gần đây."}</p>
++        <button type="submit">Xác minh trong 30 phút</button>
++        <p class="note">${stepUpFresh(identity) ? "Phiên này vừa được xác minh tăng cường." : "Chưa có xác minh tăng cường gần đây."}</p>
+@@ -28419,0 +28421,3 @@
++function productionSessionCookie(token, authMethod) {
++	return `${SESSION_COOKIE}=${token}; Max-Age=${authMethod === "google" ? GOOGLE_COOKIE_MAX_AGE_SECONDS : SESSION_TTL_SECONDS}; Path=/; HttpOnly; Secure; SameSite=${authMethod === "google" ? "Lax" : "Strict"}`;
++}
+@@ -28422 +28426 @@
+-	await env.DB.prepare("DELETE FROM control_sessions WHERE expires_at<=?1").bind(now).run();
++	await env.DB.prepare("DELETE FROM control_sessions WHERE expires_at<=?1 AND (expires_at<>0 OR auth_method<>'google')").bind(now).run();
+@@ -28425 +28429 @@
+-	const expiresAt = now + SESSION_TTL_SECONDS;
++	const expiresAt = authMethod === "google" ? 0 : now + SESSION_TTL_SECONDS;
+@@ -28430 +28434 @@
+-		cookie: `${SESSION_COOKIE}=${token}; Max-Age=${SESSION_TTL_SECONDS}; Path=/; HttpOnly; Secure; SameSite=${authMethod === "google" ? "Lax" : "Strict"}`
++		cookie: productionSessionCookie(token, authMethod)
+@@ -28431,0 +28436,21 @@
++}
++function withProductionSessionCookie(request, identity, response) {
++	if (identity?.authMethod !== "google" || request.method !== "GET" || response.status < 200 || !request.headers.get("accept")?.toLowerCase().includes("text/html")) return response;
++	const pathname = new URL(request.url).pathname;
++	if (pathname === "/api" || pathname.startsWith("/api/")) return response;
++	const contentType = (response.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
++	const navigationRedirect = response.status >= 300 && response.status < 400 && response.headers.has("location");
++	if (contentType !== "text/html" && contentType !== "application/xhtml+xml" && !navigationRedirect) return response;
++	if (response.headers.get("set-cookie")?.includes(`${SESSION_COOKIE}=`)) return response;
++	const token = cookieValue(request.headers, SESSION_COOKIE);
++	if (!token) return response;
++	const headers = new Headers(response.headers);
++	headers.append("set-cookie", productionSessionCookie(token, "google"));
++	headers.set("cache-control", "no-store, private");
++	headers.set("cloudflare-cdn-cache-control", "no-store");
++	if (!headers.get("vary")?.split(",").some((value) => value.trim().toLowerCase() === "cookie")) headers.append("vary", "Cookie");
++	return new Response(response.body, {
++		status: response.status,
++		statusText: response.statusText,
++		headers
++	});
+@@ -28576 +28601,2 @@
+-	if (!row || row.status !== "active" || row.expires_at <= now) {
++	const persistentGoogle = row?.auth_method === "google" && row.expires_at === 0;
++	if (!row || row.status !== "active" || !Number.isSafeInteger(row.expires_at) || !persistentGoogle && row.expires_at <= now) {
+@@ -28580 +28606 @@
+-	if (now - row.last_seen_at >= 300) await env.DB.prepare("UPDATE control_sessions SET last_seen_at=?2 WHERE session_id_hash=?1").bind(sessionHash, now).run();
++	if (now - row.last_seen_at >= 300 || row.auth_method === "google" && !persistentGoogle) await env.DB.prepare("UPDATE control_sessions SET last_seen_at=?2,expires_at=CASE WHEN auth_method='google' THEN 0 ELSE expires_at END WHERE session_id_hash=?1").bind(sessionHash, now).run();
+@@ -28664,2 +28690,3 @@
+-	if (!identity.stepUpAt) return false;
+-	return Math.floor(Date.now() / 1e3) - identity.stepUpAt <= STEP_UP_TTL_SECONDS;
++	if (!identity.stepUpAt || !Number.isSafeInteger(identity.stepUpAt)) return false;
++	const age = Math.floor(Date.now() / 1e3) - identity.stepUpAt;
++	return age >= 0 && age < STEP_UP_TTL_SECONDS;
+@@ -28708 +28735 @@
+-		}, await accountPageData(env, identity), "Đã bật Authenticator. Xác minh tăng cường có hiệu lực 15 phút."));
++		}, await accountPageData(env, identity), "Đã bật Authenticator. Xác minh tăng cường có hiệu lực 30 phút."));
+@@ -28729 +28756 @@
+-		}, await accountPageData(env, identity), "Đã xác minh tăng cường. Thao tác nhạy cảm được mở trong 15 phút."));
++		}, await accountPageData(env, identity), "Đã xác minh tăng cường. Thao tác nhạy cảm được mở trong 30 phút."));
+@@ -29057,0 +29085,2 @@
++	let sessionIdentity = null;
++	const sessionResponse = (response) => withProductionSessionCookie(request, sessionIdentity, response);
+@@ -29083,3 +29112,4 @@
+-			if (url.pathname === "/__sso/authorize") return authorizeBlueprintSso(request, env, identity);
+-			if (url.pathname === "/__sso/v2/authorize") return authorizeManagedSso(request, env, identity);
+-			if (url.pathname === productionAccountPath() || url.pathname.startsWith(`${productionAccountPath()}/`)) return handleProductionAccount(request, env, identity);
++			sessionIdentity = identity;
++			if (url.pathname === "/__sso/authorize") return sessionResponse(await authorizeBlueprintSso(request, env, identity));
++			if (url.pathname === "/__sso/v2/authorize") return sessionResponse(await authorizeManagedSso(request, env, identity));
++			if (url.pathname === productionAccountPath() || url.pathname.startsWith(`${productionAccountPath()}/`)) return sessionResponse(await handleProductionAccount(request, env, identity));
+@@ -29087 +29117 @@
+-			if (stepUpResponse) return stepUpResponse;
++			if (stepUpResponse) return sessionResponse(stepUpResponse);
+@@ -29091 +29121 @@
+-	if (request.method === "GET" && url.pathname === "/__deployment") return Response.json(await deploymentStatus(env), { headers: {
++	if (request.method === "GET" && url.pathname === "/__deployment") return sessionResponse(Response.json(await deploymentStatus(env), { headers: {
+@@ -29095,4 +29125,4 @@
+-	} });
+-	if (isProduction && request.method === "GET" && url.pathname === "/__repair-cache") return repairBrowserCache(env);
+-	if ((isPreview || isProduction) && (request.method === "GET" || request.method === "HEAD") && (url.pathname === "/russian-daily" || url.pathname === "/russian-daily/index.html")) return Response.redirect(new URL("/russian-daily/", request.url).toString(), 308);
+-	if ((isPreview || isProduction) && (request.method === "GET" || request.method === "HEAD") && url.pathname === "/russian-daily/") return freshDynamicResponse(await env.ASSETS.fetch(request), true);
++	} }));
++	if (isProduction && request.method === "GET" && url.pathname === "/__repair-cache") return sessionResponse(repairBrowserCache(env));
++	if ((isPreview || isProduction) && (request.method === "GET" || request.method === "HEAD") && (url.pathname === "/russian-daily" || url.pathname === "/russian-daily/index.html")) return sessionResponse(Response.redirect(new URL("/russian-daily/", request.url).toString(), 308));
++	if ((isPreview || isProduction) && (request.method === "GET" || request.method === "HEAD") && url.pathname === "/russian-daily/") return sessionResponse(freshDynamicResponse(await env.ASSETS.fetch(request), true));
+@@ -29106 +29136 @@
+-	return freshDynamicResponse(await app_router_entry_default.fetch(request, env, ctx), isPreview || isProduction);
++	return sessionResponse(freshDynamicResponse(await app_router_entry_default.fetch(request, env, ctx), isPreview || isProduction));

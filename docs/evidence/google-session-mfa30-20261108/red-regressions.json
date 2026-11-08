@@ -1,0 +1,60 @@
+{
+  "purpose": "Expected failures before each corresponding fix; no live credentials or Production requests",
+  "logs": {
+    "google-session-persistence-red.log": {
+      "sha256": "816c9e3854b9919319a50bf032020cc505add11951875ad7140bed22aa2a6db2",
+      "counts": {
+        "tests": 8,
+        "pass": 3,
+        "fail": 5,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "rawFailureLogCommitted": false
+    },
+    "google-worker-cookie-red.log": {
+      "sha256": "30787b951717e1b357eb913d350db02768af9d876c5b6e4b0623b435f2d23087",
+      "counts": {
+        "tests": 1,
+        "pass": 0,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "rawFailureLogCommitted": false
+    },
+    "mfa-thirty-minute-red.log": {
+      "sha256": "c24c2aaaec00166322195f96972a57ff7ef92cef86fb446aea4112240d8b23e8",
+      "counts": {
+        "tests": 4,
+        "pass": 0,
+        "fail": 4,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "rawFailureLogCommitted": false
+    },
+    "mfa-future-proof-red.log": {
+      "sha256": "a2adaa8c148fe7186084f69e60cca26a5caab94d20434db4209109ba39f5816c",
+      "counts": {
+        "tests": 1,
+        "pass": 0,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "rawFailureLogCommitted": false
+    },
+    "google-renewal-boundary-red.log": {
+      "sha256": "53cbd21c6771a2a9b762e7cb2cbf77a784f4c633aa9adfd03a1d9c4dc5ce5c23",
+      "counts": {
+        "tests": 2,
+        "pass": 0,
+        "fail": 2,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "rawFailureLogCommitted": false
+    }
+  }
+}

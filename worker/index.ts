@@ -29,6 +29,8 @@ import {
   productionStepUpGate,
   productionUnauthorized,
   withProductionIdentity,
+  withProductionSessionCookie,
+  type ProductionIdentity,
 } from "./production-auth";
 
 interface Env {
@@ -250,6 +252,8 @@ async function routeNativeAutoApproval(request: Request) {
 
 const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    let sessionIdentity: ProductionIdentity | null = null;
+    const sessionResponse = (response: Response) => withProductionSessionCookie(request, sessionIdentity, response);
     const url = new URL(request.url);
     const channel = env.APPLICATION_MANAGEMENT_DEPLOYMENT_CHANNEL;
     const isPreview = channel === "cloudflare-preview";
@@ -304,29 +308,30 @@ const worker = {
       if (!readback) {
         const identity = await productionIdentity(request, env);
         if (!identity) return productionUnauthorized(request);
-        if (url.pathname === "/__sso/authorize") return authorizeBlueprintSso(request, env, identity);
-        if (url.pathname === "/__sso/v2/authorize") return authorizeManagedSso(request, env, identity);
+        sessionIdentity = identity;
+        if (url.pathname === "/__sso/authorize") return sessionResponse(await authorizeBlueprintSso(request, env, identity));
+        if (url.pathname === "/__sso/v2/authorize") return sessionResponse(await authorizeManagedSso(request, env, identity));
         if (url.pathname === productionAccountPath() || url.pathname.startsWith(`${productionAccountPath()}/`)) {
-          return handleProductionAccount(request, env, identity);
+          return sessionResponse(await handleProductionAccount(request, env, identity));
         }
         const stepUpResponse = await productionStepUpGate(request, env, identity);
-        if (stepUpResponse) return stepUpResponse;
+        if (stepUpResponse) return sessionResponse(stepUpResponse);
         request = withProductionIdentity(request, identity);
       }
     }
 
     if (request.method === "GET" && url.pathname === "/__deployment") {
-      return Response.json(await deploymentStatus(env), {
+      return sessionResponse(Response.json(await deploymentStatus(env), {
         headers: {
           "cache-control": "no-store, private",
           "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
           "x-content-type-options": "nosniff",
         },
-      });
+      }));
     }
 
     if (isProduction && request.method === "GET" && url.pathname === "/__repair-cache") {
-      return repairBrowserCache(env);
+      return sessionResponse(repairBrowserCache(env));
     }
 
     // Russian Daily is an opt-in local-first utility under the existing
@@ -340,11 +345,11 @@ const worker = {
     // after Preview/Production identity checks above.
     if ((isPreview || isProduction) && (request.method === "GET" || request.method === "HEAD")
       && (url.pathname === "/russian-daily" || url.pathname === "/russian-daily/index.html")) {
-      return Response.redirect(new URL("/russian-daily/", request.url).toString(), 308);
+      return sessionResponse(Response.redirect(new URL("/russian-daily/", request.url).toString(), 308));
     }
     if ((isPreview || isProduction) && (request.method === "GET" || request.method === "HEAD")
       && url.pathname === "/russian-daily/") {
-      return freshDynamicResponse(await env.ASSETS.fetch(request), true);
+      return sessionResponse(freshDynamicResponse(await env.ASSETS.fetch(request), true));
     }
 
     if ((isPreview || isProduction) && isCloudflareClientAsset(request, url)) {
@@ -359,7 +364,7 @@ const worker = {
 
     request = await routeNativeAutoApproval(request);
     const response = await handler.fetch(request, env, ctx);
-    return freshDynamicResponse(response, isPreview || isProduction);
+    return sessionResponse(freshDynamicResponse(response, isPreview || isProduction));
   },
 };
 

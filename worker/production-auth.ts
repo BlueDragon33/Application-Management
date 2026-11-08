@@ -23,12 +23,13 @@ const LOGOUT_PATH = "/__logout";
 const ACCOUNT_PATH = "/__account";
 const SESSION_COOKIE = "__Host-am_prod_session";
 const SESSION_TTL_SECONDS = 12 * 60 * 60;
+const GOOGLE_COOKIE_MAX_AGE_SECONDS = 365 * 24 * 60 * 60;
 // Cloudflare Workers production rejects PBKDF2 iteration counts above 100,000.
 // Keep the deployed runtime ceiling pinned here and guarded by CI.
 const PASSWORD_ITERATIONS = 100_000;
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_SECONDS = 15 * 60;
-const STEP_UP_TTL_SECONDS = 15 * 60;
+const STEP_UP_TTL_SECONDS = 30 * 60;
 const encoder = new TextEncoder();
 
 type ProductionAuthEnv = GoogleOAuthEnv & TotpEnv & {
@@ -297,8 +298,8 @@ function accountPage(identity: ProductionIdentity, profile: AccountPageData, not
         <h2>Xác minh thao tác nhạy cảm</h2>
         <label for="stepUpTotpCode">Mã Authenticator</label>
         <input id="stepUpTotpCode" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
-        <button type="submit">Xác minh trong 15 phút</button>
-        <p class="note">${identity.stepUpAt && Math.floor(Date.now()/1000) - identity.stepUpAt < STEP_UP_TTL_SECONDS ? "Phiên này vừa được xác minh tăng cường." : "Chưa có xác minh tăng cường gần đây."}</p>
+        <button type="submit">Xác minh trong 30 phút</button>
+        <p class="note">${stepUpFresh(identity) ? "Phiên này vừa được xác minh tăng cường." : "Chưa có xác minh tăng cường gần đây."}</p>
       </form>
       <form method="post" action="${ACCOUNT_PATH}/mfa/disable">
         <button class="secondary" type="submit">Tắt Authenticator</button>
@@ -351,21 +352,46 @@ function redirect(path: string, cookie?: string | readonly string[]) {
   return new Response("Redirecting", { status: 303, headers });
 }
 
+function productionSessionCookie(token: string, authMethod: "google" | "password") {
+  const maxAge = authMethod === "google" ? GOOGLE_COOKIE_MAX_AGE_SECONDS : SESSION_TTL_SECONDS;
+  const sameSite = authMethod === "google" ? "Lax" : "Strict";
+  return `${SESSION_COOKIE}=${token}; Max-Age=${maxAge}; Path=/; HttpOnly; Secure; SameSite=${sameSite}`;
+}
+
 async function createSession(env: ProductionAuthEnv, email: string, authMethod: "google" | "password") {
   const now = Math.floor(Date.now() / 1000);
-  await env.DB.prepare("DELETE FROM control_sessions WHERE expires_at<=?1").bind(now).run();
+  await env.DB.prepare("DELETE FROM control_sessions WHERE expires_at<=?1 AND (expires_at<>0 OR auth_method<>'google')").bind(now).run();
   const token = base64Url(crypto.getRandomValues(new Uint8Array(32)));
   const sessionHash = await sha256(token);
-  const expiresAt = now + SESSION_TTL_SECONDS;
+  const expiresAt = authMethod === "google" ? 0 : now + SESSION_TTL_SECONDS;
   await env.DB.prepare(
     "INSERT INTO control_sessions (session_id_hash,email,expires_at,created_at,last_seen_at,auth_method,step_up_at) VALUES (?1,?2,?3,?4,?4,?5,NULL)",
   ).bind(sessionHash, email, expiresAt, now, authMethod).run();
-  const sameSite = authMethod === "google" ? "Lax" : "Strict";
   return {
     token,
     sessionHash,
-    cookie: `${SESSION_COOKIE}=${token}; Max-Age=${SESSION_TTL_SECONDS}; Path=/; HttpOnly; Secure; SameSite=${sameSite}`,
+    cookie: productionSessionCookie(token, authMethod),
   };
+}
+
+export function withProductionSessionCookie(request: Request, identity: ProductionIdentity | null, response: Response): Response {
+  if (identity?.authMethod !== "google" || request.method !== "GET" || response.status < 200
+    || !request.headers.get("accept")?.toLowerCase().includes("text/html")) return response;
+  const pathname = new URL(request.url).pathname;
+  if (pathname === "/api" || pathname.startsWith("/api/")) return response;
+  const contentType = (response.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
+  const navigationRedirect = response.status >= 300 && response.status < 400 && response.headers.has("location");
+  if (contentType !== "text/html" && contentType !== "application/xhtml+xml" && !navigationRedirect) return response;
+  // Preserve an explicit session replacement/deletion from an account action.
+  if (response.headers.get("set-cookie")?.includes(`${SESSION_COOKIE}=`)) return response;
+  const token = cookieValue(request.headers, SESSION_COOKIE);
+  if (!token) return response;
+  const headers = new Headers(response.headers);
+  headers.append("set-cookie", productionSessionCookie(token, "google"));
+  headers.set("cache-control", "no-store, private");
+  headers.set("cloudflare-cdn-cache-control", "no-store");
+  if (!headers.get("vary")?.split(",").some(value => value.trim().toLowerCase() === "cookie")) headers.append("vary", "Cookie");
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
 async function accountByEmail(env: ProductionAuthEnv, email: string) {
@@ -583,12 +609,13 @@ export async function productionIdentity(request: Request, env: ProductionAuthEn
     must_change_password: number;
     status: string;
   }>();
-  if (!row || row.status !== "active" || row.expires_at <= now) {
+  const persistentGoogle = row?.auth_method === "google" && row.expires_at === 0;
+  if (!row || row.status !== "active" || !Number.isSafeInteger(row.expires_at) || (!persistentGoogle && row.expires_at <= now)) {
     if (row) await env.DB.prepare("DELETE FROM control_sessions WHERE session_id_hash=?1").bind(sessionHash).run();
     return null;
   }
-  if (now - row.last_seen_at >= 300) {
-    await env.DB.prepare("UPDATE control_sessions SET last_seen_at=?2 WHERE session_id_hash=?1").bind(sessionHash, now).run();
+  if (now - row.last_seen_at >= 300 || (row.auth_method === "google" && !persistentGoogle)) {
+    await env.DB.prepare("UPDATE control_sessions SET last_seen_at=?2,expires_at=CASE WHEN auth_method='google' THEN 0 ELSE expires_at END WHERE session_id_hash=?1").bind(sessionHash, now).run();
   }
   return {
     email: row.email,
@@ -686,8 +713,9 @@ export async function handleProductionLogout(request: Request, env: ProductionAu
 }
 
 function stepUpFresh(identity: ProductionIdentity) {
-  if (!identity.stepUpAt) return false;
-  return Math.floor(Date.now() / 1000) - identity.stepUpAt <= STEP_UP_TTL_SECONDS;
+  if (!identity.stepUpAt || !Number.isSafeInteger(identity.stepUpAt)) return false;
+  const age = Math.floor(Date.now() / 1000) - identity.stepUpAt;
+  return age >= 0 && age < STEP_UP_TTL_SECONDS;
 }
 
 async function accountPageData(env: ProductionAuthEnv, identity: ProductionIdentity): Promise<AccountPageData> {
@@ -734,7 +762,7 @@ export async function handleProductionAccount(request: Request, env: ProductionA
     if (!ok) return responseHtml(accountPage(identity, await accountPageData(env, identity), "Lỗi: Mã Authenticator không đúng hoặc đã hết hạn."), 401);
     const now = Math.floor(Date.now() / 1000);
     await env.DB.prepare("UPDATE control_sessions SET step_up_at=?2 WHERE session_id_hash=?1").bind(identity.sessionHash, now).run();
-    return responseHtml(accountPage({ ...identity, stepUpAt: now }, await accountPageData(env, identity), "Đã bật Authenticator. Xác minh tăng cường có hiệu lực 15 phút."));
+    return responseHtml(accountPage({ ...identity, stepUpAt: now }, await accountPageData(env, identity), "Đã bật Authenticator. Xác minh tăng cường có hiệu lực 30 phút."));
   }
 
   if (url.pathname === `${ACCOUNT_PATH}/mfa/step-up`) {
@@ -749,7 +777,7 @@ export async function handleProductionAccount(request: Request, env: ProductionA
     const now = Math.floor(Date.now() / 1000);
     await env.DB.prepare("UPDATE control_sessions SET step_up_at=?2 WHERE session_id_hash=?1").bind(identity.sessionHash, now).run();
     if (json) return Response.json({ ok: true }, { headers: secureHeaders("application/json; charset=utf-8") });
-    return responseHtml(accountPage({ ...identity, stepUpAt: now }, await accountPageData(env, identity), "Đã xác minh tăng cường. Thao tác nhạy cảm được mở trong 15 phút."));
+    return responseHtml(accountPage({ ...identity, stepUpAt: now }, await accountPageData(env, identity), "Đã xác minh tăng cường. Thao tác nhạy cảm được mở trong 30 phút."));
   }
 
   if (url.pathname === `${ACCOUNT_PATH}/mfa/disable`) {

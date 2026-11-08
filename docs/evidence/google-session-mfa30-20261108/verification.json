@@ -1,0 +1,70 @@
+{
+  "recordedAt": "2026-11-08T08:49:00.728818+00:00",
+  "state": "LOCAL_VERIFIED_PREPARED_NOT_RELEASED",
+  "scope": "Google session persistence and current-session Authenticator 30-minute confirmation only",
+  "baselineMerge": "4086fc69bf4ce04d492a6f0010b0e7e2a105fdb1",
+  "validation": {
+    "fullNpmTest": {
+      "tests": 869,
+      "pass": 869,
+      "fail": 0,
+      "skip": 0,
+      "exitCode": 0,
+      "typecheck": "PASS",
+      "build": "PASS",
+      "log": "google-mfa30-full-final.log.gz"
+    },
+    "completeNodeSweepAfterFixtureStrengthening": {
+      "tests": 869,
+      "pass": 869,
+      "fail": 0,
+      "skip": 0,
+      "exitCode": 0,
+      "log": "google-mfa30-node-final.log.gz"
+    },
+    "finalLint": {
+      "errors": 0,
+      "existingWarnings": 25,
+      "exitCode": 0,
+      "log": "google-mfa30-lint-release.log.gz"
+    },
+    "newAuthRuntimeTests": 14,
+    "independentAgentReview": "NO_OUTSTANDING_CRITICAL_IMPORTANT_OR_MINOR_FINDINGS",
+    "independentHumanReview": "PENDING",
+    "googleOidcBrowserEndToEnd": "NOT_PERFORMED",
+    "realThirtyMinuteBrowserObservation": "NOT_PERFORMED",
+    "productionAuthenticatedSmoke": "BLOCKED_OWNER_GOOGLE_LOGIN",
+    "hostedActionsRequiredChecks": "NOT_CLAIMED_PASS"
+  },
+  "policy": {
+    "googlePrimary": true,
+    "googleServerSession": "revocable Google-only expires_at=0 marker",
+    "googleBrowserCookieMaxAgeSeconds": 31536000,
+    "renewal": "authenticated HTML navigation only; no API/static renewal",
+    "passwordSessionSeconds": 43200,
+    "lockoutSeconds": 900,
+    "stepUpSeconds": 1800,
+    "stepUpBoundary": "0 <= age < 1800; current session only; renewal does not extend it",
+    "expiredLegacyRevived": false
+  },
+  "artifact": {
+    "report": "prepared-artifact.json",
+    "sha256Lf": "ab177a3431656f00b830aca63372a41f6503dd5c3aa97f111edb7ac3aa16afe7",
+    "deployed": false,
+    "productionBaselineSha256Lf": "46d56833e71a130d9733d399bb91ba8c21a2331d76dc9b569e05c6fcb9becb48"
+  },
+  "controls": {
+    "schemaChanged": false,
+    "rolesChanged": false,
+    "scopesChanged": false,
+    "dependenciesChanged": false,
+    "workflowChanged": false,
+    "hostedWorkflowDispatched": false,
+    "paidServiceUsed": false,
+    "newSiteOrWorkerCreated": false,
+    "productionDeployment": false,
+    "usesPr378ApprovalForThisPolicy": false
+  },
+  "rollback": "Old code may require Google sign-in again for persistent-marker sessions; no business data migration",
+  "issue108Accepted": false
+}

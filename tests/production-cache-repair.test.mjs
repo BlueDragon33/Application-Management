@@ -11,7 +11,7 @@ test("Cloudflare dynamic responses are explicitly non-cacheable", () => {
   assert.ok(worker.includes('"pragma", "no-cache"'));
   assert.ok(worker.includes('"expires", "0"'));
   assert.ok(worker.includes("const response = await handler.fetch(request, env, ctx)"));
-  assert.ok(worker.includes("return freshDynamicResponse(response, isPreview || isProduction)"));
+  assert.ok(worker.includes("freshDynamicResponse(response, isPreview || isProduction)"));
 });
 
 test("authenticated Production cache repair clears only browser cache and redirects to a revision-busted root", () => {

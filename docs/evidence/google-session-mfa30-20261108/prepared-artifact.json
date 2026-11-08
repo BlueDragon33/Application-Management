@@ -1,0 +1,101 @@
+{
+  "state": "PREPARED_NOT_DEPLOYED",
+  "baseRevision": "d4e1b27cb7ff78d9de74292a29ad0fcbc997eb48",
+  "baseVersion": "b2e8ebbc",
+  "baselineSha256Lf": "46d56833e71a130d9733d399bb91ba8c21a2331d76dc9b569e05c6fcb9becb48",
+  "candidateSha256Lf": "ab177a3431656f00b830aca63372a41f6503dd5c3aa97f111edb7ac3aa16afe7",
+  "changedSourceFiles": [
+    "worker/production-auth.ts",
+    "worker/index.ts"
+  ],
+  "changedCompiledRegions": [
+    "worker/production-auth.ts",
+    "\\0virtual:cloudflare/worker-entry"
+  ],
+  "outsideRegionsUnchanged": true,
+  "compilerGeneratedValuesPreserved": true,
+  "existingProductionClientAssetsAndReferenceIdsPreserved": true,
+  "lazyClientReferenceCount": 28,
+  "publicClientReferenceMapping": [
+    {
+      "module": "error-boundary",
+      "production": "593f344dc510",
+      "fresh": "029000267656",
+      "occurrences": 5
+    },
+    {
+      "module": "layout-segment-context",
+      "production": "15c18cfaeeff",
+      "fresh": "79e00e2e6564",
+      "occurrences": 1
+    },
+    {
+      "module": "slot",
+      "production": "8c0f216c4604",
+      "fresh": "2677bc178071",
+      "occurrences": 3
+    }
+  ],
+  "freshOnlyAssetReferences": [
+    "assets/layout-segment-context-C3uylgo8.js",
+    "assets/router-CKkFGrpg.js",
+    "assets/link-CME4yjyv.js",
+    "assets/application-workspace-5X2Vgtkw.js",
+    "assets/bauman-admin-Da4psgQF.js",
+    "assets/boi-ech-control-center-f2-49RQc.js",
+    "assets/connection-BjPyc5CA.js",
+    "assets/cad-admin-BTS9j1ol.js",
+    "assets/growup-admin-DtCYakgb.js",
+    "assets/health-care-admin-BaM-_Xt1.js",
+    "assets/pc-manager-admin-CIHKORLr.js",
+    "assets/price-report-admin-Cw4P2IMS.js",
+    "assets/ru-life-admin-B79cuGAs.js",
+    "assets/management-entry-CXeqRBZ8.js",
+    "assets/projects-catalog-BPrSDrY0.js",
+    "assets/page-ogRhiTSH.js",
+    "assets/deploy-ops-C2fGCOr7.js",
+    "assets/kd-mid-visa-zoNqjBwR.js",
+    "assets/page-3NTkzcRA.js",
+    "assets/secret-generator-DGEYiQz4.js",
+    "assets/study-plan-DkvoMXVf.js"
+  ],
+  "productionOnlyAssetReferences": [
+    "assets/link-DmOYK0Q1.js",
+    "assets/application-workspace-BSJLpdED.js",
+    "assets/bauman-admin-00wcx8Z7.js",
+    "assets/boi-ech-control-center-otYCUqeI.js",
+    "assets/connection-C2lAOeH9.js",
+    "assets/cad-admin-QnEfzoBH.js",
+    "assets/growup-admin-AwWQz-3c.js",
+    "assets/health-care-admin-iO27a7K3.js",
+    "assets/pc-manager-admin-Db7gx8Zw.js",
+    "assets/price-report-admin-BiIIolka.js",
+    "assets/ru-life-admin-EJ9Ctp3o.js",
+    "assets/management-entry-ChzzJ0f4.js",
+    "assets/projects-catalog-DWouLmtS.js",
+    "assets/page-DR82I99c.js",
+    "assets/deploy-ops-Be6yfdSa.js",
+    "assets/kd-mid-visa-D-RoXkyT.js",
+    "assets/page-9I7ag1-G.js",
+    "assets/secret-generator-BIM_hz3f.js",
+    "assets/study-plan-BZiBs7Pd.js",
+    "assets/layout-segment-context-Dajut4yv.js",
+    "assets/router-RhykZSpm.js"
+  ],
+  "canonicalProcedure": "scripts/prepare-google-session-artifact.mjs: normalize only4 compiler UUID occurrences, the sole lazy-list assignment and3 explicitly bounded public client IDs; esbuild removes comments/whitespace and canonicalizes syntax/identifiers",
+  "canonicalToolVersions": {
+    "esbuild": "0.28.0",
+    "typescript": "5.9.3"
+  },
+  "transformOptions": {
+    "loader": "js",
+    "minify": true,
+    "treeShaking": false,
+    "legalComments": "none",
+    "target": "es2022"
+  },
+  "matchesFreshBuildAfterDocumentedCompatibilityNormalization": true,
+  "canonicalSha256": "2bd38a913d1ca9e9d72384f20fbdc40567bdfb28937404996a5d35f8a5c43caa",
+  "encoding": "UTF-8; CRLF normalized to LF; no added terminator",
+  "productionDeployed": false
+}
