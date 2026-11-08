@@ -47,6 +47,7 @@ function validateProjects(value: unknown): Coursework[] | null {
       const stage = raw.stages[step.id];
       if (stage === undefined) continue;
       if (!isObject(stage) || !statuses.some((s) => s.value === stage.status) || typeof stage.evidence !== "string" || stage.evidence.length > 8000) return null;
+      if (stage.status === "evidence" && !stage.evidence.trim()) return null;
       stages[step.id] = { status: stage.status as StageStatus, evidence: stage.evidence };
     }
     items.push({ id: raw.id as string, title: raw.title as string, subject: raw.subject as string,
@@ -65,6 +66,7 @@ function localDate(iso: string) { return iso ? new Date(iso + "T23:59:59").getTi
 export default function CourseworkWorkbench({ user }: { user: { email: string; displayName: string } }) {
   const storageKey = "application-management:coursework-workbench:v1:" + encodeURIComponent(user.email.trim().toLowerCase());
   const [ready, setReady] = useState(false);
+  const [storageBlocked, setStorageBlocked] = useState(false);
   const [projects, setProjects] = useState<Coursework[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [notice, setNotice] = useState("");
@@ -74,13 +76,13 @@ export default function CourseworkWorkbench({ user }: { user: { email: string; d
       const raw = window.localStorage.getItem(storageKey);
       const parsed = raw ? validateProjects(JSON.parse(raw) as unknown) : [];
       setProjects(parsed ?? []);
-      if (raw && !parsed) setNotice("Bản dữ liệu hiện tại không hợp lệ. Nên kiểm tra lại bản sao lưu.");
-    } catch { setProjects([]); setNotice("Không đọc được dữ liệu localStorage."); }
+      if (raw && !parsed) { setStorageBlocked(true); setNotice("Bản dữ liệu hiện tại không hợp lệ, chưa ghi đè bản cũ."); }
+    } catch { setProjects([]); setStorageBlocked(true); setNotice("Không đọc được dữ liệu localStorage, chưa ghi đè bản cũ."); }
     setReady(true);
   }, [storageKey]);
-  useEffect(() => { if (!ready) return; try { window.localStorage.setItem(storageKey, JSON.stringify(projects)); }
+  useEffect(() => { if (!ready || storageBlocked) return; try { window.localStorage.setItem(storageKey, JSON.stringify(projects)); }
     catch { setNotice("Không thể lưu trên thiết bị, hãy xuất JSON."); }
-  }, [projects, ready, storageKey]);
+  }, [projects, ready, storageBlocked, storageKey]);
   const selected = useMemo(() => projects.find((p) => p.id === selectedId) ?? projects[0] ?? null, [projects, selectedId]);
   const next = selected ? steps.find((s) => selected.stages[s.id]?.status !== "evidence") : null;
   const completed = selected ? steps.filter((s) => selected.stages[s.id]?.status === "evidence").length : 0;
@@ -101,7 +103,9 @@ export default function CourseworkWorkbench({ user }: { user: { email: string; d
     if (!selected) return;
     const prior = selected.stages[id] ?? {status: "todo", evidence: ""};
     if (key === "status" && value === "evidence" && !prior.evidence.trim()) { setNotice("Ghi minh chứng trước khi đánh dấu hoàn thành mốc."); return; }
-    updateProject({ stages: { ...selected.stages, [id]: { ...prior, [key]: value } } });
+    const patch = { ...prior, [key]: value };
+    if (key === "evidence" && !value.trim() && patch.status === "evidence") patch.status = "doing";
+    updateProject({ stages: { ...selected.stages, [id]: patch } });
   }
   function removeProject() {
     if (!selected || !window.confirm("Xóa bài '" + selected.title + "' khỏi thiết bị này? Xuất sao lưu nếu cần.")) return;
@@ -116,7 +120,7 @@ export default function CourseworkWorkbench({ user }: { user: { email: string; d
       const list = validateProjects(parsed.projects);
       if (!list) throw new Error("Records");
       if (window.confirm("Thay thế toàn bộ danh sách bài tập trên thiết bị bằng bản sao lưu?")) {
-        setProjects(list); setSelectedId(""); setNotice("Đã khôi phục dữ liệu cục bộ. Không có đồng bộ server.");
+        setStorageBlocked(false); setProjects(list); setSelectedId(""); setNotice("Đã khôi phục dữ liệu cục bộ. Không có đồng bộ server.");
       }
     } catch { setNotice("File JSON không đúng cấu trúc Coursework Workbench v1."); }
   }
