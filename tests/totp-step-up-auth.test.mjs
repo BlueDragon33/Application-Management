@@ -27,12 +27,12 @@ test("TOTP follows six-digit 30-second RFC 6238 compatible parameters", () => {
   assert.match(totp, /period/);
 });
 
-test("step-up is session-scoped and expires after fifteen minutes", () => {
+test("step-up is session-scoped and expires after thirty minutes", () => {
   assert.match(migration, /step_up_at/);
   assert.match(migration, /auth_method/);
   assert.match(auth, /STEP_UP_TTL_SECONDS = 15 \* 60/);
   assert.match(auth, /UPDATE control_sessions SET step_up_at=\?2 WHERE session_id_hash=\?1/);
-  assert.match(auth, /Xác minh trong 15 phút/);
+  assert.match(auth, /Xác minh trong 30 phút/);
 });
 
 test("sensitive account mutations require recent step-up once TOTP is enabled", () => {
@@ -62,6 +62,9 @@ test("production Worker blocks sensitive central mutations until recent step-up"
   assert.match(auth, /\/api\/deploy-ops/);
   assert.match(auth, /safe-publish/);
   assert.match(auth, /STEP_UP_REQUIRED/);
+  assert.match(auth, /account-entitlements/);
+  assert.match(auth, /set-account/);
+  assert.match(auth, /set-policy/);
   assert.match(auth, /stepUpPath: ACCOUNT_PATH/);
   assert.match(worker, /productionStepUpGate\(request, env, identity\)/);
 });
