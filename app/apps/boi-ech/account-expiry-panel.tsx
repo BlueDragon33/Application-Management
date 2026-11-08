@@ -16,8 +16,11 @@ function moscow(value:string|null|undefined) {
 }
 function localInput(value:string) {
  const d=new Date(value);if(!Number.isFinite(d.getTime()))return "";
- const n=new Date(d.getTime()-d.getTimezoneOffset()*60000);
- return n.toISOString().slice(0,16);
+ // datetime-local uses wall clock; consistently show Moscow time (UTC+03 year-round).
+ const parts=new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/Moscow",
+  year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(d);
+ const fields=Object.fromEntries(parts.filter(p=>p.type!=="literal").map(p=>[p.type,p.value]));
+ return `${fields.year}-${fields.month}-${fields.day}T${fields.hour}:${fields.minute}`;
 }
 export default function AccountExpiryPanel(){
  const [accounts,setAccounts]=useState<BoiAccountDurationRecord[]>([]);
@@ -45,7 +48,7 @@ export default function AccountExpiryPanel(){
  async function commitAccount(operation:"set-expiry"|"suspend"|"resume"){
   if(!current?.entitlement||busy)return;
   if(reason.trim().length<5){setError("Nhập lý do dài ít nhất 5 ký tự.");return;}
-  const parsed=Date.parse(expiration);
+  const parsed=Date.parse(expiration?expiration+":00+03:00":"");
   const iso=operation==="set-expiry"&&Number.isFinite(parsed)?new Date(parsed).toISOString():"";
   if(operation==="set-expiry"&&!iso){setError("Chọn ngày hết hạn hợp lệ.");return;}
   if(!window.confirm(`${operation==="set-expiry"?"Đổi ngày hết hạn":operation==="suspend"?"Tạm khóa":"Khôi phục"} tài khoản ${current.name||current.accountId}?`))return;
