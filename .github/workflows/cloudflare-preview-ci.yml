@@ -1,6 +1,8 @@
 name: Application Management Cloudflare Preview CI
 
 on:
+  push:
+    branches: [feat/boi-account-duration-ui-379-20261108]
   workflow_dispatch:
 
 permissions:
