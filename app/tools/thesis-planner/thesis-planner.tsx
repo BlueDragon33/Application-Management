@@ -17,7 +17,8 @@ type ThesisState = {
   policy: string;
   steps: Record<string, StepState>;
 };
-const phases = [
+type ResearchStep = { id: string; name: string; output: string };
+const phases: ReadonlyArray<{ semester: string; steps: ReadonlyArray<ResearchStep> }> = [
   { semester: "HK 1 · Định hướng", steps: [
     { id: "scope", name: "Xác nhận đề tài, phạm vi và yêu cầu кафедра", output: "Phạm vi + xác nhận người hướng dẫn" },
     { id: "sources", name: "Tìm, đọc và kiểm tra tài liệu học thuật", output: "Danh mục DOI/URL và ghi chú nguồn" },
@@ -38,7 +39,7 @@ const phases = [
     { id: "normcontrol", name: "Kiểm tra mẫu khoa, normcontrol, chính sách AI", output: "Checklist theo quy định được xác nhận" },
     { id: "defense", name: "Tập bảo vệ, phản biện và nộp bản chính thức", output: "Slide + câu hỏi hội đồng + xác nhận nộp" },
   ] },
-] as const;
+];
 const allSteps = phases.flatMap((phase) => phase.steps);
 const emptyState: ThesisState = {
   topic: "", department: "ИУ-5 · 09.04.01 (dự kiến)", advisor: "", targetDate: "",
