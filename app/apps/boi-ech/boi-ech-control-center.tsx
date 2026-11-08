@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import AuthenticatorStepUp from "../../authenticator-step-up";
+import AccountExpiryPanel from "./account-expiry-panel";
 import AiControlCenter, { type AiControlData } from "../../ai-control-center";
 import { csvCell } from "../../report-exports";
 
@@ -1224,6 +1225,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
         {tab === "overview" ? <>
           <section className="summary-grid bauman-summary"><article><span>Kết nối Bơi ếch</span><strong>{boiOnline && online ? "Đang hoạt động" : online ? "Cần kiểm tra" : "Offline"}</strong><small>Control API + bridge riêng</small></article><article><span>Tổng thiết bị BE</span><strong>{counts.total}</strong><small>{counts.active} online · {counts.pending} chờ xử lý</small></article><article><span>Quyền truy cập</span><strong>{counts.paid + counts.free}</strong><small>{counts.paid} trả phí · {counts.free} miễn phí</small></article><article><span>Vai trò quản trị</span><strong>{roleLabels[access.role]}</strong><small>Registry BE không nhập vào DB Trung tâm</small></article></section>
           <section className="operations-inbox bauman-overview-inbox"><div><span>Hộp việc ưu tiên</span><strong>Chỉ hiển thị dữ liệu thật từ Bơi ếch</strong></div><button onClick={() => { setFilter("incomplete"); setTab("devices"); }}><span>Hồ sơ chưa đủ</span><strong>{counts.incomplete}</strong></button><button onClick={() => { setFilter("payment"); setTab("devices"); }}><span>Ảnh chuyển khoản</span><strong>{counts.paymentReview}</strong></button><button onClick={() => { setFilter("expired"); setTab("devices"); }}><span>Tài khoản hết hạn</span><strong>{counts.expired}</strong></button>{["reviewer", "publisher", "owner"].includes(access.role) ? <button onClick={() => setTab("content")}><span>Duyệt nội dung</span><strong>→</strong></button> : null}</section>
+          {access.role === "owner" ? <AccountExpiryPanel /> : null}
           <section className="boi-overview-boundary"><strong>Ranh giới quản trị</strong><p>Thiết bị học, tiến độ, AI, thanh toán và nội dung vẫn do Bơi ếch sở hữu. Application Management chỉ xác thực thiết bị quản trị và cấp bridge ngắn hạn.</p><button onClick={() => setTab("devices")}>Mở thiết bị & tiến độ</button></section>
         </> : null}
 
