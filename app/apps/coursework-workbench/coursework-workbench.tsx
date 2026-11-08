@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import styles from "./coursework-workbench.module.css";
-import { createCourseworkBackup, parseCourseworkBackup, validateCourseworkProjects, type Coursework, type CourseworkStage } from "./coursework-domain.mjs";
+import { createCourseworkBackup, parseCourseworkBackup, validateCourseworkProjects, daysUntilDeadline, type Coursework, type CourseworkStage } from "./coursework-domain.mjs";
 
 type StageStatus = "todo" | "doing" | "evidence";
 const workTypes = [
@@ -31,7 +31,6 @@ function exportJson(data: Coursework[]) {
   const anchor = document.createElement("a"); anchor.href = url; anchor.download = "bauman-coursework-v1.json";
   document.body.appendChild(anchor); anchor.click(); anchor.remove(); window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
-function localDate(iso: string) { return iso ? new Date(iso + "T23:59:59").getTime() : null; }
 
 export default function CourseworkWorkbench({ user }: { user: { email: string; displayName: string } }) {
   const storageKey = "application-management:coursework-workbench:v1:" + encodeURIComponent(user.email.trim().toLowerCase());
@@ -110,8 +109,7 @@ export default function CourseworkWorkbench({ user }: { user: { email: string; d
       }
     } catch { setNotice("File JSON không đúng cấu trúc Coursework Workbench v1."); }
   }
-  const due = selected ? localDate(selected.dueDate) : null;
-  const daysLeft = due === null || !Number.isFinite(due) ? null : Math.ceil((due - Date.now()) / 86400000);
+  const daysLeft = selected ? daysUntilDeadline(selected.dueDate) : null;
   if (loadedKey !== storageKey) return <main className={styles.shell} role="status">Đang tải bài tập của tài khoản hiện tại…</main>;
   return <main className={styles.shell}>
     <nav className={styles.nav} aria-label="Academic navigation"><Link href="/">← Application Management</Link><Link href="/tools/study-plan">Kế hoạch học</Link><Link href="/tools/thesis-planner">Thesis Planner</Link></nav>
