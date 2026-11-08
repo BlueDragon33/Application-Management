@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createThesisBackup, parseThesisBackup, validateThesisState, validIsoDay }
   from "../app/tools/thesis-planner/thesis-domain.mjs";
-import { createCourseworkBackup, parseCourseworkBackup, validateCourseworkProjects, validCourseworkDay }
+import { createCourseworkBackup, parseCourseworkBackup, validateCourseworkProjects, validCourseworkDay, daysUntilDeadline }
   from "../app/apps/coursework-workbench/coursework-domain.mjs";
 
 const thesis = () => ({
@@ -62,6 +62,14 @@ test("coursework blocks duplicate IDs, invalid semester deadline, unsupported as
   assert.equal(validateCourseworkProjects([{...p,title:"X".repeat(301)}]), null);
   assert.ok(validateCourseworkProjects([{...p,title:"",subject:""}])); // In-progress edit does not corrupt storage.
   assert.equal(validateCourseworkProjects(Array.from({length:101},(_,i)=>project(String(i)))), null);
+});
+
+test("coursework deadline uses calendar-day differences, not 23:59 wall-clock rounding", () => {
+  const today = new Date(2027, 2, 22, 20, 37);
+  assert.equal(daysUntilDeadline("2027-03-22", today), 0);
+  assert.equal(daysUntilDeadline("2027-03-21", today), -1);
+  assert.equal(daysUntilDeadline("2027-03-23", today), 1);
+  assert.equal(daysUntilDeadline("", today), null);
 });
 
 test("import validation preserves no original object identity (defensive normalization)", () => {
