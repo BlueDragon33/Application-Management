@@ -106,7 +106,7 @@ if (deploy.includes('CONTROL_OWNER_EMAILS: owner@example.com')) {
   throw new Error("Preview không được dùng Owner email mẫu.");
 }
 const beforeMigration = deploy.indexOf("name: Verify generated Preview artifact before remote D1 mutation");
-const migration = deploy.indexOf("name: Apply isolated Preview migrations");
+const migration = deploy.indexOf("name: Apply preview migrations");
 if (beforeMigration < 0 || migration < beforeMigration) {
   throw new Error("Phải build và kiểm tra artifact trước khi migrate remote Preview D1.");
 }
