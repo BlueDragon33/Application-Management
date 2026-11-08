@@ -27,6 +27,7 @@ export type CloudflarePreviewState = {
 };
 
 export class PreviewConnectionError extends Error {
+  providerValidationRejected = false;
   constructor(public code: string, message: string, public status = 409, public applied: boolean | null = false, public providerStatus?: number) { super(message); }
 }
 function fail(code: string, message: string, status = 409): never { throw new PreviewConnectionError(code, message, status); }
@@ -40,10 +41,26 @@ async function provider(path: string, key: string, method = "GET", body?: unknow
   try {
     response = await fetch(`${ORIGIN}${path}`, {
       method, headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
-      ...(body ? { body: JSON.stringify(body) } : {}), cache: "no-store", redirect: "error", signal: AbortSignal.timeout(10000),
+      ...(body ? { body: JSON.stringify(body) } : {}), cache: "no-store", redirect: "manual", signal: AbortSignal.timeout(10000),
     });
   } catch { fail("CLOUDFLARE_UNAVAILABLE", "Không kết nối được Cloudflare. Hãy đọc lại trạng thái trước khi thử lại.", 502); }
-  if (!response.ok) throw new PreviewConnectionError("CLOUDFLARE_ACCESS_BLOCKED", "Cloudflare chưa cho phép thao tác này. Kiểm tra quyền và thời hạn token.", 502, false, response.status);
+  if (!response.ok) {
+    // Keep provider diagnostics useful without forwarding its arbitrary error text.
+    let detail = `HTTP ${response.status}`;
+    let validationRejected = false;
+    try {
+      const payload = object(await response.json());
+      const errors = Array.isArray(payload.errors) ? payload.errors.map(object) : [];
+      const codes = [...new Set(errors.filter(error => Number.isSafeInteger(error.code)).map(error => String(error.code)))].slice(0, 3);
+      const fields = ["not_before", "expires_on", "policies", "condition", "name"].filter(field => errors.some(error => typeof error.message === "string" && error.message.includes(field)));
+      validationRejected = payload.success === false && codes.length > 0 && (response.status === 400 || response.status === 422);
+      if (codes.length) detail += `; mã ${codes.join(", ")}`;
+      if (fields.length) detail += `; trường ${fields.join(", ")}`;
+    } catch { /* A non-JSON provider error is still safely identified by status. */ }
+    const error = new PreviewConnectionError("CLOUDFLARE_ACCESS_BLOCKED", `Cloudflare chưa cho phép thao tác này (${detail}). Kiểm tra quyền và thời hạn token.`, 502, false, response.status);
+    error.providerValidationRejected = validationRejected;
+    throw error;
+  }
   let data: RecordValue;
   try { data = object(await response.json()); } catch { fail("CLOUDFLARE_INVALID_RESPONSE", "Cloudflare trả dữ liệu không hợp lệ.", 502); }
   if (data.success !== true) fail("CLOUDFLARE_ACCESS_BLOCKED", "Cloudflare chưa xác nhận thao tác.", 502);
@@ -152,8 +169,8 @@ async function state(): Promise<CloudflarePreviewState> {
 async function requestMutation(token: Token, admin: string, method: "PUT" | "DELETE", body?: unknown): Promise<true | null> {
   try { await provider(`/tokens/${token.id}`, admin, method, body); return true; }
   catch (error) {
-    // Explicit authentication/authorization denial is evidence of non-application.
-    if (error instanceof PreviewConnectionError && (error.providerStatus === 401 || error.providerStatus === 403)) throw error;
+    // Explicit validation or authorization rejection is evidence of non-application.
+    if (error instanceof PreviewConnectionError && (error.providerValidationRejected || error.providerStatus === 401 || error.providerStatus === 403)) throw error;
     // A lost or malformed response says nothing about whether the provider wrote.
     return null;
   }
@@ -198,8 +215,8 @@ export async function cloudflarePreviewAction(payload: RecordValue, actor: Actor
   if (action === "update-expiry") {
     const expiry = typeof payload.expiresOn === "string" ? Date.parse(payload.expiresOn) : NaN;
     if (!Number.isFinite(expiry) || expiry <= Date.now() || expiry > Date.now() + 365 * 86400000) fail("INVALID_PREVIEW_EXPIRY", "Chọn thời hạn tương lai, tối đa 365 ngày.", 400);
-    const expiresOn = new Date(expiry).toISOString();
-    const acknowledged = await requestMutation(token, admin, "PUT", { name: meta.name, policies: meta.policies, condition: meta.condition ?? {}, not_before: meta.not_before ?? null, expires_on: expiresOn });
+    const expiresOn = new Date(expiry).toISOString().replace(/\.000Z$/, "Z");
+    const acknowledged = await requestMutation(token, admin, "PUT", { name: meta.name, policies: [{ effect: "allow", permission_groups: [{ id: EDITOR }], resources: object(meta.policies[0]).resources }], condition: meta.condition ?? {}, ...(meta.not_before == null ? {} : { not_before: meta.not_before }), expires_on: expiresOn });
     try {
       const after = await metadata(token, admin);
       if (Date.parse(after.expires_on) !== expiry) throw new Error("unverified");
