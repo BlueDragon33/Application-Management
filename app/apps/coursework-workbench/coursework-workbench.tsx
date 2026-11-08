@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import styles from "./coursework-workbench.module.css";
-import { createCourseworkBackup, parseCourseworkBackup, validateCourseworkProjects, type Coursework } from "./coursework-domain.mjs";
+import { createCourseworkBackup, parseCourseworkBackup, validateCourseworkProjects, type Coursework, type CourseworkStage } from "./coursework-domain.mjs";
 
 type StageStatus = "todo" | "doing" | "evidence";
 const workTypes = [
@@ -86,7 +86,7 @@ export default function CourseworkWorkbench({ user }: { user: { email: string; d
     if (!selected) return;
     setProjects((old) => old.map((p) => p.id === selected.id ? { ...p, ...patch } : p));
   }
-  function updateStage(id: string, key: keyof Stage, value: string) {
+  function updateStage(id: string, key: keyof CourseworkStage, value: string) {
     if (!selected) return;
     const prior = selected.stages[id] ?? {status: "todo", evidence: ""};
     if (key === "status" && value === "evidence" && !prior.evidence.trim()) { setNotice("Ghi minh chứng trước khi đánh dấu hoàn thành mốc."); return; }
