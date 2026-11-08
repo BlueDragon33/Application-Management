@@ -3,14 +3,10 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import styles from "./coursework-workbench.module.css";
+import { createCourseworkBackup, parseCourseworkBackup, validateCourseworkProjects, type Coursework } from "./coursework-domain.mjs";
 
 type StageStatus = "todo" | "doing" | "evidence";
 type Stage = { status: StageStatus; evidence: string };
-type Coursework = {
-  id: string; title: string; subject: string; kind: string; teacher: string;
-  dueDate: string; requirements: string; notes: string;
-  stages: Record<string, Stage>;
-};
 const workTypes = [
   { value: "coursework", label: "Курсовая работа · Bài tập lớn" },
   { value: "course-project", label: "Курсовой проект · Đồ án môn học" },
@@ -31,33 +27,8 @@ const steps = [
 const statuses: {value: StageStatus; label: string}[] = [
   { value: "todo", label: "Chưa làm" }, { value: "doing", label: "Đang làm" }, { value: "evidence", label: "Có minh chứng" },
 ];
-function isObject(x: unknown): x is Record<string, unknown> { return !!x && typeof x === "object" && !Array.isArray(x); }
-function validateProjects(value: unknown): Coursework[] | null {
-  if (!Array.isArray(value) || value.length > 100) return null;
-  const items: Coursework[] = [];
-  const ids = new Set<string>();
-  for (const raw of value) {
-    if (!isObject(raw) || !isObject(raw.stages)) return null;
-    const fields = ["id","title","subject","kind","teacher","dueDate","requirements","notes"] as const;
-    if (fields.some((field) => typeof raw[field] !== "string" || String(raw[field]).length > 12000)) return null;
-    if (String(raw.id).length > 100 || ids.has(String(raw.id)) || !workTypes.some((t) => t.value === raw.kind)) return null;
-    ids.add(String(raw.id));
-    const stages: Record<string, Stage> = {};
-    for (const step of steps) {
-      const stage = raw.stages[step.id];
-      if (stage === undefined) continue;
-      if (!isObject(stage) || !statuses.some((s) => s.value === stage.status) || typeof stage.evidence !== "string" || stage.evidence.length > 8000) return null;
-      if (stage.status === "evidence" && !stage.evidence.trim()) return null;
-      stages[step.id] = { status: stage.status as StageStatus, evidence: stage.evidence };
-    }
-    items.push({ id: raw.id as string, title: raw.title as string, subject: raw.subject as string,
-      kind: raw.kind as string, teacher: raw.teacher as string, dueDate: raw.dueDate as string,
-      requirements: raw.requirements as string, notes: raw.notes as string, stages });
-  }
-  return items;
-}
 function exportJson(data: Coursework[]) {
-  const url = URL.createObjectURL(new Blob([JSON.stringify({ schema: "coursework-workbench/v1", projects: data }, null, 2)], {type:"application/json"}));
+  const url = URL.createObjectURL(new Blob([JSON.stringify(createCourseworkBackup(data), null, 2)], {type:"application/json"}));
   const anchor = document.createElement("a"); anchor.href = url; anchor.download = "bauman-coursework-v1.json";
   document.body.appendChild(anchor); anchor.click(); anchor.remove(); window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
@@ -65,24 +36,30 @@ function localDate(iso: string) { return iso ? new Date(iso + "T23:59:59").getTi
 
 export default function CourseworkWorkbench({ user }: { user: { email: string; displayName: string } }) {
   const storageKey = "application-management:coursework-workbench:v1:" + encodeURIComponent(user.email.trim().toLowerCase());
-  const [ready, setReady] = useState(false);
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [storageBlocked, setStorageBlocked] = useState(false);
   const [projects, setProjects] = useState<Coursework[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [notice, setNotice] = useState("");
   const [draft, setDraft] = useState({title: "", subject: "", kind: "coursework", dueDate: ""});
   useEffect(() => {
+    setStorageBlocked(false);
+    setNotice("");
+    setSelectedId("");
     try {
       const raw = window.localStorage.getItem(storageKey);
-      const parsed = raw ? validateProjects(JSON.parse(raw) as unknown) : [];
+      const parsed = raw ? validateCourseworkProjects(JSON.parse(raw) as unknown) : [];
       setProjects(parsed ?? []);
       if (raw && !parsed) { setStorageBlocked(true); setNotice("Bản dữ liệu hiện tại không hợp lệ, chưa ghi đè bản cũ."); }
     } catch { setProjects([]); setStorageBlocked(true); setNotice("Không đọc được dữ liệu localStorage, chưa ghi đè bản cũ."); }
-    setReady(true);
+    // Storage writes never run against an account different from the hydrated one.
+    setLoadedKey(storageKey);
   }, [storageKey]);
-  useEffect(() => { if (!ready || storageBlocked) return; try { window.localStorage.setItem(storageKey, JSON.stringify(projects)); }
+  useEffect(() => {
+    if (loadedKey !== storageKey || storageBlocked) return;
+    try { window.localStorage.setItem(storageKey, JSON.stringify(projects)); }
     catch { setNotice("Không thể lưu trên thiết bị, hãy xuất JSON."); }
-  }, [projects, ready, storageBlocked, storageKey]);
+  }, [projects, loadedKey, storageBlocked, storageKey]);
   const selected = useMemo(() => projects.find((p) => p.id === selectedId) ?? projects[0] ?? null, [projects, selectedId]);
   const next = selected ? steps.find((s) => selected.stages[s.id]?.status !== "evidence") : null;
   const completed = selected ? steps.filter((s) => selected.stages[s.id]?.status === "evidence").length : 0;
@@ -116,9 +93,8 @@ export default function CourseworkWorkbench({ user }: { user: { email: string; d
     if (file.size > 1024 * 1024) { setNotice("Từ chối file lớn hơn 1 MB."); return; }
     try {
       const parsed = JSON.parse(await file.text()) as unknown;
-      if (!isObject(parsed) || parsed.schema !== "coursework-workbench/v1") throw new Error("Schema");
-      const list = validateProjects(parsed.projects);
-      if (!list) throw new Error("Records");
+      const list = parseCourseworkBackup(parsed);
+      if (!list) throw new Error("Invalid coursework backup");
       if (window.confirm("Thay thế toàn bộ danh sách bài tập trên thiết bị bằng bản sao lưu?")) {
         setStorageBlocked(false); setProjects(list); setSelectedId(""); setNotice("Đã khôi phục dữ liệu cục bộ. Không có đồng bộ server.");
       }
@@ -126,6 +102,7 @@ export default function CourseworkWorkbench({ user }: { user: { email: string; d
   }
   const due = selected ? localDate(selected.dueDate) : null;
   const daysLeft = due === null || !Number.isFinite(due) ? null : Math.ceil((due - Date.now()) / 86400000);
+  if (loadedKey !== storageKey) return <main className={styles.shell} role="status">Đang tải bài tập của tài khoản hiện tại…</main>;
   return <main className={styles.shell}>
     <nav className={styles.nav} aria-label="Academic navigation"><Link href="/">← Application Management</Link><Link href="/tools/study-plan">Kế hoạch học</Link><Link href="/tools/thesis-planner">Thesis Planner</Link></nav>
     <header className={styles.hero}><span className={styles.tag}>ỨNG DỤNG RIÊNG · LOCAL-FIRST · P0</span><h1>Coursework Workbench · Курсовая работа</h1><p>Quản lý bài tập lớn, đồ án và báo cáo theo từng môn; mỗi bài có tiến độ, hạn nộp và minh chứng riêng. Chưa tạo lõi học thuật dùng chung.</p></header>
@@ -166,7 +143,7 @@ export default function CourseworkWorkbench({ user }: { user: { email: string; d
             </article>; })}
           </section>
         </>}
-        <section className={styles.panel}><p className={styles.alert}>Đây là công cụ theo dõi công việc. “Có minh chứng” do bạn tự ghi, không chứng minh rằng bài đã đúng, đủ nguồn hoặc được giảng viên chấm đạt. Đối chiếu mẫu từng môn và quy tắc AI trực tiếp với giảng viên.</p>{notice ? <p className={styles.note} role="status">{notice}</p> : null}<p className={styles.note}>Trạng thái lưu: {ready ? "Lưu cục bộ trên thiết bị" : "Đang đọc bộ nhớ"} · Không upload file · Không tạo tài khoản/billing/hạ tầng mới.</p></section>
+        <section className={styles.panel}><p className={styles.alert}>Đây là công cụ theo dõi công việc. “Có minh chứng” do bạn tự ghi, không chứng minh rằng bài đã đúng, đủ nguồn hoặc được giảng viên chấm đạt. Đối chiếu mẫu từng môn và quy tắc AI trực tiếp với giảng viên.</p>{notice ? <p className={styles.note} role="status">{notice}</p> : null}<p className={styles.note}>Trạng thái lưu: {storageBlocked ? "Dữ liệu cũ bị khóa ghi để tránh mất mát" : "Lưu cục bộ trên thiết bị"} · Không upload file · Không tạo tài khoản/billing/hạ tầng mới.</p></section>
       </div>
     </div>
   </main>;
