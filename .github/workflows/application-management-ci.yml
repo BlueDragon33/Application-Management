@@ -58,10 +58,10 @@ jobs:
           cache: npm
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
-      - name: Mandatory full regression suite and fail-closed Preview preflight
-        run: |
-          npm run validate:cloudflare-preview
-          npm test
+      - name: Fail-closed Cloudflare Preview security preflight
+        run: npm run validate:cloudflare-preview
+      - name: Mandatory full regression suite
+        run: npm test
       - name: Regression policy summary
         run: echo "Full npm test PASS for every pull request and every main revision."
 
