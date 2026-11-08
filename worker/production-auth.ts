@@ -28,7 +28,7 @@ const SESSION_TTL_SECONDS = 12 * 60 * 60;
 const PASSWORD_ITERATIONS = 100_000;
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_SECONDS = 15 * 60;
-const STEP_UP_TTL_SECONDS = 15 * 60;
+const STEP_UP_TTL_SECONDS = 30 * 60;
 const encoder = new TextEncoder();
 
 type ProductionAuthEnv = GoogleOAuthEnv & TotpEnv & {
@@ -297,7 +297,7 @@ function accountPage(identity: ProductionIdentity, profile: AccountPageData, not
         <h2>Xác minh thao tác nhạy cảm</h2>
         <label for="stepUpTotpCode">Mã Authenticator</label>
         <input id="stepUpTotpCode" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
-        <button type="submit">Xác minh trong 15 phút</button>
+        <button type="submit">Xác minh trong 30 phút</button>
         <p class="note">${identity.stepUpAt && Math.floor(Date.now()/1000) - identity.stepUpAt < STEP_UP_TTL_SECONDS ? "Phiên này vừa được xác minh tăng cường." : "Chưa có xác minh tăng cường gần đây."}</p>
       </form>
       <form method="post" action="${ACCOUNT_PATH}/mfa/disable">
@@ -734,7 +734,7 @@ export async function handleProductionAccount(request: Request, env: ProductionA
     if (!ok) return responseHtml(accountPage(identity, await accountPageData(env, identity), "Lỗi: Mã Authenticator không đúng hoặc đã hết hạn."), 401);
     const now = Math.floor(Date.now() / 1000);
     await env.DB.prepare("UPDATE control_sessions SET step_up_at=?2 WHERE session_id_hash=?1").bind(identity.sessionHash, now).run();
-    return responseHtml(accountPage({ ...identity, stepUpAt: now }, await accountPageData(env, identity), "Đã bật Authenticator. Xác minh tăng cường có hiệu lực 15 phút."));
+    return responseHtml(accountPage({ ...identity, stepUpAt: now }, await accountPageData(env, identity), "Đã bật Authenticator. Xác minh tăng cường có hiệu lực 30 phút."));
   }
 
   if (url.pathname === `${ACCOUNT_PATH}/mfa/step-up`) {
@@ -749,7 +749,7 @@ export async function handleProductionAccount(request: Request, env: ProductionA
     const now = Math.floor(Date.now() / 1000);
     await env.DB.prepare("UPDATE control_sessions SET step_up_at=?2 WHERE session_id_hash=?1").bind(identity.sessionHash, now).run();
     if (json) return Response.json({ ok: true }, { headers: secureHeaders("application/json; charset=utf-8") });
-    return responseHtml(accountPage({ ...identity, stepUpAt: now }, await accountPageData(env, identity), "Đã xác minh tăng cường. Thao tác nhạy cảm được mở trong 15 phút."));
+    return responseHtml(accountPage({ ...identity, stepUpAt: now }, await accountPageData(env, identity), "Đã xác minh tăng cường. Thao tác nhạy cảm được mở trong 30 phút."));
   }
 
   if (url.pathname === `${ACCOUNT_PATH}/mfa/disable`) {
@@ -851,6 +851,7 @@ function sensitiveProductionMutation(pathname: string, payload: Record<string, u
   }
 
   if (pathname === "/api/apps/boi-ech/access" && action === "manage-access") return true;
+  if (pathname === "/api/apps/boi-ech/account-entitlements" && (action === "set-account" || action === "set-policy")) return true;
   if (pathname === "/api/apps/boi-ech/cloudflare-preview" && action !== "status") return true;
 
   // Preserve a fail-closed path for future destructive operation names routed
