@@ -29,3 +29,14 @@ Date: 2026-11-08. **SOURCE-ONLY, NOT TEST-ACCEPTED, NOT DEPLOYED.**
 - MFA step-up on sensitive Owner duration mutations is 30 min in proposed source; still requires authenticated session in live Worker.
 - No full Node22 npm tests/tsc/lint/build, Preview deployment, release or Production mutation was performed. TinyFish paid browser automation is unavailable; no payment was made and no attempt to buy service should be requested. Public repositories may use standard GitHub Actions free runners via an authorized no-deploy dispatch; the app connector lacks dispatch capability in this chat.
 - Verify active PR #381 head for latest SHA; checkpoint old SHA is superseded.
+
+## VERIFIED QA UPDATE — 2026-11-08 (supersedes older NOT_RUN claims)
+
+- Latest tested HEAD before this evidence-only update: `04a8e4b90238e07584daa6fc17a4925441cc96c2`, [development fast CI #42488393535](https://github.com/BlueDragon33/Application-Management/actions/runs/42488393535) PASS and [Constitution #42488398578](https://github.com/BlueDragon33/Application-Management/actions/runs/42488398578) PASS.
+- Companion [CI #42483400371](https://github.com/BlueDragon33/Application-Management/actions/runs/42483400371) on same UI/API source code: **861/861** regression PASS and **9/9** authenticated Playwright browser-fixture checks PASS on real local App Manager backend/D1 and synthetic upstream app clients. No host Preview was tested.
+- Fixed rejected readback UI: form now restores verified policy rather than leaving optimistic draft; test includes 27->26 rollback and scoped mismatch notice. Real Owner/MFA on actual Cloudflare Workers is still NOT VERIFIED.
+- Protected `cloudflare-preview-ci.yml` restored to **manual-only workflow_dispatch** after an auto-trigger was rejected by source gate. `deploy-application-management-preview.yml` remains intentionally **dormant (`if: false`)** and was NOT activated.
+- [BOIECH_AI #109](https://github.com/BlueDragon33/BOIECH_AI/pull/109) has 595/595 source regressions and 26/26 LOCAL Wrangler D1 migrations PASS. App-BOIECH cross-Worker HTTPS/D1 Owner proof, MFA and CAS/readback still require real isolated remote Preview.
+- Pending: legacy data snapshot preservation, 3-device browser/offline progress, independent reviewer, and exact SHA release authority. No Production change, merge or paid service.
+
+**Next action:** authorized FREE Preview of two real Workers (when permitted), signed Owner E2E, D1 readback, MFA role/device QA, and independent release gate.
