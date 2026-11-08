@@ -117,7 +117,7 @@ jobs:
         if: steps.config.outputs.ready == 'true'
         run: npm run cloudflare:artifact:check
 
-      - name: Apply isolated Preview migrations
+      - name: Apply preview migrations
         if: steps.config.outputs.ready == 'true'
         run: npx wrangler d1 migrations apply application-management-preview-db --remote --config wrangler.cloudflare.jsonc
 
