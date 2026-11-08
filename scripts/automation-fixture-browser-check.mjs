@@ -236,7 +236,7 @@ try {
   await expect(limit).toHaveValue("26", { timeout: 30_000 });
   await expect(saveButton()).toBeDisabled();
   await expect(modal().getByRole("button", { name: "Đồng bộ LIVE", exact: true })).toBeEnabled();
-  await expect(page.getByText(/Chưa khớp readback:/)).toBeVisible();
+  await expect(modal().getByText(/Chưa khớp readback:/)).toBeVisible();
   checks.push("readback mismatch returns exact failure, restores persisted draft and unlocks sync without false success");
   flags.mismatch = false;
   flags.unavailable = true;
