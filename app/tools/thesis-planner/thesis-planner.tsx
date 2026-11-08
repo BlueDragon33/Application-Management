@@ -66,8 +66,18 @@ export default function ThesisPlanner({ user }: { user: { email: string; display
   useEffect(() => {
     if (loadedKey !== storageKey || storageBlocked) return;
     try { window.localStorage.setItem(storageKey, JSON.stringify(model)); }
-    catch { setNotice("Không lưu được dữ liệu trên thiết bị. Hãy xuất JSON ngay."); }
+    catch { setStorageBlocked(true); setNotice("Không lưu được dữ liệu trên thiết bị. Hãy xuất JSON ngay."); }
   }, [model, loadedKey, storageBlocked, storageKey]);
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.storageArea === window.localStorage && (event.key === storageKey || event.key === null)) {
+        setStorageBlocked(true);
+        setNotice("Dữ liệu vừa thay đổi từ tab khác. Đã khóa ghi để tránh mất dữ liệu. Hãy xuất JSON rồi kiểm tra bản mới trước khi khôi phục.");
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [storageKey]);
   const done = allSteps.filter((step) => model.steps[step.id]?.progress === "evidence").length;
   const next = allSteps.find((step) => model.steps[step.id]?.progress !== "evidence");
   const currentSemester = useMemo(() => phases.find((phase) => phase.steps.some((step) => step.id === next?.id))?.semester ?? "Đối chiếu toàn bộ minh chứng", [next]);
@@ -101,7 +111,7 @@ export default function ThesisPlanner({ user }: { user: { email: string; display
     <div className={styles.stats}>
       <div className={styles.stat}><strong>{done}/{allSteps.length}</strong><span>Mốc đã ghi minh chứng</span></div>
       <div className={styles.stat}><strong>{Math.round(done / allSteps.length * 100)}%</strong><span>Độ phủ hồ sơ, không phải điểm số</span></div>
-      <div className={styles.stat}><strong>{storageBlocked ? "Lỗi lưu" : "Cục bộ"}</strong><span>Dữ liệu trên thiết bị</span></div>
+      <div className={styles.stat}><strong>{storageBlocked ? "Khóa ghi" : "Cục bộ"}</strong><span>Dữ liệu trên thiết bị</span></div>
     </div>
     <div className={styles.grid}><div>
       <section className={styles.panel}><h2>Thông tin đề tài · Тема диссертации</h2>
@@ -123,7 +133,7 @@ export default function ThesisPlanner({ user }: { user: { email: string; display
       </section>
     </div><aside>
       <section className={styles.panel}><h2>HƯỚNG DẪN / NEXT ACTION</h2><div className={styles.action}><strong>{currentSemester}</strong><p>{next ? next.name : "Đã ghi minh chứng cho toàn bộ mốc. Kiểm tra lại với giảng viên và hội đồng trước khi xác nhận đạt."}</p><span className={styles.meta}>{next ? "Đầu ra: " + next.output : "Không có phê duyệt tự động"}</span></div></section>
-      <section className={styles.panel}><h2>Sao lưu và khôi phục</h2><p className={styles.hint}>Dữ liệu chỉ ở trình duyệt của tài khoản này. Xóa Safari/Chrome hoặc đổi máy có thể làm mất dữ liệu nếu không sao lưu.</p><div className={styles.actions}><button type="button" className={styles.btn} onClick={() => exportJson("bauman-thesis-planner-v1.json",createThesisBackup(model))}>Xuất JSON</button><label className={styles.btn + " " + styles.btnSecondary}>Nhập JSON<input hidden type="file" accept=".json,application/json" onChange={importFile} /></label></div></section>
+      <section className={styles.panel}><h2>Sao lưu và khôi phục</h2><p className={styles.hint}>Dữ liệu nằm trong localStorage của trình duyệt, không mã hóa: người dùng chung hồ sơ trình duyệt có thể đọc. Xóa Safari/Chrome hoặc đổi máy có thể làm mất dữ liệu nếu không sao lưu.</p><div className={styles.actions}><button type="button" className={styles.btn} onClick={() => exportJson("bauman-thesis-planner-v1.json",createThesisBackup(model))}>Xuất JSON</button><label className={styles.btn + " " + styles.btnSecondary}>Nhập JSON<input hidden type="file" accept=".json,application/json" onChange={importFile} /></label></div></section>
       <section className={styles.panel}><h2>Cổng học thuật</h2><p className={styles.notice}>Trạng thái “Đã ghi minh chứng” chỉ là xác nhận của người dùng, <strong>không phải PASS khoa học, phê duyệt của khoa hay xác nhận trích dẫn</strong>. Không đưa dữ liệu mật hoặc dữ liệu cá nhân vào công cụ AI ngoài phạm vi cho phép.</p>{notice ? <p role="status" className={styles.hint}>{notice}</p> : null}</section>
     </aside></div>
   </main>;
