@@ -107,6 +107,14 @@ jobs:
         if: steps.config.outputs.ready == 'true'
         run: npm run cloudflare:preview:prepare
 
+      - name: Confirm dedicated App Preview D1 identity without remote writes
+        if: steps.config.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --no-install wrangler d1 list --json --config wrangler.cloudflare.jsonc > "$RUNNER_TEMP/application-management-preview-d1-list.json"
+          node scripts/assert-preview-d1-inventory.mjs "$RUNNER_TEMP/application-management-preview-d1-list.json"
+
       - name: Build preview
         if: steps.config.outputs.ready == 'true'
         env:
