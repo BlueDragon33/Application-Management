@@ -56,7 +56,7 @@ export default function AccountExpiryPanel(){
   try{
    await changeBoiAccountDuration({accountId:current.accountId,expectedRevision:current.entitlement.revision,
     operation,...(operation==="set-expiry"?{expiresAt:iso}:{}),reason:reason.trim()});
-   setNotice("Đã cập nhật và xác minh lại quyền tài khoản trên Bơi ếch.");
+   setNotice("Đã lưu và đọc lại hạn tài khoản. Quyền thiết bị và thanh toán vẫn được kiểm soát riêng.");
    await refresh();
   }catch(e){setError(e instanceof Error?e.message:"Không xác minh được thay đổi.");}
   finally{setBusy(false);}
@@ -102,7 +102,9 @@ export default function AccountExpiryPanel(){
   {current?<div style={{display:"grid",gap:8}}>
    <strong>{current.name||current.accountId} — {labels[current.role]||current.role}</strong>
    <small>ID: {current.accountId} · Onboarding: {current.onboardingStage||"chưa có"}</small>
-   <div>Hạn hiệu lực: <strong>{moscow(current.entitlement?.expiresAt)}</strong></div>
+   <div>Hạn tài khoản: <strong>{moscow(current.entitlement?.expiresAt)}</strong></div>
+   <div>Hạn quyền thiết bị cũ: <strong>{moscow(current.deviceAccessExpiresAt)}</strong> · Thanh toán: {current.paymentStatus??"—"}</div>
+   {current.deviceAccessExpired ? <p role="alert">Quyền thiết bị cũ đã hết hạn. Gia hạn tài khoản không tự gia hạn quyền thiết bị hoặc thanh toán. Kiểm tra tại “Thiết bị & tiến độ”.</p> : null}
    <div>Trạng thái: {current.entitlement?.state??"Chưa kích hoạt"} · Revision: {current.entitlement?.revision??"—"}</div>
    {current.entitlement?<><label>Đặt thời hạn mới
     <input type="datetime-local" value={expiration} onChange={e=>setExpiration(e.target.value)}/>
