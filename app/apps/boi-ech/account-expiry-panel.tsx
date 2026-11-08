@@ -45,7 +45,8 @@ export default function AccountExpiryPanel(){
  async function commitAccount(operation:"set-expiry"|"suspend"|"resume"){
   if(!current?.entitlement||busy)return;
   if(reason.trim().length<5){setError("Nhập lý do dài ít nhất 5 ký tự.");return;}
-  const iso=operation==="set-expiry"?expiration?new Date(expiration).toISOString():"":"";
+  const parsed=Date.parse(expiration);
+  const iso=operation==="set-expiry"&&Number.isFinite(parsed)?new Date(parsed).toISOString():"";
   if(operation==="set-expiry"&&!iso){setError("Chọn ngày hết hạn hợp lệ.");return;}
   if(!window.confirm(`${operation==="set-expiry"?"Đổi ngày hết hạn":operation==="suspend"?"Tạm khóa":"Khôi phục"} tài khoản ${current.name||current.accountId}?`))return;
   setBusy(true);setError("");setNotice("");
@@ -107,7 +108,7 @@ export default function AccountExpiryPanel(){
     <button disabled={busy} onClick={()=>{setExpiration(localInput(new Date(Date.now()+30*86400000).toISOString()));}}>+30 ngày từ hôm nay</button>
     {current.entitlement.state==="active"
      ?<button disabled={busy} onClick={()=>void commitAccount("suspend")}>Tạm khóa</button>
-     :<button disabled={busy||!current.entitlement.active} onClick={()=>void commitAccount("resume")}>Khôi phục</button>}
+     :<button disabled={busy||Date.parse(current.entitlement.expiresAt)<=Date.now()} onClick={()=>void commitAccount("resume")}>Khôi phục</button>}
    </div></>:<p>Tài khoản chưa qua lần duyệt thứ hai hoặc đang được giữ để đối chiếu dữ liệu cũ. Không cấp quyền tự động.</p>}
   </div>:null}
   <small>Chỉ Owner có quyền sửa. Mọi thay đổi cần CAS, nhật ký và đọc lại từ Bơi ếch. Dữ liệu học tập không bị xóa khi hết hạn.</small>
