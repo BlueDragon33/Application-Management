@@ -16,7 +16,8 @@ export function validateCourseworkProjects(value) {
   const result = [], ids = new Set();
   for (const item of value) {
     if (!record(item) || !record(item.stages) || !isString(item.id, 100) || !/^[\w-]{1,100}$/.test(item.id) || ids.has(item.id)) return null;
-    if (!isString(item.title, 300) || !item.title.trim() || !isString(item.subject, 300) || !item.subject.trim()) return null;
+    // A blank title/subject can be a transient draft while the user edits an existing task.
+    if (!isString(item.title, 300) || !isString(item.subject, 300)) return null;
     if (!workTypes.has(item.kind) || !isString(item.teacher, 300) || !isString(item.dueDate, 10) || !validCourseworkDay(item.dueDate)) return null;
     if (!isString(item.requirements, 12000) || !isString(item.notes, 12000)) return null;
     if (Object.keys(item.stages).some((key) => !stages.has(key))) return null;
