@@ -65,6 +65,7 @@ export default function CourseworkWorkbench({ user }: { user: { email: string; d
   const completed = selected ? steps.filter((s) => selected.stages[s.id]?.status === "evidence").length : 0;
   function addProject(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (projects.length >= 100) { setNotice("Đã đạt giới hạn 100 bài tập trên thiết bị. Hãy sao lưu và lưu trữ bớt trước khi tạo mới."); return; }
     const title = draft.title.trim(), subject = draft.subject.trim();
     if (!title || !subject) { setNotice("Cần có tên bài và môn học."); return; }
     if (projects.some((p) => p.title.toLocaleLowerCase() === title.toLocaleLowerCase() && p.subject.toLocaleLowerCase() === subject.toLocaleLowerCase())) { setNotice("Bài cùng tên và môn đã tồn tại."); return; }
@@ -111,7 +112,7 @@ export default function CourseworkWorkbench({ user }: { user: { email: string; d
         <section className={styles.panel}><h2>Danh sách bài tập · {projects.length}</h2>
           {projects.length ? projects.map((project) => {
             const total = steps.filter((s) => project.stages[s.id]?.status === "evidence").length;
-            return <button type="button" key={project.id} className={styles.project + (project.id === selected?.id ? " " + styles.active : "")} onClick={() => setSelectedId(project.id)}><strong>{project.title}</strong><span>{project.subject} · {total}/{steps.length} mốc · {project.dueDate || "Chưa có hạn"}</span></button>;
+            return <button type="button" key={project.id} className={styles.project + (project.id === selected?.id ? " " + styles.active : "")} onClick={() => setSelectedId(project.id)}><strong>{project.title.trim() || "Chưa đặt tên bài"}</strong><span>{project.subject.trim() || "Chưa có môn học"} · {total}/{steps.length} mốc · {project.dueDate || "Chưa có hạn"}</span></button>;
           }) : <p className={styles.note}>Chưa có bài tập. Tạo bài đầu tiên bên dưới.</p>}
         </section>
         <section className={styles.panel}><h2>Tạo bài tập mới</h2><form className={styles.form} onSubmit={addProject}>
