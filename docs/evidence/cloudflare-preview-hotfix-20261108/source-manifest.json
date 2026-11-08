@@ -1,0 +1,52 @@
+{
+  "sourceCommit": "6395367c8ac0fcf27b31f945ee6f97f81dd838e3",
+  "sourceTree": "dff30b700608178d42eac4b245f9f855d8e733b1",
+  "localEquivalentCandidate": "da766abe1cbe266e27a1e0b26baeabb26655da6a",
+  "baselineProductionSource": "b2e36758d8dab5c953e71b3aa1f36490b55d770f",
+  "files": {
+    "app/cloudflare-preview.server.ts": {
+      "gitBlob": "c5762f47f44060242e2a86654216ba13c6da9e4a",
+      "sha256": "3116046570357f9a283428136531350a6d38dcf45a01eb8ccb8cee545272502a",
+      "identicalToRemote": true
+    },
+    "tests/cloudflare-preview-lifecycle-runtime.test.mjs": {
+      "gitBlob": "9f6b6cead4219377aa962324628c6025997a1e18",
+      "sha256": "d0817408f91b244d930267983561150569e074b9ce4ff0e6691e1d38f231964e",
+      "identicalToRemote": true
+    }
+  },
+  "compiled": {
+    "encoding": "UTF-8; CRLF normalized to LF; no extra terminator",
+    "cleanPreviewVersion": "9fbdcbbd",
+    "canonicalAdapterSha256": "664231124ae48369f6f1badc1d108db87b65bde7f8c0cc6e6e69787418ae4c5a",
+    "normalizer": "esbuild minify=true treeShaking=false legalComments=none target=es2022",
+    "baselineIndexSha256": "4581b8dfb7901e2e426720debeba85d6ae185d90d52f82a32a501f5cf5f59edb",
+    "wholePackageHashClaimed": false,
+    "captureFileSha256WithAddedTrailingLf": "5c4f10a03a7714cac291c5d6b18bac6bd4d0ad42edaa72973247f1de7f7daca2",
+    "exactLfSha256": "9aca118338266acf6e5cbc719ea4c87b50b940d724bd4a92c47a0380e7f9e521",
+    "captureNote": "Historical capture file has one extra trailing LF; exact clipboard-derived LF bytes are hashed separately and independently match local reconstruction."
+  },
+  "logs": {
+    "expiry-seconds-final-full.log": {
+      "sha256": "2e7cd4a90357cfa28f71581257c178735be60ebe2f76b2ebe5019c77318b9534",
+      "storedAs": "expiry-seconds-final-full.log.gz"
+    },
+    "expiry-seconds-green.log": {
+      "sha256": "f3c67abff586405f79a4bac9410a94baa7d164eb52cc11c87746f4c608669b1b",
+      "storedAs": "expiry-seconds-green.log.gz"
+    },
+    "expiry-seconds-final-lint.log": {
+      "sha256": "784bf9a0b13a3806fb7aac68f61768b31d8d7578bbb438aa7f27622d022d3bce",
+      "storedAs": "expiry-seconds-final-lint.log.gz"
+    },
+    "feature-expiry-seconds-final-full.log": {
+      "sha256": "3f31b34db572de3425e1a34fbca6f2148b794ef99f7bc0e0316f17ab07d0eab6",
+      "storedAs": "feature-expiry-seconds-final-full.log.gz"
+    },
+    "feature-expiry-seconds-final-lint.log": {
+      "sha256": "c20eb7590422155f40441b5a45881de6b7e59ab8ed8e2df8ff14ea21b9257e95",
+      "storedAs": "feature-expiry-seconds-final-lint.log.gz"
+    }
+  },
+  "productionReleasePlan": "production-release-plan.json"
+}

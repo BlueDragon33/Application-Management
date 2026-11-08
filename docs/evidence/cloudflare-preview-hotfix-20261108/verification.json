@@ -1,0 +1,140 @@
+{
+  "scope": "Application-Management Cloudflare Preview token connection and expiry hotfix only",
+  "date": "2026-11-08",
+  "timezone": "Europe/Moscow",
+  "source": {
+    "baseline": "b2e36758d8dab5c953e71b3aa1f36490b55d770f",
+    "proposedSource": "6395367c8ac0fcf27b31f945ee6f97f81dd838e3",
+    "tree": "dff30b700608178d42eac4b245f9f855d8e733b1",
+    "localEquivalent": "da766abe1cbe266e27a1e0b26baeabb26655da6a",
+    "changedRuntimeFiles": [
+      "app/cloudflare-preview.server.ts"
+    ],
+    "changedTestFiles": [
+      "tests/cloudflare-preview-lifecycle-runtime.test.mjs"
+    ]
+  },
+  "validation": {
+    "minimal": {
+      "fullTests": 855,
+      "pass": 855,
+      "fail": 0,
+      "skip": 0,
+      "focusedTests": 22,
+      "typecheck": "PASS_IN_FULL_SUITE",
+      "build": "PASS_IN_FULL_SUITE",
+      "lintErrors": 0,
+      "lintWarnings": 25
+    },
+    "fullOwnerSource": {
+      "sha": "ab06c4ae2891f1ccbd9806d0fd95645f487e9205",
+      "tests": 863,
+      "pass": 863,
+      "fail": 0,
+      "skip": 0,
+      "lintErrors": 0,
+      "lintWarnings": 25,
+      "deployed": false
+    },
+    "independentAgentReview": "NO_CRITICAL_OR_IMPORTANT_SOURCE_FINDINGS",
+    "authorizedHumanReview": "PENDING",
+    "githubReviewsAtSourceHead": [],
+    "hostedActionsRunsAtSourceHead": 0,
+    "requiredGitHubChecks": "NOT_CLAIMED_PASS"
+  },
+  "preview": {
+    "worker": "application-management-preview",
+    "url": "https://application-management-preview.boiech-ai.workers.dev",
+    "cleanScriptVersion": "9fbdcbbd",
+    "metadataOnlyVersion": "b3f99412",
+    "runtimeObservation": {
+      "recordedAt": "2026-11-08T02:46:19.044Z",
+      "runtime": {
+        "ok": true,
+        "application": "application-management",
+        "runtime": "control-plane",
+        "channel": "cloudflare-preview",
+        "revision": "6395367c8ac0fcf27b31f945ee6f97f81dd838e3",
+        "databaseReady": true,
+        "assetsReady": true,
+        "previewAccessConfigured": true,
+        "productionAuthConfigured": false,
+        "googleAuthConfigured": false,
+        "accessMode": "application-preview-secret",
+        "ownerPolicyConfigured": true,
+        "networkMode": "production",
+        "clients": {
+          "boiEch": false,
+          "healthCare": false,
+          "ruLife": false,
+          "baumanControl": false,
+          "baumanRuntime": false,
+          "growUp": false
+        },
+        "deployOps": {
+          "vercelConfigured": false,
+          "neonConfigured": false
+        },
+        "checkedAt": 1794105969833
+      }
+    },
+    "d1": {
+      "name": "application-management-preview-db",
+      "id": "00f8a685-452f-472c-81c5-4d0b1c4037c9"
+    },
+    "compatibilityDate": "2026-09-10",
+    "credentialsEncryptedInVault": true,
+    "rawValuesExported": false,
+    "actualChangedExpiryReadback": "PASS_DEC7_TO_DEC6_AND_RESTORED_DEC7",
+    "actualDeletion": "NOT_PERFORMED",
+    "fullStackBoiClientConfigured": false
+  },
+  "production": {
+    "worker": "application-management",
+    "url": "https://application-management.boiech-ai.workers.dev",
+    "lastCloudflareRevisionReadback": "b2e36758d8dab5c953e71b3aa1f36490b55d770f",
+    "revisionReadbackDate": "2026-11-08",
+    "appSession": "GOOGLE_DEVICE_VERIFICATION_REQUIRED_NOT_BYPASSED",
+    "vaultReplacementSaved": false,
+    "mergePerformed": false,
+    "deploymentPerformed": false,
+    "releaseAuthorization": "PENDING_EXACT_ARTIFACT_AND_ENVIRONMENT"
+  },
+  "tokens": {
+    "editor": {
+      "name": "boiech-preview-work-20261107-r2",
+      "id": "47fa4ecea071345c9fc29f3b529edb6e",
+      "scope": "Individual Workers Editor: boi-ech-preview only"
+    },
+    "lifecycle": {
+      "name": "boiech-preview-lifecycle-20261107-r2",
+      "id": "8e8d5260df42cf49fd3584da7edce109",
+      "scope": "Account API Tokens Write: exact existing account"
+    },
+    "expiresOn": "2026-12-07T20:59:59Z",
+    "expiresMoscow": "2026-12-07 23:59:59 GMT+3",
+    "appEntitlementChanged": false,
+    "oldTokensRevoked": false,
+    "publishTokenChanged": false
+  },
+  "controls": {
+    "schemaChanged": false,
+    "roleChanged": false,
+    "scopeExpanded": false,
+    "slugOrUrlChanged": false,
+    "newWorkerOrSiteCreated": false,
+    "paidPlanOrServiceUsed": false,
+    "hostedWorkflowDispatched": false,
+    "vercelUsed": false,
+    "rollbackProductionTest": "NOT_PERFORMED",
+    "freeBoiLoadCpuBudget": "UNVERIFIED"
+  },
+  "accountFirstV2": {
+    "sha": "802a5b6124d3d4406ae16a6beeb3ff634a762887",
+    "accepted": false,
+    "productionReleased": false,
+    "pr107Integrated": false,
+    "trainingCertificationStarted": false
+  },
+  "evidenceCaveat": "Recorded UI readbacks and screenshots establish the narrow live Preview observations. They do not establish full Issue108 acceptance, real DELETE, physical 3-device/load/migration gates or Production authority."
+}

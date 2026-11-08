@@ -1,0 +1,72 @@
+--- production268c3b94/cloudflare-preview-adapter
++++ source6395367/cloudflare-preview-adapter
+@@ -14,6 +14,7 @@
+ 		this.status = status;
+ 		this.applied = applied;
+ 		this.providerStatus = providerStatus;
++		this.providerValidationRejected = false;
+ 	}
+ };
+ function fail(code, message, status = 409) {
+@@ -37,13 +38,34 @@
+ 			},
+ 			...body ? { body: JSON.stringify(body) } : {},
+ 			cache: "no-store",
+-			redirect: "error",
++			redirect: "manual",
+ 			signal: AbortSignal.timeout(1e4)
+ 		});
+ 	} catch {
+ 		fail("CLOUDFLARE_UNAVAILABLE", "Không kết nối được Cloudflare. Hãy đọc lại trạng thái trước khi thử lại.", 502);
+ 	}
+-	if (!response.ok) throw new PreviewConnectionError("CLOUDFLARE_ACCESS_BLOCKED", "Cloudflare chưa cho phép thao tác này. Kiểm tra quyền và thời hạn token.", 502, false, response.status);
++	if (!response.ok) {
++		let detail = `HTTP ${response.status}`;
++		let validationRejected = false;
++		try {
++			const payload = object(await response.json());
++			const errors = Array.isArray(payload.errors) ? payload.errors.map(object) : [];
++			const codes = [...new Set(errors.filter((error) => Number.isSafeInteger(error.code)).map((error) => String(error.code)))].slice(0, 3);
++			const fields = [
++				"not_before",
++				"expires_on",
++				"policies",
++				"condition",
++				"name"
++			].filter((field) => errors.some((error) => typeof error.message === "string" && error.message.includes(field)));
++			validationRejected = payload.success === false && codes.length > 0 && (response.status === 400 || response.status === 422);
++			if (codes.length) detail += `; mã ${codes.join(", ")}`;
++			if (fields.length) detail += `; trường ${fields.join(", ")}`;
++		} catch {}
++		const error = new PreviewConnectionError("CLOUDFLARE_ACCESS_BLOCKED", `Cloudflare chưa cho phép thao tác này (${detail}). Kiểm tra quyền và thời hạn token.`, 502, false, response.status);
++		error.providerValidationRejected = validationRejected;
++		throw error;
++	}
+ 	let data;
+ 	try {
+ 		data = object(await response.json());
+@@ -168,7 +190,7 @@
+ 		await provider(`/tokens/${token.id}`, admin, method, body);
+ 		return true;
+ 	} catch (error) {
+-		if (error instanceof PreviewConnectionError && (error.providerStatus === 401 || error.providerStatus === 403)) throw error;
++		if (error instanceof PreviewConnectionError && (error.providerValidationRejected || error.providerStatus === 401 || error.providerStatus === 403)) throw error;
+ 		return null;
+ 	}
+ }
+@@ -217,12 +239,12 @@
+ 	if (action === "update-expiry") {
+ 		const expiry = typeof payload.expiresOn === "string" ? Date.parse(payload.expiresOn) : NaN;
+ 		if (!Number.isFinite(expiry) || expiry <= Date.now() || expiry > Date.now() + 365 * 864e5) fail("INVALID_PREVIEW_EXPIRY", "Chọn thời hạn tương lai, tối đa 365 ngày.", 400);
+-		const expiresOn = new Date(expiry).toISOString();
++		const expiresOn = new Date(expiry).toISOString().replace(/\.000Z$/, "Z");
+ 		const acknowledged = await requestMutation(token, admin, "PUT", {
+ 			name: meta.name,
+-			policies: meta.policies,
++			policies: [{ effect: "allow", permission_groups: [{ id: EDITOR }], resources: object(meta.policies[0]).resources }],
+ 			condition: meta.condition ?? {},
+-			not_before: meta.not_before ?? null,
++			...meta.not_before == null ? {} : { not_before: meta.not_before },
+ 			expires_on: expiresOn
+ 		});
+ 		try {
