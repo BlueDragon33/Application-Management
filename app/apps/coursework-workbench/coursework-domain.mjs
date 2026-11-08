@@ -11,6 +11,14 @@ export function validCourseworkDay(value) {
   const parsed = new Date(value + "T00:00:00.000Z");
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0,10) === value;
 }
+// Compare civil dates rather than 23:59 timestamps; remains correct across DST.
+export function daysUntilDeadline(iso, today = new Date()) {
+  if (!iso || !validCourseworkDay(iso) || !(today instanceof Date) || Number.isNaN(today.getTime())) return null;
+  const [year, month, day] = iso.split("-").map(Number);
+  const target = Date.UTC(year, month - 1, day);
+  const current = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+  return Math.round((target - current) / 86_400_000);
+}
 export function validateCourseworkProjects(value) {
   if (!Array.isArray(value) || value.length > 100) return null;
   const result = [], ids = new Set();
