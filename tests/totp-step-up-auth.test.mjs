@@ -30,7 +30,7 @@ test("TOTP follows six-digit 30-second RFC 6238 compatible parameters", () => {
 test("step-up is session-scoped and expires after thirty minutes", () => {
   assert.match(migration, /step_up_at/);
   assert.match(migration, /auth_method/);
-  assert.match(auth, /STEP_UP_TTL_SECONDS = 15 \* 60/);
+  assert.match(auth, /STEP_UP_TTL_SECONDS = 30 \* 60/);
   assert.match(auth, /UPDATE control_sessions SET step_up_at=\?2 WHERE session_id_hash=\?1/);
   assert.match(auth, /Xác minh trong 30 phút/);
 });
