@@ -60,6 +60,7 @@ function validate(value: unknown): ThesisState | null {
     const item = value.steps[task.id];
     if (item === undefined) continue;
     if (!isObject(item) || !statuses.some((s) => s.value === item.progress) || typeof item.evidence !== "string" || typeof item.note !== "string" || item.evidence.length > 8000 || item.note.length > 8000) return null;
+    if (item.progress === "evidence" && !item.evidence.trim()) return null;
     steps[task.id] = { progress: item.progress as Progress, evidence: item.evidence, note: item.note };
   }
   return Object.assign({}, Object.fromEntries(keys.map((key) => [key, value[key]])), { steps }) as ThesisState;
@@ -72,6 +73,7 @@ function exportJson(name: string, value: unknown) {
 export default function ThesisPlanner({ user }: { user: { email: string; displayName: string } }) {
   const storageKey = "application-management:thesis-planner:v1:" + encodeURIComponent(user.email.trim().toLowerCase());
   const [ready, setReady] = useState(false);
+  const [storageBlocked, setStorageBlocked] = useState(false);
   const [model, setModel] = useState<ThesisState>(emptyState);
   const [notice, setNotice] = useState("");
   useEffect(() => {
@@ -79,15 +81,15 @@ export default function ThesisPlanner({ user }: { user: { email: string; display
       const raw = window.localStorage.getItem(storageKey);
       const saved = raw ? validate(JSON.parse(raw) as unknown) : null;
       setModel(saved ?? emptyState);
-      if (raw && !saved) setNotice("Dữ liệu cũ không hợp lệ. Chưa ghi đè; hãy kiểm tra bản sao lưu.");
-    } catch { setModel(emptyState); setNotice("Không đọc được bộ nhớ cục bộ. Hãy xuất bản sao lưu trước khi đóng trang."); }
+      if (raw && !saved) { setStorageBlocked(true); setNotice("Dữ liệu cũ không hợp lệ. Chưa ghi đè; hãy kiểm tra bản sao lưu."); }
+    } catch { setModel(emptyState); setStorageBlocked(true); setNotice("Không đọc được bộ nhớ cục bộ. Dữ liệu cũ được giữ nguyên để khôi phục."); }
     setReady(true);
   }, [storageKey]);
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || storageBlocked) return;
     try { window.localStorage.setItem(storageKey, JSON.stringify(model)); }
     catch { setNotice("Không lưu được dữ liệu trên thiết bị. Hãy xuất JSON ngay."); }
-  }, [model, ready, storageKey]);
+  }, [model, ready, storageBlocked, storageKey]);
   const done = allSteps.filter((step) => model.steps[step.id]?.progress === "evidence").length;
   const next = allSteps.find((step) => model.steps[step.id]?.progress !== "evidence");
   const currentSemester = useMemo(() => phases.find((phase) => phase.steps.some((step) => step.id === next?.id))?.semester ?? "Đối chiếu toàn bộ minh chứng", [next]);
@@ -99,7 +101,9 @@ export default function ThesisPlanner({ user }: { user: { email: string; display
         setNotice("Cần ghi đường dẫn hoặc mô tả minh chứng trước khi đánh dấu hoàn thành hồ sơ.");
         return old;
       }
-      return { ...old, steps: { ...old.steps, [id]: { ...current, [key]: value } } };
+      const patch = { ...current, [key]: value };
+      if (key === "evidence" && !value.trim() && patch.progress === "evidence") patch.progress = "doing";
+      return { ...old, steps: { ...old.steps, [id]: patch } };
     });
   }
   async function importFile(event: ChangeEvent<HTMLInputElement>) {
@@ -109,7 +113,7 @@ export default function ThesisPlanner({ user }: { user: { email: string; display
       const data = JSON.parse(await file.text()) as unknown;
       const parsed = validate(data);
       if (!parsed) throw new Error("Invalid backup schema");
-      if (window.confirm("Thay thế kế hoạch luận văn trên thiết bị bằng file vừa chọn?")) { setModel(parsed); setNotice("Đã nhập bản sao lưu, chưa có đồng bộ đám mây."); }
+      if (window.confirm("Thay thế kế hoạch luận văn trên thiết bị bằng file vừa chọn?")) { setStorageBlocked(false); setModel(parsed); setNotice("Đã nhập bản sao lưu, chưa có đồng bộ đám mây."); }
     } catch { setNotice("File JSON không đúng định dạng Thesis Planner v1."); }
   }
   return <main className={styles.shell}>
