@@ -40,6 +40,17 @@ export type BoiAccessBootstrap = {
     proofSubmitted: number;
     expired: number;
     expiringSoon: number;
+  } | null;
+  /** Only populated when the V2 aggregate contract has been verified by the server. */
+  contract?: "boi-account-summary.v2";
+  verified?: boolean;
+  summary?: {
+    totalAccounts: number;
+    pending: number;
+    active: number;
+    suspended: number;
+    expired: number;
+    unverified: number;
   };
   generatedAt: string;
 };
