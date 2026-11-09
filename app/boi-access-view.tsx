@@ -76,6 +76,7 @@ export default function BoiAccessView({ query = "", deviceId, onChanged }: { que
       setData(next);
       return next;
     } catch (caught) {
+      setData(null); // Fail closed: a rejected V2 contract is NOT an empty device registry.
       setError(caught instanceof Error ? caught.message : "Không thể tải Thanh toán & Quyền Bơi ếch.");
       return null;
     } finally {
@@ -206,16 +207,16 @@ export default function BoiAccessView({ query = "", deviceId, onChanged }: { que
       {error ? <div className={styles.error}><strong>Lỗi:</strong> {error}</div> : null}
       {notice ? <div className={styles.notice}>{notice}</div> : null}
 
-      <div className={styles.metrics}>
+      {data && !error ? <div className={styles.metrics}>
         <article><small>Tổng thiết bị</small><strong>{data?.counts.total ?? 0}</strong></article>
         <article><small>Miễn phí</small><strong>{data?.counts.free ?? 0}</strong></article>
         <article><small>Đã trả phí</small><strong>{data?.counts.paid ?? 0}</strong></article>
         <article><small>Chờ thanh toán</small><strong>{data?.counts.awaitingPayment ?? 0}</strong></article>
         <article data-attention={(data?.counts.proofSubmitted ?? 0) > 0}><small>Chờ xác minh</small><strong>{data?.counts.proofSubmitted ?? 0}</strong></article>
         <article data-attention={(data?.counts.expired ?? 0) > 0}><small>Hết hạn</small><strong>{data?.counts.expired ?? 0}</strong></article>
-      </div>
+      </div> : null}
 
-      <div className={styles.tableWrap}>
+      {data && !error ? <div className={styles.tableWrap}>
         <div className={styles.tableHead}>
           <span>Người học</span><span>Thiết bị</span><span>Quyền</span><span>Thanh toán</span><span>Hạn truy cập</span><span>Hoạt động</span><span>Thao tác</span>
         </div>
@@ -249,8 +250,8 @@ export default function BoiAccessView({ query = "", deviceId, onChanged }: { que
           </article>;
         })}
         {!busy && !devices.length ? <div className={styles.empty}>Không có thiết bị Bơi ếch phù hợp bộ lọc hiện tại.</div> : null}
-        {busy && !data ? <div className={styles.empty}>Đang tải registry thanh toán/quyền…</div> : null}
-      </div>
+      </div> : null}
+      {!data ? <div className={styles.empty} role="status">{busy ? "Đang xác minh dữ liệu Bơi ếch…" : "Chưa xác minh được dữ liệu Bơi ếch. Không thể kết luận có 0 thiết bị hoặc dữ liệu đã bị xóa. Vui lòng kiểm tra kết nối Account-first V2."}</div> : null}
     </section>
 
     {!deviceId ? <aside className={styles.contractPanel}>
