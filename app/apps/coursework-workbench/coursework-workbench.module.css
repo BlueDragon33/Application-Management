@@ -8,7 +8,7 @@
 .form{display:grid;gap:12px}.details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.wide{grid-column:1/-1}
 .button{font:inherit;border:1px solid #8db8d7;background:#285d83;color:white;border-radius:10px;padding:10px 13px;cursor:pointer}.button:hover{background:#36769e}.secondary{background:#2a4056;border-color:#627c8e}.danger{background:#64323b;border-color:#b57981}
 .actions{display:flex;gap:9px;flex-wrap:wrap}
-.project{display:block;width:100%;text-align:left;background:#132439;border:1px solid #3a5976;border-radius:12px;color:inherit;padding:13px;margin-bottom:9px;cursor:pointer}.active{border-color:#aad9ff;background:#26465f}.project strong{display:block}.project span{display:block;font-size:12px;color:#b7cbdc;margin-top:4px}
+.project{display:block;width:100%;text-align:left;background:#132439;border:1px solid #577992;border-radius:12px;color:inherit;padding:13px;margin-bottom:9px;cursor:pointer}.active{border-color:#aad9ff;background:#26465f}.project strong{display:block}.project span{display:block;font-size:12px;color:#b7cbdc;margin-top:4px}
 .metric{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid #33495a}
 .stage{border-top:1px solid #344e64;padding:14px 0}.stage:first-of-type{border-top:0}.stageGrid{display:grid;grid-template-columns:170px minmax(0,1fr);gap:10px;margin-top:10px}
 .status{font-size:12px;color:#acd5ff}.note{color:#b9cbd8;font-size:13px;line-height:1.6}.alert{border:1px solid #b6956d;border-radius:9px;color:#ffdea6;padding:12px;line-height:1.5}.next{border-left:4px solid #8ec6e6;padding:11px;background:#203d4c;border-radius:8px}
