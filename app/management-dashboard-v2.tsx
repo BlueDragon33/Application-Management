@@ -147,7 +147,7 @@ const systemTools: readonly SystemTool[] = [
   },
   {
     id: "tool-web-app-guide",
-    name: "Hướng dẫn lập trình Web-App",
+    name: "Hướng dẫn về lập trình Web-App",
     href: "/tools/web-app-guide",
     category: "Tool",
     note: "Web-App Engineering Playbook: cẩm nang xây dựng Web-App, Cloudflare G0–G8 và kế hoạch gộp lượt theo Blueprint OS; chỉ đọc, không thực thi deploy.",
