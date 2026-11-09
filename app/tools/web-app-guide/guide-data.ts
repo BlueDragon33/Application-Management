@@ -11,7 +11,7 @@ export type ReleaseGate = {
 
 export const guideVersion = "1.0.0 (09/11/2026)";
 export const guideProjectName = "Web-App Engineering Playbook | Blueprint OS";
-export const guideToolName = "Hướng dẫn lập trình Web-App · Web-App Engineering Playbook";
+export const guideToolName = "Hướng dẫn về lập trình Web-App · Web-App Engineering Playbook";
 
 export const foundations = [
   { title: "Bài toán & phạm vi", detail: "Xác nhận người dùng, mục tiêu, chức năng được phép sửa, chức năng phải bảo toàn và tiêu chí hoàn tất." },
@@ -158,8 +158,8 @@ export const workflowRules = [
 export const executionRecommendations = [
   { id:"inspect", label:"Đọc & phân tích", combine:"G0 + G1", rounds:2, steps:11, rule:"Có thể gộp trong một phiên: chỉ đọc, cùng hệ thống, đủ bằng chứng; không đụng Production." },
   { id:"source", label:"Sửa mã và kiểm thử", combine:"G2 + G3", rounds:2, steps:11, rule:"Có thể gộp sửa nhỏ và QA vào một phiên nếu test PASS. FAIL phải quay về chẩn đoán, không vá lặp." },
-  { id:"preview", label:"Preview & UX", combine:"G4 → G5", rounds:1, steps:7, rule:"G4 là một lượt có quyền riêng; G5 có thể bắt đầu cùng phiên khi Preview thực sự PASS, nhưng kết thúc cần người nghiệm thu." },
-  { id:"release", label:"Duyệt và phát hành", combine:"G6 | G7 | G8", rounds:1, steps:6, rule:"Không gộp quyết định Owner, triển khai Production và tuyên bố nghiệm thu. Sau G7 phải lập tức kiểm tra G8, nhưng chỉ được đóng khi có chứng cứ." },
+  { id:"preview", label:"Preview & UX", combine:"G4 → G5", rounds:2, steps:12, rule:"G4 là một lượt có quyền riêng; G5 có thể bắt đầu cùng phiên khi Preview thực sự PASS, nhưng kết thúc cần người nghiệm thu." },
+  { id:"release", label:"Duyệt và phát hành", combine:"G6 | G7 | G8", rounds:3, steps:15, rule:"Không gộp quyết định Owner, triển khai Production và tuyên bố nghiệm thu. Sau G7 phải lập tức kiểm tra G8, nhưng chỉ được đóng khi có chứng cứ." },
 ] as const;
 
 export const referenceLinks = [
