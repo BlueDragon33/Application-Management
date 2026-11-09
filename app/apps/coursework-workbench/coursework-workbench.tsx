@@ -39,6 +39,7 @@ export default function CourseworkWorkbench({ user }: { user: { email: string; d
   const [projects, setProjects] = useState<Coursework[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [notice, setNotice] = useState("");
+  const [guideOpen, setGuideOpen] = useState(false);
   const [draft, setDraft] = useState({title: "", subject: "", kind: "coursework", dueDate: ""});
   useEffect(() => {
     setStorageBlocked(false);
@@ -71,6 +72,13 @@ export default function CourseworkWorkbench({ user }: { user: { email: string; d
   const selected = useMemo(() => projects.find((p) => p.id === selectedId) ?? projects[0] ?? null, [projects, selectedId]);
   const next = selected ? steps.find((s) => selected.stages[s.id]?.status !== "evidence") : null;
   const completed = selected ? steps.filter((s) => selected.stages[s.id]?.status === "evidence").length : 0;
+  function openNextAction() {
+    setGuideOpen(true);
+    const id = !selected ? "coursework-create" : next ? "coursework-stage-" + next.id : "coursework-submission-review";
+    const target = document.getElementById(id);
+    target?.scrollIntoView({ behavior: "smooth", block: "center" });
+    target?.focus({ preventScroll: true });
+  }
   function addProject(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (projects.length >= 100) { setNotice("Đã đạt giới hạn 100 bài tập trên thiết bị. Hãy sao lưu và lưu trữ bớt trước khi tạo mới."); return; }
@@ -114,6 +122,14 @@ export default function CourseworkWorkbench({ user }: { user: { email: string; d
   return <main className={styles.shell}>
     <nav className={styles.nav} aria-label="Academic navigation"><Link href="/">← Application Management</Link><Link href="/tools/study-plan">Kế hoạch học</Link><Link href="/tools/thesis-planner">Thesis Planner</Link></nav>
     <header className={styles.hero}><span className={styles.tag}>ỨNG DỤNG RIÊNG · LOCAL-FIRST · P0</span><h1>Coursework Workbench · Курсовая работа</h1><p>Quản lý bài tập lớn, đồ án và báo cáo theo từng môn; mỗi bài có tiến độ, hạn nộp và minh chứng riêng. Chưa tạo lõi học thuật dùng chung.</p></header>
+    <section className={styles.guidePanel} aria-label="Hướng dẫn công việc tiếp theo">
+      <div><strong>HƯỚNG DẪN / NEXT ACTION</strong>
+        <p>{!selected ? "Chưa có bài tập — tạo hồ sơ theo môn học trước." : next ? selected.subject + " · " + next.name : "Đã ghi minh chứng cho toàn bộ mốc — đối chiếu kết quả nộp với giảng viên."}</p>
+        <span className={styles.note}>{!selected ? "Đầu ra: tên môn, tên bài, hạn nộp nếu đã biết" : next ? "Đầu ra: " + next.output : "Không tự cấp PASS hay xác nhận chấm điểm"}</span>
+      </div>
+      <button type="button" className={styles.guideButton} aria-controls="coursework-guide-details" aria-expanded={guideOpen} onClick={openNextAction}>HƯỚNG DẪN / MỞ VIỆC TIẾP THEO</button>
+      {guideOpen ? <p id="coursework-guide-details" role="status" className={styles.guideDetails}>{!selected ? "1. Điền tên bài và môn học. 2. Chọn loại bài, hạn nộp. 3. Tạo hồ sơ và nhập yêu cầu từ đề bài gốc." : next ? "1. Đọc lại yêu cầu gốc và rubric. 2. Hoàn thành bước đang mở, lưu kết quả thật. 3. Ghi tham chiếu minh chứng và đánh dấu tiến độ sau khi tự kiểm tra." : "Đối chiếu biên nhận nộp và phản hồi của giảng viên. Checklist không thay thế nghiệm thu."} Không tự viết bài, không tự tạo minh chứng hay gửi hồ sơ.</p> : null}
+    </section>
     <div className={styles.layout}>
       <aside>
         <section className={styles.panel}><h2>Danh sách bài tập · {projects.length}</h2>
@@ -122,7 +138,7 @@ export default function CourseworkWorkbench({ user }: { user: { email: string; d
             return <button type="button" key={project.id} className={styles.project + (project.id === selected?.id ? " " + styles.active : "")} onClick={() => setSelectedId(project.id)}><strong>{project.title.trim() || "Chưa đặt tên bài"}</strong><span>{project.subject.trim() || "Chưa có môn học"} · {total}/{steps.length} mốc · {project.dueDate || "Chưa có hạn"}</span></button>;
           }) : <p className={styles.note}>Chưa có bài tập. Tạo bài đầu tiên bên dưới.</p>}
         </section>
-        <section className={styles.panel}><h2>Tạo bài tập mới</h2><form className={styles.form} onSubmit={addProject}>
+        <section className={styles.panel} id="coursework-create" tabIndex={-1}><h2>Tạo bài tập mới</h2><form className={styles.form} onSubmit={addProject}>
           <label><span className={styles.label}>Tên bài tập *</span><input className={styles.field} required maxLength={300} value={draft.title} onChange={(e) => setDraft((old) => ({...old,title:e.target.value}))} placeholder="Ví dụ: Đồ án hệ thống thông tin" /></label>
           <label><span className={styles.label}>Môn học / Дисциплина *</span><input className={styles.field} required maxLength={300} value={draft.subject} onChange={(e) => setDraft((old) => ({...old,subject:e.target.value}))}/></label>
           <label><span className={styles.label}>Loại bài</span><select className={styles.select} value={draft.kind} onChange={(e) => setDraft((old) => ({...old,kind:e.target.value}))}>{workTypes.map((t) => <option value={t.value} key={t.value}>{t.label}</option>)}</select></label>
@@ -144,14 +160,14 @@ export default function CourseworkWorkbench({ user }: { user: { email: string; d
           </section>
           <section className={styles.panel}><h2>Tiến độ & NEXT ACTION</h2><div className={styles.metric}><span>Mốc có minh chứng</span><strong>{completed}/{steps.length} · {Math.round(completed / steps.length * 100)}%</strong></div><div className={styles.metric}><span>Hạn nộp</span><strong>{daysLeft === null ? "Chưa thiết lập" : daysLeft < 0 ? "Đã quá " + Math.abs(daysLeft) + " ngày" : daysLeft === 0 ? "Hôm nay" : "Còn " + daysLeft + " ngày"}</strong></div><div className={styles.next}><strong>Việc nên làm tiếp</strong><p>{next ? next.name : "Đã ghi minh chứng toàn bộ mốc. Vẫn cần giảng viên nghiệm thu."}</p><span className={styles.note}>{next ? "Đầu ra: " + next.output : "Không có phê duyệt tự động"}</span></div></section>
           <section className={styles.panel}><h2>Checklist theo từng bài · Этапы работы</h2>
-            {steps.map((step) => { const stage = selected.stages[step.id] ?? {status:"todo",evidence:""}; return <article key={step.id} className={styles.stage}>
+            {steps.map((step) => { const stage = selected.stages[step.id] ?? {status:"todo",evidence:""}; return <article key={step.id} className={styles.stage} id={"coursework-stage-" + step.id} tabIndex={-1}>
               <div className={styles.actions} style={{justifyContent:"space-between"}}><strong>{step.name}</strong><span className={styles.status}>{stage.status === "evidence" ? "● Có minh chứng" : stage.status === "doing" ? "◐ Đang làm" : "○ Chưa làm"}</span></div><p className={styles.note}>Đầu ra: {step.output}</p>
               <div className={styles.stageGrid}><label><span className={styles.label}>Trạng thái</span><select className={styles.select} value={stage.status} onChange={(e) => updateStage(step.id,"status",e.target.value)}>{statuses.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}</select></label>
               <label><span className={styles.label}>Minh chứng: file, đường dẫn, DOI, kết quả</span><input className={styles.field} maxLength={8000} value={stage.evidence} onChange={(e) => updateStage(step.id,"evidence",e.target.value)}/></label></div>
             </article>; })}
           </section>
         </>}
-        <section className={styles.panel}><p className={styles.alert}>Đây là công cụ theo dõi công việc. “Có minh chứng” do bạn tự ghi, không chứng minh rằng bài đã đúng, đủ nguồn hoặc được giảng viên chấm đạt. Đối chiếu mẫu từng môn và quy tắc AI trực tiếp với giảng viên.</p>{notice ? <p className={styles.note} role="status">{notice}</p> : null}<p className={styles.note}>Trạng thái lưu: {storageBlocked ? "Đã khóa ghi — hãy sao lưu JSON" : "Lưu cục bộ trên thiết bị"} · Không upload file · Không tạo tài khoản/billing/hạ tầng mới.</p></section>
+        <section className={styles.panel} id="coursework-submission-review" tabIndex={-1}><p className={styles.alert}>Đây là công cụ theo dõi công việc. “Có minh chứng” do bạn tự ghi, không chứng minh rằng bài đã đúng, đủ nguồn hoặc được giảng viên chấm đạt. Đối chiếu mẫu từng môn và quy tắc AI trực tiếp với giảng viên.</p>{notice ? <p className={styles.note} role="status">{notice}</p> : null}<p className={styles.note}>Trạng thái lưu: {storageBlocked ? "Đã khóa ghi — hãy sao lưu JSON" : "Lưu cục bộ trên thiết bị"} · Không upload file · Không tạo tài khoản/billing/hạ tầng mới.</p></section>
       </div>
     </div>
   </main>;
