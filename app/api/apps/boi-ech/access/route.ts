@@ -196,9 +196,9 @@ export async function POST(request: Request) {
           || result.payload.verified !== true
           || rootKeys.join("|") !== ["asOf", "contract", "counts", "verified"].sort().join("|")
           || countKeys.join("|") !== [...names].sort().join("|")
-          || names.some(name => !Number.isSafeInteger(counts[name]) || (counts[name] as number) < 0)
+          || names.some(name => !Number.isSafeInteger(counts[name] as number) || (counts[name] as number) < 0)
           || names.some(name => name !== "totalAccounts" && (counts[name] as number) > (counts.totalAccounts as number))
-          || !/^\\d{4}-\\d{2}-\\d{2}T/.test(text(result.payload.asOf))
+          || !/^\d{4}-\d{2}-\d{2}T/.test(text(result.payload.asOf))
           || !Number.isFinite(Date.parse(text(result.payload.asOf)))) {
         return json({ error: "Bơi Ếch chưa trả về hợp đồng tổng hợp V2 được xác minh.", code: "BOI_ACCOUNT_SUMMARY_CONTRACT_MISMATCH", verified: false }, 502);
       }
