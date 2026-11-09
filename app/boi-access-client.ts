@@ -170,6 +170,18 @@ export async function manageBoiAccess(device: BoiAccessDevice, operation: BoiAcc
 }
 
 
+/** Owner-only, read-only canonical Bơi Ếch manager intake; no local account registry. */
+export type BoiManagerInboxRecord = {accountId:string;name:string|null;status:string;
+  onboardingStage:string|null;onboardingRevision:number|null};
+export async function loadBoiManagerInbox():Promise<BoiManagerInboxRecord[]>{
+  const result=await accountDurationCall({action:"manager-inbox"}) as BoiAccountDurationResponse & {
+    managers?: BoiManagerInboxRecord[];
+  };
+  if(result.verified!==true||!Array.isArray(result.managers))
+    throw new Error("Hàng chờ Cán bộ quản lý chưa được Bơi ếch xác minh.");
+  return result.managers;
+}
+
 /** Account-level V2 entitlement, independent from free/paid access and per-device expiry. */
 export type BoiAccountDurationPolicy = { role:"manager"|"teacher"|"learner"; defaultDays:number;revision:number;updatedAt:string };
 export type BoiAccountDurationRecord = { accountId:string;name:string;role:string;deviceStatus:string;onboardingStage:string|null;
