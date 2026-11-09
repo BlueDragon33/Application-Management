@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import fs from "node:fs";
 import {loadTs} from "./helpers/load-ts.mjs";
 
 const manager={accountId:"acc_"+'a'.repeat(64),name:null,role:"manager",
@@ -76,7 +77,6 @@ test("upstream redirection is never followed to unexpected origin",async()=>{
  assert.equal(f.calls[0].init.redirect,"manual");
 });
 test("Owner panel shows manager requests inside existing account expiry panel, not separate app",()=>{
- const fs=require("node:fs");
  const source=fs.readFileSync("app/apps/boi-ech/account-expiry-panel.tsx","utf8");
  const base=fs.readFileSync("app/apps/boi-ech/boi-ech-control-center.tsx","utf8");
  assert.match(source,/loadBoiManagerInbox/);
