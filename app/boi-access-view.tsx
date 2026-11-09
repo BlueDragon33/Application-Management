@@ -70,6 +70,7 @@ export default function BoiAccessView({ query = "", deviceId, onChanged }: { que
 
   async function refresh() {
     setBusy(true);
+    setData(null); // Never retain a stale verified snapshot after failed readback.
     setError("");
     try {
       const next = await connectBoiAccessManagement();
@@ -192,6 +193,56 @@ export default function BoiAccessView({ query = "", deviceId, onChanged }: { que
     }
   }
 
+  // Account-first V2 is NOT the former device-payment panel. Never render
+  // device metrics as zero when the account contract is absent or upgraded.
+  if (!data) {
+    return <section className={styles.root}>
+      <section className={styles.mainPanel}>
+        <header className={styles.panelHeader}>
+          <div><span className={styles.eyebrow}>BƠI ẾCH · XÁC MINH HỢP ĐỒNG</span>
+            <h2>Trạng thái quản trị chưa xác minh</h2>
+            <p>{busy ? "Đang đọc trạng thái trực tiếp từ Bơi Ếch…" : "Chưa có số liệu đáng tin cậy. Không được hiểu trạng thái này là 0 thiết bị hoặc 0 tài khoản."}</p>
+          </div>
+          <button className={styles.refresh} disabled={busy} onClick={() => void refresh()}>↻ Thử đọc lại</button>
+        </header>
+        {error ? <div className={styles.error} role="alert">{error}</div> : null}
+      </section>
+    </section>;
+  }
+
+  if (data.contract === "boi-account-summary.v2") {
+    if (data.verified !== true || !data.summary) {
+      return <section className={styles.root}><section className={styles.mainPanel}>
+        <div className={styles.error} role="alert">Hợp đồng Account-first V2 chưa được xác minh. Không hiển thị số liệu.</div>
+        <button className={styles.refresh} onClick={() => void refresh()}>↻ Thử đọc lại</button>
+      </section></section>;
+    }
+    const summary = data.summary;
+    return <section className={styles.root}><section className={styles.mainPanel}>
+      <header className={styles.panelHeader}>
+        <div>
+          <span className={styles.eyebrow}>BƠI ẾCH · ACCOUNT-FIRST V2 · ĐÃ XÁC MINH</span>
+          <h2>Tổng hợp trạng thái tài khoản</h2>
+          <p>Dữ liệu tổng hợp chỉ đọc từ BOIECH_AI. Không chứa hồ sơ cá nhân, số liệu thiết bị hoặc chứng từ thanh toán.</p>
+        </div>
+        <button className={styles.refresh} disabled={busy} onClick={() => void refresh()}>↻ Đồng bộ</button>
+      </header>
+      <div className={styles.metrics} aria-label="Thống kê tài khoản được xác minh">
+        <article><small>Tổng tài khoản</small><strong>{summary.totalAccounts}</strong></article>
+        <article><small>Đang hoạt động</small><strong>{summary.active}</strong></article>
+        <article><small>Chờ duyệt</small><strong>{summary.pending}</strong></article>
+        <article><small>Tạm dừng</small><strong>{summary.suspended}</strong></article>
+        <article><small>Hết hạn</small><strong>{summary.expired}</strong></article>
+        <article><small>Chưa xác minh đầy đủ</small><strong>{summary.unverified}</strong></article>
+      </div>
+      <div className={styles.notice}>
+        Chế độ Account-first V2: không hỗ trợ thao tác thiết bị/thanh toán cũ tại màn hình này.
+        Các nhóm trạng thái có thể giao nhau; không cộng chúng để suy ra tổng tài khoản.
+        Dữ liệu đọc lúc {formatDate(data.generatedAt)}.
+      </div>
+    </section></section>;
+  }
+
   return <section className={styles.root}>
     <section className={styles.mainPanel}>
       <header className={styles.panelHeader}>
@@ -207,12 +258,12 @@ export default function BoiAccessView({ query = "", deviceId, onChanged }: { que
       {notice ? <div className={styles.notice}>{notice}</div> : null}
 
       <div className={styles.metrics}>
-        <article><small>Tổng thiết bị</small><strong>{data?.counts.total ?? 0}</strong></article>
-        <article><small>Miễn phí</small><strong>{data?.counts.free ?? 0}</strong></article>
-        <article><small>Đã trả phí</small><strong>{data?.counts.paid ?? 0}</strong></article>
-        <article><small>Chờ thanh toán</small><strong>{data?.counts.awaitingPayment ?? 0}</strong></article>
-        <article data-attention={(data?.counts.proofSubmitted ?? 0) > 0}><small>Chờ xác minh</small><strong>{data?.counts.proofSubmitted ?? 0}</strong></article>
-        <article data-attention={(data?.counts.expired ?? 0) > 0}><small>Hết hạn</small><strong>{data?.counts.expired ?? 0}</strong></article>
+        <article><small>Tổng thiết bị</small><strong>{data?.counts?.total ?? 0}</strong></article>
+        <article><small>Miễn phí</small><strong>{data?.counts?.free ?? 0}</strong></article>
+        <article><small>Đã trả phí</small><strong>{data?.counts?.paid ?? 0}</strong></article>
+        <article><small>Chờ thanh toán</small><strong>{data?.counts?.awaitingPayment ?? 0}</strong></article>
+        <article data-attention={(data?.counts?.proofSubmitted ?? 0) > 0}><small>Chờ xác minh</small><strong>{data?.counts?.proofSubmitted ?? 0}</strong></article>
+        <article data-attention={(data?.counts?.expired ?? 0) > 0}><small>Hết hạn</small><strong>{data?.counts?.expired ?? 0}</strong></article>
       </div>
 
       <div className={styles.tableWrap}>
