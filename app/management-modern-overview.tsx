@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { scheduleClientInitialization } from "./client-initialization";
 import { applicationRegistry, type ApplicationConfig } from "./application-registry";
 import {
   connectAdminCenter,
@@ -135,12 +136,15 @@ export default function ManagementModernOverview({ user }: { user: { displayName
   }
 
   useEffect(() => {
-    setClock(new Date());
-    void initialize();
+    const cancelInitialization = scheduleClientInitialization(() => {
+      setClock(new Date());
+      void initialize();
+    });
     const timer = window.setInterval(() => setClock(new Date()), 1000);
     const onFocus = () => void refreshOperations(true);
     window.addEventListener("focus", onFocus);
     return () => {
+      cancelInitialization();
       window.clearInterval(timer);
       window.removeEventListener("focus", onFocus);
     };

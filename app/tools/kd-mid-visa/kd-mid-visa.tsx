@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { scheduleClientInitialization } from "../../client-initialization";
 import styles from "./kd-mid-visa.module.css";
 const visaConsulates = [
   { value: "ПОСОЛЬСТВО РФ ВО ВЬЕТНАМЕ", label: "Đại sứ quán Liên bang Nga tại Hà Nội" },
@@ -671,9 +672,11 @@ export default function KdMidVisaTool({ user }: { user: { displayName: string; e
   const [deleteDraftKeys, setDeleteDraftKeys] = useState<string[]>([]);
 
   useEffect(() => {
-    const loaded = safeLoad();
-    setStore(loaded);
-    setHydrated(true);
+    return scheduleClientInitialization(() => {
+      const loaded = safeLoad();
+      setStore(loaded);
+      setHydrated(true);
+    });
   }, []);
 
   useEffect(() => {

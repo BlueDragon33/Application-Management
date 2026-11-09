@@ -1,0 +1,20 @@
+{
+  "recordedAt": "2026-11-08T02:54:05.145Z",
+  "worker": "application-management",
+  "baselineVersion": "268c3b94",
+  "baselineRevision": "b2e36758d8dab5c953e71b3aa1f36490b55d770f",
+  "sourceRevision": "6395367c8ac0fcf27b31f945ee6f97f81dd838e3",
+  "outsideAdapterUnchanged": true,
+  "productionEditorModified": false,
+  "productionDeployClicked": false,
+  "baselineSha256Lf": "aaeacd9f1b88351ed4a4a5c7e37365d0cb4ddc42231cc56c8f76efb07510c085",
+  "candidateSha256Lf": "46d56833e71a130d9733d399bb91ba8c21a2331d76dc9b569e05c6fcb9becb48",
+  "previewExactLfSha256": "9aca118338266acf6e5cbc719ea4c87b50b940d724bd4a92c47a0380e7f9e521",
+  "artifactEncoding": "UTF-8; CRLF normalized to LF; no extra terminator",
+  "productionDeploymentAuthorized": false,
+  "rollback": "Existing Production version268c3b94 and original build revision; no new migration",
+  "baselineDiffersFromPreviewOnlyByCompilerGeneratedUuids": true,
+  "candidateMatchesTestedPreviewAfterCompilerUuidNormalization": true,
+  "productionBuildIdsAndDraftModeSecretPreserved": true,
+  "generatedSecretValuesInEvidence": false
+}

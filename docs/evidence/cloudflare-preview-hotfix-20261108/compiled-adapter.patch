@@ -1,0 +1,43 @@
+--- production268c3b94/cloudflare-preview-adapter
++++ source6395367/cloudflare-preview-adapter
+@@ -16,0 +17 @@
++		this.providerValidationRejected = false;
+@@ -40 +41 @@
+-			redirect: "error",
++			redirect: "manual",
+@@ -46 +47,22 @@
+-	if (!response.ok) throw new PreviewConnectionError("CLOUDFLARE_ACCESS_BLOCKED", "Cloudflare chưa cho phép thao tác này. Kiểm tra quyền và thời hạn token.", 502, false, response.status);
++	if (!response.ok) {
++		let detail = `HTTP ${response.status}`;
++		let validationRejected = false;
++		try {
++			const payload = object(await response.json());
++			const errors = Array.isArray(payload.errors) ? payload.errors.map(object) : [];
++			const codes = [...new Set(errors.filter((error) => Number.isSafeInteger(error.code)).map((error) => String(error.code)))].slice(0, 3);
++			const fields = [
++				"not_before",
++				"expires_on",
++				"policies",
++				"condition",
++				"name"
++			].filter((field) => errors.some((error) => typeof error.message === "string" && error.message.includes(field)));
++			validationRejected = payload.success === false && codes.length > 0 && (response.status === 400 || response.status === 422);
++			if (codes.length) detail += `; mã ${codes.join(", ")}`;
++			if (fields.length) detail += `; trường ${fields.join(", ")}`;
++		} catch {}
++		const error = new PreviewConnectionError("CLOUDFLARE_ACCESS_BLOCKED", `Cloudflare chưa cho phép thao tác này (${detail}). Kiểm tra quyền và thời hạn token.`, 502, false, response.status);
++		error.providerValidationRejected = validationRejected;
++		throw error;
++	}
+@@ -171 +193 @@
+-		if (error instanceof PreviewConnectionError && (error.providerStatus === 401 || error.providerStatus === 403)) throw error;
++		if (error instanceof PreviewConnectionError && (error.providerValidationRejected || error.providerStatus === 401 || error.providerStatus === 403)) throw error;
+@@ -220 +242 @@
+-		const expiresOn = new Date(expiry).toISOString();
++		const expiresOn = new Date(expiry).toISOString().replace(/\.000Z$/, "Z");
+@@ -223 +245 @@
+-			policies: meta.policies,
++			policies: [{ effect: "allow", permission_groups: [{ id: EDITOR }], resources: object(meta.policies[0]).resources }],
+@@ -225 +247 @@
+-			not_before: meta.not_before ?? null,
++			...meta.not_before == null ? {} : { not_before: meta.not_before },

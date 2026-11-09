@@ -214,7 +214,7 @@ try {
   assert.equal(read().boi.defaultDeviceLimit, 26);
   assert.equal(traffic.filter(item => item.client === "boi" && item.method === "POST").length, 1, "Repeated Save must not create duplicate writes.");
   const persisted = traffic.findIndex(item => item.client === "boi" && item.method === "POST");
-  assert.ok(traffic.slice(persisted + 1).some(item => item.client === "boi" && item.method === "GET" && item.path === "/api/control/overview"), "Independent readback must follow write.");
+  assert.ok(traffic.slice(persisted + 1).some(item => item.client === "boi" && item.method === "GET" && item.path === "/api/control/automation"), "Independent readback must follow write.");
   checks.push("Save writes fixture server, independently reads persisted result, duplicate Save blocked");
   await page.reload({ waitUntil: "domcontentloaded" });
   await bootstrap(() => page.getByRole("button", { name: "⚙ Duyệt tự động", exact: true }).click());
@@ -236,7 +236,7 @@ try {
   await expect(limit).toHaveValue("26", { timeout: 30_000 });
   await expect(saveButton()).toBeDisabled();
   await expect(modal().getByRole("button", { name: "Đồng bộ LIVE", exact: true })).toBeEnabled();
-  await expect(page.getByText(/Chưa khớp readback:/)).toBeVisible();
+  await expect(modal().getByText(/Chưa khớp readback:/)).toBeVisible();
   checks.push("readback mismatch returns exact failure, restores persisted draft and unlocks sync without false success");
   flags.mismatch = false;
   flags.unavailable = true;

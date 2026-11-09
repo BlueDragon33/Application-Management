@@ -1,0 +1,20 @@
+{
+  "artifact.txt": "5552f35cd3bbdfa48dbdfb2cf5b1962bc00b9d85a97f8c2989de11ba789c9a2c",
+  "boi-typecheck.txt": "7125f194612fcff2f454c05d848e7cb71facc1967b4d5017e25b34fdee3ba74f",
+  "boi-lint.txt": "f60dabe98994fedd1fe964f9ba59213afae2fb42aa1003af0ea2fe334b754889",
+  "runtime.txt": "e24b3a81791242fbcd9223d7a59f6293d23f818b3c051c8c447e514e49ead528",
+  "preview-connection-readback.json": "feddd4b0363e7442b85140f7011d40ec918b3019860706211a447938be748b10",
+  "boi-node22-tests.txt.gz": "e6bc2f791e0b4ad5948d2d9796880a3ae0638bd5d980d1b0ac1766aa578eee83",
+  "focused-security.txt": "a47d4624cfdc1f3961a87bd0b09dba7c8938ba611672cc2909869f11250bea6e",
+  "boi-check-exits.json": "2b532add1e190ad510473481f540c41e6663f7902428962e32181e1a7b5a94c1",
+  "lint.txt": "6622e8df09ec307776f72752796d8e61609a40a48fbfec770917e60729d6442c",
+  "app-management-node22-tests.txt.gz": "4b9fb105e5b2ef591656f85bbcda71e2306f7a92ed8774ce01ac489faba6409c",
+  "boi-artifact.txt": "e03be15d9530f1dd57a7a3b791133e5a0ecaa60a44f97e389901bb39e5933ea1",
+  "preview-token-created.jpg": "b5210487c1aac978ebb65b71f7d74692a68e8adee56fe16d58514ce19035005a",
+  "preview-validator.txt": "a6953d4fea364077d956221c34c79531b72b4f239765e552a190fdbe1ad4d4fd",
+  "boi-preview-validator.txt": "01e77088270d2a7a60fe3595678efc2aa9252d1cf5da04db7bd676f143217453",
+  "boi-release.txt": "64f88a1e251a6116fd5a68cf844dc3ebd604d4c96a13672d42e3a73ec370c36f",
+  "lifecycle-token-review.jpg": "79b1d3860460506b7738b5dcb07256d8af94417dfcc9aa6fe92ead5874b139b3",
+  "preview-guards.txt": "f3c713ce27a9bb604317190b7795431921b08366be43bd97e792effbda0a7470",
+  "publish-token-review.jpg": "ae2e4534b7f315275ddc0e0bc67f20f657ce9a278e0ea69f99ccd032a9ae916b"
+}
