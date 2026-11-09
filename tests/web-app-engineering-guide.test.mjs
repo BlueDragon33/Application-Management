@@ -12,7 +12,7 @@ const css = read("app/tools/web-app-guide/web-app-guide.module.css");
 test("Web-App guide is one Tool in the canonical catalog, not a managed app or a second admin screen",()=>{
   assert.equal(dashboard.match(/id: "tool-web-app-guide"/g)?.length,1);
   assert.equal(dashboard.match(/href: "\/tools\/web-app-guide"/g)?.length,1);
-  assert.match(dashboard,/name: "Hướng dẫn lập trình Web-App"/);
+  assert.match(dashboard,/name: "Hướng dẫn về lập trình Web-App"/);
   assert.match(dashboard,/id: "tool-web-app-guide"[\s\S]{0,160}category: "Tool"/);
 });
 test("Guide route uses existing authenticated central access and contains no server mutators",()=>{
@@ -27,8 +27,8 @@ test("Cloudflare guide covers exactly nine G0–G8 evidence-gated phases",()=>{
   assert.match(data,/Bằng chứng|evidence:|stop:/);
   assert.match(data,/ACCOUNT_CONTROL_REQUIRED/);
   assert.match(data,/Worker Version ID/);
-  assert.match(data,/đánh giá.*3|Sau 3 phương án/);
-  assert.match(data,/không tự.*deploy|không thực hiện deploy|không triển khai/i);
+  assert.match(data,/tối đa 3 phương án/);
+  assert.match(data,/không chạy deploy|không triển khai|không tự.*deploy/i);
 });
 test("Batch recommendations state policy is evidence/authority gated, not an invented fixed-turn law",()=>{
   assert.match(data,/G0 \+ G1/);
