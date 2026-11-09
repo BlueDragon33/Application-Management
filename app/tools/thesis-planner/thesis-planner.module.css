@@ -9,7 +9,7 @@
 .panel h2{font-size:19px;margin:0 0 14px}.panel h3{font-size:16px;margin:14px 0 8px}
 .fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.wide{grid-column:1/-1}
 .label{display:block;font-size:13px;color:#c2d7dd;margin:0 0 6px}
-.input,.textarea,.select{display:block;width:100%;box-sizing:border-box;background:#0c1b28;color:#fff;border:1px solid #4b6874;border-radius:10px;padding:11px;font:inherit;min-height:42px}
+.input,.textarea,.select{display:block;width:100%;box-sizing:border-box;background:#0c1b28;color:#fff;border:1px solid #507383;border-radius:10px;padding:11px;font:inherit;min-height:42px}
 .textarea{min-height:85px;resize:vertical}.input:focus-visible,.textarea:focus-visible,.select:focus-visible,.btn:focus-visible{outline:2px solid #8be7e8;outline-offset:2px}
 .hint{color:#b4cbd4;font-size:13px;line-height:1.55}.action{padding:12px 14px;background:#183d43;border-left:3px solid #8ddfce;border-radius:10px;line-height:1.5}
 .milestone{padding:14px 0;border-top:1px solid #2d4653}.milestone:first-of-type{border-top:0}
