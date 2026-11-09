@@ -146,6 +146,13 @@ const systemTools: readonly SystemTool[] = [
     note: "Thêm ứng dụng mới theo phân loại và Universal Contract mà không sửa code Trung tâm.",
   },
   {
+    id: "tool-web-app-guide",
+    name: "Hướng dẫn lập trình Web-App",
+    href: "/tools/web-app-guide",
+    category: "Tool",
+    note: "Web-App Engineering Playbook: cẩm nang xây dựng Web-App, Cloudflare G0–G8 và kế hoạch gộp lượt theo Blueprint OS; chỉ đọc, không thực thi deploy.",
+  },
+  {
     id: "tool-deploy-ops",
     name: "Deploy & Ops",
     href: "/tools/deploy-ops",
@@ -211,6 +218,7 @@ function appGlyph(appId: string) {
   if (appId === "tool-study-plan") return "▤";
   if (appId === "tool-secret-generator") return "⚿";
   if (appId === "tool-managed-apps") return "◎";
+  if (appId === "tool-web-app-guide") return "▧";
   if (appId === "tool-deploy-ops") return "☁";
   if (appId === "tool-kd-mid-visa") return "✈";
   return "◆";
