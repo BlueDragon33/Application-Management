@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     const actor=await verifyControlProof(proofDeviceId?{...input,deviceId:proofDeviceId}:input);
     if(actor.role!=="owner") return json({error:"Chỉ Owner được quản lý thời hạn tài khoản.",code:"OWNER_REQUIRED"},403);
     const bridge=await issueBoiBrowserBridge(actor.email,actor.role);
-    const cmd:Record<string,unknown>=action==="manager-inbox"?{action:"list"}
+    const cmd:Record<string,unknown>=action==="manager-inbox"?{action:"manager-inbox-v2"}
       :action==="list"?{action:"list-entitlements"}
       :action==="policy"?{action:"entitlement-policy"}
       :action==="read-account"?{action:"read-entitlement",accountId:input.accountId}
@@ -48,8 +48,9 @@ export async function POST(request: Request) {
     const changed=await upstream(bridge,cmd);
     if(changed.status!==200) return json(changed.data,changed.status);
     if(action==="manager-inbox"){
-      const rows=changed.data.accounts;
-      if(!Array.isArray(rows)||rows.length>100||rows.some(row=>{
+      const rows=changed.data.managers;
+      if(changed.data.contract!=="boi-manager-intake.v2"||changed.data.verified!==true
+        ||!Array.isArray(rows)||rows.length>100||rows.some(row=>{
         const a=record(row);
         return a.role!=="manager"||typeof a.accountId!=="string"
           ||typeof a.status!=="string"||typeof a.onboardingStage!=="string"&&a.onboardingStage!==null
