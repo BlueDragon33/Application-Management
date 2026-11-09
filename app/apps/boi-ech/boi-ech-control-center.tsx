@@ -1221,6 +1221,16 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
         {notice ? <div className="notice" role="status">{notice}</div> : null}
 
         {tab === "overview" ? <>
+          <section className="boi-manager-welcome" aria-label="Trang chủ quản trị Bơi ếch">
+            <div><small>QUẢN TRỊ BƠI ẾCH · GIAO DIỆN CÁN BỘ QUẢN LÝ</small><h2>Mọi việc trong tầm tay</h2><p>Truy cập đúng nhiệm vụ Bơi ếch. Dữ liệu, quyền duyệt và lịch sử vẫn do hệ thống hiện tại xác minh.</p></div>
+            <span className="boi-manager-welcome-role">{roleLabels[access.role]}</span>
+          </section>
+          <section className="boi-manager-quick" aria-label="Các khu vực quản trị Bơi ếch">
+            <button type="button" onClick={() => setTab("devices")}><span className="boi-manager-quick-icon" aria-hidden="true">▣</span><strong>Thiết bị & tiến độ</strong><small>Học viên, trạng thái và thời hạn</small></button>
+            <button type="button" onClick={() => { setFilter("pending"); setTab("devices"); }}><span className="boi-manager-quick-icon" aria-hidden="true">◷</span><strong>Hàng chờ</strong><small>Chỉ xem hồ sơ cần xử lý</small></button>
+            <button type="button" onClick={() => setTab("ai")}><span className="boi-manager-quick-icon" aria-hidden="true">✧</span><strong>Điều hành AI</strong><small>Chức năng riêng của Bơi ếch</small></button>
+            {["reviewer","publisher","owner"].includes(access.role) ? <button type="button" onClick={() => setTab("content")}><span className="boi-manager-quick-icon" aria-hidden="true">✓</span><strong>Duyệt chỉnh sửa</strong><small>Chỉ người được phân quyền</small></button> : null}
+          </section>
           <section className="summary-grid bauman-summary"><article><span>Kết nối Bơi ếch</span><strong>{boiOnline && online ? "Đang hoạt động" : online ? "Cần kiểm tra" : "Offline"}</strong><small>Control API + bridge riêng</small></article><article><span>Tổng thiết bị BE</span><strong>{counts.total}</strong><small>{counts.active} online · {counts.pending} chờ xử lý</small></article><article><span>Quyền truy cập</span><strong>{counts.paid + counts.free}</strong><small>{counts.paid} trả phí · {counts.free} miễn phí</small></article><article><span>Vai trò quản trị</span><strong>{roleLabels[access.role]}</strong><small>Registry BE không nhập vào DB Trung tâm</small></article></section>
           <section className="operations-inbox bauman-overview-inbox"><div><span>Hộp việc ưu tiên</span><strong>Chỉ hiển thị dữ liệu thật từ Bơi ếch</strong></div><button onClick={() => { setFilter("incomplete"); setTab("devices"); }}><span>Hồ sơ chưa đủ</span><strong>{counts.incomplete}</strong></button><button onClick={() => { setFilter("payment"); setTab("devices"); }}><span>Ảnh chuyển khoản</span><strong>{counts.paymentReview}</strong></button><button onClick={() => { setFilter("expired"); setTab("devices"); }}><span>Tài khoản hết hạn</span><strong>{counts.expired}</strong></button>{["reviewer", "publisher", "owner"].includes(access.role) ? <button onClick={() => setTab("content")}><span>Duyệt nội dung</span><strong>→</strong></button> : null}</section>
           <section className="boi-overview-boundary"><strong>Ranh giới quản trị</strong><p>Thiết bị học, tiến độ, AI, thanh toán và nội dung vẫn do Bơi ếch sở hữu. Application Management chỉ xác thực thiết bị quản trị và cấp bridge ngắn hạn.</p><button onClick={() => setTab("devices")}>Mở thiết bị & tiến độ</button></section>
@@ -1242,6 +1252,14 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
 
         {tab === "content" && dashboard?.boiBridge ? <ContentReviewCenter bridge={dashboard.boiBridge} access={access} automation={dashboard.automation} saveAutomation={(enabled, defaultAccessDays, defaultDeviceLimit) => dashboardAction({ action: "manage-learning-device", operation: "update-automation", enabled, defaultAccessDays, defaultDeviceLimit }, `Đã ${enabled ? "bật" : "tắt"} tự động duyệt; mặc định ${defaultAccessDays} ngày cho tối đa ${defaultDeviceLimit} thiết bị.`)} /> : null}
       </section>
+
+      <nav className="boi-manager-dock" aria-label="Điều hướng Bơi ếch trên điện thoại">
+        <button type="button" aria-current={tab==="overview"?"page":undefined} onClick={()=>setTab("overview")}><span aria-hidden="true">⌂</span><small>Trang chủ</small></button>
+        <button type="button" aria-current={tab==="devices"?"page":undefined} onClick={()=>setTab("devices")}><span aria-hidden="true">▣</span><small>Thiết bị</small></button>
+        <button type="button" aria-current={tab==="ai"?"page":undefined} onClick={()=>setTab("ai")}><span aria-hidden="true">✧</span><small>Điều hành</small></button>
+        {["reviewer","publisher","owner"].includes(access.role) ? <button type="button" aria-current={tab==="content"?"page":undefined} onClick={()=>setTab("content")}><span aria-hidden="true">✓</span><small>Duyệt</small></button> : null}
+        <button type="button" aria-expanded={appearanceOpen} aria-controls="admin-appearance-panel" onClick={()=>setAppearanceOpen(true)}><span aria-hidden="true">Aa</span><small>Giao diện</small></button>
+      </nav>
 
       {installPrompt ? <button className="install-fab" onClick={() => void installWebApp()} aria-label="Cài khu quản trị Bơi ếch" title="Cài ứng dụng"><span aria-hidden="true">⇩</span><b>Cài ứng dụng</b></button> : null}
       {selected && dashboard?.boiBridge ? <DeviceDrawer key={selected.deviceId} device={selected} bridge={dashboard.boiBridge} canManage={["publisher", "owner"].includes(access.role)} canDelete={access.role === "owner"} managementBusy={managementBusy} activityLoading={selectedActivityLoading} close={closeDetail} action={(operation, success, extra = {}) => dashboardAction({ action: "manage-learning-device", operation, targetDeviceId: selected.deviceId, ...extra }, success)} /> : null}
