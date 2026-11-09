@@ -83,3 +83,13 @@ test("V2 version/schema mismatches and extra personal fields fail closed", async
     assert.equal(response.payload.summary, undefined);
   }
 });
+
+test("upstream HTTP redirect is refused before any impersonated V2 aggregate can be accepted", async () => {
+  const f = fixture({ upstreamStatus: 302, upstream: goodPayload });
+  const result = await f.post();
+  assert.equal(result.status, 502);
+  assert.equal(result.payload.code, "BOI_CONTROL_REDIRECT_FORBIDDEN");
+  assert.equal(result.payload.summary, undefined);
+  assert.equal(f.requests.length, 1);
+  assert.equal(f.requests[0].init.redirect, "manual", "never auto-follow another origin");
+});
