@@ -98,11 +98,12 @@ test("payment proof proxy bounds streamed body size and keeps timeout active thr
 });
 
 
-test("paid metric counts only verified payments", () => {
-  assert.match(api, /paid: devices\.filter\(\(device\) => device\.paymentStatus === "paid_verified"\)\.length/);
+test("Account-first V2 summary never invents a paid-device metric from account totals", () => {
+  assert.match(api, /bridgeJson\(bridge, "\/api\/control\/v2\/account-summary"\)/);
+  assert.match(api, /contract: "boi-account-summary\.v2"/);
+  assert.match(api, /counts: null/);
   assert.doesNotMatch(api, /paid: devices\.filter\(\(device\) => device\.accessGroup === "paid"\)\.length/);
 });
-
 
 test("legacy Boi drawer cannot bypass finalized payment state", () => {
   const controlCenter = source("app/apps/boi-ech/boi-ech-control-center.tsx");
