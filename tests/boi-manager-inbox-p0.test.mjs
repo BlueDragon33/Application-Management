@@ -4,10 +4,10 @@ import fs from "node:fs";
 import {loadTs} from "./helpers/load-ts.mjs";
 
 const manager={accountId:"acc_"+'a'.repeat(64),name:null,role:"manager",
- status:"pending",onboardingStage:"requested",onboardingRevision:1,
+ status:"pending",accountRevision:0,onboardingStage:"requested",onboardingRevision:1,
  passwordVerifier:"FORBIDDEN",phone:"FORBIDDEN",publicKeyJwk:"FORBIDDEN"};
 
-function fixture({role="owner",upstreamStatus=200,upstream={contract:"boi-manager-intake.v2",verified:true,managers:[manager]}}={}){
+function fixture({role="owner",upstreamStatus=200,upstream={contract:"boi-manager-intake.v2",verified:true,managers:[manager],nextCursor:null}}={}){
  const calls=[];
  const api=loadTs("app/api/apps/boi-ech/account-entitlements/route.ts",{
   "../../../../control-device.server":{
@@ -35,13 +35,13 @@ test("Owner manager inbox is read-only and uses canonical BOI accounts with no l
  const f=fixture(),r=await f.run();
  assert.equal(r.status,200);assert.equal(r.json.ok,true);assert.equal(r.json.verified,true);
  assert.equal(r.json.managers.length,1);
- assert.deepEqual(Object.keys(r.json.managers[0]).sort(),["accountId","name","status","onboardingStage","onboardingRevision"].sort());
+ assert.deepEqual(Object.keys(r.json.managers[0]).sort(),["accountId","name","status","accountRevision","onboardingStage","onboardingRevision"].sort());
  assert.doesNotMatch(JSON.stringify(r.json),/FORBIDDEN|passwordVerifier|phone|publicKeyJwk/);
  assert.equal(f.calls.length,1);
  assert.equal(f.calls[0].url,"https://boi.example.invalid/api/control/accounts");
  assert.equal(f.calls[0].init.method,"POST");
  assert.equal(f.calls[0].init.redirect,"manual");
- assert.deepEqual(JSON.parse(f.calls[0].init.body),{action:"manager-inbox-v2"});
+ assert.deepEqual(JSON.parse(f.calls[0].init.body),{action:"manager-inbox-v2",after:"",limit:40});
 });
 test("non-owner roles cannot read or even contact canonical Manager inbox",async()=>{
  for(const role of ["reviewer","publisher","viewer"]){
@@ -60,10 +60,10 @@ test("upstream 401/403/409 propagate with no fake empty success",async()=>{
 });
 test("malformed non-manager and oversized cross-account rows fail closed",async()=>{
  for(const rowset of [
-  {contract:"boi-manager-intake.v2",verified:true,managers:[{...manager,role:"learner"}]},
-  {contract:"boi-manager-intake.v2",verified:true,managers:Array.from({length:101},(_,i)=>({...manager,accountId:"acc_"+String(i).padStart(64,"0")}))},
-  {contract:"boi-manager-intake.v2",verified:true,managers:[{...manager,onboardingStage:undefined}]},
-  {contract:"boi-manager-intake.v2",verified:true,managers:{notAnArray:true}},
+  {contract:"boi-manager-intake.v2",verified:true,managers:[{...manager,role:"learner"}],nextCursor:null},
+  {contract:"boi-manager-intake.v2",verified:true,managers:Array.from({length:41},(_,i)=>({...manager,accountId:"acc_"+String(i).padStart(64,"0")})),nextCursor:null},
+  {contract:"boi-manager-intake.v2",verified:true,managers:[{...manager,onboardingStage:undefined}],nextCursor:null},
+  {contract:"boi-manager-intake.v2",verified:true,managers:{notAnArray:true},nextCursor:null},
  ]){
   const f=fixture({upstream:rowset}),r=await f.run();
   assert.equal(r.status,502);
@@ -72,7 +72,7 @@ test("malformed non-manager and oversized cross-account rows fail closed",async(
  }
 });
 test("upstream redirection is never followed to unexpected origin",async()=>{
- const f=fixture({upstreamStatus:302,upstream:{contract:"boi-manager-intake.v2",verified:true,managers:[manager]}}),r=await f.run();
+ const f=fixture({upstreamStatus:302,upstream:{contract:"boi-manager-intake.v2",verified:true,managers:[manager],nextCursor:null}}),r=await f.run();
  assert.equal(r.status,502);assert.equal(r.json.managers,undefined);
  assert.equal(f.calls[0].init.redirect,"manual");
 });
@@ -80,6 +80,6 @@ test("Owner panel shows manager requests inside existing account expiry panel, n
  const source=fs.readFileSync("app/apps/boi-ech/account-expiry-panel.tsx","utf8");
  const base=fs.readFileSync("app/apps/boi-ech/boi-ech-control-center.tsx","utf8");
  assert.match(source,/loadBoiManagerInbox/);
- assert.match(source,/Hàng chờ Owner/);
+ assert.match(source,/Owner duyệt hai vòng/);
  assert.match(base,/access.role === "owner" \? <AccountExpiryPanel/);
 });
