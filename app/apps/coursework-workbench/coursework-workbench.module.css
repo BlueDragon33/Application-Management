@@ -23,3 +23,8 @@
 .guideButton:focus-visible,.stage:focus-visible,.panel:focus-visible{outline:3px solid #ffdfa2;outline-offset:3px}
 .guideDetails{grid-column:1/-1;background:#244457;border-radius:10px;padding:12px;color:#f4f8fc;margin:0}
 @media(max-width:650px){.guidePanel{grid-template-columns:1fr}.guideButton{width:100%}}
+
+/* Unlike input[hidden], this file picker stays reachable by keyboard and screen readers. */
+.uploadLabel{display:inline-flex;align-items:center;position:relative;cursor:pointer}
+.uploadInput{position:absolute;width:1px;height:1px;padding:0;margin:-1px;border:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.uploadLabel:focus-within{outline:3px solid #ffdfa2;outline-offset:3px}
