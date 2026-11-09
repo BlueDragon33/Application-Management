@@ -153,6 +153,16 @@ export const projectRepositories: readonly ProjectRepositoryConfig[] = [
     summary: "Control Research Workbench cho MPC/NMPC + Event Trigger + PID, benchmark và hướng tới HIL/phần cứng thật.",
   },
   {
+    id: "pc-manager-desktop",
+    name: "PC Manager Desktop",
+    repository: "BlueDragon33/pc-manager-desktop",
+    defaultBranch: "main",
+    group: "control",
+    state: "developing",
+    summary: "Ứng dụng Windows native local-first, Desktop Agent Gateway outbound-only, namespace PC-. Quyền managed đang migrating; chưa xác minh Production handshake.",
+    managementHref: "/apps/pc-manager",
+  },
+  {
     id: "cad-cam-3d",
     name: "CAD CAM 3D",
     repository: "BlueDragon33/CAD_CAM_3D",
