@@ -204,3 +204,79 @@ test("External storage event fail-closes subsequent writes in Coursework", async
     assert.equal(window.localStorage.getItem(key), before);
   } finally { await cleanup(); }
 });
+
+test("JSON import remains reachable by keyboard and exposes a visible focus affordance", async () => {
+  for (const [Component, stylePath] of [
+    [ThesisPlanner, "app/tools/thesis-planner/thesis-planner.module.css"],
+    [CourseworkWorkbench, "app/apps/coursework-workbench/coursework-workbench.module.css"]
+  ]) {
+    window.localStorage.clear();
+    const cleanup = await mount(Component);
+    try {
+      const picker = document.querySelector('input[type="file"]');
+      assert.ok(picker, "Import picker exists");
+      assert.equal(picker.hidden, false, "Keyboard input must not use HTML hidden");
+      assert.equal(picker.hasAttribute("disabled"), false);
+      assert.equal(picker.getAttribute("tabindex"), null, "Input retains natural tab order");
+      assert.match(picker.getAttribute("aria-label") ?? "", /khôi phục/);
+      await act(async () => picker.focus());
+      assert.equal(document.activeElement, picker, "Native file input must receive keyboard focus");
+      assert.ok(picker.closest("label"), "Focused input is associated with visible import label");
+      const cssText = readFileSync(new URL("../" + stylePath, import.meta.url), "utf8");
+      assert.match(cssText, /\.uploadLabel:focus-within\s*\{/);
+      assert.match(cssText, /\.uploadInput\s*\{[^}]*clip-path:inset\(50%\)/);
+    } finally { await cleanup(); }
+  }
+});
+
+test("Coursework JSON import restores the selected project and remains intact after remount", async () => {
+  window.localStorage.clear();
+  window.confirm = () => true;
+  const key = "application-management:coursework-workbench:v1:qa%40example.test";
+  const item = {
+    id: "restore-1", title: "Recovered assignment", subject: "Алгоритмы", kind: "course-project",
+    teacher: "", dueDate: "2027-06-02", requirements: "Original rubric", notes: "",
+    stages: { brief: { status: "evidence", evidence: "brief.pdf" } },
+  };
+  const content = JSON.stringify(courseworkDomain.createCourseworkBackup([item]));
+  let cleanup = await mount(CourseworkWorkbench);
+  try {
+    const picker = document.querySelector('input[type="file"]');
+    assert.ok(picker);
+    Object.defineProperty(picker, "files", {
+      configurable: true, value: [{size: content.length, text: async () => content}]
+    });
+    await act(async () => picker.dispatchEvent(new window.Event("change", { bubbles: true })));
+    const record = JSON.parse(window.localStorage.getItem(key));
+    assert.equal(record.length, 1);
+    assert.equal(record[0].id, item.id);
+    assert.match(document.body.textContent, /Recovered assignment/);
+  } finally { await cleanup(); }
+  cleanup = await mount(CourseworkWorkbench);
+  try {
+    assert.match(document.body.textContent, /Recovered assignment/);
+    assert.match(document.body.textContent, /Original rubric/);
+  } finally { await cleanup(); }
+});
+
+test("Importing invalid Coursework JSON preserves previously saved assignments", async () => {
+  window.localStorage.clear();
+  window.confirm = () => true;
+  const key = "application-management:coursework-workbench:v1:qa%40example.test";
+  const original = [{
+    id: "safe", title: "Do not lose this", subject: "Research", kind: "research",
+    teacher: "", dueDate: "", requirements: "", notes: "", stages: {},
+  }];
+  window.localStorage.setItem(key, JSON.stringify(original));
+  const cleanup = await mount(CourseworkWorkbench);
+  try {
+    const picker = document.querySelector('input[type="file"]');
+    assert.ok(picker);
+    Object.defineProperty(picker, "files", {
+      configurable: true, value: [{size: 26, text: async () => '{"schema":"invalid/backup"}'}]
+    });
+    await act(async () => picker.dispatchEvent(new window.Event("change", { bubbles: true })));
+    assert.equal(JSON.parse(window.localStorage.getItem(key))[0].id, "safe");
+    assert.match(document.body.textContent, /File JSON không đúng cấu trúc/);
+  } finally { await cleanup(); }
+});
