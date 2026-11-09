@@ -137,3 +137,70 @@ test("Invalid stored assignments are not overwritten during mount", async () => 
     assert.match(document.body.textContent, /Đã khóa ghi/);
   } finally { await cleanup(); }
 });
+
+test("Thesis valid JSON restoration updates the UI and persists the recovered record", async () => {
+  window.localStorage.clear();
+  window.confirm = () => true;
+  const saved = {
+    topic: "Reproducible RAG baseline", department: "ИУ-5", advisor: "",
+    targetDate: "", problem: "", hypothesis: "", metrics: "", policy: "",
+    steps: { scope: { progress: "evidence", evidence: "advisor-review.pdf", note: "" } },
+  };
+  const backup = thesisDomain.createThesisBackup(saved);
+  const serialized = JSON.stringify(backup);
+  const cleanup = await mount(ThesisPlanner);
+  try {
+    const upload = document.querySelector('input[type="file"]');
+    assert.ok(upload, "Thesis import input exists");
+    Object.defineProperty(upload, "files", {
+      configurable: true,
+      value: [{ size: serialized.length, text: async () => serialized }],
+    });
+    await act(async () => upload.dispatchEvent(new window.Event("change", { bubbles: true })));
+    const expectedKey = "application-management:thesis-planner:v1:qa%40example.test";
+    const result = JSON.parse(window.localStorage.getItem(expectedKey));
+    assert.equal(result.topic, "Reproducible RAG baseline");
+    assert.equal(result.steps.scope.progress, "evidence");
+    assert.ok([...document.querySelectorAll("input")].some(el => el.value === "Reproducible RAG baseline"));
+  } finally { await cleanup(); }
+});
+
+test("Switching account does not render previous account's coursework in a new account", async () => {
+  window.localStorage.clear();
+  const a = "application-management:coursework-workbench:v1:qa%40example.test";
+  const b = "application-management:coursework-workbench:v1:second%40example.test";
+  window.localStorage.setItem(a, JSON.stringify([{
+    id: "only-a", title: "Owner-A private coursework", subject: "Algorithms",
+    kind: "coursework", teacher: "", dueDate: "", requirements: "", notes: "", stages: {},
+  }]));
+  const host = document.getElementById("root");
+  const root = createRoot(host);
+  try {
+    await act(async () => root.render(React.createElement(CourseworkWorkbench, { user: account })));
+    assert.match(document.body.textContent, /Owner-A private coursework/);
+    await act(async () => root.render(React.createElement(CourseworkWorkbench, {
+      user: { email: "second@example.test", displayName: "Second" }
+    })));
+    assert.doesNotMatch(document.body.textContent, /Owner-A private coursework/);
+    assert.equal(JSON.parse(window.localStorage.getItem(a))[0].id, "only-a");
+    const secondValue = window.localStorage.getItem(b);
+    assert.ok(secondValue === null || JSON.parse(secondValue).length === 0);
+  } finally {
+    await act(async () => root.unmount());
+    host.replaceChildren();
+  }
+});
+
+test("External storage event fail-closes subsequent writes in Coursework", async () => {
+  window.localStorage.clear();
+  const key = "application-management:coursework-workbench:v1:qa%40example.test";
+  const cleanup = await mount(CourseworkWorkbench);
+  try {
+    const before = window.localStorage.getItem(key);
+    await act(async () => window.dispatchEvent(new window.StorageEvent("storage", {
+      key, storageArea: window.localStorage, oldValue: before, newValue: '[{"external":true}]',
+    })));
+    assert.match(document.body.textContent, /Đã khóa ghi/);
+    assert.equal(window.localStorage.getItem(key), before);
+  } finally { await cleanup(); }
+});
