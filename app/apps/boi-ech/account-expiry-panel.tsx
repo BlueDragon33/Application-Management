@@ -2,8 +2,8 @@
 
 import {useEffect,useMemo,useState} from "react";
 import {
- loadBoiAccountDurations,changeBoiAccountDuration,changeBoiDefaultAccountDays,
- type BoiAccountDurationRecord,type BoiAccountDurationPolicy
+ loadBoiAccountDurations,loadBoiManagerInbox,changeBoiAccountDuration,changeBoiDefaultAccountDays,
+ type BoiAccountDurationRecord,type BoiAccountDurationPolicy,type BoiManagerInboxRecord
 } from "../../boi-access-client";
 
 const labels:Record<string,string>={manager:"Cán bộ quản lý",teacher:"Giảng viên",learner:"Học viên"};
@@ -24,6 +24,8 @@ function localInput(value:string) {
 }
 export default function AccountExpiryPanel(){
  const [accounts,setAccounts]=useState<BoiAccountDurationRecord[]>([]);
+ const [managerInbox,setManagerInbox]=useState<BoiManagerInboxRecord[]|null>(null);
+ const [managerError,setManagerError]=useState(""),[managerLoading,setManagerLoading]=useState(false);
  const [policies,setPolicies]=useState<BoiAccountDurationPolicy[]>([]);
  const [selected,setSelected]=useState("");
  const [search,setSearch]=useState("");
@@ -33,6 +35,12 @@ export default function AccountExpiryPanel(){
  const [busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[error,setError]=useState(""),[notice,setNotice]=useState("");
  const current=accounts.find(a=>a.accountId===selected)??null;
  const displayed=useMemo(()=>accounts.filter(a=>[a.accountId,a.name,a.role].join(" ").toLowerCase().includes(search.toLowerCase())).slice(0,100),[accounts,search]);
+ async function refreshManagerInbox(){
+  setManagerLoading(true);setManagerError("");
+  try{setManagerInbox(await loadBoiManagerInbox());}
+  catch(e){setManagerInbox(null);setManagerError(e instanceof Error?e.message:"Chưa tải được hàng chờ quản lý.");}
+  finally{setManagerLoading(false);}
+ }
  async function refresh(){
   setLoading(true);setError("");
   try {
@@ -44,6 +52,7 @@ export default function AccountExpiryPanel(){
   finally{setLoading(false);}
  }
  useEffect(()=>{void refresh();},[]);
+ useEffect(()=>{void refreshManagerInbox();},[]);
  useEffect(()=>{setExpiration(current?.entitlement?.expiresAt?localInput(current.entitlement.expiresAt):"");},[selected,accounts]);
  async function commitAccount(operation:"set-expiry"|"suspend"|"resume"){
   if(!current?.entitlement||busy)return;
@@ -73,6 +82,23 @@ export default function AccountExpiryPanel(){
   finally{setBusy(false);}
  }
  return <section aria-label="Hạn tài khoản Bơi ếch AI" style={{border:"1px solid currentColor",borderRadius:12,padding:16,margin:"16px 0",display:"grid",gap:12}}>
+  <details open>
+   <summary><strong>Hồ sơ Cán bộ quản lý · Hàng chờ Owner</strong></summary>
+   <p>Chỉ Owner được xem hồ sơ quản lý từ cơ sở dữ liệu Bơi ếch hiện hữu. Hàng chờ chỉ đọc;
+     cấp tài khoản và hai quyết định duyệt bắt buộc qua quy trình Owner có MFA, CAS và audit.</p>
+   <button type="button" disabled={managerLoading} onClick={()=>void refreshManagerInbox()}>
+     {managerLoading?"Đang kiểm tra…":"Đồng bộ hàng chờ quản lý"}</button>
+   {managerError?<p role="alert">{managerError} Không suy diễn rằng hàng chờ trống.</p>:null}
+   {managerInbox!==null?<div role="status">
+    <p>Đã xác minh {managerInbox.length} hồ sơ quản lý; chờ duyệt: {managerInbox.filter(m=>m.status==="pending").length}.</p>
+    {managerInbox.filter(m=>m.status==="pending").map(m=><article key={m.accountId}>
+     <strong>{m.name||"Hồ sơ mới chưa hoàn thiện"}</strong>
+     <p>ID: {m.accountId.slice(0,20)}… · Giai đoạn: {m.onboardingStage||"Chưa xác minh"} · Revision: {m.onboardingRevision??"—"}</p>
+    </article>)}
+    {!managerInbox.some(m=>m.status==="pending")?<p>Không có yêu cầu quản lý đang chờ trong kết quả đã xác minh.</p>:null}
+   </div>:!managerError?<p role="status">Chưa có kết quả hàng chờ được xác minh.</p>:null}
+   <small>Chưa mở quy trình phát thư mời quản lý mới. Không nhập mật khẩu hộ cán bộ hoặc cấp quyền qua biểu mẫu công khai.</small>
+  </details>
   <header><h2>Thời hạn tài khoản · Account First V2</h2>
    <p>Chính sách mặc định 30 ngày từ lần duyệt thứ hai. Hạn tài khoản không phải hạn thiết bị, thanh toán hay API Token Cloudflare.</p></header>
   {loading?<p role="status">Đang đọc dữ liệu tài khoản từ Bơi ếch…</p>:null}
