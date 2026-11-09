@@ -27,3 +27,8 @@
 .guideButton:focus-visible,.milestone:focus-visible,.panel:focus-visible{outline:3px solid #f4dd91;outline-offset:3px}
 .guideSteps{margin-top:10px;background:#203a44;border:1px solid #78a7ad;padding:12px;border-radius:10px;color:#ebf5f5;line-height:1.6}
 .guideSteps p{margin:6px 0}
+
+/* Keyboard users can tab to the real file input; the surrounding label shows focus. */
+.uploadLabel{display:inline-flex;align-items:center;position:relative;cursor:pointer}
+.uploadInput{position:absolute;width:1px;height:1px;padding:0;margin:-1px;border:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.uploadLabel:focus-within{outline:3px solid #f4dd91;outline-offset:3px}
