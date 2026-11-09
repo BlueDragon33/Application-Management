@@ -20,3 +20,10 @@
 .actions{display:flex;flex-wrap:wrap;gap:9px}.notice{border:1px solid #b6a36b;padding:12px;border-radius:10px;color:#ffe5aa;line-height:1.5}
 .progress{height:8px;background:#29414a;border-radius:12px;overflow:hidden}.bar{height:100%;background:#79d5ba;transition:width .2s}
 @media(max-width:780px){.grid{grid-template-columns:1fr}.stats{grid-template-columns:repeat(3,minmax(0,1fr))}.fields,.controls{grid-template-columns:1fr}.wide{grid-column:auto}.shell{padding:16px}.panel{padding:15px}}
+
+/* Single project-scoped action with visible affordance and keyboard contrast. */
+.guideButton{display:block;width:100%;margin-top:12px;background:#b3f1e8;color:#082a30;border:2px solid #b3f1e8;border-radius:12px;font-weight:750;font-size:14px;padding:13px 16px;line-height:1.4;cursor:pointer;text-align:center}
+.guideButton:hover{background:#dcfff8}
+.guideButton:focus-visible,.milestone:focus-visible,.panel:focus-visible{outline:3px solid #f4dd91;outline-offset:3px}
+.guideSteps{margin-top:10px;background:#203a44;border:1px solid #78a7ad;padding:12px;border-radius:10px;color:#ebf5f5;line-height:1.6}
+.guideSteps p{margin:6px 0}
