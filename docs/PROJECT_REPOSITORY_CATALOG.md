@@ -20,8 +20,9 @@ Nguồn chuẩn để đối chiếu các repo thuộc tài khoản `BlueDragon3
 | `BlueDragon33/Hardware_Simulation` | Virtual Hardware Lab | Theo dõi dự án kỹ thuật |
 | `BlueDragon33/MPC_PID_System` | Control Research Workbench | Theo dõi dự án kỹ thuật |
 | `BlueDragon33/CAD_CAM_3D` | CAD/CAM cho chi tiết in 3D | v1.0.0 Production · Universal Contract live · local-first observe/launch · Remote Admin fail-closed |
+| `BlueDragon33/pc-manager-desktop` | PC Manager Desktop Windows native | Có khu quản trị ở App-Management, Desktop Agent Gateway outbound-only, trạng thái managed migrating; chưa chứng nhận Production handshake |
 
-Tổng: **14 repo hiện hữu**.
+Tổng: **15 repo đã đăng ký** trong danh mục dự án tĩnh. Con số này không chứng nhận đã bao phủ toàn bộ repository đang tồn tại trên GitHub; cần đối chiếu bằng công cụ phát hiện nguồn thực tế.
 
 ## Blueprint OS / engineering compass
 
