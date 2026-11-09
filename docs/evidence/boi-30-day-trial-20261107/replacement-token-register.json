@@ -1,0 +1,75 @@
+{
+  "date": "2026-11-07",
+  "timezone": "Europe/Moscow",
+  "authority": "Owner explicitly requested creation of two fresh temporary replacements, same existing Preview/lifecycle scopes and 30-day expiration",
+  "status": "PREVIEW_VAULT_SAVED_VERIFIED_PRODUCTION_NOT_SAVED",
+  "tokens": [
+    {
+      "purpose": "Preview deployment",
+      "name": "boiech-preview-work-20261107-r2",
+      "id": "47fa4ecea071345c9fc29f3b529edb6e",
+      "permission": "Individual Workers Editor",
+      "workers": [
+        "boi-ech-preview"
+      ],
+      "expiresOn": "2026-12-07T20:59:59Z",
+      "metadataReadback": "Existing token detail UI shows exact name, only boi-ech-preview, Editor and Dec 7 2026 23:59:59 GMT+3",
+      "credentialCapturedFromOneTimeUi": true,
+      "maskedDestinationInputFilled": true,
+      "persistedInVault": true,
+      "vaultEnvironment": "application-management-preview",
+      "persistedInProductionVault": false
+    },
+    {
+      "purpose": "Preview token lifecycle",
+      "name": "boiech-preview-lifecycle-20261107-r2",
+      "id": "8e8d5260df42cf49fd3584da7edce109",
+      "permission": "Account API Tokens Write",
+      "resource": "Exact existing Cloudflare account",
+      "expiresOn": "2026-12-07T20:59:59Z",
+      "metadataReadback": "Existing token detail UI shows exact name, Account API Tokens Write and Dec 7 2026 23:59:59 GMT+3",
+      "credentialCapturedFromOneTimeUi": true,
+      "maskedDestinationInputFilled": true,
+      "persistedInVault": true,
+      "vaultEnvironment": "application-management-preview",
+      "persistedInProductionVault": false
+    }
+  ],
+  "secretValuesInThisRegister": false,
+  "oldCredentialsRevoked": false,
+  "publishCredentialChanged": false,
+  "appEntitlementChanged": false,
+  "schemaChanged": false,
+  "productionDeploymentPerformed": false,
+  "paidPlanOrActionPerformed": false,
+  "nextAction": "Authorized human review and exact-artifact Owner release gate for PR378; no bypass.",
+  "previewHotfix": {
+    "worker": "application-management-preview",
+    "url": "https://application-management-preview.boiech-ai.workers.dev",
+    "scriptVersion": "9fbdcbbd",
+    "metadataOnlyVersion": "b3f99412",
+    "buildRevisionVarReadback": "6395367c8ac0fcf27b31f945ee6f97f81dd838e3",
+    "authenticatedConnectionQa": "PASS_NARROW_TOKEN_CONNECTION_AND_EXPIRY",
+    "fullAccountV2Acceptance": false,
+    "latestEvidence": "docs/evidence/cloudflare-preview-hotfix-20261108/verification.json"
+  },
+  "latestCheckpoint": "docs/CLOUDFLARE_PREVIEW_HOTFIX_ACCEPTANCE_20261108.md",
+  "updatedAt": "2026-11-08",
+  "historicalProductionConnection": {
+    "url": "https://application-management.boiech-ai.workers.dev/apps/boi-ech/cloudflare-preview",
+    "submittedAction": "connect-lifecycle",
+    "ownerMfaRequired": true,
+    "ownerMfaInputFilled": true,
+    "uiStatus": "BLOCKED: Cloudflare unavailable after Owner MFA; no successful Vault readback",
+    "handoffPreserved": true,
+    "ownerMfaCompletedByUser": true,
+    "observedMfaDialogClosed": true
+  },
+  "liveConnection": {
+    "url": "https://application-management-preview.boiech-ai.workers.dev/apps/boi-ech/cloudflare-preview",
+    "uiStatus": "CONNECTED_VERIFIED_PERSISTED_AFTER_RELOAD",
+    "actualChangedAndRestoredExpiryVerified": true,
+    "productionVaultConnected": false,
+    "rawValuesExported": false
+  }
+}

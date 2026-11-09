@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { scheduleClientInitialization } from "../../client-initialization";
 import styles from "./secret-generator.module.css";
 
 type PresetId = "github" | "service" | "login" | "custom";
@@ -132,7 +133,7 @@ export default function SecretGenerator({ user }: { user: { displayName: string;
   };
 
   useEffect(() => {
-    regenerate();
+    return scheduleClientInitialization(regenerate);
     // Initial generation must happen in the browser because Web Crypto is browser-owned here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

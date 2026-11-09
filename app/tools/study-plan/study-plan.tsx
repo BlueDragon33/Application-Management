@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { scheduleClientInitialization } from "../../client-initialization";
 import type { BaumanRegistryStatus, BaumanStudyModule } from "./bauman-module-registry";
 import styles from "./study-plan.module.css";
 import { courseAssessmentParts, createStudyPlanBackup, parseStudyPlanBackup, defaultSurvivalState, parseSurvivalState, personalDeadlineCollisions, prerequisiteEvidenceGaps, survivalPhases, survivalStorageKey, survivalWeeks, weekEvidenceSummary, type SurvivalPersonalState, type AssessmentKind } from "./study-plan-survival-data";
@@ -1173,6 +1174,7 @@ export default function StudyPlanTool({
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>("multivariate");
   const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceSection>("schedule");
   const [fontScale, setFontScale] = useState<StudyFontScale>("normal");
+  const [fontScaleLoaded, setFontScaleLoaded] = useState(false);
   const [courseQuery, setCourseQuery] = useState("");
   const [courseSemesterFilter, setCourseSemesterFilter] = useState<ExplorerSemester>("all");
   const [courseKindFilter, setCourseKindFilter] = useState<ExplorerKind>("all");
@@ -1187,31 +1189,38 @@ export default function StudyPlanTool({
   const [backupMessage, setBackupMessage] = useState("");
 
   useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem("application-management:study-plan-font-scale:v1");
-      if (saved === "normal" || saved === "large" || saved === "xlarge") setFontScale(saved);
-    } catch {
-      // Font preference is device-local and optional.
-    }
+    return scheduleClientInitialization(() => {
+      try {
+        const saved = window.localStorage.getItem("application-management:study-plan-font-scale:v1");
+        if (saved === "normal" || saved === "large" || saved === "xlarge") setFontScale(saved);
+      } catch {
+        // Font preference is device-local and optional.
+      } finally {
+        setFontScaleLoaded(true);
+      }
+    });
   }, []);
 
   useEffect(() => {
+    if (!fontScaleLoaded) return;
     try {
       window.localStorage.setItem("application-management:study-plan-font-scale:v1", fontScale);
     } catch {
       // Font preference is device-local and optional.
     }
-  }, [fontScale]);
+  }, [fontScale, fontScaleLoaded]);
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem("application-management:study-plan-progress:v1");
-      if (raw) setCompleted(JSON.parse(raw) as Record<string, boolean>);
-    } catch {
-      // Invalid local progress must never block the study-plan tool.
-    } finally {
-      setProgressLoaded(true);
-    }
+    return scheduleClientInitialization(() => {
+      try {
+        const raw = window.localStorage.getItem("application-management:study-plan-progress:v1");
+        if (raw) setCompleted(JSON.parse(raw) as Record<string, boolean>);
+      } catch {
+        // Invalid local progress must never block the study-plan tool.
+      } finally {
+        setProgressLoaded(true);
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -1224,26 +1233,29 @@ export default function StudyPlanTool({
   }, [completed, progressLoaded]);
 
   useEffect(() => {
-    setSurvivalOwner(null);
-    try {
-      setSurvival(parseSurvivalState(window.localStorage.getItem(survivalStorageKey + ":" + encodeURIComponent(user.email.toLowerCase()))));
-      setSurvivalSaved(true);
-    } catch {
-      setSurvival(defaultSurvivalState());
-      setSurvivalSaved(false);
-    } finally {
-      setSurvivalOwner(user.email);
-    }
+    return scheduleClientInitialization(() => {
+      setSurvivalOwner(null);
+      try {
+        setSurvival(parseSurvivalState(window.localStorage.getItem(survivalStorageKey + ":" + encodeURIComponent(user.email.toLowerCase()))));
+        setSurvivalSaved(true);
+      } catch {
+        setSurvival(defaultSurvivalState());
+        setSurvivalSaved(false);
+      } finally {
+        setSurvivalOwner(user.email);
+      }
+    });
   }, [user.email]);
 
   useEffect(() => {
     if (survivalOwner !== user.email) return; // Never write another account's progress on account switch.
+    let saved = true;
     try {
       window.localStorage.setItem(survivalStorageKey + ":" + encodeURIComponent(user.email.toLowerCase()), JSON.stringify(survival));
-      setSurvivalSaved(true);
     } catch {
-      setSurvivalSaved(false);
+      saved = false;
     }
+    return scheduleClientInitialization(() => setSurvivalSaved(saved));
   }, [survival, survivalOwner, user.email]);
 
   const exportProgress = () => {

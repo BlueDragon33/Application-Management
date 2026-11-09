@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { scheduleClientInitialization } from "../../client-initialization";
 import { managedAppsAction } from "../../admin-device-client";
 
 type CatalogApp = {
@@ -125,7 +126,7 @@ export default function ManagedAppsCatalogPage() {
     }
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => scheduleClientInitialization(() => { void load(); }), []);
 
   const editing = useMemo(() => apps.find((item) => item.id === form.id), [apps, form.id]);
 

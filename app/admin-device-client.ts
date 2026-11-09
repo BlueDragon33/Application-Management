@@ -530,6 +530,12 @@ export async function deployOpsAction(body: Record<string, unknown>) {
   return await secureApi("/api/deploy-ops", credential, access, body) as ApiPayload;
 }
 
+export async function cloudflarePreviewAdminAction(body: Record<string, unknown>) {
+  const { credential, access } = await approvedSession();
+  if (access.status !== "approved") throw new AdminApiError("Thiết bị quản trị chưa được cấp quyền.", { device: access });
+  return await secureApi("/api/apps/boi-ech/cloudflare-preview", credential, access, body);
+}
+
 export async function centerAdminAction(body: Record<string, unknown>) {
   const { credential, access } = await approvedSession();
   if (access.status !== "approved") throw new AdminApiError("Thiết bị quản trị chưa được cấp quyền.", { device: access });

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { scheduleClientInitialization } from "../../client-initialization";
 import { connectOperationsDashboard, type OperationsBootstrap } from "../../admin-device-client";
 
 const stateLabel: Record<string, string> = {
@@ -31,7 +32,7 @@ export default function ContractDiagnosticsPage() {
     }
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => scheduleClientInitialization(() => { void load(); }), []);
 
   return (
     <main style={{ minHeight: "100vh", background: "#081b15", color: "#ecfff8", padding: "28px 22px", fontFamily: "Inter, Arial, sans-serif" }}>

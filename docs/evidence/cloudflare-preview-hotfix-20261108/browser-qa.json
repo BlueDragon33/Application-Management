@@ -1,0 +1,96 @@
+{
+  "scope": "Existing App-Management Preview token connection/lifecycle only; not Account-first V2 acceptance",
+  "cases": [
+    {
+      "case": "persisted after full page reload",
+      "observed": "Đã kết nối token\n\nQuyền quản lý token đã được xác minh.\n\nHết hạn thực tế: 23:59 7 thg 12, 2026 · giờ Moscow\n\nĐồng bộ trạng thái",
+      "acceptance": "OBSERVED_AS_RECORDED"
+    },
+    {
+      "case": "invalid replacement rejected before Vault write",
+      "observed": "Cloudflare chưa cho phép thao tác này. Kiểm tra quyền và thời hạn token.",
+      "acceptance": "OBSERVED_AS_RECORDED"
+    },
+    {
+      "case": "sync after invalid replacement preserves valid Vault connection",
+      "observed": "Đã kết nối token\n\nQuyền quản lý token đã được xác minh.\n\nHết hạn thực tế: 23:59 7 thg 12, 2026 · giờ Moscow\n\nĐồng bộ trạng thái",
+      "acceptance": "OBSERVED_AS_RECORDED"
+    },
+    {
+      "case": "past expiry rejected without modifying provider token",
+      "observed": "Chọn thời hạn tương lai, tối đa 365 ngày.",
+      "acceptance": "OBSERVED_AS_RECORDED"
+    },
+    {
+      "case": "final independent status readback after negative cases",
+      "observed": "Đã kết nối token\n\nQuyền quản lý token đã được xác minh.\n\nHết hạn thực tế: 23:59 7 thg 12, 2026 · giờ Moscow\n\nĐồng bộ trạng thái",
+      "acceptance": "OBSERVED_AS_RECORDED"
+    },
+    {
+      "case": "30-day expiry update",
+      "observed": "UI reported Đã lưu và xác minh ngày hết hạn từ Cloudflare; 2026-12-07 23:59 Moscow unchanged from authorized 30-day expiry",
+      "acceptance": "INCONCLUSIVE_SAME_EXPIRY_NO_CHANGE_PROOF"
+    },
+    {
+      "case": "wrong revoke name",
+      "observed": "revoke button disabled; no deletion submitted",
+      "acceptance": "OBSERVED_AS_RECORDED"
+    },
+    {
+      "case": "attempted expiry change to 29 days",
+      "observed": "Đã kết nối token\n\nQuyền quản lý token đã được xác minh.\n\nHết hạn thực tế: 23:59 7 thg 12, 2026 · giờ Moscow\n\nĐồng bộ trạng thái",
+      "result": "NOT_VERIFIED: later UI reported provider readback mismatch",
+      "acceptance": "FAILED_BEFORE_FINAL_FIX"
+    },
+    {
+      "case": "actual expiry changed after whole-second UTC normalization",
+      "observed": "Đã kết nối token\n\nQuyền quản lý token đã được xác minh.\n\nHết hạn thực tế: 23:59 6 thg 12, 2026 · giờ Moscow\n\nĐồng bộ trạng thái",
+      "result": "PASS_CHANGED_DEC7_TO_DEC6",
+      "acceptance": "PASS_CHANGED_DEC7_TO_DEC6"
+    },
+    {
+      "case": "restore original authorized 30-day deadline",
+      "observed": "Đã kết nối token\n\nQuyền quản lý token đã được xác minh.\n\nHết hạn thực tế: 23:59 7 thg 12, 2026 · giờ Moscow\n\nĐồng bộ trạng thái",
+      "result": "RESTORED_DEC7",
+      "acceptance": "RESTORED_DEC7"
+    }
+  ],
+  "finalExpiryUtc": "2026-12-07T20:59:59Z",
+  "finalExpiryMoscow": "2026-12-07 23:59:59 GMT+3",
+  "independentCloudflareDashboardExpiry": "Expires Dec 7, 2026, 11:59:59 PM GMT+3",
+  "previewVaultConnected": true,
+  "productionVaultConnected": false,
+  "rawValuesExported": false,
+  "actualRevokePerformed": false,
+  "notes": [
+    "Earlier same-expiry PUT success is inconclusive; only later changed-date and restored-date readbacks count as actual expiry mutation acceptance.",
+    "Original 30-calendar-day deadline was preserved. No new rolling 30-day extension to Dec8 was authorized or submitted."
+  ],
+  "repeatMutationProof": {
+    "codeVersion": "9fbdcbbd",
+    "changed": {
+      "recordedAt": "2026-11-08T02:42:09.826Z",
+      "appReadback": "Đã kết nối token\n\nQuyền quản lý token đã được xác minh.\n\nHết hạn thực tế: 23:59 6 thg 12, 2026 · giờ Moscow\n\nĐồng bộ trạng thái",
+      "independentDashboardAt": "2026-11-08T02:42:27.131Z",
+      "independentDashboard": "Expires Dec 6, 2026, 11:59:59 PM GMT+3",
+      "screenshots": [
+        "expiry-change-app-readback-dec6.jpg",
+        "expiry-change-cloudflare-dec6.jpg"
+      ]
+    },
+    "restored": {
+      "independentDashboardAt": "2026-11-08T02:43:07.515Z",
+      "independentDashboard": "Expires Dec 7, 2026, 11:59:59 PM GMT+3",
+      "afterFullReloadAt": "2026-11-08T02:43:31.607Z",
+      "appReadback": "Đã kết nối token\n\nQuyền quản lý token đã được xác minh.\n\nHết hạn thực tế: 23:59 7 thg 12, 2026 · giờ Moscow\n\nĐồng bộ trạng thái",
+      "passwordInputsEmpty": true,
+      "screenshots": [
+        "expiry-restored-cloudflare-dec7.jpg",
+        "preview-connected-restored-dec7.jpg"
+      ]
+    },
+    "noDeletionOrRotationPerformed": true
+  },
+  "initialRecordedAt": "2026-11-08T02:41:19.358Z",
+  "updatedAt": "2026-11-08T02:56:01.584Z"
+}

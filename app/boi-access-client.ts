@@ -157,3 +157,41 @@ export async function manageBoiAccess(device: BoiAccessDevice, operation: BoiAcc
   try { return await task; }
   finally { if (pendingDeviceWrites.get(device.deviceId) === task) pendingDeviceWrites.delete(device.deviceId); }
 }
+
+
+/** Account-level V2 entitlement, independent from free/paid access and per-device expiry. */
+export type BoiAccountDurationPolicy = { role:"manager"|"teacher"|"learner"; defaultDays:number;revision:number;updatedAt:string };
+export type BoiAccountDurationRecord = { accountId:string;name:string;role:string;deviceStatus:string;onboardingStage:string|null;
+  deviceAccessExpiresAt?:string|null;deviceAccessExpired?:boolean;paymentStatus?:string;
+  entitlement:{state:"active"|"suspended";expiresAt:string;activatedAt:string;revision:number;active:boolean}|null };
+type BoiAccountDurationResponse = {ok:true;verified?:boolean;accounts?:BoiAccountDurationRecord[];
+  policies?:BoiAccountDurationPolicy[];policy?:BoiAccountDurationPolicy;
+  entitlement?:BoiAccountDurationRecord["entitlement"];code?:string;error?:string};
+
+async function accountDurationCall(body: Record<string,unknown>): Promise<BoiAccountDurationResponse> {
+  const session=await approvedSession();
+  if(session.access.role!=="owner") throw new Error("Chỉ Owner được quản lý hạn tài khoản.");
+  const response=await fetch("/api/apps/boi-ech/account-entitlements",{
+    method:"POST",credentials:"same-origin",cache:"no-store",
+    headers:{"content-type":"application/json"},
+    body:JSON.stringify({...body,...await proof(session.access)})
+  });
+  const result=await response.json().catch(()=>({})) as BoiAccountDurationResponse;
+  if(!response.ok || !result.ok)
+    throw new Error(result.error || (result.code==="STEP_UP_REQUIRED"?"Hãy xác minh Authenticator rồi thử lại.":"Không kết nối được quản lý thời hạn tài khoản."));
+  return result;
+}
+export async function loadBoiAccountDurations() {
+  const [accounts,policies]=await Promise.all([accountDurationCall({action:"list"}),accountDurationCall({action:"policy"})]);
+  return {accounts:accounts.accounts??[],policies:policies.policies??[]};
+}
+export async function changeBoiAccountDuration(input:{accountId:string;expectedRevision:number;operation:"set-expiry"|"suspend"|"resume";expiresAt?:string;reason:string}) {
+  const response=await accountDurationCall({action:"set-account",...input});
+  if(response.verified!==true) throw new Error("Chưa đọc lại được thời hạn tài khoản.");
+  return response.entitlement;
+}
+export async function changeBoiDefaultAccountDays(input:{role:BoiAccountDurationPolicy["role"];defaultDays:number;expectedRevision:number;reason:string}) {
+  const response=await accountDurationCall({action:"set-policy",...input});
+  if(response.verified!==true) throw new Error("Chưa đọc lại được chính sách thời hạn.");
+  return response.policy;
+}

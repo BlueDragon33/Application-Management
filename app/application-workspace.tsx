@@ -62,8 +62,10 @@ export default function ApplicationWorkspace({ application, user }: { applicatio
   }
 
   useEffect(() => {
-    setLocalRuntime(["127.0.0.1", "localhost"].includes(window.location.hostname));
-    const timer = window.setTimeout(() => { void verifyAccess(); }, 0);
+    const timer = window.setTimeout(() => {
+      setLocalRuntime(["127.0.0.1", "localhost"].includes(window.location.hostname));
+      void verifyAccess();
+    }, 0);
     return () => window.clearTimeout(timer);
   }, []);
 

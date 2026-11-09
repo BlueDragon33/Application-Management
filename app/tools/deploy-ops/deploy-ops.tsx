@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { scheduleClientInitialization } from "../../client-initialization";
 import { deployOpsAction } from "../../admin-device-client";
 import { projectRepositories } from "../../project-registry";
 import styles from "./deploy-ops.module.css";
@@ -167,7 +168,7 @@ export default function DeployOpsTool({ user }: { user: { displayName: string; e
     }
   }
 
-  useEffect(() => { void bootstrap(); }, []);
+  useEffect(() => scheduleClientInitialization(() => { void bootstrap(); }), []);
 
   const selectedProject = useMemo(
     () => projectRepositories.find((item) => item.id === target.appId),
@@ -272,7 +273,7 @@ export default function DeployOpsTool({ user }: { user: { displayName: string; e
     }
   }
 
-  function useVercelCandidate(candidate: Discovery["vercel"]["candidates"][number]) {
+  function selectVercelCandidate(candidate: Discovery["vercel"]["candidates"][number]) {
     patch({
       vercelEnabled: true,
       vercelProjectId: candidate.id || candidate.name,
@@ -288,7 +289,7 @@ export default function DeployOpsTool({ user }: { user: { displayName: string; e
     setMessage(`Đã điền Vercel slug ${suggestion.projectIdOrSlug} từ Application Registry. Cần probe API trước Safe Publish.`);
   }
 
-  async function useNeonCandidate(candidate: Discovery["neon"]["candidates"][number]) {
+  async function selectNeonCandidate(candidate: Discovery["neon"]["candidates"][number]) {
     patch({ neonEnabled: true, neonProjectId: candidate.id, neonBranch: "" });
     setNeonBranches([]);
     await discoverBranches(candidate.id);
@@ -513,7 +514,7 @@ export default function DeployOpsTool({ user }: { user: { displayName: string; e
                   <span>{candidate.id}{candidate.teamId ? ` · ${candidate.teamId}` : ""}</span>
                   <em>{candidate.reasons.length ? candidate.reasons.join(" · ") : "Không có match mạnh; cần kiểm tra thủ công."}</em>
                 </div>
-                <button onClick={() => useVercelCandidate(candidate)}>Chọn</button>
+                <button onClick={() => selectVercelCandidate(candidate)}>Chọn</button>
               </article>)}
               {discovery.vercel.configured && !discovery.vercel.error && !discovery.vercel.candidates.length ? <p className={styles.discoveryEmpty}>API Vercel không trả project nào.</p> : null}
             </div>
@@ -528,7 +529,7 @@ export default function DeployOpsTool({ user }: { user: { displayName: string; e
                   <span>{candidate.id}{candidate.regionId ? ` · ${candidate.regionId}` : ""}</span>
                   <em>{candidate.reasons.length ? candidate.reasons.join(" · ") : "Không có match mạnh; cần kiểm tra thủ công."}</em>
                 </div>
-                <button disabled={Boolean(busy)} onClick={() => void useNeonCandidate(candidate)}>Chọn + dò branch</button>
+                <button disabled={Boolean(busy)} onClick={() => void selectNeonCandidate(candidate)}>Chọn + dò branch</button>
               </article>)}
               {discovery.neon.configured && !discovery.neon.error && !discovery.neon.candidates.length ? <p className={styles.discoveryEmpty}>API Neon không trả project nào.</p> : null}
             </div>

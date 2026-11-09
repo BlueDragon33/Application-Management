@@ -37,3 +37,28 @@ test("proxy forwards only the configured origin and authorized control path", as
     globalThis.fetch = originalFetch;
   }
 });
+
+test("proxy synchronizes a supported registry of 75 or 500 known device codes", async () => {
+  const originalFetch = globalThis.fetch;
+  const forwarded = [];
+  globalThis.fetch = async (url) => {
+    forwarded.push(url);
+    return Response.json({ devices: [] });
+  };
+  try {
+    for (const count of [75, 500]) {
+      const codes = Array.from({ length: count }, (_, index) => `BE-AAAA-BBBB-CCCC-${index.toString(16).padStart(4, "0").toUpperCase()}`);
+      const query = `?deviceCodes=${encodeURIComponent(codes.join(","))}&activityDays=0`;
+      const response = await POST(request({ query }));
+      assert.equal(response.status, 200, `supported ${count}-device registry must reach the owning app`);
+      assert.equal(forwarded.at(-1), `https://boi.example.test/api/control/overview${query}`);
+    }
+    const oversized = await POST(request({ query: `?deviceCodes=${"A".repeat(20_000)}` }));
+    assert.equal(oversized.status, 400);
+    const forbidden = await POST(request({ query: "?unexpected=value" }));
+    assert.equal(forbidden.status, 400);
+    assert.equal(forwarded.length, 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

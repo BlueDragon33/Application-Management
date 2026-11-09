@@ -2,7 +2,7 @@ name: Application Management Development Fast CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, feat/boi-account-duration-ui-379-20261108]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -58,13 +58,16 @@ jobs:
           cache: npm
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
+      - name: Fail-closed Cloudflare Preview security preflight
+        run: npm run validate:cloudflare-preview
       - name: Mandatory full regression suite
         run: npm test
       - name: Regression policy summary
         run: echo "Full npm test PASS for every pull request and every main revision."
 
   preview-browser-readonly:
-    if: github.event_name == 'workflow_dispatch'
+    # On the isolated entitlement branch, verify only local fixture browser flows.
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/feat/boi-account-duration-ui-379-20261108')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     environment: application-management-preview
@@ -90,7 +93,7 @@ jobs:
           npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.55.1
           npx playwright install --with-deps chromium
       - name: Authenticate and verify Preview UI without manual secret entry
-        if: ${{ !inputs.fixture_only }}
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.fixture_only }}
         run: node scripts/automation-preview-browser-check.mjs
       - name: Verify real backend Save/readback and bulk against isolated fixture clients
         env:

@@ -2,6 +2,11 @@ name: Application Management Cloudflare Preview Deploy
 
 on:
   workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type DEPLOY_PREVIEW to confirm isolated Preview publication"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -20,6 +25,7 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CONTROL_SERVICE_SECRET: ${{ secrets.CONTROL_SERVICE_SECRET }}
       APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID: ${{ secrets.APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID }}
       APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID: ${{ secrets.APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID }}
       APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET: ${{ secrets.APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET }}
@@ -28,7 +34,7 @@ jobs:
       NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
       APPLICATION_MANAGEMENT_PREVIEW_ORIGIN: ${{ vars.APPLICATION_MANAGEMENT_PREVIEW_ORIGIN }}
       APPLICATION_MANAGEMENT_ACCESS_MODE: standalone
-      CONTROL_OWNER_EMAILS: owner@example.com
+      CONTROL_OWNER_EMAILS: ${{ vars.CONTROL_OWNER_EMAILS }}
       BOI_ECH_BASE_URL: ${{ vars.BOI_ECH_PREVIEW_ORIGIN }}
       HEALTH_CARE_BASE_URL: ${{ vars.HEALTH_CARE_PREVIEW_ORIGIN }}
       RU_LIFE_BASE_URL: ${{ vars.RU_LIFE_PREVIEW_ORIGIN }}
@@ -41,6 +47,16 @@ jobs:
       PRICE_REPORT_CONTROL_SERVICE_SECRET: ${{ secrets.PRICE_REPORT_CONTROL_SERVICE_SECRET }}
 
     steps:
+      - name: Require exact Preview confirmation
+        shell: bash
+        env:
+          APPLICATION_MANAGEMENT_PREVIEW_CONFIRM: ${{ inputs.confirm }}
+        run: |
+          set -euo pipefail
+          if [[ "${APPLICATION_MANAGEMENT_PREVIEW_CONFIRM:-}" != "DEPLOY_PREVIEW" ]]; then
+            echo "Preview publication requires DEPLOY_PREVIEW."
+            exit 1
+          fi
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
@@ -57,10 +73,17 @@ jobs:
           [[ -n "${APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID:-}" ]] || missing+=("APPLICATION_MANAGEMENT_PREVIEW_D1_DATABASE_ID")
           [[ -n "${APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID:-}" ]] || missing+=("APPLICATION_MANAGEMENT_PRODUCTION_D1_DATABASE_ID")
           [[ -n "${APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET:-}" ]] || missing+=("APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET")
+          [[ -n "${CONTROL_SERVICE_SECRET:-}" ]] || missing+=("CONTROL_SERVICE_SECRET")
+          [[ -n "${CONTROL_OWNER_EMAILS:-}" ]] || missing+=("CONTROL_OWNER_EMAILS")
+          [[ -n "${BOI_ECH_BASE_URL:-}" ]] || missing+=("BOI_ECH_PREVIEW_ORIGIN")
+          [[ -n "${APPLICATION_MANAGEMENT_PREVIEW_ORIGIN:-}" ]] || missing+=("APPLICATION_MANAGEMENT_PREVIEW_ORIGIN")
           if (( ${#missing[@]} )); then
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Development preview skipped; missing: ${missing[*]}"
-            exit 0
+            echo "::error::Protected Preview environment is incomplete: ${missing[*]}"
+            exit 1
+          fi
+          if (( ${#CONTROL_SERVICE_SECRET} < 32 )); then
+            echo "::error::CONTROL_SERVICE_SECRET must contain at least 32 characters (same value on both Preview Workers)."
+            exit 1
           fi
           if [[ ${#APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET} -lt 32 ]]; then
             echo "::error::APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET must contain at least 32 characters."
@@ -84,19 +107,27 @@ jobs:
         if: steps.config.outputs.ready == 'true'
         run: npm run cloudflare:preview:prepare
 
+      - name: Confirm dedicated App Preview D1 identity without remote writes
+        if: steps.config.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --no-install wrangler d1 list --json --config wrangler.cloudflare.jsonc > "$RUNNER_TEMP/application-management-preview-d1-list.json"
+          node scripts/assert-preview-d1-inventory.mjs "$RUNNER_TEMP/application-management-preview-d1-list.json"
+
       - name: Build preview
         if: steps.config.outputs.ready == 'true'
         env:
           CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH: wrangler.cloudflare.jsonc
         run: npm run build
 
+      - name: Verify generated Preview artifact before remote D1 mutation
+        if: steps.config.outputs.ready == 'true'
+        run: npm run cloudflare:artifact:check
+
       - name: Apply preview migrations
         if: steps.config.outputs.ready == 'true'
         run: npx wrangler d1 migrations apply application-management-preview-db --remote --config wrangler.cloudflare.jsonc
-
-      - name: Verify generated preview artifact
-        if: steps.config.outputs.ready == 'true'
-        run: npm run cloudflare:artifact:check
 
       - name: Deploy preview artifact
         id: deploy
@@ -122,6 +153,11 @@ jobs:
         shell: bash
         run: printf '%s' "$APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET" | npx wrangler secret put APPLICATION_MANAGEMENT_PREVIEW_ACCESS_SECRET --config wrangler.cloudflare.jsonc
 
+      - name: Install shared Owner bridge secret in Application Management Preview
+        if: steps.config.outputs.ready == 'true'
+        shell: bash
+        run: printf '%s' "$CONTROL_SERVICE_SECRET" | npx wrangler secret put CONTROL_SERVICE_SECRET --config wrangler.cloudflare.jsonc
+
       - name: Ensure managed app credential encryption key
         if: steps.config.outputs.ready == 'true'
         shell: bash
@@ -140,6 +176,7 @@ jobs:
           fi
 
       - name: Install Deploy & Ops provider secrets
+        if: steps.config.outputs.ready == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -177,7 +214,10 @@ jobs:
 
       - name: Restore exact Preview artifact after secret versions
         if: steps.config.outputs.ready == 'true'
-        run: npx wrangler deploy
+        run: |
+          set -euo pipefail
+          npm run cloudflare:artifact:check
+          npx wrangler deploy
 
       - name: Verify anonymous protection and Preview read-back
         if: steps.config.outputs.ready == 'true'
@@ -233,8 +273,8 @@ jobs:
         if: always()
         shell: bash
         run: |
-          if [[ "${{ steps.config.outputs.ready }}" == "true" ]]; then
-            echo "Development preview publish path executed with app-secret protection and read-back."
+          if [[ "${{ job.status }}" == "success" ]]; then
+            echo "Isolated Preview deployment and readback steps completed. Owner/MFA and three real devices still require acceptance."
           else
-            echo "Development continues without blocking: Cloudflare preview credentials/bindings are not configured in this repository."
+            echo "Preview deployment incomplete or failed; no publication or acceptance may be claimed."
           fi

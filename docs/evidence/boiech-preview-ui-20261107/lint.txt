@@ -1,0 +1,61 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> quan-ly-hoc-tap@0.1.0 lint
+> bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next
+
+
+/workspace/scratch/9cddf143289c/Application-Management/app/api/operations/route.ts
+   16:3  warning  'rememberAutoApproval' is defined but never used       @typescript-eslint/no-unused-vars
+  701:9  warning  'legacyAdapterIds' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/workspace/scratch/9cddf143289c/Application-Management/app/application-hub.tsx
+  494:5  warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')
+
+/workspace/scratch/9cddf143289c/Application-Management/app/apps/growup-mychildren/growup-admin.tsx
+  86:5  warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')
+
+/workspace/scratch/9cddf143289c/Application-Management/app/apps/ru-life/ru-life-admin.tsx
+  234:5  warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')
+
+/workspace/scratch/9cddf143289c/Application-Management/app/boi-access-view.tsx
+  265:44  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/workspace/scratch/9cddf143289c/Application-Management/app/desktop-agent.server.ts
+  398:9  warning  'row' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/workspace/scratch/9cddf143289c/Application-Management/app/management-dashboard-v2.tsx
+   223:10  warning  'appGroup' is defined but never used                                                                                  @typescript-eslint/no-unused-vars
+   584:9   warning  'onlineDevices' is assigned a value but never used                                                                    @typescript-eslint/no-unused-vars
+  1859:6   warning  React Hook useEffect has a missing dependency: 'closePopover'. Either include it or remove the dependency array       react-hooks/exhaustive-deps
+  1873:6   warning  React Hook useEffect has a missing dependency: 'updateScrollState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  1950:6   warning  React Hook useEffect has a missing dependency: 'closePopover'. Either include it or remove the dependency array       react-hooks/exhaustive-deps
+
+/workspace/scratch/9cddf143289c/Application-Management/app/management-dashboard.tsx
+  226:5  warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')
+
+/workspace/scratch/9cddf143289c/Application-Management/app/management-modern-overview.tsx
+  277:9  warning  'totalOnlineDevices' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/workspace/scratch/9cddf143289c/Application-Management/app/tools/deploy-ops/deploy-ops.tsx
+  171:78  warning  React Hook useEffect has a missing dependency: 'bootstrap'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/workspace/scratch/9cddf143289c/Application-Management/app/tools/kd-mid-visa/kd-mid-visa.tsx
+   456:10  warning  'emitChange' is defined but never used                                                                                                                                                                                                                                                   @typescript-eslint/no-unused-vars
+   519:10  warning  'buildDirectAutomationUrl' is defined but never used                                                                                                                                                                                                                                     @typescript-eslint/no-unused-vars
+  1498:13  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/workspace/scratch/9cddf143289c/Application-Management/app/visa-intake/page.tsx
+  500:6  warning  React Hook useEffect has a missing dependency: 'refreshSubmissionStatus'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/workspace/scratch/9cddf143289c/Application-Management/public/kd-mid-visa-companion.user.js
+    30:9   warning  'CANONICAL_PERMANENT_ADDRESS' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  1461:12  warning  'setYesNo' is defined but never used                              @typescript-eslint/no-unused-vars
+  1465:12  warning  'setCheckbox' is defined but never used                           @typescript-eslint/no-unused-vars
+  1476:12  warning  'setDate' is defined but never used                               @typescript-eslint/no-unused-vars
+  1809:11  warning  'A' is assigned a value but never used                            @typescript-eslint/no-unused-vars
+
+/workspace/scratch/9cddf143289c/Application-Management/tests/russian-daily-candidate.test.mjs
+  28:86  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+
+✖ 25 problems (0 errors, 25 warnings)
+  0 errors and 4 warnings potentially fixable with the `--fix` option.

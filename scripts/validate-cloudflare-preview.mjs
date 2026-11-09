@@ -57,7 +57,7 @@ for (const marker of ["CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH", "configPath: cloud
   if (!vite.includes(marker)) throw new Error(`Vite migration boundary thiếu: ${marker}`);
 }
 for (const marker of ['url.pathname === "/__deployment"', "databaseReady", "previewAccessConfigured", 'isPreview ? "application-preview-secret"']) {
-  if (!worker.includes(marker)) throw new Error(`Worker thiếu preview deployment boundary: ${marker}`);
+  if (!worker.replace(/\s+/g, " ").includes(marker)) throw new Error(`Worker thiếu preview deployment boundary: ${marker}`);
 }
 
 for (const marker of ["Authorization: Bearer <preview-secret>", "HMAC-SHA-256", "HttpOnly", "SameSite=Strict", "secretNeverInUrl", "oai-authenticated-user-email"]) {
@@ -90,6 +90,28 @@ for (const token of [
   "Application Management Cloudflare preview read-back PASS",
 ]) {
   if (!deploy.includes(token)) throw new Error(`Preview deploy workflow thiếu: ${token}`);
+}
+for (const marker of [
+  'CONTROL_SERVICE_SECRET: ${{ secrets.CONTROL_SERVICE_SECRET }}',
+  'missing+=("CONTROL_SERVICE_SECRET")',
+  'missing+=("CONTROL_OWNER_EMAILS")',
+  'CONTROL_OWNER_EMAILS: ${{ vars.CONTROL_OWNER_EMAILS }}',
+  'npx wrangler secret put CONTROL_SERVICE_SECRET',
+  'Protected Preview environment is incomplete',
+  "if: steps.config.outputs.ready == 'true'",
+]) {
+  if (!deploy.includes(marker)) throw new Error(`Preview chưa sẵn sàng Owner bridge: ${marker}`);
+}
+if (deploy.includes('CONTROL_OWNER_EMAILS: owner@example.com')) {
+  throw new Error("Preview không được dùng Owner email mẫu.");
+}
+const beforeMigration = deploy.indexOf("name: Verify generated Preview artifact before remote D1 mutation");
+const migration = deploy.indexOf("name: Apply preview migrations");
+if (beforeMigration < 0 || migration < beforeMigration) {
+  throw new Error("Phải build và kiểm tra artifact trước khi migrate remote Preview D1.");
+}
+if (deploy.includes("Development preview skipped; missing:")) {
+  throw new Error("Không được bỏ qua bí mật để giả kết quả Preview PASS.");
 }
 if (deploy.includes("CF_ACCESS_CLIENT_ID") || deploy.includes("CF_ACCESS_CLIENT_SECRET")) throw new Error("Preview deploy không được yêu cầu Zero Trust service token.");
 if (deploy.includes("learning-management-db --remote")) throw new Error("Preview workflow không được migrate legacy/production database name.");
