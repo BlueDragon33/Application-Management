@@ -7,7 +7,7 @@ const manager={accountId:"acc_"+'a'.repeat(64),name:null,role:"manager",
  status:"pending",onboardingStage:"requested",onboardingRevision:1,
  passwordVerifier:"FORBIDDEN",phone:"FORBIDDEN",publicKeyJwk:"FORBIDDEN"};
 
-function fixture({role="owner",upstreamStatus=200,upstream={accounts:[manager]}}={}){
+function fixture({role="owner",upstreamStatus=200,upstream={contract:"boi-manager-intake.v2",verified:true,managers:[manager]}}={}){
  const calls=[];
  const api=loadTs("app/api/apps/boi-ech/account-entitlements/route.ts",{
   "../../../../control-device.server":{
@@ -41,7 +41,7 @@ test("Owner manager inbox is read-only and uses canonical BOI accounts with no l
  assert.equal(f.calls[0].url,"https://boi.example.invalid/api/control/accounts");
  assert.equal(f.calls[0].init.method,"POST");
  assert.equal(f.calls[0].init.redirect,"manual");
- assert.deepEqual(JSON.parse(f.calls[0].init.body),{action:"list"});
+ assert.deepEqual(JSON.parse(f.calls[0].init.body),{action:"manager-inbox-v2"});
 });
 test("non-owner roles cannot read or even contact canonical Manager inbox",async()=>{
  for(const role of ["reviewer","publisher","viewer"]){
@@ -60,10 +60,10 @@ test("upstream 401/403/409 propagate with no fake empty success",async()=>{
 });
 test("malformed non-manager and oversized cross-account rows fail closed",async()=>{
  for(const rowset of [
-  {accounts:[{...manager,role:"learner"}]},
-  {accounts:Array.from({length:101},(_,i)=>({...manager,accountId:"acc_"+String(i).padStart(64,"0")}))},
-  {accounts:[{...manager,onboardingStage:undefined}]},
-  {accounts:{notAnArray:true}},
+  {contract:"boi-manager-intake.v2",verified:true,managers:[{...manager,role:"learner"}]},
+  {contract:"boi-manager-intake.v2",verified:true,managers:Array.from({length:101},(_,i)=>({...manager,accountId:"acc_"+String(i).padStart(64,"0")}))},
+  {contract:"boi-manager-intake.v2",verified:true,managers:[{...manager,onboardingStage:undefined}]},
+  {contract:"boi-manager-intake.v2",verified:true,managers:{notAnArray:true}},
  ]){
   const f=fixture({upstream:rowset}),r=await f.run();
   assert.equal(r.status,502);
@@ -72,7 +72,7 @@ test("malformed non-manager and oversized cross-account rows fail closed",async(
  }
 });
 test("upstream redirection is never followed to unexpected origin",async()=>{
- const f=fixture({upstreamStatus:302,upstream:{accounts:[manager]}}),r=await f.run();
+ const f=fixture({upstreamStatus:302,upstream:{contract:"boi-manager-intake.v2",verified:true,managers:[manager]}}),r=await f.run();
  assert.equal(r.status,502);assert.equal(r.json.managers,undefined);
  assert.equal(f.calls[0].init.redirect,"manual");
 });
