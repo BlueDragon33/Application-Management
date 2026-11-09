@@ -2,7 +2,8 @@
 
 import {useEffect,useMemo,useState} from "react";
 import {
- loadBoiAccountDurations,loadBoiManagerInbox,changeBoiAccountDuration,changeBoiDefaultAccountDays,
+ loadBoiAccountDurations,loadBoiManagerInbox,issueBoiManagerInvitation,reviewBoiManagerAccount,
+ changeBoiAccountDuration,changeBoiDefaultAccountDays,
  type BoiAccountDurationRecord,type BoiAccountDurationPolicy,type BoiManagerInboxRecord
 } from "../../boi-access-client";
 
@@ -26,6 +27,9 @@ export default function AccountExpiryPanel(){
  const [accounts,setAccounts]=useState<BoiAccountDurationRecord[]>([]);
  const [managerInbox,setManagerInbox]=useState<BoiManagerInboxRecord[]|null>(null);
  const [managerError,setManagerError]=useState(""),[managerLoading,setManagerLoading]=useState(false);
+ const [managerNext,setManagerNext]=useState<string|null>(null);
+ const [managerNotice,setManagerNotice]=useState(""),[inviteUrl,setInviteUrl]=useState("");
+ const [managerWriting,setManagerWriting]=useState(false);
  const [policies,setPolicies]=useState<BoiAccountDurationPolicy[]>([]);
  const [selected,setSelected]=useState("");
  const [search,setSearch]=useState("");
@@ -35,11 +39,48 @@ export default function AccountExpiryPanel(){
  const [busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[error,setError]=useState(""),[notice,setNotice]=useState("");
  const current=accounts.find(a=>a.accountId===selected)??null;
  const displayed=useMemo(()=>accounts.filter(a=>[a.accountId,a.name,a.role].join(" ").toLowerCase().includes(search.toLowerCase())).slice(0,100),[accounts,search]);
- async function refreshManagerInbox(){
+ async function refreshManagerInbox(after=""){
   setManagerLoading(true);setManagerError("");
-  try{setManagerInbox(await loadBoiManagerInbox());}
-  catch(e){setManagerInbox(null);setManagerError(e instanceof Error?e.message:"Chưa tải được hàng chờ quản lý.");}
-  finally{setManagerLoading(false);}
+  try{
+   const result=await loadBoiManagerInbox(after);
+   setManagerInbox(current=>after && current
+    ? [...current.filter(a=>!result.managers.some(b=>b.accountId===a.accountId)),...result.managers]
+    : result.managers);
+   setManagerNext(result.nextCursor);
+  }
+  catch(e){
+   if(!after){setManagerInbox(null);setManagerNext(null);}
+   setManagerError(e instanceof Error?e.message:"Chưa tải được hàng chờ quản lý.");
+  }finally{setManagerLoading(false);}
+ }
+ async function createManagerInvitation(){
+  if(managerWriting)return;
+  if(!window.confirm("Tạo mã mời dùng một lần cho Cán bộ quản lý? Chỉ gửi link cho đúng người; Owner không nhập mật khẩu hộ."))return;
+  setManagerWriting(true);setManagerError("");setManagerNotice("");setInviteUrl("");
+  try{
+   const invite=await issueBoiManagerInvitation();
+   setInviteUrl(invite.inviteUrl);
+   setManagerNotice("Đã xác minh cấp mã mời dùng một lần, hiệu lực đến "+moscow(invite.expiresAt)+". Sao chép liên kết và gửi riêng cho người nhận.");
+  }catch(e){setManagerError(e instanceof Error?e.message:"Chưa xác minh được thư mời.");}
+  finally{setManagerWriting(false);}
+ }
+ async function decideManager(m:BoiManagerInboxRecord,action:"manager-review-first"|"manager-review-final"|"manager-review-changes"){
+  if(managerWriting)return;
+  const name=m.name||m.accountId.slice(0,14);
+  if(!window.confirm(action==="manager-review-final"
+   ? "Kích hoạt Cán bộ quản lý "+name+" sau duyệt vòng hai? Phải có MFA Owner và hồ sơ hoàn chỉnh."
+   : action==="manager-review-first" ? "Duyệt vòng một cho "+name+"? Chưa cấp quyền sử dụng."
+   : "Yêu cầu sửa thông tin hồ sơ "+name+"?"))return;
+  const reason=action==="manager-review-changes"?window.prompt("Lý do cần bổ sung (5–200 ký tự):","")??"":"";
+  if(action==="manager-review-changes" && reason.trim().length<5)return;
+  setManagerWriting(true);setManagerError("");setManagerNotice("");
+  try{
+   const expectedRevision=action==="manager-review-final"?m.accountRevision:m.onboardingRevision;
+   await reviewBoiManagerAccount(action,m.accountId,expectedRevision,reason);
+   setManagerNotice("Bơi ếch đã xác minh và đọc lại lần duyệt từ D1.");
+   await refreshManagerInbox();
+  }catch(e){setManagerError(e instanceof Error?e.message:"Lệnh duyệt chưa được xác minh.");}
+  finally{setManagerWriting(false);}
  }
  async function refresh(){
   setLoading(true);setError("");
@@ -83,21 +124,52 @@ export default function AccountExpiryPanel(){
  }
  return <section aria-label="Hạn tài khoản Bơi ếch AI" style={{border:"1px solid currentColor",borderRadius:12,padding:16,margin:"16px 0",display:"grid",gap:12}}>
   <details open>
-   <summary><strong>Hồ sơ Cán bộ quản lý · Hàng chờ Owner</strong></summary>
-   <p>Chỉ Owner được xem hồ sơ quản lý từ cơ sở dữ liệu Bơi ếch hiện hữu. Hàng chờ chỉ đọc;
-     cấp tài khoản và hai quyết định duyệt bắt buộc qua quy trình Owner có MFA, CAS và audit.</p>
-   <button type="button" disabled={managerLoading} onClick={()=>void refreshManagerInbox()}>
-     {managerLoading?"Đang kiểm tra…":"Đồng bộ hàng chờ quản lý"}</button>
-   {managerError?<p role="alert">{managerError} Không suy diễn rằng hàng chờ trống.</p>:null}
+   <summary><strong>Hồ sơ Cán bộ quản lý · Owner duyệt hai vòng</strong></summary>
+   <p>Hồ sơ quản lý thuộc Bơi ếch, kiểm soát tập trung từ giao diện Owner này. Mã mời có hiệu lực 24 giờ,
+    dùng một lần; người nhận tự đặt mật khẩu và khóa P-256 trên đúng trang Bơi ếch.</p>
+   <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+    <button type="button" disabled={managerLoading||managerWriting}
+     onClick={()=>void refreshManagerInbox()}>Đồng bộ hàng chờ</button>
+    <button type="button" disabled={managerWriting||managerLoading}
+     onClick={()=>void createManagerInvitation()}>Tạo lời mời Cán bộ quản lý · MFA</button>
+   </div>
+   {managerNotice?<p role="status">{managerNotice}</p>:null}
+   {managerError?<p role="alert">{managerError} Không suy diễn hàng chờ trống hoặc tự gửi lại lệnh.</p>:null}
+   {inviteUrl?<div>
+    <label>Liên kết một lần — chỉ gửi riêng, không đăng công khai
+     <input type="text" readOnly value={inviteUrl} autoComplete="off" aria-label="Link mời quản lý" />
+    </label>
+    <button type="button" onClick={()=>void navigator.clipboard.writeText(inviteUrl)}>
+     Sao chép link mời</button>
+    <button type="button" onClick={()=>setInviteUrl("")}>Đã lưu — Ẩn mã mời</button>
+   </div>:null}
    {managerInbox!==null?<div role="status">
-    <p>Đã xác minh {managerInbox.length} hồ sơ quản lý; chờ duyệt: {managerInbox.filter(m=>m.status==="pending").length}.</p>
-    {managerInbox.filter(m=>m.status==="pending").map(m=><article key={m.accountId}>
+    <p>Đã đọc {managerInbox.length} hồ sơ quản lý{managerNext?" (còn trang tiếp theo)":""}.
+     Đang chờ duyệt: {managerInbox.filter(m=>m.status==="pending").length} trong các trang đã tải.</p>
+    {managerInbox.filter(m=>m.status==="pending").map(m=><article key={m.accountId}
+      style={{border:"1px solid currentColor",borderRadius:8,padding:10,marginBlock:8}}>
      <strong>{m.name||"Hồ sơ mới chưa hoàn thiện"}</strong>
-     <p>ID: {m.accountId.slice(0,20)}… · Giai đoạn: {m.onboardingStage||"Chưa xác minh"} · Revision: {m.onboardingRevision??"—"}</p>
+     <p>ID: {m.accountId.slice(0,20)}… · Trạng thái: {m.onboardingStage}
+      · Hồ sơ rev {m.onboardingRevision} · Tài khoản rev {m.accountRevision}</p>
+     {m.onboardingStage==="requested"?<button type="button"
+      disabled={managerWriting||managerLoading} onClick={()=>void decideManager(m,"manager-review-first")}>
+       Duyệt vòng 1 — chưa cấp quyền</button>:null}
+     {m.onboardingStage==="profile_review"?<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+      <button type="button" disabled={managerWriting||managerLoading}
+       onClick={()=>void decideManager(m,"manager-review-final")}>Duyệt vòng 2 — kích hoạt</button>
+      <button type="button" disabled={managerWriting||managerLoading}
+       onClick={()=>void decideManager(m,"manager-review-changes")}>Yêu cầu bổ sung</button>
+     </div>:null}
+     {m.onboardingStage==="profile_required"?<p>Chờ cán bộ tự hoàn thiện hồ sơ trên Bơi ếch.</p>:null}
+     {m.onboardingStage==="changes_requested"?<p>Chờ người đăng ký sửa hồ sơ.</p>:null}
     </article>)}
-    {!managerInbox.some(m=>m.status==="pending")?<p>Không có yêu cầu quản lý đang chờ trong kết quả đã xác minh.</p>:null}
+    {managerNext?<button type="button" disabled={managerLoading||managerWriting}
+       onClick={()=>void refreshManagerInbox(managerNext)}>Tải thêm hồ sơ</button>:null}
+    {!managerInbox.some(m=>m.status==="pending") && !managerNext?
+      <p>Không có yêu cầu quản lý đang chờ trong tập kết quả đã xác minh.</p>:null}
    </div>:!managerError?<p role="status">Chưa có kết quả hàng chờ được xác minh.</p>:null}
-   <small>Chưa mở quy trình phát thư mời quản lý mới. Không nhập mật khẩu hộ cán bộ hoặc cấp quyền qua biểu mẫu công khai.</small>
+   <small>Owner phải xác minh Authenticator trong 30 phút gần nhất để tạo mời hoặc duyệt.
+    Hai vòng duyệt sử dụng CAS, nhật ký, đọc lại D1; không cấp quyền tự động.</small>
   </details>
   <header><h2>Thời hạn tài khoản · Account First V2</h2>
    <p>Chính sách mặc định 30 ngày từ lần duyệt thứ hai. Hạn tài khoản không phải hạn thiết bị, thanh toán hay API Token Cloudflare.</p></header>
