@@ -42,8 +42,12 @@ async function bridgeJson(bridge: Bridge, path: string, init?: { method?: "GET" 
       headers: { authorization: `Bearer ${bridge.token}`, "content-type": "application/json" },
       body: init?.body ? JSON.stringify(init.body) : undefined,
       cache: "no-store",
+      redirect: "manual", // Never trust a redirected endpoint as the owning BOIECH_AI Worker.
       signal: controller.signal,
     });
+    if (response.status >= 300 && response.status < 400) {
+      return { ok: false as const, status: 502, payload: { error: "Bơi Ếch chuyển hướng ngoài hợp đồng V2.", code: "BOI_CONTROL_REDIRECT_FORBIDDEN" } };
+    }
     const payload = record(await response.json().catch(() => ({})));
     if (!response.ok) return { ok: false as const, status: response.status, payload };
     return { ok: true as const, status: response.status, payload };
