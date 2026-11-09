@@ -54,3 +54,31 @@ test("academic modules keep independent domain schemas and per-account hydration
   assert.doesNotMatch(thesis, /coursework-domain\.mjs/);
   assert.doesNotMatch(coursework, /thesis-domain\.mjs/);
 });
+
+test("constitutional guidance is a single actionable CTA scoped to current workflow", () => {
+  const thesis = file("app/tools/thesis-planner/thesis-planner.tsx");
+  const coursework = file("app/apps/coursework-workbench/coursework-workbench.tsx");
+  assert.equal((thesis.match(/HƯỚNG DẪN \/ MỞ VIỆC TIẾP THEO/g) ?? []).length, 1);
+  assert.equal((coursework.match(/HƯỚNG DẪN \/ MỞ VIỆC TIẾP THEO/g) ?? []).length, 1);
+  for (const source of [thesis, coursework]) {
+    assert.match(source, /onClick={openNextAction}/);
+    assert.match(source, /aria-expanded={guideOpen}/);
+    assert.match(source, /scrollIntoView\(\{ behavior: "smooth", block: "center" \}\)/);
+    assert.match(source, /focus\(\{ preventScroll: true \}\)/);
+    assert.match(source, /Không tự/);
+    assert.doesNotMatch(source, /mark.*as.*PASS|automaticallyApproved/);
+  }
+  assert.match(thesis, /"thesis-task-" \+ next\.id/);
+  assert.match(thesis, /"thesis-academic-review"/);
+  assert.match(coursework, /"coursework-create"/);
+  assert.match(coursework, /"coursework-stage-" \+ next\.id/);
+  assert.match(coursework, /"coursework-submission-review"/);
+});
+
+test("guidance button has its own focus and mobile layout", () => {
+  const thesisCss = file("app/tools/thesis-planner/thesis-planner.module.css");
+  const courseworkCss = file("app/apps/coursework-workbench/coursework-workbench.module.css");
+  assert.match(thesisCss, /\.guideButton:focus-visible/);
+  assert.match(courseworkCss, /\.guideButton:focus-visible/);
+  assert.match(courseworkCss, /@media\(max-width:650px\)/);
+});
