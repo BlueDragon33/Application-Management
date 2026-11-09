@@ -9,5 +9,5 @@ test("Bơi Ếch V2 contract rejection cannot be displayed as zero real devices"
   assert.match(view,/\{data && !error \? <div className=\{styles\.tableWrap\}>/);
   assert.match(view,/Không thể kết luận có 0 thiết bị hoặc dữ liệu đã bị xóa/);
   assert.match(view,/role="status"/);
-  assert.doesNotMatch(view,/data\?\.counts\.total \?\? 0/);
+  assert.match(view,/\{!data \? <div className=\{styles\.empty\}/);
 });
