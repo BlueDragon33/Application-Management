@@ -62,6 +62,8 @@ jobs:
         run: npm run validate:cloudflare-preview
       - name: Mandatory full regression suite
         run: npm test
+      - name: Lint application and worker
+        run: npm run lint
       - name: Regression policy summary
         run: echo "Full npm test PASS for every pull request and every main revision."
 
