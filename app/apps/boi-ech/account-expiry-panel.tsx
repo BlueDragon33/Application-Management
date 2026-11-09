@@ -37,6 +37,7 @@ export default function AccountExpiryPanel(){
  const [expiration,setExpiration]=useState("");
  const [reason,setReason]=useState("Owner quản lý thời hạn sử dụng");
  const [busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[error,setError]=useState(""),[notice,setNotice]=useState("");
+ const [observedNow,setObservedNow]=useState(()=>Date.now());
  const current=accounts.find(a=>a.accountId===selected)??null;
  const displayed=useMemo(()=>accounts.filter(a=>[a.accountId,a.name,a.role].join(" ").toLowerCase().includes(search.toLowerCase())).slice(0,100),[accounts,search]);
  async function refreshManagerInbox(after=""){
@@ -89,12 +90,17 @@ export default function AccountExpiryPanel(){
    setAccounts(next.accounts);setPolicies(next.policies);
    setRoleDays(Object.fromEntries(next.policies.map(p=>[p.role,String(p.defaultDays)])));
    setSelected(s=>next.accounts.some(a=>a.accountId===s)?s:"");
+   setObservedNow(Date.now());
   }catch(e){setError(e instanceof Error?e.message:"Không tải được tài khoản.");}
   finally{setLoading(false);}
  }
- useEffect(()=>{void refresh();},[]);
- useEffect(()=>{void refreshManagerInbox();},[]);
- useEffect(()=>{setExpiration(current?.entitlement?.expiresAt?localInput(current.entitlement.expiresAt):"");},[selected,accounts]);
+ useEffect(()=>{queueMicrotask(()=>{void refresh();});},[]);
+ useEffect(()=>{queueMicrotask(()=>{void refreshManagerInbox();});},[]);
+ const currentExpiry=current?.entitlement?.expiresAt ?? null;
+ useEffect(()=>{
+  const next=currentExpiry?localInput(currentExpiry):"";
+  queueMicrotask(()=>setExpiration(next));
+ },[selected,currentExpiry]);
  async function commitAccount(operation:"set-expiry"|"suspend"|"resume"){
   if(!current?.entitlement||busy)return;
   if(reason.trim().length<5){setError("Nhập lý do dài ít nhất 5 ký tự.");return;}
@@ -211,7 +217,7 @@ export default function AccountExpiryPanel(){
     <button disabled={busy} onClick={()=>{setExpiration(localInput(new Date(Date.now()+30*86400000).toISOString()));}}>+30 ngày từ hôm nay</button>
     {current.entitlement.state==="active"
      ?<button disabled={busy} onClick={()=>void commitAccount("suspend")}>Tạm khóa</button>
-     :<button disabled={busy||Date.parse(current.entitlement.expiresAt)<=Date.now()} onClick={()=>void commitAccount("resume")}>Khôi phục</button>}
+     :<button disabled={busy||Date.parse(current.entitlement.expiresAt)<=observedNow} onClick={()=>void commitAccount("resume")}>Khôi phục</button>}
    </div></>:<p>Tài khoản chưa qua lần duyệt thứ hai hoặc đang được giữ để đối chiếu dữ liệu cũ. Không cấp quyền tự động.</p>}
   </div>:null}
   <small>Chỉ Owner có quyền sửa. Mọi thay đổi cần CAS, nhật ký và đọc lại từ Bơi ếch. Dữ liệu học tập không bị xóa khi hết hạn.</small>
