@@ -4,7 +4,7 @@ import { controlErrorResponse, verifyControlProof } from "../../../../control-de
 export const dynamic = "force-dynamic";
 const TIMEOUT_MS = 8_000;
 const mutations = new Set(["set-account","set-policy"]);
-const allowed = new Set(["list","policy","read-account",...mutations]);
+const allowed = new Set(["list","manager-inbox","policy","read-account",...mutations]);
 function json(data: unknown,status=200) {
   return Response.json(data,{status,headers:{"cache-control":"no-store, private","x-content-type-options":"nosniff"}});
 }
@@ -39,13 +39,29 @@ export async function POST(request: Request) {
     const actor=await verifyControlProof(proofDeviceId?{...input,deviceId:proofDeviceId}:input);
     if(actor.role!=="owner") return json({error:"Chỉ Owner được quản lý thời hạn tài khoản.",code:"OWNER_REQUIRED"},403);
     const bridge=await issueBoiBrowserBridge(actor.email,actor.role);
-    const cmd:Record<string,unknown>=action==="list"?{action:"list-entitlements"}
+    const cmd:Record<string,unknown>=action==="manager-inbox"?{action:"list"}
+      :action==="list"?{action:"list-entitlements"}
       :action==="policy"?{action:"entitlement-policy"}
       :action==="read-account"?{action:"read-entitlement",accountId:input.accountId}
       :action==="set-policy"?{action:"set-entitlement-policy",role:input.role,defaultDays:input.defaultDays,expectedRevision:input.expectedRevision,reason:input.reason}
       :{action:"set-entitlement",accountId:input.accountId,operation:input.operation,expiresAt:input.expiresAt,expectedRevision:input.expectedRevision,reason:input.reason};
     const changed=await upstream(bridge,cmd);
     if(changed.status!==200) return json(changed.data,changed.status);
+    if(action==="manager-inbox"){
+      const rows=changed.data.accounts;
+      if(!Array.isArray(rows)||rows.length>100||rows.some(row=>{
+        const a=record(row);
+        return a.role!=="manager"||typeof a.accountId!=="string"
+          ||typeof a.status!=="string"||typeof a.onboardingStage!=="string"&&a.onboardingStage!==null
+          ||typeof a.onboardingRevision!=="number"&&a.onboardingRevision!==null;
+      })) return json({error:"Dữ liệu hàng chờ quản lý chưa được xác minh.",code:"BOI_MANAGER_INBOX_UNVERIFIED"},502);
+      // Expose only the explicit Owner review fields, not credentials, devices or payment proofs.
+      return json({ok:true,verified:true,managers:rows.map(row=>{
+        const a=record(row);
+        return {accountId:a.accountId,status:a.status,onboardingStage:a.onboardingStage,
+          onboardingRevision:a.onboardingRevision,name:typeof a.name==="string"?a.name:null};
+      })});
+    }
     if(!mutations.has(action)) return json({...changed.data,ok:true});
     const verifyCmd=action==="set-policy"?{action:"entitlement-policy"}:{action:"read-entitlement",accountId:input.accountId};
     const verified=await upstream(bridge,verifyCmd);
