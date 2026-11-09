@@ -30,6 +30,7 @@ const repositories = [
   "BlueDragon33/Hardware_Simulation",
   "BlueDragon33/MPC_PID_System",
   "BlueDragon33/CAD_CAM_3D",
+  "BlueDragon33/pc-manager-desktop",
 ];
 
 test("project registry tracks the current owned project set", () => {
@@ -37,7 +38,7 @@ test("project registry tracks the current owned project set", () => {
   assert.match(registry, /projectRepositoryCount = projectRepositories\.length/);
   assert.match(registry, /group: "accounting"/);
   assert.match(projectDocs, /BlueDragon33\/NC03_Modem/);
-  assert.match(projectDocs, /Tổng: \*\*14 repo hiện hữu\*\*/);
+  assert.match(projectDocs, /Tổng: \*\*15 repo đã đăng ký\*\*/);
 });
 
 test("current dashboard exposes the GitHub project catalog", () => {
@@ -56,6 +57,26 @@ test("catalog reconciliation is read-only and detects drift", () => {
   assert.match(repositoryWatchWorkflow, /push:/);
   assert.match(repositoryWatchWorkflow, /app\/project-registry\.ts/);
   assert.equal(pkg.scripts["projects:check"], "node scripts/check-project-repositories.mjs");
+});
+
+test("PC Manager project catalog reuses existing managed app without granting remote authority", () => {
+  const marker = 'id: "pc-manager-desktop"';
+  assert.equal(registry.split(marker).length - 1, 1);
+  const start = registry.indexOf(marker);
+  const end = registry.indexOf("\n  },", start);
+  const block = registry.slice(start, end);
+  for (const value of [
+    'repository: "BlueDragon33/pc-manager-desktop"',
+    'defaultBranch: "main"',
+    'state: "developing"',
+    'managementHref: "/apps/pc-manager"',
+    'outbound-only',
+    'migrating'
+  ]) assert.ok(block.includes(value), value);
+  const apps = source("app/application-registry.ts");
+  assert.ok(apps.includes('id: "pc-manager"'));
+  assert.ok(apps.includes('desktopLaunchUrl: "pcmanager://open"'));
+  assert.ok(apps.includes('contractState: "migrating"'));
 });
 
 test("technical repositories do not invent remote controls", () => {
