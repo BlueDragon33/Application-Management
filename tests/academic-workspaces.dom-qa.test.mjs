@@ -280,3 +280,58 @@ test("Importing invalid Coursework JSON preserves previously saved assignments",
     assert.match(document.body.textContent, /File JSON không đúng cấu trúc/);
   } finally { await cleanup(); }
 });
+
+function luminanceFromCssRgb(value) {
+  const channels = (value.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
+  assert.equal(channels.length, 3, "Color must resolve to RGB in DOM");
+  const [red, green, blue] = channels.map((num) => {
+    const channel = num / 255;
+    return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+  });
+  return red * 0.2126 + green * 0.7152 + blue * 0.0722;
+}
+function contrastFromComputed(a, b) {
+  const values = [luminanceFromCssRgb(a), luminanceFromCssRgb(b)].sort((x, y) => x - y);
+  return (values[1] + 0.05) / (values[0] + 0.05);
+}
+
+test("authored academic CSS computed contrast: inputs, project boundaries and guide buttons", async () => {
+  // jsdom computes declared CSS values but cannot prove final browser compositing
+  // (gradient overlays, themes, media query/device viewport). Those remain UNVERIFIED.
+  for (const [stylePath, selectors] of [
+    ["app/tools/thesis-planner/thesis-planner.module.css", [
+      {markup: '<input class="input" />', selector: ".input", kind: "border", min: 3},
+      {markup: '<button class="guideButton">Next</button>', selector: ".guideButton", kind: "text", min: 4.5},
+      {markup: '<button class="btn">Export</button>', selector: ".btn", kind: "text", min: 4.5},
+    ]],
+    ["app/apps/coursework-workbench/coursework-workbench.module.css", [
+      {markup: '<input class="field" />', selector: ".field", kind: "border", min: 3},
+      {markup: '<button class="project">Assignment</button>', selector: ".project", kind: "border", min: 3},
+      {markup: '<button class="guideButton">Next</button>', selector: ".guideButton", kind: "text", min: 4.5},
+      {markup: '<button class="button">Export</button>', selector: ".button", kind: "text", min: 4.5},
+    ]]
+  ]) {
+    const style = document.createElement("style");
+    style.textContent = readFileSync(new URL("../" + stylePath, import.meta.url), "utf8");
+    const host = document.createElement("div");
+    document.head.appendChild(style);
+    document.body.appendChild(host);
+    try {
+      for (const row of selectors) {
+        host.innerHTML = row.markup;
+        const element = host.querySelector(row.selector);
+        assert.ok(element);
+        const computed = window.getComputedStyle(element);
+        const fg = row.kind === "border" ? computed.borderTopColor : computed.color;
+        const bg = computed.backgroundColor;
+        const result = contrastFromComputed(fg, bg);
+        assert.ok(result >= row.min,
+          stylePath + " " + row.selector + " authored " + row.kind +
+          " contrast " + result.toFixed(2) + " is below " + row.min);
+      }
+    } finally {
+      host.remove();
+      style.remove();
+    }
+  }
+});
