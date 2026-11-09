@@ -851,7 +851,9 @@ function sensitiveProductionMutation(pathname: string, payload: Record<string, u
   }
 
   if (pathname === "/api/apps/boi-ech/access" && action === "manage-access") return true;
-  if (pathname === "/api/apps/boi-ech/account-entitlements" && (action === "set-account" || action === "set-policy")) return true;
+  if (pathname === "/api/apps/boi-ech/account-entitlements"
+    && new Set(["set-account","set-policy","issue-manager-invite",
+      "manager-review-first","manager-review-final","manager-review-changes"]).has(action)) return true;
   if (pathname === "/api/apps/boi-ech/cloudflare-preview" && action !== "status") return true;
 
   // Preserve a fail-closed path for future destructive operation names routed
@@ -893,14 +895,19 @@ export async function productionStepUpGate(
   }
 
   const state = await totpState(env, identity.email);
-  if (!state.enabled || stepUpFresh(identity)) return null;
-
   const pathname = new URL(request.url).pathname;
   let payload: Record<string, unknown> = {};
   if (request.headers.get("content-type")?.toLowerCase().includes("application/json")) {
     payload = await request.clone().json().catch(() => ({})) as Record<string, unknown>;
   }
 
+  // Owner-issued invitations and manager approvals MUST have enrolled, freshly
+  // verified MFA; these sensitive grants never inherit the legacy no-MFA fallback.
+  if(pathname==="/api/apps/boi-ech/account-entitlements"
+    && new Set(["issue-manager-invite","manager-review-first",
+      "manager-review-final","manager-review-changes"]).has(text(payload.action))
+    && (!state.enabled || !stepUpFresh(identity))) return stepUpRequiredResponse();
+  if (!state.enabled || stepUpFresh(identity)) return null;
   return sensitiveProductionMutation(pathname, payload) ? stepUpRequiredResponse() : null;
 }
 
