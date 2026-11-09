@@ -52,7 +52,7 @@ export default function WebAppGuide({ displayName }: { displayName:string }) {
       <header className={styles.header}>
         <div>
           <p className={styles.eyebrow}>APPLICATION-MANAGEMENT · TOOL · BLUEPRINT OS 1.3.0</p>
-          <h1>Hướng dẫn về lập trình Web-App</h1>
+          <h1>{guideToolName.split(" · ")[0]}</h1>
           <p className={styles.english}>Web-App Engineering Playbook</p>
           <p>Cẩm nang làm Web-App có kiểm chứng: thiết kế, dữ liệu, QA, Cloudflare Preview, Production và phục hồi. Công cụ <strong>chỉ hướng dẫn và lập kế hoạch</strong>, không thực hiện deploy.</p>
         </div>
@@ -114,7 +114,7 @@ export default function WebAppGuide({ displayName }: { displayName:string }) {
         <div className={styles.batch}>
           <p className={styles.eyebrow}>NHÓM ĐỀ XUẤT</p>
           <h3>{recommendation.combine}</h3>
-          <p><strong>{recommendation.rounds} lượt chính trong một phiên</strong>, khoảng {recommendation.steps} bước tham chiếu ở nhóm tương ứng.</p>
+          <p><strong>{recommendation.rounds} lượt, tổng {recommendation.steps} bước tham chiếu.</strong> {phase==="release"?"Ba lượt này cần cổng chấp thuận riêng; không được tự động gộp thành một lần publish.":"Chỉ gộp trong cùng phiên khi mọi điều kiện và bằng chứng của lượt trước đã đạt."}</p>
           <p>{recommendation.rule}</p>
         </div>
         <div className={styles.ruleGrid}>
