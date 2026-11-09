@@ -292,3 +292,161 @@
   .scope :global(.topbar) { display: grid; }
   .scope :global(.topbar > div:first-child > p) { display: none; }
 }
+
+
+/* Scoped adaptation of the prepublish Cán bộ quản lý screen (BOIECH_AI 01fcfed).
+   Do not import its operational components or touch other Application-Management screens. */
+.scope :global(.boi-manager-welcome) {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  padding: 24px 22px 12px;
+  color: #182c45;
+}
+.scope :global(.boi-manager-welcome small) {
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: .1em;
+  color: #596b82;
+}
+.scope :global(.boi-manager-welcome h2) {
+  margin: 4px 0;
+  font-size: clamp(23px, 3vw, 31px);
+  line-height: 1.2;
+  letter-spacing: -.025em;
+  color: #182c45;
+}
+.scope :global(.boi-manager-welcome p) {
+  margin: 0;
+  color: #596b82;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.scope :global(.boi-manager-welcome-role) {
+  flex: none;
+  border: 1px solid #dce4ee;
+  border-radius: 999px;
+  background: #eaf0f7;
+  color: #173e66;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.scope :global(.boi-manager-quick) {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 5px 0 20px;
+}
+.scope :global(.boi-manager-quick > button) {
+  display: grid;
+  justify-items: start;
+  align-content: start;
+  min-width: 0;
+  min-height: 142px;
+  gap: 7px;
+  padding: 19px 16px;
+  border: 1px solid #dce4ee;
+  border-radius: 19px;
+  background: #fff;
+  box-shadow: 0 6px 24px rgba(20, 43, 67, .055);
+  text-align: left;
+  color: #182c45;
+  cursor: pointer;
+  font: inherit;
+}
+.scope :global(.boi-manager-quick > button:hover) {
+  border-color: #8fb0cf;
+  background: #f9fbfe;
+}
+.scope :global(.boi-manager-quick > button:focus-visible),
+.scope :global(.boi-manager-dock > button:focus-visible) {
+  outline: 3px solid #245fba;
+  outline-offset: 3px;
+}
+.scope :global(.boi-manager-quick-icon) {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  background: #eaf0f7;
+  color: #245fba;
+  font-size: 25px;
+  font-weight: 800;
+}
+.scope :global(.boi-manager-quick strong) {
+  font-size: 14px;
+  font-weight: 750;
+}
+.scope :global(.boi-manager-quick small) {
+  color: #596b82;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.scope :global(.boi-manager-dock) { display: none; }
+@media (max-width: 1100px) {
+  .scope :global(.boi-manager-quick) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 820px) {
+  .scope :global(.control-sidebar nav) { display: none; }
+  .scope :global(.control-main) { padding-bottom: calc(116px + env(safe-area-inset-bottom, 0px)); }
+  .scope :global(.boi-manager-dock) {
+    position: fixed;
+    z-index: 40;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 3px;
+    align-items: stretch;
+    left: 50%;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%);
+    width: min(620px, calc(100% - 28px));
+    padding: 7px;
+    border: 1px solid #dce4ee;
+    border-radius: 24px;
+    background: #fff;
+    box-shadow: 0 8px 30px rgba(20, 43, 67, .16);
+  }
+  .scope :global(.boi-manager-dock > button) {
+    display: grid;
+    justify-items: center;
+    align-content: center;
+    gap: 2px;
+    border: 0;
+    border-radius: 17px;
+    min-width: 0;
+    min-height: 54px;
+    background: transparent;
+    color: #596b82;
+    font: inherit;
+    cursor: pointer;
+  }
+  .scope :global(.boi-manager-dock > button > span) {
+    font-size: 22px;
+    line-height: 1.2;
+    font-weight: 700;
+  }
+  .scope :global(.boi-manager-dock > button small) {
+    font-size: 11px;
+    line-height: 1.3;
+    white-space: nowrap;
+  }
+  .scope :global(.boi-manager-dock > button[aria-current="page"]) {
+    color: #173e66;
+    background: #eaf0f7;
+  }
+  .scope :global(.install-fab) {
+    bottom: calc(100px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+@media (max-width: 560px) {
+  .scope :global(.boi-manager-welcome) { align-items: flex-start; padding: 19px 0 13px; }
+  .scope :global(.boi-manager-welcome-role) { font-size: 11px; padding: 6px 8px; }
+  .scope :global(.boi-manager-quick) { gap: 9px; }
+  .scope :global(.boi-manager-quick > button) { min-height: 128px; padding: 14px 11px; }
+  .scope :global(.boi-manager-quick-icon) { width: 39px; height: 39px; font-size: 22px; }
+  .scope :global(.boi-manager-quick strong) { font-size: 13px; }
+  .scope :global(.boi-manager-quick small) { font-size: 11px; }
+}
