@@ -51,6 +51,7 @@ export default function ThesisPlanner({ user }: { user: { email: string; display
   const [storageBlocked, setStorageBlocked] = useState(false);
   const [model, setModel] = useState<ThesisState>(emptyState);
   const [notice, setNotice] = useState("");
+  const [guideOpen, setGuideOpen] = useState(false);
   useEffect(() => {
     setStorageBlocked(false);
     setNotice("");
@@ -81,6 +82,12 @@ export default function ThesisPlanner({ user }: { user: { email: string; display
   const done = allSteps.filter((step) => model.steps[step.id]?.progress === "evidence").length;
   const next = allSteps.find((step) => model.steps[step.id]?.progress !== "evidence");
   const currentSemester = useMemo(() => phases.find((phase) => phase.steps.some((step) => step.id === next?.id))?.semester ?? "Đối chiếu toàn bộ minh chứng", [next]);
+  function openNextAction() {
+    setGuideOpen(true);
+    const target = next ? document.getElementById("thesis-task-" + next.id) : document.getElementById("thesis-academic-review");
+    target?.scrollIntoView({ behavior: "smooth", block: "center" });
+    target?.focus({ preventScroll: true });
+  }
   function field(key: Exclude<keyof ThesisState, "steps">, value: string) { setModel((old) => ({ ...old, [key]: value })); }
   function stepField(id: string, key: keyof StepState, value: string) {
     setModel((old) => {
@@ -122,7 +129,7 @@ export default function ThesisPlanner({ user }: { user: { email: string; display
       </section>
       <section className={styles.panel}><h2>Lộ trình & minh chứng · План работы</h2><div className={styles.progress}><div className={styles.bar} style={{width: String(done / allSteps.length * 100) + "%"}} /></div>
         {phases.map((phase) => <div key={phase.semester}><h3>{phase.semester}</h3>
-          {phase.steps.map((step) => { const value = model.steps[step.id] ?? { progress: "todo", evidence: "", note: "" }; return <article className={styles.milestone} key={step.id}>
+          {phase.steps.map((step) => { const value = model.steps[step.id] ?? { progress: "todo", evidence: "", note: "" }; return <article className={styles.milestone} key={step.id} id={"thesis-task-" + step.id} tabIndex={-1}>
             <div className={styles.row}><strong>{step.name}</strong><span className={styles.meta}>{value.progress === "evidence" ? "● Có minh chứng" : value.progress === "doing" ? "◐ Đang làm" : "○ Chưa làm"}</span></div>
             <div className={styles.meta}>Đầu ra cần đối chiếu: {step.output}</div>
             <div className={styles.controls}><label><span className={styles.label}>Tiến độ hồ sơ</span><select className={styles.select} value={value.progress} onChange={(e) => stepField(step.id, "progress", e.target.value)}>{statuses.map((status) => <option key={status.value} value={status.value}>{status.text}</option>)}</select></label>
@@ -132,9 +139,11 @@ export default function ThesisPlanner({ user }: { user: { email: string; display
         </div>)}
       </section>
     </div><aside>
-      <section className={styles.panel}><h2>HƯỚNG DẪN / NEXT ACTION</h2><div className={styles.action}><strong>{currentSemester}</strong><p>{next ? next.name : "Đã ghi minh chứng cho toàn bộ mốc. Kiểm tra lại với giảng viên và hội đồng trước khi xác nhận đạt."}</p><span className={styles.meta}>{next ? "Đầu ra: " + next.output : "Không có phê duyệt tự động"}</span></div></section>
+      <section className={styles.panel} aria-label="Hướng dẫn bước tiếp theo"><h2>HƯỚNG DẪN / NEXT ACTION</h2><div className={styles.action}><strong>{currentSemester}</strong><p>{next ? next.name : "Đã ghi minh chứng cho toàn bộ mốc. Kiểm tra lại với giảng viên và hội đồng trước khi xác nhận đạt."}</p><span className={styles.meta}>{next ? "Đầu ra: " + next.output : "Không có phê duyệt tự động"}</span></div>
+        <button type="button" className={styles.guideButton} aria-expanded={guideOpen} aria-controls="thesis-instructions" onClick={openNextAction}>HƯỚNG DẪN / MỞ VIỆC TIẾP THEO</button>
+        {guideOpen ? <div id="thesis-instructions" className={styles.guideSteps} role="status"><strong>{next ? "Việc đang cần làm" : "Cổng duyệt học thuật"}</strong><p>{next ? "1. Đối chiếu yêu cầu của giảng viên và nguồn gốc tài liệu. 2. Thực hiện việc trên, lưu bản gốc/minh chứng. 3. Nhập tham chiếu minh chứng và tự cập nhật tiến độ." : "Đối chiếu hồ sơ, nguồn và định dạng với giảng viên; không tự coi checklist là phê duyệt khoa học."}</p><span className={styles.meta}>Không tự chạy AI, không đánh dấu PASS hoặc gửi hồ sơ.</span></div> : null}</section>
       <section className={styles.panel}><h2>Sao lưu và khôi phục</h2><p className={styles.hint}>Dữ liệu nằm trong localStorage của trình duyệt, không mã hóa: người dùng chung hồ sơ trình duyệt có thể đọc. Xóa Safari/Chrome hoặc đổi máy có thể làm mất dữ liệu nếu không sao lưu.</p><div className={styles.actions}><button type="button" className={styles.btn} onClick={() => exportJson("bauman-thesis-planner-v1.json",createThesisBackup(model))}>Xuất JSON</button><label className={styles.btn + " " + styles.btnSecondary}>Nhập JSON<input hidden type="file" accept=".json,application/json" onChange={importFile} /></label></div></section>
-      <section className={styles.panel}><h2>Cổng học thuật</h2><p className={styles.notice}>Trạng thái “Đã ghi minh chứng” chỉ là xác nhận của người dùng, <strong>không phải PASS khoa học, phê duyệt của khoa hay xác nhận trích dẫn</strong>. Không đưa dữ liệu mật hoặc dữ liệu cá nhân vào công cụ AI ngoài phạm vi cho phép.</p>{notice ? <p role="status" className={styles.hint}>{notice}</p> : null}</section>
+      <section className={styles.panel} id="thesis-academic-review" tabIndex={-1}><h2>Cổng học thuật</h2><p className={styles.notice}>Trạng thái “Đã ghi minh chứng” chỉ là xác nhận của người dùng, <strong>không phải PASS khoa học, phê duyệt của khoa hay xác nhận trích dẫn</strong>. Không đưa dữ liệu mật hoặc dữ liệu cá nhân vào công cụ AI ngoài phạm vi cho phép.</p>{notice ? <p role="status" className={styles.hint}>{notice}</p> : null}</section>
     </aside></div>
   </main>;
 }
