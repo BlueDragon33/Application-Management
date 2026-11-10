@@ -139,8 +139,8 @@ export async function POST(request: Request) {
         accountRevision:a.revision}});
     }
     if(action==="list" || action==="policy"){
-      const valid=action==="list"?verifiedAccountRows(changed.data.accounts)
-        :verifiedDurationPolicies(changed.data.policies);
+      const valid=changed.data.verified!==false && (action==="list"?verifiedAccountRows(changed.data.accounts)
+        :verifiedDurationPolicies(changed.data.policies));
       if(!valid)return json({error:"Danh sách tài khoản/chính sách Bơi ếch chưa được xác minh.",
         code:"BOI_ACCOUNT_DURATION_UNVERIFIED",verified:false},502);
       return json({...changed.data,ok:true,verified:true});
