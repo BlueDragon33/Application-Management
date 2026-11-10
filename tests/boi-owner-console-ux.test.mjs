@@ -50,6 +50,10 @@ test("Approved dashboard preserves existing distinct device, AI, content and exp
   assert.match(main,/tab==="reports"/);
   assert.match(main,/exportDevices/);
   assert.match(main,/DeviceDrawer/);
+  assert.match(main,/canManage=\{access\.role === "owner" && selected\.personRole === "manager"\}/);
+  assert.match(main,/canDelete=\{access\.role === "owner" && selected\.personRole === "manager"\}/);
+  assert.match(main,/readOnly=\{!canManage\}/);
+  assert.match(main,/Chỉ giám sát · Giảng viên và học viên/);
   assert.match(main,/AiControlCenter/);
   assert.match(main,/ContentReviewCenter/);
   assert.match(main,/Control API đã xác minh/);
