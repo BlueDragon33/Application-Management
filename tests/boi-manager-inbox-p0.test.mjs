@@ -81,7 +81,9 @@ test("Owner panel shows manager requests inside existing account expiry panel, n
  const base=fs.readFileSync("app/apps/boi-ech/boi-ech-control-center.tsx","utf8");
  assert.match(source,/loadBoiManagerInbox/);
  assert.match(source,/Owner duyệt hai vòng/);
- assert.match(base,/access.role === "owner" \? <AccountExpiryPanel/);
+ assert.match(base,/tab==="accounts" && access.role==="owner"/);
+ assert.match(base,/<AccountExpiryPanel section="accounts"/);
+ assert.match(base,/<AccountExpiryPanel section="oversight"/);
 });
 
 test("malformed duration account payloads fail closed instead of implying zero accounts",async()=>{
