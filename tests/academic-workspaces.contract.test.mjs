@@ -101,3 +101,18 @@ test("local-only Chromium QA script is syntactically valid and fail-closed on re
   assert.match(source, /schema, "coursework-workbench\/v1"/);
   assert.doesNotMatch(source, /wrangler deploy|gh workflow run|https:\/\/application-management|CLOUDFLARE_API_TOKEN/);
 });
+
+test("mobile regression runner is syntax-valid and local-only with exact revision gate", async () => {
+  const { execFileSync } = await import("node:child_process");
+  const { fileURLToPath } = await import("node:url");
+  const filename = fileURLToPath(new URL("../scripts/academic-thesis-mobile-regression.mjs", import.meta.url));
+  assert.doesNotThrow(() => execFileSync(process.execPath, ["--check", filename], {encoding:"utf8"}));
+  const script = file("scripts/academic-thesis-mobile-regression.mjs");
+  assert.match(script, /assert\.equal\(execFileSync\("git", \["rev-parse", "HEAD"\]/);
+  assert.match(script, /git", \["status", "--porcelain"/);
+  assert.match(script, /const origin = "http:\/\/127\.0\.0\.1:3000"/);
+  assert.match(script, /route\.abort\("blockedbyclient"\)/);
+  assert.match(script, /Guide before long form and milestones/);
+  assert.match(script, /Desktop guide stays right sidebar/);
+  assert.doesNotMatch(script, /wrangler deploy|gh workflow run|CLOUDFLARE_API_TOKEN|https:\/\/application-management/);
+});
