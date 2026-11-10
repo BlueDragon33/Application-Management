@@ -42,8 +42,12 @@ async function bridgeJson(bridge: Bridge, path: string, init?: { method?: "GET" 
       headers: { authorization: `Bearer ${bridge.token}`, "content-type": "application/json" },
       body: init?.body ? JSON.stringify(init.body) : undefined,
       cache: "no-store",
+      redirect: "manual", // Never trust a redirected endpoint as the owning BOIECH_AI Worker.
       signal: controller.signal,
     });
+    if (response.status >= 300 && response.status < 400) {
+      return { ok: false as const, status: 502, payload: { error: "Bơi Ếch chuyển hướng ngoài hợp đồng V2.", code: "BOI_CONTROL_REDIRECT_FORBIDDEN" } };
+    }
     const payload = record(await response.json().catch(() => ({})));
     if (!response.ok) return { ok: false as const, status: response.status, payload };
     return { ok: true as const, status: response.status, payload };
@@ -177,27 +181,40 @@ export async function POST(request: Request) {
     const controlDeviceId = text(payload.controlDeviceId);
     const controlProofPayload = controlDeviceId ? { ...payload, deviceId: controlDeviceId } : payload;
     const actor = await verifyControlProof(controlProofPayload, undefined, previewRequest);
-    const bridge = await issueBoiBrowserBridge(actor.email, actor.role);
     const action = text(payload.action) || "bootstrap";
+    // The V2 central summary is deliberately NOT the private Owner account-list
+    // API, nor the obsolete device/payment registry.
+    if (action === "bootstrap" && actor.role !== "owner" && actor.role !== "publisher") {
+      return json({ error: "Chỉ Owner/Publisher được xem tổng hợp tài khoản Bơi Ếch.", code: "ACCOUNT_SUMMARY_FORBIDDEN" }, 403);
+    }
+    const bridge = await issueBoiBrowserBridge(actor.email, actor.role);
 
     if (action === "bootstrap") {
-      const result = await overview(bridge);
+      const result = await bridgeJson(bridge, "/api/control/v2/account-summary");
       if (!result.ok) return json(result.payload, result.status);
-      const devices = rows(result.payload).map(accessDevice);
+      const counts = record(result.payload.counts);
+      const names = ["totalAccounts", "pending", "active", "suspended", "expired", "unverified"] as const;
+      const countKeys = Object.keys(counts).sort();
+      const rootKeys = Object.keys(result.payload).sort();
+      if (result.payload.contract !== "boi-account-summary.v2"
+          || result.payload.verified !== true
+          || rootKeys.join("|") !== ["asOf", "contract", "counts", "verified"].sort().join("|")
+          || countKeys.join("|") !== [...names].sort().join("|")
+          || names.some(name => !Number.isSafeInteger(counts[name] as number) || (counts[name] as number) < 0)
+          || names.some(name => name !== "totalAccounts" && (counts[name] as number) > (counts.totalAccounts as number))
+          || !/^\d{4}-\d{2}-\d{2}T/.test(text(result.payload.asOf))
+          || !Number.isFinite(Date.parse(text(result.payload.asOf)))) {
+        return json({ error: "Bơi Ếch chưa trả về hợp đồng tổng hợp V2 được xác minh.", code: "BOI_ACCOUNT_SUMMARY_CONTRACT_MISMATCH", verified: false }, 502);
+      }
       return json({
         ok: true,
         application: "boi-ech",
-        devices,
-        counts: {
-          total: devices.length,
-          paid: devices.filter((device) => device.paymentStatus === "paid_verified").length,
-          free: devices.filter((device) => device.accessGroup === "free").length,
-          awaitingPayment: devices.filter((device) => device.paymentStatus === "awaiting_payment").length,
-          proofSubmitted: devices.filter((device) => device.paymentStatus === "proof_submitted").length,
-          expired: devices.filter((device) => device.accessExpired).length,
-          expiringSoon: devices.filter((device) => device.accessExpiringSoon).length,
-        },
-        generatedAt: new Date().toISOString(),
+        contract: "boi-account-summary.v2",
+        verified: true,
+        summary: Object.fromEntries(names.map(name => [name, counts[name]])),
+        devices: [],
+        counts: null,
+        generatedAt: text(result.payload.asOf),
       });
     }
 

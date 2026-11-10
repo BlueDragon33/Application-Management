@@ -40,6 +40,17 @@ export type BoiAccessBootstrap = {
     proofSubmitted: number;
     expired: number;
     expiringSoon: number;
+  } | null;
+  /** Only populated when the V2 aggregate contract has been verified by the server. */
+  contract?: "boi-account-summary.v2";
+  verified?: boolean;
+  summary?: {
+    totalAccounts: number;
+    pending: number;
+    active: number;
+    suspended: number;
+    expired: number;
+    unverified: number;
   };
   generatedAt: string;
 };
@@ -159,6 +170,42 @@ export async function manageBoiAccess(device: BoiAccessDevice, operation: BoiAcc
 }
 
 
+/** Owner-only, read-only canonical Bơi Ếch manager intake; no local account registry. */
+export type BoiManagerInboxRecord = {accountId:string;name:string|null;status:string;
+  accountRevision:number;onboardingStage:string;onboardingRevision:number};
+export type BoiManagerInboxPage = {managers:BoiManagerInboxRecord[];nextCursor:string|null};
+export async function loadBoiManagerInbox(after=""):Promise<BoiManagerInboxPage>{
+  const result=await accountDurationCall({action:"manager-inbox",after}) as BoiAccountDurationResponse & {
+    managers?: BoiManagerInboxRecord[];nextCursor?:string|null;
+  };
+  if(result.verified!==true||!Array.isArray(result.managers) || result.nextCursor===undefined)
+    throw new Error("Hàng chờ Cán bộ quản lý chưa được Bơi ếch xác minh.");
+  return {managers:result.managers,nextCursor:result.nextCursor??null};
+}
+export async function issueBoiManagerInvitation(){
+  const policy=await accountDurationCall({action:"manager-policy"}) as BoiAccountDurationResponse & {
+    policy?:{revision:number;accountLimit:number;used:number};
+  };
+  if(policy.verified!==true||!Number.isSafeInteger(policy.policy?.revision))
+    throw new Error("Chưa xác minh chính sách cấp thư mời Owner.");
+  const result=await accountDurationCall({action:"issue-manager-invite",
+    expectedRevision:policy.policy?.revision}) as BoiAccountDurationResponse & {
+    inviteUrl?:string;expiresAt?:string;
+  };
+  if(result.verified!==true||!result.inviteUrl||!result.expiresAt)
+    throw new Error("Chưa xác minh được mã mời quản lý.");
+  return {inviteUrl:result.inviteUrl,expiresAt:result.expiresAt};
+}
+export async function reviewBoiManagerAccount(
+  action:"manager-review-first"|"manager-review-final"|"manager-review-changes",
+  accountId:string,expectedRevision:number,reason?:string){
+  const result=await accountDurationCall({action,accountId,expectedRevision,reason}) as
+    BoiAccountDurationResponse & {account?:{accountId:string;status:string;onboardingStage:string}};
+  if(result.verified!==true||result.account?.accountId!==accountId)
+    throw new Error("Bơi ếch chưa đọc lại xác nhận duyệt.");
+  return result.account;
+}
+
 /** Account-level V2 entitlement, independent from free/paid access and per-device expiry. */
 export type BoiAccountDurationPolicy = { role:"manager"|"teacher"|"learner"; defaultDays:number;revision:number;updatedAt:string };
 export type BoiAccountDurationRecord = { accountId:string;name:string;role:string;deviceStatus:string;onboardingStage:string|null;
@@ -183,7 +230,10 @@ async function accountDurationCall(body: Record<string,unknown>): Promise<BoiAcc
 }
 export async function loadBoiAccountDurations() {
   const [accounts,policies]=await Promise.all([accountDurationCall({action:"list"}),accountDurationCall({action:"policy"})]);
-  return {accounts:accounts.accounts??[],policies:policies.policies??[]};
+  if(accounts.verified!==true || !Array.isArray(accounts.accounts)
+    || policies.verified!==true || !Array.isArray(policies.policies))
+    throw new Error("Bơi ếch chưa xác minh danh sách tài khoản và chính sách; không thể suy diễn kết quả bằng 0.");
+  return {accounts:accounts.accounts,policies:policies.policies};
 }
 export async function changeBoiAccountDuration(input:{accountId:string;expectedRevision:number;operation:"set-expiry"|"suspend"|"resume";expiresAt?:string;reason:string}) {
   const response=await accountDurationCall({action:"set-account",...input});

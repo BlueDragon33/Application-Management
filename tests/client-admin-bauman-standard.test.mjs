@@ -50,10 +50,13 @@ test("Boi Ech uses one internal admin shell with overview and real drill-down ac
   const admin = read("app/apps/boi-ech/boi-ech-control-center.tsx");
   const css = read("app/apps/boi-ech/boi-ech-shell.module.css");
   assert.doesNotMatch(page, /boiBack|Application Management<\/Link>/);
-  assert.match(admin, /useState<"overview" \| "devices" \| "ai" \| "content">\("overview"\)/);
+  assert.match(admin, /useState<"overview" \| "accounts" \| "oversight" \| "roles" \| "policies" \| "devices" \| "reports" \| "ai" \| "content">\("overview"\)/);
+  assert.match(admin, /BoiOwnerOverview/);
   assert.match(admin, /control-back-link/);
-  assert.match(admin, /setFilter\("payment"\); setTab\("devices"\)/);
-  assert.match(admin, /setFilter\("expired"\); setTab\("devices"\)/);
+  // Filter actions remain in the device workspace; Owner account overview is separate.
+  assert.match(admin, /tab === "devices"/);
+  assert.match(admin, /onClick=\{\(\) => setFilter\("payment"\)\}/);
+  assert.match(admin, /onClick=\{\(\) => setFilter\("expired"\)\}/);
   assert.match(css, /Bauman Hub is the visual\/admin-shell reference/);
   assert.match(css, /\.control-back-link/);
 });

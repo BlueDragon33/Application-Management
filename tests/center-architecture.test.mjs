@@ -230,7 +230,8 @@ test("Boi Ech has a physically isolated client control center", () => {
   assert.doesNotMatch(route, /boiBoundary|\.\.\/\.\.\/control-center/);
   assert.match(client, /Application Management/);
   assert.match(client, /type Dashboard =/);
-  assert.match(client, /"overview" \| "devices" \| "ai" \| "content"/);
+  assert.match(client, /"overview" \| "accounts" \| "oversight" \| "roles" \| "policies" \| "devices" \| "reports" \| "ai" \| "content"/);
+  assert.match(client, /<AccountExpiryPanel section="oversight"/);
   assert.doesNotMatch(client, /"approvals"|"audit"|manage-control-device|controlDevices|application-list|roleCapabilities/);
   assert.match(client, /Quyền QT và audit Trung tâm nằm ở Application Management/);
 });
