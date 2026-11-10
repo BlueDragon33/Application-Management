@@ -175,12 +175,29 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
     <button type="button" onClick={()=>setInviteUrl("")}>Đã lưu — Ẩn mã mời</button>
    </div>:null}
    {managerInbox!==null?<div role="status" className="boi-manager-results">
-    <p>Đã đọc {managerInbox.length} hồ sơ quản lý{managerNext?" (còn trang tiếp theo)":""}.
+    <div className="boi-manager-summary" aria-label="Tổng hợp trạng thái hồ sơ">
+     <div><small>Hồ sơ đã xác minh</small><strong>{managerInbox.length}</strong><span>Trong danh sách đã tải</span></div>
+     <div><small>Chờ Owner xét duyệt</small><strong>{managerInbox.filter(m=>m.status==="pending"&&m.onboardingStage==="requested").length}</strong><span>Chưa duyệt ban đầu</span></div>
+     <div><small>Chờ hoàn thiện</small><strong>{managerInbox.filter(m=>m.status==="pending"&&m.onboardingStage==="profile_required").length}</strong><span>Đã duyệt bước đầu</span></div>
+    </div>
+    <p className="boi-manager-count">Đã đọc {managerInbox.length} hồ sơ quản lý{managerNext?" (còn trang tiếp theo)":""}.
      Đang chờ duyệt: {managerInbox.filter(m=>m.status==="pending").length} trong các trang đã tải.</p>
     {managerInbox.filter(m=>m.status==="pending").map(m=><article key={m.accountId}
       className="boi-manager-case">
-     <strong>{m.name||"Hồ sơ mới chưa hoàn thiện"}</strong>
-     <p>ID: {m.accountId.slice(0,20)}… · Trạng thái: {m.onboardingStage}
+     <header className="boi-manager-case-head">
+      <div><small>HỒ SƠ QUẢN LÝ · {m.accountId.slice(0,14)}…</small>
+       <strong>{m.name||"Hồ sơ mới chưa hoàn thiện"}</strong></div>
+      <span className={m.onboardingStage==="profile_required"?"boi-manager-tag reviewed":"boi-manager-tag pending"}>
+       {m.onboardingStage==="profile_required"?"Đã duyệt · Chờ bổ sung":m.onboardingStage==="requested"?"Chờ Owner duyệt":"Chờ xử lý"}
+      </span>
+     </header>
+     <div className="boi-manager-progress" aria-label="Tiến trình xét duyệt">
+      <span className="done">Đã đăng ký</span>
+      <span className={m.onboardingStage==="requested"?"current":"done"}>Owner duyệt</span>
+      <span className={m.onboardingStage==="profile_required"?"current":""}>Hoàn thiện hồ sơ</span>
+      <span>Kích hoạt</span>
+     </div>
+     <p className="boi-manager-meta">ID: {m.accountId.slice(0,20)}… · Trạng thái: {m.onboardingStage}
       · Hồ sơ rev {m.onboardingRevision} · Tài khoản rev {m.accountRevision}</p>
      {m.onboardingStage==="requested"?<button type="button"
       disabled={managerWriting||managerLoading} onClick={()=>void decideManager(m,"manager-review-first")}>
