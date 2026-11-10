@@ -83,3 +83,40 @@ test("Owner panel shows manager requests inside existing account expiry panel, n
  assert.match(source,/Owner duyệt hai vòng/);
  assert.match(base,/access.role === "owner" \? <AccountExpiryPanel/);
 });
+
+test("malformed duration account payloads fail closed instead of implying zero accounts",async()=>{
+ const invalid=[
+  ["list",{}],
+  ["list",{accounts:null}],
+  ["list",{accounts:[{accountId:"invalid",role:"manager",name:null,deviceStatus:"pending",onboardingStage:"requested",entitlement:null}]}],
+  ["policy",{policies:[]}],
+  ["policy",{policies:[{role:"manager",defaultDays:30,revision:1,updatedAt:"2026-11-10"}]}]
+ ];
+ for(const [action,upstream] of invalid){
+  const f=fixture({upstream}),res=await f.run(action);
+  assert.equal(res.status,502,action+" must reject malformed 200 payload");
+  assert.equal(res.json.verified,false);
+  assert.equal(res.json.code,"BOI_ACCOUNT_DURATION_UNVERIFIED");
+  assert.equal(res.json.accounts,undefined);
+  assert.equal(res.json.policies,undefined);
+ }
+ const empty=await fixture({upstream:{accounts:[]}}).run("list");
+ assert.equal(empty.status,200);
+ assert.equal(empty.json.verified,true);
+ assert.deepEqual(empty.json.accounts,[]);
+ const valid=await fixture({upstream:{policies:["manager","teacher","learner"].map(role=>({
+  role,defaultDays:30,revision:1,updatedAt:"2026-11-10T00:00:00Z"
+ }))}}).run("policy");
+ assert.equal(valid.status,200);
+ assert.equal(valid.json.verified,true);
+ assert.equal(valid.json.policies.length,3);
+});
+test("Owner duration UI distinguishes verified zero from unavailable account service",()=>{
+ const client=fs.readFileSync("app/boi-access-client.ts","utf8");
+ const ui=fs.readFileSync("app/apps/boi-ech/account-expiry-panel.tsx","utf8");
+ assert.doesNotMatch(client,/accounts:accounts\.accounts\?\?\[\]/);
+ assert.match(client,/accounts\.verified!==true/);
+ assert.match(client,/policies\.verified!==true/);
+ assert.match(ui,/setAccounts\(\[\]\);setPolicies\(\[\]\);setSelected\("",""\)/);
+ assert.match(ui,/Chưa có danh sách tài khoản được xác minh/);
+});
