@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import {loadTs} from "./helpers/load-ts.mjs";
 const id="acc_"+'a'.repeat(64);
-function fixture(responses,{role="owner"}={}){
+function fixture(responses,{role="owner",singleReview=true}={}){
  const calls=[];
  const api=loadTs("app/api/apps/boi-ech/account-entitlements/route.ts",{
   "../../../../control-device.server":{
@@ -21,10 +21,17 @@ function fixture(responses,{role="owner"}={}){
   }
  });
  return {calls,async run(action,extras={}){
-  const response=await api.POST(new Request("https://app.example.invalid/api/apps/boi-ech/account-entitlements",{
-   method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action,...extras})
-  }));
-  return {status:response.status,body:await response.json()}
+  const previous=process.env.NEXT_PUBLIC_BOI_ECH_SINGLE_REVIEW;
+  process.env.NEXT_PUBLIC_BOI_ECH_SINGLE_REVIEW=singleReview?"true":"false";
+  try{
+   const response=await api.POST(new Request("https://app.example.invalid/api/apps/boi-ech/account-entitlements",{
+    method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action,...extras})
+   }));
+   return {status:response.status,body:await response.json()};
+  }finally{
+   if(previous===undefined)delete process.env.NEXT_PUBLIC_BOI_ECH_SINGLE_REVIEW;
+   else process.env.NEXT_PUBLIC_BOI_ECH_SINGLE_REVIEW=previous;
+  }
  }};
 }
 test("Owner manager policy reads configured 5 seats and a CAS revision",async()=>{
@@ -44,23 +51,23 @@ test("Owner invitation output is verified once, no secret in URL query, signed b
  assert.deepEqual(f.calls[0].body,{action:"create-manager-invite",expectedRevision:1});
  assert.equal(f.calls[0].url,"https://boi.example.invalid/api/control/accounts");
 });
-test("manager first review and final approval are separate Owner actions with full D1 readback",async()=>{
+test("Owner first review is the only approval; forged final/changes actions never contact BOI",async()=>{
  const first=fixture([
   {status:200,data:{onboarding:{stage:"profile_required"}}},
   {status:200,data:{accountId:id,role:"manager",status:"pending",onboardingStage:"profile_required",onboardingRevision:2,revision:0}}
  ]);
- const a=await first.run("manager-review-first",{accountId:id,expectedRevision:1});
- assert.equal(a.status,200);assert.equal(a.body.verified,true);
+ const result=await first.run("manager-review-first",{accountId:id,expectedRevision:1});
+ assert.equal(result.status,200);assert.equal(result.body.verified,true);
  assert.deepEqual(first.calls.map(x=>x.body.action),["review-first","read"]);
- const final=fixture([
-  {status:200,data:{status:"approved"}},
-  {status:200,data:{accountId:id,role:"manager",status:"approved",onboardingStage:"active",onboardingRevision:4,revision:1,
-    entitlement:{active:true,expiresAt:"2026-12-09T10:00:00Z"}}}
- ]);
- const b=await final.run("manager-review-final",{accountId:id,expectedRevision:0});
- assert.equal(b.status,200);assert.equal(b.body.verified,true);
- assert.equal(final.calls[0].body.operation,"approve-manager");
- assert.deepEqual(final.calls.map(x=>x.body.action),["command","read"]);
+ for(const action of ["manager-review-final","manager-review-changes"]){
+  const forged=fixture([]),denied=await forged.run(action,{accountId:id,expectedRevision:0});
+  assert.equal(denied.status,409);assert.equal(denied.body.code,"BOI_REVIEW_SUPERSEDED");
+  assert.equal(forged.calls.length,0);
+ }
+ const misconfigured=fixture([],{singleReview:false});
+ const blocked=await misconfigured.run("manager-review-first",{accountId:id,expectedRevision:1});
+ assert.equal(blocked.status,409);assert.equal(blocked.body.code,"BOI_SINGLE_REVIEW_UNVERIFIED");
+ assert.equal(misconfigured.calls.length,0);
 });
 test("readback mismatch or upstream 409 never produces fake approval",async()=>{
  const f=fixture([
@@ -82,6 +89,7 @@ test("Owner manager mutations require enrolled fresh MFA (no un-enrolled fallbac
  const ui=fs.readFileSync("app/apps/boi-ech/account-expiry-panel.tsx","utf8");
  assert.match(client,/issueBoiManagerInvitation/);
  assert.match(ui,/Tạo lời mời Cán bộ quản lý/);
- assert.match(ui,/Duyệt vòng 2/);
+ assert.doesNotMatch(ui,/Duyệt vòng 2/);
+ assert.match(ui,/Duyệt một lần/);
  assert.match(ui,/Tải thêm hồ sơ/);
 });
