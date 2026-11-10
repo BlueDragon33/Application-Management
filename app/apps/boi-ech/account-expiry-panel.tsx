@@ -8,6 +8,7 @@ import {
 } from "../../boi-access-client";
 
 const labels:Record<string,string>={manager:"Cán bộ quản lý",teacher:"Giảng viên",learner:"Học viên"};
+const singleReview = process.env.NEXT_PUBLIC_BOI_ECH_SINGLE_REVIEW === "true";
 function moscow(value:string|null|undefined) {
  if(!value)return "Chưa cấp";
  const date=new Date(value);
@@ -69,7 +70,7 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
   finally{setManagerWriting(false);}
  }
  async function decideManager(m:BoiManagerInboxRecord,action:"manager-review-first"|"manager-review-final"|"manager-review-changes"){
-  if(managerWriting)return;
+  if(managerWriting || (singleReview && action!=="manager-review-first"))return;
   const name=m.name||m.accountId.slice(0,14);
   if(!window.confirm(action==="manager-review-final"
    ? "Kích hoạt Cán bộ quản lý "+name+" sau duyệt vòng hai? Phải có MFA Owner và hồ sơ hoàn chỉnh."
@@ -139,7 +140,7 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
   {section==="policies"?<div className="boi-account-header"><span>OWNER · QUẢN TRỊ CHÍNH SÁCH</span><h2>Thời hạn & chính sách</h2><p>Thiết lập mặc định chung không phải phê duyệt tài khoản. Chỉ điều chỉnh trực tiếp tài khoản cán bộ quản lý tại màn hình này.</p></div>:null}
   {section==="accounts"?<>
   <details open>
-   <summary><strong>Hồ sơ Cán bộ quản lý · Owner duyệt hai vòng</strong></summary>
+   <summary><strong>{singleReview?"Hồ sơ Cán bộ quản lý · Owner duyệt một lần":"Hồ sơ Cán bộ quản lý · Owner duyệt hai vòng"}</strong></summary>
    <p>Hồ sơ quản lý thuộc Bơi ếch, kiểm soát tập trung từ giao diện Owner này. Mã mời có hiệu lực 24 giờ,
     dùng một lần; người nhận tự đặt mật khẩu và khóa P-256 trên đúng trang Bơi ếch.</p>
    <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
@@ -169,7 +170,7 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
      {m.onboardingStage==="requested"?<button type="button"
       disabled={managerWriting||managerLoading} onClick={()=>void decideManager(m,"manager-review-first")}>
        Duyệt vòng 1 — chưa cấp quyền</button>:null}
-     {m.onboardingStage==="profile_review"?<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+     {!singleReview&&m.onboardingStage==="profile_review"?<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
       <button type="button" disabled={managerWriting||managerLoading}
        onClick={()=>void decideManager(m,"manager-review-final")}>Duyệt vòng 2 — kích hoạt</button>
       <button type="button" disabled={managerWriting||managerLoading}
@@ -184,11 +185,11 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
       <p>Không có yêu cầu quản lý đang chờ trong tập kết quả đã xác minh.</p>:null}
    </div>:!managerError?<p role="status">Chưa có kết quả hàng chờ được xác minh.</p>:null}
    <small>Owner phải xác minh Authenticator trong 30 phút gần nhất để tạo mời hoặc duyệt.
-    Hai vòng duyệt sử dụng CAS, nhật ký, đọc lại D1; không cấp quyền tự động.</small>
+    {singleReview?"Một lần Owner duyệt với CAS, nhật ký và đọc lại; sau đó tài khoản được kích hoạt tự động khi hoàn tất hồ sơ.":"Hai vòng duyệt sử dụng CAS, nhật ký, đọc lại D1; không cấp quyền tự động."}</small>
   </details>
   </>:null}
   {section==="policies"?<header><h2>Thời hạn tài khoản · Account First V2</h2>
-   <p>Chính sách mặc định 30 ngày từ lần duyệt thứ hai. Chỉ thay đổi thời hạn hoặc mặc định; không trực tiếp duyệt giảng viên/học viên.</p></header>:null}
+   <p>Chính sách mặc định 30 ngày từ lúc hoàn tất hồ sơ và kích hoạt. Chỉ thay đổi thời hạn hoặc mặc định; không trực tiếp duyệt giảng viên/học viên.</p></header>:null}
   {section!=="accounts"&&loading?<p role="status">Đang đọc dữ liệu tài khoản từ Bơi ếch…</p>:null}
   {section!=="accounts"&&error?<div role="alert"><strong>Chưa xác minh:</strong> {error} <a href="/__account">Xác minh Authenticator (nếu được yêu cầu)</a></div>:null}
   {section!=="accounts"&&notice?<p role="status">{notice}</p>:null}
@@ -241,7 +242,7 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
         {current.entitlement.state==="active"
           ?<button type="button" disabled={busy} onClick={()=>void commitAccount("suspend")}>Tạm khóa cán bộ</button>
           :<button type="button" disabled={busy||Date.parse(current.entitlement.expiresAt)<=observedNow} onClick={()=>void commitAccount("resume")}>Khôi phục cán bộ</button>}
-      </div></>:<p>Chưa duyệt vòng hai; chưa thể cấp thời hạn.</p>}
+      </div></>:<p>Chưa kích hoạt; cần hoàn thành hồ sơ để được cấp thời hạn.</p>}
     </div>:null}
   </div>:null}
   {section==="policies"?<small>Thao tác Owner với chính sách/mốc thời hạn phải có CAS, nhật ký và đọc lại Bơi Ếch. Không cấp quyền giảng viên/học viên tại màn hình này.</small>:null}
