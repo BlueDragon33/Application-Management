@@ -100,7 +100,7 @@ export default function BoiOwnerOverview({onNavigate}: {onNavigate:(section:Owne
         <section className="boi-console-card boi-owner-actions">
           <h3>⚡ Thao tác nhanh</h3>
           <button type="button" className="primary" onClick={()=>onNavigate("accounts")}>＋ Duyệt cán bộ quản lý</button>
-          <button type="button" onClick={()=>onNavigate("accounts")}>＋ Mời cán bộ / Tạo tài khoản</button>
+          <button type="button" onClick={()=>onNavigate("accounts")}>＋ Mời cán bộ quản lý (mã một lần)</button>
           <button type="button" onClick={()=>onNavigate("policies")}>◷ Thời hạn & chính sách</button>
           <button type="button" onClick={()=>onNavigate("oversight")}>♙ Giám sát học viên, giảng viên</button>
           <button type="button" onClick={()=>onNavigate("reports")}>▥ Báo cáo thiết bị</button>
