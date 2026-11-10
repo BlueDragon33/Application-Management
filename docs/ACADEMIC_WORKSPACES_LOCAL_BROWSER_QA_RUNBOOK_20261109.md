@@ -1,6 +1,6 @@
 # Academic Workspaces — local browser acceptance runbook (2026-11-09)
 
-**Source scope:** Application-Management PR #383. **Latest tested application-code SHA:** `0b88edae530a986839ca629f863687c45063ff3c`. **Constitution:** Blueprint OS 1.3.0, B4. **Release:** HOLD / DRAFT; no production or preview publication.
+**Source scope:** Application-Management PR #383. **Application code baseline:** `0b88edae530a986839ca629f863687c45063ff3c`; select and verify the latest exact PR HEAD when running the optional browser harness. **Constitution:** Blueprint OS 1.3.0, B4. **Release:** HOLD / DRAFT; no production or preview publication.
 
 ## Evidence ledger (do not conflate gates)
 
@@ -23,6 +23,29 @@ Prerequisites: owner-controlled laptop with **existing** checkout of `BlueDragon
 
 1. From the **Application-Management repository directory**, use `git fetch origin`, then `git switch --detach 0b88edae530a986839ca629f863687c45063ff3c`. Verify `git rev-parse HEAD` returns that exact SHA; never test arbitrary `main` and attribute results to PR #383.
 2. If needed, run `npm ci --no-audit --no-fund` (dependency install is local; no new external service). Run `npm run local`. The existing `scripts/run-local.mjs` creates local-only `.dev.vars` if absent, confirms `LOCAL_DEV_AUTH=1`, applies local D1 migrations, and launches Vite at `http://127.0.0.1:3000`. **It does not migrate remote D1.** Keep secrets untracked. Do not copy `.dev.vars` to Production.
+### Automated local Chromium check (opt-in; never Production)
+
+The existing `npm run local` serves only on `127.0.0.1:3000`. The additional script `scripts/academic-workspaces-browser-qa.mjs` exercises real Chromium against that loopback instance, **without adding Playwright to application runtime dependencies**. It refuses any URL override, demands a clean tracked worktree and exact HEAD SHA, creates a disposable browser profile, and blocks browser requests to non-loopback origins. Reports and 320/375/430/768/1280px screenshots are saved under a temporary OS directory. It does not touch deployment or remote D1.
+
+On Windows PowerShell, use two local terminals in the same source checkout:
+
+```powershell
+# First terminal: after checkout of the exact PR HEAD and verifying 'git status' is clean
+npm run local
+```
+
+```powershell
+# Second terminal: from the same Application-Management checkout
+# Only if the optional Playwright Chromium dependency is not already available:
+npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.55.1
+npx playwright install chromium
+
+$expectedSha = (git rev-parse HEAD).Trim()
+node scripts/academic-workspaces-browser-qa.mjs --sha $expectedSha
+```
+
+**Verify `$expectedSha` matches PR #383's current full 40-character HEAD before accepting results.** The automated runner is intentionally not called by the default CI, to avoid repeated browser downloads / GitHub Actions costs. It is an opt-in **local Chrome** check, never a substitute for Safari, actual device touch, VoiceOver, full gradient-composited WCAG verification, or owner acceptance. A failure must be captured with the temporary QA report and repaired only on the allowed feature branch.
+
 3. Open **desktop browser** routes:
    - `http://127.0.0.1:3000/tools/thesis-planner`
    - `http://127.0.0.1:3000/apps/coursework-workbench`
