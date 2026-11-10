@@ -3,7 +3,7 @@
 import {useEffect,useMemo,useState} from "react";
 import {
  loadBoiAccountDurations,loadBoiManagerInbox,issueBoiManagerInvitation,reviewBoiManagerAccount,
- changeBoiAccountDuration,changeBoiDefaultAccountDays,
+ changeBoiAccountDuration,changeBoiDefaultAccountDays,cancelBoiLocalTestManager,
  type BoiAccountDurationRecord,type BoiAccountDurationPolicy,type BoiManagerInboxRecord
 } from "../../boi-access-client";
 
@@ -31,6 +31,7 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
  const [managerNext,setManagerNext]=useState<string|null>(null);
  const [managerNotice,setManagerNotice]=useState(""),[inviteUrl,setInviteUrl]=useState("");
  const [managerWriting,setManagerWriting]=useState(false);
+ const [localMode,setLocalMode]=useState(false);
  const [policies,setPolicies]=useState<BoiAccountDurationPolicy[]>([]);
  const [selected,setSelected]=useState("");
  const [search,setSearch]=useState("");
@@ -87,6 +88,19 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
   }catch(e){setManagerError(e instanceof Error?e.message:"Lệnh duyệt chưa được xác minh.");}
   finally{setManagerWriting(false);}
  }
+ async function cancelManagerTest(m:BoiManagerInboxRecord){
+  if(managerWriting||!localMode||!singleReview||!["requested","profile_required"].includes(m.onboardingStage))return;
+  const typed=window.prompt("Hủy hồ sơ thử nghiệm? Gõ chính xác HUY HO SO để xác nhận.","");
+  if(typed!=="HUY HO SO")return;
+  if(!window.confirm("Xác nhận hủy hồ sơ ID "+m.accountId.slice(0,20)+"…? Mã mời cũ sẽ hết hiệu lực. Đăng ký lại cần thư mời mới."))return;
+  setManagerWriting(true);setManagerError("");setManagerNotice("");
+  try{
+   const result=await cancelBoiLocalTestManager(m.accountId,m.onboardingRevision);
+   setManagerNotice("Đã hủy hồ sơ thử nghiệm ở D1 local; audit #"+result.auditId+". Tạo lời mời mới để đăng ký lại.");
+   await refreshManagerInbox();
+  }catch(e){setManagerError(e instanceof Error?e.message:"Không xác minh được hủy hồ sơ.");}
+  finally{setManagerWriting(false);}
+ }
  async function refresh(){
   setLoading(true);setError("");setAccountsVerified(false);
   try {
@@ -101,6 +115,7 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
   }finally{setLoading(false);}
  }
  useEffect(()=>{if(section!=="accounts")queueMicrotask(()=>{void refresh();});},[section]);
+ useEffect(()=>{setLocalMode(["localhost","127.0.0.1"].includes(window.location.hostname));},[]);
  useEffect(()=>{if(section==="accounts")queueMicrotask(()=>{void refreshManagerInbox();});},[section]);
  const currentExpiry=current?.entitlement?.expiresAt ?? null;
  useEffect(()=>{
@@ -139,11 +154,11 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
   {section==="oversight"?<div className="boi-account-header"><span>GIÁM SÁT · CHỈ ĐỌC</span><h2>Giảng viên & học viên</h2><p>Hiển thị thông tin, vai trò, trạng thái hồ sơ và thời hạn để giám sát. Không duyệt, từ chối, cấp hoặc thu hồi quyền từ đây.</p></div>:null}
   {section==="policies"?<div className="boi-account-header"><span>OWNER · QUẢN TRỊ CHÍNH SÁCH</span><h2>Thời hạn & chính sách</h2><p>Thiết lập mặc định chung không phải phê duyệt tài khoản. Chỉ điều chỉnh trực tiếp tài khoản cán bộ quản lý tại màn hình này.</p></div>:null}
   {section==="accounts"?<>
-  <details open>
+  <details className="boi-manager-inbox" open>
    <summary><strong>{singleReview?"Hồ sơ Cán bộ quản lý · Owner duyệt một lần":"Hồ sơ Cán bộ quản lý · Owner duyệt hai vòng"}</strong></summary>
    <p>Hồ sơ quản lý thuộc Bơi ếch, kiểm soát tập trung từ giao diện Owner này. Mã mời có hiệu lực 24 giờ,
     dùng một lần; người nhận tự đặt mật khẩu và khóa P-256 trên đúng trang Bơi ếch.</p>
-   <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+   <div className="boi-manager-actions">
     <button type="button" disabled={managerLoading||managerWriting}
      onClick={()=>void refreshManagerInbox()}>Đồng bộ hàng chờ</button>
     <button type="button" disabled={managerWriting||managerLoading}
@@ -159,11 +174,11 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
      Sao chép link mời</button>
     <button type="button" onClick={()=>setInviteUrl("")}>Đã lưu — Ẩn mã mời</button>
    </div>:null}
-   {managerInbox!==null?<div role="status">
+   {managerInbox!==null?<div role="status" className="boi-manager-results">
     <p>Đã đọc {managerInbox.length} hồ sơ quản lý{managerNext?" (còn trang tiếp theo)":""}.
      Đang chờ duyệt: {managerInbox.filter(m=>m.status==="pending").length} trong các trang đã tải.</p>
     {managerInbox.filter(m=>m.status==="pending").map(m=><article key={m.accountId}
-      style={{border:"1px solid currentColor",borderRadius:8,padding:10,marginBlock:8}}>
+      className="boi-manager-case">
      <strong>{m.name||"Hồ sơ mới chưa hoàn thiện"}</strong>
      <p>ID: {m.accountId.slice(0,20)}… · Trạng thái: {m.onboardingStage}
       · Hồ sơ rev {m.onboardingRevision} · Tài khoản rev {m.accountRevision}</p>
@@ -176,7 +191,12 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
       <button type="button" disabled={managerWriting||managerLoading}
        onClick={()=>void decideManager(m,"manager-review-changes")}>Yêu cầu bổ sung</button>
      </div>:null}
-     {m.onboardingStage==="profile_required"?<p>Chờ cán bộ tự hoàn thiện hồ sơ trên Bơi ếch.</p>:null}
+     {m.onboardingStage==="profile_required"?<p className="boi-manager-guidance">Đã được Owner duyệt. Cán bộ tự điền Khoa/Đơn vị, Chức danh và Chức vụ trên Bơi Ếch để kích hoạt.</p>:null}
+     {localMode && singleReview && ["requested","profile_required"].includes(m.onboardingStage)?<div className="boi-manager-test-tools">
+      <button type="button" disabled={managerWriting||managerLoading}
+       onClick={()=>void cancelManagerTest(m)}>Hủy hồ sơ thử nghiệm · Chỉ Offline</button>
+      <small>Chỉ hủy tài khoản chưa kích hoạt, không có quyền hoặc dữ liệu đồng bộ.</small>
+     </div>:null}
      {m.onboardingStage==="changes_requested"?<p>Chờ người đăng ký sửa hồ sơ.</p>:null}
     </article>)}
     {managerNext?<button type="button" disabled={managerLoading||managerWriting}
