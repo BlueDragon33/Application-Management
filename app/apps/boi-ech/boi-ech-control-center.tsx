@@ -797,7 +797,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
   const [notice, setNotice] = useState("");
   const [boiOnline, setBoiOnline] = useState(false);
   const [manualCode, setManualCode] = useState("");
-  const [tab, setTab] = useState<"overview" | "accounts" | "devices" | "ai" | "content">("overview");
+  const [tab, setTab] = useState<"overview" | "devices" | "ai" | "content">("overview");
   const [filter, setFilter] = useState<"all" | "active" | "pending" | "incomplete" | "payment" | "paid" | "free" | "expired" | "blocked">("all");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<LearningDevice | null>(null);
@@ -1184,10 +1184,6 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
     incomplete: dashboard?.learningDevices.filter((item) => !item.registrationComplete).length ?? 0,
     deleted: dashboard?.deletedDevices?.length ?? 0,
   };
-  // Counts below describe BE devices only, never V2 accounts or a fallback zero.
-  const devicesVerified = Boolean(boiOnline && dashboard && !dashboard.upstreamError);
-  const metric = (value: number) => devicesVerified ? value.toLocaleString("vi-VN") : "—";
-  const canReviewContent = ["reviewer", "publisher", "owner"].includes(access.role);
   const activeTheme = adminThemes.find((item) => item.id === appearance.theme) ?? adminThemes[0];
   const activeFont = adminFonts.find((item) => item.id === appearance.font) ?? adminFonts[0];
 
@@ -1209,88 +1205,29 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
       <aside className="control-sidebar">
         <Link className="control-back-link" href="/"><span>←</span><div><small>SERVER</small><strong>Application Management</strong></div></Link>
         <div className="control-brand"><div className="brand-seal">BE</div><div><span>CLIENT CẤP 1</span><strong>Quản trị Bơi ếch</strong></div></div>
-
-        <div className="boi-nav-caption">KHÔNG GIAN LÀM VIỆC</div>
         <nav aria-label="Quản trị Bơi ếch">
-          <button type="button" className={tab === "overview" ? "active" : ""} aria-current={tab === "overview" ? "page" : undefined} onClick={() => setTab("overview")}><i aria-hidden="true">⌂</i><span><strong>Tổng quan</strong><small>Trạng thái & việc ưu tiên</small></span></button>
-          {access.role === "owner" ? <button type="button" className={tab === "accounts" ? "active" : ""} aria-current={tab === "accounts" ? "page" : undefined} onClick={() => setTab("accounts")}><i aria-hidden="true">▤</i><span><strong>Tài khoản & cán bộ</strong><small>Duyệt hai vòng · thời hạn</small></span><b aria-label="Owner">Owner</b></button> : null}
-          <button type="button" className={tab === "devices" ? "active" : ""} aria-current={tab === "devices" ? "page" : undefined} onClick={() => setTab("devices")}><i aria-hidden="true">▣</i><span><strong>Thiết bị & tiến độ</strong><small>Registry BE và phiên học</small></span>{devicesVerified && counts.pending > 0 ? <b aria-label={`${counts.pending} thiết bị chờ`}>{counts.pending}</b> : null}</button>
-          <button type="button" className={tab === "ai" ? "active" : ""} aria-current={tab === "ai" ? "page" : undefined} onClick={() => setTab("ai")}><i aria-hidden="true">✦</i><span><strong>Điều hành AI</strong><small>Chính sách AI Bơi Ếch</small></span></button>
-          {canReviewContent ? <button type="button" className={tab === "content" ? "active" : ""} aria-current={tab === "content" ? "page" : undefined} onClick={() => setTab("content")}><i aria-hidden="true">≣</i><span><strong>Duyệt nội dung</strong><small>Chỉnh sửa & xuất bản</small></span></button> : null}
+          <button className={tab === "overview" ? "active" : ""} onClick={() => setTab("overview")}><i>01</i><span><strong>Tổng quan</strong><small>Control & trạng thái</small></span></button>
+          <button className={tab === "devices" ? "active" : ""} onClick={() => setTab("devices")}><i>02</i><span><strong>Thiết bị & tiến độ</strong><small>Registry BE & học tập</small></span></button>
+          <button className={tab === "ai" ? "active" : ""} onClick={() => setTab("ai")}><i>03</i><span><strong>Điều hành AI</strong><small>AI của Bơi ếch</small></span></button>
+          {["reviewer", "publisher", "owner"].includes(access.role) ? <button className={tab === "content" ? "active" : ""} onClick={() => setTab("content")}><i>04</i><span><strong>Duyệt chỉnh sửa</strong><small>Content review</small></span></button> : null}
         </nav>
-        {access.role === "owner" ? <Link className="boi-preview-link" href="/apps/boi-ech/cloudflare-preview"><span aria-hidden="true">↗</span> Cấu hình kết nối Preview</Link> : null}
+        {access.role === "owner" ? <Link className="control-back-link" href="/apps/boi-ech/cloudflare-preview">Cloudflare Preview · thời hạn kết nối</Link> : null}
         <div className="client-boundary-note"><strong>Ranh giới Bơi ếch</strong><span>Thiết bị học, tiến độ, AI, thanh toán và nội dung thuộc client này. Quyền QT và audit Trung tâm nằm ở Application Management.</span></div>
         <div className="signed-user"><span>{user.displayName.slice(0, 1).toUpperCase()}</span><div><strong>{user.displayName}</strong><small>{roleLabels[access.role]}</small></div><a href="/signout-with-chatgpt?return_to=/">Đăng xuất</a></div>
       </aside>
 
       <section className="control-main">
-
-        <header className="topbar">
-          <div className="boi-heading">
-            <span className="boi-heading-kicker">BƠI ẾCH AI / TRUNG TÂM ĐIỀU PHỐI</span>
-            <h1>{tab === "overview" ? "Tổng quan điều hành" : tab === "accounts" ? "Tài khoản & cán bộ" : tab === "devices" ? "Thiết bị & tiến độ" : tab === "ai" ? "Điều hành AI" : "Duyệt nội dung"}</h1>
-            <p>{tab === "overview" ? "Nắm tình trạng hệ thống, xử lý công việc ưu tiên và chuyển đúng khu vực chỉ với một thao tác." : tab === "accounts" ? "Owner phê duyệt cán bộ hai vòng, quản lý thời hạn tài khoản và kiểm tra kết quả từ Bơi Ếch." : tab === "devices" ? "Theo dõi thiết bị BE và tiến độ; tách biệt dữ liệu thiết bị với tài khoản người dùng." : tab === "ai" ? "Theo dõi và điều chỉnh chính sách AI của riêng Bơi Ếch." : "Xem, duyệt và đối soát thay đổi nội dung có phạm vi rõ ràng."}</p>
-          </div>
-          <div className="topbar-actions">
-            <span className={`sync-state ${devicesVerified && online ? "sync-verified" : "sync-warning"}`} role="status"><i /> {!online ? "Trình duyệt không có mạng" : devicesVerified ? "Kết nối Bơi Ếch đã xác minh" : "Chưa xác minh kết nối"}</span>
-            <button type="button" className="button appearance-control" onClick={() => setAppearanceOpen(true)} aria-expanded={appearanceOpen} aria-controls="admin-appearance-panel"><b aria-hidden="true">Aa</b> Hiển thị</button>
-            <button type="button" className="button boi-refresh-button" onClick={() => void refresh(credential, access, { discoverNew: true })} disabled={checking || !online}>{checking ? "Đang đồng bộ…" : "↻ Đồng bộ"}</button>
-          </div>
-        </header>
+        <header className="topbar"><div><span>BƠI ẾCH · CLIENT CONTROL</span><h1>{tab === "overview" ? "Quản trị Bơi ếch" : tab === "devices" ? "Thiết bị học tập" : tab === "ai" ? "Điều hành AI" : "Duyệt chỉnh sửa"}</h1><p>{tab === "overview" ? "Theo dõi registry BE, quyền truy cập, trạng thái học tập và hàng đợi kiểm duyệt theo cùng cấu trúc Bauman Hub." : tab === "devices" ? "Thiết bị học và tiến độ thuộc Bơi ếch; quyền quản trị Trung tâm vẫn tách riêng." : tab === "ai" ? "Điều hành AI chỉ tác động tới client Bơi ếch." : "Duyệt các thay đổi nội dung do Bơi ếch gửi lên."}</p></div><div className="topbar-actions"><span className={`sync-state ${boiOnline && online ? "" : "sync-warning"}`}><i /> {!online ? "Máy quản trị đang offline" : boiOnline ? "Trạng thái tự động · 60 giây/lần" : "Đang giữ dữ liệu gần nhất"}</span><button className="button appearance-control" onClick={() => setAppearanceOpen(true)} aria-expanded={appearanceOpen} aria-controls="admin-appearance-panel"><b>Aa</b> Giao diện</button><button className="button" onClick={() => void refresh(credential, access, { discoverNew: true })} disabled={checking || !online}>{checking ? "Đang cập nhật…" : "Cập nhật thiết bị"}</button></div></header>
         {appearanceOpen ? <><button className="admin-appearance-scrim" aria-label="Đóng bảng Giao diện" onClick={() => setAppearanceOpen(false)} /><aside id="admin-appearance-panel" className="admin-appearance-panel" role="dialog" aria-modal="true" aria-labelledby="admin-appearance-title"><header><div><span>Tùy chỉnh hiển thị</span><h2 id="admin-appearance-title">Giao diện quản trị</h2></div><button onClick={() => setAppearanceOpen(false)} aria-label="Đóng">×</button></header><section><label>Màu nền</label><p>Chỉ lưu trên máy quản trị hiện tại.</p><div className="admin-theme-options">{adminThemes.map((item) => <button key={item.id} className={appearance.theme === item.id ? "active" : ""} onClick={() => setAppearance((current) => ({ ...current, theme: item.id }))}><i style={{ background: item.paper }} /><span>{item.name}</span></button>)}</div></section><section><label>Font tiếng Việt</label><div className="admin-font-options">{adminFonts.map((item) => <button key={item.id} className={appearance.font === item.id ? "active" : ""} style={{ fontFamily: item.ui }} onClick={() => setAppearance((current) => ({ ...current, font: item.id }))}><strong>{item.name}</strong><span>{item.sample}</span></button>)}</div></section><section><label>Cỡ giao diện</label><div className="admin-size-options">{([{ id: "normal", label: "Tiêu chuẩn" }, { id: "large", label: "Lớn" }, { id: "xlarge", label: "Rất lớn" }] as const).map((item) => <button key={item.id} className={appearance.textSize === item.id ? "active" : ""} onClick={() => setAppearance((current) => ({ ...current, textSize: item.id }))}>{item.label}</button>)}</div></section><footer><button onClick={() => setAppearance(defaultAdminAppearance)}>Khôi phục mặc định</button><span>Tự lưu trên thiết bị</span></footer></aside></> : null}
-        {error || dashboard?.upstreamError ? <div className="alert warning" role="alert"><strong>Lỗi kết nối:</strong> {error || dashboard?.upstreamError}</div> : null}
+        {error || dashboard?.upstreamError ? <div className="alert warning">{error || dashboard?.upstreamError}</div> : null}
         {notice ? <div className="notice" role="status">{notice}</div> : null}
 
-
         {tab === "overview" ? <>
-          <section className="boi-dashboard-hero" aria-label="Điều phối công việc Bơi Ếch">
-            <div className="boi-hero-copy">
-              <span className="boi-hero-kicker">TRUNG TÂM QUẢN TRỊ · BƠI ẾCH AI</span>
-              <h2>Quản lý tập trung.<br/>Xử lý đúng việc.</h2>
-              <p>Quyền cán bộ, thiết bị học và nội dung được tách riêng để giảm nhầm lẫn và thao tác dư thừa.</p>
-              <div className="boi-hero-actions">
-                {access.role === "owner" ? <button type="button" className="boi-hero-primary" onClick={() => setTab("accounts")}>Quản trị tài khoản cán bộ <span aria-hidden="true">→</span></button> : null}
-                <button type="button" className="boi-hero-secondary" onClick={() => setTab("devices")}>Xem thiết bị <span aria-hidden="true">↗</span></button>
-              </div>
-            </div>
-            <div className="boi-hero-status">
-              <span className="boi-hero-status-label">TRẠNG THÁI KẾT NỐI</span>
-              <strong>{devicesVerified ? "Đã xác minh" : "Chưa xác minh"}</strong>
-              <p>{devicesVerified ? "Dữ liệu thiết bị được đọc từ Bơi Ếch." : "Chỉ số thiết bị tạm ẩn cho tới khi Control API phản hồi hợp lệ."}</p>
-              {!devicesVerified ? <button type="button" onClick={() => void refresh(credential, access, { discoverNew: true })} disabled={checking || !online}>Thử kết nối lại <span aria-hidden="true">→</span></button> : <span className="boi-verified-note">● Bơi Ếch Control API</span>}
-            </div>
-          </section>
-          <section className="summary-grid boi-summary-compact" aria-label="Số liệu thiết bị Bơi Ếch">
-            <article><span>Thiết bị được xác minh</span><strong>{metric(counts.total)}</strong><small>Không phải tổng tài khoản V2</small></article>
-            <article><span>Thiết bị đang hoạt động</span><strong>{metric(counts.active)}</strong><small>Tín hiệu kết nối gần nhất</small></article>
-            <article><span>Thiết bị chờ xử lý</span><strong>{metric(counts.pending)}</strong><small>Kiểm tra tại Thiết bị & tiến độ</small></article>
-            <article><span>Quyền thiết bị sắp / đã hết hạn</span><strong>{metric(counts.expiring + counts.expired)}</strong><small>Khác với hạn tài khoản người dùng</small></article>
-          </section>
-          <div className="boi-workspace-grid">
-            <section className="boi-work-card" aria-labelledby="boi-work-title">
-              <header><div><span className="boi-section-kicker">CÔNG VIỆC ƯU TIÊN</span><h2 id="boi-work-title">Cần xử lý</h2></div><span className="boi-section-caption">Thiết bị BE · dữ liệu đã xác minh</span></header>
-              <div className="boi-task-list">
-                <button type="button" onClick={() => { setFilter("incomplete"); setTab("devices"); }}><span className="boi-task-icon">▤</span><span><strong>Hồ sơ thiết bị chưa đầy đủ</strong><small>Kiểm tra và yêu cầu bổ sung</small></span><b>{metric(counts.incomplete)}</b><span aria-hidden="true">›</span></button>
-                <button type="button" onClick={() => { setFilter("payment"); setTab("devices"); }}><span className="boi-task-icon">◈</span><span><strong>Chứng từ chờ xác minh</strong><small>Đối soát thanh toán và quyền thiết bị</small></span><b>{metric(counts.paymentReview)}</b><span aria-hidden="true">›</span></button>
-                <button type="button" onClick={() => { setFilter("expired"); setTab("devices"); }}><span className="boi-task-icon">◷</span><span><strong>Thiết bị đã hết hạn</strong><small>Không đồng nghĩa tài khoản bị khóa</small></span><b>{metric(counts.expired)}</b><span aria-hidden="true">›</span></button>
-              </div>
-            </section>
-            <section className="boi-work-card boi-quick-card" aria-labelledby="boi-quick-title">
-              <header><div><span className="boi-section-kicker">TRUY CẬP NHANH</span><h2 id="boi-quick-title">Không gian chuyên trách</h2></div></header>
-              <div className="boi-shortcuts">
-                {access.role === "owner" ? <button type="button" onClick={() => setTab("accounts")}><span>01</span><div><strong>Tài khoản cán bộ</strong><small>Lời mời, hai vòng duyệt và thời hạn 30 ngày</small></div><b aria-hidden="true">↗</b></button> : null}
-                <button type="button" onClick={() => setTab("devices")}><span>02</span><div><strong>Thiết bị & tiến độ</strong><small>Tra cứu BE, phân loại và theo dõi học tập</small></div><b aria-hidden="true">↗</b></button>
-                {canReviewContent ? <button type="button" onClick={() => setTab("content")}><span>03</span><div><strong>Duyệt nội dung</strong><small>Phê duyệt thay đổi theo phạm vi</small></div><b aria-hidden="true">↗</b></button> : null}
-              </div>
-            </section>
-          </div>
-          <section className="boi-overview-boundary"><strong>Quyền được phân tách</strong><p>Owner Trung tâm quản trị tài khoản cán bộ tại đây. Cán bộ Bơi Ếch duyệt học viên/giảng viên trong phạm vi được cấp; registry BE, tiến độ, AI và chứng từ vẫn thuộc Bơi Ếch.</p><button type="button" onClick={() => setTab(access.role === "owner" ? "accounts" : "devices")}>Mở khu vực phù hợp</button></section>
-        </> : null}
-
-        {tab === "accounts" && access.role === "owner" ? <div className="boi-accounts-workspace">
-          <div className="boi-accounts-intro"><span>OWNER ONLY · TÀI KHOẢN NGƯỜI DÙNG</span><h2>Quản lý cán bộ và thời hạn sử dụng</h2><p>Phê duyệt cán bộ hai vòng, theo dõi hàng chờ và điều chỉnh thời hạn tài khoản bằng dữ liệu đã xác minh. Đây không phải khu quản trị thiết bị QT hoặc thanh toán.</p></div>
+          <section className="summary-grid bauman-summary"><article><span>Kết nối Bơi ếch</span><strong>{boiOnline && online ? "Đang hoạt động" : online ? "Cần kiểm tra" : "Offline"}</strong><small>Control API + bridge riêng</small></article><article><span>Tổng thiết bị BE</span><strong>{counts.total}</strong><small>{counts.active} online · {counts.pending} chờ xử lý</small></article><article><span>Quyền truy cập</span><strong>{counts.paid + counts.free}</strong><small>{counts.paid} trả phí · {counts.free} miễn phí</small></article><article><span>Vai trò quản trị</span><strong>{roleLabels[access.role]}</strong><small>Registry BE không nhập vào DB Trung tâm</small></article></section>
+          <section className="operations-inbox bauman-overview-inbox"><div><span>Hộp việc ưu tiên</span><strong>Chỉ hiển thị dữ liệu thật từ Bơi ếch</strong></div><button onClick={() => { setFilter("incomplete"); setTab("devices"); }}><span>Hồ sơ chưa đủ</span><strong>{counts.incomplete}</strong></button><button onClick={() => { setFilter("payment"); setTab("devices"); }}><span>Ảnh chuyển khoản</span><strong>{counts.paymentReview}</strong></button><button onClick={() => { setFilter("expired"); setTab("devices"); }}><span>Tài khoản hết hạn</span><strong>{counts.expired}</strong></button>{["reviewer", "publisher", "owner"].includes(access.role) ? <button onClick={() => setTab("content")}><span>Duyệt nội dung</span><strong>→</strong></button> : null}</section>
           {access.role === "owner" ? <AccountExpiryPanel /> : null}
-        </div> : null}
+          <section className="boi-overview-boundary"><strong>Ranh giới quản trị</strong><p>Thiết bị học, tiến độ, AI, thanh toán và nội dung vẫn do Bơi ếch sở hữu. Application Management chỉ xác thực thiết bị quản trị và cấp bridge ngắn hạn.</p><button onClick={() => setTab("devices")}>Mở thiết bị & tiến độ</button></section>
+        </> : null}
 
         {tab === "devices" ? <>
           <section className="summary-grid"><article><span>Tổng thiết bị</span><strong>{counts.total}</strong><small>Bơi ếch</small></article><article><span>Online</span><strong>{counts.active}</strong><small>Tín hiệu ký số mỗi 60 giây</small></article><article><span>Chờ xử lý</span><strong>{counts.pending}</strong><small>Hồ sơ hoặc thanh toán</small></article><article><span>Nhóm trả phí</span><strong>{counts.paid}</strong><small>Tài khoản 50.000đ</small></article><article><span>Nhóm miễn phí</span><strong>{counts.free}</strong><small>Đã sàng lọc</small></article><article><span>Sửa bản riêng</span><strong>{counts.personalEdit}</strong><small>Không cập nhật máy chủ</small></article><article><span>Sắp/đã hết hạn</span><strong>{counts.expiring + counts.expired}</strong><small>{counts.expired} đã hết hạn</small></article><article><span>Đã khóa</span><strong>{counts.blocked}</strong><small>Không thể truy cập</small></article><article><span>Đã loại bỏ</span><strong>{counts.deleted}</strong><small>Không thể tự đăng ký lại</small></article></section>
