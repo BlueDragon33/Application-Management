@@ -82,6 +82,8 @@ test("Owner manager mutations require enrolled fresh MFA (no un-enrolled fallbac
  const ui=fs.readFileSync("app/apps/boi-ech/account-expiry-panel.tsx","utf8");
  assert.match(client,/issueBoiManagerInvitation/);
  assert.match(ui,/Tạo lời mời Cán bộ quản lý/);
- assert.match(ui,/Duyệt vòng 2/);
+ assert.match(ui,/Duyệt tài khoản/);
+ assert.match(ui,/AuthenticatorStepUp/);
+ assert.doesNotMatch(ui,/Duyệt vòng 2/);
  assert.match(ui,/Tải thêm hồ sơ/);
 });
