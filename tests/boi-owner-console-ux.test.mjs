@@ -69,3 +69,11 @@ test("Responsive layout supports narrow screens and keyboard focus, avoids page-
   assert.match(css,/prefers-reduced-motion/);
   assert.match(overview,/<table className="boi-owner-table"/);
 });
+
+test("Empty BE device registry never fabricates online/zero without Control API readback",()=>{
+  assert.match(main,/discoverNew \|\| currentDevices\.length === 0/);
+  assert.match(main,/boiApi\(currentDashboard\.boiBridge, "\/api\/control\/overview"/);
+  assert.match(main,/if \(!Array\.isArray\(upstream\.devices\)\)/);
+  assert.match(main,/throw new Error\("Control API chưa trả về danh sách thiết bị được xác minh\."\)/);
+  assert.doesNotMatch(main,/if \(!discoverNew && currentDevices\.length === 0\) \{\s*setBoiOnline\(true\)/);
+});
