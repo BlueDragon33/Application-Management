@@ -206,6 +206,17 @@ export async function reviewBoiManagerAccount(
   return result.account;
 }
 
+/** Local-only Owner test intake cleanup. No Production delete command exists. */
+export async function cancelBoiLocalTestManager(accountId:string,expectedRevision:number){
+ if(!/^acc_[a-f0-9]{64}$/.test(accountId)||!Number.isSafeInteger(expectedRevision))
+   throw new Error("Mã hồ sơ hoặc revision không hợp lệ.");
+ const result=await accountDurationCall({action:"manager-delete-local",accountId,expectedRevision,
+   confirmation:accountId}) as BoiAccountDurationResponse & {deletedAccountId?:string;auditId?:number};
+ if(result.verified!==true||result.deletedAccountId!==accountId||!Number.isSafeInteger(result.auditId))
+   throw new Error("Bơi Ếch chưa xác minh được việc hủy hồ sơ thử nghiệm.");
+ return result;
+}
+
 /** Account-level V2 entitlement, independent from free/paid access and per-device expiry. */
 export type BoiAccountDurationPolicy = { role:"manager"|"teacher"|"learner"; defaultDays:number;revision:number;updatedAt:string };
 export type BoiAccountDurationRecord = { accountId:string;name:string;role:string;deviceStatus:string;onboardingStage:string|null;
