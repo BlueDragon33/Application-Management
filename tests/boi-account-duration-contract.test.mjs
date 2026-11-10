@@ -32,7 +32,8 @@ test("account UI is distinct from device expiry and never tells Owner false succ
  assert.match(panel,/changeBoiAccountDuration/);
  assert.match(panel,/Tạm khóa/);
  assert.match(panel,/Europe\/Moscow/);
- assert.match(center,/access\.role === "owner" \? <AccountExpiryPanel/);
+ assert.match(center,/tab==="policies" && access\.role==="owner"/);
+ assert.match(center,/<AccountExpiryPanel section="policies"/);
  assert.match(client,/if\(response\.verified!==true\)/);
  assert.doesNotMatch(panel,/cloudflare-preview\.server|Cloudflare token hết hạn/);
 });
