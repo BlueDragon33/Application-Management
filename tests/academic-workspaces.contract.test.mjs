@@ -82,3 +82,22 @@ test("guidance button has its own focus and mobile layout", () => {
   assert.match(courseworkCss, /\.guideButton:focus-visible/);
   assert.match(courseworkCss, /@media\(max-width:650px\)/);
 });
+
+test("local-only Chromium QA script is syntactically valid and fail-closed on revision and origin", async () => {
+  const { execFileSync } = await import("node:child_process");
+  const { fileURLToPath } = await import("node:url");
+  const filename = fileURLToPath(new URL("../scripts/academic-workspaces-browser-qa.mjs", import.meta.url));
+  assert.doesNotThrow(() => execFileSync(process.execPath, ["--check", filename], { encoding: "utf8" }));
+  const source = file("scripts/academic-workspaces-browser-qa.mjs");
+  assert.match(source, /assert\.equal\(actual, expected/);
+  assert.match(source, /git", \["status", "--porcelain"/);
+  assert.match(source, /const origin = "http:\/\/127\.0\.0\.1:3000"/);
+  assert.match(source, /if \(u\.origin !== origin\) return route\.abort/);
+  assert.match(source, /await import\("playwright"\)/);
+  assert.match(source, /PASS_LOCAL_CHROMIUM_ONLY/);
+  assert.match(source, /Physical iPhone Safari/);
+  assert.match(source, /scrollWidth <= data\.clientWidth \+ 1/);
+  assert.match(source, /schema, "thesis-planner\/v1"/);
+  assert.match(source, /schema, "coursework-workbench\/v1"/);
+  assert.doesNotMatch(source, /wrangler deploy|gh workflow run|https:\/\/application-management|CLOUDFLARE_API_TOKEN/);
+});
