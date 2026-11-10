@@ -3,7 +3,7 @@ import { controlErrorResponse, verifyControlProof } from "../../../../control-de
 
 export const dynamic = "force-dynamic";
 const TIMEOUT_MS = 8_000;
-const mutations = new Set(["set-account","set-policy","issue-manager-invite","manager-review-first","manager-review-final","manager-review-changes"]);
+const mutations = new Set(["set-account","set-policy","issue-manager-invite","manager-review-first","manager-review-final","manager-review-changes","manager-delete-local"]);
 const allowed = new Set(["list","manager-inbox","manager-policy","policy","read-account",...mutations]);
 function json(data: unknown,status=200) {
   return Response.json(data,{status,headers:{"cache-control":"no-store, private","x-content-type-options":"nosniff"}});
@@ -66,6 +66,12 @@ export async function POST(request: Request) {
     const proofDeviceId=typeof input.controlDeviceId==="string"?input.controlDeviceId:undefined;
     const actor=await verifyControlProof(proofDeviceId?{...input,deviceId:proofDeviceId}:input);
     if(actor.role!=="owner") return json({error:"Chỉ Owner được quản lý thời hạn tài khoản.",code:"OWNER_REQUIRED"},403);
+    if(action==="manager-delete-local") {
+      const host=new URL(request.url).hostname;
+      if(!["localhost","127.0.0.1"].includes(host)||process.env.LOCAL_DEV_AUTH!=="1"
+        ||process.env.NEXT_PUBLIC_BOI_ECH_SINGLE_REVIEW!=="true")
+        return json({error:"Hủy hồ sơ thử nghiệm chỉ khả dụng trên máy Offline.",code:"ACCOUNT_RESET_LOCAL_ONLY"},403);
+    }
     // This is intentionally AFTER Owner authentication; don't disclose account
     // workflow/version semantics to unauthenticated visitors.
     if (process.env.NEXT_PUBLIC_BOI_ECH_SINGLE_REVIEW === "true" &&
@@ -74,7 +80,11 @@ export async function POST(request: Request) {
         code:"BOI_REVIEW_SUPERSEDED"},409);
     }
     const bridge=await issueBoiBrowserBridge(actor.email,actor.role);
-    const cmd:Record<string,unknown>=action==="manager-inbox"
+    if(action==="manager-delete-local" && !["127.0.0.1","localhost"].includes(new URL(bridge.baseUrl).hostname))
+      return json({error:"Hủy hồ sơ bị chặn khi Bridge không trỏ localhost.",code:"ACCOUNT_RESET_LOCAL_ONLY"},403);
+    const cmd:Record<string,unknown>=action==="manager-delete-local"
+      ?{action:"cancel-pending-manager-local",accountId:input.accountId,expectedRevision:input.expectedRevision,confirmation:input.confirmation}
+      :action==="manager-inbox"
       ?{action:"manager-inbox-v2",after:input.after??"",limit:40}
       :action==="manager-policy"?{action:"capacity"}
       :action==="issue-manager-invite"?{action:"create-manager-invite",expectedRevision:input.expectedRevision}
@@ -88,6 +98,12 @@ export async function POST(request: Request) {
       :{action:"set-entitlement",accountId:input.accountId,operation:input.operation,expiresAt:input.expiresAt,expectedRevision:input.expectedRevision,reason:input.reason};
     const changed=await upstream(bridge,cmd);
     if(changed.status!==200) return json(changed.data,changed.status);
+    if(action==="manager-delete-local") {
+      if(changed.data.verified!==true||changed.data.deletedAccountId!==input.accountId
+        ||!Number.isSafeInteger(changed.data.auditId))
+        return json({error:"Chưa xác minh được xóa hồ sơ.",code:"ACCOUNT_RESET_READBACK_FAILED"},502);
+      return json({ok:true,verified:true,deletedAccountId:input.accountId,auditId:changed.data.auditId});
+    }
     if(action==="manager-inbox"){
       const rows=changed.data.managers,next=changed.data.nextCursor;
       if(changed.data.contract!=="boi-manager-intake.v2"||changed.data.verified!==true
