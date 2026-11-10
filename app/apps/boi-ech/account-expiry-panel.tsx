@@ -37,6 +37,7 @@ export default function AccountExpiryPanel(){
  const [expiration,setExpiration]=useState("");
  const [reason,setReason]=useState("Owner quản lý thời hạn sử dụng");
  const [busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[error,setError]=useState(""),[notice,setNotice]=useState("");
+ const [accountsVerified,setAccountsVerified]=useState(false);
  const [observedNow,setObservedNow]=useState(()=>Date.now());
  const current=accounts.find(a=>a.accountId===selected)??null;
  const displayed=useMemo(()=>accounts.filter(a=>[a.accountId,a.name,a.role].join(" ").toLowerCase().includes(search.toLowerCase())).slice(0,100),[accounts,search]);
@@ -84,15 +85,17 @@ export default function AccountExpiryPanel(){
   finally{setManagerWriting(false);}
  }
  async function refresh(){
-  setLoading(true);setError("");
+  setLoading(true);setError("");setAccountsVerified(false);
   try {
    const next=await loadBoiAccountDurations();
-   setAccounts(next.accounts);setPolicies(next.policies);
+   setAccounts(next.accounts);setPolicies(next.policies);setAccountsVerified(true);
    setRoleDays(Object.fromEntries(next.policies.map(p=>[p.role,String(p.defaultDays)])));
    setSelected(s=>next.accounts.some(a=>a.accountId===s)?s:"");
    setObservedNow(Date.now());
-  }catch(e){setError(e instanceof Error?e.message:"Không tải được tài khoản.");}
-  finally{setLoading(false);}
+  }catch(e){
+   setAccounts([]);setPolicies([]);setSelected("");setAccountsVerified(false);
+   setError(e instanceof Error?e.message:"Không tải được tài khoản.");
+  }finally{setLoading(false);}
  }
  useEffect(()=>{queueMicrotask(()=>{void refresh();});},[]);
  useEffect(()=>{queueMicrotask(()=>{void refreshManagerInbox();});},[]);
@@ -197,7 +200,8 @@ export default function AccountExpiryPanel(){
   <label style={{display:"grid",gap:6}}>Tìm tài khoản / vai trò
    <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Tên, ID, cán bộ, học viên…"/>
   </label>
-  <p>Đã tải {accounts.length} tài khoản. Danh sách hiển thị tối đa 100 kết quả; nhập tìm kiếm để lọc.</p>
+  {accountsVerified?<p>Đã xác minh và tải {accounts.length} tài khoản. Danh sách hiển thị tối đa 100 kết quả; nhập tìm kiếm để lọc.</p>
+   :<p role="status">Chưa có danh sách tài khoản được xác minh; không suy diễn 0 tài khoản khi kết nối lỗi.</p>}
   <select size={Math.min(8,Math.max(2,displayed.length))} aria-label="Chọn tài khoản" value={selected}
    onChange={e=>setSelected(e.target.value)}>
    <option value="">— Chọn tài khoản —</option>
