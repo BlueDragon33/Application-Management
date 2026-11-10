@@ -115,7 +115,7 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
   }finally{setLoading(false);}
  }
  useEffect(()=>{if(section!=="accounts")queueMicrotask(()=>{void refresh();});},[section]);
- useEffect(()=>{setLocalMode(["localhost","127.0.0.1"].includes(window.location.hostname));},[]);
+ useEffect(()=>{queueMicrotask(()=>setLocalMode(["localhost","127.0.0.1"].includes(window.location.hostname)));},[]);
  useEffect(()=>{if(section==="accounts")queueMicrotask(()=>{void refreshManagerInbox();});},[section]);
  const currentExpiry=current?.entitlement?.expiresAt ?? null;
  useEffect(()=>{
