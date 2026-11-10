@@ -230,7 +230,10 @@ async function accountDurationCall(body: Record<string,unknown>): Promise<BoiAcc
 }
 export async function loadBoiAccountDurations() {
   const [accounts,policies]=await Promise.all([accountDurationCall({action:"list"}),accountDurationCall({action:"policy"})]);
-  return {accounts:accounts.accounts??[],policies:policies.policies??[]};
+  if(accounts.verified!==true || !Array.isArray(accounts.accounts)
+    || policies.verified!==true || !Array.isArray(policies.policies))
+    throw new Error("Bơi ếch chưa xác minh danh sách tài khoản và chính sách; không thể suy diễn kết quả bằng 0.");
+  return {accounts:accounts.accounts,policies:policies.policies};
 }
 export async function changeBoiAccountDuration(input:{accountId:string;expectedRevision:number;operation:"set-expiry"|"suspend"|"resume";expiresAt?:string;reason:string}) {
   const response=await accountDurationCall({action:"set-account",...input});
