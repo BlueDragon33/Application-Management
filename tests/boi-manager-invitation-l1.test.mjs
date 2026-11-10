@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import {loadTs} from "./helpers/load-ts.mjs";
 const id="acc_"+'a'.repeat(64);
-function fixture(responses,{role="owner",singleReview=true}={}){
- const calls=[];
+function fixture(responses,{role="owner",singleReview=true,backendReview=true}={}){
+ const calls=[],gateReads=[];
  const api=loadTs("app/api/apps/boi-ech/account-entitlements/route.ts",{
   "../../../../control-device.server":{
     verifyControlProof:async()=>({role,email:"owner@example.invalid"}),
@@ -15,12 +15,16 @@ function fixture(responses,{role="owner",singleReview=true}={}){
   }
  },{
   fetch:async(url,init)=>{
+   if(init?.method==="GET"){
+    gateReads.push(url);
+    return Response.json({enabled:true,accountV2:true,accountSingleReview:backendReview});
+   }
    calls.push({url,body:JSON.parse(init.body)});
    const response=responses[calls.length-1]??{status:503,data:{code:"UPSTREAM_UNAVAILABLE"}};
    return Response.json(response.data,{status:response.status});
   }
  });
- return {calls,async run(action,extras={}){
+ return {calls,gateReads,async run(action,extras={}){
   const previous=process.env.NEXT_PUBLIC_BOI_ECH_SINGLE_REVIEW;
   process.env.NEXT_PUBLIC_BOI_ECH_SINGLE_REVIEW=singleReview?"true":"false";
   try{
@@ -59,6 +63,7 @@ test("Owner first review is the only approval; forged final/changes actions neve
  const result=await first.run("manager-review-first",{accountId:id,expectedRevision:1});
  assert.equal(result.status,200);assert.equal(result.body.verified,true);
  assert.deepEqual(first.calls.map(x=>x.body.action),["review-first","read"]);
+ assert.equal(first.gateReads.length,1,"Only read BOI V2 policy once before Owner mutation");
  for(const action of ["manager-review-final","manager-review-changes"]){
   const forged=fixture([]),denied=await forged.run(action,{accountId:id,expectedRevision:0});
   assert.equal(denied.status,409);assert.equal(denied.body.code,"BOI_REVIEW_SUPERSEDED");
@@ -68,6 +73,15 @@ test("Owner first review is the only approval; forged final/changes actions neve
  const blocked=await misconfigured.run("manager-review-first",{accountId:id,expectedRevision:1});
  assert.equal(blocked.status,409);assert.equal(blocked.body.code,"BOI_SINGLE_REVIEW_UNVERIFIED");
  assert.equal(misconfigured.calls.length,0);
+});
+test("unmatched BOI runtime single-review flag fails closed before any invitation/approval write",async()=>{
+ for(const action of ["issue-manager-invite","manager-review-first"]){
+  const f=fixture([],{backendReview:false});
+  const r=await f.run(action,{accountId:id,expectedRevision:1});
+  assert.equal(r.status,409);assert.equal(r.body.code,"BOI_SINGLE_REVIEW_BACKEND_UNVERIFIED");
+  assert.equal(f.calls.length,0,"No BOI mutation before policy readback");
+  assert.equal(f.gateReads.length,1);
+ }
 });
 test("readback mismatch or upstream 409 never produces fake approval",async()=>{
  const f=fixture([
