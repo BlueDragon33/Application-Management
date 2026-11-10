@@ -357,3 +357,18 @@ test("Thesis guide precedes long milestone checklist in DOM reading and mobile v
     assert.equal(document.activeElement, first, "Guide still takes user directly to next milestone");
   } finally { await cleanup(); }
 });
+
+test("320px Thesis guide compaction retains accessible controls without hiding content", () => {
+  const stylesheet = readFileSync(new URL("../app/tools/thesis-planner/thesis-planner.module.css", import.meta.url), "utf8");
+  const rule = stylesheet.match(/@media\(max-width:359px\)\{([\s\S]*?)\n\}/);
+  assert.ok(rule, "Narrowest mobile viewport must have a specific compact layout");
+  assert.match(rule[1], /\.shell\{padding:12px\}/);
+  assert.match(rule[1], /\.nav\{gap:8px;margin-bottom:12px\}/);
+  assert.match(rule[1], /\.hero\{padding:14px;margin-bottom:12px\}/);
+  assert.match(rule[1], /\.stats\{gap:6px;margin-bottom:12px\}/);
+  assert.match(rule[1], /\.stat\{padding:10px 6px\}/);
+  assert.doesNotMatch(rule[1], /display:none|visibility:hidden|font-size:[0-9]px|height:[0-9]px/,
+    "No control, text or evidence section may be hidden or made tiny to pass the initial viewport gate");
+  assert.match(stylesheet, /\.guideButton\{[^}]*padding:13px 16px/,
+    "The original accessible guide CTA padding must be preserved");
+});
