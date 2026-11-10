@@ -22,11 +22,11 @@ test("Owner approves managers exclusively, monitors teacher and learner as read-
   assert.doesNotMatch(overview,/reviewBoiManagerAccount|changeBoiAccountDuration|changeBoiDefaultAccountDays/);
 });
 
-test("Manager two-stage approval remains in owner-only inbox, separate from account expiry",()=>{
-  assert.match(panel,/reviewBoiManagerAccount\(action,m\.accountId,expectedRevision,reason\)/);
+test("Manager one-review approval is sole Owner action, separate from account expiry",()=>{
+  assert.match(panel,/reviewBoiManagerAccount\("manager-review-first",m\.accountId,m\.onboardingRevision\)/);
   assert.match(panel,/manager-review-first/);
-  assert.match(panel,/manager-review-final/);
-  assert.match(panel,/manager-review-changes/);
+  assert.doesNotMatch(panel,/Duyệt vòng 2 — kích hoạt|decideManager\(m,"manager-review-final"\)/);
+  assert.match(panel,/Chưa xác minh cấu hình duyệt một lần/);
   assert.match(panel,/section==="accounts"\?<>/);
   assert.match(panel,/section==="policies"&&accountsVerified/);
   assert.match(panel,/section==="policies"&&policies\.length/);
@@ -50,8 +50,8 @@ test("Approved dashboard preserves existing distinct device, AI, content and exp
   assert.match(main,/tab==="reports"/);
   assert.match(main,/exportDevices/);
   assert.match(main,/DeviceDrawer/);
-  assert.match(main,/canManage=\{access\.role === "owner" && selected\.personRole === "manager"\}/);
-  assert.match(main,/canDelete=\{access\.role === "owner" && selected\.personRole === "manager"\}/);
+  assert.match(main,/canManage=\{access\.role === "owner" && selected\.personRole === "manager" && process\.env\.NEXT_PUBLIC_BOI_ECH_SINGLE_REVIEW !== "true"\}/);
+  assert.match(main,/canDelete=\{access\.role === "owner" && selected\.personRole === "manager" && process\.env\.NEXT_PUBLIC_BOI_ECH_SINGLE_REVIEW !== "true"\}/);
   assert.match(main,/readOnly=\{!canManage\}/);
   assert.match(main,/Chỉ giám sát · Giảng viên và học viên/);
   assert.match(main,/AiControlCenter/);

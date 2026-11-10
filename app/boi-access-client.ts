@@ -197,9 +197,10 @@ export async function issueBoiManagerInvitation(){
   return {inviteUrl:result.inviteUrl,expiresAt:result.expiresAt};
 }
 export async function reviewBoiManagerAccount(
-  action:"manager-review-first"|"manager-review-final"|"manager-review-changes",
-  accountId:string,expectedRevision:number,reason?:string){
-  const result=await accountDurationCall({action,accountId,expectedRevision,reason}) as
+  action:"manager-review-first",accountId:string,expectedRevision:number){
+  // APP only exposes the Owner's single review; obsolete second-review actions
+  // are rejected at the server even for forged requests.
+  const result=await accountDurationCall({action,accountId,expectedRevision}) as
     BoiAccountDurationResponse & {account?:{accountId:string;status:string;onboardingStage:string}};
   if(result.verified!==true||result.account?.accountId!==accountId)
     throw new Error("Bơi ếch chưa đọc lại xác nhận duyệt.");

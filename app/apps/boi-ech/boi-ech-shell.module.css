@@ -576,3 +576,20 @@
  .scope :global(.boi-manager-progress){grid-template-columns:repeat(2,minmax(0,1fr));}
  .scope :global(.boi-manager-actions button){width:100%;}
 }
+
+
+/* Owner Console V5: unmatched workflow is visibly blocked, never a fake empty queue. */
+.scope :global(.boi-manager-blocked){
+ margin:14px 0;padding:13px 16px;border-radius:10px;
+ border:1px solid #d9ad77;background:#fff8eb;color:#754c1f;
+ font-size:12px;font-weight:650;line-height:1.65;
+}
+.scope :global(.boi-manager-tag.neutral){
+ border-color:#d6dfeb;background:#f0f4f9;color:#536982;
+}
+.scope :global(.boi-manager-inbox button:disabled){
+ cursor:not-allowed;opacity:.57;
+}
+.scope :global(.boi-manager-inbox button:focus-visible){
+ outline:3px solid #8cbfef;outline-offset:2px;
+}

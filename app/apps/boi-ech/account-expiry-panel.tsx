@@ -55,12 +55,13 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
    setManagerNext(result.nextCursor);
   }
   catch(e){
-   if(!after){setManagerInbox(null);setManagerNext(null);}
+   // Fail closed when any page fails, never leave stale counts actionable.
+   setManagerInbox(null);setManagerNext(null);
    setManagerError(e instanceof Error?e.message:"Chưa tải được hàng chờ quản lý.");
   }finally{setManagerLoading(false);}
  }
  async function createManagerInvitation(){
-  if(managerWriting)return;
+  if(managerWriting||managerLoading||!singleReview||managerError||managerInbox===null)return;
   if(!window.confirm("Tạo mã mời dùng một lần cho Cán bộ quản lý? Chỉ gửi link cho đúng người; Owner không nhập mật khẩu hộ."))return;
   setManagerWriting(true);setManagerError("");setManagerNotice("");setInviteUrl("");
   try{
@@ -70,20 +71,15 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
   }catch(e){setManagerError(e instanceof Error?e.message:"Chưa xác minh được thư mời.");}
   finally{setManagerWriting(false);}
  }
- async function decideManager(m:BoiManagerInboxRecord,action:"manager-review-first"|"manager-review-final"|"manager-review-changes"){
-  if(managerWriting || (singleReview && action!=="manager-review-first"))return;
+ async function decideManager(m:BoiManagerInboxRecord){
+  if(managerWriting||managerLoading||!singleReview||managerError||managerInbox===null
+    ||m.onboardingStage!=="requested"||m.status!=="pending")return;
   const name=m.name||m.accountId.slice(0,14);
-  if(!window.confirm(action==="manager-review-final"
-   ? "Kích hoạt Cán bộ quản lý "+name+" sau duyệt vòng hai? Phải có MFA Owner và hồ sơ hoàn chỉnh."
-   : action==="manager-review-first" ? "Duyệt vòng một cho "+name+"? Chưa cấp quyền sử dụng."
-   : "Yêu cầu sửa thông tin hồ sơ "+name+"?"))return;
-  const reason=action==="manager-review-changes"?window.prompt("Lý do cần bổ sung (5–200 ký tự):","")??"":"";
-  if(action==="manager-review-changes" && reason.trim().length<5)return;
+  if(!window.confirm("Duyệt cán bộ "+name+" một lần? Sau đó cán bộ tự hoàn tất hồ sơ trước khi được kích hoạt."))return;
   setManagerWriting(true);setManagerError("");setManagerNotice("");
   try{
-   const expectedRevision=action==="manager-review-final"?m.accountRevision:m.onboardingRevision;
-   await reviewBoiManagerAccount(action,m.accountId,expectedRevision,reason);
-   setManagerNotice("Bơi ếch đã xác minh và đọc lại lần duyệt từ D1.");
+   await reviewBoiManagerAccount("manager-review-first",m.accountId,m.onboardingRevision);
+   setManagerNotice("Đã duyệt một lần; D1 đã ghi CAS, audit và xác minh trạng thái.");
    await refreshManagerInbox();
   }catch(e){setManagerError(e instanceof Error?e.message:"Lệnh duyệt chưa được xác minh.");}
   finally{setManagerWriting(false);}
@@ -155,13 +151,14 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
   {section==="policies"?<div className="boi-account-header"><span>OWNER · QUẢN TRỊ CHÍNH SÁCH</span><h2>Thời hạn & chính sách</h2><p>Thiết lập mặc định chung không phải phê duyệt tài khoản. Chỉ điều chỉnh trực tiếp tài khoản cán bộ quản lý tại màn hình này.</p></div>:null}
   {section==="accounts"?<>
   <details className="boi-manager-inbox" open>
-   <summary><strong>{singleReview?"Hồ sơ Cán bộ quản lý · Owner duyệt một lần":"Hồ sơ Cán bộ quản lý · Owner duyệt hai vòng"}</strong></summary>
+   <summary><strong>Hồ sơ Cán bộ quản lý · Owner duyệt một lần</strong></summary>
    <p>Hồ sơ quản lý thuộc Bơi ếch, kiểm soát tập trung từ giao diện Owner này. Mã mời có hiệu lực 24 giờ,
     dùng một lần; người nhận tự đặt mật khẩu và khóa P-256 trên đúng trang Bơi ếch.</p>
+   {!singleReview?<p className="boi-manager-blocked" role="alert">Chưa xác minh cấu hình duyệt một lần khớp Bơi Ếch. Khóa mời và duyệt; không chuyển về quy trình hai vòng.</p>:null}
    <div className="boi-manager-actions">
     <button type="button" disabled={managerLoading||managerWriting}
      onClick={()=>void refreshManagerInbox()}>Đồng bộ hàng chờ</button>
-    <button type="button" disabled={managerWriting||managerLoading}
+    <button type="button" disabled={managerWriting||managerLoading||!singleReview||Boolean(managerError)||managerInbox===null}
      onClick={()=>void createManagerInvitation()}>Tạo lời mời Cán bộ quản lý · MFA</button>
    </div>
    {managerNotice?<p role="status">{managerNotice}</p>:null}
@@ -187,8 +184,8 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
      <header className="boi-manager-case-head">
       <div><small>HỒ SƠ QUẢN LÝ · {m.accountId.slice(0,14)}…</small>
        <strong>{m.name||"Hồ sơ mới chưa hoàn thiện"}</strong></div>
-      <span className={m.onboardingStage==="profile_required"?"boi-manager-tag reviewed":"boi-manager-tag pending"}>
-       {m.onboardingStage==="profile_required"?"Đã duyệt · Chờ bổ sung":m.onboardingStage==="requested"?"Chờ Owner duyệt":"Chờ xử lý"}
+      <span className={m.onboardingStage==="profile_required"?"boi-manager-tag reviewed":m.onboardingStage==="requested"?"boi-manager-tag pending":"boi-manager-tag neutral"}>
+       {m.onboardingStage==="profile_required"?"Đã duyệt · Chờ bổ sung":m.onboardingStage==="requested"?"Chờ Owner duyệt":"Trạng thái cũ · Cần đối chiếu"}
       </span>
      </header>
      <div className="boi-manager-progress" aria-label="Tiến trình xét duyệt">
@@ -200,14 +197,9 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
      <p className="boi-manager-meta">ID: {m.accountId.slice(0,20)}… · Trạng thái: {m.onboardingStage}
       · Hồ sơ rev {m.onboardingRevision} · Tài khoản rev {m.accountRevision}</p>
      {m.onboardingStage==="requested"?<button type="button"
-      disabled={managerWriting||managerLoading} onClick={()=>void decideManager(m,"manager-review-first")}>
-       {singleReview?"Duyệt tài khoản — chờ bổ sung hồ sơ":"Duyệt vòng 1 — chưa cấp quyền"}</button>:null}
-     {!singleReview&&m.onboardingStage==="profile_review"?<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-      <button type="button" disabled={managerWriting||managerLoading}
-       onClick={()=>void decideManager(m,"manager-review-final")}>Duyệt vòng 2 — kích hoạt</button>
-      <button type="button" disabled={managerWriting||managerLoading}
-       onClick={()=>void decideManager(m,"manager-review-changes")}>Yêu cầu bổ sung</button>
-     </div>:null}
+      disabled={managerWriting||managerLoading||!singleReview||Boolean(managerError)} onClick={()=>void decideManager(m)}>
+       Duyệt một lần · Chờ hoàn thiện hồ sơ</button>:null}
+     {m.onboardingStage==="profile_review"?<p className="boi-manager-guidance" role="note">Hồ sơ ở trạng thái cũ cần đối chiếu từ Bơi Ếch. Không thực hiện duyệt vòng hai tại Owner Console.</p>:null}
      {m.onboardingStage==="profile_required"?<p className="boi-manager-guidance">Đã được Owner duyệt. Cán bộ tự điền Khoa/Đơn vị, Chức danh và Chức vụ trên Bơi Ếch để kích hoạt.</p>:null}
      {localMode && singleReview && ["requested","profile_required"].includes(m.onboardingStage)?<div className="boi-manager-test-tools">
       <button type="button" disabled={managerWriting||managerLoading}
@@ -218,11 +210,10 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
     </article>)}
     {managerNext?<button type="button" disabled={managerLoading||managerWriting}
        onClick={()=>void refreshManagerInbox(managerNext)}>Tải thêm hồ sơ</button>:null}
-    {!managerInbox.some(m=>m.status==="pending") && !managerNext?
-      <p>Không có yêu cầu quản lý đang chờ trong tập kết quả đã xác minh.</p>:null}
+    {!managerInbox.some(m=>m.status==="pending"&&m.onboardingStage==="requested") && !managerNext?
+      <p>Không có hồ sơ cán bộ chờ Owner duyệt trong tập kết quả đã xác minh.</p>:null}
    </div>:!managerError?<p role="status">Chưa có kết quả hàng chờ được xác minh.</p>:null}
-   <small>Owner phải xác minh Authenticator trong 30 phút gần nhất để tạo mời hoặc duyệt.
-    {singleReview?"Một lần Owner duyệt với CAS, nhật ký và đọc lại; sau đó tài khoản được kích hoạt tự động khi hoàn tất hồ sơ.":"Hai vòng duyệt sử dụng CAS, nhật ký, đọc lại D1; không cấp quyền tự động."}</small>
+   <small>Owner phải xác minh Authenticator trong 30 phút gần nhất để mời hoặc duyệt. Duyệt một lần bằng CAS và audit, sau đó cán bộ tự hoàn thiện hồ sơ để kích hoạt.</small>
   </details>
   </>:null}
   {section==="policies"?<header><h2>Thời hạn tài khoản · Account First V2</h2>

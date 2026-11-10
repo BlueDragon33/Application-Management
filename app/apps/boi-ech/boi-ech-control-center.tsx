@@ -1303,7 +1303,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
       </section>
 
       {installPrompt ? <button className="install-fab" onClick={() => void installWebApp()} aria-label="Cài khu quản trị Bơi ếch" title="Cài ứng dụng"><span aria-hidden="true">⇩</span><b>Cài ứng dụng</b></button> : null}
-      {selected && dashboard?.boiBridge ? <DeviceDrawer key={selected.deviceId} device={selected} bridge={dashboard.boiBridge} canManage={access.role === "owner" && selected.personRole === "manager"} canDelete={access.role === "owner" && selected.personRole === "manager"} managementBusy={managementBusy} activityLoading={selectedActivityLoading} close={closeDetail} action={(operation, success, extra = {}) => dashboardAction({ action: "manage-learning-device", operation, targetDeviceId: selected.deviceId, ...extra }, success)} /> : null}
+      {selected && dashboard?.boiBridge ? <DeviceDrawer key={selected.deviceId} device={selected} bridge={dashboard.boiBridge} canManage={access.role === "owner" && selected.personRole === "manager" && process.env.NEXT_PUBLIC_BOI_ECH_SINGLE_REVIEW !== "true"} canDelete={access.role === "owner" && selected.personRole === "manager" && process.env.NEXT_PUBLIC_BOI_ECH_SINGLE_REVIEW !== "true"} managementBusy={managementBusy} activityLoading={selectedActivityLoading} close={closeDetail} action={(operation, success, extra = {}) => dashboardAction({ action: "manage-learning-device", operation, targetDeviceId: selected.deviceId, ...extra }, success)} /> : null}
     </main>{managementAuth ? <AuthenticatorStepUp finish={finishManagementAuth}/> : null}</>
   );
 }
