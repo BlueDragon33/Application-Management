@@ -50,7 +50,8 @@ test("Boi Ech uses one internal admin shell with overview and real drill-down ac
   const admin = read("app/apps/boi-ech/boi-ech-control-center.tsx");
   const css = read("app/apps/boi-ech/boi-ech-shell.module.css");
   assert.doesNotMatch(page, /boiBack|Application Management<\/Link>/);
-  assert.match(admin, /useState<"overview" \| "devices" \| "ai" \| "content">\("overview"\)/);
+  assert.match(admin, /useState<"overview" \| "accounts" \| "oversight" \| "roles" \| "policies" \| "devices" \| "reports" \| "ai" \| "content">\("overview"\)/);
+  assert.match(admin, /BoiOwnerOverview/);
   assert.match(admin, /control-back-link/);
   assert.match(admin, /setFilter\("payment"\); setTab\("devices"\)/);
   assert.match(admin, /setFilter\("expired"\); setTab\("devices"\)/);
