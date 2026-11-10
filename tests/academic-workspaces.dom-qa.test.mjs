@@ -335,3 +335,25 @@ test("authored academic CSS computed contrast: inputs, project boundaries and gu
     }
   }
 });
+
+test("Thesis guide precedes long milestone checklist in DOM reading and mobile visual order", async () => {
+  window.localStorage.clear();
+  const cleanup = await mount(ThesisPlanner);
+  try {
+    const guide = document.querySelector('[aria-label="Hướng dẫn bước tiếp theo"]');
+    const first = document.getElementById("thesis-task-scope");
+    const grid = guide?.parentElement?.parentElement;
+    assert.ok(guide && first && grid);
+    assert.ok(guide.compareDocumentPosition(first) & window.Node.DOCUMENT_POSITION_FOLLOWING,
+      "Guide must precede all 12 milestones in keyboard/screen-reader reading order");
+    assert.equal(grid.firstElementChild?.tagName, "ASIDE",
+      "First grid child must be the guidance aside");
+    const stylesheet = readFileSync(new URL("../app/tools/thesis-planner/thesis-planner.module.css", import.meta.url), "utf8");
+    assert.match(stylesheet, /\.grid>aside\{grid-column:2;grid-row:1\}/,
+      "Desktop must preserve guidance as right sidebar");
+    assert.match(stylesheet, /@media\(max-width:780px\)[^{]*\{[^}]*\}\.grid>aside\{grid-column:1;grid-row:1\}\.grid>div\{grid-column:1;grid-row:2\}/,
+      "At narrow widths guidance must precede the very long form and milestones");
+    await clickGuide();
+    assert.equal(document.activeElement, first, "Guide still takes user directly to next milestone");
+  } finally { await cleanup(); }
+});
