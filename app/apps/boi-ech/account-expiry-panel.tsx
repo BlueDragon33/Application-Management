@@ -169,7 +169,7 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
       · Hồ sơ rev {m.onboardingRevision} · Tài khoản rev {m.accountRevision}</p>
      {m.onboardingStage==="requested"?<button type="button"
       disabled={managerWriting||managerLoading} onClick={()=>void decideManager(m,"manager-review-first")}>
-       Duyệt vòng 1 — chưa cấp quyền</button>:null}
+       {singleReview?"Duyệt tài khoản — chờ bổ sung hồ sơ":"Duyệt vòng 1 — chưa cấp quyền"}</button>:null}
      {!singleReview&&m.onboardingStage==="profile_review"?<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
       <button type="button" disabled={managerWriting||managerLoading}
        onClick={()=>void decideManager(m,"manager-review-final")}>Duyệt vòng 2 — kích hoạt</button>
