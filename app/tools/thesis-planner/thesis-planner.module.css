@@ -34,3 +34,14 @@
 .uploadLabel{display:inline-flex;align-items:center;position:relative;cursor:pointer}
 .uploadInput{position:absolute;width:1px;height:1px;padding:0;margin:-1px;border:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .uploadLabel:focus-within{outline:3px solid #f4dd91;outline-offset:3px}
+
+/* 320px narrow-screen usability: keep the full Next Action card in the initial
+ * 900px QA viewport without shrinking interactive targets or hiding content.
+ * At wider widths, retain the previously accepted layout. */
+@media(max-width:359px){
+.shell{padding:12px}
+.nav{gap:8px;margin-bottom:12px}
+.hero{padding:14px;margin-bottom:12px}
+.stats{gap:6px;margin-bottom:12px}
+.stat{padding:10px 6px}
+}
