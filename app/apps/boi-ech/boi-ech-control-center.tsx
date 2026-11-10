@@ -831,16 +831,16 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
   async function loadBoi(currentDashboard: Dashboard, discoverNew: boolean, quiet = false) {
     try {
       const currentDevices = dashboardRef.current?.learningDevices ?? currentDashboard.learningDevices;
-      if (!discoverNew && currentDevices.length === 0) {
-        setBoiOnline(true);
-        if (!quiet) setError("");
-        return true;
-      }
-      const statusQuery = discoverNew
+      // Empty local registry is not proof that the owning Bơi Ếch Control API is online.
+      // Revalidate even with zero devices; a missing upstream array is not verified zero.
+      const statusQuery = discoverNew || currentDevices.length === 0
         ? "?activityDays=0"
         : `?deviceCodes=${encodeURIComponent(currentDevices.map((device) => device.deviceCode).join(","))}&activityDays=0`;
       const upstream = await boiApi(currentDashboard.boiBridge, "/api/control/overview", { query: statusQuery });
-      const incomingDevices = upstream.devices ?? [];
+      if (!Array.isArray(upstream.devices)) {
+        throw new Error("Control API chưa trả về danh sách thiết bị được xác minh.");
+      }
+      const incomingDevices = upstream.devices;
       const devices = mergeLearningDevices(currentDevices, incomingDevices, discoverNew, !discoverNew);
       const knownIds = new Set(currentDevices.map((device) => device.deviceId));
       const added = discoverNew ? incomingDevices.filter((device) => !knownIds.has(device.deviceId)) : [];
