@@ -88,6 +88,8 @@ test("malformed duration account payloads fail closed instead of implying zero a
  const invalid=[
   ["list",{}],
   ["list",{accounts:null}],
+  ["list",{verified:false,accounts:[]}],
+  ["policy",{verified:false,policies:["manager","teacher","learner"].map(role=>({role,defaultDays:30,revision:1,updatedAt:"2026-11-10"}))}],
   ["list",{accounts:[{accountId:"invalid",role:"manager",name:null,deviceStatus:"pending",onboardingStage:"requested",entitlement:null}]}],
   ["policy",{policies:[]}],
   ["policy",{policies:[{role:"manager",defaultDays:30,revision:1,updatedAt:"2026-11-10"}]}]
