@@ -117,6 +117,6 @@ test("Owner duration UI distinguishes verified zero from unavailable account ser
  assert.doesNotMatch(client,/accounts:accounts\.accounts\?\?\[\]/);
  assert.match(client,/accounts\.verified!==true/);
  assert.match(client,/policies\.verified!==true/);
- assert.match(ui,/setAccounts\(\[\]\);setPolicies\(\[\]\);setSelected\("",""\)/);
+ assert.ok(ui.includes('setAccounts([]);setPolicies([]);setSelected("");setAccountsVerified(false);'));
  assert.match(ui,/Chưa có danh sách tài khoản được xác minh/);
 });
