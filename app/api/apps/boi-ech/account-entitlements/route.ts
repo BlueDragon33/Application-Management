@@ -11,6 +11,34 @@ function json(data: unknown,status=200) {
 function record(value: unknown): Record<string,unknown> {
   return value && typeof value==="object" && !Array.isArray(value) ? value as Record<string,unknown> : {};
 }
+const validId = (value: unknown) => typeof value==="string" && /^acc_[a-f0-9]{64}$/.test(value);
+const validRoles = new Set(["manager","teacher","learner"]);
+function verifiedAccountRows(value: unknown): value is Record<string,unknown>[] {
+  return Array.isArray(value) && value.length<=500 && value.every(item=>{
+    const row=record(item), entitlement=row.entitlement;
+    return validId(row.accountId) && validRoles.has(String(row.role))
+      && (row.name===null || typeof row.name==="string")
+      && typeof row.deviceStatus==="string"
+      && (row.onboardingStage===null || typeof row.onboardingStage==="string")
+      && (entitlement===null || (typeof entitlement==="object" && !Array.isArray(entitlement)
+        && ["active","suspended"].includes(String(record(entitlement).state))
+        && typeof record(entitlement).expiresAt==="string"
+        && typeof record(entitlement).activatedAt==="string"
+        && Number.isSafeInteger(record(entitlement).revision)
+        && typeof record(entitlement).active==="boolean"));
+  });
+}
+function verifiedDurationPolicies(value: unknown): value is Record<string,unknown>[] {
+  return Array.isArray(value) && value.length===3
+    && new Set(value.map(row=>record(row).role)).size===3
+    && value.every(item=>{
+      const row=record(item);
+      return validRoles.has(String(row.role)) && Number.isSafeInteger(row.defaultDays)
+        && Number(row.defaultDays)>=1 && Number(row.defaultDays)<=365
+        && Number.isSafeInteger(row.revision) && typeof row.updatedAt==="string";
+    });
+}
+
 async function upstream(bridge: Awaited<ReturnType<typeof issueBoiBrowserBridge>>, input: Record<string,unknown>) {
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),TIMEOUT_MS);
@@ -109,6 +137,13 @@ export async function POST(request: Request) {
       return json({ok:true,verified:true,account:{accountId:a.accountId,status:a.status,
         onboardingStage:a.onboardingStage,onboardingRevision:a.onboardingRevision,
         accountRevision:a.revision}});
+    }
+    if(action==="list" || action==="policy"){
+      const valid=action==="list"?verifiedAccountRows(changed.data.accounts)
+        :verifiedDurationPolicies(changed.data.policies);
+      if(!valid)return json({error:"Danh sách tài khoản/chính sách Bơi ếch chưa được xác minh.",
+        code:"BOI_ACCOUNT_DURATION_UNVERIFIED",verified:false},502);
+      return json({...changed.data,ok:true,verified:true});
     }
     if(!mutations.has(action)) return json({...changed.data,ok:true});
     const verifyCmd=action==="set-policy"?{action:"entitlement-policy"}:{action:"read-entitlement",accountId:input.accountId};
