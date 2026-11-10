@@ -35,3 +35,12 @@ test("V5: Owner UI never offers a second review or treats failed queue as verifi
  assert.match(ui,/!singleReview\|\|Boolean\(managerError\)/);
  assert.match(overview,/setSnapshot\(null\)/);
 });
+
+test("V5: manager device registry cannot duplicate Owner approval or delete Account-first identities",()=>{
+ const center=read("app/apps/boi-ech/boi-ech-control-center.tsx");
+ const route=read("app/api/apps/boi-ech/access/route.ts");
+ assert.match(center,/canManage=\{access\.role === "owner" && selected\.personRole === "manager" && process\.env\.NEXT_PUBLIC_BOI_ECH_SINGLE_REVIEW !== "true"\}/);
+ assert.match(center,/canDelete=\{access\.role === "owner" && selected\.personRole === "manager" && process\.env\.NEXT_PUBLIC_BOI_ECH_SINGLE_REVIEW !== "true"\}/);
+ assert.match(route,/BOI_MANAGER_LEGACY_GRANT_SUPERSEDED/);
+ assert.match(route,/operation==="manager-access" && process\.env\.NEXT_PUBLIC_BOI_ECH_SINGLE_REVIEW==="true"/);
+});
