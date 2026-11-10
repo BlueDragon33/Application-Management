@@ -66,6 +66,13 @@ export async function POST(request: Request) {
     const proofDeviceId=typeof input.controlDeviceId==="string"?input.controlDeviceId:undefined;
     const actor=await verifyControlProof(proofDeviceId?{...input,deviceId:proofDeviceId}:input);
     if(actor.role!=="owner") return json({error:"Chỉ Owner được quản lý thời hạn tài khoản.",code:"OWNER_REQUIRED"},403);
+    // This is intentionally AFTER Owner authentication; don't disclose account
+    // workflow/version semantics to unauthenticated visitors.
+    if (process.env.NEXT_PUBLIC_BOI_ECH_SINGLE_REVIEW === "true" &&
+      (action==="manager-review-final" || action==="manager-review-changes")) {
+      return json({error:"Chỉ một lần duyệt; sau khi được duyệt, người đăng ký tự hoàn thiện hồ sơ.",
+        code:"BOI_REVIEW_SUPERSEDED"},409);
+    }
     const bridge=await issueBoiBrowserBridge(actor.email,actor.role);
     const cmd:Record<string,unknown>=action==="manager-inbox"
       ?{action:"manager-inbox-v2",after:input.after??"",limit:40}
