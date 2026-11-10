@@ -25,3 +25,11 @@ test("R2 Owner UI retains MFA, readback and scoped learner-manager separation",(
  assert.match(route,/verifyControlProof/);
  assert.match(route,/expectedRevision/);
 });
+
+
+test("R2: Windows offline APP forwards matched one-review flag only into local serve Worker",()=>{
+ const vite=read("vite.config.ts");
+ assert.match(vite,/"NEXT_PUBLIC_BOI_ECH_SINGLE_REVIEW"/);
+ assert.match(vite,/if \(command !== "serve"\) return undefined/);
+ assert.match(vite,/const vars = localRuntimeVars\(command\)/);
+});
