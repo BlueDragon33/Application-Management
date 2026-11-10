@@ -74,10 +74,20 @@ export async function POST(request: Request) {
     }
     // This is intentionally AFTER Owner authentication; don't disclose account
     // workflow/version semantics to unauthenticated visitors.
-    if (process.env.NEXT_PUBLIC_BOI_ECH_SINGLE_REVIEW === "true" &&
-      (action==="manager-review-final" || action==="manager-review-changes")) {
-      return json({error:"Chỉ một lần duyệt; sau khi được duyệt, người đăng ký tự hoàn thiện hồ sơ.",
+    if(action==="manager-review-final" || action==="manager-review-changes") {
+      // Retired V2 actions are never revived by a missing compile-time flag.
+      return json({error:"Quy trình Bơi Ếch chỉ có một lần duyệt Owner. Hồ sơ cũ cần đối chiếu, không phê duyệt vòng hai.",
         code:"BOI_REVIEW_SUPERSEDED"},409);
+    }
+    if((action==="issue-manager-invite" || action==="manager-review-first")
+      && process.env.NEXT_PUBLIC_BOI_ECH_SINGLE_REVIEW !== "true") {
+      return json({error:"Chưa xác minh chế độ duyệt một lần trên APP. Không phát lệnh mời hoặc duyệt theo quy trình cũ.",
+        code:"BOI_SINGLE_REVIEW_UNVERIFIED"},409);
+    }
+    if(action==="manager-review-first"
+      && (!validId(input.accountId)||!Number.isSafeInteger(input.expectedRevision)
+        ||Number(input.expectedRevision)<1)) {
+      return json({error:"Hồ sơ hoặc revision không hợp lệ.",code:"BOI_MANAGER_REVIEW_INPUT"},400);
     }
     const bridge=await issueBoiBrowserBridge(actor.email,actor.role);
     if(action==="manager-delete-local" && !["127.0.0.1","localhost"].includes(new URL(bridge.baseUrl).hostname))
