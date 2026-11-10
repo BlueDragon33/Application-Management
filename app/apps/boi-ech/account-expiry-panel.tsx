@@ -23,7 +23,7 @@ function localInput(value:string) {
  const fields=Object.fromEntries(parts.filter(p=>p.type!=="literal").map(p=>[p.type,p.value]));
  return `${fields.year}-${fields.month}-${fields.day}T${fields.hour}:${fields.minute}`;
 }
-export default function AccountExpiryPanel(){
+export default function AccountExpiryPanel({section="accounts"}:{section?:"accounts"|"oversight"|"policies"}){
  const [accounts,setAccounts]=useState<BoiAccountDurationRecord[]>([]);
  const [managerInbox,setManagerInbox]=useState<BoiManagerInboxRecord[]|null>(null);
  const [managerError,setManagerError]=useState(""),[managerLoading,setManagerLoading]=useState(false);
@@ -40,7 +40,9 @@ export default function AccountExpiryPanel(){
  const [accountsVerified,setAccountsVerified]=useState(false);
  const [observedNow,setObservedNow]=useState(()=>Date.now());
  const current=accounts.find(a=>a.accountId===selected)??null;
- const displayed=useMemo(()=>accounts.filter(a=>[a.accountId,a.name,a.role].join(" ").toLowerCase().includes(search.toLowerCase())).slice(0,100),[accounts,search]);
+ const displayed=useMemo(()=>accounts.filter(a=>(section==="oversight" ? ["teacher","learner"].includes(a.role)
+  : section==="policies" ? a.role==="manager" : false)
+  && [a.accountId,a.name,a.role].join(" ").toLowerCase().includes(search.toLowerCase())).slice(0,100),[accounts,search,section]);
  async function refreshManagerInbox(after=""){
   setManagerLoading(true);setManagerError("");
   try{
@@ -97,15 +99,15 @@ export default function AccountExpiryPanel(){
    setError(e instanceof Error?e.message:"Không tải được tài khoản.");
   }finally{setLoading(false);}
  }
- useEffect(()=>{queueMicrotask(()=>{void refresh();});},[]);
- useEffect(()=>{queueMicrotask(()=>{void refreshManagerInbox();});},[]);
+ useEffect(()=>{if(section!=="accounts")queueMicrotask(()=>{void refresh();});},[section]);
+ useEffect(()=>{if(section==="accounts")queueMicrotask(()=>{void refreshManagerInbox();});},[section]);
  const currentExpiry=current?.entitlement?.expiresAt ?? null;
  useEffect(()=>{
   const next=currentExpiry?localInput(currentExpiry):"";
   queueMicrotask(()=>setExpiration(next));
  },[selected,currentExpiry]);
  async function commitAccount(operation:"set-expiry"|"suspend"|"resume"){
-  if(!current?.entitlement||busy)return;
+  if(!current?.entitlement||current.role!=="manager"||busy)return;
   if(reason.trim().length<5){setError("Nhập lý do dài ít nhất 5 ký tự.");return;}
   const parsed=Date.parse(expiration?expiration+":00+03:00":"");
   const iso=operation==="set-expiry"&&Number.isFinite(parsed)?new Date(parsed).toISOString():"";
@@ -131,7 +133,11 @@ export default function AccountExpiryPanel(){
   }catch(e){setError(e instanceof Error?e.message:"Không cập nhật được mặc định.");}
   finally{setBusy(false);}
  }
- return <section aria-label="Hạn tài khoản Bơi ếch AI" style={{border:"1px solid currentColor",borderRadius:12,padding:16,margin:"16px 0",display:"grid",gap:12}}>
+ return <section aria-label="Hồ sơ tài khoản Bơi ếch AI" className="boi-account-panel" data-section={section}>
+  {section==="accounts"?<div className="boi-account-header"><span>OWNER · DUYỆT CÁN BỘ QUẢN LÝ</span><h2>Hàng chờ cán bộ</h2><p>Chỉ Owner mời và phê duyệt cán bộ quản lý; giảng viên và học viên do cán bộ quản lý xử lý tại Bơi Ếch.</p></div>:null}
+  {section==="oversight"?<div className="boi-account-header"><span>GIÁM SÁT · CHỈ ĐỌC</span><h2>Giảng viên & học viên</h2><p>Hiển thị thông tin, vai trò, trạng thái hồ sơ và thời hạn để giám sát. Không duyệt, từ chối, cấp hoặc thu hồi quyền từ đây.</p></div>:null}
+  {section==="policies"?<div className="boi-account-header"><span>OWNER · QUẢN TRỊ CHÍNH SÁCH</span><h2>Thời hạn & chính sách</h2><p>Thiết lập mặc định chung không phải phê duyệt tài khoản. Chỉ điều chỉnh trực tiếp tài khoản cán bộ quản lý tại màn hình này.</p></div>:null}
+  {section==="accounts"?<>
   <details open>
    <summary><strong>Hồ sơ Cán bộ quản lý · Owner duyệt hai vòng</strong></summary>
    <p>Hồ sơ quản lý thuộc Bơi ếch, kiểm soát tập trung từ giao diện Owner này. Mã mời có hiệu lực 24 giờ,
@@ -180,13 +186,14 @@ export default function AccountExpiryPanel(){
    <small>Owner phải xác minh Authenticator trong 30 phút gần nhất để tạo mời hoặc duyệt.
     Hai vòng duyệt sử dụng CAS, nhật ký, đọc lại D1; không cấp quyền tự động.</small>
   </details>
-  <header><h2>Thời hạn tài khoản · Account First V2</h2>
-   <p>Chính sách mặc định 30 ngày từ lần duyệt thứ hai. Hạn tài khoản không phải hạn thiết bị, thanh toán hay API Token Cloudflare.</p></header>
-  {loading?<p role="status">Đang đọc dữ liệu tài khoản từ Bơi ếch…</p>:null}
-  {error?<div role="alert"><strong>Chưa xác minh:</strong> {error} <a href="/__account">Xác minh Authenticator (nếu được yêu cầu)</a></div>:null}
-  {notice?<p role="status">{notice}</p>:null}
-  <button type="button" disabled={busy||loading} onClick={()=>void refresh()}>Đồng bộ từ Bơi ếch</button>
-  {policies.length?<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:12}}>
+  </>:null}
+  {section==="policies"?<header><h2>Thời hạn tài khoản · Account First V2</h2>
+   <p>Chính sách mặc định 30 ngày từ lần duyệt thứ hai. Chỉ thay đổi thời hạn hoặc mặc định; không trực tiếp duyệt giảng viên/học viên.</p></header>:null}
+  {section!=="accounts"&&loading?<p role="status">Đang đọc dữ liệu tài khoản từ Bơi ếch…</p>:null}
+  {section!=="accounts"&&error?<div role="alert"><strong>Chưa xác minh:</strong> {error} <a href="/__account">Xác minh Authenticator (nếu được yêu cầu)</a></div>:null}
+  {section!=="accounts"&&notice?<p role="status">{notice}</p>:null}
+  {section!=="accounts"?<button type="button" className="boi-refresh-inline" disabled={busy||loading} onClick={()=>void refresh()}>↻ Đọc lại tài khoản từ Bơi Ếch</button>:null}
+  {section==="policies"&&policies.length?<div className="boi-duration-policies">
    {policies.map(p=><label key={p.role} style={{display:"grid",gap:6}}>
     <span>{labels[p.role]||p.role} · mặc định</span>
     <input type="number" min={1} max={365} value={roleDays[p.role]??String(p.defaultDays)}
@@ -194,36 +201,50 @@ export default function AccountExpiryPanel(){
     <button disabled={busy} onClick={()=>void commitPolicy(p)}>Lưu mặc định</button>
    </label>)}
   </div>:null}
-  <label style={{display:"grid",gap:6}}>Lý do thay đổi (ghi nhật ký)
+  {section==="policies"?<label className="boi-policy-reason">Lý do thay đổi (ghi nhật ký)
    <input value={reason} maxLength={300} onChange={e=>setReason(e.target.value)}/>
-  </label>
-  <label style={{display:"grid",gap:6}}>Tìm tài khoản / vai trò
-   <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Tên, ID, cán bộ, học viên…"/>
-  </label>
-  {accountsVerified?<p>Đã xác minh và tải {accounts.length} tài khoản. Danh sách hiển thị tối đa 100 kết quả; nhập tìm kiếm để lọc.</p>
-   :<p role="status">Chưa có danh sách tài khoản được xác minh; không suy diễn 0 tài khoản khi kết nối lỗi.</p>}
-  <select size={Math.min(8,Math.max(2,displayed.length))} aria-label="Chọn tài khoản" value={selected}
-   onChange={e=>setSelected(e.target.value)}>
-   <option value="">— Chọn tài khoản —</option>
-   {displayed.map(a=><option key={a.accountId} value={a.accountId}>{a.name||a.accountId.slice(0,14)} · {labels[a.role]||a.role} · {a.entitlement?.active?"Còn hạn":a.entitlement?"Không hoạt động":"Chưa cấp"}</option>)}
-  </select>
-  {current?<div style={{display:"grid",gap:8}}>
-   <strong>{current.name||current.accountId} — {labels[current.role]||current.role}</strong>
-   <small>ID: {current.accountId} · Onboarding: {current.onboardingStage||"chưa có"}</small>
-   <div>Hạn tài khoản: <strong>{moscow(current.entitlement?.expiresAt)}</strong></div>
-   <div>Hạn quyền thiết bị cũ: <strong>{moscow(current.deviceAccessExpiresAt)}</strong> · Thanh toán: {current.paymentStatus??"—"}</div>
-   {current.deviceAccessExpired ? <p role="alert">Quyền thiết bị cũ đã hết hạn. Gia hạn tài khoản không tự gia hạn quyền thiết bị hoặc thanh toán. Kiểm tra tại “Thiết bị & tiến độ”.</p> : null}
-   <div>Trạng thái: {current.entitlement?.state??"Chưa kích hoạt"} · Revision: {current.entitlement?.revision??"—"}</div>
-   {current.entitlement?<><label>Đặt thời hạn mới
-    <input type="datetime-local" value={expiration} onChange={e=>setExpiration(e.target.value)}/>
-   </label><div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-    <button disabled={busy} onClick={()=>void commitAccount("set-expiry")}>Lưu ngày hết hạn</button>
-    <button disabled={busy} onClick={()=>{setExpiration(localInput(new Date(Date.now()+30*86400000).toISOString()));}}>+30 ngày từ hôm nay</button>
-    {current.entitlement.state==="active"
-     ?<button disabled={busy} onClick={()=>void commitAccount("suspend")}>Tạm khóa</button>
-     :<button disabled={busy||Date.parse(current.entitlement.expiresAt)<=observedNow} onClick={()=>void commitAccount("resume")}>Khôi phục</button>}
-   </div></>:<p>Tài khoản chưa qua lần duyệt thứ hai hoặc đang được giữ để đối chiếu dữ liệu cũ. Không cấp quyền tự động.</p>}
+  </label>:null}
+  {section!=="accounts"?<label className="boi-policy-search">Tìm tài khoản / vai trò
+   <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Tên, ID, vai trò…"/>
+  </label>:null}
+  {section!=="accounts"?(accountsVerified?<p className="boi-verified-note">Đã xác minh {accounts.length} tài khoản; hiển thị tối đa 100 hồ sơ phù hợp bộ lọc.</p>
+   :<p role="status">Chưa có danh sách tài khoản được xác minh; không suy diễn 0 tài khoản khi kết nối lỗi.</p>):null}
+
+  {section==="oversight"&&accountsVerified?<div className="boi-owner-table-scroll">
+    <table className="boi-owner-table"><thead><tr><th>Tên tài khoản</th><th>Vai trò</th><th>Hồ sơ</th><th>Trạng thái quyền</th><th>Thời hạn</th></tr></thead>
+      <tbody>{displayed.map(a=><tr key={a.accountId}>
+        <td><strong>{a.name||"Chưa khai báo"}</strong><small>{a.accountId.slice(0,20)}…</small></td>
+        <td>{labels[a.role]||a.role}</td><td>{a.onboardingStage||"Chưa xác minh trạng thái"}</td>
+        <td>{a.entitlement?.state||"Chưa kích hoạt"}</td><td>{moscow(a.entitlement?.expiresAt)}</td>
+      </tr>)}</tbody></table>
+    {!displayed.length?<p>Không có giảng viên/học viên phù hợp trong danh sách đã xác minh.</p>:null}
+    <p className="boi-oversight-note" role="status">Giám sát chỉ đọc · Quyền duyệt giảng viên/học viên thuộc cán bộ quản lý đã được cấp scope tại Bơi Ếch.</p>
   </div>:null}
-  <small>Chỉ Owner có quyền sửa. Mọi thay đổi cần CAS, nhật ký và đọc lại từ Bơi ếch. Dữ liệu học tập không bị xóa khi hết hạn.</small>
+  {section==="policies"&&accountsVerified?<div className="boi-manager-expiry">
+    <h3>Thời hạn cá nhân · Chỉ cán bộ quản lý</h3>
+    <select size={Math.min(8,Math.max(2,displayed.length+1))} aria-label="Chọn tài khoản cán bộ" value={selected}
+      onChange={e=>setSelected(e.target.value)}>
+      <option value="">— Chọn cán bộ quản lý —</option>
+      {displayed.map(a=><option key={a.accountId} value={a.accountId}>{a.name||a.accountId.slice(0,14)} · {a.entitlement?.active?"Còn hạn":a.entitlement?"Không hoạt động":"Chưa cấp"}</option>)}
+    </select>
+    {current?.role==="manager"?<div className="boi-manager-expiry-detail">
+      <strong>{current.name||current.accountId} — Cán bộ quản lý</strong>
+      <small>ID: {current.accountId} · Hồ sơ: {current.onboardingStage||"Chưa có"}</small>
+      <div>Hạn tài khoản: <strong>{moscow(current.entitlement?.expiresAt)}</strong></div>
+      <div>Hạn thiết bị cũ: {moscow(current.deviceAccessExpiresAt)} · Thanh toán thiết bị: {current.paymentStatus??"—"}</div>
+      <div>Trạng thái: {current.entitlement?.state??"Chưa kích hoạt"} · Revision: {current.entitlement?.revision??"—"}</div>
+      {current.entitlement?<><label>Đặt thời hạn mới
+        <input type="datetime-local" value={expiration} onChange={e=>setExpiration(e.target.value)}/>
+      </label><div className="boi-expiry-actions">
+        <button type="button" disabled={busy} onClick={()=>void commitAccount("set-expiry")}>Lưu ngày hết hạn</button>
+        <button type="button" disabled={busy} onClick={()=>setExpiration(localInput(new Date(Date.now()+30*86400000).toISOString()))}>+30 ngày từ hôm nay</button>
+        {current.entitlement.state==="active"
+          ?<button type="button" disabled={busy} onClick={()=>void commitAccount("suspend")}>Tạm khóa cán bộ</button>
+          :<button type="button" disabled={busy||Date.parse(current.entitlement.expiresAt)<=observedNow} onClick={()=>void commitAccount("resume")}>Khôi phục cán bộ</button>}
+      </div></>:<p>Chưa duyệt vòng hai; chưa thể cấp thời hạn.</p>}
+    </div>:null}
+  </div>:null}
+  {section==="policies"?<small>Thao tác Owner với chính sách/mốc thời hạn phải có CAS, nhật ký và đọc lại Bơi Ếch. Không cấp quyền giảng viên/học viên tại màn hình này.</small>:null}
+  {section==="accounts"?<p className="boi-oversight-note">Giảng viên/học viên được cán bộ quản lý phê duyệt tại Bơi Ếch theo phạm vi; Owner chỉ giám sát dữ liệu.</p>:null}
  </section>;
 }
