@@ -80,7 +80,8 @@ test("Owner panel shows manager requests inside existing account expiry panel, n
  const source=fs.readFileSync("app/apps/boi-ech/account-expiry-panel.tsx","utf8");
  const base=fs.readFileSync("app/apps/boi-ech/boi-ech-control-center.tsx","utf8");
  assert.match(source,/loadBoiManagerInbox/);
- assert.match(source,/Owner duyệt hai vòng/);
+ assert.match(source,/Owner duyệt một lần/);
+ assert.doesNotMatch(source,/Owner duyệt hai vòng|Duyệt vòng 2 — kích hoạt/);
  assert.match(base,/tab==="accounts" && access.role==="owner"/);
  assert.match(base,/<AccountExpiryPanel section="accounts"/);
  assert.match(base,/<AccountExpiryPanel section="oversight"/);
