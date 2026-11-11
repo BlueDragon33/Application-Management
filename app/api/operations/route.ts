@@ -1,7 +1,7 @@
 import { resolveAutomationChange, stageAutomationChange } from "../../automation-policy-changes.server";
 import { applicationRegistry, type ApplicationConfig } from "../../application-registry";
 import { verifyControlProof, type ControlDeviceState } from "../../control-device.server";
-import { UpstreamError, issueBoiBrowserBridge } from "../../boi-ech.server";
+import { UpstreamError, issueBoiBrowserBridge, readBoiDeviceRegistry } from "../../boi-ech.server";
 import { issueHealthBrowserBridge, issueHealthWebLaunch } from "../../health-care.server";
 import { issueRuLifeBrowserBridge } from "../../ru-life.server";
 import { issueBaumanBrowserBridge } from "../../bauman.server";
@@ -46,6 +46,7 @@ type ClientDevice = {
   canUnblock: boolean;
   canEditPermission: boolean;
   canManageAccess?: boolean;
+  readOnly?: true;
   editEnabled: boolean;
   registryInstanceId?: string | null;
 };
@@ -75,6 +76,7 @@ type ClientSummary = {
   note: string;
   directWebAccess: boolean;
   remoteAdminReady?: boolean;
+  deviceRegistryReadOnly?: boolean;
   contractConnected: boolean;
   runtimeConnected: boolean;
   issueCode?: string;
@@ -398,9 +400,36 @@ function workFromDevice(device: ClientDevice): WorkItem | null {
 async function loadBoi(actor: ControlDeviceState) {
   const config = app("boi-ech");
   const bridge = await issueBoiBrowserBridge(actor.email, actor.role);
+  if (actor.role === "owner") {
+    try {
+      const registry = await readBoiDeviceRegistry(bridge);
+      const devices = registry.devices.map(device => ({ ...deviceFrom(
+        config.id, config.shortName, config.href, { ...device, deviceCode: device.deviceId.slice(0, 16) },
+        { typeKey: "deviceType", userKeys: [] },
+      ), readOnly: true as const }));
+      return {
+        config,
+        devices,
+        webHref: bridge.baseUrl,
+        managedWebLaunch: false,
+        hasOperationalData: false,
+        remoteAdminReady: false,
+        deviceRegistryReadOnly: true,
+        contractConnected: true,
+        contractReadiness: "ready",
+        controlChannel: "contract-observe",
+        managementMode: "observe-only",
+        controlNote: "Liên kết thiết bị Account-first V2 · chỉ đọc.",
+      };
+    } catch (error) {
+      const code = error instanceof UpstreamError ? record(error.payload).code : null;
+      if (code !== "ACCOUNT_V2_REQUIRED" && code !== "BOI_DEVICE_REGISTRY_NOT_IMPLEMENTED") throw error;
+    }
+  }
   let data: UnknownRecord;
   try {
     data = await bridgeReadJson(bridge, "/api/control/overview?activityDays=0");
+    if (!Array.isArray(data.devices)) throw new Error("Control API Bơi Ếch chưa trả danh sách thiết bị.");
   } catch (error) {
     const message = error instanceof Error ? error.message : "Control API Bơi ếch không phản hồi.";
     const authMismatch = /HTTP_(?:401|403)\b|unauthori[sz]ed|forbidden|invalid[ _-]?(?:token|signature)|signature.*invalid|token.*invalid/i.test(message);
@@ -880,7 +909,8 @@ async function buildBootstrap(actor: ControlDeviceState) {
         ? `${config.contractNote} ${String(result.value.controlNote || "")}`.trim()
         : config.contractNote;
 
-    const note = dynamic
+    const readOnlyRegistry = "deviceRegistryReadOnly" in result.value && result.value.deviceRegistryReadOnly === true;
+    const note = dynamic && !readOnlyRegistry
       ? `${legacyNote} Adapter legacy đang làm fallback trong khi Universal Contract chuyển đổi: ${dynamic.note}`
       : legacyNote;
 
@@ -916,15 +946,18 @@ async function buildBootstrap(actor: ControlDeviceState) {
     if ("contentReviewReady" in result.value) currentSummary.contentReviewReady = Boolean(result.value.contentReviewReady);
     if ("subclients" in result.value && Array.isArray(result.value.subclients)) currentSummary.subclients = result.value.subclients;
     if ("subclientInventoryLive" in result.value) currentSummary.subclientInventoryLive = Boolean(result.value.subclientInventoryLive);
+    if (readOnlyRegistry) currentSummary.deviceRegistryReadOnly = true;
     summaries.push(currentSummary);
-    for (const device of result.value.devices) {
-      const item = workFromDevice(device);
-      if (item) workItems.push(item);
+    if (!readOnlyRegistry) {
+      for (const device of result.value.devices) {
+        const item = workFromDevice(device);
+        if (item) workItems.push(item);
+      }
     }
 
     if (dynamic) {
       handledDynamicIds.add(result.id);
-      if (dynamic.managementMode !== "local-first" && dynamic.managementMode !== "metadata-only") {
+      if (!readOnlyRegistry && dynamic.managementMode !== "local-first" && dynamic.managementMode !== "metadata-only") {
         workItems.push({
           id: `${config.id}:contract-migration`,
           appId: config.id,
@@ -972,7 +1005,7 @@ async function buildBootstrap(actor: ControlDeviceState) {
     ),
     metrics: {
       applications: applicationRegistry.length + dynamicConfigs.filter((item) => !applicationRegistry.some((existing) => existing.id === item.id)).length,
-      pendingDevices: devices.filter((device) => device.status === "pending").length,
+      pendingDevices: devices.filter((device) => device.readOnly !== true && device.status === "pending").length,
       alerts: visibleWorkItems.filter((item) => item.priority === "high").length,
       workItems: visibleWorkItems.length,
     },

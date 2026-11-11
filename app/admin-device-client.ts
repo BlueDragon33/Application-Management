@@ -136,6 +136,7 @@ export type OperationsDevice = {
   canRemove: boolean;
   canUnblock?: boolean;
   canManageAccess?: boolean;
+  readOnly?: true;
   canEditPermission?: boolean;
   editEnabled?: boolean;
   registryInstanceId?: string | null;
@@ -485,6 +486,9 @@ export async function connectOperationsDashboard() {
   const { credential, access } = await approvedSession();
   if (access.status !== "approved") return { access, bootstrap: null as OperationsBootstrap | null };
   const bootstrap = await secureApi("/api/operations", credential, access, { action: "bootstrap" }) as unknown as OperationsBootstrap;
+  // Account-first bindings are available in the Owner's Bơi Ếch registry.
+  // Keep them out of the Central dashboard's actionable inventory and cache.
+  bootstrap.devices = bootstrap.devices.filter(device => device.readOnly !== true);
   cacheOperations(bootstrap);
   return { access, bootstrap };
 }

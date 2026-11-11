@@ -1,4 +1,5 @@
 import { resolveClientBridge } from "./client-origin.server";
+import { parseBoiDeviceRegistry } from "./boi-device-registry";
 import type { ControlRole } from "./control-device.server";
 
 export class UpstreamError extends Error {
@@ -102,7 +103,7 @@ async function signature(secret: string, value: string) {
   return base64Url(new Uint8Array(signed));
 }
 
-export async function issueBoiBrowserBridge(actor: string, role: ControlRole) {
+export async function issueBoiBrowserBridge(actor: string, role: ControlRole, scope?: "account-owner") {
   const { baseUrl, secret, source } = await configuration();
   const expiresAt = Date.now() + 5 * 60 * 1000;
   const payload = base64Url(new TextEncoder().encode(JSON.stringify({
@@ -110,6 +111,7 @@ export async function issueBoiBrowserBridge(actor: string, role: ControlRole) {
     aud: "boi-ech-control",
     actor: actor.trim().toLowerCase().slice(0, 160),
     role,
+    ...(scope ? { scope } : {}),
     exp: expiresAt,
   })));
   const signedInput = `v1.${payload}`;
@@ -119,4 +121,35 @@ export async function issueBoiBrowserBridge(actor: string, role: ControlRole) {
     expiresAt,
     originSource: source,
   };
+}
+
+export async function readBoiDeviceRegistry(bridge: Awaited<ReturnType<typeof issueBoiBrowserBridge>>) {
+  let response: Response;
+  try {
+    response = await fetch(`${bridge.baseUrl}/api/control/v2/device-registry`, {
+      method: "GET",
+      headers: { authorization: `Bearer ${bridge.token}` },
+      cache: "no-store",
+      redirect: "manual",
+      signal: AbortSignal.timeout(4_500),
+    });
+  } catch {
+    throw new UpstreamError("Chưa kết nối được danh sách thiết bị Bơi Ếch.", 503, { code: "BOI_DEVICE_REGISTRY_UNAVAILABLE" });
+  }
+  const data = await response.json().catch(() => null);
+  if (response.status === 409 && data && typeof data === "object" && "code" in data && data.code === "ACCOUNT_V2_REQUIRED") {
+    throw new UpstreamError("Bơi Ếch chưa bật Account-first V2.", 409, { code: "ACCOUNT_V2_REQUIRED" });
+  }
+  if (response.status === 404) {
+    throw new UpstreamError("Bơi Ếch chưa cung cấp danh sách liên kết V2.", 404, { code: "BOI_DEVICE_REGISTRY_NOT_IMPLEMENTED" });
+  }
+  if (response.status !== 200) {
+    throw new UpstreamError("Bơi Ếch từ chối hoặc chưa trả được danh sách thiết bị.", 502, {
+      code: "BOI_DEVICE_REGISTRY_UPSTREAM_FAILED",
+      upstreamStatus: response.status,
+    });
+  }
+  const registry = parseBoiDeviceRegistry(data);
+  if (!registry) throw new UpstreamError("Danh sách thiết bị Bơi Ếch sai hợp đồng.", 502, { code: "BOI_DEVICE_REGISTRY_CONTRACT_MISMATCH" });
+  return registry;
 }

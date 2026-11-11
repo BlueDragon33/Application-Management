@@ -93,3 +93,49 @@ test("upstream HTTP redirect is refused before any impersonated V2 aggregate can
   assert.equal(f.requests.length, 1);
   assert.equal(f.requests[0].init.redirect, "manual", "never auto-follow another origin");
 });
+
+test("Owner registry uses the signed BOI read endpoint and fails closed on an invalid upstream response", async () => {
+  const deviceId = "d".repeat(64);
+  const registry = { ok: true, application: "boi-ech", contract: "boi-device-registry.v2", readOnly: true,
+    devices: [{ deviceId, status: "pending" }], counts: { total: 1 } };
+  const requestCalls = [];
+  let upstream = Response.json(registry);
+  const route = loadTs("app/api/apps/boi-ech/access/route.ts", {
+    "./client-origin.server": {
+      resolveClientBridge: async () => ({ baseUrl: "https://boi.example.test", secret: "fixture-bridge-secret-for-device-readback", source: "fixture" }),
+    },
+    "../../../../control-device.server": {
+      verifyControlProof: async input => ({ role: input.testRole, email: "owner@example.test" }),
+      controlErrorResponse: () => Response.json({}, { status: 500 }),
+    },
+  }, {
+    fetch: async (url, init) => {
+      requestCalls.push({ url, init });
+      if (url.endsWith("/api/control/runtime")) return Response.json({ applicationId: "boi-ech",
+        repository: "BlueDragon33/BOIECH_AI", runtime: "boi-ech", controlContract: "application-management", controlGeneration: 2, sourceTrack: "main" });
+      return upstream.clone();
+    },
+  });
+  const read = testRole => route.POST(new Request("https://management.example.test/api/apps/boi-ech/access", {
+    method: "POST", body: JSON.stringify({ action: "device-registry", testRole }),
+  }));
+  assert.equal((await read("publisher")).status, 403);
+  assert.equal(requestCalls.length, 0);
+  const success = await read("owner");
+  assert.equal(success.status, 200);
+  assert.deepEqual(await success.json(), registry);
+  assert.equal(requestCalls[1].url, "https://boi.example.test/api/control/v2/device-registry");
+  assert.equal(requestCalls[1].init.method, "GET");
+  assert.match(requestCalls[1].init.headers.authorization, /^Bearer v1\./);
+  for (const candidate of [
+    Response.json({ ...registry, counts: { total: 0 } }),
+    Response.json({ ...registry, devices: [{ deviceId, status: "pending", accountId: "PRIVATE" }] }),
+    Response.json({ code: "CONTROL_TICKET_FORBIDDEN" }, { status: 403 }),
+    new Response(null, { status: 302 }),
+  ]) {
+    upstream = candidate;
+    const rejected = await read("owner");
+    assert.equal(rejected.status, 502);
+    assert.equal((await rejected.json()).counts, undefined);
+  }
+});

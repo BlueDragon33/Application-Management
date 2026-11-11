@@ -1,4 +1,4 @@
-import { issueBoiBrowserBridge } from "../../../../boi-ech.server";
+import { issueBoiBrowserBridge, readBoiDeviceRegistry, UpstreamError } from "../../../../boi-ech.server";
 import { controlErrorResponse, verifyControlProof } from "../../../../control-device.server";
 
 export const dynamic = "force-dynamic";
@@ -182,12 +182,17 @@ export async function POST(request: Request) {
     const controlProofPayload = controlDeviceId ? { ...payload, deviceId: controlDeviceId } : payload;
     const actor = await verifyControlProof(controlProofPayload, undefined, previewRequest);
     const action = text(payload.action) || "bootstrap";
+    if (action === "device-registry" && actor.role !== "owner") {
+      return json({ error: "Chỉ Owner được xem liên kết thiết bị Bơi Ếch.", code: "OWNER_REQUIRED" }, 403);
+    }
     // The V2 central summary is deliberately NOT the private Owner account-list
     // API, nor the obsolete device/payment registry.
     if (action === "bootstrap" && actor.role !== "owner" && actor.role !== "publisher") {
       return json({ error: "Chỉ Owner/Publisher được xem tổng hợp tài khoản Bơi Ếch.", code: "ACCOUNT_SUMMARY_FORBIDDEN" }, 403);
     }
     const bridge = await issueBoiBrowserBridge(actor.email, actor.role);
+
+    if (action === "device-registry") return json(await readBoiDeviceRegistry(bridge));
 
     if (action === "bootstrap") {
       const result = await bridgeJson(bridge, "/api/control/v2/account-summary");
@@ -314,6 +319,10 @@ export async function POST(request: Request) {
 
     return json({ error: "Thao tác thanh toán/quyền Bơi ếch không hợp lệ.", code: "INVALID_ACCESS_ACTION" }, 400);
   } catch (error) {
+    if (error instanceof UpstreamError) {
+      const { code, upstreamStatus } = record(error.payload);
+      return json({ error: error.message, code, upstreamStatus }, error.status);
+    }
     return controlErrorResponse(error);
   }
 }
