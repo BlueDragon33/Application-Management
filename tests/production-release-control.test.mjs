@@ -70,17 +70,34 @@ test("code-only release preserves actual live client variables and rejects unkno
 
 test("shared-device release smoke fails on Central bridge failure and mismatched owning-app devices", async () => {
   const { requireCentralDeviceReadback } = await gate();
-  const device = { deviceId: "c".repeat(64), status: "approved", appId: "boi-ech", userLabel: "PRIVATE_NEVER_LOG" };
-  const summary = { appId: "boi-ech", connection: "connected", remoteAdminReady: true, webHref: "https://boi-ech.boiech-ai.workers.dev" };
+  const device = { deviceId: "c".repeat(64), status: "approved", appId: "boi-ech", readOnly: true, userLabel: "PRIVATE_NEVER_LOG" };
+  const summary = { appId: "boi-ech", connection: "connected", remoteAdminReady: false, deviceRegistryReadOnly: true, webHref: "https://boi-ech.boiech-ai.workers.dev" };
   const operations = { actor: { role: "owner" }, summaries: [summary], devices: [device] };
-  const access = { ok: true, application: "boi-ech", devices: [device], counts: { total: 1 } };
+  const access = { ok: true, application: "boi-ech", contract: "boi-device-registry.v2", readOnly: true, devices: [{ deviceId: device.deviceId, status: device.status }], counts: { total: 1 } };
   const result = requireCentralDeviceReadback(operations, access);
   assert.deepEqual(result, { centralBoiConnected: true, accessReadbackReady: true, deviceCount: 1, humanOwnerAcceptance: "not-performed" });
   assert.doesNotMatch(JSON.stringify(result), /PRIVATE_NEVER_LOG|cccccccc/);
-  for (const changed of [{ summaries: [{ ...summary, connection: "unavailable" }] }, { summaries: [{ ...summary, remoteAdminReady: false }] }, { summaries: [{ ...summary, webHref: "https://other.example.test" }] }, { devices: [] }, { devices: [device, device] }]) {
+  for (const changed of [{ summaries: [{ ...summary, connection: "unavailable" }] }, { summaries: [{ ...summary, remoteAdminReady: true }] }, { summaries: [{ ...summary, deviceRegistryReadOnly: false }] }, { summaries: [{ ...summary, webHref: "https://other.example.test" }] }, { devices: [] }, { devices: [device, device] }]) {
     assert.throws(() => requireCentralDeviceReadback({ ...operations, ...changed }, access));
   }
-  for (const changed of [{ ok: false }, { devices: [{ ...device, deviceId: "d".repeat(64) }] }, { devices: [{ ...device, status: "blocked" }] }, { counts: { total: 2 } }]) {
+  for (const changed of [{ ok: false }, { readOnly: false }, { devices: [{ deviceId: "d".repeat(64), status: "approved" }] }, { devices: [{ deviceId: device.deviceId, status: "blocked" }] }, { counts: { total: 2 } }]) {
     assert.throws(() => requireCentralDeviceReadback(operations, { ...access, ...changed }));
+  }
+  const empty = { ...operations, devices: [] };
+  assert.equal(requireCentralDeviceReadback(empty, { ...access, devices: [], counts: { total: 0 } }).deviceCount, 0);
+  assert.throws(() => requireCentralDeviceReadback(empty, { ok: true, application: "boi-ech", contract: "boi-account-summary.v2", devices: [], counts: null }));
+  assert.throws(() => requireCentralDeviceReadback({ ...operations, devices: [{ ...device, canApprove: true }] }, access));
+  assert.throws(() => requireCentralDeviceReadback(operations, { ...access, devices: [device] }));
+});
+
+test("the account summary smoke independently enforces a verified aggregate-only response", async () => {
+  const { requireBoiAccountSummaryReadback } = await gate();
+  const accountSummary = { ok: true, application: "boi-ech", contract: "boi-account-summary.v2", verified: true,
+    summary: { totalAccounts: 1, pending: 1, active: 0, suspended: 0, expired: 0, unverified: 0 },
+    devices: [], counts: null, generatedAt: "2026-11-11T00:00:00Z" };
+  assert.doesNotThrow(() => requireBoiAccountSummaryReadback(accountSummary));
+  for (const invalid of [{ verified: false }, { devices: [{}] }, { counts: { total: 0 } },
+    { summary: { ...accountSummary.summary, pending: 2 } }, { summary: { ...accountSummary.summary, name: "PRIVATE" } }]) {
+    assert.throws(() => requireBoiAccountSummaryReadback({ ...accountSummary, ...invalid }), /CENTRAL_BOI_ACCOUNT_SUMMARY_INVALID/);
   }
 });

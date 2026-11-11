@@ -144,6 +144,7 @@ jobs:
       - name: Build with Cloudflare production bindings
         env:
           CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH: wrangler.production.jsonc
+          NEXT_PUBLIC_BOI_ECH_SINGLE_REVIEW: "true"
         run: npm run build
 
       - name: Verify generated production artifact

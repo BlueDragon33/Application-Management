@@ -10,6 +10,7 @@ import AccountExpiryPanel from "./account-expiry-panel";
 import BoiOwnerOverview from "./boi-owner-overview";
 import AiControlCenter, { type AiControlData } from "../../ai-control-center";
 import { csvCell } from "../../report-exports";
+import { parseBoiDeviceRegistry, type BoiDeviceRegistry } from "../../boi-device-registry";
 
 type ControlRole = "viewer" | "reviewer" | "publisher" | "owner";
 type DeviceStatus = "pending" | "approved" | "blocked";
@@ -123,6 +124,7 @@ type Dashboard = {
   boiBridge: BoiBridge;
   automation?: AccessAutomation;
   deletedDevices?: DeletedLearningDevice[];
+  deviceRegistry?: BoiDeviceRegistry;
 };
 type ApiData = Partial<Dashboard> & {
   device?: Access;
@@ -834,8 +836,23 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
     setDashboard(next);
   }
 
-  async function loadBoi(currentDashboard: Dashboard, discoverNew: boolean, quiet = false) {
+  async function loadBoi(currentDashboard: Dashboard, credential: Credential, access: Access, discoverNew: boolean, quiet = false) {
     try {
+      if (access.role === "owner") {
+        try {
+          const result = await secureApi("/api/apps/boi-ech/access", credential, access, { action: "device-registry" });
+          const deviceRegistry = parseBoiDeviceRegistry(result);
+          if (!deviceRegistry) throw new Error("Chưa xác minh được danh sách thiết bị Account-first.");
+          commitDashboard({ ...currentDashboard, deviceRegistry, learningDevices: [], deletedDevices: [], upstreamError: null });
+          setSelected(null);
+          setBoiOnline(true);
+          if (!quiet) setError("");
+          return true;
+        } catch (error) {
+          const code = error instanceof ApiError ? error.data.code : null;
+          if (code !== "ACCOUNT_V2_REQUIRED" && code !== "BOI_DEVICE_REGISTRY_NOT_IMPLEMENTED") throw error;
+        }
+      }
       const currentDevices = dashboardRef.current?.learningDevices ?? currentDashboard.learningDevices;
       // Empty local registry is not proof that the owning Bơi Ếch Control API is online.
       // Revalidate even with zero devices; a missing upstream array is not verified zero.
@@ -858,6 +875,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
         learningDevices: devices,
         automation: upstream.automation ?? currentDashboard.automation,
         deletedDevices: upstream.deletedDevices ?? currentDashboard.deletedDevices,
+        deviceRegistry: undefined,
         upstreamError: null,
       });
       setSelected((current) => current ? devices.find((item) => item.deviceId === current.deviceId) ?? current : null);
@@ -904,9 +922,10 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
         ...fetched,
         learningDevices: previous?.learningDevices ?? fetched.learningDevices,
         deletedDevices: previous?.deletedDevices ?? fetched.deletedDevices,
+        deviceRegistry: previous?.deviceRegistry,
       };
       commitDashboard(next);
-      await loadBoi(next, discoverNew, quiet);
+      await loadBoi(next, currentCredential, currentAccess, discoverNew, quiet);
     } catch (caught) {
       const message=caught instanceof Error ? caught.message : "Không thể tải khu quản trị Bơi ếch.";
       setBoiOnline(false);setError(message);
@@ -995,6 +1014,11 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
 
   function exportDevices() {
     if (!boiOnline || !dashboard || dashboard.upstreamError) return;
+    if (dashboard.deviceRegistry) {
+      const rows = dashboard.deviceRegistry.devices.map(({ deviceId, status }) => [deviceId, status].map(csvCell).join(","));
+      downloadReport("boi-ech-lien-ket-thiet-bi.csv", "\ufeffdeviceId,status\n" + rows.join("\n"), "text/csv;charset=utf-8");
+      return;
+    }
     const rows = visibleDevices.map((device, index) => [
       index + 1,
       device.learnerName ?? "",
@@ -1202,6 +1226,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
   // Registry BE measures devices, not Account-first V2 user identities.
   const devicesVerified = Boolean(online && boiOnline && dashboard && !dashboard.upstreamError);
   const deviceMetric = (n:number) => devicesVerified ? n.toLocaleString("vi-VN") : "—";
+  const deviceRegistry = dashboard?.deviceRegistry;
   const canReviewContent = ["reviewer","publisher","owner"].includes(access.role);
   const activeTheme = adminThemes.find((item) => item.id === appearance.theme) ?? adminThemes[0];
   const activeFont = adminFonts.find((item) => item.id === appearance.font) ?? adminFonts[0];
@@ -1285,7 +1310,24 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
           <tr><td>Học tập, theo dõi cá nhân</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
           </tbody></table></div></section> : null}
 
-        {tab==="reports" ? <section className="boi-console-card boi-reports-workspace"><header><div><span>BÁO CÁO DỮ LIỆU THẬT</span><h2>Thiết bị và tiến độ</h2></div></header>
+        {deviceRegistry && (tab === "devices" || tab === "reports") ? <section className="boi-console-card boi-reports-workspace">
+          <header><div><h2>Liên kết thiết bị Account-first</h2><p>Chỉ đọc · {deviceMetric(deviceRegistry.counts.total)} liên kết</p></div></header>
+          {devicesVerified ? <>
+            <div className="boi-report-actions">
+              <button type="button" onClick={exportDevices}>Xuất CSV đã xác minh</button>
+            </div>
+            {deviceRegistry.counts.total === 0 ? <p>Chưa có thiết bị liên kết.</p> : <div className="boi-owner-table-scroll">
+              <table className="boi-owner-table"><thead><tr><th>Mã liên kết</th><th>Trạng thái</th></tr></thead>
+                <tbody>{deviceRegistry.devices.map(device => <tr key={device.deviceId}>
+                  <td><code title={device.deviceId}>{device.deviceId.slice(0, 16)}</code></td>
+                  <td>{device.status === "approved" ? "Đã tin cậy" : device.status === "blocked" ? "Đã thu hồi" : "Chờ xác nhận"}</td>
+                </tr>)}</tbody>
+              </table>
+            </div>}
+          </> : <p role="status">Chưa xác minh lại được danh sách thiết bị. Hãy cập nhật để thử lại.</p>}
+        </section> : null}
+
+        {tab==="reports" && !deviceRegistry ? <section className="boi-console-card boi-reports-workspace"><header><div><span>BÁO CÁO DỮ LIỆU THẬT</span><h2>Thiết bị và tiến độ</h2></div></header>
           <p>Đây là thống kê thiết bị BE; không lấy số thiết bị để thay thế tổng tài khoản hoặc số yêu cầu chờ duyệt.</p>
           <section className="boi-account-metrics">
             <article><div><small>Tổng thiết bị</small><strong>{deviceMetric(counts.total)}</strong></div></article>
@@ -1297,7 +1339,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
           {!devicesVerified?<p role="status">Chưa xác minh kết nối Bơi Ếch; không xuất báo cáo 0 giả.</p>:null}
         </section> : null}
 
-        {tab === "devices" ? <>
+        {tab === "devices" && !deviceRegistry ? <>
           <section className="summary-grid"><article><span>Tổng thiết bị</span><strong>{deviceMetric(counts.total)}</strong><small>Bơi ếch</small></article><article><span>Online</span><strong>{deviceMetric(counts.active)}</strong><small>Tín hiệu ký số mỗi 60 giây</small></article><article><span>Chờ xử lý</span><strong>{deviceMetric(counts.pending)}</strong><small>Hồ sơ hoặc thanh toán</small></article><article><span>Nhóm trả phí</span><strong>{deviceMetric(counts.paid)}</strong><small>Tài khoản 50.000đ</small></article><article><span>Nhóm miễn phí</span><strong>{deviceMetric(counts.free)}</strong><small>Đã sàng lọc</small></article><article><span>Sửa bản riêng</span><strong>{deviceMetric(counts.personalEdit)}</strong><small>Không cập nhật máy chủ</small></article><article><span>Sắp/đã hết hạn</span><strong>{deviceMetric(counts.expiring + counts.expired)}</strong><small>{deviceMetric(counts.expired)} đã hết hạn</small></article><article><span>Đã khóa</span><strong>{deviceMetric(counts.blocked)}</strong><small>Không thể truy cập</small></article><article><span>Đã loại bỏ</span><strong>{deviceMetric(counts.deleted)}</strong><small>Không thể tự đăng ký lại</small></article></section>
           <section className="operations-inbox"><div><span>Hộp việc cần xử lý</span><strong>Ưu tiên những tài khoản đang chờ quyết định</strong></div><button onClick={() => setFilter("incomplete")}><span>Hồ sơ chưa đủ</span><strong>{deviceMetric(counts.incomplete)}</strong></button><button onClick={() => setFilter("payment")}><span>Ảnh chuyển khoản</span><strong>{deviceMetric(counts.paymentReview)}</strong></button><button onClick={() => setFilter("expired")}><span>Tài khoản hết hạn</span><strong>{deviceMetric(counts.expired)}</strong></button>{["reviewer", "publisher", "owner"].includes(access.role) ? <button onClick={() => setTab("content")}><span>Duyệt nội dung</span><strong>→</strong></button> : null}</section>
           <section className="manual-device-card"><div><span>Nhập mã dự phòng</span><strong>Thiết bị mới được quét khi bấm “Cập nhật thiết bị”; danh sách đang có luôn được giữ cố định.</strong><small><b>BE-…</b> là thiết bị học của Bơi ếch. <b>QT-…</b> thuộc Application Management và không được quản trị tại đây.</small></div><label><input value={manualCode} onChange={(event) => setManualCode(event.target.value.toUpperCase())} onKeyDown={(event) => { if (event.key === "Enter") void locateManualCode(); }} placeholder="BE-1234-5678-9ABC-DEF0" aria-label="Mã thiết bị cần tìm" /><button className="button primary" onClick={() => void locateManualCode()}>Tìm thiết bị</button></label></section>

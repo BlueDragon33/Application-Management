@@ -36,15 +36,25 @@ export function preservedProductionEnvironment(settings) {
 }
 
 export function requireCentralDeviceReadback(operations, access) {
-  const boi = operations?.summaries?.find(item => item.appId === "boi-ech");
-  if (operations?.actor?.role !== "owner" || boi?.connection !== "connected" || boi.remoteAdminReady !== true || boi.webHref !== boiOrigin
-    || !Array.isArray(operations.devices) || access?.ok !== true || access.application !== "boi-ech" || !Array.isArray(access.devices)
-    || access.counts?.total !== access.devices.length) throw new Error("CENTRAL_BOI_READBACK_UNAVAILABLE");
-  const shared = operations.devices.filter(item => item.appId === "boi-ech");
+  const boi = Array.isArray(operations?.summaries) ? operations.summaries.find(item => item?.appId === "boi-ech") : null;
+  if (operations?.actor?.role !== "owner" || boi?.connection !== "connected" || boi.remoteAdminReady !== false
+    || boi.deviceRegistryReadOnly !== true || boi.webHref !== boiOrigin || !Array.isArray(operations.devices)) {
+    throw new Error("CENTRAL_BOI_OPERATIONS_NOT_READY");
+  }
+  if (access?.ok !== true || access.application !== "boi-ech" || access.contract !== "boi-device-registry.v2"
+    || access.readOnly !== true || !Array.isArray(access.devices) || access.counts?.total !== access.devices.length) {
+    throw new Error("CENTRAL_BOI_REGISTRY_NOT_READY");
+  }
+  const shared = operations.devices.filter(item => item?.appId === "boi-ech");
+  if (shared.some(item => item.readOnly !== true || item.canApprove || item.canRemove || item.canUnblock || item.canEditPermission || item.canManageAccess)
+    || access.devices.some(item => !item || Object.keys(item).length !== 2)) {
+    throw new Error("CENTRAL_BOI_REGISTRY_SCOPE_INVALID");
+  }
   const ids = devices => {
     const result = new Map();
     for (const device of devices) {
-      if (!/^[a-f0-9]{64}$/.test(device.deviceId ?? "") || !["pending", "approved", "blocked"].includes(device.status) || result.has(device.deviceId)) throw new Error("CENTRAL_BOI_DEVICE_INVALID");
+      if (typeof device.deviceId !== "string" || !/^[a-f0-9]{64}$/.test(device.deviceId)
+        || !["pending", "approved", "blocked"].includes(device.status) || result.has(device.deviceId)) throw new Error("CENTRAL_BOI_DEVICE_INVALID");
       result.set(device.deviceId, device.status);
     }
     return result;
@@ -52,6 +62,15 @@ export function requireCentralDeviceReadback(operations, access) {
   const left = ids(shared); const right = ids(access.devices);
   if (left.size !== right.size || [...left].some(([id, status]) => right.get(id) !== status)) throw new Error("CENTRAL_BOI_DEVICE_READBACK_MISMATCH");
   return { centralBoiConnected: true, accessReadbackReady: true, deviceCount: left.size, humanOwnerAcceptance: "not-performed" };
+}
+
+export function requireBoiAccountSummaryReadback(data) {
+  const fields = ["totalAccounts", "pending", "active", "suspended", "expired", "unverified"];
+  if (data?.ok !== true || data.application !== "boi-ech" || data.contract !== "boi-account-summary.v2" || data.verified !== true
+    || !Array.isArray(data.devices) || data.devices.length !== 0 || data.counts !== null
+    || !data.summary || Object.keys(data.summary).length !== fields.length
+    || fields.some(key => !Number.isSafeInteger(data.summary[key]) || data.summary[key] < 0 || data.summary[key] > data.summary.totalAccounts)
+    || !Number.isFinite(Date.parse(data.generatedAt))) throw new Error("CENTRAL_BOI_ACCOUNT_SUMMARY_INVALID");
 }
 
 export function requireProductionRelease({ event, actor, confirm, requested, workflow, checkout }) {
@@ -97,19 +116,32 @@ async function main() {
     console.log("Live production variables preserved; no credential write performed.");
   } else if (mode === "smoke-central") {
     if (process.env.APPLICATION_MANAGEMENT_PRODUCTION_ORIGIN !== productionOrigin || !/^[\w-]{43}$/.test(process.env.CATALOG_QA_SESSION_TOKEN ?? "")) throw new Error("CENTRAL_SMOKE_CONFIGURATION_INVALID");
-    const read = async route => {
-      const response = await fetch(productionOrigin + route, { method: "POST", redirect: "error", headers: { origin: productionOrigin, referer: productionOrigin + "/", "sec-fetch-site": "same-origin", "content-type": "application/json", cookie: `__Host-am_prod_session=${process.env.CATALOG_QA_SESSION_TOKEN}` }, body: JSON.stringify({ action: "bootstrap" }), signal: AbortSignal.timeout(90_000) });
-      if (!response.ok) throw new Error("CENTRAL_SMOKE_HTTP_FAILED");
-      return response.json();
+    const read = async (label, route, action) => {
+      const response = await fetch(productionOrigin + route, { method: "POST", redirect: "manual", headers: { origin: productionOrigin, referer: productionOrigin + "/", "sec-fetch-site": "same-origin", "content-type": "application/json", cookie: `__Host-am_prod_session=${process.env.CATALOG_QA_SESSION_TOKEN}` }, body: JSON.stringify({ action }), signal: AbortSignal.timeout(90_000) })
+        .catch(() => { throw new Error(`CENTRAL_BOI_${label}_FETCH_FAILED`); });
+      if (response.status !== 200) throw new Error(`CENTRAL_BOI_${label}_HTTP_${response.status}`);
+      return response.json().catch(() => { throw new Error(`CENTRAL_BOI_${label}_INVALID_JSON`); });
     };
     let result;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        const [operations, access] = await Promise.all([read("/api/operations"), read("/api/apps/boi-ech/access")]);
-        result = requireCentralDeviceReadback(operations, access); break;
-      } catch { if (attempt === 2) throw new Error("CENTRAL_BOI_SMOKE_FAILED"); }
+        const [operations, access, accountSummary] = await Promise.all([
+          read("OPERATIONS", "/api/operations", "bootstrap"),
+          read("REGISTRY", "/api/apps/boi-ech/access", "device-registry"),
+          read("ACCOUNTS", "/api/apps/boi-ech/access", "bootstrap"),
+        ]);
+        result = requireCentralDeviceReadback(operations, access);
+        requireBoiAccountSummaryReadback(accountSummary);
+        break;
+      } catch (error) {
+        if (attempt === 2) {
+          const code = /^CENTRAL_BOI_[A-Z0-9_]+$/.test(error?.message ?? "") ? error.message : "CENTRAL_BOI_UNEXPECTED_ERROR";
+          console.error(`CENTRAL_BOI_SMOKE_FAILED (${code})`);
+          throw new Error("CENTRAL_BOI_SMOKE_FAILED");
+        }
+      }
     }
-    console.log(JSON.stringify(result));
+    console.log(JSON.stringify({ ...result, accountSummaryReadbackReady: true }));
   } else if (mode === "readback") {
     const value = JSON.parse(fs.readFileSync(process.argv[3], "utf8"));
     const baseline = JSON.parse(fs.readFileSync(".sites-runtime/production-inspection/readiness.json", "utf8"));

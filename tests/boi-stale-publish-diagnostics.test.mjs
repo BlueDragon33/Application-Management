@@ -8,7 +8,7 @@ function read(path) {
 
 test("operations preserve Boi stale publish issue codes instead of flattening them into generic connection errors", () => {
   const route = read("app/api/operations/route.ts");
-  assert.match(route, /import \{ UpstreamError, issueBoiBrowserBridge \}/);
+  assert.match(route, /import \{ UpstreamError, issueBoiBrowserBridge, readBoiDeviceRegistry \} from "\.\.\/\.\.\/boi-ech\.server"/);
   assert.match(route, /error instanceof UpstreamError/);
   assert.match(route, /record\(error\.payload\)\.code/);
   assert.match(route, /issueCode\?: string/);

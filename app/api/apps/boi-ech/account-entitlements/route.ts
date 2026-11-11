@@ -106,7 +106,7 @@ export async function POST(request: Request) {
         ||Number(input.expectedRevision)<1)) {
       return json({error:"Hồ sơ hoặc revision không hợp lệ.",code:"BOI_MANAGER_REVIEW_INPUT"},400);
     }
-    const bridge=await issueBoiBrowserBridge(actor.email,actor.role);
+    const bridge=await issueBoiBrowserBridge(actor.email,actor.role,"account-owner");
     if((action==="issue-manager-invite"||action==="manager-review-first")
       && !await boiSingleReviewActive(bridge))
       return json({error:"Bơi Ếch đang chạy chưa xác nhận Account-first V2 duyệt một lần. Không phát lệnh Owner để tránh duyệt nhầm quy trình.",
