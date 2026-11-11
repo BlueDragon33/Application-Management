@@ -871,6 +871,9 @@ function stepUpRequiredResponse() {
       ok: false,
       error: "Hãy xác minh Google Authenticator trước khi thực hiện thao tác nhạy cảm.",
       code: "STEP_UP_REQUIRED",
+      // The Worker rejects this request before routing it to any mutation handler.
+      // An explicit unapplied result is required for a single MFA-safe client retry.
+      applied: false,
       stepUpPath: ACCOUNT_PATH,
       stepUpTtlSeconds: STEP_UP_TTL_SECONDS,
     },
@@ -901,11 +904,13 @@ export async function productionStepUpGate(
     payload = await request.clone().json().catch(() => ({})) as Record<string, unknown>;
   }
 
-  // Owner-issued invitations and manager approvals MUST have enrolled, freshly
-  // verified MFA; these sensitive grants never inherit the legacy no-MFA fallback.
+  // Every Owner account/manager mutation requires enrolled, recent 30-minute
+  // TOTP—not only first approval. Production must fail closed even for
+  // clients that bypass the visible Owner Console.
   if(pathname==="/api/apps/boi-ech/account-entitlements"
     && new Set(["issue-manager-invite","manager-review-first",
-      "manager-review-final","manager-review-changes"]).has(text(payload.action))
+      "manager-review-final","manager-review-changes",
+      "manager-delete-local","set-account","set-policy"]).has(text(payload.action))
     && (!state.enabled || !stepUpFresh(identity))) return stepUpRequiredResponse();
   if (!state.enabled || stepUpFresh(identity)) return null;
   return sensitiveProductionMutation(pathname, payload) ? stepUpRequiredResponse() : null;

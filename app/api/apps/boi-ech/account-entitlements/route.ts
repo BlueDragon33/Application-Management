@@ -54,6 +54,23 @@ async function upstream(bridge: Awaited<ReturnType<typeof issueBoiBrowserBridge>
     return {status:controller.signal.aborted?504:502,data:{error:"Không đọc được quyền tài khoản từ Bơi ếch."}};
   } finally {clearTimeout(timer);}
 }
+/**
+ * Read-only BOI runtime policy attestation. A matching APP build flag alone
+ * cannot prove that the deployed BOI Worker enables one-review V2.
+ * This endpoint discloses no identity, contacts, MFA or device keys.
+ */
+async function boiSingleReviewActive(bridge: Awaited<ReturnType<typeof issueBoiBrowserBridge>>){
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),TIMEOUT_MS);
+  try{
+    const response=await fetch(`${bridge.baseUrl}/api/accounts`,{
+      method:"GET",headers:{accept:"application/json"},cache:"no-store",
+      credentials:"omit",redirect:"manual",signal:controller.signal
+    });
+    if(response.status!==200||!response.headers.get("content-type")?.includes("application/json"))return false;
+    const data=record(await response.json().catch(()=>null));
+    return data.enabled===true&&data.accountV2===true&&data.accountSingleReview===true;
+  }catch{return false;}finally{clearTimeout(timer);}
+}
 export async function POST(request: Request) {
   try {
     if(!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) return json({error:"Content type không hợp lệ."},415);
@@ -74,12 +91,26 @@ export async function POST(request: Request) {
     }
     // This is intentionally AFTER Owner authentication; don't disclose account
     // workflow/version semantics to unauthenticated visitors.
-    if (process.env.NEXT_PUBLIC_BOI_ECH_SINGLE_REVIEW === "true" &&
-      (action==="manager-review-final" || action==="manager-review-changes")) {
-      return json({error:"Chỉ một lần duyệt; sau khi được duyệt, người đăng ký tự hoàn thiện hồ sơ.",
+    if(action==="manager-review-final" || action==="manager-review-changes") {
+      // Retired V2 actions are never revived by a missing compile-time flag.
+      return json({error:"Quy trình Bơi Ếch chỉ có một lần duyệt Owner. Hồ sơ cũ cần đối chiếu, không phê duyệt vòng hai.",
         code:"BOI_REVIEW_SUPERSEDED"},409);
     }
+    if((action==="issue-manager-invite" || action==="manager-review-first")
+      && process.env.NEXT_PUBLIC_BOI_ECH_SINGLE_REVIEW !== "true") {
+      return json({error:"Chưa xác minh chế độ duyệt một lần trên APP. Không phát lệnh mời hoặc duyệt theo quy trình cũ.",
+        code:"BOI_SINGLE_REVIEW_UNVERIFIED"},409);
+    }
+    if(action==="manager-review-first"
+      && (!validId(input.accountId)||!Number.isSafeInteger(input.expectedRevision)
+        ||Number(input.expectedRevision)<1)) {
+      return json({error:"Hồ sơ hoặc revision không hợp lệ.",code:"BOI_MANAGER_REVIEW_INPUT"},400);
+    }
     const bridge=await issueBoiBrowserBridge(actor.email,actor.role);
+    if((action==="issue-manager-invite"||action==="manager-review-first")
+      && !await boiSingleReviewActive(bridge))
+      return json({error:"Bơi Ếch đang chạy chưa xác nhận Account-first V2 duyệt một lần. Không phát lệnh Owner để tránh duyệt nhầm quy trình.",
+        code:"BOI_SINGLE_REVIEW_BACKEND_UNVERIFIED"},409);
     if(action==="manager-delete-local" && !["127.0.0.1","localhost"].includes(new URL(bridge.baseUrl).hostname))
       return json({error:"Hủy hồ sơ bị chặn khi Bridge không trỏ localhost.",code:"ACCOUNT_RESET_LOCAL_ONLY"},403);
     const cmd:Record<string,unknown>=action==="manager-delete-local"

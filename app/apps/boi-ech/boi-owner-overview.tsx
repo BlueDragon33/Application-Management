@@ -7,8 +7,8 @@ import {loadBoiAccountDurations,loadBoiManagerInbox,
 type OwnerSection="accounts"|"oversight"|"policies"|"devices"|"reports";
 const roleLabel:Record<string,string>={manager:"Cán bộ quản lý",teacher:"Giảng viên",learner:"Học viên"};
 const stageLabel:Record<string,string>={
-  requested:"Chờ duyệt vòng một",profile_required:"Chờ bổ sung hồ sơ",
-  profile_review:"Chờ duyệt vòng hai",changes_requested:"Cần bổ sung hồ sơ",
+  requested:"Chờ người phụ trách duyệt",profile_required:"Đã duyệt · Chờ hoàn thiện hồ sơ",
+  profile_review:"Hồ sơ cũ · Cần đối soát",changes_requested:"Cần bổ sung hồ sơ",
   active:"Đang hoạt động",suspended:"Tạm khóa",archived:"Đã lưu trữ"
 };
 type VerifiedSnapshot={accounts:BoiAccountDurationRecord[];managers:BoiManagerInboxRecord[];nextCursor:string|null};
@@ -38,10 +38,10 @@ export default function BoiOwnerOverview({onNavigate}: {onNavigate:(section:Owne
     return {total:snapshot.accounts.length,managers:tally("manager"),
       teachers:tally("teacher"),learners:tally("learner"),
       pending:snapshot.managers.filter(m=>m.status==="pending"
-        && (m.onboardingStage==="requested" || m.onboardingStage==="profile_review")).length};
+        && m.onboardingStage==="requested").length};
   },[snapshot]);
   const pendingManagers=snapshot?.managers.filter(m=>m.status==="pending"
-    && (m.onboardingStage==="requested" || m.onboardingStage==="profile_review")) ?? [];
+    && m.onboardingStage==="requested") ?? [];
   const pendingLearners=snapshot?.accounts.filter(a=>(a.role==="teacher" || a.role==="learner")
     && ["requested","profile_required","profile_review","changes_requested"].includes(a.onboardingStage??"")).slice(0,5)??[];
   const label=(value:number|undefined)=>stats?Number(value).toLocaleString("vi-VN"):"—";
@@ -52,7 +52,7 @@ export default function BoiOwnerOverview({onNavigate}: {onNavigate:(section:Owne
         <h2>Quản trị tài khoản Bơi Ếch</h2>
         <p>Owner duyệt <strong>cán bộ quản lý</strong>; giảng viên và học viên hiển thị để giám sát, không cấp quyền từ đây.</p>
       </div>
-      <button type="button" onClick={()=>{setLoading(true);setRevision(v=>v+1);}} disabled={loading}>
+      <button type="button" onClick={()=>{setSnapshot(null);setError("");setLoading(true);setRevision(v=>v+1);}} disabled={loading}>
         {loading?"Đang đồng bộ…":"↻ Đồng bộ dữ liệu"}
       </button>
     </div>
@@ -106,7 +106,7 @@ export default function BoiOwnerOverview({onNavigate}: {onNavigate:(section:Owne
           <button type="button" onClick={()=>onNavigate("reports")}>▥ Báo cáo thiết bị</button>
         </section>
         <section className="boi-console-card boi-owner-role-legend"><h3>Ranh giới phân quyền</h3>
-          <div><span className="boi-metric-icon amber">★</span><p><strong>Owner · App-Management</strong><small>Mời, duyệt hai vòng và cấp quyền cán bộ</small></p></div>
+          <div><span className="boi-metric-icon amber">★</span><p><strong>Owner · App-Management</strong><small>Mời, duyệt một lần và quản lý chính sách cán bộ</small></p></div>
           <div><span className="boi-metric-icon blue">♙</span><p><strong>Cán bộ quản lý</strong><small>Duyệt giáo viên/học viên theo scope</small></p></div>
           <div><span className="boi-metric-icon violet">◆</span><p><strong>Giảng viên</strong><small>Thực hiện giảng dạy, không duyệt tài khoản</small></p></div>
           <div><span className="boi-metric-icon sky">●</span><p><strong>Học viên</strong><small>Học tập và quản lý dữ liệu cá nhân</small></p></div>

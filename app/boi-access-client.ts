@@ -197,9 +197,8 @@ export async function issueBoiManagerInvitation(){
   return {inviteUrl:result.inviteUrl,expiresAt:result.expiresAt};
 }
 export async function reviewBoiManagerAccount(
-  action:"manager-review-first"|"manager-review-final"|"manager-review-changes",
-  accountId:string,expectedRevision:number,reason?:string){
-  const result=await accountDurationCall({action,accountId,expectedRevision,reason}) as
+  action:"manager-review-first",accountId:string,expectedRevision:number){
+  const result=await accountDurationCall({action,accountId,expectedRevision}) as
     BoiAccountDurationResponse & {account?:{accountId:string;status:string;onboardingStage:string}};
   if(result.verified!==true||result.account?.accountId!==accountId)
     throw new Error("Bơi ếch chưa đọc lại xác nhận duyệt.");
@@ -235,8 +234,12 @@ async function accountDurationCall(body: Record<string,unknown>): Promise<BoiAcc
     body:JSON.stringify({...body,...await proof(session.access)})
   });
   const result=await response.json().catch(()=>({})) as BoiAccountDurationResponse;
-  if(!response.ok || !result.ok)
-    throw new Error(result.error || (result.code==="STEP_UP_REQUIRED"?"Hãy xác minh Authenticator rồi thử lại.":"Không kết nối được quản lý thời hạn tài khoản."));
+  if(!response.ok || !result.ok) {
+    // Preserve the server's MFA/CAS/uncertain-write classification. Callers may
+    // only repeat a denied, non-applied step-up request after real Owner MFA.
+    const error=new Error(result.error || (result.code==="STEP_UP_REQUIRED"?"Hãy xác minh Authenticator rồi thử lại.":"Không kết nối được quản lý thời hạn tài khoản."));
+    throw Object.assign(error,{data:{...result,status:response.status}});
+  }
   return result;
 }
 export async function loadBoiAccountDurations() {

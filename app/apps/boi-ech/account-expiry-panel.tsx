@@ -1,6 +1,7 @@
 "use client";
 
-import {useEffect,useMemo,useState} from "react";
+import {useEffect,useMemo,useRef,useState} from "react";
+import AuthenticatorStepUp from "../../authenticator-step-up";
 import {
  loadBoiAccountDurations,loadBoiManagerInbox,issueBoiManagerInvitation,reviewBoiManagerAccount,
  changeBoiAccountDuration,changeBoiDefaultAccountDays,cancelBoiLocalTestManager,
@@ -40,6 +41,27 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
  const [reason,setReason]=useState("Owner quản lý thời hạn sử dụng");
  const [busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[error,setError]=useState(""),[notice,setNotice]=useState("");
  const [accountsVerified,setAccountsVerified]=useState(false);
+ const [authenticate,setAuthenticate]=useState(false);
+ const authResolve=useRef<((verified:boolean)=>void)|null>(null);
+ const mounted=useRef(true),writeLock=useRef(false);
+ useEffect(()=>{
+  mounted.current=true;
+  return()=>{mounted.current=false;authResolve.current?.(false);authResolve.current=null;};
+ },[]);
+ function finishAuthentication(verified:boolean){
+  setAuthenticate(false);authResolve.current?.(verified);authResolve.current=null;
+ }
+ async function withOwnerAuthentication<T,>(operation:()=>Promise<T>):Promise<T>{
+  try{return await operation();}
+  catch(caught){
+   const data=caught instanceof Error?(caught as Error&{data?:Record<string,unknown>}).data:undefined;
+   if(data?.code!=="STEP_UP_REQUIRED"||data.applied!==false||!mounted.current)throw caught;
+   setAuthenticate(true);
+   const allowed=await new Promise<boolean>(resolve=>{authResolve.current=resolve;});
+   if(!allowed||!mounted.current)throw new Error("Đã hủy xác minh; bản nháp được giữ nguyên.");
+   return operation();
+  }
+ }
  const [observedNow,setObservedNow]=useState(()=>Date.now());
  const current=accounts.find(a=>a.accountId===selected)??null;
  const displayed=useMemo(()=>accounts.filter(a=>(section==="oversight" ? ["teacher","learner"].includes(a.role)
@@ -55,51 +77,46 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
    setManagerNext(result.nextCursor);
   }
   catch(e){
-   if(!after){setManagerInbox(null);setManagerNext(null);}
+   setManagerInbox(null);setManagerNext(null);
    setManagerError(e instanceof Error?e.message:"Chưa tải được hàng chờ quản lý.");
   }finally{setManagerLoading(false);}
  }
  async function createManagerInvitation(){
-  if(managerWriting)return;
+  if(managerWriting||writeLock.current||managerLoading||!singleReview||Boolean(managerError)||managerInbox===null)return;
   if(!window.confirm("Tạo mã mời dùng một lần cho Cán bộ quản lý? Chỉ gửi link cho đúng người; Owner không nhập mật khẩu hộ."))return;
-  setManagerWriting(true);setManagerError("");setManagerNotice("");setInviteUrl("");
+  writeLock.current=true;setManagerWriting(true);setManagerError("");setManagerNotice("");setInviteUrl("");
   try{
-   const invite=await issueBoiManagerInvitation();
+   const invite=await withOwnerAuthentication(()=>issueBoiManagerInvitation());
    setInviteUrl(invite.inviteUrl);
    setManagerNotice("Đã xác minh cấp mã mời dùng một lần, hiệu lực đến "+moscow(invite.expiresAt)+". Sao chép liên kết và gửi riêng cho người nhận.");
   }catch(e){setManagerError(e instanceof Error?e.message:"Chưa xác minh được thư mời.");}
-  finally{setManagerWriting(false);}
+  finally{writeLock.current=false;setManagerWriting(false);}
  }
- async function decideManager(m:BoiManagerInboxRecord,action:"manager-review-first"|"manager-review-final"|"manager-review-changes"){
-  if(managerWriting || (singleReview && action!=="manager-review-first"))return;
+ async function decideManager(m:BoiManagerInboxRecord){
+  if(managerWriting||writeLock.current||managerLoading||!singleReview||Boolean(managerError)||managerInbox===null||m.status!=="pending"||m.onboardingStage!=="requested")return;
   const name=m.name||m.accountId.slice(0,14);
-  if(!window.confirm(action==="manager-review-final"
-   ? "Kích hoạt Cán bộ quản lý "+name+" sau duyệt vòng hai? Phải có MFA Owner và hồ sơ hoàn chỉnh."
-   : action==="manager-review-first" ? "Duyệt vòng một cho "+name+"? Chưa cấp quyền sử dụng."
-   : "Yêu cầu sửa thông tin hồ sơ "+name+"?"))return;
-  const reason=action==="manager-review-changes"?window.prompt("Lý do cần bổ sung (5–200 ký tự):","")??"":"";
-  if(action==="manager-review-changes" && reason.trim().length<5)return;
-  setManagerWriting(true);setManagerError("");setManagerNotice("");
+  if(!window.confirm("Owner duyệt một lần cho "+name+"? Cán bộ tự hoàn thiện hồ sơ trước khi kích hoạt quyền và thời hạn."))return;
+  writeLock.current=true;setManagerWriting(true);setManagerError("");setManagerNotice("");
   try{
-   const expectedRevision=action==="manager-review-final"?m.accountRevision:m.onboardingRevision;
-   await reviewBoiManagerAccount(action,m.accountId,expectedRevision,reason);
+   const action="manager-review-first",expectedRevision=m.onboardingRevision;
+   await withOwnerAuthentication(()=>reviewBoiManagerAccount(action,m.accountId,expectedRevision));
    setManagerNotice("Bơi ếch đã xác minh và đọc lại lần duyệt từ D1.");
    await refreshManagerInbox();
   }catch(e){setManagerError(e instanceof Error?e.message:"Lệnh duyệt chưa được xác minh.");}
-  finally{setManagerWriting(false);}
+  finally{writeLock.current=false;setManagerWriting(false);}
  }
  async function cancelManagerTest(m:BoiManagerInboxRecord){
-  if(managerWriting||!localMode||!singleReview||!["requested","profile_required"].includes(m.onboardingStage))return;
+  if(managerWriting||writeLock.current||!localMode||!singleReview||!["requested","profile_required"].includes(m.onboardingStage))return;
   const typed=window.prompt("Hủy hồ sơ thử nghiệm? Gõ chính xác HUY HO SO để xác nhận.","");
   if(typed!=="HUY HO SO")return;
   if(!window.confirm("Xác nhận hủy hồ sơ ID "+m.accountId.slice(0,20)+"…? Mã mời cũ sẽ hết hiệu lực. Đăng ký lại cần thư mời mới."))return;
-  setManagerWriting(true);setManagerError("");setManagerNotice("");
+  writeLock.current=true;setManagerWriting(true);setManagerError("");setManagerNotice("");
   try{
-   const result=await cancelBoiLocalTestManager(m.accountId,m.onboardingRevision);
+   const result=await withOwnerAuthentication(()=>cancelBoiLocalTestManager(m.accountId,m.onboardingRevision));
    setManagerNotice("Đã hủy hồ sơ thử nghiệm ở D1 local; audit #"+result.auditId+". Tạo lời mời mới để đăng ký lại.");
    await refreshManagerInbox();
   }catch(e){setManagerError(e instanceof Error?e.message:"Không xác minh được hủy hồ sơ.");}
-  finally{setManagerWriting(false);}
+  finally{writeLock.current=false;setManagerWriting(false);}
  }
  async function refresh(){
   setLoading(true);setError("");setAccountsVerified(false);
@@ -123,45 +140,46 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
   queueMicrotask(()=>setExpiration(next));
  },[selected,currentExpiry]);
  async function commitAccount(operation:"set-expiry"|"suspend"|"resume"){
-  if(!current?.entitlement||current.role!=="manager"||busy)return;
+  if(!current?.entitlement||current.role!=="manager"||busy||writeLock.current)return;
   if(reason.trim().length<5){setError("Nhập lý do dài ít nhất 5 ký tự.");return;}
   const parsed=Date.parse(expiration?expiration+":00+03:00":"");
   const iso=operation==="set-expiry"&&Number.isFinite(parsed)?new Date(parsed).toISOString():"";
   if(operation==="set-expiry"&&!iso){setError("Chọn ngày hết hạn hợp lệ.");return;}
   if(!window.confirm(`${operation==="set-expiry"?"Đổi ngày hết hạn":operation==="suspend"?"Tạm khóa":"Khôi phục"} tài khoản ${current.name||current.accountId}?`))return;
-  setBusy(true);setError("");setNotice("");
+  writeLock.current=true;setBusy(true);setError("");setNotice("");
   try{
-   await changeBoiAccountDuration({accountId:current.accountId,expectedRevision:current.entitlement.revision,
-    operation,...(operation==="set-expiry"?{expiresAt:iso}:{}),reason:reason.trim()});
+   await withOwnerAuthentication(()=>changeBoiAccountDuration({accountId:current.accountId,expectedRevision:current.entitlement!.revision,
+    operation,...(operation==="set-expiry"?{expiresAt:iso}:{}),reason:reason.trim()}));
    setNotice("Đã lưu và đọc lại hạn tài khoản. Quyền thiết bị và thanh toán vẫn được kiểm soát riêng.");
    await refresh();
   }catch(e){setError(e instanceof Error?e.message:"Không xác minh được thay đổi.");}
-  finally{setBusy(false);}
+  finally{writeLock.current=false;setBusy(false);}
  }
  async function commitPolicy(p:BoiAccountDurationPolicy){
-  if(busy)return;const days=Number(roleDays[p.role]);
+  if(busy||writeLock.current)return;const days=Number(roleDays[p.role]);
   if(!Number.isInteger(days)||days<1||days>365){setError("Mặc định phải từ 1–365 ngày.");return;}
-  setBusy(true);setError("");setNotice("");
+  writeLock.current=true;setBusy(true);setError("");setNotice("");
   try{
-   await changeBoiDefaultAccountDays({role:p.role,defaultDays:days,expectedRevision:p.revision,reason:reason.trim()});
+   await withOwnerAuthentication(()=>changeBoiDefaultAccountDays({role:p.role,defaultDays:days,expectedRevision:p.revision,reason:reason.trim()}));
    setNotice("Đã cập nhật mặc định và đọc lại từ D1. Tài khoản đang dùng không bị đổi hạn tự động.");
    await refresh();
   }catch(e){setError(e instanceof Error?e.message:"Không cập nhật được mặc định.");}
-  finally{setBusy(false);}
+  finally{writeLock.current=false;setBusy(false);}
  }
- return <section aria-label="Hồ sơ tài khoản Bơi ếch AI" className="boi-account-panel" data-section={section}>
+ return <><section inert={authenticate} aria-hidden={authenticate||undefined} aria-label="Hồ sơ tài khoản Bơi ếch AI" className="boi-account-panel" data-section={section}>
   {section==="accounts"?<div className="boi-account-header"><span>OWNER · DUYỆT CÁN BỘ QUẢN LÝ</span><h2>Hàng chờ cán bộ</h2><p>Chỉ Owner mời và phê duyệt cán bộ quản lý; giảng viên và học viên do cán bộ quản lý xử lý tại Bơi Ếch.</p></div>:null}
   {section==="oversight"?<div className="boi-account-header"><span>GIÁM SÁT · CHỈ ĐỌC</span><h2>Giảng viên & học viên</h2><p>Hiển thị thông tin, vai trò, trạng thái hồ sơ và thời hạn để giám sát. Không duyệt, từ chối, cấp hoặc thu hồi quyền từ đây.</p></div>:null}
   {section==="policies"?<div className="boi-account-header"><span>OWNER · QUẢN TRỊ CHÍNH SÁCH</span><h2>Thời hạn & chính sách</h2><p>Thiết lập mặc định chung không phải phê duyệt tài khoản. Chỉ điều chỉnh trực tiếp tài khoản cán bộ quản lý tại màn hình này.</p></div>:null}
   {section==="accounts"?<>
   <details className="boi-manager-inbox" open>
-   <summary><strong>{singleReview?"Hồ sơ Cán bộ quản lý · Owner duyệt một lần":"Hồ sơ Cán bộ quản lý · Owner duyệt hai vòng"}</strong></summary>
+   <summary><strong>Hồ sơ Cán bộ quản lý · Owner duyệt một lần</strong></summary>
+   {!singleReview?<p role="alert" className="boi-manager-blocked">Chưa xác minh cấu hình duyệt một lần khớp Bơi Ếch. Chỉ xem hồ sơ; không tạo lời mời hoặc phát lệnh duyệt cũ.</p>:null}
    <p>Hồ sơ quản lý thuộc Bơi ếch, kiểm soát tập trung từ giao diện Owner này. Mã mời có hiệu lực 24 giờ,
     dùng một lần; người nhận tự đặt mật khẩu và khóa P-256 trên đúng trang Bơi ếch.</p>
    <div className="boi-manager-actions">
     <button type="button" disabled={managerLoading||managerWriting}
      onClick={()=>void refreshManagerInbox()}>Đồng bộ hàng chờ</button>
-    <button type="button" disabled={managerWriting||managerLoading}
+    <button type="button" disabled={managerWriting||managerLoading||!singleReview||Boolean(managerError)||managerInbox===null}
      onClick={()=>void createManagerInvitation()}>Tạo lời mời Cán bộ quản lý · MFA</button>
    </div>
    {managerNotice?<p role="status">{managerNotice}</p>:null}
@@ -177,11 +195,11 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
    {managerInbox!==null?<div role="status" className="boi-manager-results">
     <div className="boi-manager-summary" aria-label="Tổng hợp trạng thái hồ sơ">
      <div><small>Hồ sơ đã xác minh</small><strong>{managerInbox.length}</strong><span>Trong danh sách đã tải</span></div>
-     <div><small>Chờ Owner xét duyệt</small><strong>{managerInbox.filter(m=>m.status==="pending"&&m.onboardingStage==="requested").length}</strong><span>Chưa duyệt ban đầu</span></div>
-     <div><small>Chờ hoàn thiện</small><strong>{managerInbox.filter(m=>m.status==="pending"&&m.onboardingStage==="profile_required").length}</strong><span>Đã duyệt bước đầu</span></div>
+     <div><small>Chờ Owner xét duyệt</small><strong>{managerInbox.filter(m=>m.status==="pending"&&m.onboardingStage==="requested").length}</strong><span>Chưa được duyệt</span></div>
+     <div><small>Chờ hoàn thiện</small><strong>{managerInbox.filter(m=>m.status==="pending"&&m.onboardingStage==="profile_required").length}</strong><span>Chờ hoàn thiện hồ sơ</span></div>
     </div>
     <p className="boi-manager-count">Đã đọc {managerInbox.length} hồ sơ quản lý{managerNext?" (còn trang tiếp theo)":""}.
-     Đang chờ duyệt: {managerInbox.filter(m=>m.status==="pending").length} trong các trang đã tải.</p>
+     Chưa kích hoạt: {managerInbox.filter(m=>m.status==="pending").length} trong các trang đã tải.</p>
     {managerInbox.filter(m=>m.status==="pending").map(m=><article key={m.accountId}
       className="boi-manager-case">
      <header className="boi-manager-case-head">
@@ -200,14 +218,9 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
      <p className="boi-manager-meta">ID: {m.accountId.slice(0,20)}… · Trạng thái: {m.onboardingStage}
       · Hồ sơ rev {m.onboardingRevision} · Tài khoản rev {m.accountRevision}</p>
      {m.onboardingStage==="requested"?<button type="button"
-      disabled={managerWriting||managerLoading} onClick={()=>void decideManager(m,"manager-review-first")}>
-       {singleReview?"Duyệt tài khoản — chờ bổ sung hồ sơ":"Duyệt vòng 1 — chưa cấp quyền"}</button>:null}
-     {!singleReview&&m.onboardingStage==="profile_review"?<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-      <button type="button" disabled={managerWriting||managerLoading}
-       onClick={()=>void decideManager(m,"manager-review-final")}>Duyệt vòng 2 — kích hoạt</button>
-      <button type="button" disabled={managerWriting||managerLoading}
-       onClick={()=>void decideManager(m,"manager-review-changes")}>Yêu cầu bổ sung</button>
-     </div>:null}
+      disabled={managerWriting||managerLoading||!singleReview||Boolean(managerError)||managerInbox===null||m.status!=="pending"} onClick={()=>void decideManager(m)}>
+       Duyệt tài khoản — chờ bổ sung hồ sơ</button>:null}
+     {singleReview&&m.onboardingStage==="profile_review"?<p className="boi-oversight-note">Hồ sơ cũ cần đối soát theo luồng mới. Không tự cấp quyền hoặc kích hoạt từ trạng thái này.</p>:null}
      {m.onboardingStage==="profile_required"?<p className="boi-manager-guidance">Đã được Owner duyệt. Cán bộ tự điền Khoa/Đơn vị, Chức danh và Chức vụ trên Bơi Ếch để kích hoạt.</p>:null}
      {localMode && singleReview && ["requested","profile_required"].includes(m.onboardingStage)?<div className="boi-manager-test-tools">
       <button type="button" disabled={managerWriting||managerLoading}
@@ -221,8 +234,8 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
     {!managerInbox.some(m=>m.status==="pending") && !managerNext?
       <p>Không có yêu cầu quản lý đang chờ trong tập kết quả đã xác minh.</p>:null}
    </div>:!managerError?<p role="status">Chưa có kết quả hàng chờ được xác minh.</p>:null}
-   <small>Owner phải xác minh Authenticator trong 30 phút gần nhất để tạo mời hoặc duyệt.
-    {singleReview?"Một lần Owner duyệt với CAS, nhật ký và đọc lại; sau đó tài khoản được kích hoạt tự động khi hoàn tất hồ sơ.":"Hai vòng duyệt sử dụng CAS, nhật ký, đọc lại D1; không cấp quyền tự động."}</small>
+   <small>Duyệt một lần · Owner phải xác minh Authenticator trong 30 phút gần nhất để tạo mời hoặc duyệt.
+    Một lần Owner duyệt với CAS, nhật ký và đọc lại; sau đó tài khoản được kích hoạt khi hoàn tất hồ sơ bắt buộc.</small>
   </details>
   </>:null}
   {section==="policies"?<header><h2>Thời hạn tài khoản · Account First V2</h2>
@@ -284,5 +297,5 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
   </div>:null}
   {section==="policies"?<small>Thao tác Owner với chính sách/mốc thời hạn phải có CAS, nhật ký và đọc lại Bơi Ếch. Không cấp quyền giảng viên/học viên tại màn hình này.</small>:null}
   {section==="accounts"?<p className="boi-oversight-note">Giảng viên/học viên được cán bộ quản lý phê duyệt tại Bơi Ếch theo phạm vi; Owner chỉ giám sát dữ liệu.</p>:null}
- </section>;
+ </section>{authenticate?<AuthenticatorStepUp finish={finishAuthentication}/>:null}</>;
 }
