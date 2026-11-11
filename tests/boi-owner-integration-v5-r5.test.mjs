@@ -23,3 +23,11 @@ test("Owner navigation is independently scrollable and no legacy device grants",
  assert.match(ui,/canManage=\{false\}/);
  assert.match(ui,/canDelete=\{false\}/);
 });
+
+test("MFA-denied mutations are explicitly unapplied; an unknown outcome cannot be replayed",()=>{
+ const gate=read("worker/production-auth.ts");
+ const ui=read("app/apps/boi-ech/account-expiry-panel.tsx");
+ assert.match(gate,/code: "STEP_UP_REQUIRED",[\\s\\S]*?applied: false/);
+ assert.match(ui,/data\\.applied!==false/);
+ assert.match(ui,/return operation\\(\\)/);
+});

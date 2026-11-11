@@ -871,6 +871,9 @@ function stepUpRequiredResponse() {
       ok: false,
       error: "Hãy xác minh Google Authenticator trước khi thực hiện thao tác nhạy cảm.",
       code: "STEP_UP_REQUIRED",
+      // The Worker rejects this request before routing it to any mutation handler.
+      // An explicit unapplied result is required for a single MFA-safe client retry.
+      applied: false,
       stepUpPath: ACCOUNT_PATH,
       stepUpTtlSeconds: STEP_UP_TTL_SECONDS,
     },
