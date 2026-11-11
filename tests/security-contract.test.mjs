@@ -75,10 +75,12 @@ test("keeps Boi Ech dashboard as a signed short-lived bridge only", async () => 
   assert.match(dashboard, /issueBoiBrowserBridge\(actorDevice\.email, actorDevice\.role\)/);
   assert.match(dashboard, /application: \{ id: "boi-ech"/);
   assert.match(dashboard, /learningDevices: \[\]/);
-  assert.doesNotMatch(dashboard, /controlDevices|auditLog|applications:\s*\[/);
+  assert.doesNotMatch(dashboard, /controlDevices|auditLog|applications:\s*\[|issueBoiAccountBridge/);
   assert.doesNotMatch(dashboard, /bauman-master-ai|health-care|ru-life|growup-mychildren/);
   assert.match(bridge, /name: "HMAC", hash: "SHA-256"/);
-  assert.match(bridge, /Date\.now\(\) \+ 5 \* 60 \* 1000/);
+  assert.match(bridge, /const expiresAt = Date\.now\(\) \+ ttlMs/);
+  assert.match(bridge, /issueBoiBridge\(actor, role, "boi-ech-control", 5 \* 60_000\)/);
+  assert.match(bridge, /issueBoiBridge\(actor, "owner", "boi-ech-accounts", 60_000\)/);
 });
 
 test("keeps both central and Boi bridge APIs behind approved signed devices", async () => {
