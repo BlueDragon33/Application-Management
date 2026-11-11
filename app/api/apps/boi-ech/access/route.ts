@@ -248,6 +248,11 @@ export async function POST(request: Request) {
       const operation = text(payload.operation) as AccessOperation;
       if (!/^[a-f0-9]{64}$/.test(deviceId)) return json({ error: "Mã thiết bị Bơi ếch không hợp lệ.", code: "INVALID_DEVICE_ID" }, 400);
       if (!["manager-access", "grant-free", "require-payment", "renew-access", "verify-payment", "reject-payment", "block", "unblock"].includes(operation)) return json({ error: "Thao tác thanh toán/quyền không hợp lệ.", code: "INVALID_ACCESS_OPERATION" }, 400);
+      // One-review manager authority is owned by the canonical BOI account
+      // workflow, not a second mutable device-level manager grant.
+      if(operation==="manager-access" && process.env.NEXT_PUBLIC_BOI_ECH_SINGLE_REVIEW==="true")
+        return json({error:"Quyền Cán bộ quản lý được duyệt một lần qua tài khoản Account-first V2, không cấp lại theo thiết bị.",
+          code:"BOI_MANAGER_LEGACY_GRANT_SUPERSEDED"},409);
 
       const before = await overview(bridge);
       if (!before.ok) return json(before.payload, before.status);

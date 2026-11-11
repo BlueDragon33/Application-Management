@@ -8,11 +8,13 @@ test("R2 Owner manager approval is singular under the matched BOI gate",()=>{
  const panel=read("app/apps/boi-ech/account-expiry-panel.tsx");
  const route=read("app/api/apps/boi-ech/account-entitlements/route.ts");
  assert.match(panel,/NEXT_PUBLIC_BOI_ECH_SINGLE_REVIEW/);
- assert.match(panel,/singleReview&&m.onboardingStage==="profile_review"/);
+ assert.match(panel,/canChangeManagers = singleReview && managerReviewReady/);
+ assert.doesNotMatch(panel,/Duyệt vòng 2 — kích hoạt/);
  assert.match(panel,/Duyệt tài khoản — chờ bổ sung hồ sơ/);
  assert.match(panel,/30 ngày từ lúc hoàn tất hồ sơ và kích hoạt/);
  assert.match(route,/if\(actor.role!=="owner"\)/);
  assert.match(route,/BOI_REVIEW_SUPERSEDED/);
+ assert.match(route,/BOI_SINGLE_REVIEW_UNVERIFIED/);
  assert.match(route,/action==="manager-review-final" \|\| action==="manager-review-changes"/);
  assert.ok(route.indexOf("if(actor.role!==\"owner\")")<route.indexOf('BOI_REVIEW_SUPERSEDED'));
 });

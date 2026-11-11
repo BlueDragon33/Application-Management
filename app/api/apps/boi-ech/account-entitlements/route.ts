@@ -54,6 +54,23 @@ async function upstream(bridge: Awaited<ReturnType<typeof issueBoiBrowserBridge>
     return {status:controller.signal.aborted?504:502,data:{error:"Không đọc được quyền tài khoản từ Bơi ếch."}};
   } finally {clearTimeout(timer);}
 }
+/**
+ * Read-only BOI runtime policy attestation. A matching APP build flag alone
+ * cannot prove that the deployed BOI Worker enables one-review V2.
+ * This endpoint discloses no identity, contacts, MFA or device keys.
+ */
+async function boiSingleReviewActive(bridge: Awaited<ReturnType<typeof issueBoiBrowserBridge>>){
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),TIMEOUT_MS);
+  try{
+    const response=await fetch(`${bridge.baseUrl}/api/accounts`,{
+      method:"GET",headers:{accept:"application/json"},cache:"no-store",
+      credentials:"omit",redirect:"manual",signal:controller.signal
+    });
+    if(response.status!==200||!response.headers.get("content-type")?.includes("application/json"))return false;
+    const data=record(await response.json().catch(()=>null));
+    return data.enabled===true&&data.accountV2===true&&data.accountSingleReview===true;
+  }catch{return false;}finally{clearTimeout(timer);}
+}
 export async function POST(request: Request) {
   try {
     if(!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) return json({error:"Content type không hợp lệ."},415);
@@ -74,14 +91,38 @@ export async function POST(request: Request) {
     }
     // This is intentionally AFTER Owner authentication; don't disclose account
     // workflow/version semantics to unauthenticated visitors.
-    if (process.env.NEXT_PUBLIC_BOI_ECH_SINGLE_REVIEW === "true" &&
-      (action==="manager-review-final" || action==="manager-review-changes")) {
-      return json({error:"Chỉ một lần duyệt; sau khi được duyệt, người đăng ký tự hoàn thiện hồ sơ.",
+    if(action==="manager-review-final" || action==="manager-review-changes") {
+      // Retired V2 actions are never revived by a missing compile-time flag.
+      return json({error:"Quy trình Bơi Ếch chỉ có một lần duyệt Owner. Hồ sơ cũ cần đối chiếu, không phê duyệt vòng hai.",
         code:"BOI_REVIEW_SUPERSEDED"},409);
     }
+    if((action==="issue-manager-invite" || action==="manager-review-first")
+      && process.env.NEXT_PUBLIC_BOI_ECH_SINGLE_REVIEW !== "true") {
+      return json({error:"Chưa xác minh chế độ duyệt một lần trên APP. Không phát lệnh mời hoặc duyệt theo quy trình cũ.",
+        code:"BOI_SINGLE_REVIEW_UNVERIFIED"},409);
+    }
+    if(action==="manager-review-first"
+      && (!validId(input.accountId)||!Number.isSafeInteger(input.expectedRevision)
+        ||Number(input.expectedRevision)<1)) {
+      return json({error:"Hồ sơ hoặc revision không hợp lệ.",code:"BOI_MANAGER_REVIEW_INPUT"},400);
+    }
     const bridge=await issueBoiBrowserBridge(actor.email,actor.role);
+    if((action==="issue-manager-invite"||action==="manager-review-first")
+      && !await boiSingleReviewActive(bridge))
+      return json({error:"Bơi Ếch đang chạy chưa xác nhận Account-first V2 duyệt một lần. Không phát lệnh Owner để tránh duyệt nhầm quy trình.",
+        code:"BOI_SINGLE_REVIEW_BACKEND_UNVERIFIED"},409);
     if(action==="manager-delete-local" && !["127.0.0.1","localhost"].includes(new URL(bridge.baseUrl).hostname))
       return json({error:"Hủy hồ sơ bị chặn khi Bridge không trỏ localhost.",code:"ACCOUNT_RESET_LOCAL_ONLY"},403);
+    if (action === "set-account") {
+      if (!validId(input.accountId)) return json({error:"Mã tài khoản không hợp lệ.",code:"ACCOUNT_INPUT"},400);
+      const target = await upstream(bridge,{action:"read",accountId:input.accountId});
+      if (target.status !== 200 || target.data.accountId !== input.accountId || !validRoles.has(String(target.data.role))) {
+        return json({error:"Chưa xác minh vai trò tài khoản cần chỉnh thời hạn.",code:"BOI_ACCOUNT_ROLE_UNVERIFIED"},502);
+      }
+      if (target.data.role !== "manager") {
+        return json({error:"Owner chỉ điều chỉnh trực tiếp tài khoản cán bộ quản lý tại đây.",code:"BOI_MANAGER_ACCOUNT_REQUIRED"},403);
+      }
+    }
     const cmd:Record<string,unknown>=action==="manager-delete-local"
       ?{action:"cancel-pending-manager-local",accountId:input.accountId,expectedRevision:input.expectedRevision,confirmation:input.confirmation}
       :action==="manager-inbox"
@@ -89,8 +130,6 @@ export async function POST(request: Request) {
       :action==="manager-policy"?{action:"capacity"}
       :action==="issue-manager-invite"?{action:"create-manager-invite",expectedRevision:input.expectedRevision}
       :action==="manager-review-first"?{action:"review-first",accountId:input.accountId,expectedRevision:input.expectedRevision}
-      :action==="manager-review-final"?{action:"command",operation:"approve-manager",accountId:input.accountId,expectedRevision:input.expectedRevision}
-      :action==="manager-review-changes"?{action:"review-changes",accountId:input.accountId,expectedRevision:input.expectedRevision,reason:input.reason}
       :action==="list"?{action:"list-entitlements"}
       :action==="policy"?{action:"entitlement-policy"}
       :action==="read-account"?{action:"read-entitlement",accountId:input.accountId}
@@ -116,7 +155,9 @@ export async function POST(request: Request) {
             ||typeof a.status!=="string"||typeof a.onboardingStage!=="string"
             ||typeof a.onboardingRevision!=="number"||!Number.isSafeInteger(a.onboardingRevision);
         })) return json({error:"Dữ liệu hàng chờ quản lý chưa được xác minh.",code:"BOI_MANAGER_INBOX_UNVERIFIED"},502);
-      return json({ok:true,verified:true,managers:rows.map(row=>{
+      const singleReviewReady = process.env.NEXT_PUBLIC_BOI_ECH_SINGLE_REVIEW === "true"
+        && await boiSingleReviewActive(bridge);
+      return json({ok:true,verified:true,singleReviewReady,managers:rows.map(row=>{
         const a=record(row);
         return {accountId:a.accountId,accountRevision:a.accountRevision,status:a.status,
           onboardingStage:a.onboardingStage,onboardingRevision:a.onboardingRevision,
@@ -141,20 +182,16 @@ export async function POST(request: Request) {
       inviteUrl.hash="manager-invite="+changed.data.inviteToken;
       return json({ok:true,verified:true,inviteUrl:inviteUrl.toString(),expiresAt:changed.data.expiresAt});
     }
-    if(action==="manager-review-first" || action==="manager-review-final" || action==="manager-review-changes"){
+    if(action==="manager-review-first"){
       const checked=await upstream(bridge,{action:"read",accountId:input.accountId});
       if(checked.status!==200) return json({error:"Đã gửi lệnh duyệt nhưng chưa đọc lại trạng thái.",
         code:"ACCOUNT_READBACK_UNVERIFIED",applied:true,verified:false},502);
       const a=record(checked.data),onboarding=record(changed.data.onboarding);
-      const expectedStage=action==="manager-review-first"?"profile_required"
-        :action==="manager-review-changes"?"changes_requested":"active";
+      const expectedStage="profile_required";
       const verified= a.accountId===input.accountId && a.role==="manager"
         && a.onboardingStage===expectedStage
-        && (action==="manager-review-final"
-          ? a.status==="approved" && record(a.entitlement).active===true
-            && Number(a.revision)===(Number(input.expectedRevision)+1)
-          : a.status==="pending" && onboarding.stage===expectedStage
-            && Number(a.onboardingRevision)===(Number(input.expectedRevision)+1));
+        && a.status==="pending" && onboarding.stage===expectedStage
+        && Number(a.onboardingRevision)===(Number(input.expectedRevision)+1);
       if(!verified)return json({error:"Đọc lại lần duyệt chưa khớp máy chủ.",
         code:"ACCOUNT_READBACK_MISMATCH",applied:true,verified:false},502);
       return json({ok:true,verified:true,account:{accountId:a.accountId,status:a.status,

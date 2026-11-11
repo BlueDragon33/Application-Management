@@ -84,3 +84,20 @@ test("existing account-page form verification still returns HTML", async () => {
     assert.match(await response.text(), /Đã xác minh tăng cường/);
   } finally { f.sqlite.close(); }
 });
+
+test("Owner mutation denied before execution explicitly reports unapplied; fresh enrolled MFA admits it", async () => {
+ const f=await fixture();
+ try {
+  const request=new Request("https://management.test/api/apps/boi-ech/account-entitlements",{
+   method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action:"set-policy"}),
+  });
+  const denied=await f.auth.productionStepUpGate(request,f.env,f.identity);
+  assert.equal(denied.status,403);
+  const payload=await denied.json();
+  assert.equal(payload.code,"STEP_UP_REQUIRED");assert.equal(payload.applied,false);
+  const current={...f.identity,stepUpAt:Math.floor(Date.now()/1000)};
+  assert.equal(await f.auth.productionStepUpGate(request,f.env,current),null);
+  f.sqlite.exec("UPDATE control_mfa_factors SET enabled=0");
+  assert.equal((await f.auth.productionStepUpGate(request,f.env,current)).status,403);
+ } finally { f.sqlite.close(); }
+});

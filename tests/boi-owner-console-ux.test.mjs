@@ -22,11 +22,12 @@ test("Owner approves managers exclusively, monitors teacher and learner as read-
   assert.doesNotMatch(overview,/reviewBoiManagerAccount|changeBoiAccountDuration|changeBoiDefaultAccountDays/);
 });
 
-test("Manager two-stage approval remains in owner-only inbox, separate from account expiry",()=>{
-  assert.match(panel,/reviewBoiManagerAccount\(action,m\.accountId,expectedRevision,reason\)/);
+test("One Owner review is canonical and legacy final-review records cannot activate accounts from this UI",()=>{
+  assert.match(panel,/reviewBoiManagerAccount\(action,m\.accountId,expectedRevision\)/);
   assert.match(panel,/manager-review-first/);
-  assert.match(panel,/manager-review-final/);
-  assert.match(panel,/manager-review-changes/);
+  assert.doesNotMatch(panel,/manager-review-final|manager-review-changes|Duyệt vòng 2|duyệt hai vòng/);
+  assert.match(panel,/expectedRevision=m\.onboardingRevision/);
+  assert.match(panel,/withOwnerAuthentication/);
   assert.match(panel,/section==="accounts"\?<>/);
   assert.match(panel,/section==="policies"&&accountsVerified/);
   assert.match(panel,/section==="policies"&&policies\.length/);
@@ -39,7 +40,7 @@ test("Owner KPIs and queues never use hardcoded examples or false zero when back
   assert.match(overview,/stats\?Number\(value\)\.toLocaleString\("vi-VN"\):"—"/);
   assert.match(overview,/Hàng chờ chưa được xác minh/);
   assert.doesNotMatch(overview,/Nguyễn Văn Thành|Trần Thị Lan|Phạm Văn Dũng|\b142\b/);
-  assert.match(main,/const devicesVerified = Boolean\(boiOnline && dashboard && !dashboard\.upstreamError\)/);
+  assert.match(main,/const devicesVerified = Boolean\(online && boiOnline && dashboard && !dashboard\.upstreamError\)/);
   assert.match(main,/devicesVerified \? n\.toLocaleString\("vi-VN"\) : "—"/);
 });
 
@@ -50,8 +51,9 @@ test("Approved dashboard preserves existing distinct device, AI, content and exp
   assert.match(main,/tab==="reports"/);
   assert.match(main,/exportDevices/);
   assert.match(main,/DeviceDrawer/);
-  assert.match(main,/canManage=\{access\.role === "owner" && selected\.personRole === "manager"\}/);
-  assert.match(main,/canDelete=\{access\.role === "owner" && selected\.personRole === "manager"\}/);
+  assert.match(main,/canManage=\{false\}/);
+  assert.match(main,/canDelete=\{false\}/);
+  assert.match(main,/<DeletedDevicesPanel readOnly/);
   assert.match(main,/readOnly=\{!canManage\}/);
   assert.match(main,/Chỉ giám sát · Giảng viên và học viên/);
   assert.match(main,/AiControlCenter/);
@@ -76,4 +78,6 @@ test("Empty BE device registry never fabricates online/zero without Control API 
   assert.match(main,/if \(!Array\.isArray\(upstream\.devices\)\)/);
   assert.match(main,/throw new Error\("Control API chưa trả về danh sách thiết bị được xác minh\."\)/);
   assert.doesNotMatch(main,/if \(!discoverNew && currentDevices\.length === 0\) \{\s*setBoiOnline\(true\)/);
+  assert.match(main,/Chưa xác minh danh sách thiết bị/);
+  assert.match(main,/function exportDevices\(\) \{\s*if \(!boiOnline \|\| !dashboard \|\| dashboard\.upstreamError\) return;/);
 });
