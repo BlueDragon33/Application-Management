@@ -102,12 +102,12 @@ async function signature(secret: string, value: string) {
   return base64Url(new Uint8Array(signed));
 }
 
-export async function issueBoiBrowserBridge(actor: string, role: ControlRole) {
+async function issueBoiBridge(actor: string, role: ControlRole, audience: "boi-ech-control" | "boi-ech-accounts", ttlMs: number) {
   const { baseUrl, secret, source } = await configuration();
-  const expiresAt = Date.now() + 5 * 60 * 1000;
+  const expiresAt = Date.now() + ttlMs;
   const payload = base64Url(new TextEncoder().encode(JSON.stringify({
     iss: "quan-ly-hoc-tap",
-    aud: "boi-ech-control",
+    aud: audience,
     actor: actor.trim().toLowerCase().slice(0, 160),
     role,
     exp: expiresAt,
@@ -119,4 +119,13 @@ export async function issueBoiBrowserBridge(actor: string, role: ControlRole) {
     expiresAt,
     originSource: source,
   };
+}
+
+export function issueBoiBrowserBridge(actor: string, role: ControlRole) {
+  return issueBoiBridge(actor, role, "boi-ech-control", 5 * 60_000);
+}
+
+/** Used only by the server-side Owner account route after its authorization gates. */
+export function issueBoiAccountBridge(actor: string) {
+  return issueBoiBridge(actor, "owner", "boi-ech-accounts", 60_000);
 }

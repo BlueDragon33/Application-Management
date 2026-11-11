@@ -15,7 +15,7 @@ function fixture({role="owner",upstreamStatus=200,upstream={contract:"boi-manage
    controlErrorResponse:e=>Response.json({error:e.message},{status:500})
   },
   "../../../../boi-ech.server":{
-   issueBoiBrowserBridge:async()=>({baseUrl:"https://boi.example.invalid",token:"signed-test-ticket"})
+   issueBoiAccountBridge:async()=>({baseUrl:"https://boi.example.invalid",token:"signed-test-ticket"})
   }
  },{
   fetch:async(url,init)=>{
@@ -64,6 +64,8 @@ test("malformed non-manager and oversized cross-account rows fail closed",async(
   {contract:"boi-manager-intake.v2",verified:true,managers:Array.from({length:41},(_,i)=>({...manager,accountId:"acc_"+String(i).padStart(64,"0")})),nextCursor:null},
   {contract:"boi-manager-intake.v2",verified:true,managers:[{...manager,onboardingStage:undefined}],nextCursor:null},
   {contract:"boi-manager-intake.v2",verified:true,managers:{notAnArray:true},nextCursor:null},
+  {contract:"boi-manager-intake.v2",verified:true,managers:[manager,manager],nextCursor:null},
+  {contract:"boi-manager-intake.v2",verified:true,managers:[manager],nextCursor:"acc_"+"f".repeat(64)},
  ]){
   const f=fixture({upstream:rowset}),r=await f.run();
   assert.equal(r.status,502);

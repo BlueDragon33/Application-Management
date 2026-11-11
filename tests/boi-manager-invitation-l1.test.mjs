@@ -11,7 +11,7 @@ function fixture(responses,{role="owner",singleReview=true,backendReview=true}={
     controlErrorResponse:e=>Response.json({error:e.message},{status:500})
   },
   "../../../../boi-ech.server":{
-    issueBoiBrowserBridge:async()=>({baseUrl:"https://boi.example.invalid",token:"signed-owner-ticket"})
+    issueBoiAccountBridge:async()=>({baseUrl:"https://boi.example.invalid",token:"signed-owner-ticket"})
   }
  },{
   fetch:async(url,init)=>{
@@ -134,4 +134,17 @@ test("direct duration changes require a verified manager target before any BOI w
  assert.equal(r.status,200);assert.equal(r.body.verified,true);
  assert.deepEqual(f.calls.map(x=>x.body.action),["read","set-entitlement","read-entitlement"]);
  assert.equal(f.calls[1].body.expectedRevision,4);
+});
+
+test("mutually matching upstream readback cannot verify a different requested target or policy value",async()=>{
+ const otherId="acc_"+"b".repeat(64);
+ const changed={accountId:otherId,revision:5,state:"suspended",expiresAt:"2026-12-09T10:00:00Z"};
+ const f=fixture([{status:200,data:{accountId:id,role:"manager"}},
+  {status:200,data:{entitlement:changed}},{status:200,data:{entitlement:changed}}]);
+ const target=await f.run("set-account",{accountId:id,operation:"suspend",expectedRevision:4,reason:"Scope check"});
+ assert.equal(target.status,502);assert.equal(target.body.verified,false);assert.equal(target.body.applied,true);
+ const policy={role:"manager",defaultDays:45,revision:2};
+ const p=fixture([{status:200,data:{policy}},{status:200,data:{policies:[policy]}}]);
+ const value=await p.run("set-policy",{role:"manager",defaultDays:30,expectedRevision:1,reason:"Readback check"});
+ assert.equal(value.status,502);assert.equal(value.body.verified,false);
 });

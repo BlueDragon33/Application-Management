@@ -25,7 +25,7 @@ function fixture({role="owner",origin="http://127.0.0.1:3000",bridge="http://127
     controlErrorResponse:e=>Response.json({error:e.message},{status:500})
   },
   "../../../../boi-ech.server":{
-    issueBoiBrowserBridge:async()=>({baseUrl:bridge,token:"fixture-only-owner-token"})
+    issueBoiAccountBridge:async()=>({baseUrl:bridge,token:"fixture-only-owner-token"})
   }
  },{fetch:async(url,init)=>{calls.push({url,payload:JSON.parse(init.body)});return Response.json(reply);}});
  return {calls,async run(){

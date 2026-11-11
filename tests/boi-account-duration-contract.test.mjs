@@ -11,7 +11,7 @@ const auth=fs.readFileSync("worker/production-auth.ts","utf8");
 test("account-entitlement actions require verified Owner and signed Boi control bridge",()=>{
  assert.match(server,/verifyControlProof/);
  assert.match(server,/actor\.role!=="owner"/);
- assert.match(server,/issueBoiBrowserBridge/);
+ assert.match(server,/issueBoiAccountBridge/);
  assert.match(server,/\/api\/control\/accounts/);
  assert.match(server,/accountId:input\.accountId/);
  assert.doesNotMatch(server,/CLOUDFLARE_API_TOKEN|CLOUDFLARE_ACCOUNT_ID/);

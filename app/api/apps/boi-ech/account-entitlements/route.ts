@@ -1,4 +1,4 @@
-import { issueBoiBrowserBridge } from "../../../../boi-ech.server";
+import { issueBoiAccountBridge } from "../../../../boi-ech.server";
 import { controlErrorResponse, verifyControlProof } from "../../../../control-device.server";
 
 export const dynamic = "force-dynamic";
@@ -39,7 +39,7 @@ function verifiedDurationPolicies(value: unknown): value is Record<string,unknow
     });
 }
 
-async function upstream(bridge: Awaited<ReturnType<typeof issueBoiBrowserBridge>>, input: Record<string,unknown>) {
+async function upstream(bridge: Awaited<ReturnType<typeof issueBoiAccountBridge>>, input: Record<string,unknown>) {
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),TIMEOUT_MS);
   try {
@@ -59,7 +59,7 @@ async function upstream(bridge: Awaited<ReturnType<typeof issueBoiBrowserBridge>
  * cannot prove that the deployed BOI Worker enables one-review V2.
  * This endpoint discloses no identity, contacts, MFA or device keys.
  */
-async function boiSingleReviewActive(bridge: Awaited<ReturnType<typeof issueBoiBrowserBridge>>){
+async function boiSingleReviewActive(bridge: Awaited<ReturnType<typeof issueBoiAccountBridge>>){
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),TIMEOUT_MS);
   try{
     const response=await fetch(`${bridge.baseUrl}/api/accounts`,{
@@ -106,7 +106,10 @@ export async function POST(request: Request) {
         ||Number(input.expectedRevision)<1)) {
       return json({error:"Hồ sơ hoặc revision không hợp lệ.",code:"BOI_MANAGER_REVIEW_INPUT"},400);
     }
-    const bridge=await issueBoiBrowserBridge(actor.email,actor.role);
+    const afterCursor=input.after??"";
+    if(action==="manager-inbox"&&afterCursor!==""&&!validId(afterCursor))
+      return json({error:"Trang hàng chờ không hợp lệ.",code:"BOI_MANAGER_INBOX_CURSOR"},400);
+    const bridge=await issueBoiAccountBridge(actor.email);
     if((action==="issue-manager-invite"||action==="manager-review-first")
       && !await boiSingleReviewActive(bridge))
       return json({error:"Bơi Ếch đang chạy chưa xác nhận Account-first V2 duyệt một lần. Không phát lệnh Owner để tránh duyệt nhầm quy trình.",
@@ -126,7 +129,7 @@ export async function POST(request: Request) {
     const cmd:Record<string,unknown>=action==="manager-delete-local"
       ?{action:"cancel-pending-manager-local",accountId:input.accountId,expectedRevision:input.expectedRevision,confirmation:input.confirmation}
       :action==="manager-inbox"
-      ?{action:"manager-inbox-v2",after:input.after??"",limit:40}
+      ?{action:"manager-inbox-v2",after:afterCursor,limit:40}
       :action==="manager-policy"?{action:"capacity"}
       :action==="issue-manager-invite"?{action:"create-manager-invite",expectedRevision:input.expectedRevision}
       :action==="manager-review-first"?{action:"review-first",accountId:input.accountId,expectedRevision:input.expectedRevision}
@@ -155,6 +158,14 @@ export async function POST(request: Request) {
             ||typeof a.status!=="string"||typeof a.onboardingStage!=="string"
             ||typeof a.onboardingRevision!=="number"||!Number.isSafeInteger(a.onboardingRevision);
         })) return json({error:"Dữ liệu hàng chờ quản lý chưa được xác minh.",code:"BOI_MANAGER_INBOX_UNVERIFIED"},502);
+      let previous=String(afterCursor);
+      for(const row of rows){
+        const accountId=String(record(row).accountId);
+        if(accountId<=previous) return json({error:"Trang hàng chờ không tiến tới hồ sơ mới.",code:"BOI_MANAGER_INBOX_UNVERIFIED"},502);
+        previous=accountId;
+      }
+      if(next!==null&&(!rows.length||next!==previous))
+        return json({error:"Trang hàng chờ chưa khớp hồ sơ cuối.",code:"BOI_MANAGER_INBOX_UNVERIFIED"},502);
       const singleReviewReady = process.env.NEXT_PUBLIC_BOI_ECH_SINGLE_REVIEW === "true"
         && await boiSingleReviewActive(bridge);
       return json({ok:true,verified:true,singleReviewReady,managers:rows.map(row=>{
@@ -211,12 +222,18 @@ export async function POST(request: Request) {
     if(verified.status!==200) return json({error:"Đã gửi lệnh nhưng chưa đọc lại được Bơi ếch.",code:"ACCOUNT_READBACK_UNVERIFIED",applied:true,verified:false},502);
     if(action==="set-account"){
       const before=record(changed.data.entitlement),after=record(verified.data.entitlement);
-      if(!after.accountId || before.accountId!==after.accountId || before.revision!==after.revision || before.expiresAt!==after.expiresAt || before.state!==after.state)
+      const intendedState=input.operation==="suspend"?"suspended":input.operation==="resume"?"active":null;
+      const expiryMatches=input.operation!=="set-expiry"||(typeof after.expiresAt==="string"&&typeof input.expiresAt==="string"
+        && Date.parse(after.expiresAt)===Date.parse(input.expiresAt));
+      if(after.accountId!==input.accountId || before.accountId!==after.accountId || before.revision!==after.revision
+        || after.revision!==Number(input.expectedRevision)+1 || before.expiresAt!==after.expiresAt || before.state!==after.state
+        || (intendedState!==null&&after.state!==intendedState) || !expiryMatches)
         return json({error:"Dữ liệu tài khoản đọc lại không khớp.",code:"ACCOUNT_READBACK_MISMATCH",applied:true,verified:false},502);
     }else{
       const row=record(changed.data.policy);
       const actual=Array.isArray(verified.data.policies)?verified.data.policies.map(record).find(p=>p.role===row.role):null;
-      if(!actual||actual.revision!==row.revision||actual.defaultDays!==row.defaultDays)
+      if(!actual||row.role!==input.role||row.revision!==Number(input.expectedRevision)+1||row.defaultDays!==input.defaultDays
+        ||actual.revision!==row.revision||actual.defaultDays!==row.defaultDays)
         return json({error:"Chính sách thời hạn đọc lại không khớp.",code:"ACCOUNT_READBACK_MISMATCH",applied:true,verified:false},502);
     }
     return json({...changed.data,ok:true,verified:true});

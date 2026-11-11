@@ -22,7 +22,7 @@ test("V5: Owner API rejects forged legacy second review before bridge mutation, 
  assert.match(route,/BOI_SINGLE_REVIEW_BACKEND_UNVERIFIED/);
  assert.match(route,/accountSingleReview===true/);
  const forbidden=route.indexOf('if(action==="manager-review-final" || action==="manager-review-changes")');
- const bridge=route.indexOf("const bridge=await issueBoiBrowserBridge");
+ const bridge=route.indexOf("const bridge=await issueBoiAccountBridge");
  assert.ok(forbidden>0&&forbidden<bridge,"legacy action should be blocked before obtaining bridge");
  assert.match(route,/if\(actor\.role!=="owner"\)/);
 });
