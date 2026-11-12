@@ -45,7 +45,7 @@ test("authentication switch polls read-only session state and never disables MFA
 
 test("role-specific operations remain guarded, no learner or teacher approvals in Owner app",()=>{
  assert.match(source,/access\.role==="owner"\?<button type="button"/);
- assert.match(source,/access\.role==="owner"\?<div className="boi-owner-workspace"><AccountExpiryPanel section="accounts"/);
+ assert.ok(source.includes('tab==="accounts" && access.role==="owner" ? <div className="boi-owner-workspace"><AccountExpiryPanel section="accounts"/>'));
  assert.match(source,/AccountExpiryPanel section="oversight"/);
  assert.match(source,/AccountExpiryPanel section="policies"/);
  assert.match(source,/tab === "devices"/);
