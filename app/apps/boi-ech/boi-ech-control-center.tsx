@@ -864,11 +864,56 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
   },[authAutoCheck]);
   useEffect(()=>{
     if(!utilityOpen)return;
-    const onKey=(event:KeyboardEvent)=>{if(event.key==="Escape")setTab("overview");};
+    const previous=document.activeElement instanceof HTMLElement?document.activeElement:null;
+    const dialog=document.getElementById("boi-owner-task-dialog");
+    const onKey=(event:KeyboardEvent)=>{
+      if(event.key==="Escape"){event.preventDefault();setTab("overview");return;}
+      if(event.key!=="Tab"||!dialog)return;
+      const items=[...dialog.querySelectorAll<HTMLElement>('button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex="0"]')]
+        .filter(item=>item.getClientRects().length>0);
+      if(!items.length){event.preventDefault();dialog.focus();return;}
+      const first=items[0],last=items[items.length-1];
+      if(event.shiftKey&&(document.activeElement===first||document.activeElement===dialog)){
+        event.preventDefault();last.focus();
+      } else if(!event.shiftKey&&(document.activeElement===last||document.activeElement===dialog)){
+        event.preventDefault();first.focus();
+      }
+    };
     window.addEventListener("keydown",onKey);
-    const focus=window.setTimeout(()=>document.getElementById("boi-owner-task-dialog")?.focus(),0);
-    return()=>{window.removeEventListener("keydown",onKey);window.clearTimeout(focus);};
+    const focus=window.setTimeout(()=>dialog?.focus(),0);
+    return()=>{
+      window.removeEventListener("keydown",onKey);window.clearTimeout(focus);
+      if(previous?.isConnected)previous.focus({preventScroll:true});
+    };
   },[utilityOpen,tab]);
+  useEffect(()=>{
+    if(!toolsMenuOpen)return;
+    const dialog=document.getElementById("boi-owner-task-selector");
+    const previous=document.activeElement instanceof HTMLElement?document.activeElement:null;
+    const onKey=(event:KeyboardEvent)=>{
+      if(event.key==="Escape"){event.preventDefault();setToolsMenuOpen(false);return;}
+      if(event.key!=="Tab"||!dialog)return;
+      const items=[...dialog.querySelectorAll<HTMLElement>("button:not(:disabled),a[href]")];
+      const first=items[0],last=items[items.length-1];
+      if(!first)return;
+      if(event.shiftKey&&(document.activeElement===first||document.activeElement===dialog)){
+        event.preventDefault();last.focus();
+      } else if(!event.shiftKey&&(document.activeElement===last||document.activeElement===dialog)){
+        event.preventDefault();first.focus();
+      }
+    };
+    window.addEventListener("keydown",onKey);
+    const timer=window.setTimeout(()=>dialog?.focus(),0);
+    return()=>{window.removeEventListener("keydown",onKey);window.clearTimeout(timer);if(previous?.isConnected)previous.focus({preventScroll:true});};
+  },[toolsMenuOpen]);
+  useEffect(()=>{
+    if(!accountMenuOpen)return;
+    const close=(event:PointerEvent)=>{
+      if(event.target instanceof Element&&!event.target.closest(".boi-top-account"))setAccountMenuOpen(false);
+    };
+    document.addEventListener("pointerdown",close);
+    return()=>document.removeEventListener("pointerdown",close);
+  },[accountMenuOpen]);
   function authenticateManagement() { setManagementAuth(true); return new Promise<boolean>(resolve => { managementAuthRef.current = resolve; }); }
   function finishManagementAuth(verified: boolean) { setManagementAuth(false); managementAuthRef.current?.(verified); managementAuthRef.current = null; }
 
@@ -1335,7 +1380,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
           </div></div>
         </header>
         {toolsMenuOpen ? <div className="boi-task-selector-backdrop" role="presentation" onMouseDown={event=>{if(event.target===event.currentTarget)setToolsMenuOpen(false);}}>
-          <section className="boi-task-selector" role="dialog" aria-modal="true" aria-label="Chọn tác vụ Bơi Ếch">
+          <section id="boi-owner-task-selector" tabIndex={-1} className="boi-task-selector" role="dialog" aria-modal="true" aria-label="Chọn tác vụ Bơi Ếch">
             <header><div><small>NGHIỆP VỤ CHUYÊN BIỆT</small><h2>Chọn tác vụ quản trị</h2><p>Những chức năng ít sử dụng được mở bằng popup, không tạo thêm tab trên sidebar.</p></div><button type="button" onClick={()=>setToolsMenuOpen(false)} aria-label="Đóng danh sách tác vụ">✕</button></header>
             <div className="boi-task-selector-grid">
               {([...(access.role==="owner"?[["accounts","Tài khoản & Duyệt cán bộ"],["oversight","Giám sát GV / học viên"],["policies","Thời hạn & Chính sách"]]:[]),
