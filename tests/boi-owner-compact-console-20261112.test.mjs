@@ -17,7 +17,7 @@ test("owner compact console retains existing task handlers but exposes only thre
    assert.ok(source.includes(lowUsage),"must retain "+lowUsage);
  assert.match(source,/role=\{utilityOpen\?"dialog":undefined\}/);
  assert.match(source,/aria-modal=\{utilityOpen\?true:undefined\}/);
- assert.match(source,/event\.key==="Escape"\)setTab\("overview"\)/);
+ assert.match(source,/if\(event\.key==="Escape"\)\{event\.preventDefault\(\);setTab\("overview"\);return;\}/);
  assert.match(source,/id=\{utilityOpen\?"boi-owner-task-dialog":undefined\}/);
  assert.match(source,/event\.key!=="Tab"/);
  assert.match(source,/event\.shiftKey/);
