@@ -15,6 +15,13 @@ export type TotpState = {
   verifiedAt: number | null;
 };
 
+type TotpFactor = {
+  secret_ciphertext: string;
+  secret_iv: string;
+  enabled: number;
+  verified_at: number | null;
+};
+
 function text(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -145,12 +152,7 @@ async function secureCodeEqual(left: string, right: string) {
 async function factorRow(env: TotpEnv, email: string) {
   return env.DB.prepare(
     "SELECT secret_ciphertext,secret_iv,enabled,verified_at FROM control_mfa_factors WHERE account_email=?1 AND factor_type='totp' LIMIT 1",
-  ).bind(email).first<{
-    secret_ciphertext: string;
-    secret_iv: string;
-    enabled: number;
-    verified_at: number | null;
-  }>();
+  ).bind(email).first<TotpFactor>();
 }
 
 export function totpEnvironmentConfigured(env: TotpEnv) {
@@ -169,17 +171,7 @@ export async function totpState(env: TotpEnv, email: string): Promise<TotpState>
   };
 }
 
-export async function beginTotpEnrollment(env: TotpEnv, email: string, displayName: string) {
-  if (!totpEnvironmentConfigured(env)) throw new Error("totp_not_configured");
-  const existing = await factorRow(env, email);
-  if (existing?.enabled === 1) throw new Error("totp_already_enabled");
-
-  const secret = base32Encode(crypto.getRandomValues(new Uint8Array(20)));
-  const encrypted = await encryptSecret(env, secret);
-  await env.DB.prepare(
-    "INSERT INTO control_mfa_factors (account_email,factor_type,secret_ciphertext,secret_iv,enabled,verified_at,created_at,updated_at) VALUES (?1,'totp',?2,?3,0,NULL,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) ON CONFLICT(account_email) DO UPDATE SET secret_ciphertext=excluded.secret_ciphertext,secret_iv=excluded.secret_iv,enabled=0,verified_at=NULL,updated_at=CURRENT_TIMESTAMP",
-  ).bind(email, encrypted.ciphertext, encrypted.iv).run();
-
+function totpEnrollment(secret: string, email: string, displayName: string) {
   const issuer = "Application Management";
   const label = displayName.trim() || email;
   const uri = new URL(`otpauth://totp/${encodeURIComponent(issuer)}:${encodeURIComponent(label)}`);
@@ -191,33 +183,57 @@ export async function beginTotpEnrollment(env: TotpEnv, email: string, displayNa
   return { secret, uri: uri.toString() };
 }
 
-export async function verifyTotp(env: TotpEnv, email: string, rawCode: unknown) {
+export async function beginTotpEnrollment(env: TotpEnv, email: string, displayName: string) {
+  if (!totpEnvironmentConfigured(env)) throw new Error("totp_not_configured");
+  const existing = await factorRow(env, email);
+  if (existing?.enabled === 1) throw new Error("totp_already_enabled");
+
+  const secret = base32Encode(crypto.getRandomValues(new Uint8Array(20)));
+  const encrypted = await encryptSecret(env, secret);
+  const result = await env.DB.prepare(
+    `INSERT INTO control_mfa_factors (account_email,factor_type,secret_ciphertext,secret_iv,enabled,verified_at,created_at,updated_at)
+     VALUES (?1,'totp',?2,?3,0,NULL,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
+     ON CONFLICT(account_email) DO UPDATE SET secret_ciphertext=excluded.secret_ciphertext,secret_iv=excluded.secret_iv,verified_at=NULL,updated_at=CURRENT_TIMESTAMP
+     WHERE control_mfa_factors.enabled=0`,
+  ).bind(email, encrypted.ciphertext, encrypted.iv).run();
+  if (result.meta.changes !== 1) throw new Error("totp_already_enabled");
+  return totpEnrollment(secret, email, displayName);
+}
+
+async function verifyTotpFactor(env: TotpEnv, row: TotpFactor, rawCode: unknown) {
   const code = text(rawCode).replace(/\s+/g, "");
-  if (!/^\d{6}$/.test(code)) return false;
-  const row = await factorRow(env, email);
-  if (!row) return false;
+  if (!/^\d{6}$/.test(code)) return "invalid-code";
 
   let secret: string;
   try {
     secret = await decryptSecret(env, row.secret_ciphertext, row.secret_iv);
   } catch {
-    return false;
+    return "unavailable";
   }
 
   const current = Math.floor(Date.now() / 1000 / TOTP_PERIOD_SECONDS);
   for (let offset = -TOTP_WINDOW; offset <= TOTP_WINDOW; offset += 1) {
-    if (await secureCodeEqual(code, await totpCode(secret, current + offset))) return true;
+    if (await secureCodeEqual(code, await totpCode(secret, current + offset))) return "verified";
   }
-  return false;
+  return "invalid-code";
+}
+
+export async function verifyTotp(env: TotpEnv, email: string, code: unknown) {
+  if (!totpEnvironmentConfigured(env)) return "unavailable";
+  const row = await factorRow(env, email);
+  if (row?.enabled !== 1) return "setup-required";
+  return verifyTotpFactor(env, row, code);
 }
 
 export async function completeTotpEnrollment(env: TotpEnv, email: string, code: unknown) {
-  if (!(await verifyTotp(env, email, code))) return false;
+  const row = await factorRow(env, email);
+  if (row?.enabled !== 0 || await verifyTotpFactor(env, row, code) !== "verified") return false;
   const now = Math.floor(Date.now() / 1000);
-  await env.DB.prepare(
-    "UPDATE control_mfa_factors SET enabled=1,verified_at=?2,updated_at=CURRENT_TIMESTAMP WHERE account_email=?1 AND factor_type='totp'",
-  ).bind(email, now).run();
-  return true;
+  const result = await env.DB.prepare(
+    `UPDATE control_mfa_factors SET enabled=1,verified_at=?2,updated_at=CURRENT_TIMESTAMP
+     WHERE account_email=?1 AND factor_type='totp' AND enabled=0 AND secret_ciphertext=?3 AND secret_iv=?4`,
+  ).bind(email, now, row.secret_ciphertext, row.secret_iv).run();
+  return result.meta.changes === 1;
 }
 
 export async function removeTotp(env: TotpEnv, email: string) {

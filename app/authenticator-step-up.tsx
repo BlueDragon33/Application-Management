@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import styles from "./authenticator-step-up.module.css";
 
-export default function AuthenticatorStepUp({ finish }: { finish: (verified: boolean) => void }) {
+export default function AuthenticatorStepUp({ finish, setupRequired = false }: { finish: (verified: boolean) => void; setupRequired?: boolean }) {
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [needsSetup, setNeedsSetup] = useState(setupRequired);
   const lock = useRef(false);
   const input = useRef<HTMLInputElement | null>(null);
   const dialog = useRef<HTMLElement | null>(null);
@@ -41,7 +42,12 @@ export default function AuthenticatorStepUp({ finish }: { finish: (verified: boo
         body: new URLSearchParams({ code }), signal: controller.signal,
       });
       if (!response.headers.get("content-type")?.includes("application/json")) throw new Error("Không xác minh được phiên hiện tại. Bản nháp vẫn được giữ; hãy thử lại.");
-      const result = await response.json() as { ok?: boolean; error?: string };
+      const result = await response.json() as { ok?: boolean; code?: string; error?: string };
+      if (response.status === 403 && result.code === "MFA_SETUP_REQUIRED") {
+        if (mounted.current) setNeedsSetup(true);
+        return;
+      }
+      if (mounted.current) setNeedsSetup(false);
       if (!response.ok || result.ok !== true) throw new Error(result.error || "Không xác minh được phiên hiện tại. Hãy kiểm tra đăng nhập và thử lại.");
       if (mounted.current) finish(true);
     } catch (caught) {
@@ -56,7 +62,7 @@ export default function AuthenticatorStepUp({ finish }: { finish: (verified: boo
   function keyDown(event: KeyboardEvent<HTMLElement>) {
     if (event.key === "Escape") { event.preventDefault(); if (!lock.current) finish(false); return; }
     if (event.key !== "Tab") return;
-    const controls = [...event.currentTarget.querySelectorAll<HTMLElement>("input:not([disabled]),button:not([disabled])")];
+    const controls = [...event.currentTarget.querySelectorAll<HTMLElement>("a[href],input:not([disabled]),button:not([disabled])")];
     const first = controls[0]; const last = controls.at(-1);
     if (!first) { event.preventDefault(); event.currentTarget.focus(); }
     else if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
@@ -66,7 +72,10 @@ export default function AuthenticatorStepUp({ finish }: { finish: (verified: boo
   return <div className={styles.scrim}>
     <section ref={dialog} className={styles.dialog} role="dialog" aria-modal="true" aria-busy={busy} aria-label="Xác minh Authenticator" tabIndex={-1} onKeyDown={keyDown}>
       <h2>Xác minh thay đổi</h2>
-      <p>Nhập mã 6 số từ Authenticator. Xác minh đúng sẽ tiếp tục lưu các thay đổi đang chờ.</p>
+      {needsSetup ? <>
+        <p role="status">Tài khoản chưa bật Authenticator. Hoàn tất thiết lập ở tab mới, rồi quay lại nhập mã 6 số để lưu thay đổi đang chờ.</p>
+        <a className={styles.setupLink} href="/__account" target="_blank" rel="noopener noreferrer">Mở Tài khoản &amp; bảo mật</a>
+      </> : <p>Nhập mã 6 số từ Authenticator. Xác minh đúng sẽ tiếp tục lưu các thay đổi đang chờ.</p>}
       <form onSubmit={(event) => void submit(event)}>
         <label htmlFor="policy-authenticator-code">Mã Authenticator</label>
         <input ref={input} id="policy-authenticator-code" name="code" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required value={code} onInput={(event) => setCode(event.currentTarget.value.replace(/\D/g, "").slice(0, 6))} disabled={busy} aria-describedby={error ? "policy-authenticator-error" : undefined}/>

@@ -41,7 +41,7 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
  const [reason,setReason]=useState("Owner quản lý thời hạn sử dụng");
  const [busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[error,setError]=useState(""),[notice,setNotice]=useState("");
  const [accountsVerified,setAccountsVerified]=useState(false);
- const [authenticate,setAuthenticate]=useState(false);
+ const [authenticate,setAuthenticate]=useState<"setup"|"verify"|null>(null);
  const authResolve=useRef<((verified:boolean)=>void)|null>(null);
  const mounted=useRef(true),writeLock=useRef(false);
  useEffect(()=>{
@@ -49,14 +49,14 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
   return()=>{mounted.current=false;authResolve.current?.(false);authResolve.current=null;};
  },[]);
  function finishAuthentication(verified:boolean){
-  setAuthenticate(false);authResolve.current?.(verified);authResolve.current=null;
+  setAuthenticate(null);authResolve.current?.(verified);authResolve.current=null;
  }
  async function withOwnerAuthentication<T,>(operation:()=>Promise<T>):Promise<T>{
   try{return await operation();}
   catch(caught){
    const data=caught instanceof Error?(caught as Error&{data?:Record<string,unknown>}).data:undefined;
    if(data?.code!=="STEP_UP_REQUIRED"||data.applied!==false||!mounted.current)throw caught;
-   setAuthenticate(true);
+   setAuthenticate(data.authenticatorSetupRequired===true?"setup":"verify");
    const allowed=await new Promise<boolean>(resolve=>{authResolve.current=resolve;});
    if(!allowed||!mounted.current)throw new Error("Đã hủy xác minh; bản nháp được giữ nguyên.");
    return operation();
@@ -166,7 +166,7 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
   }catch(e){setError(e instanceof Error?e.message:"Không cập nhật được mặc định.");}
   finally{writeLock.current=false;setBusy(false);}
  }
- return <><section inert={authenticate} aria-hidden={authenticate||undefined} aria-label="Hồ sơ tài khoản Bơi ếch AI" className="boi-account-panel" data-section={section}>
+ return <><section inert={authenticate!==null} aria-hidden={authenticate?true:undefined} aria-label="Hồ sơ tài khoản Bơi ếch AI" className="boi-account-panel" data-section={section}>
   {section==="accounts"?<div className="boi-account-header"><span>OWNER · DUYỆT CÁN BỘ QUẢN LÝ</span><h2>Hàng chờ cán bộ</h2><p>Chỉ Owner mời và phê duyệt cán bộ quản lý; giảng viên và học viên do cán bộ quản lý xử lý tại Bơi Ếch.</p></div>:null}
   {section==="oversight"?<div className="boi-account-header"><span>GIÁM SÁT · CHỈ ĐỌC</span><h2>Giảng viên & học viên</h2><p>Hiển thị thông tin, vai trò, trạng thái hồ sơ và thời hạn để giám sát. Không duyệt, từ chối, cấp hoặc thu hồi quyền từ đây.</p></div>:null}
   {section==="policies"?<div className="boi-account-header"><span>OWNER · QUẢN TRỊ CHÍNH SÁCH</span><h2>Thời hạn & chính sách</h2><p>Thiết lập mặc định chung không phải phê duyệt tài khoản. Chỉ điều chỉnh trực tiếp tài khoản cán bộ quản lý tại màn hình này.</p></div>:null}
@@ -297,5 +297,5 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
   </div>:null}
   {section==="policies"?<small>Thao tác Owner với chính sách/mốc thời hạn phải có CAS, nhật ký và đọc lại Bơi Ếch. Không cấp quyền giảng viên/học viên tại màn hình này.</small>:null}
   {section==="accounts"?<p className="boi-oversight-note">Giảng viên/học viên được cán bộ quản lý phê duyệt tại Bơi Ếch theo phạm vi; Owner chỉ giám sát dữ liệu.</p>:null}
- </section>{authenticate?<AuthenticatorStepUp finish={finishAuthentication}/>:null}</>;
+ </section>{authenticate?<AuthenticatorStepUp finish={finishAuthentication} setupRequired={authenticate==="setup"}/>:null}</>;
 }
