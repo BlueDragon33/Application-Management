@@ -821,7 +821,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
   const [toolsMenuOpen,setToolsMenuOpen]=useState(false);
   const [authAutoCheck,setAuthAutoCheck]=useState(false);
   const [authConnection,setAuthConnection]=useState<"unchecked"|"verified"|"unavailable">("unchecked");
-  const [clockNow,setClockNow]=useState(()=>Date.now());
+  const [clockNow,setClockNow]=useState(0); // Hydration-safe placeholder; locale/timezone is device-specific.
   const [lastAuthCheck,setLastAuthCheck]=useState<string|null>(null);
   const [appearanceOpen, setAppearanceOpen] = useState(false);
   const [appearanceReady, setAppearanceReady] = useState(false);
@@ -841,6 +841,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
     ai:"Điều hành AI",content:"Duyệt nội dung"
   };
   useEffect(()=>{
+    setClockNow(Date.now());
     const timer=window.setInterval(()=>setClockNow(Date.now()),60_000);
     return ()=>window.clearInterval(timer);
   },[]);
@@ -1345,8 +1346,8 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
           <button type="button" aria-expanded={toolsMenuOpen||utilityOpen} className={toolsMenuOpen||utilityOpen?"active":""} onClick={()=>{setToolsMenuOpen(true);setAccountMenuOpen(false);}}><i aria-hidden="true">☷</i><span><strong>Nghiệp vụ khác</strong></span></button>
         </nav>
         <div className="boi-side-clock" aria-label="Đồng hồ tại thiết bị">
-          <strong>{new Date(clockNow).toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit"})}</strong>
-          <span>{new Date(clockNow).toLocaleDateString("vi-VN",{weekday:"long",day:"2-digit",month:"2-digit",year:"numeric"})}</span>
+          <strong>{clockNow ? new Date(clockNow).toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit"}) : "--:--"}</strong>
+          <span>{clockNow ? new Date(clockNow).toLocaleDateString("vi-VN",{weekday:"long",day:"2-digit",month:"2-digit",year:"numeric"}) : "Giờ địa phương"}</span>
           <small>Giờ trên thiết bị hiện tại</small>
         </div>
       </aside>
