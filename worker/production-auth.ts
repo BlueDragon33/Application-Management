@@ -29,6 +29,11 @@ const PASSWORD_ITERATIONS = 100_000;
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_SECONDS = 15 * 60;
 const STEP_UP_TTL_SECONDS = 30 * 60;
+const TOTP_STEP_UP_ERRORS = {
+  "setup-required": { status: 403, code: "MFA_SETUP_REQUIRED", error: "Hãy bật Authenticator trong Tài khoản & bảo mật trước khi xác minh." },
+  "unavailable": { status: 503, code: "MFA_UNAVAILABLE", error: "Dịch vụ xác minh Authenticator hiện không khả dụng. Vui lòng thử lại sau." },
+  "invalid-code": { status: 401, code: "MFA_INVALID_CODE", error: "Mã Authenticator không đúng hoặc đã hết hạn." },
+} as const;
 const encoder = new TextEncoder();
 
 type ProductionAuthEnv = GoogleOAuthEnv & TotpEnv & {
@@ -280,16 +285,19 @@ function accountPage(identity: ProductionIdentity, profile: AccountPageData, not
       </div>
       <script defer src="/vendor/qrcode.min.js"></script>
       <script defer src="/authenticator-qr.js"></script>
+    ` : ""}
+    ${profile.setupSecret || profile.totp?.pending ? `
       <form method="post" action="${ACCOUNT_PATH}/mfa/verify">
+        ${profile.setupSecret ? "" : `<h2>Hoàn tất thiết lập Google Authenticator</h2><p class="note">Nhập mã 6 số từ mục Application Management đã quét.</p>`}
         <label for="verifyTotpCode">Mã 6 số trong Google Authenticator</label>
         <input id="verifyTotpCode" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
         <button type="submit">Xác nhận và bật Authenticator</button>
       </form>
-    ` : profile.totp?.configured && !profile.totp.enabled ? `
+    ` : ""}
+    ${profile.totp?.configured && !profile.totp.enabled && !profile.setupSecret ? `
       <form method="post" action="${ACCOUNT_PATH}/mfa/setup">
-        <h2>Xác thực tăng cường</h2>
-        <p class="note">Chỉ dùng khi thay đổi bảo mật hoặc thực hiện thao tác nhạy cảm.</p>
-        <button type="submit">Thiết lập Google Authenticator</button>
+        ${profile.totp.pending ? `<p class="note">Nếu không còn mục đã quét, tạo mã QR mới để thiết lập lại.</p><button class="secondary" type="submit">Tạo mã QR mới</button>`
+          : `<h2>Xác thực tăng cường</h2><p class="note">Chỉ dùng khi thay đổi bảo mật hoặc thực hiện thao tác nhạy cảm.</p><button type="submit">Thiết lập Google Authenticator</button>`}
       </form>
     ` : ""}
     ${profile.totp?.enabled ? `
@@ -731,7 +739,11 @@ export async function handleProductionAccount(request: Request, env: ProductionA
 
   if (url.pathname === `${ACCOUNT_PATH}/mfa/verify`) {
     const ok = await completeTotpEnrollment(env, identity.email, form.get("code"));
-    if (!ok) return responseHtml(accountPage(identity, await accountPageData(env, identity), "Lỗi: Mã Authenticator không đúng hoặc đã hết hạn."), 401);
+    if (!ok) {
+      const data = await accountPageData(env, identity);
+      if (data.totp?.pending) return responseHtml(accountPage(identity, data, "Lỗi: Mã Authenticator không đúng hoặc đã hết hạn. Nhập mã mới để thử lại."), 401);
+      return responseHtml(accountPage(identity, data, "Lỗi: Phiên thiết lập Authenticator không còn khả dụng. Hãy kiểm tra trạng thái 2FA."), 409);
+    }
     const now = Math.floor(Date.now() / 1000);
     await env.DB.prepare("UPDATE control_sessions SET step_up_at=?2 WHERE session_id_hash=?1").bind(identity.sessionHash, now).run();
     return responseHtml(accountPage({ ...identity, stepUpAt: now }, await accountPageData(env, identity), "Đã bật Authenticator. Xác minh tăng cường có hiệu lực 30 phút."));
@@ -739,12 +751,11 @@ export async function handleProductionAccount(request: Request, env: ProductionA
 
   if (url.pathname === `${ACCOUNT_PATH}/mfa/step-up`) {
     const json = request.headers.get("accept")?.includes("application/json");
-    const state = await totpState(env, identity.email);
-    const ok = state.enabled && await verifyTotp(env, identity.email, form.get("code"));
-    if (!ok) {
-      const error = "Mã Authenticator không đúng hoặc đã hết hạn.";
-      if (json) return Response.json({ ok: false, error }, { status: 401, headers: secureHeaders("application/json; charset=utf-8") });
-      return responseHtml(accountPage(identity, await accountPageData(env, identity), "Lỗi: " + error), 401);
+    const result = await verifyTotp(env, identity.email, form.get("code"));
+    if (result !== "verified") {
+      const { status, code, error } = TOTP_STEP_UP_ERRORS[result];
+      if (json) return Response.json({ ok: false, code, error }, { status, headers: secureHeaders("application/json; charset=utf-8") });
+      return responseHtml(accountPage(identity, await accountPageData(env, identity), "Lỗi: " + error), status);
     }
     const now = Math.floor(Date.now() / 1000);
     await env.DB.prepare("UPDATE control_sessions SET step_up_at=?2 WHERE session_id_hash=?1").bind(identity.sessionHash, now).run();
@@ -865,17 +876,18 @@ function sensitiveProductionMutation(pathname: string, payload: Record<string, u
   return false;
 }
 
-function stepUpRequiredResponse() {
+function stepUpRequiredResponse(authenticatorSetupRequired = false) {
   return Response.json(
     {
       ok: false,
-      error: "Hãy xác minh Google Authenticator trước khi thực hiện thao tác nhạy cảm.",
+      error: authenticatorSetupRequired ? TOTP_STEP_UP_ERRORS["setup-required"].error : "Hãy xác minh Google Authenticator trước khi thực hiện thao tác nhạy cảm.",
       code: "STEP_UP_REQUIRED",
       // The Worker rejects this request before routing it to any mutation handler.
       // An explicit unapplied result is required for a single MFA-safe client retry.
       applied: false,
       stepUpPath: ACCOUNT_PATH,
       stepUpTtlSeconds: STEP_UP_TTL_SECONDS,
+      authenticatorSetupRequired,
     },
     {
       status: 403,
@@ -911,7 +923,7 @@ export async function productionStepUpGate(
     && new Set(["issue-manager-invite","manager-review-first",
       "manager-review-final","manager-review-changes",
       "manager-delete-local","set-account","set-policy"]).has(text(payload.action))
-    && (!state.enabled || !stepUpFresh(identity))) return stepUpRequiredResponse();
+    && (!state.enabled || !stepUpFresh(identity))) return stepUpRequiredResponse(state.configured && !state.enabled);
   if (!state.enabled || stepUpFresh(identity)) return null;
   return sensitiveProductionMutation(pathname, payload) ? stepUpRequiredResponse() : null;
 }

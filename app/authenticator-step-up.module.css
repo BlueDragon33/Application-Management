@@ -5,6 +5,7 @@
 .dialog label { display: block; margin-bottom: 8px; font-weight: 700; }
 .dialog input { width: 100%; min-height: 48px; box-sizing: border-box; border: 1px solid #79af98; border-radius: 8px; padding: 10px; background: #09271e; color: white; font-size: 1.25rem; letter-spacing: .2em; }
 .dialog .error { padding: 10px; border: 1px solid #af6565; border-radius: 8px; color: #ffdbdb; background: #461f25; }
+.dialog .setupLink { display: inline-block; margin-bottom: 14px; color: #a6e4ce; text-decoration: underline; text-underline-offset: 3px; }
 .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
 .actions button { flex: 1 1 160px; min-height: 46px; border: 1px solid #79af98; border-radius: 8px; padding: 10px; background: #17694f; color: white; font-size: 1rem; cursor: pointer; }
 .actions button:disabled { opacity: .6; cursor: wait; }
