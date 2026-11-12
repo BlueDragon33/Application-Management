@@ -19,6 +19,12 @@ test("owner compact console retains existing task handlers but exposes only thre
  assert.match(source,/aria-modal=\{utilityOpen\?true:undefined\}/);
  assert.match(source,/event\.key==="Escape"\)setTab\("overview"\)/);
  assert.match(source,/id=\{utilityOpen\?"boi-owner-task-dialog":undefined\}/);
+ assert.match(source,/event\.key!=="Tab"/);
+ assert.match(source,/event\.shiftKey/);
+ assert.match(source,/previous\.focus\(\{preventScroll:true\}\)/);
+ assert.match(source,/boi-owner-task-selector/);
+ assert.match(source,/window\.addEventListener\("keydown",onKey\)/);
+
 });
 
 test("owner profile is at top right, not in sidebar; boundary notice and sidebar security link removed",()=>{
