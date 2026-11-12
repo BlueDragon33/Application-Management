@@ -12,7 +12,7 @@ test("owner compact console retains existing task handlers but exposes only thre
    source.indexOf("</nav>",source.indexOf('<nav aria-label="Quản trị Bơi ếch — điều hướng chính">')));
  assert.equal((nav.match(/<button type="button"/g)||[]).length,3);
  for(const item of ["Tổng quan","Thiết bị & Tiến độ","Nghiệp vụ khác"])assert.ok(nav.includes(item),item);
- for(const lowUsage of ["Duyệt cán bộ quản lý","Giám sát GV / học viên","Vai trò & Quyền",
+ for(const lowUsage of ["Tài khoản & Duyệt cán bộ","Giám sát GV / học viên","Vai trò & Quyền",
    "Thời hạn & Chính sách","Báo cáo & Thống kê","Điều hành AI","Duyệt nội dung"])
    assert.ok(source.includes(lowUsage),"must retain "+lowUsage);
  assert.match(source,/role=\{utilityOpen\?"dialog":undefined\}/);
