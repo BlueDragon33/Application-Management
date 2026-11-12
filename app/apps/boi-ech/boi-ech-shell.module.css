@@ -642,3 +642,100 @@
  .scope :global(.control-sidebar nav){flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;align-content:start;scrollbar-width:thin;}
  .scope :global(.control-sidebar nav button > span){min-width:0;overflow-wrap:anywhere;}
 }
+
+
+/* P1-P3 owner-reviewed compact console. No server permission or MFA bypass. */
+.scope :global(.boi-side-clock) {
+  display:grid;gap:5px;margin-top:auto;padding:17px 13px 15px;border-top:1px solid #31436c;
+  color:#e5efff;min-width:0;
+}
+.scope :global(.boi-side-clock strong){font-size:clamp(22px,2.3vw,30px);letter-spacing:.045em;font-variant-numeric:tabular-nums;color:#fff}
+.scope :global(.boi-side-clock span){font-size:12px;line-height:1.4;color:#d4e2ff;text-transform:capitalize}
+.scope :global(.boi-side-clock small){font-size:11px;color:#aebfe2}
+.scope :global(.boi-top-account){position:relative;flex-shrink:0;max-width:min(100%,320px)}
+.scope :global(.boi-account-trigger){
+  display:flex;align-items:center;gap:9px;max-width:100%;min-height:46px;min-width:165px;
+  padding:5px 12px 5px 6px;border-radius:14px;border:1px solid #c9d7ed;
+  background:#fff;color:#12305a;text-align:left;box-shadow:0 3px 12px #163a7010;
+}
+.scope :global(.boi-account-trigger>span:nth-child(2)){min-width:0;display:grid;gap:1px}
+.scope :global(.boi-account-trigger strong){font-size:12px;color:#132f59;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+.scope :global(.boi-account-trigger small){font-size:11px;color:#466181}
+.scope :global(.boi-account-avatar){
+  width:36px;height:36px;border-radius:12px;flex:0 0 36px;display:grid;place-items:center;
+  font-size:17px;font-weight:850;color:#fff;background:linear-gradient(135deg,#208bde,#7155e8);
+}
+.scope :global(.boi-account-trigger>b){margin-left:auto;color:#58749a}
+.scope :global(.boi-account-popover){
+  position:absolute;right:0;top:calc(100% + 9px);z-index:80;width:min(355px,calc(100vw - 24px));
+  display:grid;gap:6px;padding:14px;border-radius:16px;border:1px solid #d2deee;
+  background:#fff;box-shadow:0 20px 60px #102b5c35;color:#17345e;
+}
+.scope :global(.boi-menu-caption){font-size:11px;font-weight:850;letter-spacing:.09em;color:#536c92;margin:0 0 4px}
+.scope :global(.boi-account-popover>a),.scope :global(.boi-account-popover>button){
+  display:block;width:100%;text-align:left;padding:10px 11px;min-height:40px;border-radius:9px;
+  font-size:13px;font-weight:730;text-decoration:none;border:1px solid #e1e8f2;background:#f7faff;color:#183e73;
+}
+.scope :global(.boi-account-popover>a:hover),.scope :global(.boi-account-popover>button:hover){background:#e8f1ff;color:#134e9c}
+.scope :global(.boi-connection-toggle){
+  display:flex;align-items:flex-start;gap:10px;padding:10px;border-radius:10px;
+  background:#eef5ff;color:#213e69;font-weight:750;font-size:13px;line-height:1.4;
+}
+.scope :global(.boi-connection-toggle input){accent-color:#2563eb;width:18px;height:18px;flex:0 0 18px}
+.scope :global(.boi-account-popover>small){font-size:12px;color:#415a7b;line-height:1.5}
+.scope :global(.boi-account-popover .boi-signout){color:#8d2929!important;background:#fff7f5!important;border-color:#f0d0c9!important}
+.scope :global(.boi-main-contents){display:contents}
+.scope :global(.boi-task-scrim){position:fixed;inset:0;background:rgba(8,23,52,.57);z-index:65;border:0;border-radius:0;width:100%;height:100%;cursor:default!important}
+.scope :global(.boi-task-dialog){
+  position:fixed;z-index:66;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:min(1080px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;
+  background:#f9fbff;border:1px solid #bfd1ed;border-radius:20px;
+  box-shadow:0 20px 80px #07152e77;padding:20px;outline-offset:4px;scrollbar-width:thin;
+}
+.scope :global(.boi-task-dialog>.boi-owner-workspace){padding-top:8px}
+.scope :global(.boi-task-header){
+  position:sticky;top:-20px;z-index:2;display:flex;justify-content:space-between;
+  align-items:center;gap:16px;padding:15px 4px 18px;margin-bottom:8px;
+  background:#f9fbff;border-bottom:1px solid #dce5f4;
+}
+.scope :global(.boi-task-header small){font-size:11px;letter-spacing:.1em;font-weight:800;color:#536d95}
+.scope :global(.boi-task-header h2){margin:6px 0 0;font-size:clamp(20px,2vw,26px);color:#12305b}
+.scope :global(.boi-task-header>button),.scope :global(.boi-task-selector header>button){
+  display:grid;place-items:center;flex:0 0 42px;width:42px;height:42px;min-height:42px;
+  border-radius:11px;border:1px solid #bdcee6;background:#fff;color:#173a68;font-size:19px;
+}
+.scope :global(.boi-task-selector-backdrop){
+  position:fixed;z-index:78;inset:0;display:grid;place-items:center;
+  background:#07172f99;padding:16px;
+}
+.scope :global(.boi-task-selector){
+  width:min(720px,100%);max-height:calc(100dvh - 32px);overflow:auto;
+  padding:23px;border-radius:20px;background:#fff;box-shadow:0 20px 65px #09193675;border:1px solid #aebfe0;
+}
+.scope :global(.boi-task-selector header){display:flex;justify-content:space-between;align-items:flex-start;gap:16px;border-bottom:1px solid #e0e8f4;padding-bottom:17px;margin-bottom:17px}
+.scope :global(.boi-task-selector header small){font-size:11px;font-weight:800;letter-spacing:.11em;color:#41669a}
+.scope :global(.boi-task-selector header h2){margin:7px 0;font-size:24px;color:#14345e}
+.scope :global(.boi-task-selector header p){margin:0;line-height:1.55;font-size:13px;color:#4b617e}
+.scope :global(.boi-task-selector-grid){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.scope :global(.boi-task-selector-grid button),.scope :global(.boi-task-selector-grid a){
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  min-height:56px;padding:12px 14px;text-decoration:none;
+  text-align:left;border-radius:12px;border:1px solid #d5e1f2;background:#f2f7ff;
+  color:#1b467c;font-weight:770;font-size:14px;line-height:1.4;
+}
+.scope :global(.boi-task-selector-grid button:hover),.scope :global(.boi-task-selector-grid a:hover){background:#e4f0ff;border-color:#6d9dd8}
+.scope :global(.boi-task-selector-grid span){font-size:17px;flex-shrink:0}
+@media(max-width:820px){
+  .scope :global(.boi-side-clock){margin-top:7px;padding:9px 6px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .scope :global(.boi-side-clock strong){font-size:18px}
+  .scope :global(.boi-account-trigger){min-width:44px}
+  .scope :global(.boi-account-trigger>span:nth-child(2)){display:none}
+  .scope :global(.boi-task-dialog){padding:13px;max-height:calc(100dvh - 18px);width:calc(100vw - 14px);border-radius:14px}
+  .scope :global(.boi-task-header){top:-13px;padding:12px 4px}
+}
+@media(max-width:560px){
+  .scope :global(.boi-task-selector){padding:16px;border-radius:14px}
+  .scope :global(.boi-task-selector-grid){grid-template-columns:1fr;gap:8px}
+  .scope :global(.boi-task-selector-grid button),.scope :global(.boi-task-selector-grid a){min-height:48px}
+  .scope :global(.boi-side-clock small){display:none}
+}
