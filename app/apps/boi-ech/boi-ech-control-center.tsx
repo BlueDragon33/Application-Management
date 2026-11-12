@@ -1,6 +1,7 @@
 "use client";
 
 /* Ảnh chuyển khoản được lấy qua endpoint bảo vệ và URL blob cục bộ. */
+/* Architecture invariant: Quyền QT và audit Trung tâm nằm ở Application Management.\n   This is enforced by existing APIs; the redundant visible sidebar disclaimer was removed. */
 /* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -815,6 +816,13 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
   const [selectedActivityLoading, setSelectedActivityLoading] = useState(false);
   const [online, setOnline] = useState(true);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
+  // Compact shell keeps rare work in task dialogs, not permanent navigation.
+  const [accountMenuOpen,setAccountMenuOpen]=useState(false);
+  const [toolsMenuOpen,setToolsMenuOpen]=useState(false);
+  const [authAutoCheck,setAuthAutoCheck]=useState(false);
+  const [authConnection,setAuthConnection]=useState<"unchecked"|"verified"|"unavailable">("unchecked");
+  const [clockNow,setClockNow]=useState(0); // Hydration-safe placeholder; locale/timezone is device-specific.
+  const [lastAuthCheck,setLastAuthCheck]=useState<string|null>(null);
   const [appearanceOpen, setAppearanceOpen] = useState(false);
   const [appearanceReady, setAppearanceReady] = useState(false);
   const [appearance, setAppearance] = useState<AdminAppearance>(defaultAdminAppearance);
@@ -826,6 +834,87 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
   const [managementAuth, setManagementAuth] = useState(false);
   const managementAuthRef = useRef<((verified: boolean) => void) | null>(null);
   useEffect(() => () => { managementAuthRef.current?.(false); }, []);
+  const utilityOpen=!["overview","devices"].includes(tab);
+  const taskTitle:Record<string,string>={
+    accounts:"Tài khoản & Duyệt cán bộ",oversight:"Giám sát GV / học viên",
+    roles:"Vai trò & Quyền",policies:"Thời hạn & Chính sách",reports:"Báo cáo & Thống kê",
+    ai:"Điều hành AI",content:"Duyệt nội dung"
+  };
+  useEffect(()=>{
+    const initial=window.setTimeout(()=>setClockNow(Date.now()),0);
+    const timer=window.setInterval(()=>setClockNow(Date.now()),60_000);
+    return ()=>{window.clearTimeout(initial);window.clearInterval(timer);};
+  },[]);
+  useEffect(()=>{
+    if(!authAutoCheck)return;
+    let alive=true;
+    const check=async()=>{
+      if(document.hidden||!navigator.onLine)return;
+      try{
+        const response=await fetch("/api/center",{credentials:"same-origin",cache:"no-store",redirect:"error"});
+        if(!alive)return;
+        setAuthConnection(response.ok?"verified":"unavailable");
+        setLastAuthCheck(new Date().toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit"}));
+      }catch{
+        if(alive)setAuthConnection("unavailable");
+      }
+    };
+    void check();
+    const timer=window.setInterval(()=>{void check();},120_000);
+    return()=>{alive=false;window.clearInterval(timer);};
+  },[authAutoCheck]);
+  useEffect(()=>{
+    if(!utilityOpen)return;
+    const previous=document.activeElement instanceof HTMLElement?document.activeElement:null;
+    const dialog=document.getElementById("boi-owner-task-dialog");
+    const onKey=(event:KeyboardEvent)=>{
+      if(event.key==="Escape"){event.preventDefault();setTab("overview");return;}
+      if(event.key!=="Tab"||!dialog)return;
+      const items=[...dialog.querySelectorAll<HTMLElement>('button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex="0"]')]
+        .filter(item=>item.getClientRects().length>0);
+      if(!items.length){event.preventDefault();dialog.focus();return;}
+      const first=items[0],last=items[items.length-1];
+      if(event.shiftKey&&(document.activeElement===first||document.activeElement===dialog)){
+        event.preventDefault();last.focus();
+      } else if(!event.shiftKey&&(document.activeElement===last||document.activeElement===dialog)){
+        event.preventDefault();first.focus();
+      }
+    };
+    window.addEventListener("keydown",onKey);
+    const focus=window.setTimeout(()=>dialog?.focus(),0);
+    return()=>{
+      window.removeEventListener("keydown",onKey);window.clearTimeout(focus);
+      if(previous?.isConnected)previous.focus({preventScroll:true});
+    };
+  },[utilityOpen,tab]);
+  useEffect(()=>{
+    if(!toolsMenuOpen)return;
+    const dialog=document.getElementById("boi-owner-task-selector");
+    const previous=document.activeElement instanceof HTMLElement?document.activeElement:null;
+    const onKey=(event:KeyboardEvent)=>{
+      if(event.key==="Escape"){event.preventDefault();setToolsMenuOpen(false);return;}
+      if(event.key!=="Tab"||!dialog)return;
+      const items=[...dialog.querySelectorAll<HTMLElement>("button:not(:disabled),a[href]")];
+      const first=items[0],last=items[items.length-1];
+      if(!first)return;
+      if(event.shiftKey&&(document.activeElement===first||document.activeElement===dialog)){
+        event.preventDefault();last.focus();
+      } else if(!event.shiftKey&&(document.activeElement===last||document.activeElement===dialog)){
+        event.preventDefault();first.focus();
+      }
+    };
+    window.addEventListener("keydown",onKey);
+    const timer=window.setTimeout(()=>dialog?.focus(),0);
+    return()=>{window.removeEventListener("keydown",onKey);window.clearTimeout(timer);if(previous?.isConnected)previous.focus({preventScroll:true});};
+  },[toolsMenuOpen]);
+  useEffect(()=>{
+    if(!accountMenuOpen)return;
+    const close=(event:PointerEvent)=>{
+      if(event.target instanceof Element&&!event.target.closest(".boi-top-account"))setAccountMenuOpen(false);
+    };
+    document.addEventListener("pointerdown",close);
+    return()=>document.removeEventListener("pointerdown",close);
+  },[accountMenuOpen]);
   function authenticateManagement() { setManagementAuth(true); return new Promise<boolean>(resolve => { managementAuthRef.current = resolve; }); }
   function finishManagementAuth(verified: boolean) { setManagementAuth(false); managementAuthRef.current?.(verified); managementAuthRef.current = null; }
 
@@ -1251,23 +1340,16 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
         <div className="control-brand"><div className="brand-seal">BE</div><div><span>CLIENT CẤP 1</span><strong>Quản trị Bơi ếch</strong></div></div>
 
         <div className="boi-nav-caption">ĐIỀU HÀNH ỨNG DỤNG</div>
-        <nav aria-label="Quản trị Bơi ếch">
+        <nav aria-label="Quản trị Bơi ếch — điều hướng chính">
           <button type="button" aria-current={tab==="overview"?"page":undefined} className={tab==="overview"?"active":""} onClick={()=>setTab("overview")}><i aria-hidden="true">⌂</i><span><strong>Tổng quan</strong></span></button>
-          {access.role==="owner"?<button type="button" aria-current={tab==="accounts"?"page":undefined} className={tab==="accounts"?"active":""} onClick={()=>setTab("accounts")}><i aria-hidden="true">♙</i><span><strong>Tài khoản & Duyệt cán bộ</strong></span></button>:null}
-          {access.role==="owner"?<button type="button" aria-current={tab==="oversight"?"page":undefined} className={tab==="oversight"?"active":""} onClick={()=>setTab("oversight")}><i aria-hidden="true">◉</i><span><strong>Giám sát GV / học viên</strong></span></button>:null}
-          <button type="button" aria-current={tab==="roles"?"page":undefined} className={tab==="roles"?"active":""} onClick={()=>setTab("roles")}><i aria-hidden="true">♧</i><span><strong>Vai trò & Quyền</strong></span></button>
-          {access.role==="owner"?<button type="button" aria-current={tab==="policies"?"page":undefined} className={tab==="policies"?"active":""} onClick={()=>setTab("policies")}><i aria-hidden="true">◷</i><span><strong>Thời hạn & Chính sách</strong></span></button>:null}
           <button type="button" aria-current={tab==="devices"?"page":undefined} className={tab==="devices"?"active":""} onClick={()=>setTab("devices")}><i aria-hidden="true">▣</i><span><strong>Thiết bị & Tiến độ</strong></span></button>
-          <button type="button" aria-current={tab==="reports"?"page":undefined} className={tab==="reports"?"active":""} onClick={()=>setTab("reports")}><i aria-hidden="true">▥</i><span><strong>Báo cáo & Thống kê</strong></span></button>
-          <button type="button" aria-current={tab==="ai"?"page":undefined} className={tab==="ai"?"active":""} onClick={()=>setTab("ai")}><i aria-hidden="true">✧</i><span><strong>Điều hành AI</strong></span></button>
-          {canReviewContent?<button type="button" aria-current={tab==="content"?"page":undefined} className={tab==="content"?"active":""} onClick={()=>setTab("content")}><i aria-hidden="true">≣</i><span><strong>Duyệt nội dung</strong></span></button>:null}
+          <button type="button" aria-expanded={toolsMenuOpen||utilityOpen} className={toolsMenuOpen||utilityOpen?"active":""} onClick={()=>{setToolsMenuOpen(true);setAccountMenuOpen(false);}}><i aria-hidden="true">☷</i><span><strong>Nghiệp vụ khác</strong></span></button>
         </nav>
-        <div className="boi-nav-footer">
-          <Link href="/__account">♢ <span>Bảo mật & Xác thực</span></Link>
-          {access.role==="owner"?<Link href="/apps/boi-ech/cloudflare-preview">↗ <span>Cloudflare Preview</span></Link>:null}
+        <div className="boi-side-clock" aria-label="Đồng hồ tại thiết bị">
+          <strong>{clockNow ? new Date(clockNow).toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit"}) : "--:--"}</strong>
+          <span>{clockNow ? new Date(clockNow).toLocaleDateString("vi-VN",{weekday:"long",day:"2-digit",month:"2-digit",year:"numeric"}) : "Giờ địa phương"}</span>
+          <small>Giờ trên thiết bị hiện tại</small>
         </div>
-        <div className="client-boundary-note"><strong>Ranh giới Bơi ếch</strong><span>Thiết bị học, tiến độ, AI, thanh toán và nội dung thuộc client này. Quyền QT và audit Trung tâm nằm ở Application Management.</span></div>
-        <div className="signed-user"><span>{user.displayName.slice(0, 1).toUpperCase()}</span><div><strong>{user.displayName}</strong><small>{roleLabels[access.role]}</small></div><a href="/signout-with-chatgpt?return_to=/">Đăng xuất</a></div>
       </aside>
 
       <section className="control-main">
@@ -1279,14 +1361,43 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
           </div>
           <div className="topbar-actions"><span className={`sync-state ${devicesVerified&&online?"boi-confirmed":"sync-warning"}`} role="status"><i/> {!online?"Trình duyệt không có mạng":devicesVerified?"Control API đã xác minh":"Chưa xác minh kết nối"}</span>
           <button type="button" className="button appearance-control" onClick={()=>setAppearanceOpen(true)} aria-expanded={appearanceOpen} aria-controls="admin-appearance-panel"><b>Aa</b> Giao diện</button>
-          <button type="button" className="button boi-sync-button" onClick={()=>void refresh(credential,access,{discoverNew:true})} disabled={checking||!online}>{checking?"Đang cập nhật…":"↻ Đồng bộ"}</button></div>
+          <button type="button" className="button boi-sync-button" onClick={()=>void refresh(credential,access,{discoverNew:true})} disabled={checking||!online}>{checking?"Đang cập nhật…":"↻ Đồng bộ"}</button>
+          <div className="boi-top-account">
+            <button type="button" className="boi-account-trigger" aria-expanded={accountMenuOpen} aria-controls="boi-account-menu" onClick={()=>{setAccountMenuOpen(!accountMenuOpen);setToolsMenuOpen(false);}}>
+              <span className="boi-account-avatar" aria-hidden="true">{user.displayName.slice(0,1).toUpperCase()}</span>
+              <span><strong>{user.displayName}</strong><small>{roleLabels[access.role]}</small></span><b aria-hidden="true">⌄</b>
+            </button>
+            {accountMenuOpen?<div id="boi-account-menu" className="boi-account-popover" role="group" aria-label="Tác vụ tài khoản cá nhân">
+              <p className="boi-menu-caption">TÀI KHOẢN & XÁC THỰC</p>
+              <Link href="/__account" onClick={()=>setAccountMenuOpen(false)}>Hồ sơ · Đổi mật khẩu · Bảo mật</Link>
+              <Link href="/__account" onClick={()=>setAccountMenuOpen(false)}>Thiết lập / xác minh Authenticator</Link>
+              {access.role==="owner"?<button type="button" onClick={()=>{setTab("accounts");setAccountMenuOpen(false);}}>Mời và xét duyệt cán bộ</button>:null}
+              {access.role==="owner"?<button type="button" onClick={()=>{setTab("policies");setAccountMenuOpen(false);}}>Thời hạn tài khoản & chính sách</button>:null}
+              <label className="boi-connection-toggle"><input type="checkbox" checked={authAutoCheck} onChange={event=>{setAuthAutoCheck(event.target.checked);setAuthConnection("unchecked");}}/>
+                <span>Tự động kiểm tra kết nối Authentication</span></label>
+              <small role="status">{!authAutoCheck?"Tắt kiểm tra nền; xác thực bắt buộc vẫn hoạt động.":authConnection==="verified"?"Phiên Application-Management đã xác minh · "+(lastAuthCheck??"vừa xong"):authConnection==="unavailable"?"Chưa xác minh được phiên, không bỏ qua bảo mật.":"Đang kiểm tra phiên..."}</small>
+              <a href="/signout-with-chatgpt?return_to=/" className="boi-signout">Đăng xuất</a>
+            </div>:null}
+          </div></div>
         </header>
+        {toolsMenuOpen ? <div className="boi-task-selector-backdrop" role="presentation" onMouseDown={event=>{if(event.target===event.currentTarget)setToolsMenuOpen(false);}}>
+          <section id="boi-owner-task-selector" tabIndex={-1} className="boi-task-selector" role="dialog" aria-modal="true" aria-label="Chọn tác vụ Bơi Ếch">
+            <header><div><small>NGHIỆP VỤ CHUYÊN BIỆT</small><h2>Chọn tác vụ quản trị</h2><p>Những chức năng ít sử dụng được mở bằng popup, không tạo thêm tab trên sidebar.</p></div><button type="button" onClick={()=>setToolsMenuOpen(false)} aria-label="Đóng danh sách tác vụ">✕</button></header>
+            <div className="boi-task-selector-grid">
+              {([...(access.role==="owner"?[["accounts","Tài khoản & Duyệt cán bộ"],["oversight","Giám sát GV / học viên"],["policies","Thời hạn & Chính sách"]]:[]),
+                ["roles","Vai trò & Quyền"],["reports","Báo cáo & Thống kê"],["ai","Điều hành AI"],
+                ...(canReviewContent?[["content","Duyệt nội dung"]]:[])] as Array<[typeof tab,string]>).map(([section,label])=>
+                <button type="button" key={section} onClick={()=>{setTab(section);setToolsMenuOpen(false);}}>{label}<span aria-hidden="true">↗</span></button>)}
+              {access.role==="owner"?<Link href="/apps/boi-ech/cloudflare-preview">Cloudflare Preview<span aria-hidden="true">↗</span></Link>:null}
+            </div>
+          </section>
+        </div> : null}
         {appearanceOpen ? <><button className="admin-appearance-scrim" aria-label="Đóng bảng Giao diện" onClick={() => setAppearanceOpen(false)} /><aside id="admin-appearance-panel" className="admin-appearance-panel" role="dialog" aria-modal="true" aria-labelledby="admin-appearance-title"><header><div><span>Tùy chỉnh hiển thị</span><h2 id="admin-appearance-title">Giao diện quản trị</h2></div><button onClick={() => setAppearanceOpen(false)} aria-label="Đóng">×</button></header><section><label>Màu nền</label><p>Chỉ lưu trên máy quản trị hiện tại.</p><div className="admin-theme-options">{adminThemes.map((item) => <button key={item.id} className={appearance.theme === item.id ? "active" : ""} onClick={() => setAppearance((current) => ({ ...current, theme: item.id }))}><i style={{ background: item.paper }} /><span>{item.name}</span></button>)}</div></section><section><label>Font tiếng Việt</label><div className="admin-font-options">{adminFonts.map((item) => <button key={item.id} className={appearance.font === item.id ? "active" : ""} style={{ fontFamily: item.ui }} onClick={() => setAppearance((current) => ({ ...current, font: item.id }))}><strong>{item.name}</strong><span>{item.sample}</span></button>)}</div></section><section><label>Cỡ giao diện</label><div className="admin-size-options">{([{ id: "normal", label: "Tiêu chuẩn" }, { id: "large", label: "Lớn" }, { id: "xlarge", label: "Rất lớn" }] as const).map((item) => <button key={item.id} className={appearance.textSize === item.id ? "active" : ""} onClick={() => setAppearance((current) => ({ ...current, textSize: item.id }))}>{item.label}</button>)}</div></section><footer><button onClick={() => setAppearance(defaultAdminAppearance)}>Khôi phục mặc định</button><span>Tự lưu trên thiết bị</span></footer></aside></> : null}
         {error || dashboard?.upstreamError ? <div className="alert warning" role="alert"><strong>Chưa xác minh kết nối:</strong> {error || dashboard?.upstreamError}</div> : null}
         {notice ? <div className="notice" role="status">{notice}</div> : null}
 
 
-        {tab==="overview" ? (access.role==="owner"
+        {(tab==="overview"||utilityOpen) ? (access.role==="owner"
           ? <BoiOwnerOverview onNavigate={setTab}/>
           : <div className="boi-basic-overview">
               <section className="boi-account-metrics">
@@ -1297,6 +1408,11 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
               <section className="boi-console-card"><h2>Không gian điều hành Bơi Ếch</h2><p>Học viên/giảng viên được phê duyệt bởi cán bộ quản lý theo phạm vi. Khu quản trị này không thay thế luồng duyệt đó.</p><button type="button" onClick={()=>setTab("devices")}>Theo dõi thiết bị và tiến độ →</button></section>
             </div>) : null}
 
+        {utilityOpen?<button type="button" className="boi-task-scrim" aria-label="Đóng cửa sổ nghiệp vụ" onClick={()=>setTab("overview")}/>:null}
+        <div className={utilityOpen?"boi-task-dialog":"boi-main-contents"} role={utilityOpen?"dialog":undefined}
+          aria-modal={utilityOpen?true:undefined} aria-label={utilityOpen?taskTitle[tab]:undefined}
+          id={utilityOpen?"boi-owner-task-dialog":undefined} tabIndex={utilityOpen?-1:undefined}>
+          {utilityOpen?<header className="boi-task-header"><div><small>QUẢN TRỊ BƠI ẾCH · TÁC VỤ CHUYÊN BIỆT</small><h2>{taskTitle[tab]}</h2></div><button type="button" aria-label="Đóng cửa sổ nghiệp vụ" onClick={()=>setTab("overview")}>✕</button></header>:null}
         {tab==="accounts" && access.role==="owner" ? <div className="boi-owner-workspace"><AccountExpiryPanel section="accounts"/></div> : null}
         {tab==="oversight" && access.role==="owner" ? <div className="boi-owner-workspace"><AccountExpiryPanel section="oversight"/></div> : null}
         {tab==="policies" && access.role==="owner" ? <div className="boi-owner-workspace"><AccountExpiryPanel section="policies"/></div> : null}
@@ -1354,6 +1470,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
         {tab === "ai" && dashboard?.boiBridge ? <AiControlCenter role={access.role} api={(init) => boiApi<AiControlData>(dashboard.boiBridge, "/api/control/ai", init)} onNotice={setNotice} /> : null}
 
         {tab === "content" && dashboard?.boiBridge ? <ContentReviewCenter bridge={dashboard.boiBridge} access={access} automation={dashboard.automation} saveAutomation={(enabled, defaultAccessDays, defaultDeviceLimit) => dashboardAction({ action: "manage-learning-device", operation: "update-automation", enabled, defaultAccessDays, defaultDeviceLimit }, `Đã ${enabled ? "bật" : "tắt"} tự động duyệt; mặc định ${defaultAccessDays} ngày cho tối đa ${defaultDeviceLimit} thiết bị.`)} /> : null}
+        </div>
       </section>
 
       {installPrompt ? <button className="install-fab" onClick={() => void installWebApp()} aria-label="Cài khu quản trị Bơi ếch" title="Cài ứng dụng"><span aria-hidden="true">⇩</span><b>Cài ứng dụng</b></button> : null}
