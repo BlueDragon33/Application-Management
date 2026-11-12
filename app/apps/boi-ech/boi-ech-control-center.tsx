@@ -841,9 +841,9 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
     ai:"Điều hành AI",content:"Duyệt nội dung"
   };
   useEffect(()=>{
-    setClockNow(Date.now());
+    const initial=window.setTimeout(()=>setClockNow(Date.now()),0);
     const timer=window.setInterval(()=>setClockNow(Date.now()),60_000);
-    return ()=>window.clearInterval(timer);
+    return ()=>{window.clearTimeout(initial);window.clearInterval(timer);};
   },[]);
   useEffect(()=>{
     if(!authAutoCheck)return;
