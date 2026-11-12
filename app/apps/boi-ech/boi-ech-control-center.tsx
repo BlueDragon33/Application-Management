@@ -1,6 +1,7 @@
 "use client";
 
 /* Ảnh chuyển khoản được lấy qua endpoint bảo vệ và URL blob cục bộ. */
+/* Architecture invariant: Quyền QT và audit Trung tâm nằm ở Application Management.\n   This is enforced by existing APIs; the redundant visible sidebar disclaimer was removed. */
 /* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useMemo, useRef, useState } from "react";
