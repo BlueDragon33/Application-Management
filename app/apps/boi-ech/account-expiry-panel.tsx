@@ -3,6 +3,7 @@
 import {useEffect,useMemo,useRef,useState} from "react";
 import AuthenticatorStepUp from "../../authenticator-step-up";
 import OwnerAccountCleanupPanel from "./owner-account-cleanup-panel";
+import OwnerRoleAccessPanel from "./owner-role-access-panel";
 import {
  loadBoiAccountDurations,loadBoiManagerInbox,issueBoiManagerInvitation,reviewBoiManagerAccount,
  changeBoiAccountDuration,changeBoiDefaultAccountDays,cancelBoiLocalTestManager,archiveBoiManagerAccount,
@@ -317,11 +318,12 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
   <OwnerAccountCleanupPanel/>
   </>:null}
   {section==="policies"?<header><h2>Thời hạn tài khoản · Account First V2</h2>
-   <p>Chính sách mặc định 30 ngày từ lúc hoàn tất hồ sơ và kích hoạt. Chỉ thay đổi thời hạn hoặc mặc định; không trực tiếp duyệt giảng viên/học viên.</p></header>:null}
+   <p>Chính sách mặc định 3 ngày cho cán bộ quản lý, 8 ngày cho giảng viên và học viên mới. Chỉ thay đổi thời hạn hoặc mặc định; không trực tiếp duyệt giảng viên/học viên.</p></header>:null}
   {section!=="accounts"&&loading?<p role="status">Đang đọc dữ liệu tài khoản từ Bơi ếch…</p>:null}
   {section!=="accounts"&&error?<div role="alert"><strong>Chưa xác minh:</strong> {error} <a href="/__account">Xác minh Authenticator (nếu được yêu cầu)</a></div>:null}
   {section!=="accounts"&&notice?<p role="status">{notice}</p>:null}
   {section!=="accounts"?<button type="button" className="boi-refresh-inline" disabled={busy||loading} onClick={()=>void refresh()}>↻ Đọc lại tài khoản từ Bơi Ếch</button>:null}
+  {section==="policies"?<OwnerRoleAccessPanel/>:null}
   {section==="policies"&&policies.length?<div className="boi-duration-policies">
    {policies.map(p=><label key={p.role} style={{display:"grid",gap:6}}>
     <span>{labels[p.role]||p.role} · mặc định</span>
@@ -366,7 +368,7 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
         <input type="datetime-local" value={expiration} onChange={e=>setExpiration(e.target.value)}/>
       </label><div className="boi-expiry-actions">
         <button type="button" disabled={busy} onClick={()=>void commitAccount("set-expiry")}>Lưu ngày hết hạn</button>
-        <button type="button" disabled={busy} onClick={()=>setExpiration(localInput(new Date(Date.now()+30*86400000).toISOString()))}>+30 ngày từ hôm nay</button>
+        <button type="button" disabled={busy} onClick={()=>setExpiration(localInput(new Date(Date.now()+3*86400000).toISOString()))}>+3 ngày từ hôm nay</button>
         {current.entitlement.state==="active"
           ?<button type="button" disabled={busy} onClick={()=>void commitAccount("suspend")}>Tạm khóa cán bộ</button>
           :<button type="button" disabled={busy||Date.parse(current.entitlement.expiresAt)<=observedNow} onClick={()=>void commitAccount("resume")}>Khôi phục cán bộ</button>}
