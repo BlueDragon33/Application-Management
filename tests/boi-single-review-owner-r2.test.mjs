@@ -9,7 +9,7 @@ test("R2 Owner manager approval is singular under the matched BOI gate",()=>{
  const route=read("app/api/apps/boi-ech/account-entitlements/route.ts");
  assert.match(panel,/NEXT_PUBLIC_BOI_ECH_SINGLE_REVIEW/);
  assert.match(panel,/singleReview&&m.onboardingStage==="profile_review"/);
- assert.match(panel,/Duyệt tài khoản — chờ bổ sung hồ sơ/);
+ assert.match(panel,/Chưa cần duyệt thủ công/);
  assert.match(panel,/3 ngày, giảng viên và học viên 8 ngày/);
  assert.match(route,/if\(actor.role!=="owner"\)/);
  assert.match(route,/BOI_REVIEW_SUPERSEDED/);
@@ -20,7 +20,7 @@ test("R2 Owner UI retains MFA, readback and scoped learner-manager separation",(
  const panel=read("app/apps/boi-ech/account-expiry-panel.tsx");
  const route=read("app/api/apps/boi-ech/account-entitlements/route.ts");
  assert.match(panel,/Authenticator trong 30 phút/);
- assert.match(panel,/giảng viên và học viên do cán bộ quản lý xử lý/);
+ assert.match(panel,/Cán bộ quản lý gia hạn cho hai nhóm/);
  assert.match(route,/ACCOUNT_READBACK_MISMATCH/);
  assert.match(route,/verifyControlProof/);
  assert.match(route,/expectedRevision/);
