@@ -73,7 +73,7 @@ test("Owner role and typed suffix are enforced before upstream access",async()=>
 });
 test("Revoke and purge require recent enrolled 30-minute TOTP; inspection remains read only",()=>{
  const worker=readFileSync("worker/production-auth.ts","utf8");
- assert.match(worker,/pathname==="\\/api\\/apps\\/boi-ech\\/device-bindings"/);
+ assert.ok(worker.includes('pathname==="/api/apps/boi-ech/device-bindings"'));
  assert.match(worker,/\["revoke","purge"\]\.includes\(text\(payload\.action\)\)/);
  assert.match(worker,/!state\.enabled \|\| !stepUpFresh\(identity\)/);
  assert.match(worker,/stepUpRequiredResponse\(state\.configured && !state\.enabled\)/);
