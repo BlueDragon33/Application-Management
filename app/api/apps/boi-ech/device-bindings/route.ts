@@ -26,7 +26,7 @@ function validDetail(value:Record<string,unknown>,bindingId:string){
   &&typeof value.createdAt==="string"&&Number.isFinite(Date.parse(value.createdAt))
   &&typeof account.accountId==="string"&&/^acc_[a-f0-9]{64}$/.test(account.accountId)
   &&typeof account.createdAt==="string"&&Number.isFinite(Date.parse(account.createdAt))
-  &&["manager","teacher","learner"].includes(String(account.role))
+  &&(account.role===null||["manager","teacher","learner"].includes(String(account.role)))
   &&["sessions","activeSessions","syncGrants","syncEvents","otherTrustedDevices"].every(k=>
     typeof dep[k]==="number"&&Number.isSafeInteger(dep[k])&&(dep[k] as number)>=0)
   &&value.preservesAccount===true&&value.preservesLearning===true&&value.preservesAudit===true;
