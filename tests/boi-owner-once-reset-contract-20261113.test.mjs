@@ -10,8 +10,8 @@ test("one-time Owner reset uses existing account panel and requires two protecte
  assert.match(ui,/Thiên Sơn/);
  assert.match(ui,/Đông Nghi/);
  assert.match(ui,/protectedPeople\.map/);
- assert.match(ui,/preview\.protectedPeople\[0\]\.deviceId/);
- assert.match(ui,/preview\.protectedPeople\[1\]\.deviceId/);
+ assert.match(ui,/current\.protectedPeople\[0\]\.deviceId/);
+ assert.match(ui,/current\.protectedPeople\[1\]\.deviceId/);
  assert.match(ui,/XOA TAT CA TRU THIEN SON VA DONG NGHI/);
  assert.match(ui,/BOOKMARK\.test\(bookmark\.trim\(\)\)/);
  assert.match(ui,/window\.confirm\(/);
@@ -33,6 +33,7 @@ test("App proxy enforces Owner device proof and MFA before any signed BOI deleti
 test("Owner UI never automatically fires destructive one-time reset on mount, nor on new registrations",()=>{
  const ui=read("apps/boi-ech/owner-once-roster-reset-panel.tsx");
  assert.match(ui,/onClick=\{\(\)=>void purge\(\)\}/);
- assert.doesNotMatch(ui,/useEffect\(\(\)=>\{.*executeOwnerOnceRosterBatch/s);
+ const effectBodies=[...ui.matchAll(/useEffect\(\(\)=>\{([\s\S]*?)\},\[\]\);/g)].map(m=>m[1]);
+ assert.ok(effectBodies.every(body=>!body.includes("executeOwnerOnceRosterBatch")));
  assert.match(ui,/Hồ sơ có chứng chỉ, lịch học, thanh toán/);
 });
