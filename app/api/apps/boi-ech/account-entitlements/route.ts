@@ -174,7 +174,7 @@ export async function POST(request: Request) {
             ||typeof a.createdAt!=="string"||!Number.isFinite(Date.parse(a.createdAt))
             ||(a.lastSeenAt!==null&&a.lastSeenAt!==undefined
               && (typeof a.lastSeenAt!=="string"||!Number.isFinite(Date.parse(a.lastSeenAt))))
-            ||!Number.isSafeInteger(a.activeSessions)||a.activeSessions<0;
+            ||typeof a.activeSessions!=="number"||!Number.isSafeInteger(a.activeSessions)||a.activeSessions<0;
         })) return json({error:"Dữ liệu hàng chờ quản lý chưa được xác minh.",code:"BOI_MANAGER_INBOX_UNVERIFIED"},502);
       return json({ok:true,verified:true,managers:rows.map(row=>{
         const a=record(row);
