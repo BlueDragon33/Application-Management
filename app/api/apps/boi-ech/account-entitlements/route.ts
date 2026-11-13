@@ -150,7 +150,7 @@ export async function POST(request: Request) {
       :action==="policy"?{action:"entitlement-policy"}
       :action==="read-account"?{action:"read-entitlement",accountId:input.accountId}
       :action==="set-policy"?{action:"set-entitlement-policy",role:input.role,defaultDays:input.defaultDays,expectedRevision:input.expectedRevision,reason:input.reason}
-      :{action:"set-entitlement",accountId:input.accountId,operation:input.operation,expiresAt:input.expiresAt,expectedRevision:input.expectedRevision,reason:input.reason};
+      :{action:"set-entitlement",accountId:input.accountId,operation:input.operation,period:input.period,expiresAt:input.expiresAt,expectedRevision:input.expectedRevision,reason:input.reason};
     const changed=await upstream(bridge,cmd);
     if(changed.status!==200) return json(changed.data,changed.status);
     if(action==="ban-account"){
