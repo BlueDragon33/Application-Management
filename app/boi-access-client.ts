@@ -355,3 +355,12 @@ export async function permanentlyBlockBoiAccount(accountId:string,expectedRevisi
   throw new Error("Chưa xác minh khóa tài khoản/thiết bị.");
  return result;
 }
+
+export async function readBoiCanonicalAccount(accountId:string){
+ if(!/^acc_[a-f0-9]{64}$/.test(accountId))throw new Error("Nhập chính xác ID tài khoản.");
+ const result=await accountDurationCall({action:"read-canonical",accountId}) as
+  BoiAccountDurationResponse & {account?:{accountId:string;name:string|null;role:string;status:string;revision:number}};
+ if(result.verified!==true||result.account?.accountId!==accountId||
+  !Number.isSafeInteger(result.account?.revision))throw new Error("Không xác minh được thông tin tài khoản.");
+ return result.account;
+}
