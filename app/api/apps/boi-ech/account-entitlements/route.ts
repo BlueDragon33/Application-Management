@@ -3,8 +3,8 @@ import { controlErrorResponse, verifyControlProof } from "../../../../control-de
 
 export const dynamic = "force-dynamic";
 const TIMEOUT_MS = 8_000;
-const mutations = new Set(["set-account","set-policy","issue-manager-invite","manager-review-first","manager-review-final","manager-review-changes","manager-delete-local","manager-archive"]);
-const allowed = new Set(["list","manager-inbox","manager-policy","policy","read-account",...mutations]);
+const mutations = new Set(["set-account","set-policy","issue-manager-invite","manager-review-first","manager-review-final","manager-review-changes","manager-delete-local","manager-archive","set-capacity"]);
+const allowed = new Set(["list","manager-inbox","manager-policy","capacity","policy","read-account",...mutations]);
 function json(data: unknown,status=200) {
   return Response.json(data,{status,headers:{"cache-control":"no-store, private","x-content-type-options":"nosniff"}});
 }
@@ -107,6 +107,11 @@ export async function POST(request: Request) {
         ||typeof input.reason!=="string"||input.reason.trim().length<10
         ||input.reason.length>300))
       return json({error:"Yêu cầu lưu trữ phải có đúng ID, revision và lý do.",code:"BOI_MANAGER_ARCHIVE_INPUT"},400);
+    if(action==="set-capacity" &&
+       (!validRoles.has(String(input.role))||!Number.isSafeInteger(input.accountLimit)
+        ||Number(input.accountLimit)<1||Number(input.accountLimit)>5000
+        ||!Number.isSafeInteger(input.expectedRevision)||Number(input.expectedRevision)<1))
+      return json({error:"Giới hạn tài khoản phải từ 1 đến 5000 và có revision hợp lệ.",code:"ACCOUNT_INPUT"},400);
     if(action==="manager-review-first"
       && (!validId(input.accountId)||!Number.isSafeInteger(input.expectedRevision)
         ||Number(input.expectedRevision)<1)) {
@@ -126,7 +131,8 @@ export async function POST(request: Request) {
       ?{action:"cancel-pending-manager-local",accountId:input.accountId,expectedRevision:input.expectedRevision,confirmation:input.confirmation}
       :action==="manager-inbox"
       ?{action:"manager-inbox-v2",after:input.after??"",limit:40}
-      :action==="manager-policy"?{action:"capacity"}
+      :action==="manager-policy"||action==="capacity"?{action:"capacity"}
+      :action==="set-capacity"?{action:"set-capacity",role:input.role,accountLimit:input.accountLimit,expectedRevision:input.expectedRevision}
       :action==="issue-manager-invite"?{action:"create-manager-invite",expectedRevision:input.expectedRevision}
       :action==="manager-review-first"?{action:"review-first",accountId:input.accountId,expectedRevision:input.expectedRevision}
       :action==="manager-review-final"?{action:"command",operation:"approve-manager",accountId:input.accountId,expectedRevision:input.expectedRevision}
@@ -183,6 +189,26 @@ export async function POST(request: Request) {
           name:typeof a.name==="string"?a.name:null,
           createdAt:a.createdAt,lastSeenAt:a.lastSeenAt??null,activeSessions:a.activeSessions};
       }),nextCursor:next});
+    }
+    if(action==="capacity"||action==="set-capacity"){
+      const rows=changed.data.limits;
+      const valid=Array.isArray(rows)&&rows.length===3&&
+        new Set(rows.map(x=>record(x).role)).size===3&&rows.every(x=>{
+          const v=record(x);return validRoles.has(String(v.role))&&
+          Number.isSafeInteger(v.accountLimit)&&Number(v.accountLimit)>=1&&Number(v.accountLimit)<=5000
+          &&Number.isSafeInteger(v.used)&&Number(v.used)>=0
+          &&Number.isSafeInteger(v.revision)&&Number(v.revision)>=1;
+        });
+      if(!valid)return json({error:"Hạn mức tài khoản chưa xác minh từ D1.",code:"ACCOUNT_CAPACITY_UNVERIFIED"},502);
+      if(action==="capacity")return json({ok:true,verified:true,limits:rows});
+      const readback=await upstream(bridge,{action:"capacity"});
+      const target=Array.isArray(readback.data.limits)?readback.data.limits.map(record)
+        .find(v=>v.role===input.role):null;
+      if(readback.status!==200||!target||target.accountLimit!==input.accountLimit
+        ||target.revision!==Number(input.expectedRevision)+1)
+        return json({error:"Đã gửi hạn mức nhưng chưa đọc lại được từ D1.",
+          code:"ACCOUNT_CAPACITY_READBACK_FAILED",applied:true},502);
+      return json({ok:true,verified:true,limits:rows});
     }
     if(action==="manager-policy"){
       const limits=changed.data.limits;
