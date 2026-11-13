@@ -98,8 +98,8 @@ test("Owner MFA is above binding dialog, keyboard trap yields to step-up and req
  const stepup=readFileSync("app/authenticator-step-up.module.css","utf8");
  const shell=readFileSync("app/apps/boi-ech/boi-ech-shell.module.css","utf8");
  const ui=readFileSync("app/apps/boi-ech/boi-ech-control-center.tsx","utf8");
- const mfaZ=Number(stepup.match(/z-index:\\s*(\\d+)/)?.[1]||0);
- const bindingZ=Number(shell.match(/boi-binding-backdrop[^]*?z-index:\\s*(\\d+)/)?.[1]||0);
+ const mfaZ=Number(stepup.split("z-index:")[1]?.split(";")[0].trim());
+ const bindingZ=Number(shell.split("boi-binding-backdrop")[1]?.split("z-index:")[1]?.split(";")[0].trim());
  assert.ok(mfaZ>bindingZ,"Authenticator must render above Owner device modal");
  assert.match(ui,/if\(managementAuth\)return; \/\/ Never steal focus/);
  assert.match(ui,/\[bindingId,bindingBusy,managementAuth\]/);
