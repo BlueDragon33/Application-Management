@@ -172,7 +172,8 @@ export async function manageBoiAccess(device: BoiAccessDevice, operation: BoiAcc
 
 /** Owner-only, read-only canonical Bơi Ếch manager intake; no local account registry. */
 export type BoiManagerInboxRecord = {accountId:string;name:string|null;status:string;
-  accountRevision:number;onboardingStage:string;onboardingRevision:number};
+  accountRevision:number;onboardingStage:string;onboardingRevision:number;
+  createdAt:string;lastSeenAt:string|null;activeSessions:number};
 export type BoiManagerInboxPage = {managers:BoiManagerInboxRecord[];nextCursor:string|null};
 export async function loadBoiManagerInbox(after=""):Promise<BoiManagerInboxPage>{
   const result=await accountDurationCall({action:"manager-inbox",after}) as BoiAccountDurationResponse & {
@@ -203,6 +204,20 @@ export async function reviewBoiManagerAccount(
   if(result.verified!==true||result.account?.accountId!==accountId)
     throw new Error("Bơi ếch chưa đọc lại xác nhận duyệt.");
   return result.account;
+}
+
+/** Verified soft archive with full-ID consent and server-side Owner CAS/audit/readback.
+ * Does not hard-delete D1 identity, learning data or audit records. */
+export async function archiveBoiManagerAccount(accountId:string,expectedRevision:number,reason:string) {
+ if(!/^acc_[a-f0-9]{64}$/.test(accountId)||!Number.isSafeInteger(expectedRevision)
+   ||reason.trim().length<10)throw new Error("Thiếu ID, revision hoặc lý do lưu trữ.");
+ const result=await accountDurationCall({action:"manager-archive",accountId,expectedRevision,
+   confirmation:accountId,reason:reason.trim()}) as BoiAccountDurationResponse
+   & {accountId?:string;status?:string;archived?:boolean;retainedHistory?:boolean;revision?:number};
+ if(result.verified!==true||result.accountId!==accountId||result.status!=="blocked"
+   ||result.archived!==true||result.retainedHistory!==true||result.revision!==expectedRevision+1)
+   throw new Error("Không xác minh được việc gỡ quyền/lưu trữ cán bộ.");
+ return result;
 }
 
 /** Local-only Owner test intake cleanup. No Production delete command exists. */

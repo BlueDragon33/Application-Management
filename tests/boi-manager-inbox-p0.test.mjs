@@ -5,6 +5,7 @@ import {loadTs} from "./helpers/load-ts.mjs";
 
 const manager={accountId:"acc_"+'a'.repeat(64),name:null,role:"manager",
  status:"pending",accountRevision:0,onboardingStage:"requested",onboardingRevision:1,
+ createdAt:"2026-11-01T08:00:00Z",lastSeenAt:"2026-11-07T08:30:00Z",activeSessions:0,
  passwordVerifier:"FORBIDDEN",phone:"FORBIDDEN",publicKeyJwk:"FORBIDDEN"};
 
 function fixture({role="owner",upstreamStatus=200,upstream={contract:"boi-manager-intake.v2",verified:true,managers:[manager],nextCursor:null}}={}){
@@ -35,7 +36,7 @@ test("Owner manager inbox is read-only and uses canonical BOI accounts with no l
  const f=fixture(),r=await f.run();
  assert.equal(r.status,200);assert.equal(r.json.ok,true);assert.equal(r.json.verified,true);
  assert.equal(r.json.managers.length,1);
- assert.deepEqual(Object.keys(r.json.managers[0]).sort(),["accountId","name","status","accountRevision","onboardingStage","onboardingRevision"].sort());
+ assert.deepEqual(Object.keys(r.json.managers[0]).sort(),["accountId","name","status","accountRevision","onboardingStage","onboardingRevision","createdAt","lastSeenAt","activeSessions"].sort());
  assert.doesNotMatch(JSON.stringify(r.json),/FORBIDDEN|passwordVerifier|phone|publicKeyJwk/);
  assert.equal(f.calls.length,1);
  assert.equal(f.calls[0].url,"https://boi.example.invalid/api/control/accounts");

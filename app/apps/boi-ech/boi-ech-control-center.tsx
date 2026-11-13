@@ -812,6 +812,8 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
   const [tab, setTab] = useState<"overview" | "accounts" | "oversight" | "roles" | "policies" | "devices" | "reports" | "ai" | "content">("overview");
   const [filter, setFilter] = useState<"all" | "active" | "pending" | "incomplete" | "payment" | "paid" | "free" | "expired" | "blocked">("all");
   const [search, setSearch] = useState("");
+  const [registrySearch,setRegistrySearch]=useState("");
+  const [registryFilter,setRegistryFilter]=useState<"all"|"approved"|"pending"|"blocked">("all");
   const [selected, setSelected] = useState<LearningDevice | null>(null);
   const [selectedActivityLoading, setSelectedActivityLoading] = useState(false);
   const [online, setOnline] = useState(true);
@@ -1316,6 +1318,14 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
   const devicesVerified = Boolean(online && boiOnline && dashboard && !dashboard.upstreamError);
   const deviceMetric = (n:number) => devicesVerified ? n.toLocaleString("vi-VN") : "—";
   const deviceRegistry = dashboard?.deviceRegistry;
+  const registryCounts={
+    approved:deviceRegistry?.devices.filter(device=>device.status==="approved").length??0,
+    pending:deviceRegistry?.devices.filter(device=>device.status==="pending").length??0,
+    blocked:deviceRegistry?.devices.filter(device=>device.status==="blocked").length??0
+  };
+  const visibleRegistryDevices=deviceRegistry?.devices.filter(device=>
+    (registryFilter==="all"||device.status===registryFilter)
+    && device.deviceId.includes(registrySearch.toLowerCase().trim()))??[];
   const canReviewContent = ["reviewer","publisher","owner"].includes(access.role);
   const activeTheme = adminThemes.find((item) => item.id === appearance.theme) ?? adminThemes[0];
   const activeFont = adminFonts.find((item) => item.id === appearance.font) ?? adminFonts[0];
@@ -1426,21 +1436,44 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
           <tr><td>Học tập, theo dõi cá nhân</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
           </tbody></table></div></section> : null}
 
-        {deviceRegistry && (tab === "devices" || tab === "reports") ? <section className="boi-console-card boi-reports-workspace">
-          <header><div><h2>Liên kết thiết bị Account-first</h2><p>Chỉ đọc · {deviceMetric(deviceRegistry.counts.total)} liên kết</p></div></header>
+        {deviceRegistry && (tab === "devices" || tab === "reports") ? <section className="boi-console-card boi-reports-workspace" aria-label="Trung tâm kiểm soát thiết bị Account-first">
+          <header className="boi-registry-heading"><div><span>ACCOUNT-FIRST V2 · THIẾT BỊ ĐÃ XÁC MINH</span>
+            <h2>Thiết bị Bơi Ếch</h2>
+            <p>Khôi phục thẻ thiết bị trực quan và bộ lọc hoạt động. Dữ liệu registry chỉ chứng minh quyền tin cậy; không tự gán trạng thái Online hay tiến độ học khi chưa có tín hiệu.</p>
+          </div><button type="button" onClick={exportDevices} disabled={!devicesVerified}>Xuất CSV liên kết</button></header>
           {devicesVerified ? <>
-            <div className="boi-report-actions">
-              <button type="button" onClick={exportDevices}>Xuất CSV đã xác minh</button>
+            <div className="boi-registry-metrics" aria-label="Thống kê trạng thái thiết bị">
+              <article><span>Tổng liên kết</span><strong>{deviceRegistry.counts.total}</strong></article>
+              <article><span>Đã tin cậy</span><strong>{registryCounts.approved}</strong></article>
+              <article><span>Chờ xác nhận</span><strong>{registryCounts.pending}</strong></article>
+              <article><span>Đã thu hồi</span><strong>{registryCounts.blocked}</strong></article>
             </div>
-            {deviceRegistry.counts.total === 0 ? <p>Chưa có thiết bị liên kết.</p> : <div className="boi-owner-table-scroll">
-              <table className="boi-owner-table"><thead><tr><th>Mã liên kết</th><th>Trạng thái</th></tr></thead>
-                <tbody>{deviceRegistry.devices.map(device => <tr key={device.deviceId}>
-                  <td><code title={device.deviceId}>{device.deviceId.slice(0, 16)}</code></td>
-                  <td>{device.status === "approved" ? "Đã tin cậy" : device.status === "blocked" ? "Đã thu hồi" : "Chờ xác nhận"}</td>
-                </tr>)}</tbody>
-              </table>
-            </div>}
-          </> : <p role="status">Chưa xác minh lại được danh sách thiết bị. Hãy cập nhật để thử lại.</p>}
+            <div className="boi-registry-toolbar">
+              <div className="boi-registry-filters" role="group" aria-label="Lọc trạng thái thiết bị">
+                {([["all","Tất cả"],["approved","Đã tin cậy"],["pending","Chờ xác nhận"],["blocked","Đã thu hồi"]] as const)
+                  .map(([key,title])=><button key={key} type="button" aria-pressed={registryFilter===key}
+                  onClick={()=>setRegistryFilter(key)}>{title}</button>)}
+              </div>
+              <label>Tìm mã liên kết thiết bị
+                <input type="search" value={registrySearch} onChange={e=>setRegistrySearch(e.target.value)}
+                  placeholder="Nhập mã SHA-256…" aria-label="Tìm mã liên kết thiết bị"/>
+              </label>
+            </div>
+            <div className="boi-registry-grid" aria-live="polite">
+              {visibleRegistryDevices.map((device,index)=><article key={device.deviceId}
+                className="boi-registry-card" data-status={device.status}>
+                <Laptop active={false} status={device.status}/>
+                <div className="boi-registry-card-copy">
+                  <strong>{device.status==="approved"?"Thiết bị đã tin cậy":device.status==="pending"?"Chờ xác nhận thiết bị":"Đã thu hồi liên kết"}</strong>
+                  <code title={device.deviceId}>Liên kết #{index+1} · {device.deviceId.slice(0,16)}…</code>
+                  <small>Không công bố khóa thiết bị gốc hoặc danh tính tài khoản</small>
+                </div>
+              </article>)}
+            </div>
+            {!visibleRegistryDevices.length?<p role="status" className="boi-no-data">
+              {deviceRegistry.counts.total===0?"Chưa có thiết bị nào được liên kết.":"Không có thiết bị phù hợp bộ lọc."}
+            </p>:null}
+          </> : <p role="status">Chưa xác minh lại được registry thiết bị. Hãy đồng bộ để thử lại, không hiển thị số lượng giả.</p>}
         </section> : null}
 
         {tab==="reports" && !deviceRegistry ? <section className="boi-console-card boi-reports-workspace"><header><div><span>BÁO CÁO DỮ LIỆU THẬT</span><h2>Thiết bị và tiến độ</h2></div></header>

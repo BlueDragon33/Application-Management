@@ -4,12 +4,25 @@ import {useEffect,useMemo,useRef,useState} from "react";
 import AuthenticatorStepUp from "../../authenticator-step-up";
 import {
  loadBoiAccountDurations,loadBoiManagerInbox,issueBoiManagerInvitation,reviewBoiManagerAccount,
- changeBoiAccountDuration,changeBoiDefaultAccountDays,cancelBoiLocalTestManager,
+ changeBoiAccountDuration,changeBoiDefaultAccountDays,cancelBoiLocalTestManager,archiveBoiManagerAccount,
  type BoiAccountDurationRecord,type BoiAccountDurationPolicy,type BoiManagerInboxRecord
 } from "../../boi-access-client";
 
 const labels:Record<string,string>={manager:"Cán bộ quản lý",teacher:"Giảng viên",learner:"Học viên"};
 const singleReview = process.env.NEXT_PUBLIC_BOI_ECH_SINGLE_REVIEW === "true";
+const FOUR_DAYS_MS=4*24*60*60*1000;
+function agedManager(m:BoiManagerInboxRecord,now:number){
+ const created=Date.parse(m.createdAt);
+ return m.status==="pending" && m.activeSessions===0 &&
+   ["requested","profile_required","profile_review","changes_requested"].includes(m.onboardingStage)
+   && Number.isFinite(created) && now-created>FOUR_DAYS_MS;
+}
+function managerAccessLabel(m:BoiManagerInboxRecord){
+ if(m.status==="blocked")return "Đã gỡ quyền";
+ if(m.status==="approved")return "Đã kích hoạt";
+ return m.onboardingStage==="profile_required"?"Đã duyệt · Chờ hồ sơ":
+ m.onboardingStage==="requested"?"Chờ Owner duyệt":"Chờ xử lý";
+}
 function moscow(value:string|null|undefined) {
  if(!value)return "Chưa cấp";
  const date=new Date(value);
@@ -32,6 +45,11 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
  const [managerNext,setManagerNext]=useState<string|null>(null);
  const [managerNotice,setManagerNotice]=useState(""),[inviteUrl,setInviteUrl]=useState("");
  const [managerWriting,setManagerWriting]=useState(false);
+ const [managerFilter,setManagerFilter]=useState<"current"|"stale"|"archived"|"all">("current");
+ const [managerSearch,setManagerSearch]=useState("");
+ const [archiveTarget,setArchiveTarget]=useState<BoiManagerInboxRecord|null>(null);
+ const [archiveConfirm,setArchiveConfirm]=useState("");
+ const [archiveReason,setArchiveReason]=useState("Hồ sơ cán bộ cũ không còn sử dụng");
  const [localMode,setLocalMode]=useState(false);
  const [policies,setPolicies]=useState<BoiAccountDurationPolicy[]>([]);
  const [selected,setSelected]=useState("");
@@ -64,6 +82,14 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
  }
  const [observedNow,setObservedNow]=useState(()=>Date.now());
  const current=accounts.find(a=>a.accountId===selected)??null;
+ const visibleManagers=useMemo(()=> (managerInbox??[]).filter(m=>{
+  const stale=agedManager(m,observedNow);
+  if(managerFilter==="current"&&(stale||m.status==="blocked"))return false;
+  if(managerFilter==="stale"&&!stale)return false;
+  if(managerFilter==="archived"&&m.status!=="blocked")return false;
+  return [m.name,m.accountId,m.status].join(" ").toLocaleLowerCase("vi")
+   .includes(managerSearch.trim().toLocaleLowerCase("vi"));
+ }),[managerInbox,managerFilter,managerSearch,observedNow]);
  const displayed=useMemo(()=>accounts.filter(a=>(section==="oversight" ? ["teacher","learner"].includes(a.role)
   : section==="policies" ? a.role==="manager" : false)
   && [a.accountId,a.name,a.role].join(" ").toLowerCase().includes(search.toLowerCase())).slice(0,100),[accounts,search,section]);
@@ -118,6 +144,20 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
   }catch(e){setManagerError(e instanceof Error?e.message:"Không xác minh được hủy hồ sơ.");}
   finally{writeLock.current=false;setManagerWriting(false);}
  }
+ async function confirmArchiveManager(){
+  const m=archiveTarget;
+  if(!m||managerWriting||writeLock.current||m.status==="blocked"
+    ||archiveConfirm!=="LUU TRU"||archiveReason.trim().length<10)return;
+  writeLock.current=true;setManagerWriting(true);setManagerError("");setManagerNotice("");
+  try{
+   await withOwnerAuthentication(()=>archiveBoiManagerAccount(
+     m.accountId,m.accountRevision,archiveReason.trim()));
+   setArchiveTarget(null);setArchiveConfirm("");
+   setManagerNotice("Đã gỡ quyền, thu hồi các phiên đăng nhập và lưu trữ tài khoản. Hồ sơ lịch sử vẫn được giữ an toàn.");
+   await refreshManagerInbox();
+  }catch(e){setManagerError(e instanceof Error?e.message:"Không xác minh được lưu trữ cán bộ.");}
+  finally{writeLock.current=false;setManagerWriting(false);}
+ }
  async function refresh(){
   setLoading(true);setError("");setAccountsVerified(false);
   try {
@@ -166,8 +206,8 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
   }catch(e){setError(e instanceof Error?e.message:"Không cập nhật được mặc định.");}
   finally{writeLock.current=false;setBusy(false);}
  }
- return <><section inert={authenticate!==null} aria-hidden={authenticate?true:undefined} aria-label="Hồ sơ tài khoản Bơi ếch AI" className="boi-account-panel" data-section={section}>
-  {section==="accounts"?<div className="boi-account-header"><span>OWNER · DUYỆT CÁN BỘ QUẢN LÝ</span><h2>Hàng chờ cán bộ</h2><p>Chỉ Owner mời và phê duyệt cán bộ quản lý; giảng viên và học viên do cán bộ quản lý xử lý tại Bơi Ếch.</p></div>:null}
+ return <><section inert={authenticate!==null||archiveTarget!==null} aria-hidden={authenticate!==null||archiveTarget!==null?true:undefined} aria-label="Hồ sơ tài khoản Bơi ếch AI" className="boi-account-panel" data-section={section}>
+  {section==="accounts"?<div className="boi-account-header"><span>OWNER · DUYỆT CÁN BỘ QUẢN LÝ</span><h2>Tài khoản cán bộ quản lý</h2><p>Danh sách đã đăng ký, trạng thái phiên đăng nhập và hồ sơ chờ duyệt. Chỉ Owner mời và phê duyệt cán bộ quản lý; giảng viên và học viên do cán bộ quản lý xử lý tại Bơi Ếch.</p></div>:null}
   {section==="oversight"?<div className="boi-account-header"><span>GIÁM SÁT · CHỈ ĐỌC</span><h2>Giảng viên & học viên</h2><p>Hiển thị thông tin, vai trò, trạng thái hồ sơ và thời hạn để giám sát. Không duyệt, từ chối, cấp hoặc thu hồi quyền từ đây.</p></div>:null}
   {section==="policies"?<div className="boi-account-header"><span>OWNER · QUẢN TRỊ CHÍNH SÁCH</span><h2>Thời hạn & chính sách</h2><p>Thiết lập mặc định chung không phải phê duyệt tài khoản. Chỉ điều chỉnh trực tiếp tài khoản cán bộ quản lý tại màn hình này.</p></div>:null}
   {section==="accounts"?<>
@@ -199,14 +239,32 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
      <div><small>Chờ hoàn thiện</small><strong>{managerInbox.filter(m=>m.status==="pending"&&m.onboardingStage==="profile_required").length}</strong><span>Chờ hoàn thiện hồ sơ</span></div>
     </div>
     <p className="boi-manager-count">Đã đọc {managerInbox.length} hồ sơ quản lý{managerNext?" (còn trang tiếp theo)":""}.
-     Chưa kích hoạt: {managerInbox.filter(m=>m.status==="pending").length} trong các trang đã tải.</p>
-    {managerInbox.filter(m=>m.status==="pending").map(m=><article key={m.accountId}
+     Chưa kích hoạt: {managerInbox.filter(m=>m.status==="pending").length} trong các trang đã tải.
+     Hồ sơ quá 4 ngày chỉ được tách khỏi danh sách mặc định; không bị xóa tự động.</p>
+    <div className="boi-manager-tools" role="group" aria-label="Bộ lọc tài khoản cán bộ">
+     <label>Tra cứu cán bộ
+      <input value={managerSearch} onChange={e=>setManagerSearch(e.target.value)}
+       placeholder="Tên hoặc ID tài khoản…" aria-label="Tìm cán bộ quản lý"/>
+     </label>
+     <div className="boi-manager-filter">
+      {([
+        ["current","Đang quản lý"],["stale","Cũ quá 4 ngày"],
+        ["archived","Đã lưu trữ"],["all","Tất cả"]
+      ] as const).map(([filter,label])=>
+       <button key={filter} type="button" aria-pressed={managerFilter===filter}
+        className={managerFilter===filter?"selected":""} onClick={()=>setManagerFilter(filter)}>
+        {label}{filter==="stale"?" · "+managerInbox.filter(m=>agedManager(m,observedNow)).length:""}
+       </button>)}
+     </div>
+    </div>
+    <div className="boi-manager-displayed" aria-live="polite">
+    {visibleManagers.map(m=><article key={m.accountId}
       className="boi-manager-case">
      <header className="boi-manager-case-head">
       <div><small>HỒ SƠ QUẢN LÝ · {m.accountId.slice(0,14)}…</small>
        <strong>{m.name||"Hồ sơ mới chưa hoàn thiện"}</strong></div>
-      <span className={m.onboardingStage==="profile_required"?"boi-manager-tag reviewed":"boi-manager-tag pending"}>
-       {m.onboardingStage==="profile_required"?"Đã duyệt · Chờ bổ sung":m.onboardingStage==="requested"?"Chờ Owner duyệt":"Chờ xử lý"}
+      <span className={m.status==="blocked"?"boi-manager-tag neutral":m.status==="approved"?"boi-manager-tag reviewed":m.onboardingStage==="profile_required"?"boi-manager-tag reviewed":"boi-manager-tag pending"}>
+       {managerAccessLabel(m)}
       </span>
      </header>
      <div className="boi-manager-progress" aria-label="Tiến trình xét duyệt">
@@ -215,6 +273,17 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
       <span className={m.onboardingStage==="profile_required"?"current":""}>Hoàn thiện hồ sơ</span>
       <span>Kích hoạt</span>
      </div>
+     <div className="boi-manager-facts">
+       <span><b>Đăng ký</b><strong>{moscow(m.createdAt)}</strong></span>
+       <span><b>Hoạt động gần nhất</b><strong>{moscow(m.lastSeenAt)}</strong></span>
+       <span><b>Phiên đăng nhập</b><strong className={m.activeSessions>0?"boi-manager-session active":"boi-manager-session"}>
+        {m.activeSessions>0?"● "+m.activeSessions+" phiên còn hiệu lực":"○ Không có phiên"}
+       </strong></span>
+       <span><b>Tuổi hồ sơ</b><strong>{Math.max(0,Math.floor((observedNow-Date.parse(m.createdAt))/86400000))} ngày</strong></span>
+     </div>
+     {agedManager(m,observedNow)?<p className="boi-manager-stale">
+       Hồ sơ chưa kích hoạt quá 4 ngày, không có phiên đăng nhập còn hiệu lực.
+       Cần Owner rà soát trước khi lưu trữ.</p>:null}
      <p className="boi-manager-meta">ID: {m.accountId.slice(0,20)}… · Trạng thái: {m.onboardingStage}
       · Hồ sơ rev {m.onboardingRevision} · Tài khoản rev {m.accountRevision}</p>
      {m.onboardingStage==="requested"?<button type="button"
@@ -228,7 +297,14 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
       <small>Chỉ hủy tài khoản chưa kích hoạt, không có quyền hoặc dữ liệu đồng bộ.</small>
      </div>:null}
      {m.onboardingStage==="changes_requested"?<p>Chờ người đăng ký sửa hồ sơ.</p>:null}
+     {m.status!=="blocked"?<button type="button" className="boi-manager-archive-action"
+       disabled={managerWriting||managerLoading}
+       onClick={()=>{setArchiveTarget(m);setArchiveConfirm("");setArchiveReason("Hồ sơ cán bộ cũ không còn sử dụng");}}>
+       Gỡ quyền & lưu trữ…
+     </button>:null}
     </article>)}
+    {!visibleManagers.length?<p className="boi-no-data">Không có tài khoản phù hợp bộ lọc này trong các trang đã tải.</p>:null}
+    </div>
     {managerNext?<button type="button" disabled={managerLoading||managerWriting}
        onClick={()=>void refreshManagerInbox(managerNext)}>Tải thêm hồ sơ</button>:null}
     {!managerInbox.some(m=>m.status==="pending") && !managerNext?
@@ -297,5 +373,27 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
   </div>:null}
   {section==="policies"?<small>Thao tác Owner với chính sách/mốc thời hạn phải có CAS, nhật ký và đọc lại Bơi Ếch. Không cấp quyền giảng viên/học viên tại màn hình này.</small>:null}
   {section==="accounts"?<p className="boi-oversight-note">Giảng viên/học viên được cán bộ quản lý phê duyệt tại Bơi Ếch theo phạm vi; Owner chỉ giám sát dữ liệu.</p>:null}
- </section>{authenticate?<AuthenticatorStepUp finish={finishAuthentication} setupRequired={authenticate==="setup"}/>:null}</>;
+ </section>
+ {archiveTarget?<div className="boi-manager-archive-backdrop" role="presentation">
+   <section className="boi-manager-archive-dialog" role="dialog" aria-modal="true"
+      aria-label="Xác nhận gỡ quyền và lưu trữ cán bộ">
+    <h2>Gỡ quyền & lưu trữ cán bộ</h2>
+    <p>Thao tác thu hồi tất cả phiên đăng nhập, khóa thiết bị và quyền quản lý.
+     Dữ liệu học tập, tài khoản gốc và nhật ký vẫn được giữ để kiểm toán. Không tự xóa tài khoản đang hoạt động theo tuổi hồ sơ.</p>
+    <p><strong>{archiveTarget.name||"Cán bộ chưa khai báo"}</strong>
+      <code>{archiveTarget.accountId}</code></p>
+    <label>Lý do xử lý (tối thiểu 10 ký tự)
+     <textarea rows={3} maxLength={300} value={archiveReason}
+       onChange={e=>setArchiveReason(e.target.value)}/></label>
+    <label>Nhập chính xác <strong>LUU TRU</strong> để xác nhận
+     <input value={archiveConfirm} autoComplete="off" onChange={e=>setArchiveConfirm(e.target.value)}
+       aria-label="Nhập LUU TRU để xác nhận"/></label>
+    <div className="boi-manager-archive-buttons">
+     <button type="button" disabled={managerWriting} onClick={()=>{setArchiveTarget(null);setArchiveConfirm("");}}>Hủy</button>
+     <button type="button" disabled={managerWriting||archiveConfirm!=="LUU TRU"||archiveReason.trim().length<10}
+      onClick={()=>void confirmArchiveManager()}>{managerWriting?"Đang kiểm tra…":"Xác nhận gỡ quyền"}</button>
+    </div>
+   </section>
+ </div>:null}
+ {authenticate?<AuthenticatorStepUp finish={finishAuthentication} setupRequired={authenticate==="setup"}/>:null}</>;
 }
