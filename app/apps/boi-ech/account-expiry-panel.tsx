@@ -4,6 +4,7 @@ import {useEffect,useMemo,useRef,useState} from "react";
 import AuthenticatorStepUp from "../../authenticator-step-up";
 import OwnerAccountCleanupPanel from "./owner-account-cleanup-panel";
 import AccountCapacityPanel from "./account-capacity-panel";
+import OwnerAccountBlockPanel from "./owner-account-block-panel";
 import {
  loadBoiAccountDurations,loadBoiManagerInbox,issueBoiManagerInvitation,reviewBoiManagerAccount,
  changeBoiAccountDuration,changeBoiDefaultAccountDays,cancelBoiLocalTestManager,archiveBoiManagerAccount,
@@ -23,7 +24,7 @@ function managerAccessLabel(m:BoiManagerInboxRecord){
  if(m.status==="blocked")return "Đã gỡ quyền";
  if(m.status==="approved")return "Đã kích hoạt";
  return m.onboardingStage==="profile_required"?"Đã duyệt · Chờ hồ sơ":
- m.onboardingStage==="requested"?"Chờ Owner duyệt":"Chờ xử lý";
+ m.onboardingStage==="requested"?"Chờ hoàn thiện hồ sơ":"Chờ xử lý";
 }
 function moscow(value:string|null|undefined) {
  if(!value)return "Chưa cấp";
@@ -214,7 +215,7 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
   {section==="policies"?<div className="boi-account-header"><span>OWNER · QUẢN TRỊ CHÍNH SÁCH</span><h2>Thời hạn & chính sách</h2><p>Thiết lập mặc định chung không phải phê duyệt tài khoản. Chỉ điều chỉnh trực tiếp tài khoản cán bộ quản lý tại màn hình này.</p></div>:null}
   {section==="accounts"?<>
   <details className="boi-manager-inbox" open>
-   <summary><strong>Hồ sơ Cán bộ quản lý · Owner duyệt một lần</strong></summary>
+   <summary><strong>Hồ sơ Cán bộ quản lý · Tự kích hoạt</strong></summary>
    {!singleReview?<p role="alert" className="boi-manager-blocked">Chưa xác minh cấu hình duyệt một lần khớp Bơi Ếch. Chỉ xem hồ sơ; không tạo lời mời hoặc phát lệnh duyệt cũ.</p>:null}
    <p>Hồ sơ quản lý thuộc Bơi ếch, kiểm soát tập trung từ giao diện Owner này. Mã mời có hiệu lực 24 giờ,
     dùng một lần; người nhận tự đặt mật khẩu và khóa P-256 trên đúng trang Bơi ếch.</p>
@@ -237,7 +238,7 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
    {managerInbox!==null?<div role="status" className="boi-manager-results">
     <div className="boi-manager-summary" aria-label="Tổng hợp trạng thái hồ sơ">
      <div><small>Hồ sơ đã xác minh</small><strong>{managerInbox.length}</strong><span>Trong danh sách đã tải</span></div>
-     <div><small>Chờ Owner xét duyệt</small><strong>{managerInbox.filter(m=>m.status==="pending"&&m.onboardingStage==="requested").length}</strong><span>Chưa được duyệt</span></div>
+     <div><small>Chờ hoàn thiện</small><strong>{managerInbox.filter(m=>m.status==="pending"&&m.onboardingStage==="requested").length}</strong><span>Chưa được duyệt</span></div>
      <div><small>Chờ hoàn thiện</small><strong>{managerInbox.filter(m=>m.status==="pending"&&m.onboardingStage==="profile_required").length}</strong><span>Chờ hoàn thiện hồ sơ</span></div>
     </div>
     <p className="boi-manager-count">Đã đọc {managerInbox.length} hồ sơ quản lý{managerNext?" (còn trang tiếp theo)":""}.
@@ -271,7 +272,7 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
      </header>
      <div className="boi-manager-progress" aria-label="Tiến trình xét duyệt">
       <span className="done">Đã đăng ký</span>
-      <span className={m.onboardingStage==="requested"?"current":"done"}>Owner duyệt</span>
+      <span className={m.onboardingStage==="requested"?"current":"done"}>Lời mời Owner</span>
       <span className={m.onboardingStage==="profile_required"?"current":""}>Hoàn thiện hồ sơ</span>
       <span>Kích hoạt</span>
      </div>
@@ -292,7 +293,7 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
       disabled={managerWriting||managerLoading||!singleReview||Boolean(managerError)||managerInbox===null||m.status!=="pending"} onClick={()=>void decideManager(m)}>
        Duyệt tài khoản — chờ bổ sung hồ sơ</button>:null}
      {singleReview&&m.onboardingStage==="profile_review"?<p className="boi-oversight-note">Hồ sơ cũ cần đối soát theo luồng mới. Không tự cấp quyền hoặc kích hoạt từ trạng thái này.</p>:null}
-     {m.onboardingStage==="profile_required"?<p className="boi-manager-guidance">Đã được Owner duyệt. Cán bộ tự điền Khoa/Đơn vị, Chức danh và Chức vụ trên Bơi Ếch để kích hoạt.</p>:null}
+     {m.onboardingStage==="profile_required"?<p className="boi-manager-guidance">Có lời mời của Owner. Cán bộ tự điền đầy đủ Khoa/Đơn vị, Chức danh và Chức vụ để kích hoạt ngay.</p>:null}
      {localMode && singleReview && ["requested","profile_required"].includes(m.onboardingStage)?<div className="boi-manager-test-tools">
       <button type="button" disabled={managerWriting||managerLoading}
        onClick={()=>void cancelManagerTest(m)}>Hủy hồ sơ thử nghiệm · Chỉ Offline</button>
@@ -316,10 +317,11 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
     Một lần Owner duyệt với CAS, nhật ký và đọc lại; sau đó tài khoản được kích hoạt khi hoàn tất hồ sơ bắt buộc.</small>
   </details>
   <OwnerAccountCleanupPanel/>
+  <OwnerAccountBlockPanel/>
   </>:null}
   {section==="policies"?<AccountCapacityPanel/>:null}
   {section==="policies"?<header><h2>Thời hạn tài khoản · Account First V2</h2>
-   <p>Chính sách mặc định 30 ngày từ lúc hoàn tất hồ sơ và kích hoạt. Chỉ thay đổi thời hạn hoặc mặc định; không trực tiếp duyệt giảng viên/học viên.</p></header>:null}
+   <p>Chính sách mặc định: cán bộ quản lý 3 ngày, giảng viên và học viên 8 ngày từ khi hoàn tất hồ sơ. Chỉ thay đổi thời hạn hoặc mặc định; không trực tiếp duyệt giảng viên/học viên.</p></header>:null}
   {section!=="accounts"&&loading?<p role="status">Đang đọc dữ liệu tài khoản từ Bơi ếch…</p>:null}
   {section!=="accounts"&&error?<div role="alert"><strong>Chưa xác minh:</strong> {error} <a href="/__account">Xác minh Authenticator (nếu được yêu cầu)</a></div>:null}
   {section!=="accounts"&&notice?<p role="status">{notice}</p>:null}
@@ -376,7 +378,7 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
     </div>:null}
   </div>:null}
   {section==="policies"?<small>Thao tác Owner với chính sách/mốc thời hạn phải có CAS, nhật ký và đọc lại Bơi Ếch. Không cấp quyền giảng viên/học viên tại màn hình này.</small>:null}
-  {section==="accounts"?<p className="boi-oversight-note">Giảng viên/học viên được cán bộ quản lý phê duyệt tại Bơi Ếch theo phạm vi; Owner chỉ giám sát dữ liệu.</p>:null}
+  {section==="accounts"?<p className="boi-oversight-note">Giảng viên/học viên tự kích hoạt sau khi hoàn thiện hồ sơ. Cán bộ quản lý gia hạn cho hai nhóm; Owner quản lý cán bộ.</p>:null}
  </section>
  {archiveTarget?<div className="boi-manager-archive-backdrop" role="presentation">
    <section className="boi-manager-archive-dialog" role="dialog" aria-modal="true"
