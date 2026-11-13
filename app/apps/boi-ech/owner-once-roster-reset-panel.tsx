@@ -76,7 +76,7 @@ export default function OwnerOnceRosterResetPanel(){
    if(current.eligible>0)throw new Error("Còn hồ sơ chưa được xử lý sau giới hạn 500.");
    if(mounted.current){
     setPreview(current);setNotice("D1 xác nhận xóa thêm "+deleted+" tài khoản. Tổng đợt: "+
-     current.removedInSession+". Hai tài khoản Ngô Tuyết Quỳnh, Thiên Sơn, Đông Nghi còn nguyên. "+
+     current.removedInSession+". Ba tài khoản Ngô Tuyết Quỳnh, Thiên Sơn, Đông Nghi còn nguyên. "+
      (current.retainedForReview?"Còn "+current.retainedForReview+
        " tài khoản có thanh toán/chứng chỉ/lịch học/nội dung phải kiểm tra riêng.":
        "Không còn tài khoản đủ điều kiện trong danh sách của đợt một lần."));
