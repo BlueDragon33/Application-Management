@@ -408,7 +408,7 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
          :<button type="button" disabled={busy||Date.parse(current.entitlement.expiresAt)<=observedNow}
            onClick={()=>void commitAccount("resume")}>Khôi phục cán bộ</button>}
        </div>
-       <p>Gỡ quyền và lưu trữ tài khoản cán bộ được thực hiện trong danh sách "Tài khoản cán bộ quản lý"
+       <p>Gỡ quyền và lưu trữ tài khoản cán bộ được thực hiện trong danh sách &ldquo;Tài khoản cán bộ quản lý&rdquo;
         bằng xác nhận Owner. Dữ liệu lịch sử được giữ để kiểm toán.</p>
       </div>:<p>Chưa kích hoạt; cần hoàn thiện hồ sơ trước khi cấp thời hạn.</p>}
     </div>:null}
