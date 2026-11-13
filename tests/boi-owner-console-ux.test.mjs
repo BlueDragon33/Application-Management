@@ -23,10 +23,10 @@ test("Owner approves managers exclusively, monitors teacher and learner as read-
 });
 
 test("One Owner review is canonical and legacy final-review records cannot activate accounts from this UI",()=>{
-  assert.match(panel,/reviewBoiManagerAccount\(action,m\.accountId,expectedRevision\)/);
-  assert.match(panel,/manager-review-first/);
+  assert.doesNotMatch(panel,/reviewBoiManagerAccount\(|decideManager\(/);
+  assert.match(panel,/Chưa cần duyệt thủ công/);
   assert.doesNotMatch(panel,/manager-review-final|manager-review-changes|Duyệt vòng 2|duyệt hai vòng/);
-  assert.match(panel,/expectedRevision=m\.onboardingRevision/);
+  assert.match(panel,/createManagerInvitation/);
   assert.match(panel,/withOwnerAuthentication/);
   assert.match(panel,/section==="accounts"\?<>/);
   assert.match(panel,/section==="policies"&&accountsVerified/);
