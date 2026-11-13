@@ -410,3 +410,64 @@ export async function purgeOwnerLegacyFiveDayBatch(input:{snapshot:string;reason
   throw new Error("Máy chủ chưa xác minh giao dịch xóa tài khoản cũ.");
  return result as BoiLegacyFiveDayBatch;
 }
+
+
+export type BoiOnceRosterPreview={
+ ok:true;verified:true;applied:false;contract:"boi-owner-once-roster-reset.v1";
+ state:"not_started"|"running"|"completed"|"retention_review";
+ cutoff:string;snapshot:string;protectedPeople:Array<{
+  name:string;role:string;deviceId:string;accountId:string|null;
+ }>;
+ totalLearnersTeachers:number;candidates:number;eligible:number;retainedForReview:number;
+ blockers:{payment:number;certificates:number;training:number;authoredContent:number;sharedLegacy:number};
+ removedInSession:number;batchSize:number;
+};
+export type BoiOnceRosterResult={
+ ok:true;verified:true;applied:true;readback:true;
+ contract:"boi-owner-once-roster-reset.v1";
+ state:string;deleted:number;totalDeleted:number;remaining:number;
+ retainedForReview:number;protectedCount:number;snapshot:string;cutoff:string;
+};
+async function ownerOnceRosterCall(body:Record<string,unknown>){
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),35_000);
+ try{
+  const session=await approvedSession();
+  if(session.access.role!=="owner")throw new Error("Chỉ Owner được thực hiện đợt dọn tài khoản này.");
+  const signature=await proof(session.access);
+  if(controller.signal.aborted)throw new Error("Quá hạn xác thực Owner.");
+  const response=await fetch("/api/apps/boi-ech/once-roster-reset",{
+   method:"POST",credentials:"same-origin",cache:"no-store",signal:controller.signal,
+   headers:{"content-type":"application/json"},body:JSON.stringify({...body,...signature})
+  });
+  const result=await response.json().catch(()=>({})) as Record<string,unknown>;
+  if(!response.ok||result.ok!==true){
+   const error=new Error(typeof result.error==="string"?result.error:
+    "D1 chưa xác minh được yêu cầu dọn học viên/giảng viên.");
+   throw Object.assign(error,{data:{...result,status:response.status}});
+  }
+  return result;
+ }catch(error){
+  if(controller.signal.aborted)
+   throw new Error("Không xác minh được phản hồi. Lệnh xóa có thể đã áp dụng; quét lại D1, không gửi lặp.");
+  throw error;
+ }finally{clearTimeout(timer);}
+}
+export async function previewOwnerOnceRosterReset(){
+ const result=await ownerOnceRosterCall({action:"preview"});
+ if(result.verified!==true||result.applied!==false||
+  result.contract!=="boi-owner-once-roster-reset.v1"||
+  !Array.isArray(result.protectedPeople)||result.protectedPeople.length!==2)
+  throw new Error("D1 chưa xác minh được hai tài khoản cần giữ.");
+ return result as BoiOnceRosterPreview;
+}
+export async function executeOwnerOnceRosterBatch(input:{
+ cutoff:string;snapshot:string;protectSon:string;protectNghi:string;
+ backupBookmark:string;reason:string;
+}){
+ const result=await ownerOnceRosterCall({action:"execute-batch",...input,
+  confirmation:"XOA TAT CA TRU THIEN SON VA DONG NGHI"});
+ if(result.verified!==true||result.readback!==true||result.applied!==true||
+  result.contract!=="boi-owner-once-roster-reset.v1")
+  throw new Error("Chưa xác minh được lô xóa trên D1; không tự lặp lại.");
+ return result as BoiOnceRosterResult;
+}
