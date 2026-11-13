@@ -4,7 +4,7 @@ import AuthenticatorStepUp from "../../authenticator-step-up";
 import {previewOwnerOnceRosterReset,executeOwnerOnceRosterBatch,
  type BoiOnceRosterPreview} from "../../boi-access-client";
 import styles from "./owner-account-cleanup.module.css";
-const CONFIRM="XOA TAT CA TRU THIEN SON VA DONG NGHI";
+const CONFIRM="XOA TAT CA TRU QUYNH THIEN SON DONG NGHI";
 const BOOKMARK=/^([a-f0-9]{8}-){3}[a-f0-9]{32}$/i;
 export default function OwnerOnceRosterResetPanel(){
  const [preview,setPreview]=useState<BoiOnceRosterPreview|null>(null);
@@ -39,7 +39,7 @@ export default function OwnerOnceRosterResetPanel(){
    if(mounted.current){setPreview(value);setConfirmation("");setRemoved(value.removedInSession);}
   }catch(e){
    if(mounted.current){setPreview(null);
-    setError("Không thể đối chiếu duy nhất Thiên Sơn và Đông Nghi trên D1 hoặc dữ liệu chưa sẵn sàng. "+
+    setError("Không thể đối chiếu duy nhất Ngô Tuyết Quỳnh, Thiên Sơn và Đông Nghi trên D1 hoặc dữ liệu chưa sẵn sàng. "+
      (e instanceof Error?e.message:"Không xác minh được."));}
   }finally{if(mounted.current)setLoading(false);}
  }
@@ -90,7 +90,7 @@ export default function OwnerOnceRosterResetPanel(){
  }
  const frozen=Boolean(preview&&["completed","retention_review"].includes(preview.state));
  return <>
-  <section className={styles.panel} aria-label="Đợt xóa một lần học viên giảng viên, giữ Thiên Sơn và Đông Nghi"
+  <section className={styles.panel} aria-label="Đợt xóa một lần học viên giảng viên, giữ Ngô Tuyết Quỳnh, Thiên Sơn và Đông Nghi"
    inert={authRequired!==null} aria-hidden={authRequired!==null?true:undefined}>
    <header className={styles.title}><span>OWNER · DỌN TÀI KHOẢN MỘT LẦN</span>
     <h2>Xóa học viên và giảng viên · Giữ đúng 3 người</h2>
@@ -133,7 +133,7 @@ export default function OwnerOnceRosterResetPanel(){
        onChange={e=>setConfirmation(e.target.value.toUpperCase())}/></label>
       <button type="button" className={styles.delete} disabled={busy||confirmation!==CONFIRM||
        !BOOKMARK.test(bookmark.trim())||reason.trim().length<10} onClick={()=>void purge()}>
-       {busy?"Đang xóa từng lô và kiểm tra lại…":"Xóa một lần · Giữ Thiên Sơn và Đông Nghi"}</button>
+       {busy?"Đang xóa từng lô và kiểm tra lại…":"Xóa một lần · Giữ Ngô Tuyết Quỳnh, Thiên Sơn và Đông Nghi"}</button>
       {busy?<p role="status">Đã xác minh xóa {removed} tài khoản; mỗi lô tối đa 10 và có CAS.</p>:null}
      </div>:<p role="status">{frozen?"Đợt đã kết thúc. Không được chạy lại.":
       "Không có hồ sơ đủ điều kiện xóa, dữ liệu vẫn được giữ nguyên."}</p>}
