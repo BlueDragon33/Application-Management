@@ -5,6 +5,7 @@ import {previewOwnerAgedAccounts,purgeOwnerAgedAccount,
  type BoiCleanupMode,type BoiCleanupDays,type BoiCleanupPreview,
  type BoiCleanupRecord} from "../../boi-access-client";
 import styles from "./owner-account-cleanup.module.css";
+import OwnerLegacyBulkPanel from "./owner-legacy-bulk-panel";
 
 const daysLabel:Record<BoiCleanupDays,string>={3:"Từ 3 ngày",5:"Từ 5 ngày",7:"Từ 7 ngày",8:"Hơn 7 ngày"};
 const MAX_REMOVE=20;
@@ -168,6 +169,7 @@ export default function OwnerAccountCleanupPanel(){
     </div>:null}
    </div>:null}
   </section>
+  <OwnerLegacyBulkPanel/>
   {authRequired?<AuthenticatorStepUp finish={finishAuth} setupRequired={authRequired==="setup"}/>:null}
  </>;
 }
