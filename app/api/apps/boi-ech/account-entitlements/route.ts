@@ -4,7 +4,7 @@ import { controlErrorResponse, verifyControlProof } from "../../../../control-de
 export const dynamic = "force-dynamic";
 const TIMEOUT_MS = 8_000;
 const mutations = new Set(["set-account","set-policy","issue-manager-invite","manager-review-first","manager-review-final","manager-review-changes","manager-delete-local","manager-archive","set-capacity","block-account"]);
-const allowed = new Set(["list","manager-inbox","manager-policy","capacity","policy","read-account",...mutations]);
+const allowed = new Set(["list","manager-inbox","manager-policy","capacity","policy","read-account","read-canonical",...mutations]);
 function json(data: unknown,status=200) {
   return Response.json(data,{status,headers:{"cache-control":"no-store, private","x-content-type-options":"nosniff"}});
 }
@@ -138,6 +138,7 @@ export async function POST(request: Request) {
       :action==="set-capacity"?
       {action:"set-capacity",role:input.role,accountLimit:input.accountLimit,
        expectedRevision:input.expectedRevision}
+      :action==="read-canonical"?{action:"read",accountId:input.accountId}
       :action==="capacity"?{action:"capacity"}
       :action==="manager-archive"
       ?{action:"archive-manager",accountId:input.accountId,expectedRevision:input.expectedRevision,
@@ -158,6 +159,16 @@ export async function POST(request: Request) {
       :{action:"set-entitlement",accountId:input.accountId,operation:input.operation,expiresAt:input.expiresAt,expectedRevision:input.expectedRevision,reason:input.reason};
     const changed=await upstream(bridge,cmd);
     if(changed.status!==200) return json(changed.data,changed.status);
+    if(action==="read-canonical"){
+      if(!validId(input.accountId)||changed.data.accountId!==input.accountId||
+         !validRoles.has(String(changed.data.role))||
+         !Number.isSafeInteger(changed.data.revision)||typeof changed.data.status!=="string")
+        return json({code:"ACCOUNT_READ_UNVERIFIED",verified:false},502);
+      return json({ok:true,verified:true,account:{
+        accountId:changed.data.accountId,name:changed.data.name??null,
+        role:changed.data.role,status:changed.data.status,revision:changed.data.revision
+      }});
+    }
     if(action==="block-account"){
       if(changed.data.verified!==true||changed.data.banned!==true
          ||changed.data.status!=="blocked"||changed.data.accountId!==input.accountId
