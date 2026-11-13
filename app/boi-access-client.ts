@@ -269,6 +269,23 @@ export async function changeBoiAccountDuration(input:{accountId:string;expectedR
   if(response.verified!==true) throw new Error("Chưa đọc lại được thời hạn tài khoản.");
   return response.entitlement;
 }
+export type BoiRegistrationQuota={role:"manager"|"teacher"|"learner";
+  accountLimit:number;used:number;remaining:number;overLimit:boolean;revision:number};
+export async function loadBoiRegistrationQuotas():Promise<BoiRegistrationQuota[]>{
+ const response=await accountDurationCall({action:"capacity"}) as BoiAccountDurationResponse & {limits?:BoiRegistrationQuota[]};
+ if(response.verified!==true||!Array.isArray(response.limits)||response.limits.length!==3)
+   throw new Error("Hạn mức đăng ký chưa xác minh từ D1.");
+ return response.limits;
+}
+export async function changeBoiRegistrationQuota(input:{
+ role:BoiRegistrationQuota["role"];accountLimit:number;expectedRevision:number;
+}):Promise<BoiRegistrationQuota[]>{
+ const response=await accountDurationCall({action:"set-capacity",...input}) as BoiAccountDurationResponse & {limits?:BoiRegistrationQuota[]};
+ if(response.verified!==true||!Array.isArray(response.limits)||response.limits.length!==3)
+  throw new Error("Giới hạn đăng ký mới chưa được đọc lại từ máy chủ.");
+ return response.limits;
+}
+
 export async function changeBoiDefaultAccountDays(input:{role:BoiAccountDurationPolicy["role"];defaultDays:number;expectedRevision:number;reason:string}) {
   const response=await accountDurationCall({action:"set-policy",...input});
   if(response.verified!==true) throw new Error("Chưa đọc lại được chính sách thời hạn.");
