@@ -68,6 +68,7 @@ export default function AccountCapacityPanel(){
        !Number.isSafeInteger(Number(values[row.role]))||Number(values[row.role])<1||
        Number(values[row.role])>5000} onClick={()=>void update(row)}>Lưu giới hạn · MFA</button>
       <small>{row.used>=row.accountLimit?"Đã đầy · Đăng ký mới sẽ bị chặn":"Còn "+Math.max(0,row.accountLimit-row.used)+" chỗ đăng ký"}</small>
+      {Number(row.rejectedAttempts)>0?<p role="status" className={styles.alert}>Đã từ chối {row.rejectedAttempts} lượt đăng ký do quá hạn mức. Lần gần nhất: {row.lastRejectedAt||"Chưa xác định"}.</p>:null}
     </article>)}
    </div>:<p role="status">Nhấn “Đồng bộ hạn mức D1” để đọc chính sách hiện hành; không sử dụng số liệu giả.</p>}
   </section>
