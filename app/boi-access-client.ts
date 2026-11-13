@@ -327,3 +327,31 @@ export async function purgeOwnerAgedAccount(input:{
   throw new Error("Bơi Ếch chưa xác nhận xóa tài khoản.");
  return result;
 }
+
+export type BoiRoleCapacity={role:"manager"|"teacher"|"learner";
+ accountLimit:number;used:number;remaining:number;overLimit:boolean;revision:number};
+export async function readBoiRoleCapacity():Promise<BoiRoleCapacity[]>{
+ const result=await accountDurationCall({action:"capacity"}) as BoiAccountDurationResponse & {limits?:BoiRoleCapacity[]};
+ if(result.verified!==true||!Array.isArray(result.limits)||result.limits.length!==3)
+  throw new Error("Giới hạn tài khoản chưa được xác minh từ D1.");
+ return result.limits;
+}
+export async function updateBoiRoleCapacity(role:BoiRoleCapacity["role"],
+ accountLimit:number,expectedRevision:number,reason:string){
+ const result=await accountDurationCall({action:"set-capacity",role,accountLimit,expectedRevision,reason}) as
+  BoiAccountDurationResponse & {limits?:BoiRoleCapacity[]};
+ if(result.verified!==true||!Array.isArray(result.limits))
+  throw new Error("Chưa xác minh kết quả điều chỉnh giới hạn.");
+ return result.limits;
+}
+export async function permanentlyBlockBoiAccount(accountId:string,expectedRevision:number,reason:string){
+ if(!/^acc_[a-f0-9]{64}$/.test(accountId)||reason.trim().length<10)
+   throw new Error("ID hoặc lý do khóa tài khoản không hợp lệ.");
+ const result=await accountDurationCall({action:"block-account",accountId,expectedRevision,
+  confirmation:accountId,typedSuffix:accountId.slice(-6),reason:reason.trim()}) as
+   BoiAccountDurationResponse & {banned?:boolean;accountId?:string;status?:string;revision?:number};
+ if(result.verified!==true||result.banned!==true||result.status!=="blocked"||
+   result.accountId!==accountId||result.revision!==expectedRevision+1)
+  throw new Error("Chưa xác minh khóa tài khoản/thiết bị.");
+ return result;
+}
