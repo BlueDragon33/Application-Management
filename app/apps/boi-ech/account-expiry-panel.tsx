@@ -1,6 +1,6 @@
 "use client";
 
-import {useEffect,useMemo,useRef,useState} from "react";
+import {useCallback,useEffect,useMemo,useRef,useState} from "react";
 import AuthenticatorStepUp from "../../authenticator-step-up";
 import OwnerAccountCleanupPanel from "./owner-account-cleanup-panel";
 import AccountCapacityPanel from "./account-capacity-panel";
@@ -22,7 +22,9 @@ function agedManager(m:BoiManagerInboxRecord,now:number){
 }
 function managerAccessLabel(m:BoiManagerInboxRecord){
  if(m.status==="blocked")return "Đã gỡ quyền";
- if(m.status==="approved")return "Đã kích hoạt";
+ if(m.status==="approved"&&m.onboardingStage==="active")return "Đã hoàn thiện · Đã kích hoạt";
+ if(m.onboardingStage==="active")return "Đã hoàn thiện · Đang đồng bộ quyền";
+ if(m.status==="approved")return "Đã cấp quyền · Cần đối chiếu hồ sơ";
  return m.onboardingStage==="profile_required"?"Đã duyệt · Chờ hồ sơ":
  m.onboardingStage==="requested"?"Chờ hoàn thiện hồ sơ":"Chờ xử lý";
 }
@@ -96,7 +98,7 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
  const displayed=useMemo(()=>accounts.filter(a=>(section==="oversight" ? ["teacher","learner"].includes(a.role)
   : section==="policies" ? a.role==="manager" : false)
   && [a.accountId,a.name,a.role].join(" ").toLowerCase().includes(search.toLowerCase())).slice(0,100),[accounts,search,section]);
- async function refreshManagerInbox(after=""){
+ const refreshManagerInbox=useCallback(async(after="")=>{
   setManagerLoading(true);setManagerError("");
   try{
    const result=await loadBoiManagerInbox(after);
@@ -109,7 +111,7 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
    setManagerInbox(null);setManagerNext(null);
    setManagerError(e instanceof Error?e.message:"Chưa tải được hàng chờ quản lý.");
   }finally{setManagerLoading(false);}
- }
+ },[]);
  async function createManagerInvitation(){
   if(managerWriting||writeLock.current||managerLoading||!singleReview||Boolean(managerError)||managerInbox===null)return;
   if(!window.confirm("Tạo mã mời dùng một lần cho Cán bộ quản lý? Chỉ gửi link cho đúng người; Owner không nhập mật khẩu hộ."))return;
@@ -163,7 +165,16 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
  }
  useEffect(()=>{if(section!=="accounts")queueMicrotask(()=>{void refresh();});},[section]);
  useEffect(()=>{queueMicrotask(()=>setLocalMode(["localhost","127.0.0.1"].includes(window.location.hostname)));},[]);
- useEffect(()=>{if(section==="accounts")queueMicrotask(()=>{void refreshManagerInbox();});},[section]);
+ useEffect(()=>{if(section==="accounts")queueMicrotask(()=>{void refreshManagerInbox();});},[section,refreshManagerInbox]);
+ // Resynchronize from the canonical BOI D1 after a profile is activated.
+ useEffect(()=>{
+  if(section!=="accounts")return;
+  const resync=()=>{if(document.visibilityState==="visible"&&!writeLock.current)
+   void refreshManagerInbox();};
+  const interval=window.setInterval(resync,20000);
+  document.addEventListener("visibilitychange",resync);
+  return()=>{window.clearInterval(interval);document.removeEventListener("visibilitychange",resync);};
+ },[section,refreshManagerInbox]);
  const currentExpiry=current?.entitlement?.expiresAt ?? null;
  useEffect(()=>{
   const next=currentExpiry?localInput(currentExpiry):"";
@@ -224,8 +235,8 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
    </div>:null}
    {managerInbox!==null?<div role="status" className="boi-manager-results">
     <div className="boi-manager-summary" aria-label="Tổng hợp trạng thái hồ sơ">
-     <div><small>Hồ sơ đã xác minh</small><strong>{managerInbox.length}</strong><span>Trong danh sách đã tải</span></div>
-     <div><small>Chờ hoàn thiện</small><strong>{managerInbox.filter(m=>m.status==="pending"&&m.onboardingStage==="requested").length}</strong><span>Chưa hoàn thiện</span></div>
+     <div><small>Hồ sơ đang tồn tại</small><strong>{managerInbox.length}</strong><span>Trong danh sách đã tải · Không phải số đã duyệt</span></div>
+     <div><small>Chờ Owner xét duyệt</small><strong>{managerInbox.filter(m=>m.status==="pending"&&m.onboardingStage==="requested").length}</strong><span>Chưa hoàn tất bước tiếp nhận</span></div>
      <div><small>Chờ hoàn thiện</small><strong>{managerInbox.filter(m=>m.status==="pending"&&m.onboardingStage==="profile_required").length}</strong><span>Chờ hoàn thiện hồ sơ</span></div>
     </div>
     <p className="boi-manager-count">Đã đọc {managerInbox.length} hồ sơ quản lý{managerNext?" (còn trang tiếp theo)":""}.
@@ -259,9 +270,11 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
      </header>
      <div className="boi-manager-progress" aria-label="Tiến trình kích hoạt hồ sơ">
       <span className="done">Đã đăng ký</span>
-      <span className={m.onboardingStage==="requested"?"current":"done"}>Lời mời Owner</span>
-      <span className={m.onboardingStage==="profile_required"?"current":""}>Hoàn thiện hồ sơ</span>
-      <span>Kích hoạt</span>
+      <span className={m.status==="blocked"?"":"done"}>Lời mời Owner</span>
+      <span className={m.onboardingStage==="active"||m.onboardingStage==="suspended"?"done":
+         m.onboardingStage==="profile_required"?"current":""}>Hoàn thiện hồ sơ</span>
+      <span className={m.onboardingStage==="active"&&m.status==="approved"?"done":
+        m.onboardingStage==="active"?"current":""}>Kích hoạt</span>
      </div>
      <div className="boi-manager-facts">
        <span><b>Đăng ký</b><strong>{moscow(m.createdAt)}</strong></span>
