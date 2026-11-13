@@ -264,7 +264,7 @@ export async function loadBoiAccountDurations() {
     throw new Error("Bơi ếch chưa xác minh danh sách tài khoản và chính sách; không thể suy diễn kết quả bằng 0.");
   return {accounts:accounts.accounts,policies:policies.policies};
 }
-export async function changeBoiAccountDuration(input:{accountId:string;expectedRevision:number;operation:"set-expiry"|"suspend"|"resume";expiresAt?:string;reason:string}) {
+export async function changeBoiAccountDuration(input:{accountId:string;expectedRevision:number;operation:"set-expiry"|"set-preset"|"suspend"|"resume";period?:"7d"|"30d"|"6m"|"1y"|"4y"|"forever";expiresAt?:string;reason:string}) {
   const response=await accountDurationCall({action:"set-account",...input});
   if(response.verified!==true) throw new Error("Chưa đọc lại được thời hạn tài khoản.");
   return response.entitlement;
