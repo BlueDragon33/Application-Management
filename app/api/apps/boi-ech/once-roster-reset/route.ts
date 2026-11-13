@@ -38,11 +38,12 @@ export async function POST(request:Request){
   const actor=await verifyControlProof(controlDeviceId?{...input,deviceId:controlDeviceId}:input);
   if(actor.role!=="owner")return json({code:"OWNER_REQUIRED"},403);
   if(input.action==="execute-batch"&&(
-   input.confirmation!=="XOA TAT CA TRU THIEN SON VA DONG NGHI"||
+   input.confirmation!=="XOA TAT CA TRU QUYNH THIEN SON DONG NGHI"||
    typeof input.cutoff!=="string"||!date.test(input.cutoff)||
    typeof input.snapshot!=="string"||!hash.test(input.snapshot)||
    typeof input.protectSon!=="string"||input.protectSon.length>128||
    typeof input.protectNghi!=="string"||input.protectNghi.length>128||
+   typeof input.protectQuynh!=="string"||input.protectQuynh.length>128||
    typeof input.backupBookmark!=="string"||!bookmark.test(input.backupBookmark)||
    typeof input.reason!=="string"||input.reason.trim().length<10||input.reason.length>300
   ))return json({code:"ROSTER_RESET_CONFIRMATION_REQUIRED",applied:false,
@@ -50,7 +51,7 @@ export async function POST(request:Request){
   const bridge=await issueBoiBrowserBridge(actor.email,actor.role,"account-owner");
   const forward:Payload={action:input.action};
   if(input.action==="execute-batch")for(const key of [
-   "cutoff","snapshot","protectSon","protectNghi","confirmation","backupBookmark","reason"
+   "cutoff","snapshot","protectSon","protectNghi","protectQuynh","confirmation","backupBookmark","reason"
   ])forward[key]=input[key];
   const answer=await upstream(bridge,forward);
   if(answer.status!==200)return json(answer.data,answer.status);
@@ -60,7 +61,7 @@ export async function POST(request:Request){
   if(input.action==="preview"){
    if(data.applied!==false||typeof data.snapshot!=="string"||!hash.test(data.snapshot)||
     typeof data.cutoff!=="string"||!date.test(data.cutoff)||
-    !Array.isArray(data.protectedPeople)||data.protectedPeople.length!==2||
+    !Array.isArray(data.protectedPeople)||data.protectedPeople.length!==3||
     !Number.isSafeInteger(data.totalLearnersTeachers)||
     !Number.isSafeInteger(data.candidates)||!Number.isSafeInteger(data.eligible)||
     !Number.isSafeInteger(data.retainedForReview)||
