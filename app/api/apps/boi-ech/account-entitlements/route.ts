@@ -116,7 +116,7 @@ export async function POST(request: Request) {
     if(action==="set-capacity" &&
        (!validRoles.has(String(input.role))||!Number.isSafeInteger(input.accountLimit)
         ||Number(input.accountLimit)<1||Number(input.accountLimit)>5000
-        ||!Number.isSafeInteger(input.expectedRevision)||Number(input.expectedRevision)<1))
+        ||!Number.isSafeInteger(input.expectedRevision)||Number(input.expectedRevision)<0))
       return json({error:"Giới hạn tài khoản phải từ 1 đến 5000 và có revision hợp lệ.",code:"ACCOUNT_INPUT"},400);
     if(action==="manager-review-first"
       && (!validId(input.accountId)||!Number.isSafeInteger(input.expectedRevision)
