@@ -3,16 +3,18 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 const read=p=>fs.readFileSync(new URL("../app/"+p,import.meta.url),"utf8");
 
-test("one-time Owner reset uses existing account panel and requires two protected identities",()=>{
+test("one-time Owner reset uses existing account panel and requires three protected identities",()=>{
  const ui=read("apps/boi-ech/owner-once-roster-reset-panel.tsx");
  const parent=read("apps/boi-ech/account-expiry-panel.tsx");
  assert.match(parent,/OwnerOnceRosterResetPanel/);
  assert.match(ui,/Thiên Sơn/);
  assert.match(ui,/Đông Nghi/);
+ assert.match(ui,/Ngô Tuyết Quỳnh/);
  assert.match(ui,/protectedPeople\.map/);
  assert.match(ui,/current\.protectedPeople\[0\]\.deviceId/);
  assert.match(ui,/current\.protectedPeople\[1\]\.deviceId/);
- assert.match(ui,/XOA TAT CA TRU THIEN SON VA DONG NGHI/);
+ assert.match(ui,/current\.protectedPeople\[2\]\.deviceId/);
+ assert.match(ui,/XOA TAT CA TRU NGO TUYET QUYNH, THIEN SON VA DONG NGHI/);
  assert.match(ui,/BOOKMARK\.test\(bookmark\.trim\(\)\)/);
  assert.match(ui,/window\.confirm\(/);
  assert.match(ui,/if\(current\.state==="completed"\|\|current\.state==="retention_review"\)break/);
@@ -25,7 +27,7 @@ test("App proxy enforces Owner device proof and MFA before any signed BOI deleti
  assert.match(route,/issueBoiBrowserBridge\(actor\.email,actor\.role,"account-owner"\)/);
  assert.match(route,/\/api\/control\/v2\/once-roster-reset/);
  assert.match(route,/redirect:"manual"/);
- assert.match(route,/data\.protectedPeople\.length!==2/);
+ assert.match(route,/data\.protectedPeople\.length!==3/);
  assert.match(route,/check\.data\.eligible!==data\.remaining/);
  assert.match(route,/check\.data\.removedInSession!==data\.totalDeleted/);
  assert.match(route,/applied:"unknown"/);
