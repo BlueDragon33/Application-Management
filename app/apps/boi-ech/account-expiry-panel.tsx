@@ -3,6 +3,7 @@
 import {useEffect,useMemo,useRef,useState} from "react";
 import AuthenticatorStepUp from "../../authenticator-step-up";
 import OwnerAccountCleanupPanel from "./owner-account-cleanup-panel";
+import AccountCapacityPanel from "./account-capacity-panel";
 import {
  loadBoiAccountDurations,loadBoiManagerInbox,issueBoiManagerInvitation,reviewBoiManagerAccount,
  changeBoiAccountDuration,changeBoiDefaultAccountDays,cancelBoiLocalTestManager,archiveBoiManagerAccount,
@@ -316,6 +317,7 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
   </details>
   <OwnerAccountCleanupPanel/>
   </>:null}
+  {section==="policies"?<AccountCapacityPanel/>:null}
   {section==="policies"?<header><h2>Thời hạn tài khoản · Account First V2</h2>
    <p>Chính sách mặc định 30 ngày từ lúc hoàn tất hồ sơ và kích hoạt. Chỉ thay đổi thời hạn hoặc mặc định; không trực tiếp duyệt giảng viên/học viên.</p></header>:null}
   {section!=="accounts"&&loading?<p role="status">Đang đọc dữ liệu tài khoản từ Bơi ếch…</p>:null}
