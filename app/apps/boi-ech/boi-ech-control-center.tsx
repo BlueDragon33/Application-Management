@@ -6,6 +6,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import {createPortal} from "react-dom";
 import AuthenticatorStepUp from "../../authenticator-step-up";
 import AccountExpiryPanel from "./account-expiry-panel";
 import BoiOwnerOverview from "./boi-owner-overview";
@@ -853,6 +854,8 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   // Compact shell keeps rare work in task dialogs, not permanent navigation.
   const [accountMenuOpen,setAccountMenuOpen]=useState(false);
+   const accountModalRef=useRef<HTMLElement|null>(null);
+   const accountTriggerRef=useRef<HTMLButtonElement|null>(null);
   const [toolsMenuOpen,setToolsMenuOpen]=useState(false);
   const [authAutoCheck,setAuthAutoCheck]=useState(false);
   const [authConnection,setAuthConnection]=useState<"unchecked"|"verified"|"unavailable">("unchecked");
@@ -944,11 +947,31 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
   },[toolsMenuOpen]);
   useEffect(()=>{
     if(!accountMenuOpen)return;
-    const close=(event:PointerEvent)=>{
-      if(event.target instanceof Element&&!event.target.closest(".boi-top-account"))setAccountMenuOpen(false);
+    const previousOverflow=document.body.style.overflow;
+    const previousFocus=document.activeElement instanceof HTMLElement?document.activeElement:null;
+    document.body.style.overflow="hidden";
+    const onKey=(event:KeyboardEvent)=>{
+      if(event.key==="Escape"){event.preventDefault();setAccountMenuOpen(false);return;}
+      if(event.key!=="Tab"||!accountModalRef.current)return;
+      const focusable=[...accountModalRef.current.querySelectorAll<HTMLElement>(
+        'a[href],button:not(:disabled),input:not(:disabled),[tabindex]:not([tabindex="-1"])')]
+        .filter(el=>el.getClientRects().length>0);
+      if(!focusable.length){event.preventDefault();accountModalRef.current.focus();return;}
+      const first=focusable[0],last=focusable[focusable.length-1];
+      if(event.shiftKey&&(document.activeElement===first||document.activeElement===accountModalRef.current)){
+        event.preventDefault();last.focus();
+      }else if(!event.shiftKey&&(document.activeElement===last||document.activeElement===accountModalRef.current)){
+        event.preventDefault();first.focus();
+      }
     };
-    document.addEventListener("pointerdown",close);
-    return()=>document.removeEventListener("pointerdown",close);
+    const timer=window.setTimeout(()=>accountModalRef.current?.focus(),0);
+    document.addEventListener("keydown",onKey);
+    return()=>{
+      window.clearTimeout(timer);document.removeEventListener("keydown",onKey);
+      document.body.style.overflow=previousOverflow;
+      if(accountTriggerRef.current?.isConnected)accountTriggerRef.current.focus({preventScroll:true});
+      else if(previousFocus?.isConnected)previousFocus.focus({preventScroll:true});
+    };
   },[accountMenuOpen]);
   function authenticateManagement() { setManagementAuth(true); return new Promise<boolean>(resolve => { managementAuthRef.current = resolve; }); }
   function finishManagementAuth(verified: boolean) { setManagementAuth(false); managementAuthRef.current?.(verified); managementAuthRef.current = null; }
@@ -1487,21 +1510,41 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
           <button type="button" className="button appearance-control" onClick={()=>setAppearanceOpen(true)} aria-expanded={appearanceOpen} aria-controls="admin-appearance-panel"><b>Aa</b> Giao diện</button>
           <button type="button" className="button boi-sync-button" onClick={()=>void refresh(credential,access,{discoverNew:true})} disabled={checking||!online}>{checking?"Đang cập nhật…":"↻ Đồng bộ"}</button>
           <div className="boi-top-account">
-            <button type="button" className="boi-account-trigger" aria-expanded={accountMenuOpen} aria-controls="boi-account-menu" onClick={()=>{setAccountMenuOpen(!accountMenuOpen);setToolsMenuOpen(false);}}>
+            <button type="button" ref={accountTriggerRef} className="boi-account-trigger" aria-haspopup="dialog" aria-expanded={accountMenuOpen} aria-controls="boi-account-menu" onClick={()=>{setAccountMenuOpen(!accountMenuOpen);setToolsMenuOpen(false);}}>
               <span className="boi-account-avatar" aria-hidden="true">{user.displayName.slice(0,1).toUpperCase()}</span>
               <span><strong>{user.displayName}</strong><small>{roleLabels[access.role]}</small></span><b aria-hidden="true">⌄</b>
             </button>
-            {accountMenuOpen?<div id="boi-account-menu" className="boi-account-popover" role="group" aria-label="Tác vụ tài khoản cá nhân">
-              <p className="boi-menu-caption">TÀI KHOẢN & XÁC THỰC</p>
-              <Link href="/__account" onClick={()=>setAccountMenuOpen(false)}>Hồ sơ · Đổi mật khẩu · Bảo mật</Link>
-              <Link href="/__account" onClick={()=>setAccountMenuOpen(false)}>Thiết lập / xác minh Authenticator</Link>
-              {access.role==="owner"?<button type="button" onClick={()=>{setTab("accounts");setAccountMenuOpen(false);}}>Mời và xét duyệt cán bộ</button>:null}
-              {access.role==="owner"?<button type="button" onClick={()=>{setTab("policies");setAccountMenuOpen(false);}}>Thời hạn tài khoản & chính sách</button>:null}
-              <label className="boi-connection-toggle"><input type="checkbox" checked={authAutoCheck} onChange={event=>{setAuthAutoCheck(event.target.checked);setAuthConnection("unchecked");}}/>
-                <span>Tự động kiểm tra kết nối Authentication</span></label>
-              <small role="status">{!authAutoCheck?"Tắt kiểm tra nền; xác thực bắt buộc vẫn hoạt động.":authConnection==="verified"?"Phiên Application-Management đã xác minh · "+(lastAuthCheck??"vừa xong"):authConnection==="unavailable"?"Chưa xác minh được phiên, không bỏ qua bảo mật.":"Đang kiểm tra phiên..."}</small>
-              <a href="/signout-with-chatgpt?return_to=/" className="boi-signout">Đăng xuất</a>
-            </div>:null}
+            {accountMenuOpen && typeof document!=="undefined"?createPortal(
+              <div className="boi-owner-account-modal-backdrop" role="presentation"
+                onMouseDown={event=>{if(event.target===event.currentTarget)setAccountMenuOpen(false);}}>
+                <section ref={accountModalRef} id="boi-account-menu" tabIndex={-1}
+                 className="boi-owner-account-modal" role="dialog" aria-modal="true"
+                 aria-labelledby="boi-owner-account-heading">
+                 <header className="boi-owner-account-modal-heading">
+                   <div><small>TÀI KHOẢN & XÁC THỰC</small>
+                     <h2 id="boi-owner-account-heading">Không gian tài khoản</h2>
+                     <p>{user.displayName} · {roleLabels[access.role]}</p>
+                   </div>
+                   <button type="button" aria-label="Đóng cửa sổ tài khoản"
+                     onClick={()=>setAccountMenuOpen(false)}>✕</button>
+                 </header>
+                 <nav className="boi-owner-account-modal-actions" aria-label="Tác vụ tài khoản">
+                   <Link href="/__account" onClick={()=>setAccountMenuOpen(false)}>Hồ sơ · Đổi mật khẩu · Bảo mật</Link>
+                   <Link href="/__account" onClick={()=>setAccountMenuOpen(false)}>Thiết lập / xác minh Authenticator</Link>
+                   {access.role==="owner"?<button type="button" onClick={()=>{setTab("accounts");setAccountMenuOpen(false);}}>Mời và xét duyệt cán bộ</button>:null}
+                   {access.role==="owner"?<button type="button" onClick={()=>{setTab("policies");setAccountMenuOpen(false);}}>Thời hạn tài khoản & chính sách</button>:null}
+                 </nav>
+                 <label className="boi-owner-account-modal-toggle">
+                   <input type="checkbox" checked={authAutoCheck}
+                     onChange={event=>{setAuthAutoCheck(event.target.checked);setAuthConnection("unchecked");}}/>
+                   <span>Tự động kiểm tra kết nối Authentication</span>
+                 </label>
+                 <p className="boi-owner-account-modal-status" role="status">
+                   {!authAutoCheck?"Tắt kiểm tra nền; xác thực bắt buộc vẫn hoạt động.":authConnection==="verified"?"Phiên Application-Management đã xác minh · "+(lastAuthCheck??"vừa xong"):authConnection==="unavailable"?"Chưa xác minh được phiên, không bỏ qua bảo mật.":"Đang kiểm tra phiên..."}
+                 </p>
+                 <a href="/signout-with-chatgpt?return_to=/" className="boi-owner-account-modal-signout">Đăng xuất</a>
+                </section>
+              </div>,document.body):null}
           </div></div>
         </header>
         {toolsMenuOpen ? <div className="boi-task-selector-backdrop" role="presentation" onMouseDown={event=>{if(event.target===event.currentTarget)setToolsMenuOpen(false);}}>
