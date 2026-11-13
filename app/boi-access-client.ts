@@ -270,7 +270,8 @@ export async function changeBoiAccountDuration(input:{accountId:string;expectedR
   return response.entitlement;
 }
 export type BoiRegistrationQuota={role:"manager"|"teacher"|"learner";
-  accountLimit:number;used:number;remaining:number;overLimit:boolean;revision:number};
+  accountLimit:number;used:number;remaining:number;overLimit:boolean;revision:number;
+ rejectedAttempts?:number;lastRejectedAt?:string|null};
 export async function loadBoiRegistrationQuotas():Promise<BoiRegistrationQuota[]>{
  const response=await accountDurationCall({action:"capacity"}) as BoiAccountDurationResponse & {limits?:BoiRegistrationQuota[]};
  if(response.verified!==true||!Array.isArray(response.limits)||response.limits.length!==3)
