@@ -38,7 +38,7 @@ export async function POST(request:Request){
   const actor=await verifyControlProof(controlDeviceId?{...input,deviceId:controlDeviceId}:input);
   if(actor.role!=="owner")return json({code:"OWNER_REQUIRED"},403);
   if(input.action==="execute-batch"&&(
-   input.confirmation!=="XOA TAT CA TRU THIEN SON VA DONG NGHI"||
+   input.confirmation!=="XOA TAT CA TRU QUYNH THIEN SON DONG NGHI"||
    typeof input.cutoff!=="string"||!date.test(input.cutoff)||
    typeof input.snapshot!=="string"||!hash.test(input.snapshot)||
    typeof input.protectSon!=="string"||input.protectSon.length>128||
