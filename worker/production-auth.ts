@@ -864,6 +864,7 @@ function sensitiveProductionMutation(pathname: string, payload: Record<string, u
   if (pathname === "/api/apps/boi-ech/access" && action === "manage-access") return true;
   if (pathname === "/api/apps/boi-ech/device-bindings"
     && (action === "revoke" || action === "purge")) return true;
+  if (pathname === "/api/apps/boi-ech/account-cleanup" && action === "purge") return true;
   if (pathname === "/api/apps/boi-ech/account-entitlements"
     && new Set(["set-account","set-policy","issue-manager-invite",
       "manager-review-first","manager-review-final","manager-review-changes"]).has(action)) return true;
@@ -926,6 +927,12 @@ export async function productionStepUpGate(
       "manager-review-final","manager-review-changes",
       "manager-delete-local","set-account","set-policy"]).has(text(payload.action))
     && (!state.enabled || !stepUpFresh(identity))) return stepUpRequiredResponse(state.configured && !state.enabled);
+  // Permanent account removal requires enrolled and recently verified Owner TOTP.
+  // This runs in Cloudflare Worker before the Next.js route; denied request is
+  // explicitly unapplied and may safely be resubmitted once after MFA.
+  if(pathname==="/api/apps/boi-ech/account-cleanup"
+    && text(payload.action)==="purge"&&(!state.enabled||!stepUpFresh(identity)))
+    return stepUpRequiredResponse(state.configured&&!state.enabled);
   // Removing a binding is permanently destructive. Unlike read-only inspect,
   // revoke/purge require enrolled Authenticator and a fresh 30-minute Owner step-up.
   // The gate runs before the Next.js route, so a denied action never reaches D1.

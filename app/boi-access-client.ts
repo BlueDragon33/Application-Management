@@ -274,3 +274,56 @@ export async function changeBoiDefaultAccountDays(input:{role:BoiAccountDuration
   if(response.verified!==true) throw new Error("Chưa đọc lại được chính sách thời hạn.");
   return response.policy;
 }
+
+/** Owner-only account retention cleanup: preview is read-only; purge is one
+ * explicitly selected account at a time. Each request is bounded. */
+export type BoiCleanupMode="pending"|"inactive"|"both";
+export type BoiCleanupDays=3|5|7|8;
+export type BoiCleanupRecord={
+ accountId:string;name:string;role:string|null;category:"pending"|"inactive";
+ createdAt:string;lastSeenAt:string|null;latestLoginAt:string|null;
+ inactiveDays:number;stage:string|null;eligible:boolean;blockers:string[];snapshot:string;
+};
+export type BoiCleanupPreview={ok:true;verified:true;contract:"boi-owner-account-cleanup.v1";
+ days:BoiCleanupDays;mode:BoiCleanupMode;records:BoiCleanupRecord[];
+ hasMore:boolean;nextCursor:string|null;scanned:number;eligible:number;protected:number;warning:string};
+async function ownerCleanupCall(body:Record<string,unknown>) {
+ const operation=body.action==="purge"?"xóa":"xem trước";
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20_000);
+ try{
+  const session=await approvedSession();
+  if(session.access.role!=="owner")throw new Error("Chỉ Owner được dọn hồ sơ.");
+  const signature=await proof(session.access);
+  if(controller.signal.aborted)throw new Error("Yêu cầu đã quá thời gian.");
+  const response=await fetch("/api/apps/boi-ech/account-cleanup",{
+   method:"POST",credentials:"same-origin",cache:"no-store",signal:controller.signal,
+   headers:{"content-type":"application/json"},
+   body:JSON.stringify({...body,...signature})
+  });
+  const result=await response.json().catch(()=>({})) as Record<string,unknown>;
+  if(!response.ok||result.ok!==true){
+   const error=new Error(typeof result.error==="string"?result.error:
+    "Chưa xác minh được "+operation+" tài khoản.");
+   throw Object.assign(error,{data:{...result,status:response.status}});
+  }
+  return result;
+ }catch(error){
+  if(controller.signal.aborted)throw new Error(
+   "Hết thời gian xác minh. Kết quả chưa rõ; vui lòng xem trước lại, không tự lặp lệnh xóa.");
+  throw error;
+ }finally{clearTimeout(timer);}
+}
+export async function previewOwnerAgedAccounts(input:{mode:BoiCleanupMode;days:BoiCleanupDays;cursor?:string}){
+ const result=await ownerCleanupCall({action:"preview",...input});
+ if(result.verified!==true||result.contract!=="boi-owner-account-cleanup.v1"
+  ||!Array.isArray(result.records))throw new Error("Danh sách D1 chưa được xác minh.");
+ return result as BoiCleanupPreview;
+}
+export async function purgeOwnerAgedAccount(input:{
+ mode:BoiCleanupMode;days:BoiCleanupDays;accountId:string;snapshot:string;reason:string;
+}){
+ const result=await ownerCleanupCall({action:"purge",...input,confirmation:"XOA TAI KHOAN"});
+ if(result.verified!==true||result.deleted!==true||result.auditPreserved!==true)
+  throw new Error("Bơi Ếch chưa xác nhận xóa tài khoản.");
+ return result;
+}
