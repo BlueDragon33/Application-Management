@@ -356,3 +356,57 @@ export async function purgeOwnerAgedAccount(input:{
   throw new Error("Bơi Ếch chưa xác nhận xóa tài khoản.");
  return result;
 }
+
+/** Strict historical cohort: original device older than five full days,
+ * Owner-approval audit, no modern login or manager assignment. No PII. */
+export type BoiLegacyFiveDayPreview={
+ ok:true;verified:true;applied:false;
+ contract:"boi-owner-legacy-five-day-purge.v1";
+ rule:string;cutoff:string;totalMatched:number;eligible:number;protected:number;
+ protectedByReason:{payment:number;certificate:number;training:number;authoredContent:number};
+ snapshot:string;batchSize:number;remainingAfterFirstBatch:number;
+};
+export type BoiLegacyFiveDayBatch={
+ ok:true;verified:true;contract:"boi-owner-legacy-five-day-purge.v1";
+ applied:boolean;deleted:number;remaining:number;protected:number;
+ nextSnapshot?:string;auditPreserved?:boolean;
+};
+async function ownerLegacyCleanupCall(body:Record<string,unknown>){
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30_000);
+ try{
+  const session=await approvedSession();
+  if(session.access.role!=="owner")throw new Error("Chỉ Owner có quyền xóa tài khoản cũ.");
+  const signature=await proof(session.access);
+  if(controller.signal.aborted)throw new Error("Quá thời gian xác minh.");
+  const response=await fetch("/api/apps/boi-ech/legacy-bulk-purge",{
+   method:"POST",credentials:"same-origin",cache:"no-store",signal:controller.signal,
+   headers:{"content-type":"application/json"},body:JSON.stringify({...body,...signature})
+  });
+  const result=await response.json().catch(()=>({})) as Record<string,unknown>;
+  if(!response.ok||result.ok!==true){
+   const error=new Error(typeof result.error==="string"?result.error:
+    "Chưa xác minh được thao tác dọn tài khoản cũ.");
+   throw Object.assign(error,{data:{...result,status:response.status}});
+  }
+  return result;
+ }catch(error){
+  if(controller.signal.aborted)throw new Error(
+   "Không xác minh được trạng thái xóa trong thời gian giới hạn. Không tự gửi lại; hãy quét D1.");
+  throw error;
+ }finally{clearTimeout(timer);}
+}
+export async function previewOwnerLegacyFiveDayPurge(){
+ const result=await ownerLegacyCleanupCall({action:"preview"});
+ if(result.verified!==true||result.contract!=="boi-owner-legacy-five-day-purge.v1"||
+ result.applied!==false||typeof result.snapshot!=="string")
+  throw new Error("Chưa xác minh được danh sách tài khoản cũ trên D1.");
+ return result as BoiLegacyFiveDayPreview;
+}
+export async function purgeOwnerLegacyFiveDayBatch(input:{snapshot:string;reason:string}){
+ const result=await ownerLegacyCleanupCall({action:"purge-batch",...input,
+  confirmation:"XOA TAI KHOAN CU TREN 5 NGAY"});
+ if(result.verified!==true||result.contract!=="boi-owner-legacy-five-day-purge.v1"||
+  typeof result.applied!=="boolean"||!Number.isSafeInteger(result.deleted))
+  throw new Error("Máy chủ chưa xác minh giao dịch xóa tài khoản cũ.");
+ return result as BoiLegacyFiveDayBatch;
+}
