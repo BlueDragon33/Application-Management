@@ -259,13 +259,14 @@ async function credentialForDevice() {
   return credential;
 }
 
-async function api(path: string, body: Record<string, unknown>) {
+async function api(path: string, body: Record<string, unknown>, signal?:AbortSignal) {
   const response = await fetch(path, {
     method: "POST",
     credentials: "same-origin",
     cache: "no-store",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
+    ...(signal?{signal}:{})
   });
   const data = await response.json() as ApiData;
   if (!response.ok) throw new ApiError(data.error ?? "Không thể kết nối dịch vụ quản trị.", data);
@@ -278,25 +279,38 @@ async function register(credential: Credential) {
   return data.device;
 }
 
-async function proof(credential: Credential, access: Access) {
-  const challenge = await api("/api/device", { action: "challenge", deviceId: access.deviceId });
+async function proof(credential: Credential, access: Access, signal?:AbortSignal) {
+  const challenge = await api("/api/device", { action: "challenge", deviceId: access.deviceId },signal);
   if (!challenge.challenge || !credential.privateKey) throw new ApiError("Không thể tạo thử thách thiết bị.", challenge);
   const message = new TextEncoder().encode(`learning-control:${access.deviceId}:${challenge.challenge}`);
   const signature = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, credential.privateKey, message);
   return { proofDeviceId: access.deviceId, challenge: challenge.challenge, signature: base64Url(new Uint8Array(signature)) };
 }
 
-async function secureApi(path: string, credential: Credential, access: Access, body: Record<string, unknown>) {
+async function secureApi(path: string, credential: Credential, access: Access, body: Record<string, unknown>, signal?:AbortSignal) {
   let lastError: unknown;
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      return await api(path, { ...body, ...await proof(credential, access) });
+      return await api(path, { ...body, ...await proof(credential, access, signal) }, signal);
     } catch (error) {
       lastError = error;
       if (!(error instanceof ApiError) || error.data.code !== "DEVICE_PROOF_EXPIRED") throw error;
     }
   }
   throw lastError;
+}
+
+/** A bounded, non-retrying Owner operation. On transport timeout its mutation
+ * outcome is unknown: never silently resend destructive writes. */
+async function boundedBindingApi(credential:Credential,access:Access,body:Record<string,unknown>) {
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),20_000);
+  try { return await secureApi("/api/apps/boi-ech/device-bindings",credential,access,body,controller.signal); }
+  catch(error) {
+    if(controller.signal.aborted)throw new Error(
+      "Yêu cầu quá 20 giây, chưa rõ kết quả. Đóng chi tiết và đồng bộ lại danh sách; không tự gửi lại lệnh xóa.");
+    throw error;
+  } finally {clearTimeout(timer);}
 }
 
 async function boiApi<T = ApiData>(bridge: BoiBridge, path: "/api/control/overview" | "/api/control/content" | "/api/control/ai", init?: { method?: "GET" | "POST"; body?: Record<string, unknown>; query?: string }) {
@@ -946,7 +960,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
     setBindingId(id);setBindingLoading(true);setBindingDetail(null);
     setBindingError("");setBindingNotice("");setBindingConfirm("");
     try{
-      const response=await secureApi("/api/apps/boi-ech/device-bindings",credential,access,{
+      const response=await boundedBindingApi(credential,access,{
         action:"inspect",bindingId:id}) as unknown as OwnerBindingDetail;
       if(bindingRequest.current!==request)return;
       if(response.verified!==true||response.bindingId!==id||response.contract!=="boi-owner-device-binding.v1")
@@ -968,7 +982,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
       setBindingError("Nhập đúng 6 ký tự cuối mã liên kết và lý do ít nhất 10 ký tự.");return;
     }
     const original=bindingDetail;setBindingBusy(true);setBindingError("");setBindingNotice("");
-    const call=()=>secureApi("/api/apps/boi-ech/device-bindings",credential,access,{
+    const call=()=>boundedBindingApi(credential,access,{
       action,bindingId:original.bindingId,confirmation:original.bindingId,
       typedSuffix:bindingConfirm.trim(),reason:bindingReason.trim(),
       expectedStatus:original.status,expectedCreatedAt:original.createdAt});
@@ -1005,6 +1019,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
     const before=document.activeElement instanceof HTMLElement?document.activeElement:null;
     const dialog=document.getElementById("boi-owner-binding-dialog");
     const key=(event:KeyboardEvent)=>{
+      if(managementAuth)return; // Never steal focus/Tab/Escape from Authenticator step-up.
       if(event.key==="Escape"){event.preventDefault();event.stopImmediatePropagation();if(!bindingBusy)closeBinding();return;}
       if(event.key!=="Tab"||!dialog)return;
       const items=[...dialog.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),textarea:not(:disabled)')]
@@ -1019,7 +1034,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
     return()=>{window.clearTimeout(focus);window.removeEventListener("keydown",key,true);
       if(before?.isConnected)before.focus({preventScroll:true});};
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[bindingId,bindingBusy]);
+  },[bindingId,bindingBusy,managementAuth]);
 
   function commitDashboard(next: Dashboard) {
     dashboardRef.current = next;

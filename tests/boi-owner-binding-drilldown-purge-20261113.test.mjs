@@ -92,3 +92,18 @@ test("Device cards are keyboard-accessible and owner delete dialog carries clear
  assert.match(api,/issueBoiBrowserBridge\(actor.email,actor.role,"account-owner"\)/);
  assert.match(api,/DEVICE_BINDING_READBACK_FAILED/);
 });
+
+
+test("Owner MFA is above binding dialog, keyboard trap yields to step-up and requests cannot hang forever",()=>{
+ const stepup=readFileSync("app/authenticator-step-up.module.css","utf8");
+ const shell=readFileSync("app/apps/boi-ech/boi-ech-shell.module.css","utf8");
+ const ui=readFileSync("app/apps/boi-ech/boi-ech-control-center.tsx","utf8");
+ const mfaZ=Number(stepup.split("z-index:")[1]?.split(";")[0].trim());
+ const bindingZ=Number(shell.split("boi-binding-backdrop")[1]?.split("z-index:")[1]?.split(";")[0].trim());
+ assert.ok(mfaZ>bindingZ,"Authenticator must render above Owner device modal");
+ assert.match(ui,/if\(managementAuth\)return; \/\/ Never steal focus/);
+ assert.match(ui,/\[bindingId,bindingBusy,managementAuth\]/);
+ assert.match(ui,/controller\.abort\(\),20_000/);
+ assert.match(ui,/không tự gửi lại lệnh xóa/);
+ assert.match(ui,/finally\{setBindingBusy\(false\);\}/);
+});
