@@ -52,7 +52,7 @@ export async function POST(request:Request){
   if(input.action==="preview"){
    if(data.applied!==false||typeof data.snapshot!=="string"||!SNAP.test(data.snapshot)||
     !Number.isSafeInteger(data.totalMatched)||!Number.isSafeInteger(data.eligible)||
-    !Number.isSafeInteger(data.protected)||data.eligible<0||data.protected<0||
+    !Number.isSafeInteger(data.protected)||Number(data.eligible)<0||Number(data.protected)<0||
     data.totalMatched!==Number(data.eligible)+Number(data.protected))
     return json({code:"LEGACY_CLEANUP_UNVERIFIED",applied:false,
      error:"Dữ liệu quét D1 không hợp lệ."},502);
