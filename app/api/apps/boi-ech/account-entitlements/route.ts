@@ -3,7 +3,7 @@ import { controlErrorResponse, verifyControlProof } from "../../../../control-de
 
 export const dynamic = "force-dynamic";
 const TIMEOUT_MS = 8_000;
-const mutations = new Set(["set-account","set-policy","issue-manager-invite","manager-review-first","manager-review-final","manager-review-changes","manager-delete-local"]);
+const mutations = new Set(["set-account","set-policy","issue-manager-invite","manager-review-first","manager-review-final","manager-review-changes","manager-delete-local","manager-archive"]);
 const allowed = new Set(["list","manager-inbox","manager-policy","policy","read-account",...mutations]);
 function json(data: unknown,status=200) {
   return Response.json(data,{status,headers:{"cache-control":"no-store, private","x-content-type-options":"nosniff"}});
@@ -101,6 +101,12 @@ export async function POST(request: Request) {
       return json({error:"Chưa xác minh chế độ duyệt một lần trên APP. Không phát lệnh mời hoặc duyệt theo quy trình cũ.",
         code:"BOI_SINGLE_REVIEW_UNVERIFIED"},409);
     }
+    if(action==="manager-archive" &&
+      (!validId(input.accountId)||input.confirmation!==input.accountId
+        ||!Number.isSafeInteger(input.expectedRevision)
+        ||typeof input.reason!=="string"||input.reason.trim().length<10
+        ||input.reason.length>300))
+      return json({error:"Yêu cầu lưu trữ phải có đúng ID, revision và lý do.",code:"BOI_MANAGER_ARCHIVE_INPUT"},400);
     if(action==="manager-review-first"
       && (!validId(input.accountId)||!Number.isSafeInteger(input.expectedRevision)
         ||Number(input.expectedRevision)<1)) {
@@ -113,7 +119,10 @@ export async function POST(request: Request) {
         code:"BOI_SINGLE_REVIEW_BACKEND_UNVERIFIED"},409);
     if(action==="manager-delete-local" && !["127.0.0.1","localhost"].includes(new URL(bridge.baseUrl).hostname))
       return json({error:"Hủy hồ sơ bị chặn khi Bridge không trỏ localhost.",code:"ACCOUNT_RESET_LOCAL_ONLY"},403);
-    const cmd:Record<string,unknown>=action==="manager-delete-local"
+    const cmd:Record<string,unknown>=action==="manager-archive"
+      ?{action:"archive-manager",accountId:input.accountId,expectedRevision:input.expectedRevision,
+        confirmation:input.confirmation,reason:input.reason}
+      :action==="manager-delete-local"
       ?{action:"cancel-pending-manager-local",accountId:input.accountId,expectedRevision:input.expectedRevision,confirmation:input.confirmation}
       :action==="manager-inbox"
       ?{action:"manager-inbox-v2",after:input.after??"",limit:40}
@@ -129,6 +138,22 @@ export async function POST(request: Request) {
       :{action:"set-entitlement",accountId:input.accountId,operation:input.operation,expiresAt:input.expiresAt,expectedRevision:input.expectedRevision,reason:input.reason};
     const changed=await upstream(bridge,cmd);
     if(changed.status!==200) return json(changed.data,changed.status);
+    if(action==="manager-archive") {
+      if(changed.data.verified!==true||changed.data.status!=="blocked"
+        ||changed.data.accountId!==input.accountId||changed.data.retainedHistory!==true)
+        return json({error:"Không xác minh được lệnh lưu trữ cán bộ.",
+          code:"MANAGER_ARCHIVE_UNVERIFIED",applied:true,verified:false},502);
+      const checked=await upstream(bridge,{action:"read",accountId:input.accountId});
+      const after=record(checked.data);
+      const perms=after.permissions;
+      if(checked.status!==200||after.accountId!==input.accountId||after.role!=="manager"
+        ||after.status!=="blocked"||after.revision!==Number(input.expectedRevision)+1
+        ||!Array.isArray(perms)||perms.some(p=>record(p).configured!==false))
+        return json({error:"Lệnh đã gửi nhưng đọc lại trạng thái chặn quyền chưa khớp.",
+          code:"MANAGER_ARCHIVE_READBACK_UNVERIFIED",applied:true,verified:false},502);
+      return json({ok:true,verified:true,archived:true,retainedHistory:true,
+        accountId:after.accountId,revision:after.revision,status:after.status});
+    }
     if(action==="manager-delete-local") {
       if(changed.data.verified!==true||changed.data.deletedAccountId!==input.accountId
         ||!Number.isSafeInteger(changed.data.auditId))
@@ -145,13 +170,18 @@ export async function POST(request: Request) {
           return a.role!=="manager"||typeof a.accountId!=="string"||!/^acc_[a-f0-9]{64}$/.test(a.accountId)
             ||typeof a.accountRevision!=="number"||!Number.isSafeInteger(a.accountRevision)
             ||typeof a.status!=="string"||typeof a.onboardingStage!=="string"
-            ||typeof a.onboardingRevision!=="number"||!Number.isSafeInteger(a.onboardingRevision);
+            ||typeof a.onboardingRevision!=="number"||!Number.isSafeInteger(a.onboardingRevision)
+            ||typeof a.createdAt!=="string"||!Number.isFinite(Date.parse(a.createdAt))
+            ||(a.lastSeenAt!==null&&a.lastSeenAt!==undefined
+              && (typeof a.lastSeenAt!=="string"||!Number.isFinite(Date.parse(a.lastSeenAt))))
+            ||!Number.isSafeInteger(a.activeSessions)||a.activeSessions<0;
         })) return json({error:"Dữ liệu hàng chờ quản lý chưa được xác minh.",code:"BOI_MANAGER_INBOX_UNVERIFIED"},502);
       return json({ok:true,verified:true,managers:rows.map(row=>{
         const a=record(row);
         return {accountId:a.accountId,accountRevision:a.accountRevision,status:a.status,
           onboardingStage:a.onboardingStage,onboardingRevision:a.onboardingRevision,
-          name:typeof a.name==="string"?a.name:null};
+          name:typeof a.name==="string"?a.name:null,
+          createdAt:a.createdAt,lastSeenAt:a.lastSeenAt??null,activeSessions:a.activeSessions};
       }),nextCursor:next});
     }
     if(action==="manager-policy"){
