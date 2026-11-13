@@ -15,6 +15,14 @@ import { parseBoiDeviceRegistry, type BoiDeviceRegistry } from "../../boi-device
 
 type ControlRole = "viewer" | "reviewer" | "publisher" | "owner";
 type DeviceStatus = "pending" | "approved" | "blocked";
+type OwnerBindingDetail = {
+  contract:"boi-owner-device-binding.v1";verified:true;
+  bindingId:string;status:DeviceStatus;createdAt:string;purgeAllowed:boolean;
+  account:{accountId:string;name:string|null;login:string|null;role:string|null;
+    status:string;onboardingStage:string|null;createdAt:string;revision:number};
+  dependencies:{sessions:number;activeSessions:number;syncGrants:number;syncEvents:number;otherTrustedDevices:number};
+  preservesAccount:true;preservesLearning:true;preservesAudit:true;
+};
 
 type Credential = { version: 1; privateKey: CryptoKey | null; publicKey: JsonWebKey };
 type ActivityDay = { date: string; loginCount: number; studyMinutes: number; quizAttempts: number; progressPercent: number };
@@ -814,6 +822,15 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
   const [search, setSearch] = useState("");
   const [registrySearch,setRegistrySearch]=useState("");
   const [registryFilter,setRegistryFilter]=useState<"all"|"approved"|"pending"|"blocked">("all");
+  const [bindingId,setBindingId]=useState<string|null>(null);
+  const [bindingDetail,setBindingDetail]=useState<OwnerBindingDetail|null>(null);
+  const [bindingLoading,setBindingLoading]=useState(false);
+  const [bindingBusy,setBindingBusy]=useState(false);
+  const [bindingError,setBindingError]=useState("");
+  const [bindingNotice,setBindingNotice]=useState("");
+  const [bindingReason,setBindingReason]=useState("Liên kết thiết bị cũ không còn sử dụng");
+  const [bindingConfirm,setBindingConfirm]=useState("");
+  const bindingRequest=useRef(0);
   const [selected, setSelected] = useState<LearningDevice | null>(null);
   const [selectedActivityLoading, setSelectedActivityLoading] = useState(false);
   const [online, setOnline] = useState(true);
@@ -921,6 +938,86 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
   function finishManagementAuth(verified: boolean) { setManagementAuth(false); managementAuthRef.current?.(verified); managementAuthRef.current = null; }
 
   const detailRequest = useRef(0);
+  async function inspectBinding(id:string){
+    if(!credential||!access||access.role!=="owner")return;
+    const request=++bindingRequest.current;
+    setBindingId(id);setBindingLoading(true);setBindingDetail(null);
+    setBindingError("");setBindingNotice("");setBindingConfirm("");
+    try{
+      const response=await secureApi("/api/apps/boi-ech/device-bindings",credential,access,{
+        action:"inspect",bindingId:id}) as unknown as OwnerBindingDetail;
+      if(bindingRequest.current!==request)return;
+      if(response.verified!==true||response.bindingId!==id||response.contract!=="boi-owner-device-binding.v1")
+        throw new Error("Không xác minh được chi tiết liên kết.");
+      setBindingDetail(response);
+    }catch(caught){
+      if(bindingRequest.current===request)setBindingError(caught instanceof Error?caught.message:"Không thể xem thiết bị.");
+    }finally{if(bindingRequest.current===request)setBindingLoading(false);}
+  }
+  function closeBinding(){
+    if(bindingBusy)return;
+    bindingRequest.current+=1;
+    setBindingId(null);setBindingDetail(null);setBindingError("");
+    setBindingConfirm("");setBindingNotice("");
+  }
+  async function changeBinding(action:"revoke"|"purge"){
+    if(!credential||!access||access.role!=="owner"||!bindingDetail||bindingBusy)return;
+    if(bindingConfirm.trim()!==bindingDetail.bindingId.slice(-6)||bindingReason.trim().length<10){
+      setBindingError("Nhập đúng 6 ký tự cuối mã liên kết và lý do ít nhất 10 ký tự.");return;
+    }
+    const original=bindingDetail;setBindingBusy(true);setBindingError("");setBindingNotice("");
+    const call=()=>secureApi("/api/apps/boi-ech/device-bindings",credential,access,{
+      action,bindingId:original.bindingId,confirmation:original.bindingId,
+      typedSuffix:bindingConfirm.trim(),reason:bindingReason.trim(),
+      expectedStatus:original.status,expectedCreatedAt:original.createdAt});
+    try{
+      let reply:ApiData;
+      try{reply=await call();}
+      catch(caught){
+        if(!(caught instanceof ApiError)||caught.data.code!=="STEP_UP_REQUIRED"||caught.data.applied!==false)throw caught;
+        if(!await authenticateManagement())throw new Error("Đã hủy xác minh Owner.");
+        reply=await call();
+      }
+      if(reply.ok!==true||reply.verified!==true)throw new Error("Máy chủ chưa xác nhận thao tác.");
+      setBindingConfirm("");
+      if(action==="revoke"){
+        const detail=reply.detail as unknown as OwnerBindingDetail|undefined;
+        if(!detail||detail.bindingId!==original.bindingId||detail.status!=="blocked")
+          throw new Error("Chưa đọc lại được trạng thái đã thu hồi.");
+        setBindingDetail(detail);
+        setBindingNotice("Đã thu hồi quyền. Có thể xóa vĩnh viễn bản ghi liên kết này.");
+      }else{
+        if(reply.deleted!==true||reply.bindingId!==original.bindingId)
+          throw new Error("Chưa đọc lại được trạng thái đã xóa.");
+        bindingRequest.current+=1;setBindingDetail(null);setBindingId(null);
+        setNotice("Đã xóa vĩnh viễn liên kết thiết bị và bản ghi phiên/đồng bộ liên quan. Hồ sơ và tiến độ tài khoản được giữ nguyên.");
+      }
+      // A successful mutation must re-read the canonical registry, not hide a
+      // card optimistically or fake new counts.
+      await refresh(credential,access,{discoverNew:true});
+    }catch(caught){setBindingError(caught instanceof Error?caught.message:"Không thể xử lý liên kết thiết bị.");}
+    finally{setBindingBusy(false);}
+  }
+  useEffect(()=>{
+    if(!bindingId)return;
+    const before=document.activeElement instanceof HTMLElement?document.activeElement:null;
+    const dialog=document.getElementById("boi-owner-binding-dialog");
+    const key=(event:KeyboardEvent)=>{
+      if(event.key==="Escape"){event.preventDefault();event.stopImmediatePropagation();if(!bindingBusy)closeBinding();return;}
+      if(event.key!=="Tab"||!dialog)return;
+      const items=[...dialog.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),textarea:not(:disabled)')]
+        .filter(el=>el.getClientRects().length>0);
+      if(!items.length)return;
+      const first=items[0],last=items[items.length-1];
+      if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
+      else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
+    };
+    const focus=window.setTimeout(()=>dialog?.focus(),0);
+    window.addEventListener("keydown",key,true);
+    return()=>{window.clearTimeout(focus);window.removeEventListener("keydown",key,true);
+      if(before?.isConnected)before.focus({preventScroll:true});};
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[bindingId,bindingBusy]);
 
   function commitDashboard(next: Dashboard) {
     dashboardRef.current = next;
@@ -1460,21 +1557,83 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
               </label>
             </div>
             <div className="boi-registry-grid" aria-live="polite">
-              {visibleRegistryDevices.map((device,index)=><article key={device.deviceId}
-                className="boi-registry-card" data-status={device.status}>
+              {visibleRegistryDevices.map((device,index)=><button type="button" key={device.deviceId}
+                className="boi-registry-card" data-status={device.status}
+                onClick={()=>void inspectBinding(device.deviceId)}
+                aria-label={`Xem chi tiết và quản lý liên kết thiết bị ${device.deviceId.slice(0,12)}`}>
                 <Laptop active={false} status={device.status}/>
-                <div className="boi-registry-card-copy">
+                <span className="boi-registry-card-copy">
                   <strong>{device.status==="approved"?"Thiết bị đã tin cậy":device.status==="pending"?"Chờ xác nhận thiết bị":"Đã thu hồi liên kết"}</strong>
                   <code title={device.deviceId}>Liên kết #{index+1} · {device.deviceId.slice(0,16)}…</code>
-                  <small>Không công bố khóa thiết bị gốc hoặc danh tính tài khoản</small>
-                </div>
-              </article>)}
+                  <small>Xem chi tiết · Quản lý / Xóa</small>
+                </span>
+              </button>)}
             </div>
             {!visibleRegistryDevices.length?<p role="status" className="boi-no-data">
               {deviceRegistry.counts.total===0?"Chưa có thiết bị nào được liên kết.":"Không có thiết bị phù hợp bộ lọc."}
             </p>:null}
           </> : <p role="status">Chưa xác minh lại được registry thiết bị. Hãy đồng bộ để thử lại, không hiển thị số lượng giả.</p>}
         </section> : null}
+
+        {bindingId ? <div className="boi-binding-backdrop" role="presentation" onMouseDown={event=>{
+          if(event.target===event.currentTarget&&!bindingBusy)closeBinding();
+        }}>
+          <section id="boi-owner-binding-dialog" className="boi-binding-dialog" role="dialog" aria-modal="true"
+            aria-label="Chi tiết và xử lý liên kết thiết bị" tabIndex={-1}>
+            <header><div><span>OWNER · QUẢN LÝ LIÊN KẾT ACCOUNT-FIRST</span>
+              <h2>Chi tiết thiết bị</h2></div>
+              <button type="button" disabled={bindingBusy} onClick={closeBinding} aria-label="Đóng chi tiết">✕</button></header>
+            {bindingLoading?<p role="status">Đang xác minh dữ liệu trực tiếp từ Bơi Ếch…</p>:null}
+            {bindingError?<p className="boi-binding-error" role="alert">{bindingError}</p>:null}
+            {bindingNotice?<p className="boi-binding-success" role="status">{bindingNotice}</p>:null}
+            {bindingDetail?<div className="boi-binding-body">
+              <div className="boi-binding-identity">
+                <strong>{bindingDetail.account.name||"Tài khoản chưa khai báo tên"}</strong>
+                <span>{bindingDetail.account.role==="manager"?"Cán bộ quản lý":
+                  bindingDetail.account.role==="teacher"?"Giảng viên":
+                  bindingDetail.account.role==="learner"?"Học viên":"Chưa phân loại"} ·
+                  {bindingDetail.status==="approved"?" Đã tin cậy":bindingDetail.status==="pending"?" Chờ xác nhận":" Đã thu hồi"}</span>
+                <code>Mã liên kết: {bindingDetail.bindingId}</code>
+              </div>
+              <dl className="boi-binding-facts">
+                <div><dt>Ngày liên kết</dt><dd>{formatDate(bindingDetail.createdAt)}</dd></div>
+                <div><dt>Ngày đăng ký tài khoản</dt><dd>{formatDate(bindingDetail.account.createdAt)}</dd></div>
+                <div><dt>Đăng nhập</dt><dd>{bindingDetail.account.login||"Chưa có"}</dd></div>
+                <div><dt>Trạng thái tài khoản</dt><dd>{bindingDetail.account.status}</dd></div>
+                <div><dt>Quy trình đăng ký</dt><dd>{bindingDetail.account.onboardingStage||"Chưa có"}</dd></div>
+                <div><dt>Phiên hợp lệ hiện tại</dt><dd>{bindingDetail.dependencies.activeSessions}</dd></div>
+                <div><dt>Phiên lưu trong D1</dt><dd>{bindingDetail.dependencies.sessions}</dd></div>
+                <div><dt>Liên kết khác đã tin cậy</dt><dd>{bindingDetail.dependencies.otherTrustedDevices}</dd></div>
+                <div><dt>Quyền đồng bộ thiết bị</dt><dd>{bindingDetail.dependencies.syncGrants}</dd></div>
+                <div><dt>Sự kiện đồng bộ thiết bị</dt><dd>{bindingDetail.dependencies.syncEvents}</dd></div>
+              </dl>
+              <p className="boi-binding-disclaimer">
+                <strong>Phạm vi xóa:</strong> Thu hồi quyền trước, sau đó xóa vĩnh viễn liên kết, phiên đăng nhập và
+                dữ liệu đồng bộ riêng của thiết bị. <strong>Không xóa hồ sơ tài khoản, kết quả học tập
+                hay nhật ký kiểm toán.</strong> Nếu đây là thiết bị tin cậy cuối cùng, tài khoản sẽ cần
+                quy trình khôi phục thiết bị để truy cập lại.
+              </p>
+              <div className="boi-binding-danger">
+                <h3>{bindingDetail.status==="blocked"?"Xóa sạch bản ghi liên kết":"Thu hồi quyền thiết bị"}</h3>
+                <label>Lý do xử lý (ít nhất 10 ký tự)
+                  <textarea value={bindingReason} maxLength={300} rows={2}
+                    onChange={event=>setBindingReason(event.target.value)} disabled={bindingBusy}/></label>
+                <label>Nhập 6 ký tự cuối của mã liên kết: <strong>{bindingDetail.bindingId.slice(-6)}</strong>
+                  <input value={bindingConfirm} maxLength={6} autoComplete="off"
+                    onChange={event=>setBindingConfirm(event.target.value.trim().toLowerCase())}
+                    disabled={bindingBusy} placeholder="6 ký tự cuối"/></label>
+                <button type="button" className="boi-binding-delete" disabled={bindingBusy||
+                  bindingConfirm!==bindingDetail.bindingId.slice(-6)||bindingReason.trim().length<10}
+                  onClick={()=>void changeBinding(bindingDetail.status==="blocked"?"purge":"revoke")}>
+                  {bindingBusy?"Đang xác minh…":bindingDetail.status==="blocked"?
+                    "Xóa vĩnh viễn liên kết khỏi D1":"Thu hồi quyền và phiên của thiết bị"}
+                </button>
+                <small>Owner xác nhận thủ công từng liên kết. Không tự động xóa hàng loạt.</small>
+              </div>
+            </div>:null}
+            <footer><button type="button" onClick={closeBinding} disabled={bindingBusy}>Đóng</button></footer>
+          </section>
+        </div>:null}
 
         {tab==="reports" && !deviceRegistry ? <section className="boi-console-card boi-reports-workspace"><header><div><span>BÁO CÁO DỮ LIỆU THẬT</span><h2>Thiết bị và tiến độ</h2></div></header>
           <p>Đây là thống kê thiết bị BE; không lấy số thiết bị để thay thế tổng tài khoản hoặc số yêu cầu chờ duyệt.</p>
