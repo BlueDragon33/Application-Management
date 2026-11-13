@@ -71,6 +71,13 @@ test("Owner role and typed suffix are enforced before upstream access",async()=>
  const broken=fixture({broken:true});
  assert.equal((await broken.post({action:"revoke",...op})).status,502);
 });
+test("Revoke and purge require recent enrolled 30-minute TOTP; inspection remains read only",()=>{
+ const worker=readFileSync("worker/production-auth.ts","utf8");
+ assert.match(worker,/pathname==="\\/api\\/apps\\/boi-ech\\/device-bindings"/);
+ assert.match(worker,/\["revoke","purge"\]\.includes\(text\(payload\.action\)\)/);
+ assert.match(worker,/!state\.enabled \|\| !stepUpFresh\(identity\)/);
+ assert.match(worker,/stepUpRequiredResponse\(state\.configured && !state\.enabled\)/);
+});
 test("Device cards are keyboard-accessible and owner delete dialog carries clear consent and error state",()=>{
  const ui=readFileSync("app/apps/boi-ech/boi-ech-control-center.tsx","utf8");
  const css=readFileSync("app/apps/boi-ech/boi-ech-shell.module.css","utf8");
