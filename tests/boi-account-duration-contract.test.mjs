@@ -27,7 +27,7 @@ test("Owner mutations require independent readback and session MFA step-up",()=>
 });
 test("account UI is distinct from device expiry and never tells Owner false success",()=>{
  assert.match(panel,/Account First V2/);
- assert.match(panel,/30 ngày từ lúc hoàn tất hồ sơ và kích hoạt/);
+ assert.match(panel,/3 ngày, giảng viên và học viên 8 ngày/);
  assert.match(panel,/changeBoiDefaultAccountDays/);
  assert.match(panel,/changeBoiAccountDuration/);
  assert.match(panel,/Tạm khóa/);
