@@ -100,7 +100,8 @@ export default function OwnerLegacyBulkPanel(){
      Hồ sơ có thanh toán: {preview.protectedByReason.payment};
      có chứng chỉ: {preview.protectedByReason.certificate};
      có lịch đào tạo: {preview.protectedByReason.training};
-     có nội dung giảng dạy: {preview.protectedByReason.authoredContent}.
+     có nội dung giảng dạy: {preview.protectedByReason.authoredContent};
+     hồ sơ học tập gốc dùng chung: {preview.protectedByReason.sharedLegacyProfiles??0}.
      Đây là số liệu từ D1, không phải tổng số người dùng của hệ thống mới.</p>
     {preview.eligible>0?<div className={styles.danger}>
      <strong>Xóa theo lô tối đa 10 tài khoản/giao dịch</strong>
