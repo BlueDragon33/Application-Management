@@ -9,10 +9,12 @@ test("one-time Owner reset uses existing account panel and requires two protecte
  assert.match(parent,/OwnerOnceRosterResetPanel/);
  assert.match(ui,/Thiên Sơn/);
  assert.match(ui,/Đông Nghi/);
+ assert.match(ui,/Ngô Tuyết Quỳnh/);
  assert.match(ui,/protectedPeople\.map/);
  assert.match(ui,/current\.protectedPeople\[0\]\.deviceId/);
  assert.match(ui,/current\.protectedPeople\[1\]\.deviceId/);
- assert.match(ui,/XOA TAT CA TRU THIEN SON VA DONG NGHI/);
+ assert.match(ui,/current\.protectedPeople\[2\]\.deviceId/);
+ assert.match(ui,/XOA TAT CA TRU QUYNH THIEN SON DONG NGHI/);
  assert.match(ui,/BOOKMARK\.test\(bookmark\.trim\(\)\)/);
  assert.match(ui,/window\.confirm\(/);
  assert.match(ui,/if\(current\.state==="completed"\|\|current\.state==="retention_review"\)break/);
