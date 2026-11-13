@@ -39,7 +39,7 @@ export async function POST(request:Request){
   let input:Record<string,unknown>;
   try{input=record(JSON.parse(raw));}catch{return json({error:"JSON không hợp lệ.",code:"INVALID_REQUEST"},400);}
   const action=input.action,bindingId=input.bindingId;
-  if(!["inspect","revoke","purge"].includes(String(action)) || typeof bindingId!=="string"||!HEX.test(bindingId))
+  if(!["inspect","revoke","purge","ban"].includes(String(action)) || typeof bindingId!=="string"||!HEX.test(bindingId))
    return json({error:"Mã liên kết hoặc thao tác không hợp lệ.",code:"DEVICE_BINDING_INPUT"},400);
   const proofDeviceId=typeof input.controlDeviceId==="string"?input.controlDeviceId:undefined;
   const actor=await verifyControlProof(proofDeviceId?{...input,deviceId:proofDeviceId}:input);
@@ -71,11 +71,13 @@ export async function POST(request:Request){
     result.data.verified!==true||result.data.bindingId!==bindingId)
    return json({error:"Máy chủ chưa xác nhận lệnh đã thực hiện.",code:"DEVICE_BINDING_UNVERIFIED",applied:true},502);
   const after=await inspect();
-  if(action==="revoke"){
+  if(action==="revoke"||action==="ban"){
    if(after.status!==200||!validDetail(after.data,bindingId)||after.data.status!=="blocked"
       ||record(after.data.dependencies).activeSessions!==0)
     return json({error:"Đã gửi thu hồi nhưng đọc lại chưa khớp.",code:"DEVICE_BINDING_READBACK_FAILED",applied:true},502);
-   return json({ok:true,verified:true,detail:after.data});
+   if(action==="ban"&&result.data.persistent!==true)
+    return json({error:"Lệnh chặn chưa được xác minh là vĩnh viễn.",code:"DEVICE_BINDING_UNVERIFIED",applied:true},502);
+   return json({ok:true,verified:true,detail:after.data,persistent:action==="ban"});
   }
   if(after.status!==404||after.data.code!=="DEVICE_BINDING_NOT_FOUND"||result.data.deleted!==true)
    return json({error:"Đã gửi xóa nhưng chưa xác nhận liên kết biến mất.",code:"DEVICE_BINDING_READBACK_FAILED",applied:true},502);

@@ -233,7 +233,7 @@ export async function cancelBoiLocalTestManager(accountId:string,expectedRevisio
 
 /** Account-level V2 entitlement, independent from free/paid access and per-device expiry. */
 export type BoiAccountDurationPolicy = { role:"manager"|"teacher"|"learner"; defaultDays:number;revision:number;updatedAt:string };
-export type BoiAccountDurationRecord = { accountId:string;name:string;role:string;deviceStatus:string;onboardingStage:string|null;
+export type BoiAccountDurationRecord = { accountId:string;accountRevision:number;name:string;role:string;deviceStatus:string;onboardingStage:string|null;
   deviceAccessExpiresAt?:string|null;deviceAccessExpired?:boolean;paymentStatus?:string;
   entitlement:{state:"active"|"suspended";expiresAt:string;activatedAt:string;revision:number;active:boolean}|null };
 type BoiAccountDurationResponse = {ok:true;verified?:boolean;accounts?:BoiAccountDurationRecord[];
@@ -269,6 +269,35 @@ export async function changeBoiAccountDuration(input:{accountId:string;expectedR
   if(response.verified!==true) throw new Error("Chưa đọc lại được thời hạn tài khoản.");
   return response.entitlement;
 }
+export type BoiRegistrationQuota={role:"manager"|"teacher"|"learner";
+  accountLimit:number;used:number;remaining:number;overLimit:boolean;revision:number;
+ rejectedAttempts?:number;lastRejectedAt?:string|null};
+export async function loadBoiRegistrationQuotas():Promise<BoiRegistrationQuota[]>{
+ const response=await accountDurationCall({action:"capacity"}) as BoiAccountDurationResponse & {limits?:BoiRegistrationQuota[]};
+ if(response.verified!==true||!Array.isArray(response.limits)||response.limits.length!==3)
+   throw new Error("Hạn mức đăng ký chưa xác minh từ D1.");
+ return response.limits;
+}
+export async function changeBoiRegistrationQuota(input:{
+ role:BoiRegistrationQuota["role"];accountLimit:number;expectedRevision:number;
+}):Promise<BoiRegistrationQuota[]>{
+ const response=await accountDurationCall({action:"set-capacity",...input}) as BoiAccountDurationResponse & {limits?:BoiRegistrationQuota[]};
+ if(response.verified!==true||!Array.isArray(response.limits)||response.limits.length!==3)
+  throw new Error("Giới hạn đăng ký mới chưa được đọc lại từ máy chủ.");
+ return response.limits;
+}
+
+export async function permanentlyBlockBoiAccount(input:{
+ accountId:string;expectedRevision:number;reason:string;confirmation:string;
+}){
+ const response=await accountDurationCall({action:"ban-account",...input}) as
+  BoiAccountDurationResponse&{blocked?:boolean;persistent?:boolean;accountId?:string;revision?:number};
+ if(response.verified!==true||response.blocked!==true||response.persistent!==true||
+  response.accountId!==input.accountId||response.revision!==input.expectedRevision+1)
+  throw new Error("Máy chủ chưa xác minh việc chặn đăng nhập.");
+ return response;
+}
+
 export async function changeBoiDefaultAccountDays(input:{role:BoiAccountDurationPolicy["role"];defaultDays:number;expectedRevision:number;reason:string}) {
   const response=await accountDurationCall({action:"set-policy",...input});
   if(response.verified!==true) throw new Error("Chưa đọc lại được chính sách thời hạn.");

@@ -3,8 +3,10 @@
 import {useEffect,useMemo,useRef,useState} from "react";
 import AuthenticatorStepUp from "../../authenticator-step-up";
 import OwnerAccountCleanupPanel from "./owner-account-cleanup-panel";
+import AccountCapacityPanel from "./account-capacity-panel";
+import OwnerAccountBlockPanel from "./owner-account-block-panel";
 import {
- loadBoiAccountDurations,loadBoiManagerInbox,issueBoiManagerInvitation,reviewBoiManagerAccount,
+ loadBoiAccountDurations,loadBoiManagerInbox,issueBoiManagerInvitation,
  changeBoiAccountDuration,changeBoiDefaultAccountDays,cancelBoiLocalTestManager,archiveBoiManagerAccount,
  type BoiAccountDurationRecord,type BoiAccountDurationPolicy,type BoiManagerInboxRecord
 } from "../../boi-access-client";
@@ -22,7 +24,7 @@ function managerAccessLabel(m:BoiManagerInboxRecord){
  if(m.status==="blocked")return "Đã gỡ quyền";
  if(m.status==="approved")return "Đã kích hoạt";
  return m.onboardingStage==="profile_required"?"Đã duyệt · Chờ hồ sơ":
- m.onboardingStage==="requested"?"Chờ Owner duyệt":"Chờ xử lý";
+ m.onboardingStage==="requested"?"Chờ hoàn thiện hồ sơ":"Chờ xử lý";
 }
 function moscow(value:string|null|undefined) {
  if(!value)return "Chưa cấp";
@@ -119,19 +121,6 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
   }catch(e){setManagerError(e instanceof Error?e.message:"Chưa xác minh được thư mời.");}
   finally{writeLock.current=false;setManagerWriting(false);}
  }
- async function decideManager(m:BoiManagerInboxRecord){
-  if(managerWriting||writeLock.current||managerLoading||!singleReview||Boolean(managerError)||managerInbox===null||m.status!=="pending"||m.onboardingStage!=="requested")return;
-  const name=m.name||m.accountId.slice(0,14);
-  if(!window.confirm("Owner duyệt một lần cho "+name+"? Cán bộ tự hoàn thiện hồ sơ trước khi kích hoạt quyền và thời hạn."))return;
-  writeLock.current=true;setManagerWriting(true);setManagerError("");setManagerNotice("");
-  try{
-   const action="manager-review-first",expectedRevision=m.onboardingRevision;
-   await withOwnerAuthentication(()=>reviewBoiManagerAccount(action,m.accountId,expectedRevision));
-   setManagerNotice("Bơi ếch đã xác minh và đọc lại lần duyệt từ D1.");
-   await refreshManagerInbox();
-  }catch(e){setManagerError(e instanceof Error?e.message:"Lệnh duyệt chưa được xác minh.");}
-  finally{writeLock.current=false;setManagerWriting(false);}
- }
  async function cancelManagerTest(m:BoiManagerInboxRecord){
   if(managerWriting||writeLock.current||!localMode||!singleReview||!["requested","profile_required"].includes(m.onboardingStage))return;
   const typed=window.prompt("Hủy hồ sơ thử nghiệm? Gõ chính xác HUY HO SO để xác nhận.","");
@@ -208,12 +197,12 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
   finally{writeLock.current=false;setBusy(false);}
  }
  return <><section inert={authenticate!==null||archiveTarget!==null} aria-hidden={authenticate!==null||archiveTarget!==null?true:undefined} aria-label="Hồ sơ tài khoản Bơi ếch AI" className="boi-account-panel" data-section={section}>
-  {section==="accounts"?<div className="boi-account-header"><span>OWNER · DUYỆT CÁN BỘ QUẢN LÝ</span><h2>Tài khoản cán bộ quản lý</h2><p>Danh sách đã đăng ký, trạng thái phiên đăng nhập và hồ sơ chờ duyệt. Chỉ Owner mời và phê duyệt cán bộ quản lý; giảng viên và học viên do cán bộ quản lý xử lý tại Bơi Ếch.</p></div>:null}
+  {section==="accounts"?<div className="boi-account-header"><span>OWNER · QUẢN LÝ CÁN BỘ</span><h2>Tài khoản cán bộ quản lý</h2><p>Danh sách đã đăng ký, phiên đăng nhập và hồ sơ đang hoàn thiện. Owner cấp lời mời cán bộ quản lý; tài khoản được kích hoạt tự động sau khi hoàn tất hồ sơ.</p></div>:null}
   {section==="oversight"?<div className="boi-account-header"><span>GIÁM SÁT · CHỈ ĐỌC</span><h2>Giảng viên & học viên</h2><p>Hiển thị thông tin, vai trò, trạng thái hồ sơ và thời hạn để giám sát. Không duyệt, từ chối, cấp hoặc thu hồi quyền từ đây.</p></div>:null}
   {section==="policies"?<div className="boi-account-header"><span>OWNER · QUẢN TRỊ CHÍNH SÁCH</span><h2>Thời hạn & chính sách</h2><p>Thiết lập mặc định chung không phải phê duyệt tài khoản. Chỉ điều chỉnh trực tiếp tài khoản cán bộ quản lý tại màn hình này.</p></div>:null}
   {section==="accounts"?<>
   <details className="boi-manager-inbox" open>
-   <summary><strong>Hồ sơ Cán bộ quản lý · Owner duyệt một lần</strong></summary>
+   <summary><strong>Hồ sơ Cán bộ quản lý · Tự kích hoạt</strong></summary>
    {!singleReview?<p role="alert" className="boi-manager-blocked">Chưa xác minh cấu hình duyệt một lần khớp Bơi Ếch. Chỉ xem hồ sơ; không tạo lời mời hoặc phát lệnh duyệt cũ.</p>:null}
    <p>Hồ sơ quản lý thuộc Bơi ếch, kiểm soát tập trung từ giao diện Owner này. Mã mời có hiệu lực 24 giờ,
     dùng một lần; người nhận tự đặt mật khẩu và khóa P-256 trên đúng trang Bơi ếch.</p>
@@ -236,7 +225,7 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
    {managerInbox!==null?<div role="status" className="boi-manager-results">
     <div className="boi-manager-summary" aria-label="Tổng hợp trạng thái hồ sơ">
      <div><small>Hồ sơ đã xác minh</small><strong>{managerInbox.length}</strong><span>Trong danh sách đã tải</span></div>
-     <div><small>Chờ Owner xét duyệt</small><strong>{managerInbox.filter(m=>m.status==="pending"&&m.onboardingStage==="requested").length}</strong><span>Chưa được duyệt</span></div>
+     <div><small>Chờ hoàn thiện</small><strong>{managerInbox.filter(m=>m.status==="pending"&&m.onboardingStage==="requested").length}</strong><span>Chưa hoàn thiện</span></div>
      <div><small>Chờ hoàn thiện</small><strong>{managerInbox.filter(m=>m.status==="pending"&&m.onboardingStage==="profile_required").length}</strong><span>Chờ hoàn thiện hồ sơ</span></div>
     </div>
     <p className="boi-manager-count">Đã đọc {managerInbox.length} hồ sơ quản lý{managerNext?" (còn trang tiếp theo)":""}.
@@ -268,9 +257,9 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
        {managerAccessLabel(m)}
       </span>
      </header>
-     <div className="boi-manager-progress" aria-label="Tiến trình xét duyệt">
+     <div className="boi-manager-progress" aria-label="Tiến trình kích hoạt hồ sơ">
       <span className="done">Đã đăng ký</span>
-      <span className={m.onboardingStage==="requested"?"current":"done"}>Owner duyệt</span>
+      <span className={m.onboardingStage==="requested"?"current":"done"}>Lời mời Owner</span>
       <span className={m.onboardingStage==="profile_required"?"current":""}>Hoàn thiện hồ sơ</span>
       <span>Kích hoạt</span>
      </div>
@@ -287,11 +276,10 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
        Cần Owner rà soát trước khi lưu trữ.</p>:null}
      <p className="boi-manager-meta">ID: {m.accountId.slice(0,20)}… · Trạng thái: {m.onboardingStage}
       · Hồ sơ rev {m.onboardingRevision} · Tài khoản rev {m.accountRevision}</p>
-     {m.onboardingStage==="requested"?<button type="button"
-      disabled={managerWriting||managerLoading||!singleReview||Boolean(managerError)||managerInbox===null||m.status!=="pending"} onClick={()=>void decideManager(m)}>
-       Duyệt tài khoản — chờ bổ sung hồ sơ</button>:null}
+     {m.onboardingStage==="requested"?<p className="boi-manager-guidance">
+       Chưa cần duyệt thủ công. Cán bộ hoàn tất hồ sơ và tài khoản sẽ tự kích hoạt.</p>:null}
      {singleReview&&m.onboardingStage==="profile_review"?<p className="boi-oversight-note">Hồ sơ cũ cần đối soát theo luồng mới. Không tự cấp quyền hoặc kích hoạt từ trạng thái này.</p>:null}
-     {m.onboardingStage==="profile_required"?<p className="boi-manager-guidance">Đã được Owner duyệt. Cán bộ tự điền Khoa/Đơn vị, Chức danh và Chức vụ trên Bơi Ếch để kích hoạt.</p>:null}
+     {m.onboardingStage==="profile_required"?<p className="boi-manager-guidance">Có lời mời của Owner. Cán bộ tự điền đầy đủ Khoa/Đơn vị, Chức danh và Chức vụ để kích hoạt ngay.</p>:null}
      {localMode && singleReview && ["requested","profile_required"].includes(m.onboardingStage)?<div className="boi-manager-test-tools">
       <button type="button" disabled={managerWriting||managerLoading}
        onClick={()=>void cancelManagerTest(m)}>Hủy hồ sơ thử nghiệm · Chỉ Offline</button>
@@ -315,9 +303,11 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
     Một lần Owner duyệt với CAS, nhật ký và đọc lại; sau đó tài khoản được kích hoạt khi hoàn tất hồ sơ bắt buộc.</small>
   </details>
   <OwnerAccountCleanupPanel/>
+  <OwnerAccountBlockPanel/>
   </>:null}
+  {section==="policies"?<AccountCapacityPanel/>:null}
   {section==="policies"?<header><h2>Thời hạn tài khoản · Account First V2</h2>
-   <p>Chính sách mặc định 30 ngày từ lúc hoàn tất hồ sơ và kích hoạt. Chỉ thay đổi thời hạn hoặc mặc định; không trực tiếp duyệt giảng viên/học viên.</p></header>:null}
+   <p>Chính sách mặc định: cán bộ quản lý 3 ngày, giảng viên và học viên 8 ngày từ khi hoàn tất hồ sơ. Chỉ thay đổi thời hạn hoặc mặc định; không trực tiếp duyệt giảng viên/học viên.</p></header>:null}
   {section!=="accounts"&&loading?<p role="status">Đang đọc dữ liệu tài khoản từ Bơi ếch…</p>:null}
   {section!=="accounts"&&error?<div role="alert"><strong>Chưa xác minh:</strong> {error} <a href="/__account">Xác minh Authenticator (nếu được yêu cầu)</a></div>:null}
   {section!=="accounts"&&notice?<p role="status">{notice}</p>:null}
@@ -374,7 +364,7 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
     </div>:null}
   </div>:null}
   {section==="policies"?<small>Thao tác Owner với chính sách/mốc thời hạn phải có CAS, nhật ký và đọc lại Bơi Ếch. Không cấp quyền giảng viên/học viên tại màn hình này.</small>:null}
-  {section==="accounts"?<p className="boi-oversight-note">Giảng viên/học viên được cán bộ quản lý phê duyệt tại Bơi Ếch theo phạm vi; Owner chỉ giám sát dữ liệu.</p>:null}
+  {section==="accounts"?<p className="boi-oversight-note">Giảng viên/học viên tự kích hoạt sau khi hoàn thiện hồ sơ. Cán bộ quản lý gia hạn cho hai nhóm; Owner quản lý cán bộ.</p>:null}
  </section>
  {archiveTarget?<div className="boi-manager-archive-backdrop" role="presentation">
    <section className="boi-manager-archive-dialog" role="dialog" aria-modal="true"

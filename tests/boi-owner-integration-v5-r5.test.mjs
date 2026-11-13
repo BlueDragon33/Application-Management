@@ -7,7 +7,7 @@ test("R5 Owner visual retains V5 one-review fail-closed guards",()=>{
  const client=read("app/boi-access-client.ts");
  const api=read("app/api/apps/boi-ech/account-entitlements/route.ts");
  assert.match(ui,/setManagerInbox\(null\);setManagerNext\(null\)/);
- assert.match(ui,/managerInbox===null\|\|m.status!=="pending"/);
+ assert.doesNotMatch(ui,/decideManager\(|Duyệt tài khoản — chờ bổ sung hồ sơ/);
  assert.match(ui,/data\.applied!==false/);
  assert.match(ui,/AuthenticatorStepUp/);
  assert.match(client,/action:"manager-review-first",accountId:string/);

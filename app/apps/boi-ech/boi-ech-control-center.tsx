@@ -976,7 +976,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
     setBindingId(null);setBindingDetail(null);setBindingError("");
     setBindingConfirm("");setBindingNotice("");
   }
-  async function changeBinding(action:"revoke"|"purge"){
+  async function changeBinding(action:"revoke"|"purge"|"ban"){
     if(!credential||!access||access.role!=="owner"||!bindingDetail||bindingBusy)return;
     if(bindingConfirm.trim()!==bindingDetail.bindingId.slice(-6)||bindingReason.trim().length<10){
       setBindingError("Nhập đúng 6 ký tự cuối mã liên kết và lý do ít nhất 10 ký tự.");return;
@@ -996,12 +996,12 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
       }
       if(reply.ok!==true||reply.verified!==true)throw new Error("Máy chủ chưa xác nhận thao tác.");
       setBindingConfirm("");
-      if(action==="revoke"){
+      if(action==="revoke"||action==="ban"){
         const detail=reply.detail as unknown as OwnerBindingDetail|undefined;
         if(!detail||detail.bindingId!==original.bindingId||detail.status!=="blocked")
           throw new Error("Chưa đọc lại được trạng thái đã thu hồi.");
         setBindingDetail(detail);
-        setBindingNotice("Đã thu hồi quyền. Có thể xóa vĩnh viễn bản ghi liên kết này.");
+        setBindingNotice(action==="ban"?"Đã chặn vĩnh viễn khóa thiết bị và thu hồi phiên. Khóa P-256 này không thể đăng ký hoặc đăng nhập lại.":"Đã thu hồi quyền. Có thể xóa vĩnh viễn bản ghi liên kết này.");
       }else{
         if(reply.deleted!==true||reply.bindingId!==original.bindingId)
           throw new Error("Chưa đọc lại được trạng thái đã xóa.");
@@ -1644,6 +1644,12 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
                   onClick={()=>void changeBinding(bindingDetail.status==="blocked"?"purge":"revoke")}>
                   {bindingBusy?"Đang xác minh…":bindingDetail.status==="blocked"?
                     "Xóa vĩnh viễn liên kết khỏi D1":"Thu hồi quyền và phiên của thiết bị"}
+                </button>
+                <button type="button" className="boi-binding-delete"
+                  disabled={bindingBusy||bindingConfirm!==bindingDetail.bindingId.slice(-6)
+                    ||bindingReason.trim().length<10}
+                  onClick={()=>void changeBinding("ban")}>
+                  Chặn vĩnh viễn khóa thiết bị · Owner MFA
                 </button>
                 <small>Owner xác nhận thủ công từng liên kết. Không tự động xóa hàng loạt.</small>
               </div>
