@@ -3,7 +3,7 @@ import { controlErrorResponse, verifyControlProof } from "../../../../control-de
 
 export const dynamic = "force-dynamic";
 const TIMEOUT_MS = 8_000;
-const mutations = new Set(["set-account","set-policy","issue-manager-invite","manager-review-first","manager-review-final","manager-review-changes","manager-delete-local","manager-archive","set-capacity"]);
+const mutations = new Set(["set-account","set-policy","issue-manager-invite","manager-review-first","manager-review-final","manager-review-changes","manager-delete-local","manager-archive","set-capacity","ban-account"]);
 const allowed = new Set(["list","manager-inbox","manager-policy","capacity","policy","read-account",...mutations]);
 function json(data: unknown,status=200) {
   return Response.json(data,{status,headers:{"cache-control":"no-store, private","x-content-type-options":"nosniff"}});
@@ -107,6 +107,12 @@ export async function POST(request: Request) {
         ||typeof input.reason!=="string"||input.reason.trim().length<10
         ||input.reason.length>300))
       return json({error:"Yêu cầu lưu trữ phải có đúng ID, revision và lý do.",code:"BOI_MANAGER_ARCHIVE_INPUT"},400);
+    if(action==="ban-account"&&(!validId(input.accountId)||!Number.isSafeInteger(input.expectedRevision)
+      ||Number(input.expectedRevision)<1||input.confirmation!==input.accountId
+      ||typeof input.reason!=="string"||input.reason.trim().length<10
+      ||input.reason.length>300))
+      return json({error:"Phải xác nhận đúng ID tài khoản, revision và lý do chặn vĩnh viễn.",
+        code:"ACCOUNT_BLOCK_INPUT"},400);
     if(action==="set-capacity" &&
        (!validRoles.has(String(input.role))||!Number.isSafeInteger(input.accountLimit)
         ||Number(input.accountLimit)<1||Number(input.accountLimit)>5000
@@ -124,7 +130,10 @@ export async function POST(request: Request) {
         code:"BOI_SINGLE_REVIEW_BACKEND_UNVERIFIED"},409);
     if(action==="manager-delete-local" && !["127.0.0.1","localhost"].includes(new URL(bridge.baseUrl).hostname))
       return json({error:"Hủy hồ sơ bị chặn khi Bridge không trỏ localhost.",code:"ACCOUNT_RESET_LOCAL_ONLY"},403);
-    const cmd:Record<string,unknown>=action==="manager-archive"
+    const cmd:Record<string,unknown>=action==="ban-account"
+      ?{action:"ban-account",accountId:input.accountId,expectedRevision:input.expectedRevision,
+        confirmation:input.confirmation,reason:input.reason}
+      :action==="manager-archive"
       ?{action:"archive-manager",accountId:input.accountId,expectedRevision:input.expectedRevision,
         confirmation:input.confirmation,reason:input.reason}
       :action==="manager-delete-local"
@@ -144,6 +153,20 @@ export async function POST(request: Request) {
       :{action:"set-entitlement",accountId:input.accountId,operation:input.operation,expiresAt:input.expiresAt,expectedRevision:input.expectedRevision,reason:input.reason};
     const changed=await upstream(bridge,cmd);
     if(changed.status!==200) return json(changed.data,changed.status);
+    if(action==="ban-account"){
+      if(changed.data.verified!==true||changed.data.accountId!==input.accountId
+       ||changed.data.status!=="blocked"||changed.data.persistent!==true||
+       changed.data.revision!==Number(input.expectedRevision)+1)
+       return json({code:"ACCOUNT_BLOCK_UNVERIFIED",error:"Chưa xác minh được lệnh chặn.",
+         applied:true},502);
+      const check=await upstream(bridge,{action:"read",accountId:input.accountId});
+      if(check.status!==200||check.data.accountId!==input.accountId||
+        check.data.status!=="blocked"||check.data.revision!==Number(input.expectedRevision)+1)
+        return json({code:"ACCOUNT_BLOCK_READBACK_FAILED",
+          error:"Lệnh chặn đã gửi nhưng chưa xác minh độc lập được.",applied:true},502);
+      return json({ok:true,verified:true,blocked:true,persistent:true,
+        accountId:input.accountId,revision:check.data.revision});
+    }
     if(action==="manager-archive") {
       if(changed.data.verified!==true||changed.data.status!=="blocked"
         ||changed.data.accountId!==input.accountId||changed.data.retainedHistory!==true)
