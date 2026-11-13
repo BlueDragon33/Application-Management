@@ -461,7 +461,7 @@ export async function previewOwnerOnceRosterReset(){
  return result as BoiOnceRosterPreview;
 }
 export async function executeOwnerOnceRosterBatch(input:{
- cutoff:string;snapshot:string;protectSon:string;protectNghi:string;
+ cutoff:string;snapshot:string;protectSon:string;protectNghi:string;protectQuynh:string;
  backupBookmark:string;reason:string;
 }){
  const result=await ownerOnceRosterCall({action:"execute-batch",...input,
