@@ -3,8 +3,8 @@ import { controlErrorResponse, verifyControlProof } from "../../../../control-de
 
 export const dynamic = "force-dynamic";
 const TIMEOUT_MS = 8_000;
-const mutations = new Set(["set-account","set-policy","issue-manager-invite","manager-review-first","manager-review-final","manager-review-changes","manager-delete-local","manager-archive"]);
-const allowed = new Set(["list","manager-inbox","manager-policy","policy","read-account",...mutations]);
+const mutations = new Set(["set-account","set-policy","issue-manager-invite","manager-review-first","manager-review-final","manager-review-changes","manager-delete-local","manager-archive","set-capacity","block-account"]);
+const allowed = new Set(["list","manager-inbox","manager-policy","capacity","policy","read-account",...mutations]);
 function json(data: unknown,status=200) {
   return Response.json(data,{status,headers:{"cache-control":"no-store, private","x-content-type-options":"nosniff"}});
 }
@@ -101,6 +101,19 @@ export async function POST(request: Request) {
       return json({error:"Chưa xác minh chế độ duyệt một lần trên APP. Không phát lệnh mời hoặc duyệt theo quy trình cũ.",
         code:"BOI_SINGLE_REVIEW_UNVERIFIED"},409);
     }
+    if(action==="set-capacity" &&
+      (!validRoles.has(String(input.role))||!Number.isSafeInteger(input.accountLimit)
+       ||Number(input.accountLimit)<1||Number(input.accountLimit)>5000
+       ||!Number.isSafeInteger(input.expectedRevision)||Number(input.expectedRevision)<1
+       ||typeof input.reason!=="string"||input.reason.trim().length<10))
+      return json({code:"ACCOUNT_CAPACITY_INPUT",error:"Giới hạn, revision hoặc lý do không hợp lệ."},400);
+    if(action==="block-account" &&
+      (!validId(input.accountId)||input.confirmation!==input.accountId
+       ||typeof input.typedSuffix!=="string"||
+        input.typedSuffix!==(input.accountId as string).slice(-6)
+       ||!Number.isSafeInteger(input.expectedRevision)||Number(input.expectedRevision)<1
+       ||typeof input.reason!=="string"||input.reason.trim().length<10))
+      return json({code:"ACCOUNT_BLOCK_INPUT",error:"Cần xác nhận ID, 6 ký tự cuối, revision và lý do."},400);
     if(action==="manager-archive" &&
       (!validId(input.accountId)||input.confirmation!==input.accountId
         ||!Number.isSafeInteger(input.expectedRevision)
@@ -119,7 +132,14 @@ export async function POST(request: Request) {
         code:"BOI_SINGLE_REVIEW_BACKEND_UNVERIFIED"},409);
     if(action==="manager-delete-local" && !["127.0.0.1","localhost"].includes(new URL(bridge.baseUrl).hostname))
       return json({error:"Hủy hồ sơ bị chặn khi Bridge không trỏ localhost.",code:"ACCOUNT_RESET_LOCAL_ONLY"},403);
-    const cmd:Record<string,unknown>=action==="manager-archive"
+    const cmd:Record<string,unknown>=action==="block-account"?
+      {action:"block-account",accountId:input.accountId,expectedRevision:input.expectedRevision,
+       confirmation:input.confirmation,reason:input.reason}
+      :action==="set-capacity"?
+      {action:"set-capacity",role:input.role,accountLimit:input.accountLimit,
+       expectedRevision:input.expectedRevision}
+      :action==="capacity"?{action:"capacity"}
+      :action==="manager-archive"
       ?{action:"archive-manager",accountId:input.accountId,expectedRevision:input.expectedRevision,
         confirmation:input.confirmation,reason:input.reason}
       :action==="manager-delete-local"
@@ -138,6 +158,35 @@ export async function POST(request: Request) {
       :{action:"set-entitlement",accountId:input.accountId,operation:input.operation,expiresAt:input.expiresAt,expectedRevision:input.expectedRevision,reason:input.reason};
     const changed=await upstream(bridge,cmd);
     if(changed.status!==200) return json(changed.data,changed.status);
+    if(action==="block-account"){
+      if(changed.data.verified!==true||changed.data.banned!==true
+         ||changed.data.status!=="blocked"||changed.data.accountId!==input.accountId
+         ||changed.data.revokedSessions!==true)
+        return json({code:"OWNER_BLOCK_UNVERIFIED",applied:true,verified:false},502);
+      const after=await upstream(bridge,{action:"read",accountId:input.accountId});
+      if(after.status!==200||after.data.status!=="blocked"||
+          after.data.revision!==Number(input.expectedRevision)+1)
+        return json({code:"OWNER_BLOCK_READBACK_FAILED",applied:true,verified:false},502);
+      return json({ok:true,verified:true,banned:true,accountId:input.accountId,
+        status:"blocked",revision:after.data.revision});
+    }
+    if(action==="set-capacity"){
+      const after=await upstream(bridge,{action:"capacity"});
+      const rows=Array.isArray(after.data.limits)?after.data.limits.map(record):[];
+      const value=rows.find(x=>x.role===input.role);
+      if(after.status!==200||!value||value.accountLimit!==input.accountLimit||
+         value.revision!==Number(input.expectedRevision)+1)
+        return json({code:"ACCOUNT_CAPACITY_READBACK_FAILED",applied:true,verified:false},502);
+      return json({ok:true,verified:true,limits:rows});
+    }
+    if(action==="capacity"){
+      const rows=Array.isArray(changed.data.limits)?changed.data.limits.map(record):[];
+      if(rows.length!==3||rows.some(x=>!validRoles.has(String(x.role))||
+        !Number.isSafeInteger(x.accountLimit)||!Number.isSafeInteger(x.revision)||
+        !Number.isSafeInteger(x.used)||!Number.isSafeInteger(x.remaining)))
+        return json({code:"ACCOUNT_CAPACITY_UNVERIFIED"},502);
+      return json({ok:true,verified:true,limits:rows});
+    }
     if(action==="manager-archive") {
       if(changed.data.verified!==true||changed.data.status!=="blocked"
         ||changed.data.accountId!==input.accountId||changed.data.retainedHistory!==true)
