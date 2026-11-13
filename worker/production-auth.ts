@@ -867,7 +867,7 @@ function sensitiveProductionMutation(pathname: string, payload: Record<string, u
   if (pathname === "/api/apps/boi-ech/account-cleanup" && action === "purge") return true;
   if (pathname === "/api/apps/boi-ech/account-entitlements"
     && new Set(["set-account","set-policy","issue-manager-invite",
-      "manager-review-first","manager-review-final","manager-review-changes"]).has(action)) return true;
+      "manager-review-first","manager-review-final","manager-review-changes","set-capacity"]).has(action)) return true;
   if (pathname === "/api/apps/boi-ech/cloudflare-preview" && action !== "status") return true;
 
   // Preserve a fail-closed path for future destructive operation names routed
@@ -927,6 +927,12 @@ export async function productionStepUpGate(
       "manager-review-final","manager-review-changes",
       "manager-delete-local","set-account","set-policy"]).has(text(payload.action))
     && (!state.enabled || !stepUpFresh(identity))) return stepUpRequiredResponse(state.configured && !state.enabled);
+  // Updating global registration limits affects all future accounts, so
+  // enrolled Owner TOTP cannot be bypassed by turning MFA off.
+  if(pathname==="/api/apps/boi-ech/account-entitlements"
+    && text(payload.action)==="set-capacity"
+    && (!state.enabled||!stepUpFresh(identity)))
+    return stepUpRequiredResponse(state.configured&&!state.enabled);
   // Permanent account removal requires enrolled and recently verified Owner TOTP.
   // This runs in Cloudflare Worker before the Next.js route; denied request is
   // explicitly unapplied and may safely be resubmitted once after MFA.
