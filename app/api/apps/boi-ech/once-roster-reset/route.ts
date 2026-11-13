@@ -69,7 +69,7 @@ export async function POST(request:Request){
    return json({ok:true,...data});
   }
   if(data.applied!==true||data.readback!==true||!Number.isSafeInteger(data.deleted)||
-   !Number.isSafeInteger(data.remaining)||data.deleted<0||data.deleted>10)
+   !Number.isSafeInteger(data.remaining)||Number(data.deleted)<0||Number(data.deleted)>10)
    return json({code:"ROSTER_RESET_UNVERIFIED",applied:"unknown"},502);
   const check=await upstream(bridge,{action:"preview"});
   if(check.status!==200||check.data.verified!==true||
