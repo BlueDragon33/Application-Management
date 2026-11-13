@@ -456,12 +456,12 @@ export async function previewOwnerOnceRosterReset(){
  const result=await ownerOnceRosterCall({action:"preview"});
  if(result.verified!==true||result.applied!==false||
   result.contract!=="boi-owner-once-roster-reset.v1"||
-  !Array.isArray(result.protectedPeople)||result.protectedPeople.length!==2)
+  !Array.isArray(result.protectedPeople)||result.protectedPeople.length!==3)
   throw new Error("D1 chưa xác minh được hai tài khoản cần giữ.");
  return result as BoiOnceRosterPreview;
 }
 export async function executeOwnerOnceRosterBatch(input:{
- cutoff:string;snapshot:string;protectSon:string;protectNghi:string;
+ cutoff:string;snapshot:string;protectSon:string;protectNghi:string;protectQuynh:string;
  backupBookmark:string;reason:string;
 }){
  const result=await ownerOnceRosterCall({action:"execute-batch",...input,
