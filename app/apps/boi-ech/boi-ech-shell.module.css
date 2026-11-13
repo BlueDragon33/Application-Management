@@ -739,3 +739,65 @@
   .scope :global(.boi-task-selector-grid button),.scope :global(.boi-task-selector-grid a){min-height:48px}
   .scope :global(.boi-side-clock small){display:none}
 }
+
+
+/* Verified Account-first V2: professional device cards, with no fabricated online state. */
+.scope :global(.boi-registry-heading){display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;align-items:start;}
+.scope :global(.boi-registry-heading p){color:#4d627e;line-height:1.6;}
+.scope :global(.boi-registry-metrics){display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:16px 0;}
+.scope :global(.boi-registry-metrics article){display:grid;gap:4px;padding:16px;border:1px solid #d9e5f5;border-radius:15px;background:#f7faff;}
+.scope :global(.boi-registry-metrics span){font-size:12px;color:#526b89;font-weight:760;}
+.scope :global(.boi-registry-metrics strong){font-size:25px;line-height:1.1;color:#13355c;letter-spacing:-.025em;}
+.scope :global(.boi-registry-toolbar){display:flex;gap:12px;align-items:end;justify-content:space-between;flex-wrap:wrap;margin:16px 0;}
+.scope :global(.boi-registry-toolbar label){display:grid;gap:5px;font-size:12px;color:#284d75;font-weight:750;min-width:min(100%,260px);}
+.scope :global(.boi-registry-toolbar input){min-height:43px;padding:10px 12px;background:#fff;border:1px solid #b5cbe3;border-radius:9px;color:#172e4f;}
+.scope :global(.boi-registry-filters){display:flex;gap:8px;flex-wrap:wrap;}
+.scope :global(.boi-registry-filters button){padding:10px 12px;border:1px solid #cad8ea;border-radius:9px;background:#fff;color:#345577;font-weight:750;}
+.scope :global(.boi-registry-filters button[aria-pressed="true"]){background:#174c91;color:#fff;border-color:#174c91;}
+.scope :global(.boi-registry-grid){display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,245px),1fr));gap:13px;}
+.scope :global(.boi-registry-card){display:flex;align-items:center;gap:13px;padding:16px;border-radius:16px;border:1px solid #d6e4f4;background:linear-gradient(135deg,#fff,#f5f9ff);min-width:0;}
+.scope :global(.boi-registry-card .laptop){flex:0 0 auto;transform:scale(.85);}
+.scope :global(.boi-registry-card-copy){min-width:0;display:grid;gap:6px;}
+.scope :global(.boi-registry-card-copy strong){font-size:13px;color:#173659;}
+.scope :global(.boi-registry-card-copy code){font-size:11px;overflow-wrap:anywhere;color:#3e5c7a;}
+.scope :global(.boi-registry-card-copy small){font-size:11px;color:#6a7f99;}
+.scope :global(.boi-registry-card[data-status="approved"]){border-left:4px solid #118467;}
+.scope :global(.boi-registry-card[data-status="pending"]){border-left:4px solid #c08a16;}
+.scope :global(.boi-registry-card[data-status="blocked"]){border-left:4px solid #b9414b;}
+
+/* Canonical Owner manager roster: discoverable actions, audit-safe disposal. */
+.scope :global(.boi-manager-tools){display:flex;align-items:end;justify-content:space-between;flex-wrap:wrap;gap:12px;border-bottom:1px solid #e6edf6;padding-bottom:14px;}
+.scope :global(.boi-manager-tools label){min-width:min(100%,230px);flex:1;}
+.scope :global(.boi-manager-filter){display:flex;gap:8px;flex-wrap:wrap;}
+.scope :global(.boi-manager-filter button){min-height:42px;padding:9px 12px;background:#f3f7fc;color:#2d4e74;border:1px solid #d5e1f1;border-radius:9px;font-size:12px;font-weight:800;}
+.scope :global(.boi-manager-filter button[aria-pressed="true"]){background:#174e91;border-color:#174e91;color:#fff;}
+.scope :global(.boi-manager-displayed){display:grid;gap:14px;}
+.scope :global(.boi-manager-facts){display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:13px 0;}
+.scope :global(.boi-manager-facts>span){display:grid;gap:5px;border:1px solid #e1e9f4;background:#f5f9fe;border-radius:11px;padding:11px;min-width:0;}
+.scope :global(.boi-manager-facts b){font-size:11px;color:#56718e;}
+.scope :global(.boi-manager-facts strong){font-size:12px;color:#173c67;line-height:1.5;overflow-wrap:anywhere;}
+.scope :global(.boi-manager-session.active){color:#137454;}
+.scope :global(.boi-manager-stale){margin:10px 0;background:#fff8e9;border:1px solid #e8d19a;padding:12px 14px;border-radius:9px;color:#714b16;font-size:12px;}
+.scope :global(.boi-manager-archive-action){margin-top:12px!important;background:#fff7f6!important;border-color:#e4b3b0!important;color:#8f3036!important;}
+.scope :global(.boi-manager-archive-backdrop){position:fixed;inset:0;background:#0a1c35b8;z-index:9999;display:grid;place-items:center;padding:16px;}
+.scope :global(.boi-manager-archive-dialog){width:min(100%,540px);max-height:90dvh;overflow:auto;display:grid;gap:14px;padding:24px;background:#fff;color:#172e4f;border:2px solid #e2eaf5;border-radius:18px;box-shadow:0 25px 90px #06172f70;}
+.scope :global(.boi-manager-archive-dialog h2){font-size:22px;color:#1e3b61;margin:0;}
+.scope :global(.boi-manager-archive-dialog p){font-size:13px;line-height:1.65;color:#405876;margin:0;}
+.scope :global(.boi-manager-archive-dialog code){display:block;margin-top:8px;font-size:11px;overflow-wrap:anywhere;background:#f3f7fb;padding:10px;border-radius:8px;color:#23496b;}
+.scope :global(.boi-manager-archive-dialog label){display:grid;gap:7px;font-weight:750;font-size:13px;color:#1d436d;}
+.scope :global(.boi-manager-archive-dialog textarea),.scope :global(.boi-manager-archive-dialog input){min-height:45px;padding:10px;border:1px solid #9fb5d0;border-radius:9px;background:#fff;color:#122b4d;font:inherit;}
+.scope :global(.boi-manager-archive-buttons){display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;}
+.scope :global(.boi-manager-archive-buttons button){padding:11px 15px;min-height:45px;border:1px solid #cbd9e9;background:#f5f8fc;border-radius:9px;font-weight:800;color:#254669;}
+.scope :global(.boi-manager-archive-buttons button:last-child){background:#9a2a34;border-color:#9a2a34;color:#fff;}
+.scope :global(.boi-manager-archive-buttons button:disabled){opacity:.52;cursor:not-allowed;}
+.scope :global(.boi-manager-archive-dialog :is(button,input,textarea):focus-visible),.scope :global(.boi-manager-tools :is(button,input):focus-visible),.scope :global(.boi-registry-toolbar :is(button,input):focus-visible){outline:3px solid #eeaf34;outline-offset:2px;}
+@media(max-width:920px){
+ .scope :global(.boi-manager-facts){grid-template-columns:repeat(2,minmax(0,1fr));}
+ .scope :global(.boi-registry-metrics){grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+@media(max-width:520px){
+ .scope :global(.boi-manager-facts){grid-template-columns:1fr 1fr;}
+ .scope :global(.boi-registry-metrics){grid-template-columns:1fr 1fr;}
+ .scope :global(.boi-manager-archive-dialog){padding:16px;}
+ .scope :global(.boi-registry-card){padding:12px;}
+}
