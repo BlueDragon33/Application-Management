@@ -2,6 +2,7 @@
 
 import {useCallback,useEffect,useMemo,useRef,useState} from "react";
 import AuthenticatorStepUp from "../../authenticator-step-up";
+
 import OwnerAccountCleanupPanel from "./owner-account-cleanup-panel";
 import OwnerOnceRosterResetPanel from "./owner-once-roster-reset-panel";
 import AccountCapacityPanel from "./account-capacity-panel";
@@ -62,6 +63,7 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
  const [search,setSearch]=useState("");
  const [roleDays,setRoleDays]=useState<Record<string,string>>({});
  const [expiration,setExpiration]=useState("");
+ const [selectedTerm,setSelectedTerm]=useState("custom");
  const [reason,setReason]=useState("Owner quản lý thời hạn sử dụng");
  const [busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[error,setError]=useState(""),[notice,setNotice]=useState("");
  const [accountsVerified,setAccountsVerified]=useState(false);
@@ -179,13 +181,14 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
  const currentExpiry=current?.entitlement?.expiresAt ?? null;
  useEffect(()=>{
   const next=currentExpiry?localInput(currentExpiry):"";
-  queueMicrotask(()=>setExpiration(next));
+  queueMicrotask(()=>{setExpiration(next);setSelectedTerm("custom");});
  },[selected,currentExpiry]);
  async function commitAccount(operation:"set-expiry"|"suspend"|"resume"){
   if(!current?.entitlement||current.role!=="manager"||busy||writeLock.current)return;
   if(reason.trim().length<5){setError("Nhập lý do dài ít nhất 5 ký tự.");return;}
   const parsed=Date.parse(expiration?expiration+":00+03:00":"");
-  const iso=operation==="set-expiry"&&Number.isFinite(parsed)?new Date(parsed).toISOString():"";
+  const iso=operation==="set-expiry"&&selectedTerm==="forever"?"9999-12-31T23:59:59.000Z":
+   operation==="set-expiry"&&Number.isFinite(parsed)?new Date(parsed).toISOString():"";
   if(operation==="set-expiry"&&!iso){setError("Chọn ngày hết hạn hợp lệ.");return;}
   if(!window.confirm(`${operation==="set-expiry"?"Đổi ngày hết hạn":operation==="suspend"?"Tạm khóa":"Khôi phục"} tài khoản ${current.name||current.accountId}?`))return;
   writeLock.current=true;setBusy(true);setError("");setNotice("");
@@ -367,9 +370,34 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
       <div>Hạn tài khoản: <strong>{moscow(current.entitlement?.expiresAt)}</strong></div>
       <div>Hạn thiết bị cũ: {moscow(current.deviceAccessExpiresAt)} · Thanh toán thiết bị: {current.paymentStatus??"—"}</div>
       <div>Trạng thái: {current.entitlement?.state??"Chưa kích hoạt"} · Revision: {current.entitlement?.revision??"—"}</div>
-      {current.entitlement?<><label>Đặt thời hạn mới
-        <input type="datetime-local" value={expiration} onChange={e=>setExpiration(e.target.value)}/>
-      </label><div className="boi-expiry-actions">
+      {current.entitlement?<><label>Chọn gói thời hạn · Đặt lại từ hôm nay
+        <select value={selectedTerm} onChange={e=>{
+          const term=e.target.value;setSelectedTerm(term);
+          if(term==="custom"||term==="forever")return;
+          const d=new Date();
+          if(term==="7d"||term==="30d")d.setTime(d.getTime()+(term==="7d"?7:30)*86400000);
+          else{const day=d.getUTCDate();d.setUTCDate(1);
+            d.setUTCMonth(d.getUTCMonth()+(term==="6m"?6:term==="1y"?12:48));
+            const end=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0)).getUTCDate();
+            d.setUTCDate(Math.min(day,end));}
+          setExpiration(localInput(d.toISOString()));
+        }}>
+          <option value="custom">Ngày tùy chỉnh</option>
+          <option value="7d">7 ngày</option><option value="30d">30 ngày</option>
+          <option value="6m">6 tháng</option><option value="1y">1 năm</option>
+          <option value="4y">4 năm</option><option value="forever">Vĩnh viễn</option>
+        </select>
+      </label><label>Ngày hết hạn chính xác
+        <input type="datetime-local" value={selectedTerm==="forever"?"":expiration}
+          disabled={selectedTerm==="forever"} onChange={e=>{setExpiration(e.target.value);setSelectedTerm("custom");}}/>
+        <small>Ghi đè hạn cũ, không cộng dồn. Vĩnh viễn vẫn có thể bị Owner thu hồi.</small>
+      </label>
+      <p>Thời gian còn lại: <strong>{current.entitlement.expiresAt==="9999-12-31T23:59:59.000Z"?"Vĩnh viễn":
+       (()=>{const ms=Math.max(0,Date.parse(current.entitlement!.expiresAt)-observedNow);
+        const years=Math.floor(ms/(365.2425*86400000));
+        return years>0?`${years} năm ${Math.floor((ms-years*365.2425*86400000)/86400000)} ngày`:
+         `${Math.floor(ms/86400000)} ngày`;})()}</strong></p>
+      <div className="boi-expiry-actions">
         <button type="button" disabled={busy} onClick={()=>void commitAccount("set-expiry")}>Lưu ngày hết hạn</button>
         <button type="button" disabled={busy} onClick={()=>setExpiration(localInput(new Date(Date.now()+30*86400000).toISOString()))}>+30 ngày từ hôm nay</button>
         {current.entitlement.state==="active"
