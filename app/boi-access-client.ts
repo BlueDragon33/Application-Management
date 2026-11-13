@@ -465,7 +465,7 @@ export async function executeOwnerOnceRosterBatch(input:{
  backupBookmark:string;reason:string;
 }){
  const result=await ownerOnceRosterCall({action:"execute-batch",...input,
-  confirmation:"XOA TAT CA TRU THIEN SON VA DONG NGHI"});
+  confirmation:"XOA TAT CA TRU QUYNH THIEN SON DONG NGHI"});
  if(result.verified!==true||result.readback!==true||result.applied!==true||
   result.contract!=="boi-owner-once-roster-reset.v1")
   throw new Error("Chưa xác minh được lô xóa trên D1; không tự lặp lại.");
