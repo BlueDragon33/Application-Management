@@ -555,3 +555,66 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .001ms !important; transition-duration: .001ms !important; }
 }
+
+
+/* Bơi Ếch Owner account opens in a viewport-level dialog, not a clipped topbar dropdown. */
+.boi-owner-account-modal-backdrop{
+  position:fixed;inset:0;z-index:9999;display:grid;place-items:center;
+  padding:clamp(12px,3vw,28px);background:rgba(8,21,45,.76);
+  overscroll-behavior:contain;
+}
+.boi-owner-account-modal{
+  width:min(520px,100%);max-height:calc(100dvh - 32px);overflow-y:auto;
+  padding:clamp(18px,3.5vw,28px);border-radius:20px;
+  border:1px solid #b8c9e1;background:#fff;color:#142c50;
+  box-shadow:0 24px 76px rgba(5,17,44,.48);
+  font:inherit;box-sizing:border-box;outline-offset:4px;
+}
+.boi-owner-account-modal *{box-sizing:border-box}
+.boi-owner-account-modal-heading{
+  display:flex;justify-content:space-between;align-items:flex-start;gap:12px;
+  padding-bottom:16px;margin-bottom:16px;border-bottom:1px solid #d7e2f1;
+}
+.boi-owner-account-modal-heading small{
+  color:#365a89;font-size:11px;font-weight:800;letter-spacing:.1em;
+}
+.boi-owner-account-modal-heading h2{
+  margin:5px 0;color:#0c2850;font-size:clamp(21px,4.5vw,27px);line-height:1.2;
+}
+.boi-owner-account-modal-heading p{
+  margin:8px 0 0;color:#426186;font-size:14px;overflow-wrap:anywhere;
+}
+.boi-owner-account-modal-heading>button{
+  flex:0 0 42px;width:42px;height:42px;display:grid;place-items:center;
+  border:1px solid #afc4df;border-radius:11px;
+  background:#f2f6fc;color:#153b6d;font-size:20px;cursor:pointer;
+}
+.boi-owner-account-modal-actions{display:grid;gap:8px}
+.boi-owner-account-modal-actions>a,.boi-owner-account-modal-actions>button{
+  text-decoration:none;text-align:left;display:flex;align-items:center;
+  width:100%;min-height:46px;padding:12px 15px;border:1px solid #c9d8ee;
+  border-radius:12px;background:#f5f8fe;color:#123866;
+  font:inherit;font-size:14px;font-weight:730;cursor:pointer;
+}
+.boi-owner-account-modal-actions>a:hover,.boi-owner-account-modal-actions>button:hover{
+  background:#e5efff;border-color:#8babd5;
+}
+.boi-owner-account-modal-toggle{
+  display:flex;align-items:center;gap:10px;margin-top:16px;
+  padding:12px;border:1px solid #d5e2f2;border-radius:12px;
+  color:#24456e;font-size:13px;line-height:1.45;
+}
+.boi-owner-account-modal-toggle input{width:19px;height:19px;flex:0 0 19px;accent-color:#1556a0}
+.boi-owner-account-modal-status{font-size:12px;color:#486384;line-height:1.5;margin:9px 0 15px}
+.boi-owner-account-modal-signout{
+  display:block;text-align:center;text-decoration:none;width:100%;
+  min-height:45px;padding:12px;border:1px solid #e3b6b6;border-radius:12px;
+  background:#fff5f5;color:#922c35;font-weight:800;
+}
+.boi-owner-account-modal :is(a,button,input):focus-visible{
+  outline:3px solid #2167c7;outline-offset:3px;
+}
+@media(max-width:520px){
+  .boi-owner-account-modal-backdrop{padding:9px;align-items:center}
+  .boi-owner-account-modal{max-height:calc(100dvh - 18px);padding:17px;border-radius:16px}
+}

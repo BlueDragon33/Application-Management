@@ -30,13 +30,15 @@ test("owner compact console retains existing task handlers but exposes only thre
 test("owner profile is at top right, not in sidebar; boundary notice and sidebar security link removed",()=>{
  assert.match(source,/className="boi-top-account"/);
  assert.match(source,/className="boi-account-trigger"/);
- assert.match(source,/className="boi-account-popover"/);
+ assert.match(source,/className="boi-owner-account-modal"/);
+ assert.match(source,/role="dialog" aria-modal="true"/);
+ assert.match(source,/createPortal\(/);
  assert.match(source,/href="\/__account"/);
  assert.match(source,/Thiết lập \/ xác minh Authenticator/);
- assert.match(source,/className="boi-signout"/);
+ assert.match(source,/className="boi-owner-account-modal-signout"/);
  assert.doesNotMatch(source,/Ranh giới Bơi ếch|client-boundary-note|className="signed-user"/);
  assert.doesNotMatch(source,/boi-nav-footer/);
- assert.match(css,/\.scope :global\(\.boi-account-popover\)/);
+ assert.match(fs.readFileSync(new URL("../app/globals.css",import.meta.url),"utf8"),/\.boi-owner-account-modal-backdrop/);
 });
 
 test("authentication switch polls read-only session state and never disables MFA, cookies or permissions",()=>{
