@@ -136,6 +136,8 @@ type Dashboard = {
   deviceRegistry?: BoiDeviceRegistry;
 };
 type ApiData = Partial<Dashboard> & {
+  ok?:boolean;verified?:boolean;deleted?:boolean;bindingId?:string;
+  detail?:OwnerBindingDetail;applied?:boolean;
   device?: Access;
   challenge?: string;
   error?: string;
