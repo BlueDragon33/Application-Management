@@ -801,3 +801,65 @@
  .scope :global(.boi-manager-archive-dialog){padding:16px;}
  .scope :global(.boi-registry-card){padding:12px;}
 }
+
+/* Interactive, Owner-only Account-first binding inspector. */
+.scope :global(.boi-registry-card:is(button)) {
+  width:100%;font:inherit;text-align:left;cursor:pointer;
+  color:#153555;transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease;
+}
+.scope :global(.boi-registry-card:is(button):hover) {
+  transform:translateY(-2px);border-color:#739fce;box-shadow:0 10px 22px #13386422;
+}
+.scope :global(.boi-registry-card:is(button):focus-visible) {outline:3px solid #1d6fbe;outline-offset:3px;}
+.scope :global(.boi-binding-backdrop) {
+  position:fixed;z-index:2000;inset:0;display:grid;place-items:center;
+  padding:16px;background:#07172bd9;overflow:auto;
+}
+.scope :global(.boi-binding-dialog) {
+  width:min(100%,690px);max-height:min(92dvh,920px);overflow:auto;
+  padding:22px;background:#fff;color:#152f4d;border-radius:18px;
+  border:2px solid #d7e5f6;box-shadow:0 25px 80px #051a3780;
+}
+.scope :global(.boi-binding-dialog header) {
+  display:flex;justify-content:space-between;gap:20px;align-items:start;
+  border-bottom:1px solid #e4edf6;padding-bottom:14px;
+}
+.scope :global(.boi-binding-dialog header span) {font-size:10px;font-weight:850;letter-spacing:.12em;color:#416c9c;}
+.scope :global(.boi-binding-dialog h2){margin:5px 0 0;font-size:24px;color:#14375e;}
+.scope :global(.boi-binding-dialog header button),.scope :global(.boi-binding-dialog footer button) {
+  min-height:42px;padding:8px 14px;border-radius:10px;border:1px solid #b4cee8;
+  background:#f2f7fd;color:#173d64;font:inherit;font-weight:800;cursor:pointer;
+}
+.scope :global(.boi-binding-body){display:grid;gap:18px;padding-top:16px;}
+.scope :global(.boi-binding-identity) {display:grid;gap:7px;background:#edf5ff;border:1px solid #cbdff6;padding:15px;border-radius:13px;}
+.scope :global(.boi-binding-identity strong){color:#143657;font-size:18px;}
+.scope :global(.boi-binding-identity span){color:#385b82;font-size:13px;}
+.scope :global(.boi-binding-identity code) {
+  display:block;max-width:100%;overflow-wrap:anywhere;color:#184f87;font-size:11px;
+}
+.scope :global(.boi-binding-facts){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:0;}
+.scope :global(.boi-binding-facts div){padding:11px 12px;background:#f7f9fd;border:1px solid #e3ebf5;border-radius:10px;min-width:0;}
+.scope :global(.boi-binding-facts dt){font-size:11px;font-weight:700;color:#4c6381;}
+.scope :global(.boi-binding-facts dd){margin:4px 0 0;color:#142e4d;font-size:13px;font-weight:800;overflow-wrap:anywhere;}
+.scope :global(.boi-binding-disclaimer){font-size:12px;line-height:1.7;margin:0;background:#fff8e9;border:1px solid #e7d19f;color:#604719;padding:12px;border-radius:11px;}
+.scope :global(.boi-binding-danger){display:grid;gap:10px;padding:16px;border:1px solid #dfbabd;background:#fff5f4;border-radius:13px;}
+.scope :global(.boi-binding-danger h3){margin:0;color:#7c2631;font-size:16px;}
+.scope :global(.boi-binding-danger label){display:grid;gap:6px;font-size:12px;font-weight:800;color:#593343;}
+.scope :global(.boi-binding-danger input),.scope :global(.boi-binding-danger textarea){
+  min-height:43px;padding:10px;border:1px solid #bd8b93;border-radius:9px;
+  background:#fff;color:#381c26;font:inherit;
+}
+.scope :global(.boi-binding-danger .boi-binding-delete) {
+  justify-self:start;min-height:44px;padding:10px 16px;border:1px solid #982d3c;
+  border-radius:9px;background:#942b3b;color:white;font:inherit;font-weight:850;cursor:pointer;
+}
+.scope :global(.boi-binding-danger .boi-binding-delete:disabled){opacity:.54;cursor:not-allowed;}
+.scope :global(.boi-binding-danger small){color:#684c55;font-size:11px;}
+.scope :global(.boi-binding-error){color:#9a2232;background:#fff1f1;border:1px solid #efc2c6;padding:12px;border-radius:9px;}
+.scope :global(.boi-binding-success){color:#145c43;background:#edf8f0;border:1px solid #badfcd;padding:12px;border-radius:9px;}
+.scope :global(.boi-binding-dialog footer){display:flex;justify-content:end;border-top:1px solid #e1ebf5;padding-top:14px;margin-top:16px;}
+.scope :global(.boi-binding-dialog :is(button,input,textarea):focus-visible){outline:3px solid #1d6fbe;outline-offset:3px;}
+@media(max-width:600px){
+ .scope :global(.boi-binding-dialog){padding:15px;}
+ .scope :global(.boi-binding-facts){grid-template-columns:1fr;}
+}
