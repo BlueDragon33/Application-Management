@@ -363,7 +363,7 @@ export type BoiLegacyFiveDayPreview={
  ok:true;verified:true;applied:false;
  contract:"boi-owner-legacy-five-day-purge.v1";
  rule:string;cutoff:string;totalMatched:number;eligible:number;protected:number;
- protectedByReason:{payment:number;certificate:number;training:number;authoredContent:number};
+ protectedByReason:{payment:number;certificate:number;training:number;authoredContent:number;sharedLegacyProfiles?:number};
  snapshot:string;batchSize:number;remainingAfterFirstBatch:number;
 };
 export type BoiLegacyFiveDayBatch={
