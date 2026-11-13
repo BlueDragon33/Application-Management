@@ -108,7 +108,7 @@ export async function POST(request: Request) {
         ||input.reason.length>300))
       return json({error:"Yêu cầu lưu trữ phải có đúng ID, revision và lý do.",code:"BOI_MANAGER_ARCHIVE_INPUT"},400);
     if(action==="ban-account"&&(!validId(input.accountId)||!Number.isSafeInteger(input.expectedRevision)
-      ||Number(input.expectedRevision)<1||input.confirmation!==input.accountId
+      ||Number(input.expectedRevision)<0||input.confirmation!==input.accountId
       ||typeof input.reason!=="string"||input.reason.trim().length<10
       ||input.reason.length>300))
       return json({error:"Phải xác nhận đúng ID tài khoản, revision và lý do chặn vĩnh viễn.",
