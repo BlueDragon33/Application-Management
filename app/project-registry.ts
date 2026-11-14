@@ -56,6 +56,17 @@ export const projectRepositories: readonly ProjectRepositoryConfig[] = [
     managementHref: "/apps/bauman-master-ai",
   },
   {
+    id: "blueprint-russian-expert-engine",
+    name: "Russian Expert Engine",
+    repository: "BlueDragon33/Blueprint-Russian-Expert-Engine",
+    defaultBranch: "main",
+    group: "learning",
+    state: "developing",
+    summary: "Bộ kiểm định tiếng Nga và âm thanh RU03 độc lập, Private, dưới Blueprint OS 1.3.0. Local Next Action hiện là Draft PR #4; Windows localhost đã có kết quả chủ máy báo cáo, nhưng chưa xác minh mất mạng, App-Manager launcher, chuyên gia RU03 hay Production.",
+    relatedTo: "Bauman Master AI · Blueprint OS",
+    // No managementHref: no integrated App-Manager launcher is proven yet.
+  },
+  {
     id: "math-bauman",
     name: "Math Bauman",
     repository: "BlueDragon33/Math_Bauman",
