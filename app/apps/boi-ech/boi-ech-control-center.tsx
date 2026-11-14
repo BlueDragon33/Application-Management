@@ -1041,7 +1041,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
     let completed=0;
     try{
       for(const id of allowed){
-        const details=await boundedBindingApi(credential,access,{action:"inspect",bindingId:id})
+        const details=(await boundedBindingApi(credential,access,{action:"inspect",bindingId:id}))
           as unknown as OwnerBindingDetail;
         if(details.contract!=="boi-owner-device-binding.v1"||details.verified!==true||
           details.bindingId!==id||!details.purgeAllowed||
