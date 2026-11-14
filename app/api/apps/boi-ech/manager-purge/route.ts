@@ -32,7 +32,10 @@ function validList(d:Payload){
    ["pending","blocked","manager"].includes(String(r.category))&&
    typeof r.eligible==="boolean"&&typeof r.snapshot==="string"&&SNAP.test(r.snapshot)&&
    typeof r.name==="string"&&Array.isArray(r.blockers)&&r.blockers.every(x=>typeof x==="string")&&
-   Number.isSafeInteger(r.inactiveDays)&&Number(r.inactiveDays)>=0;
+   Number.isSafeInteger(r.inactiveDays)&&Number(r.inactiveDays)>=0&&
+   (r.accessStatus==="pending"||r.accessStatus==="blocked"||r.accessStatus==="approved")&&
+   Number.isSafeInteger(r.activeSessions)&&Number(r.activeSessions)>=0&&
+   (!(r.eligible===true)||r.accessStatus==="pending"||r.accessStatus==="blocked");
  });
 }
 export async function POST(request:Request){
