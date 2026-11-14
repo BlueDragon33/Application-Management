@@ -4,6 +4,7 @@ import {useCallback,useEffect,useMemo,useRef,useState} from "react";
 import AuthenticatorStepUp from "../../authenticator-step-up";
 
 import OwnerAccountCleanupPanel from "./owner-account-cleanup-panel";
+import OwnerManagerPurgePanel from "./owner-manager-purge-panel";
 import OwnerOnceRosterResetPanel from "./owner-once-roster-reset-panel";
 import AccountCapacityPanel from "./account-capacity-panel";
 import OwnerAccountBlockPanel from "./owner-account-block-panel";
@@ -333,6 +334,7 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
   </details>
   <OwnerOnceRosterResetPanel/>
   <OwnerAccountCleanupPanel/>
+  <OwnerManagerPurgePanel onChanged={()=>{void refresh();void refreshManagerInbox();}}/>
   <OwnerAccountBlockPanel/>
   </>:null}
   {section==="policies"?<header className="boi-policy-heading"><span>OWNER · THỜI HẠN VÀ QUYỀN TRUY CẬP</span>
@@ -376,6 +378,7 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
       <small>{moscow(a.entitlement?.expiresAt)}</small>
     </button>)}</div>
     {!displayed.length?<p role="status">Không có cán bộ quản lý phù hợp trong danh sách đã xác minh.</p>:null}
+    <OwnerManagerPurgePanel onChanged={()=>{void refresh();void refreshManagerInbox();}}/>
   </div>:null}
   {section==="policies"&&policyPopup==="manager"&&current?.role==="manager"?<div className="boi-policy-popup-backdrop" role="presentation"
     onMouseDown={event=>{if(event.target===event.currentTarget&&!busy)setPolicyPopup(null);}}>
