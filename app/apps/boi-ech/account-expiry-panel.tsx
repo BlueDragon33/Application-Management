@@ -417,7 +417,7 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
         <code title={a.accountId}>{a.accountId.slice(0,20)}…</code>
       </article>)}
     </div>
-    <p className={design.peopleNote}>Hồ sơ đang hoạt động không được xóa từ danh sách giám sát.
+    <p className={design.peopleNote}>Giám sát chỉ đọc · Hồ sơ đang hoạt động không được xóa từ danh sách giám sát.
       Chỉ Owner mới có thể kiểm kê và xóa dữ liệu đã được D1 xác nhận đủ điều kiện.</p>
     {oversightCleanupOpen?<div className={design.oversightCleanup}><OwnerAccountCleanupPanel/></div>:null}
   </div>:null}
