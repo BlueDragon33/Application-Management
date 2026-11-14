@@ -337,7 +337,7 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
   </>:null}
   {section==="policies"?<header className="boi-policy-heading"><span>OWNER · THỜI HẠN VÀ QUYỀN TRUY CẬP</span>
     <h2>Thời hạn & Chính sách</h2>
-    <p>Thời hạn mặc định được xác minh từ D1. Chọn biểu tượng để mở popup thay vì chỉnh trực tiếp trên bảng dài.</p></header>:null}
+    <p>Account First V2 · Chính sách mặc định: cán bộ quản lý 3 ngày, giảng viên và học viên 8 ngày khi kích hoạt. Thời hạn thực tế được xác minh từ D1. Chọn biểu tượng để mở popup điều chỉnh.</p></header>:null}
   {section==="policies"?<div className="boi-policy-icon-grid" aria-label="Tác vụ thời hạn và chính sách">
     <button type="button" onClick={()=>setPolicyPopup("limits")}><span aria-hidden="true">▦</span><strong>Hạn mức tài khoản</strong><small>Quản lý số lượng từng vai trò</small></button>
     {policies.map(p=><button type="button" key={p.role} onClick={()=>{setPolicyRole(p.role as "manager"|"teacher"|"learner");setPolicyPopup("defaults");}}>
