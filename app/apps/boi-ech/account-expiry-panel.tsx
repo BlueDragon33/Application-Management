@@ -422,7 +422,12 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
     {oversightCleanupOpen?<div className={design.oversightCleanup}><OwnerAccountCleanupPanel/></div>:null}
   </div>:null}
   {section==="policies"&&accountsVerified?<div className="boi-manager-expiry">
-    <OwnerManagerPurgePanel surface="cards" onManage={accountId=>{
+    <OwnerManagerPurgePanel surface="cards"
+     durations={accounts.filter(a=>a.role==="manager").map(a=>({
+       accountId:a.accountId,expiresAt:a.entitlement?.expiresAt??null,
+       state:a.entitlement?.state??null,active:Boolean(a.entitlement?.active)
+     }))}
+     onManage={accountId=>{
       if(!accounts.some(a=>a.accountId===accountId)){
         setError("Tài khoản chưa có trong bản đọc thời hạn hiện tại. Hãy đồng bộ lại từ Bơi Ếch để chỉnh sửa.");return;
       }
