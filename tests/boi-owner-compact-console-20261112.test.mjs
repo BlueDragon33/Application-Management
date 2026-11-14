@@ -7,24 +7,25 @@ const source=fs.readFileSync(new URL("../app/apps/boi-ech/boi-ech-control-center
 const css=fs.readFileSync(new URL("../app/apps/boi-ech/boi-ech-shell.module.css",import.meta.url),"utf8");
 const tree=ts.createSourceFile("boi-ech-control-center.tsx",source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 
-test("owner compact console retains existing task handlers but exposes only three persistent navigation buttons",()=>{
+test("Owner navigation exposes the daily work directly and keeps secondary tools in Account Space",()=>{
  const nav=source.slice(source.indexOf('<nav aria-label="Quản trị Bơi ếch — điều hướng chính">'),
    source.indexOf("</nav>",source.indexOf('<nav aria-label="Quản trị Bơi ếch — điều hướng chính">')));
- assert.equal((nav.match(/<button type="button"/g)||[]).length,3);
- for(const item of ["Tổng quan","Thiết bị & Tiến độ","Nghiệp vụ khác"])assert.ok(nav.includes(item),item);
- for(const lowUsage of ["Tài khoản & Duyệt cán bộ","Giám sát GV / học viên","Vai trò & Quyền",
-   "Thời hạn & Chính sách","Báo cáo & Thống kê","Điều hành AI","Duyệt nội dung"])
-   assert.ok(source.includes(lowUsage),"must retain "+lowUsage);
+ for(const title of ["Tổng quan","Thiết bị & Tiến độ","Tài khoản & Duyệt cán bộ",
+   "Giảng viên & Học viên","Thời hạn & Chính sách","Điều hành AI"]) assert.ok(nav.includes(title),title);
+ assert.doesNotMatch(nav,/Nghiệp vụ khác|Báo cáo & Thống kê|Vai trò & Quyền|Duyệt nội dung|Cloudflare Preview/);
+ const account=source.slice(source.indexOf('<nav className="boi-owner-account-modal-actions"'),
+   source.indexOf("</nav>",source.indexOf('<nav className="boi-owner-account-modal-actions"')));
+ for(const title of ["Báo cáo & Thống kê","Vai trò & Quyền","Duyệt nội dung","Cloudflare Preview"])
+   assert.ok(account.includes(title),title);
+ assert.doesNotMatch(source,/toolsMenuOpen|boi-owner-task-selector/);
+ assert.match(source,/const utilityOpen=\["roles","reports","content"\]\.includes\(tab\)/);
  assert.match(source,/role=\{utilityOpen\?"dialog":undefined\}/);
  assert.match(source,/aria-modal=\{utilityOpen\?true:undefined\}/);
- assert.match(source,/if\(event\.key==="Escape"\)\{event\.preventDefault\(\);setTab\("overview"\);return;\}/);
  assert.match(source,/id=\{utilityOpen\?"boi-owner-task-dialog":undefined\}/);
  assert.match(source,/event\.key!=="Tab"/);
  assert.match(source,/event\.shiftKey/);
  assert.match(source,/previous\.focus\(\{preventScroll:true\}\)/);
- assert.match(source,/boi-owner-task-selector/);
  assert.match(source,/window\.addEventListener\("keydown",onKey\)/);
-
 });
 
 test("owner profile is at top right, not in sidebar; boundary notice and sidebar security link removed",()=>{
@@ -52,7 +53,7 @@ test("authentication switch polls read-only session state and never disables MFA
 });
 
 test("role-specific operations remain guarded, no learner or teacher approvals in Owner app",()=>{
- assert.match(source,/access\.role==="owner"\?<button type="button"/);
+ assert.match(source,/access\.role==="owner"\?<>/);
  assert.ok(source.includes('tab==="accounts" && access.role==="owner" ? <div className="boi-owner-workspace"><AccountExpiryPanel section="accounts"/>'));
  assert.match(source,/AccountExpiryPanel section="oversight"/);
  assert.match(source,/AccountExpiryPanel section="policies"/);
@@ -67,7 +68,7 @@ test("sidebar time and modal have mobile constraints and no misleading fabricate
  assert.match(source,/window\.setInterval\(\(\)=>setClockNow\(Date\.now\(\)\),60_000\)/);
  assert.match(css,/@media\(max-width:820px\)/);
  assert.match(css,/max-height:calc\(100dvh - 32px\)/);
- assert.match(css,/\.boi-task-selector-grid\)\{grid-template-columns:1fr/);
+ assert.match(css,/\.boi-policy-manager-grid\)\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
  assert.doesNotMatch(source,/Nhiệt độ: \d+|Thời tiết: nắng đẹp/);
  assert.equal(tree.parseDiagnostics.length,0,"TSX must parse cleanly");
 });
