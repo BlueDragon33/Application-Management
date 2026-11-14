@@ -42,10 +42,12 @@ test("owner profile is at top right, not in sidebar; boundary notice and sidebar
  assert.match(fs.readFileSync(new URL("../app/globals.css",import.meta.url),"utf8"),/\.boi-owner-account-modal-backdrop/);
 });
 
-test("authentication switch polls read-only session state and never disables MFA, cookies or permissions",()=>{
+test("authentication switch refreshes only on real resume/online events and preserves MFA and cookies",()=>{
  assert.match(source,/type="checkbox" checked=\{authAutoCheck\}/);
  assert.match(source,/fetch\("\/api\/center",\{credentials:"same-origin",cache:"no-store",redirect:"error"\}\)/);
- assert.match(source,/window\.setInterval\(\(\)=>\{void check\(\);\},120_000\)/);
+ assert.doesNotMatch(source,/window\.setInterval\(\(\)=>\{void check\(\);\},120_000\)/);
+ assert.match(source,/window\.addEventListener\("focus",onResume\)/);
+ assert.match(source,/window\.addEventListener\("online",onResume\)/);
  assert.match(source,/xác thực bắt buộc vẫn hoạt động/);
  assert.match(source,/if\(!authAutoCheck\)return/);
  assert.doesNotMatch(source,/BOI_ECH_ACCOUNT_FIRST\s*=|disableAuthentication\(|skipMfa\(|bypassAuthenticator/);
