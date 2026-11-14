@@ -17,7 +17,7 @@ const preview={ok:true,verified:true,contract:"boi-owner-manager-purge.v1",
  days:0,mode:"manager",records,scanned:2,eligible:1,protected:1,hasMore:false,nextCursor:null};
 function fixture({role="owner",corrupt=false,readback=true}={}){
  const sent=[];let deleted=false;
- const module=loadTs("app/api/apps/boi-ech/manager-purge/route.ts",{
+ const purgeRoute=loadTs("app/api/apps/boi-ech/manager-purge/route.ts",{
   "../../../../control-device.server":{
    verifyControlProof:async()=>({role,email:"owner@fixture.invalid"}),
    controlErrorResponse:e=>Response.json({error:e.message},{status:500})
@@ -39,7 +39,7 @@ function fixture({role="owner",corrupt=false,readback=true}={}){
   return Response.json({code:"INVALID"},{status:400});
  }});
  async function post(body){
-  const response=await module.POST(new Request("https://app.fixture.invalid/api/apps/boi-ech/manager-purge",{
+  const response=await purgeRoute.POST(new Request("https://app.fixture.invalid/api/apps/boi-ech/manager-purge",{
    method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)
   }));
   return{status:response.status,value:await response.json()};
