@@ -124,7 +124,7 @@ test("Owner registry uses the signed BOI read endpoint and fails closed on an in
   const success = await read("owner");
   assert.equal(success.status, 200);
   assert.deepEqual(await success.json(), registry);
-  assert.equal(requestCalls[1].url, "https://boi.example.test/api/control/v2/device-registry");
+  assert.equal(requestCalls[1].url, "https://boi.example.test/api/control/v2/device-registry?view=owner");
   assert.equal(requestCalls[1].init.method, "GET");
   assert.match(requestCalls[1].init.headers.authorization, /^Bearer v1\./);
   for (const candidate of [

@@ -60,6 +60,8 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
  const [localMode,setLocalMode]=useState(false);
  const [policies,setPolicies]=useState<BoiAccountDurationPolicy[]>([]);
  const [selected,setSelected]=useState("");
+ const [policyPopup,setPolicyPopup]=useState<"limits"|"defaults"|"manager"|null>(null);
+ const [policyRole,setPolicyRole]=useState<"manager"|"teacher"|"learner">("manager");
  const [search,setSearch]=useState("");
  const [roleDays,setRoleDays]=useState<Record<string,string>>({});
  const [expiration,setExpiration]=useState("");
@@ -90,6 +92,7 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
  }
  const [observedNow,setObservedNow]=useState(()=>Date.now());
  const current=accounts.find(a=>a.accountId===selected)??null;
+ const currentPolicy=policies.find(p=>p.role===policyRole)??null;
  const visibleManagers=useMemo(()=> (managerInbox??[]).filter(m=>{
   const stale=agedManager(m,observedNow);
   if(managerFilter==="current"&&(stale||m.status==="blocked"))return false;
@@ -196,7 +199,7 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
    await withOwnerAuthentication(()=>changeBoiAccountDuration({accountId:current.accountId,expectedRevision:current.entitlement!.revision,
     operation,...(operation==="set-expiry"?{expiresAt:iso}:{}),reason:reason.trim()}));
    setNotice("Đã lưu và đọc lại hạn tài khoản. Quyền thiết bị và thanh toán vẫn được kiểm soát riêng.");
-   await refresh();
+   await refresh();setPolicyPopup(null);
   }catch(e){setError(e instanceof Error?e.message:"Không xác minh được thay đổi.");}
   finally{writeLock.current=false;setBusy(false);}
  }
@@ -207,10 +210,19 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
   try{
    await withOwnerAuthentication(()=>changeBoiDefaultAccountDays({role:p.role,defaultDays:days,expectedRevision:p.revision,reason:reason.trim()}));
    setNotice("Đã cập nhật mặc định và đọc lại từ D1. Tài khoản đang dùng không bị đổi hạn tự động.");
-   await refresh();
+   await refresh();setPolicyPopup(null);
   }catch(e){setError(e instanceof Error?e.message:"Không cập nhật được mặc định.");}
   finally{writeLock.current=false;setBusy(false);}
  }
+ useEffect(()=>{
+  if(!policyPopup)return;
+  const prior=document.activeElement instanceof HTMLElement?document.activeElement:null;
+  const original=document.body.style.overflow;document.body.style.overflow="hidden";
+  const onKey=(e:KeyboardEvent)=>{if(e.key==="Escape"&&!busy){e.preventDefault();setPolicyPopup(null);}};
+  document.addEventListener("keydown",onKey);
+  return()=>{document.body.style.overflow=original;document.removeEventListener("keydown",onKey);
+    if(prior?.isConnected)prior.focus({preventScroll:true});};
+ },[policyPopup,busy]);
  return <><section inert={authenticate!==null||archiveTarget!==null} aria-hidden={authenticate!==null||archiveTarget!==null?true:undefined} aria-label="Hồ sơ tài khoản Bơi ếch AI" className="boi-account-panel" data-section={section}>
   {section==="accounts"?<div className="boi-account-header"><span>OWNER · QUẢN LÝ CÁN BỘ</span><h2>Tài khoản cán bộ quản lý</h2><p>Danh sách đã đăng ký, phiên đăng nhập và hồ sơ đang hoàn thiện. Owner cấp lời mời cán bộ quản lý; tài khoản được kích hoạt tự động sau khi hoàn tất hồ sơ.</p></div>:null}
   {section==="oversight"?<div className="boi-account-header"><span>GIÁM SÁT · CHỈ ĐỌC</span><h2>Giảng viên & học viên</h2><p>Hiển thị thông tin, vai trò, trạng thái hồ sơ và thời hạn để giám sát. Không duyệt, từ chối, cấp hoặc thu hồi quyền từ đây.</p></div>:null}
@@ -323,24 +335,20 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
   <OwnerAccountCleanupPanel/>
   <OwnerAccountBlockPanel/>
   </>:null}
-  {section==="policies"?<AccountCapacityPanel/>:null}
-  {section==="policies"?<header><h2>Thời hạn tài khoản · Account First V2</h2>
-   <p>Chính sách mặc định: cán bộ quản lý 3 ngày, giảng viên và học viên 8 ngày từ khi hoàn tất hồ sơ. Chỉ thay đổi thời hạn hoặc mặc định; không trực tiếp duyệt giảng viên/học viên.</p></header>:null}
+  {section==="policies"?<header className="boi-policy-heading"><span>OWNER · THỜI HẠN VÀ QUYỀN TRUY CẬP</span>
+    <h2>Thời hạn & Chính sách</h2>
+    <p>Account First V2 · Chính sách mặc định: cán bộ quản lý 3 ngày, giảng viên và học viên 8 ngày khi kích hoạt. Thời hạn thực tế được xác minh từ D1. Chọn biểu tượng để mở popup điều chỉnh.</p></header>:null}
+  {section==="policies"?<div className="boi-policy-icon-grid" aria-label="Tác vụ thời hạn và chính sách">
+    <button type="button" onClick={()=>setPolicyPopup("limits")}><span aria-hidden="true">▦</span><strong>Hạn mức tài khoản</strong><small>Quản lý số lượng từng vai trò</small></button>
+    {policies.map(p=><button type="button" key={p.role} onClick={()=>{setPolicyRole(p.role as "manager"|"teacher"|"learner");setPolicyPopup("defaults");}}>
+      <span aria-hidden="true">{p.role==="manager"?"♙":p.role==="teacher"?"♧":"♟"}</span>
+      <strong>{labels[p.role]||p.role}</strong><small>Mặc định {p.defaultDays} ngày · Điều chỉnh</small>
+    </button>)}
+   </div>:null}
   {section!=="accounts"&&loading?<p role="status">Đang đọc dữ liệu tài khoản từ Bơi ếch…</p>:null}
   {section!=="accounts"&&error?<div role="alert"><strong>Chưa xác minh:</strong> {error} <a href="/__account">Xác minh Authenticator (nếu được yêu cầu)</a></div>:null}
   {section!=="accounts"&&notice?<p role="status">{notice}</p>:null}
   {section!=="accounts"?<button type="button" className="boi-refresh-inline" disabled={busy||loading} onClick={()=>void refresh()}>↻ Đọc lại tài khoản từ Bơi Ếch</button>:null}
-  {section==="policies"&&policies.length?<div className="boi-duration-policies">
-   {policies.map(p=><label key={p.role} style={{display:"grid",gap:6}}>
-    <span>{labels[p.role]||p.role} · mặc định</span>
-    <input type="number" min={1} max={365} value={roleDays[p.role]??String(p.defaultDays)}
-      onChange={e=>setRoleDays(x=>({...x,[p.role]:e.target.value}))}/>
-    <button disabled={busy} onClick={()=>void commitPolicy(p)}>Lưu mặc định</button>
-   </label>)}
-  </div>:null}
-  {section==="policies"?<label className="boi-policy-reason">Lý do thay đổi (ghi nhật ký)
-   <input value={reason} maxLength={300} onChange={e=>setReason(e.target.value)}/>
-  </label>:null}
   {section!=="accounts"?<label className="boi-policy-search">Tìm tài khoản / vai trò
    <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Tên, ID, vai trò…"/>
   </label>:null}
@@ -358,12 +366,23 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
     <p className="boi-oversight-note" role="status">Giám sát chỉ đọc · Quyền duyệt giảng viên/học viên thuộc cán bộ quản lý đã được cấp scope tại Bơi Ếch.</p>
   </div>:null}
   {section==="policies"&&accountsVerified?<div className="boi-manager-expiry">
-    <h3>Thời hạn cá nhân · Chỉ cán bộ quản lý</h3>
-    <select size={Math.min(8,Math.max(2,displayed.length+1))} aria-label="Chọn tài khoản cán bộ" value={selected}
-      onChange={e=>setSelected(e.target.value)}>
-      <option value="">— Chọn cán bộ quản lý —</option>
-      {displayed.map(a=><option key={a.accountId} value={a.accountId}>{a.name||a.accountId.slice(0,14)} · {a.entitlement?.active?"Còn hạn":a.entitlement?"Không hoạt động":"Chưa cấp"}</option>)}
-    </select>
+    <h3><span aria-hidden="true">♙</span> Thời hạn cán bộ quản lý</h3>
+    <p>Chọn biểu tượng tài khoản để mở popup gia hạn, tạm khóa hoặc khôi phục quyền.</p>
+    <div className="boi-policy-manager-grid">{displayed.map(a=><button type="button" key={a.accountId}
+      aria-label={`Quản lý thời hạn của ${a.name||a.accountId}`}
+      onClick={()=>{setSelected(a.accountId);setPolicyPopup("manager");setError("");}}>
+      <span aria-hidden="true">♙</span><strong>{a.name||"Chưa khai báo"}</strong>
+      <small>{a.entitlement?.active?"Đang còn hạn":a.entitlement?"Không hoạt động":"Chưa kích hoạt"}</small>
+      <small>{moscow(a.entitlement?.expiresAt)}</small>
+    </button>)}</div>
+    {!displayed.length?<p role="status">Không có cán bộ quản lý phù hợp trong danh sách đã xác minh.</p>:null}
+  </div>:null}
+  {section==="policies"&&policyPopup==="manager"&&current?.role==="manager"?<div className="boi-policy-popup-backdrop" role="presentation"
+    onMouseDown={event=>{if(event.target===event.currentTarget&&!busy)setPolicyPopup(null);}}>
+    <section className="boi-policy-popup" role="dialog" aria-modal="true" aria-label="Chỉnh thời hạn cán bộ quản lý" tabIndex={-1}>
+      <header><div><small>OWNER · XÁC MINH D1</small><h2>Thời hạn cán bộ quản lý</h2></div>
+       <button type="button" disabled={busy} aria-label="Đóng popup" onClick={()=>setPolicyPopup(null)}>✕</button></header>
+      <label>Lý do thay đổi (ghi nhật ký)<input value={reason} maxLength={300} onChange={e=>setReason(e.target.value)}/></label>
     {current?.role==="manager"?<div className="boi-manager-expiry-detail">
       <strong>{current.name||current.accountId} — Cán bộ quản lý</strong>
       <small>ID: {current.accountId} · Hồ sơ: {current.onboardingStage||"Chưa có"}</small>
@@ -405,7 +424,29 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
           :<button type="button" disabled={busy||Date.parse(current.entitlement.expiresAt)<=observedNow} onClick={()=>void commitAccount("resume")}>Khôi phục cán bộ</button>}
       </div></>:<p>Chưa kích hoạt; cần hoàn thành hồ sơ để được cấp thời hạn.</p>}
     </div>:null}
-  </div>:null}
+    </section></div>:null}
+  {section==="policies"&&policyPopup==="limits"?<div className="boi-policy-popup-backdrop" role="presentation"
+    onMouseDown={e=>{if(e.target===e.currentTarget&&!busy)setPolicyPopup(null);}}>
+    <section className="boi-policy-popup" role="dialog" aria-modal="true" aria-label="Hạn mức tài khoản" tabIndex={-1}>
+     <header><div><small>OWNER · ACCOUNT CAPACITY</small><h2>Hạn mức từng vai trò</h2></div>
+      <button type="button" disabled={busy} onClick={()=>setPolicyPopup(null)} aria-label="Đóng">✕</button></header>
+     <AccountCapacityPanel/>
+    </section></div>:null}
+  {section==="policies"&&policyPopup==="defaults"&&currentPolicy?<div className="boi-policy-popup-backdrop" role="presentation"
+    onMouseDown={e=>{if(e.target===e.currentTarget&&!busy)setPolicyPopup(null);}}>
+    <section className="boi-policy-popup" role="dialog" aria-modal="true" aria-label="Thay đổi thời hạn mặc định" tabIndex={-1}>
+      <header><div><small>OWNER · CHÍNH SÁCH THỜI HẠN</small><h2>{labels[currentPolicy.role]||currentPolicy.role}</h2></div>
+       <button type="button" disabled={busy} onClick={()=>setPolicyPopup(null)} aria-label="Đóng">✕</button></header>
+      <p>Chỉ áp dụng cho tài khoản được kích hoạt sau khi cập nhật. Không tự ý đổi hạn tài khoản hiện tại.</p>
+      <label>Thời hạn mặc định (1–365 ngày)
+       <input type="number" min={1} max={365} value={roleDays[currentPolicy.role]??String(currentPolicy.defaultDays)}
+        onChange={e=>setRoleDays(x=>({...x,[currentPolicy.role]:e.target.value}))}/>
+      </label>
+      <label>Lý do thay đổi (ghi nhật ký)
+       <input value={reason} maxLength={300} onChange={e=>setReason(e.target.value)}/></label>
+      <footer><button type="button" disabled={busy} onClick={()=>setPolicyPopup(null)}>Hủy</button>
+       <button type="button" disabled={busy||reason.trim().length<5} onClick={()=>void commitPolicy(currentPolicy)}>Lưu mặc định · Xác minh D1</button></footer>
+    </section></div>:null}
   {section==="policies"?<small>Thao tác Owner với chính sách/mốc thời hạn phải có CAS, nhật ký và đọc lại Bơi Ếch. Không cấp quyền giảng viên/học viên tại màn hình này.</small>:null}
   {section==="accounts"?<p className="boi-oversight-note">Giảng viên/học viên tự kích hoạt sau khi hoàn thiện hồ sơ. Cán bộ quản lý gia hạn cho hai nhóm; Owner quản lý cán bộ.</p>:null}
  </section>

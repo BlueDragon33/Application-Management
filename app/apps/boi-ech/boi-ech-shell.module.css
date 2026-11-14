@@ -863,3 +863,68 @@
  .scope :global(.boi-binding-dialog){padding:15px;}
  .scope :global(.boi-binding-facts){grid-template-columns:1fr;}
 }
+
+
+/* V11 Owner operational navigation: primary tasks always visible; no "other tasks" tab. */
+.scope :global(.control-sidebar nav button){min-height:48px!important;padding:8px 10px!important}
+.scope :global(.control-sidebar nav button i){font-size:18px!important}
+.scope :global(.boi-account-space-title){grid-column:1/-1;margin-top:10px;padding-top:12px;
+ border-top:1px solid #dfebf9;color:#4a6790;font-size:11px;font-weight:900;letter-spacing:.09em}
+.scope :global(.boi-owner-account-modal-actions button span),
+.scope :global(.boi-owner-account-modal-actions a span){display:inline-grid;place-items:center;
+ flex:0 0 32px;width:32px;height:32px;margin-right:8px;background:#e9f3ff;border-radius:9px;
+ color:#194d88;font-size:18px}
+.scope :global(.boi-owner-account-modal-actions button),
+.scope :global(.boi-owner-account-modal-actions a){min-height:48px!important;text-align:left!important;
+ display:flex!important;align-items:center!important;color:#14385d!important}
+.scope :global(.boi-policy-heading){margin:10px 0 16px}
+.scope :global(.boi-policy-heading>span){font-size:11px;font-weight:900;letter-spacing:.1em;color:#315e94}
+.scope :global(.boi-policy-heading h2){font-size:clamp(21px,2.6vw,29px);color:#173b65;margin:5px 0}
+.scope :global(.boi-policy-heading p){max-width:760px;line-height:1.55;color:#526b87}
+.scope :global(.boi-policy-icon-grid){display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));
+ gap:12px;margin:15px 0 24px}
+.scope :global(.boi-policy-icon-grid button),
+.scope :global(.boi-policy-manager-grid button){display:grid;align-content:start;justify-items:start;gap:7px;
+ min-width:0;min-height:126px;padding:17px;text-align:left;border:1px solid #cbdcf0;border-radius:17px;
+ background:linear-gradient(145deg,#fff,#f5f9ff);box-shadow:0 4px 15px #0c284b0a;
+ color:#173c68;font:inherit;cursor:pointer}
+.scope :global(.boi-policy-icon-grid button>span),
+.scope :global(.boi-policy-manager-grid button>span){display:grid;place-items:center;width:43px;height:43px;
+ border-radius:13px;background:#e8f2ff;color:#16549a;font-size:24px}
+.scope :global(.boi-policy-icon-grid button strong),
+.scope :global(.boi-policy-manager-grid button strong){font-size:14px;line-height:1.4;overflow-wrap:anywhere}
+.scope :global(.boi-policy-icon-grid button small),
+.scope :global(.boi-policy-manager-grid button small){font-size:12px;color:#506e8d;line-height:1.5}
+.scope :global(.boi-policy-icon-grid button:hover),
+.scope :global(.boi-policy-manager-grid button:hover){background:#e9f4ff;border-color:#78a5dc}
+.scope :global(.boi-policy-icon-grid button:focus-visible),
+.scope :global(.boi-policy-manager-grid button:focus-visible){outline:3px solid #287ece;outline-offset:3px}
+.scope :global(.boi-manager-expiry){display:grid;gap:12px;padding:16px;border:1px solid #d9e5f2;
+ border-radius:18px;background:#fff}
+.scope :global(.boi-manager-expiry h3){margin:0;font-size:18px;color:#153d69}
+.scope :global(.boi-manager-expiry p){margin:0;color:#56718d;font-size:13px}
+.scope :global(.boi-policy-manager-grid){display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,180px),1fr));gap:10px}
+.scope :global(.boi-policy-manager-grid button){min-height:142px;padding:13px}
+.scope :global(.boi-policy-popup-backdrop){position:fixed;inset:0;z-index:8000;
+ display:grid;place-items:center;overflow-y:auto;padding:12px;background:#071c36b9;backdrop-filter:blur(4px)}
+.scope :global(.boi-policy-popup){width:min(100%,730px);max-height:calc(100dvh - 24px);overflow-y:auto;
+ display:grid;gap:15px;padding:clamp(17px,2.7vw,29px);background:#fff;color:#17395d;
+ border:1px solid #d6e4f3;border-radius:21px;box-shadow:0 30px 95px #04182e6b}
+.scope :global(.boi-policy-popup header){display:flex;justify-content:space-between;gap:16px;
+ border-bottom:1px solid #e2eaf5;padding-bottom:14px}
+.scope :global(.boi-policy-popup header h2){margin:4px 0;font-size:clamp(20px,3vw,26px);color:#16395e}
+.scope :global(.boi-policy-popup header small){color:#426997;font-size:11px;font-weight:850;letter-spacing:.08em}
+.scope :global(.boi-policy-popup header>button){flex:0 0 44px;min-height:44px;height:44px;padding:0;
+ border-radius:12px;background:#f4f8fd;border:1px solid #d1dfef;color:#284f78;font-size:20px}
+.scope :global(.boi-policy-popup label){display:grid;gap:7px;color:#294e73;font-size:13px;font-weight:750}
+.scope :global(.boi-policy-popup input),
+.scope :global(.boi-policy-popup select){min-height:44px;width:100%;padding:10px 12px;
+ border:1px solid #b9d0ea;border-radius:10px;background:#fff;color:#173b63;font:inherit}
+.scope :global(.boi-policy-popup footer){display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+.scope :global(.boi-policy-popup footer button){min-height:44px;padding:10px 14px;border:1px solid #c7d9ec;
+ border-radius:11px;color:#244d79;background:#f3f8fe;font-weight:800}
+.scope :global(.boi-policy-popup footer button:last-child){background:#185993;color:#fff;border-color:#185993}
+.scope :global(.boi-policy-popup :is(button,input,select):focus-visible){outline:3px solid #2484d3;outline-offset:2px}
+@media(max-width:620px){.scope :global(.boi-policy-popup){border-radius:14px;padding:16px}
+ .scope :global(.boi-policy-manager-grid){grid-template-columns:repeat(2,minmax(0,1fr))}
+ .scope :global(.boi-policy-popup footer button){flex:1 1 100%}}
