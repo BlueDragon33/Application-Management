@@ -1606,6 +1606,9 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
                     device.account?.role==="learner"?"Học viên":"Vai trò chưa xác minh"}
                     {" · "}{device.clientClass==="phone"?"Điện thoại":
                     device.clientClass==="tablet"?"Máy tính bảng":"Máy tính"}</small>
+                  {device.account?.role==="learner"?<small>Tiến độ tài khoản: {device.progress
+                    ? `${device.progress.completed}/${device.progress.total} bài được ghi nhận`
+                    : "Chưa có dữ liệu xác minh"} · Không phải tiến độ riêng của trình duyệt</small>:null}
                   <small>{device.browserLabel||"Chưa cập nhật tên trình duyệt"}
                     {" · "}{device.status==="approved"?"Đã tin cậy":
                       device.status==="pending"?"Chờ xác nhận":"Đã thu hồi"}</small>
