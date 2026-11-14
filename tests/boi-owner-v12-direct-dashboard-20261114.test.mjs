@@ -10,7 +10,7 @@ const managerCss=fs.readFileSync("app/apps/boi-ech/owner-manager-purge.module.cs
 const oversightCss=fs.readFileSync("app/apps/boi-ech/owner-directory-v12.module.css","utf8");
 
 test("Owner V12 selection and quick actions live on manager cards, never require opening a profile",()=>{
- assert.match(manager,/surface\?: "launch"\|"cards"/);
+ assert.match(manager,/surface\?:"launch"\|"cards"/);
  assert.match(manager,/surface==="cards"\?<section/);
  assert.match(manager,/className=\{styles.directCard\}/);
  assert.match(manager,/type="checkbox" aria-label=\{\x60Chọn xóa/);
