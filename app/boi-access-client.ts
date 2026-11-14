@@ -357,6 +357,63 @@ export async function purgeOwnerAgedAccount(input:{
  return result;
 }
 
+/** Dedicated Owner-only preview/purge for canonical managers. Does not archive.
+ * A confirmed result means both D1 account and storage-device rows are gone.
+ * Immutable hashed audit remains, but no manager identity/contact is retained. */
+export type BoiManagerPurgeRecord={
+ accountId:string;name:string;role:"manager";category:"manager";
+ createdAt:string;lastSeenAt:string|null;latestLoginAt:string|null;
+ inactiveDays:number;stage:string|null;eligible:boolean;blockers:string[];snapshot:string;
+};
+export type BoiManagerPurgePreview={
+ ok:true;verified:true;contract:"boi-owner-manager-purge.v1";
+ mode:"manager";days:0;records:BoiManagerPurgeRecord[];scanned:number;
+ eligible:number;protected:number;hasMore:boolean;nextCursor:string|null;warning:string;
+};
+async function ownerManagerPurgeCall(body:Record<string,unknown>){
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
+ try{
+  const session=await approvedSession();
+  if(session.access.role!=="owner")throw new Error("Chỉ Owner có quyền xóa vĩnh viễn cán bộ.");
+  const signature=await proof(session.access);
+  controller.signal.throwIfAborted();
+  const response=await fetch("/api/apps/boi-ech/manager-purge",{
+    method:"POST",credentials:"same-origin",cache:"no-store",signal:controller.signal,
+    headers:{"content-type":"application/json"},
+    body:JSON.stringify({...body,...signature})
+  });
+  const value=await response.json().catch(()=>({})) as Record<string,unknown>;
+  if(!response.ok||value.ok!==true){
+    const error=new Error(typeof value.error==="string"?value.error:"Không xác minh được D1 cán bộ.");
+    throw Object.assign(error,{data:{...value,status:response.status}});
+  }
+  return value;
+ }catch(error){
+  if(controller.signal.aborted)throw new Error("Hết thời gian xác minh; quét lại trước khi tiếp tục, không tự gửi lại lệnh xóa.");
+  throw error;
+ }finally{clearTimeout(timer);}
+}
+export async function previewOwnerManagerPurge(cursor?:string){
+ const response=await ownerManagerPurgeCall({action:"preview",...(cursor?{cursor}:{})});
+ if(response.verified!==true||response.contract!=="boi-owner-manager-purge.v1"
+   ||response.mode!=="manager"||response.days!==0||!Array.isArray(response.records))
+   throw new Error("Danh sách cán bộ chưa xác minh; không thể xóa.");
+ return response as BoiManagerPurgePreview;
+}
+export async function purgeOwnerManagerAccount(input:{
+ accountId:string;snapshot:string;reason:string;
+}){
+ if(!/^acc_[a-f0-9]{64}$/.test(input.accountId)||!/^[a-f0-9]{64}$/.test(input.snapshot)
+    ||input.reason.trim().length<10)throw new Error("Phải xác minh ID, ảnh chụp D1 và lý do.");
+ const response=await ownerManagerPurgeCall({
+  action:"purge",...input,confirmation:"XOA VINH VIEN CAN BO"
+ });
+ if(response.verified!==true||response.contract!=="boi-owner-manager-purge.v1"
+    ||response.deleted!==true||response.auditPreserved!==true)
+    throw new Error("Bơi Ếch chưa xác nhận đã xóa cả tài khoản và liên kết D1.");
+ return response;
+}
+
 /** Strict historical cohort: original device older than five full days,
  * Owner-approval audit, no modern login or manager assignment. No PII. */
 export type BoiLegacyFiveDayPreview={

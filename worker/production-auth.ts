@@ -865,6 +865,7 @@ function sensitiveProductionMutation(pathname: string, payload: Record<string, u
   if (pathname === "/api/apps/boi-ech/device-bindings"
     && (action === "revoke" || action === "purge" || action === "ban")) return true;
   if (pathname === "/api/apps/boi-ech/account-cleanup" && action === "purge") return true;
+  if (pathname === "/api/apps/boi-ech/manager-purge" && action === "purge") return true;
   if (pathname === "/api/apps/boi-ech/account-entitlements"
     && new Set(["set-account","set-policy","issue-manager-invite",
       "manager-review-first","manager-review-final","manager-review-changes","set-capacity","ban-account"]).has(action)) return true;
@@ -946,6 +947,9 @@ export async function productionStepUpGate(
   // This runs in Cloudflare Worker before the Next.js route; denied request is
   // explicitly unapplied and may safely be resubmitted once after MFA.
   if(pathname==="/api/apps/boi-ech/account-cleanup"
+    && text(payload.action)==="purge"&&(!state.enabled||!stepUpFresh(identity)))
+    return stepUpRequiredResponse(state.configured&&!state.enabled);
+  if(pathname==="/api/apps/boi-ech/manager-purge"
     && text(payload.action)==="purge"&&(!state.enabled||!stepUpFresh(identity)))
     return stepUpRequiredResponse(state.configured&&!state.enabled);
   // Removing a binding is permanently destructive. Unlike read-only inspect,
