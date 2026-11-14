@@ -16,7 +16,10 @@ const validRoles = new Set(["manager","teacher","learner"]);
 function verifiedAccountRows(value: unknown): value is Record<string,unknown>[] {
   return Array.isArray(value) && value.length<=500 && value.every(item=>{
     const row=record(item), entitlement=row.entitlement;
-    return validId(row.accountId) && Number.isSafeInteger(row.accountRevision) && Number(row.accountRevision)>=1 && validRoles.has(String(row.role))
+    // BOI accounts.revision is initialized to 0 (migration 0018), and first-time
+    // profile activation does not necessarily increment it. A valid untouched
+    // account must remain visible to Owner; negative/non-integer values fail closed.
+    return validId(row.accountId) && Number.isSafeInteger(row.accountRevision) && Number(row.accountRevision)>=0 && validRoles.has(String(row.role))
       && (row.name===null || typeof row.name==="string")
       && typeof row.deviceStatus==="string"
       && (row.onboardingStage===null || typeof row.onboardingStage==="string")
