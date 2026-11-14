@@ -16,7 +16,7 @@ test("owner dashboard never polls every minute for updated records",()=>{
  assert.match(owner,/if\(verified\)ackManualSync\(observed\)/);
 });
 test("both Owner manual sync controls show numeric, not fabricated server counts",()=>{
- assert.match(owner,/useBoiSyncNotices\("owner"\)/);
+ assert.match(owner,/useBoiSyncNotices\(access\?\.role==="owner"\?"owner":""\)/);
  assert.match(owner,/boi-manual-sync-badge/);
  assert.match(owner,/manualSyncCount>0/);
  assert.match(owner,/onClick=\{\(\)=>void manualSync\(\)\}/);
