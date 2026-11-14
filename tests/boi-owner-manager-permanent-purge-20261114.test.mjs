@@ -8,7 +8,7 @@ const records=[
  {accountId:id,name:"Former Manager",role:"manager",category:"manager",
   createdAt:"2026-11-10 00:00:00",lastSeenAt:"2026-11-10 00:00:00",
   latestLoginAt:null,inactiveDays:4,stage:"requested",eligible:true,blockers:[],snapshot},
- {accountId:"acc_"+"c".repeat(64),name:"Manager on duty",role:"manager",category:null,
+ {accountId:"acc_"+"c".repeat(64),name:"Manager on duty",role:"manager",category:"manager",
   createdAt:"2026-11-10 00:00:00",lastSeenAt:"2026-11-14 00:00:00",
   latestLoginAt:"2026-11-14T00:00:00.000Z",inactiveDays:0,stage:"active",
   eligible:false,blockers:[],snapshot:"d".repeat(64)}
