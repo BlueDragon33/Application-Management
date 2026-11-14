@@ -38,7 +38,7 @@ test("single badge represents only received deduplicated events in this browser"
 test("Owner mutations only notify other tabs AFTER server confirms verified write",()=>{
  assert.match(api,/if\(result.verified===true && typeof body.action==="string"/);
  assert.match(api,/broadcastBoiChange\("owner"\)/);
- assert.match(api,/!\\["list","policy","capacity","manager-inbox","manager-policy"\\].includes\(body.action\)/);
+ assert.ok(api.includes('!["list","policy","capacity","manager-inbox","manager-policy"].includes(body.action)'));
  assert.match(owner,/if\(access\?\.role==="owner"\)broadcastBoiChange\("owner"\)/);
 });
 test("all Owner sync buttons are accessible, contrasted, and never auto-submit a queue",()=>{
