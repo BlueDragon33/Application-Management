@@ -1,6 +1,7 @@
 "use client";
 
-import {useEffect,useMemo,useState} from "react";
+import {useEffect,useMemo,useRef,useState} from "react";
+import {useBoiSyncNotices} from "./manual-sync-notices";
 import {loadBoiAccountDurations,loadBoiManagerInbox,
   type BoiAccountDurationRecord,type BoiManagerInboxRecord} from "../../boi-access-client";
 
@@ -17,20 +18,27 @@ export default function BoiOwnerOverview({onNavigate}: {onNavigate:(section:Owne
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState("");
   const [revision,setRevision]=useState(0);
+  const {count:unread,ids:unreadIds,acknowledge}=useBoiSyncNotices("owner");
+  const awaitingManualAck=useRef<string[]|null>(null);
   useEffect(()=>{
     let cancelled=false;
     Promise.all([loadBoiAccountDurations(),loadBoiManagerInbox()]).then(([records,queue])=>{
       if(cancelled)return;
       setSnapshot({accounts:records.accounts,managers:queue.managers,nextCursor:queue.nextCursor});
       setError("");setLoading(false);
+      if(awaitingManualAck.current){
+        acknowledge(awaitingManualAck.current);
+        awaitingManualAck.current=null;
+      }
     }).catch(caught=>{
       if(cancelled)return;
       setSnapshot(null);
+      awaitingManualAck.current=null; // keep the badge: readback did not succeed
       setError(caught instanceof Error?caught.message:"Chưa thể xác minh dữ liệu tài khoản Bơi Ếch.");
       setLoading(false);
     });
     return ()=>{cancelled=true;};
-  },[revision]);
+  },[revision,acknowledge]);
 
   const stats=useMemo(()=>{
     if(!snapshot)return null;
@@ -52,8 +60,11 @@ export default function BoiOwnerOverview({onNavigate}: {onNavigate:(section:Owne
         <h2>Quản trị tài khoản Bơi Ếch</h2>
         <p>Owner duyệt <strong>cán bộ quản lý</strong>; giảng viên và học viên hiển thị để giám sát, không cấp quyền từ đây.</p>
       </div>
-      <button type="button" onClick={()=>{setSnapshot(null);setError("");setLoading(true);setRevision(v=>v+1);}} disabled={loading}>
+      <button type="button" className="boi-manual-sync-control"
+        onClick={()=>{awaitingManualAck.current=[...unreadIds];setSnapshot(null);setError("");setLoading(true);setRevision(v=>v+1);}}
+        disabled={loading} aria-label={unread>0?`Đồng bộ thủ công ${unread} thông báo chờ`:"Đồng bộ dữ liệu thủ công"}>
         {loading?"Đang đồng bộ…":"↻ Đồng bộ dữ liệu"}
+        {unread>0?<span className="boi-manual-sync-badge" aria-hidden="true">{unread>99?"99+":unread}</span>:null}
       </button>
     </div>
     {error?<div className="boi-owner-error" role="alert">
