@@ -77,12 +77,12 @@ function dashboardWriter(reply) {
   const notices = [];
   const requests = [];
   const write = compile(`${source.slice(start, end)}\nreturn dashboardAction;`,
-    ["dashboard", "dashboardRef", "automationWriteRef", "setNotice", "boiApi", "commitDashboard", "setSelected", "mergeLearningDevices"],
+    ["dashboard", "dashboardRef", "automationWriteRef", "setNotice", "boiApi", "commitDashboard", "setSelected", "mergeLearningDevices", "access", "broadcastBoiChange"],
     [dashboard, dashboardRef, { current: false }, (value) => notices.push(value), async (...args) => {
       requests.push(args);
       return typeof reply === "function" ? await reply() : reply;
     },
-      (value) => { dashboardRef.current = value; }, () => {}, () => []]);
+      (value) => { dashboardRef.current = value; }, () => {}, () => [], {role:"owner"}, () => {}]);
   return { write, notices, dashboardRef, requests };
 }
 
