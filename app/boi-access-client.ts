@@ -362,6 +362,7 @@ export async function purgeOwnerAgedAccount(input:{
  * Immutable hashed audit remains, but no manager identity/contact is retained. */
 export type BoiManagerPurgeRecord={
  accountId:string;name:string;role:"manager";category:"manager";
+ accessStatus?:"pending"|"blocked"|"approved";activeSessions?:number;
  createdAt:string;lastSeenAt:string|null;latestLoginAt:string|null;
  inactiveDays:number;stage:string|null;eligible:boolean;blockers:string[];snapshot:string;
 };
