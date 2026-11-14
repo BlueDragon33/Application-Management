@@ -1,0 +1,51 @@
+name: D07 iOS Catalog — Windows localhost browser (dev-only)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'app/project-registry.ts'
+      - 'app/projects/**'
+      - 'app/chatgpt-auth.ts'
+      - 'scripts/d07-ios-windows-browser-qa.mjs'
+      - '.github/workflows/d07-ios-windows-browser-ci.yml'
+      - 'package-lock.json'
+      - 'vite.config.ts'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: d07-ios-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-local-development-browser:
+    name: Windows Edge on loopback — development fixture only
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.0'
+          cache: npm
+      - name: Install locked application dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Install pinned ephemeral Playwright driver (no lockfile edits)
+        run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.55.1
+      - name: Run actual Windows Edge browser against 127.0.0.1 development server
+        env:
+          CI: '1'
+        run: node scripts/d07-ios-windows-browser-qa.mjs
+      - name: Save only local-dev UI evidence (never production credentials)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: d07-windows-local-dev-browser
+          path: qa-artifacts/d07-ios-windows/
+          if-no-files-found: ignore
+          retention-days: 5
