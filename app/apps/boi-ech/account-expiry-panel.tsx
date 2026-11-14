@@ -231,7 +231,7 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
  },[policyPopup,busy]);
  return <><section inert={authenticate!==null||archiveTarget!==null} aria-hidden={authenticate!==null||archiveTarget!==null?true:undefined} aria-label="Hồ sơ tài khoản Bơi ếch AI" className="boi-account-panel" data-section={section}>
   {section==="accounts"?<div className="boi-account-header"><span>OWNER · QUẢN LÝ CÁN BỘ</span><h2>Tài khoản cán bộ quản lý</h2><p>Danh sách đã đăng ký, phiên đăng nhập và hồ sơ đang hoàn thiện. Owner cấp lời mời cán bộ quản lý; tài khoản được kích hoạt tự động sau khi hoàn tất hồ sơ.</p></div>:null}
-  {section==="oversight"?<div className="boi-account-header"><span>GIÁM SÁT · CHỈ ĐỌC</span><h2>Giảng viên & học viên</h2><p>Hiển thị thông tin, vai trò, trạng thái hồ sơ và thời hạn để giám sát. Không duyệt, từ chối, cấp hoặc thu hồi quyền từ đây.</p></div>:null}
+  {section==="oversight"?<div className="boi-account-header"><span>QUẢN LÝ NHÂN SỰ · ACCOUNT FIRST</span><h2>Giảng viên & học viên</h2><p>Giám sát tình trạng hồ sơ, hạn sử dụng và phân loại nhanh; kiểm kê tài khoản cũ qua cổng Owner an toàn. Phân lớp và quyền học tập thuộc cán bộ quản lý có scope tại Bơi Ếch.</p></div>:null}
   {section==="policies"?<div className="boi-account-header"><span>OWNER · QUẢN TRỊ CHÍNH SÁCH</span><h2>Thời hạn & chính sách</h2><p>Thiết lập mặc định chung không phải phê duyệt tài khoản. Chỉ điều chỉnh trực tiếp tài khoản cán bộ quản lý tại màn hình này.</p></div>:null}
   {section==="accounts"?<>
   <OwnerManagerPurgePanel surface="cards" onChanged={()=>{void refresh();void refreshManagerInbox();}}/>
@@ -338,9 +338,14 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
    <small>Duyệt một lần · Owner phải xác minh Authenticator trong 30 phút gần nhất để tạo mời hoặc duyệt.
     Một lần Owner duyệt với CAS, nhật ký và đọc lại; sau đó tài khoản được kích hoạt khi hoàn tất hồ sơ bắt buộc.</small>
   </details>
-  <OwnerOnceRosterResetPanel/>
-  <OwnerAccountCleanupPanel/>
-  <OwnerAccountBlockPanel/>
+  <details className="boi-manager-inbox">
+   <summary><strong>Quy trình bảo trì nâng cao · Chỉ Owner</strong></summary>
+   <p className="boi-oversight-note">Các công cụ này dùng để kiểm tra lịch sử, reset một lần và
+    thanh lọc tài khoản có kiểm soát. Hồ sơ đang hoạt động không tự động bị xóa.</p>
+   <OwnerOnceRosterResetPanel/>
+   <OwnerAccountCleanupPanel/>
+   <OwnerAccountBlockPanel/>
+  </details>
   </>:null}
   {section==="policies"?<header className="boi-policy-heading"><span>OWNER · THỜI HẠN VÀ QUYỀN TRUY CẬP</span>
     <h2>Thời hạn & Chính sách</h2>
