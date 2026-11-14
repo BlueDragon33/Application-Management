@@ -13,10 +13,12 @@ const when=(value:string|null)=>{
   ?new Intl.DateTimeFormat("vi-VN",{dateStyle:"short",timeStyle:"short",
     timeZone:"Europe/Moscow"}).format(date)+" (Moscow)":"Chưa xác minh";
 };
-export default function OwnerManagerPurgePanel({onChanged=()=>{}}:{
- onChanged?:()=>void;
+export default function OwnerManagerPurgePanel({onChanged=()=>{},surface="launch",onManage}: {
+ onChanged?:()=>void;surface?:"launch"|"cards";onManage?:(accountId:string)=>void;
 }){
  const [open,setOpen]=useState(false);
+ const [filter,setFilter]=useState<"all"|"pending"|"blocked"|"active"|"eligible">("all");
+ const [search,setSearch]=useState("");
  const [rows,setRows]=useState<BoiManagerPurgeRecord[]>([]);
  const [scanned,setScanned]=useState(false);
  const [nextCursor,setNextCursor]=useState<string|null>(null);
@@ -44,6 +46,14 @@ export default function OwnerManagerPurgePanel({onChanged=()=>{}}:{
  },[open,busy,authRequired]);
  const eligible=useMemo(()=>rows.filter(r=>r.eligible),[rows]);
  const chosen=useMemo(()=>rows.filter(r=>r.eligible&&selected.includes(r.accountId)),[rows,selected]);
+ const visible=useMemo(()=>rows.filter(r=>{
+   const state=r.accessStatus==="blocked"?"blocked":r.accessStatus==="pending"?"pending":"active";
+   if(filter==="eligible"&&!r.eligible)return false;
+   if(filter!=="all"&&filter!=="eligible"&&filter!==state)return false;
+   return [r.accountId,r.name,r.stage].join(" ").toLocaleLowerCase("vi")
+    .includes(search.trim().toLocaleLowerCase("vi"));
+ }),[rows,filter,search]);
+ const readyVisible=visible.filter(r=>r.eligible);
  async function scan(cursor?:string){
   if(lock.current)return;lock.current=true;setBusy(true);setError("");setMessage("");
   try{
@@ -56,6 +66,10 @@ export default function OwnerManagerPurgePanel({onChanged=()=>{}}:{
     if(!cursor){setRows([]);setScanned(false);setSelected([]);setNextCursor(null);}}}
   finally{lock.current=false;if(mounted.current)setBusy(false);}
  }
+ useEffect(()=>{if(surface==="cards")queueMicrotask(()=>{void scan();});
+  // One scan when a routed card surface becomes visible. Further refresh is manual.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+ },[surface]);
  function finishAuth(verified:boolean){
   setAuthRequired(null);authResolver.current?.(verified);authResolver.current=null;
  }
@@ -103,11 +117,76 @@ export default function OwnerManagerPurgePanel({onChanged=()=>{}}:{
   setSelected(ids=>on?[...ids.filter(x=>x!==accountId),accountId].slice(0,MAX):ids.filter(x=>x!==accountId));
  };
  return <>
-  <button ref={trigger} type="button" className={styles.launch}
+  {surface==="cards"?<section className={styles.directPanel} aria-label="Quản lý và thanh lọc tài khoản cán bộ">
+   <div className={styles.directHeading}>
+    <div><span className={styles.eyebrow}>OWNER · ACCOUNT FIRST · D1</span>
+     <h3>Thời hạn & tài khoản cán bộ quản lý</h3>
+     <p>Chọn ngay trên từng thẻ để thanh lọc hồ sơ cũ. Tài khoản đang hoạt động hoặc có dữ liệu được bảo vệ.</p></div>
+    <button type="button" className={styles.reload} disabled={busy} onClick={()=>void scan()}>
+     {busy?"Đang đối chiếu D1…":"↻ Làm mới"}</button>
+   </div>
+   <div className={styles.stats} aria-label="Tổng hợp tài khoản">
+    <div><span aria-hidden="true">♙</span><strong>{rows.length}</strong><small>Đã đọc từ D1</small></div>
+    <div><span aria-hidden="true">◷</span><strong>{rows.filter(x=>x.accessStatus==="pending").length}</strong><small>Chờ xác nhận</small></div>
+    <div><span aria-hidden="true">⊘</span><strong>{rows.filter(x=>x.accessStatus==="blocked").length}</strong><small>Đã thu hồi</small></div>
+    <div><span aria-hidden="true">✓</span><strong>{rows.filter(x=>x.accessStatus==="approved").length}</strong><small>Đang hoạt động</small></div>
+    <div><span aria-hidden="true">⌫</span><strong>{rows.filter(x=>x.eligible).length}</strong><small>Được phép xóa</small></div>
+   </div>
+   <div className={styles.directTools}>
+    <label className={styles.searchBox}>Tìm tên hoặc mã tài khoản
+     <input type="search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Tên cán bộ, ID…" /></label>
+    <div className={styles.filters} aria-label="Lọc trạng thái">
+     {([["all","Tất cả"],["pending","Chờ xác nhận"],["blocked","Đã thu hồi"],
+        ["active","Đang hoạt động"],["eligible","Đủ điều kiện xóa"]] as const).map(([key,label])=>
+       <button key={key} type="button" aria-pressed={filter===key} onClick={()=>setFilter(key)}>{label}</button>)}
+    </div>
+   </div>
+   <div className={styles.bulkToolbar} role="group" aria-label="Xử lý hàng loạt có điều kiện">
+    <span><strong>{chosen.length}</strong> đã chọn · {visible.length} đang hiển thị</span>
+    <button type="button" disabled={busy||!readyVisible.length} onClick={()=>setSelected(readyVisible.slice(0,MAX).map(r=>r.accountId))}>☑ Chọn tất cả đủ điều kiện</button>
+    <button type="button" disabled={busy||!chosen.length} onClick={()=>setSelected([])}>Bỏ chọn</button>
+    <button type="button" className={styles.deleteBulk} disabled={busy||!chosen.length} onClick={()=>{setError("");setOpen(true);}}>⌫ Xóa đã chọn</button>
+    <button type="button" className={styles.deleteRevoked} disabled={busy||!rows.some(r=>r.accessStatus==="blocked"&&r.eligible)}
+      onClick={()=>{setSelected(rows.filter(r=>r.accessStatus==="blocked"&&r.eligible).slice(0,MAX).map(r=>r.accountId));setError("");setOpen(true);}}>Xóa tất cả đã thu hồi đủ điều kiện</button>
+   </div>
+   {error?<p className={styles.error} role="alert">{error}</p>:null}
+   {message?<p className={styles.success} role="status">{message}</p>:null}
+   {scanned?<div className={styles.directGrid}>
+    {visible.map(r=>{
+     const state=r.accessStatus==="blocked"?"Đã thu hồi":r.accessStatus==="pending"?"Chờ xác nhận":"Đang hoạt động";
+     return <article key={r.accountId} className={styles.directCard} data-status={r.accessStatus||"unknown"}>
+      <div className={styles.cardTop}>
+       <label className={styles.cardCheck} title={r.eligible?"Chọn tài khoản để xóa":"Tài khoản được bảo vệ"}>
+        <input type="checkbox" aria-label={`Chọn xóa ${r.name}`} checked={selected.includes(r.accountId)}
+         disabled={busy||!r.eligible||(!selected.includes(r.accountId)&&selected.length>=MAX)}
+         onChange={e=>toggle(r.accountId,e.target.checked)}/>
+       </label>
+       <span className={styles.avatar} aria-hidden="true">{(r.name||"C").slice(0,1).toLocaleUpperCase("vi")}</span>
+       <span className={styles.status} data-status={r.accessStatus||"unknown"}>{state}</span>
+      </div>
+      <strong className={styles.cardName}>{r.name||"Chưa khai báo"}</strong>
+      <small className={styles.cardRole}>Cán bộ quản lý · {r.stage||"Hồ sơ chưa xác minh"}</small>
+      <div className={styles.cardMeta}><span>Đăng ký</span><strong>{when(r.createdAt)}</strong></div>
+      <div className={styles.cardMeta}><span>Phiên hiện tại</span><strong>{r.activeSessions??"—"}</strong></div>
+      <div className={styles.cardMeta}><span>Trạng thái xóa</span><strong>{r.eligible?"Đủ điều kiện":"Được bảo vệ"}</strong></div>
+      {!r.eligible?<small className={styles.blocker} title={r.blockers.join("; ")}>{r.blockers.join("; ")||"Không được phép xóa theo chính sách D1"}</small>:null}
+      <footer className={styles.cardActions}>
+       {onManage?<button type="button" onClick={()=>onManage(r.accountId)}>◷ Điều chỉnh</button>:null}
+       <button type="button" disabled={busy||!r.eligible} className={styles.cardDelete}
+        onClick={()=>{setSelected([r.accountId]);setError("");setOpen(true);}}>⌫ Xóa</button>
+      </footer>
+      <code title={r.accountId}>{r.accountId.slice(0,20)}…</code>
+     </article>;
+    })}
+    {!visible.length?<p className={styles.empty}>Không có cán bộ phù hợp bộ lọc; hồ sơ được bảo vệ không tự biến mất.</p>:null}
+   </div>:<p className={styles.empty} role="status">{busy?"Đang kiểm tra D1…":"Chưa có kết quả được xác minh; chọn Làm mới."}</p>}
+   {nextCursor?<button type="button" className={styles.reload} disabled={busy} onClick={()=>void scan(nextCursor)}>Xem tiếp tối đa 100 tài khoản</button>:null}
+   <p className={styles.footer}>Xóa trực tiếp nghĩa là chọn ngay trên thẻ; khi xác nhận vẫn phải qua Authenticator Owner, đối chiếu D1, CAS và nhật ký. Không tự động xóa tài khoản có dữ liệu.</p>
+  </section>:<button ref={trigger} type="button" className={styles.launch}
     onClick={()=>{setOpen(true);setError("");setMessage("");void scan();}}>
    <span aria-hidden="true">♻</span>
    <span><strong>Thanh lọc cán bộ · Xóa D1</strong><small>Chọn nhiều, kiểm tra điều kiện và xóa vĩnh viễn</small></span>
-  </button>
+  </button>}
   {open?<div className={styles.backdrop} role="presentation" onMouseDown={e=>{
     if(e.target===e.currentTarget&&!busy&&!authRequired)setOpen(false);
   }}>
