@@ -73,10 +73,14 @@ test("shared-device release smoke fails on Central bridge failure and mismatched
   const device = { deviceId: "c".repeat(64), status: "approved", appId: "boi-ech", readOnly: true, userLabel: "PRIVATE_NEVER_LOG" };
   const summary = { appId: "boi-ech", connection: "connected", remoteAdminReady: false, deviceRegistryReadOnly: true, webHref: "https://boi-ech.boiech-ai.workers.dev" };
   const operations = { actor: { role: "owner" }, summaries: [summary], devices: [device] };
-  const access = { ok: true, application: "boi-ech", contract: "boi-device-registry.v2", readOnly: true, devices: [{ deviceId: device.deviceId, status: device.status }], counts: { total: 1 } };
+  const binding = { deviceId: device.deviceId, status: device.status,
+    account: { accountId: "acc_" + "a".repeat(64), name: "PRIVATE_ACCOUNT_NEVER_LOG", role: "manager" },
+    browserLabel: "PRIVATE_DEVICE_NEVER_LOG", clientClass: "phone", progress: null };
+  const access = { ok: true, application: "boi-ech", contract: "boi-device-registry-owner.v1",
+    readOnly: true, devices: [binding], counts: { total: 1 } };
   const result = requireCentralDeviceReadback(operations, access);
   assert.deepEqual(result, { centralBoiConnected: true, accessReadbackReady: true, deviceCount: 1, humanOwnerAcceptance: "not-performed" });
-  assert.doesNotMatch(JSON.stringify(result), /PRIVATE_NEVER_LOG|cccccccc/);
+  assert.doesNotMatch(JSON.stringify(result), /PRIVATE_NEVER_LOG|PRIVATE_ACCOUNT_NEVER_LOG|PRIVATE_DEVICE_NEVER_LOG|cccccccc/);
   for (const changed of [{ summaries: [{ ...summary, connection: "unavailable" }] }, { summaries: [{ ...summary, remoteAdminReady: true }] }, { summaries: [{ ...summary, deviceRegistryReadOnly: false }] }, { summaries: [{ ...summary, webHref: "https://other.example.test" }] }, { devices: [] }, { devices: [device, device] }]) {
     assert.throws(() => requireCentralDeviceReadback({ ...operations, ...changed }, access));
   }
@@ -88,6 +92,31 @@ test("shared-device release smoke fails on Central bridge failure and mismatched
   assert.throws(() => requireCentralDeviceReadback(empty, { ok: true, application: "boi-ech", contract: "boi-account-summary.v2", devices: [], counts: null }));
   assert.throws(() => requireCentralDeviceReadback({ ...operations, devices: [{ ...device, canApprove: true }] }, access));
   assert.throws(() => requireCentralDeviceReadback(operations, { ...access, devices: [device] }));
+  // Production regression: generic minimal registry v2 must not be mistaken
+  // for the Owner device inventory that is returned by ?view=owner.
+  assert.throws(() => requireCentralDeviceReadback(operations, { ...access,
+    contract: "boi-device-registry.v2", devices: [{ deviceId: device.deviceId, status: device.status }] }),
+    /CENTRAL_BOI_REGISTRY_NOT_READY/);
+  assert.throws(() => requireCentralDeviceReadback(operations, { ...access,
+    devices: [{ ...binding, account: { ...binding.account, role: "owner" } }] }),
+    /CENTRAL_BOI_REGISTRY_SCOPE_INVALID/);
+  assert.throws(() => requireCentralDeviceReadback(operations, { ...access,
+    devices: [{ ...binding, account: { ...binding.account, accountId: "bad" } }] }),
+    /CENTRAL_BOI_REGISTRY_SCOPE_INVALID/);
+  assert.throws(() => requireCentralDeviceReadback(operations, { ...access,
+    devices: [{ ...binding, browserLabel: "X".repeat(81) }] }),
+    /CENTRAL_BOI_REGISTRY_SCOPE_INVALID/);
+  assert.throws(() => requireCentralDeviceReadback(operations, { ...access,
+    devices: [{ ...binding, clientClass: "unknown" }] }),
+    /CENTRAL_BOI_REGISTRY_SCOPE_INVALID/);
+  assert.throws(() => requireCentralDeviceReadback(operations, { ...access,
+    devices: [{ ...binding, progress: { completed: 9, total: 8 } }] }),
+    /CENTRAL_BOI_REGISTRY_SCOPE_INVALID/);
+  assert.throws(() => requireCentralDeviceReadback(operations, { ...access,
+    devices: [{ ...binding, canManageAccess: true }] }),
+    /CENTRAL_BOI_REGISTRY_SCOPE_INVALID/);
+  assert.equal(requireCentralDeviceReadback(operations, { ...access,
+    devices: [{ ...binding, progress: { completed: 6, total: 8 } }] }).deviceCount, 1);
 });
 
 test("the account summary smoke independently enforces a verified aggregate-only response", async () => {
