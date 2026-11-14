@@ -447,7 +447,7 @@ function DeviceGate({ access, checking, error, retry }: { access: Access | null;
         <div className="brand-seal">BE</div>
         <span className={`eyebrow gate-${access?.status ?? "checking"}`}>{access ? statusLabels[access.status] : "Đang xác thực"}</span>
         <h1>{access?.status === "pending" ? "Thiết bị quản trị đang chờ Application Management cấp quyền." : access?.status === "blocked" ? "Thiết bị quản trị này đã bị khóa." : "Đang chuẩn bị khu quản trị Bơi ếch…"}</h1>
-        <p>{access?.status === "pending" ? "Mã QT bên dưới thuộc Application Management. Sau khi Trung tâm cấp quyền, khu quản trị Bơi ếch sẽ tự kiểm tra lại." : error || "Khóa quản trị đang được kiểm tra trên thiết bị hiện tại."}</p>
+        <p>{access?.status === "pending" ? "Mã QT bên dưới thuộc Application Management. Sau khi Trung tâm cấp quyền, nhấn Kiểm tra lại quyền; hệ thống không hỏi máy chủ định kỳ." : error || "Khóa quản trị đang được kiểm tra trên thiết bị hiện tại."}</p>
         {access?.deviceCode ? <div className="gate-code"><span>Mã thiết bị quản trị</span><strong>{access.deviceCode}</strong><button onClick={() => navigator.clipboard.writeText(access.deviceCode)}>Sao chép mã</button></div> : null}
         <button className="button primary" onClick={retry} disabled={checking}>{checking ? "Đang kiểm tra…" : "Kiểm tra lại quyền"}</button>
         <small>Quyền thiết bị QT được quản lý tập trung tại Application Management; dữ liệu người học vẫn thuộc Bơi ếch.</small>
@@ -832,7 +832,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
   const [access, setAccess] = useState<Access | null>(null);
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [checking, setChecking] = useState(true);
-  const {count:manualSyncCount,ids:manualSyncIds,acknowledge:ackManualSync}=useBoiSyncNotices("owner");
+  const {count:manualSyncCount,ids:manualSyncIds,acknowledge:ackManualSync}=useBoiSyncNotices(access?.role==="owner"?"owner":"");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [boiOnline, setBoiOnline] = useState(false);
