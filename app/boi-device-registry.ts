@@ -5,6 +5,7 @@ export type BoiDeviceBinding = {
   account?: { accountId: string; name: string | null; role: "manager" | "teacher" | "learner" | null };
   browserLabel?: string | null;
   clientClass?: "desktop" | "phone" | "tablet";
+  progress?: { completed: number; total: number } | null;
 };
 
 export type BoiDeviceRegistry = {
@@ -38,8 +39,15 @@ export function parseBoiDeviceRegistry(value: unknown): BoiDeviceRegistry | null
     if (ownerView) {
       const account = record(row.account);
       const { accountId, name, role } = account;
-      const label = row.browserLabel, cls = row.clientClass;
-      if (Object.keys(extra).length !== 3 || !("account" in extra) || !("browserLabel" in extra)
+      const label = row.browserLabel, cls = row.clientClass, progress = row.progress;
+      const p = record(progress);
+      const progressValid = progress === null ||
+        (typeof progress === "object" && !Array.isArray(progress) && Object.keys(p).length === 2
+          && Number.isSafeInteger(p.completed) && Number(p.completed) >= 0
+          && Number.isSafeInteger(p.total) && Number(p.total) === 8
+          && Number(p.completed) <= 8);
+      if (Object.keys(extra).length !== 4 || !("account" in extra) || !("browserLabel" in extra)
+        || !("progress" in extra) || !progressValid
         || !("clientClass" in extra) || Object.keys(account).length !== 3
         || typeof accountId !== "string" || !/^acc_[a-f0-9]{64}$/.test(accountId)
         || (name !== null && (typeof name !== "string" || name.length > 160))
@@ -48,7 +56,8 @@ export function parseBoiDeviceRegistry(value: unknown): BoiDeviceRegistry | null
         || (cls !== "desktop" && cls !== "phone" && cls !== "tablet")) return null;
       devices.push({ deviceId, status, account: { accountId, name: name as string | null,
         role: role as "manager" | "teacher" | "learner" | null },
-        browserLabel: label as string | null, clientClass: cls });
+        browserLabel: label as string | null, clientClass: cls,
+        progress: progress as { completed: number; total: number } | null });
     } else {
       if (Object.keys(extra).length) return null;
       devices.push({ deviceId, status });
