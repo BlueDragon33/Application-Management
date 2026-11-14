@@ -1476,7 +1476,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
           <button type="button" aria-current={tab==="oversight"?"page":undefined} className={tab==="oversight"?"active":""} onClick={()=>setTab("oversight")}><i aria-hidden="true">◎</i><span><strong>Giảng viên & Học viên</strong></span></button>
           <button type="button" aria-current={tab==="policies"?"page":undefined} className={tab==="policies"?"active":""} onClick={()=>setTab("policies")}><i aria-hidden="true">◷</i><span><strong>Thời hạn & Chính sách</strong></span></button>
           </>:null}
-          {access.role!=="viewer"?<button type="button" aria-current={tab==="ai"?"page":undefined} className={tab==="ai"?"active":""} onClick={()=>setTab("ai")}><i aria-hidden="true">✦</i><span><strong>Điều hành AI</strong></span></button>:null>
+          {access.role!=="viewer"?<button type="button" aria-current={tab==="ai"?"page":undefined} className={tab==="ai"?"active":""} onClick={()=>setTab("ai")}><i aria-hidden="true">✦</i><span><strong>Điều hành AI</strong></span></button>:null}
         </nav>
         <div className="boi-side-clock" aria-label="Đồng hồ tại thiết bị">
           <strong>{clockNow ? new Date(clockNow).toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit"}) : "--:--"}</strong>
