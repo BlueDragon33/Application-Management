@@ -41,13 +41,43 @@ export function requireCentralDeviceReadback(operations, access) {
     || boi.deviceRegistryReadOnly !== true || boi.webHref !== boiOrigin || !Array.isArray(operations.devices)) {
     throw new Error("CENTRAL_BOI_OPERATIONS_NOT_READY");
   }
-  if (access?.ok !== true || access.application !== "boi-ech" || access.contract !== "boi-device-registry.v2"
-    || access.readOnly !== true || !Array.isArray(access.devices) || access.counts?.total !== access.devices.length) {
+  // The Owner view is intentionally richer than the generic v2 registry.
+  // Both /api/operations and /api/apps/boi-ech/access now consume this
+  // canonical Owner-only Account-first binding contract. Insisting on the
+  // obsolete minimal v2 response would reject a correctly deployed Worker.
+  if (access?.ok !== true || access.application !== "boi-ech"
+    || access.contract !== "boi-device-registry-owner.v1"
+    || access.readOnly !== true || !Array.isArray(access.devices)
+    || !access.counts || Object.keys(access.counts).length !== 1
+    || access.counts.total !== access.devices.length) {
     throw new Error("CENTRAL_BOI_REGISTRY_NOT_READY");
   }
   const shared = operations.devices.filter(item => item?.appId === "boi-ech");
-  if (shared.some(item => item.readOnly !== true || item.canApprove || item.canRemove || item.canUnblock || item.canEditPermission || item.canManageAccess)
-    || access.devices.some(item => !item || Object.keys(item).length !== 2)) {
+  if (shared.some(item => item.readOnly !== true || item.canApprove || item.canRemove || item.canUnblock || item.canEditPermission || item.canManageAccess)) {
+    throw new Error("CENTRAL_BOI_REGISTRY_SCOPE_INVALID");
+  }
+  // Validate the complete Owner shape rather than weakening the check to
+  // 'any matching device'. These are browser key bindings, not physical
+  // hardware IDs, and must not grant management capabilities in Central.
+  const keys = value => value && typeof value === "object" && !Array.isArray(value)
+    ? Object.keys(value).sort().join("|") : "";
+  const expectedDeviceKeys = "account|browserLabel|clientClass|deviceId|progress|status";
+  const expectedAccountKeys = "accountId|name|role";
+  const expectedProgressKeys = "completed|total";
+  if (access.devices.some(device => {
+    if (keys(device) !== expectedDeviceKeys || keys(device.account) !== expectedAccountKeys) return true;
+    const { accountId, name, role } = device.account;
+    if (typeof accountId !== "string" || !/^acc_[a-f0-9]{64}$/.test(accountId)
+      || (name !== null && (typeof name !== "string" || name.length > 160))
+      || (role !== null && !["manager", "teacher", "learner"].includes(role))
+      || (device.browserLabel !== null && (typeof device.browserLabel !== "string" || device.browserLabel.length > 80))
+      || !["desktop", "phone", "tablet"].includes(device.clientClass)) return true;
+    const progress = device.progress;
+    return progress !== null && (
+      keys(progress) !== expectedProgressKeys || !Number.isSafeInteger(progress.completed)
+      || !Number.isSafeInteger(progress.total) || progress.total !== 8
+      || progress.completed < 0 || progress.completed > progress.total);
+  })) {
     throw new Error("CENTRAL_BOI_REGISTRY_SCOPE_INVALID");
   }
   const ids = devices => {
