@@ -27,7 +27,7 @@ test("Owner V12 selection and quick actions live on manager cards, never require
 test("Owner V12 retains Owner MFA, CAS, independent D1 readback and protected account states",()=>{
  assert.match(manager,/purgeOwnerManagerAccount/);
  assert.match(manager,/STEP_UP_REQUIRED/);
- assert.match(manager,/d\?\.applied!==false/);
+ assert.match(manager,/d\.applied!==false/);
  assert.match(route,/verifyControlProof/);
  assert.match(route,/owner.role!=="owner"/);
  assert.match(route,/Number.isSafeInteger\(r.activeSessions\)/);
@@ -38,7 +38,7 @@ test("Owner V12 retains Owner MFA, CAS, independent D1 readback and protected ac
  assert.match(manager,/disabled=\{busy\|\|!r.eligible/);
 });
 test("Owner policy and manager account tabs render new direct dashboard; legacy operations remain accessible but collapsed",()=>{
- assert.match(expiry,/section==="accounts"\?<></);
+ assert.match(expiry,/section==="accounts"\?<>/);
  assert.match(expiry,/OwnerManagerPurgePanel surface="cards"/);
  assert.match(expiry,/onManage=\{accountId=>/);
  assert.match(expiry,/boi-manager-inbox/);
