@@ -11,6 +11,7 @@ import AuthenticatorStepUp from "../../authenticator-step-up";
 import AccountExpiryPanel from "./account-expiry-panel";
 import bindingUi from "./owner-binding-bulk.module.css";
 import BoiOwnerOverview from "./boi-owner-overview";
+import {useBoiSyncNotices,broadcastBoiChange} from "./manual-sync-notices";
 import AiControlCenter, { type AiControlData } from "../../ai-control-center";
 import { csvCell } from "../../report-exports";
 import { parseBoiDeviceRegistry, type BoiDeviceRegistry } from "../../boi-device-registry";
@@ -831,6 +832,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
   const [access, setAccess] = useState<Access | null>(null);
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [checking, setChecking] = useState(true);
+  const {count:manualSyncCount,ids:manualSyncIds,acknowledge:ackManualSync}=useBoiSyncNotices("owner");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [boiOnline, setBoiOnline] = useState(false);
@@ -903,9 +905,11 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
         if(alive)setAuthConnection("unavailable");
       }
     };
+    const onResume=()=>{if(!document.hidden)void check();};
     void check();
-    const timer=window.setInterval(()=>{void check();},120_000);
-    return()=>{alive=false;window.clearInterval(timer);};
+    window.addEventListener("focus",onResume);
+    window.addEventListener("online",onResume);
+    return()=>{alive=false;window.removeEventListener("focus",onResume);window.removeEventListener("online",onResume);};
   },[authAutoCheck]);
   useEffect(()=>{
     if(!utilityOpen)return;
@@ -1161,8 +1165,8 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
     }
   }
 
-  async function refresh(currentCredential = credential, currentAccess = access, options: { discoverNew?: boolean; quiet?: boolean } = {}) {
-    if (!currentCredential || !currentAccess || currentAccess.status !== "approved" || refreshRunning.current) return;
+  async function refresh(currentCredential = credential, currentAccess = access, options: { discoverNew?: boolean; quiet?: boolean } = {}): Promise<boolean> {
+    if (!currentCredential || !currentAccess || currentAccess.status !== "approved" || refreshRunning.current) return false;
     const discoverNew = options.discoverNew ?? true;
     const quiet = options.quiet ?? false;
     refreshRunning.current = true;
@@ -1188,13 +1192,21 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
         deviceRegistry: previous?.deviceRegistry,
       };
       commitDashboard(next);
-      await loadBoi(next, currentCredential, currentAccess, discoverNew, quiet);
+      return await loadBoi(next, currentCredential, currentAccess, discoverNew, quiet);
     } catch (caught) {
       const message=caught instanceof Error ? caught.message : "Không thể tải khu quản trị Bơi ếch.";
       setBoiOnline(false);setError(message);
       if(dashboardRef.current)commitDashboard({...dashboardRef.current,upstreamError:message});
+      return false;
     }
     finally { refreshRunning.current = false; if (!quiet) setChecking(false); }
+  }
+
+  async function manualSync(){
+    if(checking||refreshRunning.current)return;
+    const observed=[...manualSyncIds];
+    const verified=await refresh(credential,access,{discoverNew:true});
+    if(verified)ackManualSync(observed); // only acknowledge notices after actual server readback
   }
 
   async function initialize() {
@@ -1308,22 +1320,35 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
 
   useEffect(() => {
     if (!credential || access?.status !== "pending") return;
-    const timer = window.setInterval(() => {
-      register(credential).then((state) => {
+    let active=true, inFlight=false;
+    const validate=()=>{
+      if(!active||document.hidden||!navigator.onLine||inFlight)return;
+      inFlight=true;
+      void register(credential).then(state=>{
+        if(!active)return;
         setAccess(state);
-        if (state.status === "approved") void refresh(credential, state, { discoverNew: true });
-      }).catch(() => undefined);
-    }, 60_000);
-    return () => window.clearInterval(timer);
+        if(state.status==="approved")void refresh(credential,state,{discoverNew:true});
+      }).catch(()=>undefined).finally(()=>{inFlight=false;});
+    };
+    const onVisible=()=>{if(!document.hidden)validate();};
+    const onMessage=(event:MessageEvent)=>{if(event.data?.type==="boi-owner-access-changed")validate();};
+    window.addEventListener("focus",validate);
+    window.addEventListener("pageshow",validate);
+    window.addEventListener("online",validate);
+    document.addEventListener("visibilitychange",onVisible);
+    navigator.serviceWorker?.addEventListener("message",onMessage);
+    return()=>{
+      active=false;
+      window.removeEventListener("focus",validate);
+      window.removeEventListener("pageshow",validate);
+      window.removeEventListener("online",validate);
+      document.removeEventListener("visibilitychange",onVisible);
+      navigator.serviceWorker?.removeEventListener("message",onMessage);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [access?.status, credential]);
-
-  useEffect(() => {
-    if (!credential || access?.status !== "approved") return;
-    const timer = window.setInterval(() => void refresh(credential, access, { discoverNew: false, quiet: true }), 60_000);
-    return () => window.clearInterval(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [access?.deviceId, credential]);
+  // Approved devices never poll the owner dashboard. An incoming notice only
+  // increments the button badge. Manual user click performs the server read.
 
   async function dashboardAction(body: Record<string, unknown>, success: string) {
     if (!dashboard?.boiBridge) return false;
@@ -1388,6 +1413,8 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
       }
       if (data.automation) commitDashboard({ ...(dashboardRef.current ?? dashboard), automation: data.automation });
       setNotice(success);
+      // Notify other open administration tabs only after verified mutation.
+      if(access?.role==="owner")broadcastBoiChange("owner");
       return true;
     } catch (caught) { setNotice(caught instanceof Error ? caught.message : "Không thể thực hiện thao tác."); return false; }
     finally { if (automationUpdate) automationWriteRef.current = false; if (managementUpdate) { managerWriteRef.current = false; setManagementBusy(false); } }
@@ -1549,7 +1576,12 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
           </div>
           <div className="topbar-actions"><span className={`sync-state ${devicesVerified&&online?"boi-confirmed":"sync-warning"}`} role="status"><i/> {!online?"Trình duyệt không có mạng":devicesVerified?"Control API đã xác minh":"Chưa xác minh kết nối"}</span>
           <button type="button" className="button appearance-control" onClick={()=>setAppearanceOpen(true)} aria-expanded={appearanceOpen} aria-controls="admin-appearance-panel"><b>Aa</b> Giao diện</button>
-          <button type="button" className="button boi-sync-button" onClick={()=>void refresh(credential,access,{discoverNew:true})} disabled={checking||!online}>{checking?"Đang cập nhật…":"↻ Đồng bộ"}</button>
+          <button type="button" className="button boi-sync-button boi-manual-sync-control"
+            onClick={()=>void manualSync()} disabled={checking||!online}
+            aria-label={manualSyncCount>0?`Đồng bộ thủ công, ${manualSyncCount} thông báo thay đổi đang chờ`:"Đồng bộ thủ công"}>
+            {checking?"Đang cập nhật…":"↻ Đồng bộ"}
+            {manualSyncCount>0?<span className="boi-manual-sync-badge" aria-hidden="true">{manualSyncCount>99?"99+":manualSyncCount}</span>:null}
+          </button>
           <div className="boi-top-account">
             <button type="button" ref={accountTriggerRef} className="boi-account-trigger" aria-haspopup="dialog" aria-expanded={accountMenuOpen} aria-controls="boi-account-menu" onClick={()=>setAccountMenuOpen(!accountMenuOpen)}>
               <span className="boi-account-avatar" aria-hidden="true">{user.displayName.slice(0,1).toUpperCase()}</span>
