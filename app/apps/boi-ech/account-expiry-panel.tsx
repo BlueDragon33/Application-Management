@@ -5,6 +5,7 @@ import AuthenticatorStepUp from "../../authenticator-step-up";
 
 import OwnerAccountCleanupPanel from "./owner-account-cleanup-panel";
 import OwnerManagerPurgePanel from "./owner-manager-purge-panel";
+import design from "./owner-directory-v12.module.css";
 import OwnerOnceRosterResetPanel from "./owner-once-roster-reset-panel";
 import AccountCapacityPanel from "./account-capacity-panel";
 import OwnerAccountBlockPanel from "./owner-account-block-panel";
@@ -33,6 +34,7 @@ function managerAccessLabel(m:BoiManagerInboxRecord){
 }
 function moscow(value:string|null|undefined) {
  if(!value)return "Chưa cấp";
+ if(value==="9999-12-31T23:59:59.000Z")return "Không giới hạn";
  const date=new Date(value);
  return Number.isFinite(date.getTime())?new Intl.DateTimeFormat("vi-VN",{
   timeZone:"Europe/Moscow",dateStyle:"short",timeStyle:"short"
@@ -54,6 +56,9 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
  const [managerNotice,setManagerNotice]=useState(""),[inviteUrl,setInviteUrl]=useState("");
  const [managerWriting,setManagerWriting]=useState(false);
  const [managerFilter,setManagerFilter]=useState<"current"|"stale"|"archived"|"all">("current");
+ const [oversightRole,setOversightRole]=useState<"all"|"teacher"|"learner">("all");
+ const [oversightState,setOversightState]=useState<"all"|"pending"|"active"|"blocked">("all");
+ const [oversightCleanupOpen,setOversightCleanupOpen]=useState(false);
  const [managerSearch,setManagerSearch]=useState("");
  const [archiveTarget,setArchiveTarget]=useState<BoiManagerInboxRecord|null>(null);
  const [archiveConfirm,setArchiveConfirm]=useState("");
@@ -229,8 +234,9 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
   {section==="oversight"?<div className="boi-account-header"><span>GIÁM SÁT · CHỈ ĐỌC</span><h2>Giảng viên & học viên</h2><p>Hiển thị thông tin, vai trò, trạng thái hồ sơ và thời hạn để giám sát. Không duyệt, từ chối, cấp hoặc thu hồi quyền từ đây.</p></div>:null}
   {section==="policies"?<div className="boi-account-header"><span>OWNER · QUẢN TRỊ CHÍNH SÁCH</span><h2>Thời hạn & chính sách</h2><p>Thiết lập mặc định chung không phải phê duyệt tài khoản. Chỉ điều chỉnh trực tiếp tài khoản cán bộ quản lý tại màn hình này.</p></div>:null}
   {section==="accounts"?<>
-  <details className="boi-manager-inbox" open>
-   <summary><strong>Hồ sơ Cán bộ quản lý · Tự kích hoạt</strong></summary>
+  <OwnerManagerPurgePanel surface="cards" onChanged={()=>{void refresh();void refreshManagerInbox();}}/>
+  <details className="boi-manager-inbox">
+   <summary><strong>Tác vụ chuyên sâu · Lời mời, hồ sơ và lịch sử cán bộ</strong></summary>
    {!singleReview?<p role="alert" className="boi-manager-blocked">Chưa xác minh cấu hình duyệt một lần khớp Bơi Ếch. Chỉ xem hồ sơ; không tạo lời mời hoặc phát lệnh duyệt cũ.</p>:null}
    <p>Hồ sơ quản lý thuộc Bơi ếch, kiểm soát tập trung từ giao diện Owner này. Mã mời có hiệu lực 24 giờ,
     dùng một lần; người nhận tự đặt mật khẩu và khóa P-256 trên đúng trang Bơi ếch.</p>
@@ -334,7 +340,6 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
   </details>
   <OwnerOnceRosterResetPanel/>
   <OwnerAccountCleanupPanel/>
-  <OwnerManagerPurgePanel onChanged={()=>{void refresh();void refreshManagerInbox();}}/>
   <OwnerAccountBlockPanel/>
   </>:null}
   {section==="policies"?<header className="boi-policy-heading"><span>OWNER · THỜI HẠN VÀ QUYỀN TRUY CẬP</span>
@@ -351,34 +356,73 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
   {section!=="accounts"&&error?<div role="alert"><strong>Chưa xác minh:</strong> {error} <a href="/__account">Xác minh Authenticator (nếu được yêu cầu)</a></div>:null}
   {section!=="accounts"&&notice?<p role="status">{notice}</p>:null}
   {section!=="accounts"?<button type="button" className="boi-refresh-inline" disabled={busy||loading} onClick={()=>void refresh()}>↻ Đọc lại tài khoản từ Bơi Ếch</button>:null}
-  {section!=="accounts"?<label className="boi-policy-search">Tìm tài khoản / vai trò
+  {section==="oversight"?<label className="boi-policy-search">Tìm tài khoản / vai trò
    <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Tên, ID, vai trò…"/>
   </label>:null}
   {section!=="accounts"?(accountsVerified?<p className="boi-verified-note">Đã xác minh {accounts.length} tài khoản; hiển thị tối đa 100 hồ sơ phù hợp bộ lọc.</p>
    :<p role="status">Chưa có danh sách tài khoản được xác minh; không suy diễn 0 tài khoản khi kết nối lỗi.</p>):null}
 
-  {section==="oversight"&&accountsVerified?<div className="boi-owner-table-scroll">
-    <table className="boi-owner-table"><thead><tr><th>Tên tài khoản</th><th>Vai trò</th><th>Hồ sơ</th><th>Trạng thái quyền</th><th>Thời hạn</th></tr></thead>
-      <tbody>{displayed.map(a=><tr key={a.accountId}>
-        <td><strong>{a.name||"Chưa khai báo"}</strong><small>{a.accountId.slice(0,20)}…</small></td>
-        <td>{labels[a.role]||a.role}</td><td>{a.onboardingStage||"Chưa xác minh trạng thái"}</td>
-        <td>{a.entitlement?.state||"Chưa kích hoạt"}</td><td>{moscow(a.entitlement?.expiresAt)}</td>
-      </tr>)}</tbody></table>
-    {!displayed.length?<p>Không có giảng viên/học viên phù hợp trong danh sách đã xác minh.</p>:null}
-    <p className="boi-oversight-note" role="status">Giám sát chỉ đọc · Quyền duyệt giảng viên/học viên thuộc cán bộ quản lý đã được cấp scope tại Bơi Ếch.</p>
+  {section==="oversight"&&accountsVerified?<div className={design.peopleDirectory}>
+    <div className={design.peopleStats}>
+      {([
+        ["Tổng hồ sơ",accounts.filter(a=>["learner","teacher"].includes(a.role)).length,"◈"],
+        ["Học viên",accounts.filter(a=>a.role==="learner").length,"♙"],
+        ["Giảng viên",accounts.filter(a=>a.role==="teacher").length,"♧"],
+        ["Chưa kích hoạt",accounts.filter(a=>["learner","teacher"].includes(a.role)&&!a.entitlement).length,"◷"],
+        ["Đang có hạn",accounts.filter(a=>["learner","teacher"].includes(a.role)&&a.entitlement?.active).length,"✓"]
+      ] as const).map(([name,value,symbol])=><div key={name} className={design.peopleStat}>
+        <span aria-hidden="true">{symbol}</span><strong>{value}</strong><small>{name}</small>
+      </div>)}
+    </div>
+    <div className={design.peopleTools}>
+      <div className={design.peopleFilters} aria-label="Lọc nhân sự theo vai trò">
+        {([["all","Tất cả"],["learner","Học viên"],["teacher","Giảng viên"]] as const).map(([key,name])=>
+          <button type="button" key={key} aria-pressed={oversightRole===key}
+            onClick={()=>setOversightRole(key)}>{name}</button>)}
+      </div>
+      <label>Trạng thái
+        <select value={oversightState} onChange={e=>setOversightState(e.target.value as typeof oversightState)}>
+         <option value="all">Tất cả</option><option value="pending">Chưa kích hoạt</option>
+         <option value="active">Đang hoạt động</option><option value="blocked">Đã thu hồi / tạm khóa</option>
+        </select></label>
+      <button type="button" className={design.cleanupTrigger}
+        onClick={()=>setOversightCleanupOpen(v=>!v)}
+        aria-expanded={oversightCleanupOpen}>⌫ {oversightCleanupOpen?"Đóng công cụ dọn tài khoản":"Kiểm tra & xóa hồ sơ cũ"}</button>
+    </div>
+    <div className={design.peopleGrid}>
+      {displayed.filter(a=>(oversightRole==="all"||a.role===oversightRole)&&(
+        oversightState==="all"||
+        oversightState==="pending"&&!a.entitlement||
+        oversightState==="active"&&Boolean(a.entitlement?.active)||
+        oversightState==="blocked"&&a.entitlement?.state==="suspended"
+      )).map(a=><article key={a.accountId} className={design.peopleCard}>
+        <div className={design.peopleCardTop}>
+         <span className={design.peopleAvatar} aria-hidden="true">{(a.name||"N").slice(0,1).toLocaleUpperCase("vi")}</span>
+         <span className={design.peopleBadge} data-active={Boolean(a.entitlement?.active)}>
+          {a.entitlement?.active?"Đang có hạn":a.entitlement?.state==="suspended"?"Đã tạm khóa":"Chưa kích hoạt"}</span>
+        </div>
+        <strong>{a.name||"Chưa khai báo"}</strong>
+        <small>{labels[a.role]||a.role} · {a.onboardingStage||"Hồ sơ chờ đồng bộ"}</small>
+        <dl><div><dt>Thời hạn</dt><dd>{moscow(a.entitlement?.expiresAt)}</dd></div>
+         <div><dt>Hồ sơ</dt><dd>{a.onboardingStage||"Chưa xác minh"}</dd></div></dl>
+        <div className={design.peopleActions}>
+         <button type="button" onClick={()=>{setSearch(a.name||a.accountId);}}>⌕ Tìm hồ sơ</button>
+         <button type="button" onClick={()=>setOversightCleanupOpen(true)}>♧ Xem điều kiện xóa</button>
+        </div>
+        <code title={a.accountId}>{a.accountId.slice(0,20)}…</code>
+      </article>)}
+    </div>
+    <p className={design.peopleNote}>Hồ sơ đang hoạt động không được xóa từ danh sách giám sát.
+      Chỉ Owner mới có thể kiểm kê và xóa dữ liệu đã được D1 xác nhận đủ điều kiện.</p>
+    {oversightCleanupOpen?<div className={design.oversightCleanup}><OwnerAccountCleanupPanel/></div>:null}
   </div>:null}
   {section==="policies"&&accountsVerified?<div className="boi-manager-expiry">
-    <h3><span aria-hidden="true">♙</span> Thời hạn cán bộ quản lý</h3>
-    <p>Chọn biểu tượng tài khoản để mở popup gia hạn, tạm khóa hoặc khôi phục quyền.</p>
-    <div className="boi-policy-manager-grid">{displayed.map(a=><button type="button" key={a.accountId}
-      aria-label={`Quản lý thời hạn của ${a.name||a.accountId}`}
-      onClick={()=>{setSelected(a.accountId);setPolicyPopup("manager");setError("");}}>
-      <span aria-hidden="true">♙</span><strong>{a.name||"Chưa khai báo"}</strong>
-      <small>{a.entitlement?.active?"Đang còn hạn":a.entitlement?"Không hoạt động":"Chưa kích hoạt"}</small>
-      <small>{moscow(a.entitlement?.expiresAt)}</small>
-    </button>)}</div>
-    {!displayed.length?<p role="status">Không có cán bộ quản lý phù hợp trong danh sách đã xác minh.</p>:null}
-    <OwnerManagerPurgePanel onChanged={()=>{void refresh();void refreshManagerInbox();}}/>
+    <OwnerManagerPurgePanel surface="cards" onManage={accountId=>{
+      if(!accounts.some(a=>a.accountId===accountId)){
+        setError("Tài khoản chưa có trong bản đọc thời hạn hiện tại. Hãy đồng bộ lại từ Bơi Ếch để chỉnh sửa.");return;
+      }
+      setSelected(accountId);setPolicyPopup("manager");setError("");
+    }} onChanged={()=>{void refresh();void refreshManagerInbox();}}/>
   </div>:null}
   {section==="policies"&&policyPopup==="manager"&&current?.role==="manager"?<div className="boi-policy-popup-backdrop" role="presentation"
     onMouseDown={event=>{if(event.target===event.currentTarget&&!busy)setPolicyPopup(null);}}>
