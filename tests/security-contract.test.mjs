@@ -139,7 +139,8 @@ test("keeps Boi Ech device cards stable and only discovers new devices on demand
 
   assert.match(client, /function mergeLearningDevices/);
   assert.match(client, /mergeLearningDevices\(currentDevices, incomingDevices, discoverNew, !discoverNew\)/);
-  assert.match(client, /discoverNew: false, quiet: true/);
+  assert.doesNotMatch(client, /window\.setInterval\(\(\) => void refresh/);
+  assert.match(client, /const verified=await refresh\(credential,access,\{discoverNew:true\}\)/);
   assert.match(client, /deviceCodes=/);
   assert.match(client, /discoverNew: true/);
   assert.match(client, /Cập nhật thiết bị/);
