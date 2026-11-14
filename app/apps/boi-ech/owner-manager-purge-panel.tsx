@@ -13,8 +13,8 @@ const when=(value:string|null)=>{
   ?new Intl.DateTimeFormat("vi-VN",{dateStyle:"short",timeStyle:"short",
     timeZone:"Europe/Moscow"}).format(date)+" (Moscow)":"Chưa xác minh";
 };
-export default function OwnerManagerPurgePanel({onChanged=()=>{},compact=false}:{
- onChanged?:()=>void;compact?:boolean;
+export default function OwnerManagerPurgePanel({onChanged=()=>{}}:{
+ onChanged?:()=>void;
 }){
  const [open,setOpen]=useState(false);
  const [rows,setRows]=useState<BoiManagerPurgeRecord[]>([]);
