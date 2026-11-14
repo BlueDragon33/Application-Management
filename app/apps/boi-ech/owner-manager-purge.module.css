@@ -63,3 +63,79 @@
  border-radius:13px}.header{padding:14px}.header h2{font-size:18px}
  .body{padding:14px}.toolbar button,.selection button{width:100%}
  .summary span{flex:1 1 30%}.list{max-height:42dvh}}
+
+/* Owner V12: select on cards; dialog is only the irreversible confirmation step. */
+.directPanel{display:grid;gap:17px;padding:20px;background:#fff;border:1px solid #d0e0f2;
+ border-radius:20px;box-shadow:0 9px 28px #173e6412;color:#123d66}
+.directHeading{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.directHeading>div{display:grid;gap:6px}
+.eyebrow{color:#3371a7;font-size:11px;font-weight:850;letter-spacing:.08em}
+.directHeading h3{color:#123960;font-size:23px;font-weight:800;margin:0;letter-spacing:-.025em}
+.directHeading p{color:#4c6987;line-height:1.5;margin:0;font-size:13px}
+.reload{border:1px solid #a9c7e7;background:#edf5fe;color:#134d84;min-height:44px;
+ padding:10px 16px;border-radius:11px;font-size:13px;font-weight:800;cursor:pointer}
+.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.stats>div{display:grid;grid-template-columns:auto 1fr;align-items:center;column-gap:9px;padding:14px 12px;
+ border:1px solid #ccdff2;background:#f4f8fe;border-radius:14px;min-width:0}
+.stats span{grid-row:span 2;display:grid;place-items:center;min-width:38px;height:38px;
+ border-radius:10px;background:#e2eefc;font-size:22px;color:#2569ac}
+.stats strong{font-size:23px;line-height:1;color:#123f70}
+.stats small{font-size:11px;color:#4c6988;line-height:1.35}
+.directTools{display:grid;gap:12px}
+.searchBox{display:grid;gap:7px;font-size:12px;color:#355d85;font-weight:800}
+.searchBox input{width:100%;min-height:45px;border-radius:12px;border:1px solid #bad0e9;
+ background:#fff;color:#173b61;padding:9px 13px;font:inherit}
+.filters{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.filters button{min-height:41px;border-radius:999px;background:#f4f8fe;
+ border:1px solid #c2d6eb;color:#365a80;font-size:12px;font-weight:750;
+ padding:9px 15px;cursor:pointer}
+.filters button[aria-pressed="true"]{background:#164b82;color:#fff;border-color:#164b82}
+.bulkToolbar{display:flex;align-items:center;flex-wrap:wrap;gap:9px;padding:10px;
+ background:#eaf3ff;border-radius:13px;border:1px solid #c8dff6}
+.bulkToolbar span{font-size:12px;color:#315578;margin-right:auto}
+.bulkToolbar span strong{font-size:17px;color:#164979}
+.bulkToolbar button{min-height:42px;padding:9px 13px;border:1px solid #a9c8e5;
+ background:#fff;border-radius:10px;color:#1c5082;font-weight:800;font-size:12px;cursor:pointer}
+.bulkToolbar .deleteBulk{background:#a52e38;color:#fff;border-color:#a52e38}
+.bulkToolbar .deleteRevoked{background:#fff2ef;color:#9a3034;border-color:#d9adac}
+.directGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px}
+.directCard{min-width:0;display:grid;gap:10px;padding:16px;border-radius:18px;
+ border:1px solid #ccdced;background:linear-gradient(150deg,#fff,#f3f8fe);
+ box-shadow:0 6px 20px #153d6710;align-content:start}
+.directCard[data-status="blocked"]{border-color:#d6c1c3}
+.directCard[data-status="pending"]{border-color:#e6d4a9}
+.cardTop{display:flex;align-items:flex-start;gap:10px}
+.cardCheck{display:grid;place-items:center;flex:0 0 25px;min-height:32px}
+.cardCheck input{width:19px;height:19px;accent-color:#266db0;cursor:pointer}
+.cardCheck input:disabled{cursor:not-allowed;opacity:.4}
+.avatar{width:49px;height:49px;flex:0 0 49px;display:grid;place-items:center;
+ border-radius:13px;background:linear-gradient(135deg,#5d7bea,#219bc8);
+ color:#fff;font-size:22px;font-weight:850}
+.status{margin-left:auto;padding:5px 9px;border-radius:999px;white-space:normal;text-align:center;
+ background:#e1f5e8;color:#176a4a;font-size:10px;font-weight:850;line-height:1.3}
+.status[data-status="pending"]{background:#fff3d5;color:#875b16}
+.status[data-status="blocked"]{background:#ffe8e7;color:#96343a}
+.cardName{color:#143f6b;font-size:16px;overflow-wrap:anywhere}
+.cardRole{color:#426586;font-size:12px;line-height:1.4}
+.cardMeta{display:flex;justify-content:space-between;align-items:center;gap:7px;font-size:11px}
+.cardMeta span{color:#54728f;flex:0 0 auto}
+.cardMeta strong{color:#244d72;font-size:12px;line-height:1.35;text-align:right;overflow-wrap:anywhere}
+.blocker{color:#8a343b;background:#fff0ef;padding:9px;border-radius:9px;font-size:11px;line-height:1.45}
+.cardActions{display:flex;gap:7px;border-top:1px solid #dce6f2;padding-top:9px;flex-wrap:wrap}
+.cardActions button{flex:1;min-height:39px;border:1px solid #b5cde7;border-radius:10px;
+ background:#eaf3ff;color:#1e578b;font-size:12px;font-weight:800;cursor:pointer}
+.cardActions .cardDelete{background:#fff0ee;border-color:#d9b1b1;color:#982e34}
+.cardActions .cardDelete:disabled{background:#edf0f5;color:#8190a0;border-color:#cbd5e0}
+.directCard code{overflow-wrap:anywhere;font-size:10px;color:#6a7d92}
+.empty{grid-column:1/-1;background:#f5f9fe;border:1px dashed #b6cee5;padding:24px;
+ text-align:center;color:#4b6c8e;border-radius:12px}
+.directPanel :is(button,input):focus-visible{outline:3px solid #378bcc;outline-offset:2px}
+.directPanel button:disabled{opacity:.5;cursor:not-allowed}
+@media(max-width:1350px){.directGrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:1000px){.stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .directGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.directPanel{padding:13px;gap:13px}.directHeading h3{font-size:19px}
+ .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .directGrid{grid-template-columns:1fr}
+ .filters button{flex:1 1 auto}
+ .bulkToolbar>button{flex:1 1 100%}}

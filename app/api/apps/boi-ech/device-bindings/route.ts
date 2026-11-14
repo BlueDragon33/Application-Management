@@ -29,7 +29,8 @@ function validDetail(value:Record<string,unknown>,bindingId:string){
   &&(account.role===null||["manager","teacher","learner"].includes(String(account.role)))
   &&["sessions","activeSessions","syncGrants","syncEvents","otherTrustedDevices"].every(k=>
     typeof dep[k]==="number"&&Number.isSafeInteger(dep[k])&&(dep[k] as number)>=0)
-  &&value.preservesAccount===true&&value.preservesLearning===true&&value.preservesAudit===true;
+  &&value.preservesAccount===true&&value.preservesLearning===true&&value.preservesAudit===true
+  &&typeof value.purgeAllowed==="boolean";
 }
 export async function POST(request:Request){
  try{
@@ -52,8 +53,10 @@ export async function POST(request:Request){
      ||!["pending","approved","blocked"].includes(String(status))
      ||typeof input.expectedCreatedAt!=="string"||!Number.isFinite(Date.parse(input.expectedCreatedAt)))
     return json({error:"Phải nhập đúng 6 ký tự cuối, lý do và trạng thái mới nhất.",code:"DEVICE_BINDING_INPUT"},400);
-   if(action==="purge"&&status!=="blocked")
-    return json({error:"Thu hồi quyền thiết bị trước khi xóa vĩnh viễn.",code:"DEVICE_BINDING_REVOKE_FIRST"},409);
+   // Pending (never trusted) may be purged atomically. Already approved keys
+   // must still be revoked first; the BOI Worker independently enforces CAS.
+   if(action==="purge"&&status!=="blocked"&&status!=="pending")
+    return json({error:"Liên kết đã được duyệt phải thu hồi trước khi xóa.",code:"DEVICE_BINDING_REVOKE_FIRST"},409);
   }
   const bridge=await issueBoiBrowserBridge(actor.email,actor.role,"account-owner");
   const inspect=()=>upstream(bridge,{action:"inspect",bindingId});
@@ -62,6 +65,8 @@ export async function POST(request:Request){
   if(!validDetail(before.data,bindingId))
    return json({error:"Chi tiết liên kết chưa được xác minh.",code:"DEVICE_BINDING_UNVERIFIED"},502);
   if(action==="inspect")return json(before.data);
+  if(action==="purge"&&before.data.purgeAllowed!==true)
+   return json({error:"Máy chủ không xác nhận liên kết đủ điều kiện xóa.",code:"DEVICE_BINDING_REVOKE_FIRST"},409);
   if(before.data.createdAt!==input.expectedCreatedAt || before.data.status!==input.expectedStatus)
    return json({error:"Thẻ đã thay đổi, mở lại để đối chiếu trước khi xóa.",code:"DEVICE_BINDING_CAS_CONFLICT"},409);
   const result=await upstream(bridge,{action,bindingId,confirmation:bindingId,

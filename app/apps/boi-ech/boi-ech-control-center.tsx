@@ -9,6 +9,7 @@ import Link from "next/link";
 import {createPortal} from "react-dom";
 import AuthenticatorStepUp from "../../authenticator-step-up";
 import AccountExpiryPanel from "./account-expiry-panel";
+import bindingUi from "./owner-binding-bulk.module.css";
 import BoiOwnerOverview from "./boi-owner-overview";
 import AiControlCenter, { type AiControlData } from "../../ai-control-center";
 import { csvCell } from "../../report-exports";
@@ -839,6 +840,11 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
   const [search, setSearch] = useState("");
   const [registrySearch,setRegistrySearch]=useState("");
   const [registryFilter,setRegistryFilter]=useState<"all"|"approved"|"pending"|"blocked">("all");
+ const [registrySelected,setRegistrySelected]=useState<string[]>([]);
+ const [registryBulkBusy,setRegistryBulkBusy]=useState(false);
+ const [registryBulkError,setRegistryBulkError]=useState("");
+ const [registryBulkSuccess,setRegistryBulkSuccess]=useState("");
+ const [registryBulkReason,setRegistryBulkReason]=useState("Owner thanh lọc liên kết trình duyệt cũ không còn sử dụng");
   const [bindingId,setBindingId]=useState<string|null>(null);
   const [bindingDetail,setBindingDetail]=useState<OwnerBindingDetail|null>(null);
   const [bindingLoading,setBindingLoading]=useState(false);
@@ -1016,6 +1022,55 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
       await refresh(credential,access,{discoverNew:true});
     }catch(caught){setBindingError(caught instanceof Error?caught.message:"Không thể xử lý liên kết thiết bị.");}
     finally{setBindingBusy(false);}
+  }
+  /** Bulk purge never trusts the card status alone: inspect and CAS each binding.
+   * Owner TOTP is required by the existing gateway on every destructive write;
+   * only a proven unapplied STEP_UP_REQUIRED can be retried after authentication.
+   * A failed/unknown write stops the batch without resending that request. */
+  async function purgeRegistrySelection(ids:string[]){
+    if(registryBulkBusy||bindingBusy||!credential||!access||access.role!=="owner")return;
+    const verified=dashboardRef.current?.deviceRegistry?.devices??[];
+    const allowed=ids.filter(id=>verified.some(r=>r.deviceId===id&&
+      (r.status==="pending"||r.status==="blocked"))).slice(0,10);
+    if(!allowed.length)return;
+    if(registryBulkReason.trim().length<10){setRegistryBulkError("Nhập lý do xử lý tối thiểu 10 ký tự.");return;}
+    if(window.prompt("Xóa vĩnh viễn "+allowed.length+" liên kết đã chọn? Nhập XOA LIEN KET để xác nhận.","")!=="XOA LIEN KET")return;
+    if(!window.confirm("Xác nhận xóa "+allowed.length+" khóa trình duyệt khỏi D1? "+
+      "Tiến độ và tài khoản chính vẫn được giữ; không hoàn tác được."))return;
+    setRegistryBulkBusy(true);setRegistryBulkError("");setRegistryBulkSuccess("");
+    let completed=0;
+    try{
+      for(const id of allowed){
+        const details=(await boundedBindingApi(credential,access,{action:"inspect",bindingId:id})) as unknown as OwnerBindingDetail;
+        if(details.contract!=="boi-owner-device-binding.v1"||details.verified!==true||
+          details.bindingId!==id||!details.purgeAllowed||
+          (details.status!=="blocked"&&details.status!=="pending"))
+          throw new Error("Máy chủ chưa xác minh liên kết đủ điều kiện; đã dừng.");
+        const call=()=>boundedBindingApi(credential,access,{
+          action:"purge",bindingId:id,confirmation:id,typedSuffix:id.slice(-6),
+          reason:registryBulkReason.trim(),expectedStatus:details.status,expectedCreatedAt:details.createdAt
+        });
+        let reply:ApiData;
+        try{reply=await call();}
+        catch(e){
+          if(!(e instanceof ApiError)||e.data.code!=="STEP_UP_REQUIRED"||e.data.applied!==false)throw e;
+          if(!await authenticateManagement())throw new Error("Đã hủy xác minh Authenticator.");
+          reply=await call();
+        }
+        if(reply.ok!==true||reply.verified!==true||reply.deleted!==true||reply.bindingId!==id)
+          throw new Error("Chưa xác minh được khóa đã xóa; dừng và đọc lại.");
+        completed++;
+      }
+      setRegistryBulkSuccess("Đã xác minh xóa "+completed+" liên kết. Không xóa tài khoản hoặc tiến độ học.");
+    }catch(error){
+      setRegistryBulkError("Đã xác minh "+completed+"/"+allowed.length+
+        ". Đã dừng tại lỗi tiếp theo; không gửi lại lệnh xóa: "+
+        (error instanceof Error?error.message:"Chưa xác minh được D1."));
+    }finally{
+      setRegistryBulkBusy(false);setRegistrySelected([]);
+      await refresh(credential,access,{discoverNew:true}).catch(()=>{
+        setRegistryBulkError("Chưa đọc lại được danh sách liên kết; hãy đồng bộ lại D1.");});
+    }
   }
   useEffect(()=>{
     if(!bindingId)return;
@@ -1593,12 +1648,48 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
                   placeholder="Tên tài khoản, vai trò, trình duyệt, mã…" aria-label="Tìm tài khoản hoặc liên kết"/>
               </label>
             </div>
+            <div className={bindingUi.bulkToolbar} role="group" aria-label="Chọn và xóa liên kết trình duyệt">
+              <span><strong>{registrySelected.length}</strong> đã chọn ·
+                Có thể xóa trực tiếp trạng thái Chờ xác nhận hoặc Đã thu hồi</span>
+              <button type="button" disabled={registryBulkBusy||bindingBusy||
+                !visibleRegistryDevices.some(d=>d.status==="pending"||d.status==="blocked")}
+                onClick={()=>setRegistrySelected(visibleRegistryDevices.filter(d=>d.status==="pending"||d.status==="blocked")
+                  .slice(0,10).map(d=>d.deviceId))}>☑ Chọn tất cả đủ điều kiện (tối đa 10)</button>
+              <button type="button" disabled={registryBulkBusy||!registrySelected.length}
+                onClick={()=>setRegistrySelected([])}>Bỏ chọn</button>
+              <button type="button" className={bindingUi.danger} disabled={registryBulkBusy||!registrySelected.length}
+                onClick={()=>void purgeRegistrySelection(registrySelected)}>⌫ Xóa đã chọn</button>
+              <button type="button" className={bindingUi.danger} disabled={registryBulkBusy||
+                !visibleRegistryDevices.some(d=>d.status==="blocked")}
+                onClick={()=>void purgeRegistrySelection(visibleRegistryDevices.filter(d=>d.status==="blocked")
+                  .slice(0,10).map(d=>d.deviceId))}>Xóa đã thu hồi (tối đa 10/lượt)</button>
+            </div>
+            <label className={bindingUi.reason}>Lý do xử lý và nhật ký Owner
+              <input value={registryBulkReason} maxLength={300} disabled={registryBulkBusy}
+                onChange={event=>setRegistryBulkReason(event.target.value)}/>
+            </label>
+            {registryBulkError?<p role="alert" className={bindingUi.error}>{registryBulkError}</p>:null}
+            {registryBulkSuccess?<p role="status" className={bindingUi.success}>{registryBulkSuccess}</p>:null}
             <div className="boi-registry-grid" aria-live="polite">
-              {visibleRegistryDevices.map((device,index)=><button type="button" key={device.deviceId}
-                className="boi-registry-card" data-status={device.status}
-                onClick={()=>void inspectBinding(device.deviceId)}
-                aria-label={`Xem liên kết trình duyệt của ${device.account?.name||"tài khoản chưa khai báo"} ${device.deviceId.slice(0,12)}`}>
-                <Laptop active={false} status={device.status}/>
+              {visibleRegistryDevices.map((device,index)=><article key={device.deviceId}
+                className={bindingUi.card} data-status={device.status}>
+                <div className={bindingUi.cardCheck}>
+                  <input type="checkbox" aria-label={`Chọn xóa liên kết của ${device.account?.name||"tài khoản"}`}
+                    checked={registrySelected.includes(device.deviceId)}
+                    disabled={registryBulkBusy||bindingBusy||device.status==="approved"||
+                      (!registrySelected.includes(device.deviceId)&&registrySelected.length>=10)}
+                    onChange={event=>setRegistrySelected(current=>event.target.checked
+                      ? [...current.filter(id=>id!==device.deviceId),device.deviceId].slice(0,10)
+                      : current.filter(id=>id!==device.deviceId))}/>
+                  <button type="button" className={bindingUi.openDetails}
+                    onClick={()=>void inspectBinding(device.deviceId)}
+                    aria-label={`Xem liên kết trình duyệt của ${device.account?.name||"tài khoản chưa khai báo"} ${device.deviceId.slice(0,12)}`}>
+                    <Laptop active={false} status={device.status}/>
+                  </button>
+                </div>
+                <button type="button" className="boi-registry-card" data-status={device.status}
+                  onClick={()=>void inspectBinding(device.deviceId)}
+                  aria-label={`Chi tiết liên kết của ${device.account?.name||"tài khoản chưa khai báo"}`}>
                 <span className="boi-registry-card-copy">
                   <strong>{device.account?.name||"Tài khoản chưa có tên"}</strong>
                   <small>{device.account?.role==="manager"?"Cán bộ quản lý":
@@ -1615,7 +1706,11 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
                   <code title={device.deviceId}>Liên kết #{index+1} · {device.deviceId.slice(0,12)}…</code>
                   <small>Xem chi tiết · Quản lý / Thu hồi</small>
                 </span>
-              </button>)}
+                </button>
+                {device.status!=="approved"?<button type="button" className={bindingUi.quickDelete}
+                  disabled={registryBulkBusy||bindingBusy}
+                  onClick={()=>void purgeRegistrySelection([device.deviceId])}>⌫ Xóa liên kết</button>:null}
+              </article>)}
             </div>
             {!visibleRegistryDevices.length?<p role="status" className="boi-no-data">
               {deviceRegistry.counts.total===0?"Chưa có thiết bị nào được liên kết.":"Không có thiết bị phù hợp bộ lọc."}

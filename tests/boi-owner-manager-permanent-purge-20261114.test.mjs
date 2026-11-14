@@ -5,10 +5,10 @@ import {loadTs} from "./helpers/load-ts.mjs";
 
 const id="acc_"+"a".repeat(64),snapshot="b".repeat(64);
 const records=[
- {accountId:id,name:"Former Manager",role:"manager",category:"manager",
+ {accountId:id,name:"Former Manager",role:"manager",category:"manager",accessStatus:"pending",activeSessions:1,
   createdAt:"2026-11-10 00:00:00",lastSeenAt:"2026-11-10 00:00:00",
   latestLoginAt:null,inactiveDays:4,stage:"requested",eligible:true,blockers:[],snapshot},
- {accountId:"acc_"+"c".repeat(64),name:"Manager on duty",role:"manager",category:"manager",
+ {accountId:"acc_"+"c".repeat(64),name:"Manager on duty",role:"manager",category:"manager",accessStatus:"approved",activeSessions:1,
   createdAt:"2026-11-10 00:00:00",lastSeenAt:"2026-11-14 00:00:00",
   latestLoginAt:"2026-11-14T00:00:00.000Z",inactiveDays:0,stage:"active",
   eligible:false,blockers:[],snapshot:"d".repeat(64)}
@@ -84,6 +84,14 @@ test("Unconfirmed readback stops with uncertain status and never retries delete"
  assert.equal(r.status,502);
  assert.equal(r.value.applied,"unknown");
  assert.deepEqual(f.sent.map(x=>x.action),["purge","inspect"]);
+});
+test("Owner direct-list selection rejects forged active eligible and invalid state",async()=>{
+ const client=fixture({corrupt:true});
+ assert.equal((await client.post({action:"preview"})).status,502);
+ const testRoute=readFileSync("app/api/apps/boi-ech/manager-purge/route.ts","utf8");
+ assert.match(testRoute,/r.accessStatus==="pending"/);
+ assert.match(testRoute,/Number.isSafeInteger\(r.activeSessions\)/);
+ assert.match(testRoute,/r.eligible===true/);
 });
 test("Cloudflare Production Owner fresh TOTP and Bơi Ếch scoped server required",()=>{
  const worker=readFileSync("worker/production-auth.ts","utf8");
