@@ -8,9 +8,9 @@ const base={contract:"boi-owner-device-binding.v1",verified:true,bindingId:ID,
  account:{accountId:AID,name:"Synthetic Learner",login:"synthetic",role:"learner",
   status:"pending",onboardingStage:"requested",createdAt:"2026-11-11 01:00:00",revision:1},
  dependencies:{sessions:1,activeSessions:1,syncGrants:0,syncEvents:0,otherTrustedDevices:1},
- purgeAllowed:false,preservesAccount:true,preservesLearning:true,preservesAudit:true};
-function fixture({role="owner",broken=false}={}){
- let status="pending",exists=true,called=[];
+ purgeAllowed:true,preservesAccount:true,preservesLearning:true,preservesAudit:true};
+function fixture({role="owner",broken=false,initialStatus="pending"}={}){
+ let status=initialStatus,exists=true,called=[];
  const api=loadTs("app/api/apps/boi-ech/device-bindings/route.ts",{
   "../../../../control-device.server":{
    verifyControlProof:async()=>({role,email:"owner@fixture.invalid"}),
@@ -27,7 +27,8 @@ function fixture({role="owner",broken=false}={}){
   assert.match(init.headers.authorization,/^Bearer signed-owner-ticket$/);
   if(v.action==="inspect"){
    if(!exists)return Response.json({code:"DEVICE_BINDING_NOT_FOUND"},{status:404});
-   return Response.json({...base,status,dependencies:{...base.dependencies,activeSessions:status==="blocked"?0:1}});
+   return Response.json({...base,status,purgeAllowed:status!=="approved",
+    dependencies:{...base.dependencies,activeSessions:status==="blocked"?0:1}});
   }
   if(v.action==="revoke"){status="blocked";return Response.json({...base,status,ok:!broken,
    verified:!broken,action:"revoke",dependencies:{...base.dependencies,activeSessions:0}});}
@@ -49,16 +50,23 @@ test("Owner opens device and can inspect source-backed dates, role and dependenc
  assert.equal(res.status,200);assert.equal(res.body.account.accountId,AID);
  assert.deepEqual(f.called,["inspect"]);
 });
-test("Revoke then purge require separate confirmed owner actions and independent server readback",async()=>{
- const f=fixture();
- assert.equal((await f.post({action:"purge",...op})).status,409);
- const revoked=await f.post({action:"revoke",...op});
+test("Approved browser must be revoked before Owner can purge, with independent readback",async()=>{
+ const f=fixture({initialStatus:"approved"});
+ assert.equal((await f.post({action:"purge",...op,expectedStatus:"approved"})).status,409);
+ const revoked=await f.post({action:"revoke",...op,expectedStatus:"approved"});
  assert.equal(revoked.status,200);
  assert.equal(revoked.body.detail.status,"blocked");
  const purged=await f.post({action:"purge",...op,expectedStatus:"blocked"});
  assert.equal(purged.status,200);
  assert.equal(purged.body.deleted,true);
  assert.deepEqual(f.called,["inspect","revoke","inspect","inspect","purge","inspect"]);
+});
+test("Pending browser link can be deleted without first opening a detail popup or revoking",async()=>{
+ const f=fixture();
+ const out=await f.post({action:"purge",...op});
+ assert.equal(out.status,200);
+ assert.equal(out.body.deleted,true);
+ assert.deepEqual(f.called,["inspect","purge","inspect"]);
 });
 test("Owner role and typed suffix are enforced before upstream access",async()=>{
  const other=fixture({role:"publisher"});
@@ -82,7 +90,8 @@ test("Device cards are keyboard-accessible and owner delete dialog carries clear
  const ui=readFileSync("app/apps/boi-ech/boi-ech-control-center.tsx","utf8");
  const css=readFileSync("app/apps/boi-ech/boi-ech-shell.module.css","utf8");
  const api=readFileSync("app/api/apps/boi-ech/device-bindings/route.ts","utf8");
- assert.match(ui,/visibleRegistryDevices\.map\(\(device,index\)=><button type="button"/);
+ assert.match(ui,/visibleRegistryDevices\.map\(\(device,index\)=><article/);
+ assert.match(ui,/registrySelected/);
  assert.match(ui,/onClick=\{\(\)=>void inspectBinding\(device.deviceId\)\}/);
  assert.match(ui,/role="dialog" aria-modal="true"/);
  assert.match(ui,/bindingConfirm!==bindingDetail\.bindingId\.slice\(-6\)/);
