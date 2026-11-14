@@ -126,7 +126,7 @@ export async function issueBoiBrowserBridge(actor: string, role: ControlRole, sc
 export async function readBoiDeviceRegistry(bridge: Awaited<ReturnType<typeof issueBoiBrowserBridge>>) {
   let response: Response;
   try {
-    response = await fetch(`${bridge.baseUrl}/api/control/v2/device-registry`, {
+    response = await fetch(`${bridge.baseUrl}/api/control/v2/device-registry?view=owner`, {
       method: "GET",
       headers: { authorization: `Bearer ${bridge.token}` },
       cache: "no-store",
