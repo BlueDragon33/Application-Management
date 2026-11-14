@@ -1,6 +1,7 @@
 "use client";
 
 import { connectAdminCenter, type AdminAccess } from "./admin-device-client";
+import {broadcastBoiChange} from "./apps/boi-ech/manual-sync-notices";
 
 type Credential = { version: 1; privateKey: CryptoKey | null; publicKey: JsonWebKey };
 
@@ -254,6 +255,12 @@ async function accountDurationCall(body: Record<string,unknown>): Promise<BoiAcc
     // only repeat a denied, non-applied step-up request after real Owner MFA.
     const error=new Error(result.error || (result.code==="STEP_UP_REQUIRED"?"Hãy xác minh Authenticator rồi thử lại.":"Không kết nối được quản lý thời hạn tài khoản."));
     throw Object.assign(error,{data:{...result,status:response.status}});
+  }
+  // Only completed/verified Owner mutations can notify OTHER open tabs.
+  // Never start a background read or count read-only status calls as changes.
+  if(result.verified===true && typeof body.action==="string" &&
+    !["list","policy","capacity","manager-inbox","manager-policy"].includes(body.action)){
+    broadcastBoiChange("owner");
   }
   return result;
 }
