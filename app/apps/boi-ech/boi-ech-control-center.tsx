@@ -1442,7 +1442,8 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
   };
   const visibleRegistryDevices=deviceRegistry?.devices.filter(device=>
     (registryFilter==="all"||device.status===registryFilter)
-    && device.deviceId.includes(registrySearch.toLowerCase().trim()))??[];
+    && [device.deviceId,device.account?.accountId,device.account?.name,device.account?.role,device.browserLabel]
+      .some(value=>(value??"").toLocaleLowerCase("vi").includes(registrySearch.trim().toLocaleLowerCase("vi"))))??[];
   const canReviewContent = ["reviewer","publisher","owner"].includes(access.role);
   const activeTheme = adminThemes.find((item) => item.id === appearance.theme) ?? adminThemes[0];
   const activeFont = adminFonts.find((item) => item.id === appearance.font) ?? adminFonts[0];
@@ -1570,9 +1571,9 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
           </tbody></table></div></section> : null}
 
         {deviceRegistry && (tab === "devices" || tab === "reports") ? <section className="boi-console-card boi-reports-workspace" aria-label="Trung tâm kiểm soát thiết bị Account-first">
-          <header className="boi-registry-heading"><div><span>ACCOUNT-FIRST V2 · THIẾT BỊ ĐÃ XÁC MINH</span>
-            <h2>Thiết bị Bơi Ếch</h2>
-            <p>Khôi phục thẻ thiết bị trực quan và bộ lọc hoạt động. Dữ liệu registry chỉ chứng minh quyền tin cậy; không tự gán trạng thái Online hay tiến độ học khi chưa có tín hiệu.</p>
+          <header className="boi-registry-heading"><div><span>ACCOUNT-FIRST V2 · LIÊN KẾT PHIÊN ĐÃ XÁC MINH</span>
+            <h2>Tài khoản & Khóa trình duyệt</h2>
+            <p>Mỗi liên kết thuộc đúng một tài khoản. Đây là khóa phiên trình duyệt/P-256, không phải mã định danh phần cứng. Không suy diễn trạng thái Online hoặc tiến độ nếu chưa có dữ liệu xác minh.</p>
           </div><button type="button" onClick={exportDevices} disabled={!devicesVerified}>Xuất CSV liên kết</button></header>
           {devicesVerified ? <>
             <div className="boi-registry-metrics" aria-label="Thống kê trạng thái thiết bị">
@@ -1587,21 +1588,29 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
                   .map(([key,title])=><button key={key} type="button" aria-pressed={registryFilter===key}
                   onClick={()=>setRegistryFilter(key)}>{title}</button>)}
               </div>
-              <label>Tìm mã liên kết thiết bị
+              <label>Tìm tài khoản hoặc mã liên kết
                 <input type="search" value={registrySearch} onChange={e=>setRegistrySearch(e.target.value)}
-                  placeholder="Nhập mã SHA-256…" aria-label="Tìm mã liên kết thiết bị"/>
+                  placeholder="Tên tài khoản, vai trò, trình duyệt, mã…" aria-label="Tìm tài khoản hoặc liên kết"/>
               </label>
             </div>
             <div className="boi-registry-grid" aria-live="polite">
               {visibleRegistryDevices.map((device,index)=><button type="button" key={device.deviceId}
                 className="boi-registry-card" data-status={device.status}
                 onClick={()=>void inspectBinding(device.deviceId)}
-                aria-label={`Xem chi tiết và quản lý liên kết thiết bị ${device.deviceId.slice(0,12)}`}>
+                aria-label={`Xem liên kết trình duyệt của ${device.account?.name||"tài khoản chưa khai báo"} ${device.deviceId.slice(0,12)}`}>
                 <Laptop active={false} status={device.status}/>
                 <span className="boi-registry-card-copy">
-                  <strong>{device.status==="approved"?"Thiết bị đã tin cậy":device.status==="pending"?"Chờ xác nhận thiết bị":"Đã thu hồi liên kết"}</strong>
-                  <code title={device.deviceId}>Liên kết #{index+1} · {device.deviceId.slice(0,16)}…</code>
-                  <small>Xem chi tiết · Quản lý / Xóa</small>
+                  <strong>{device.account?.name||"Tài khoản chưa có tên"}</strong>
+                  <small>{device.account?.role==="manager"?"Cán bộ quản lý":
+                    device.account?.role==="teacher"?"Giảng viên":
+                    device.account?.role==="learner"?"Học viên":"Vai trò chưa xác minh"}
+                    {" · "}{device.clientClass==="phone"?"Điện thoại":
+                    device.clientClass==="tablet"?"Máy tính bảng":"Máy tính"}</small>
+                  <small>{device.browserLabel||"Chưa cập nhật tên trình duyệt"}
+                    {" · "}{device.status==="approved"?"Đã tin cậy":
+                      device.status==="pending"?"Chờ xác nhận":"Đã thu hồi"}</small>
+                  <code title={device.deviceId}>Liên kết #{index+1} · {device.deviceId.slice(0,12)}…</code>
+                  <small>Xem chi tiết · Quản lý / Thu hồi</small>
                 </span>
               </button>)}
             </div>
