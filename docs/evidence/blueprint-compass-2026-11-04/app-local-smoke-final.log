@@ -1,0 +1,27 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> quan-ly-hoc-tap@0.1.0 test:compass:local
+> node scripts/blueprint-compass-local-smoke.mjs
+
+{
+  "localRoutingAndAuth": "PASS",
+  "checks": [
+    "local-tool-200",
+    "legacy-tool-redirect",
+    "unknown-project-400",
+    "nonlocal-identity-401",
+    "mutation-405"
+  ],
+  "upstream": [
+    {
+      "id": "software-blueprint-hub",
+      "status": "BLOCKED_UNVERIFIED"
+    },
+    {
+      "id": "application-management",
+      "status": "BLOCKED_UNVERIFIED"
+    }
+  ],
+  "browserE2E": "NOT_RUN",
+  "fullAcceptance": false
+}

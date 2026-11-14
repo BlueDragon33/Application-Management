@@ -1,0 +1,17 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { compassAssessment, normalizeGitHubListing, isAllowedRepository } from "../app/blueprint-compass-core.mjs";
+const H="a".repeat(40);
+const row=(number,props={})=>({number,title:`Work ${number}`,html_url:`https://github.com/BlueDragon33/demo/issues/${number}`,labels:[],draft:false,...props});
+const pr=(number,props={})=>row(number,{html_url:`https://github.com/BlueDragon33/demo/pull/${number}`,...props});
+test("no SHA stays unverified and cannot pass QA",()=>{const r=compassAssessment({head:"main"});assert.equal(r.status,"UNVERIFIED");assert.equal(r.qaPassed,false);assert.equal(r.productionAuthorized,false)});
+test("sha with no visible items cannot claim completion",()=>assert.equal(compassAssessment({head:H}).status,"NO_OPEN_ITEMS_IN_SAMPLE"));
+test("blocked issue takes precedence",()=>assert.equal(compassAssessment({head:H,pullRequests:[pr(2,{draft:true})],issues:[row(3,{labels:["needs-human"]})]}).status,"BLOCKER_SIGNAL_UNVERIFIED"));
+test("draft PR is not approved",()=>assert.equal(compassAssessment({head:H,pullRequests:[pr(2,{draft:true})]}).status,"DRAFT_REVIEW"));
+test("open PR needs review",()=>assert.equal(compassAssessment({head:H,pullRequests:[pr(2)]}).status,"REVIEW_PENDING"));
+test("issue only requires triage",()=>assert.equal(compassAssessment({head:H,issues:[row(3)]}).status,"ISSUE_TRIAGE"));
+test("pull_request issue rows are excluded",()=>{const rows=[{...row(3),pull_request:{}},row(4)];assert.deepEqual(normalizeGitHubListing(rows,"issue").map(x=>x.number),[4])});
+test("malformed untrusted links are excluded",()=>assert.deepEqual(normalizeGitHubListing([{...row(1),html_url:"https://evil.test/x"}],"issue"),[]));
+test("issue list bounded",()=>{const rows=Array.from({length:100},(_,i)=>({...row(i+1),html_url:row(i+1).html_url}));assert.equal(normalizeGitHubListing(rows,"issue",20).length,20)});
+test("only registered repo ids allowed",()=>{assert.equal(isAllowedRepository("BlueDragon33/demo",["BlueDragon33/demo"]),true);assert.equal(isAllowedRepository("BlueDragon33/evil",["BlueDragon33/demo"]),false);assert.equal(isAllowedRepository("https://evil.com/",["https://evil.com/"]),false)});
+test("malformed input cannot fake PASS",()=>{for(const input of [{head:H,pullRequests:"pass",issues:"pass"},{},{head:null}]){const x=compassAssessment(input);assert.equal(x.qaPassed,false);assert.equal(x.productionAuthorized,false)}});

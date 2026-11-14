@@ -36,11 +36,11 @@ test("Blueprint OS launch does not turn its repository metadata into a live cont
   assert.match(catalog, /publicUrl: application\.publicUrl \?\? ""/);
 });
 
-test("Blueprint OS management page uses the generic truthful workspace", () => {
+test("legacy Blueprint OS route redirects to internal Tool", () => {
   const page = read("app/apps/software-blueprint-hub/page.tsx");
-  assert.match(page, /getApplicationConfig\("software-blueprint-hub"\)/);
-  assert.match(page, /<ApplicationWorkspace/);
   assert.match(page, /requireChatGPTUser\("\/apps\/software-blueprint-hub"\)/);
+  assert.match(page, /redirect\("\/tools\/blueprint-compass"\)/);
+  assert.doesNotMatch(page, /<ApplicationWorkspace/);
 });
 
 test("repository contract discovery supports Blueprint OS without app-specific branching", () => {
