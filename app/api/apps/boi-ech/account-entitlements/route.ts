@@ -28,6 +28,7 @@ function verifiedAccountRows(value: unknown): value is Record<string,unknown>[] 
         && typeof record(entitlement).expiresAt==="string"
         && typeof record(entitlement).activatedAt==="string"
         && Number.isSafeInteger(record(entitlement).revision)
+        && Number(record(entitlement).revision)>=1
         && typeof record(entitlement).active==="boolean"));
   });
 }
