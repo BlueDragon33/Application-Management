@@ -19,7 +19,7 @@ test("Owner V12 selection and quick actions live on manager cards, never require
  assert.match(manager,/Đã thu hồi/);
  assert.match(manager,/Xóa đã chọn/);
  assert.match(manager,/Xóa tất cả đã thu hồi/);
- assert.match(manager,/setSelected\\(\\[r.accountId\\]\\)/);
+ assert.match(manager,/setSelected\(\[r.accountId\]\)/);
  assert.match(manager,/window.confirm/);
  assert.match(manager,/confirmation!=="XOA VINH VIEN CAN BO"/);
  assert.match(manager,/MAX=10/);
