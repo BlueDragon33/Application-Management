@@ -30,7 +30,11 @@ test("One Owner review is canonical and legacy final-review records cannot activ
   assert.match(panel,/withOwnerAuthentication/);
   assert.match(panel,/section==="accounts"\?<>/);
   assert.match(panel,/section==="policies"&&accountsVerified/);
-  assert.match(panel,/section==="policies"&&policies\.length/);
+  assert.match(panel,/section==="policies"\?<div className="boi-policy-icon-grid"/);
+  assert.match(panel,/policies\.map\(p=><button/);
+  assert.match(panel,/policyPopup==="manager"/);
+  assert.match(panel,/policyPopup==="defaults"/);
+  assert.match(panel,/policyPopup==="limits"/);
   assert.match(main,/<AccountExpiryPanel section="policies"/);
 });
 
