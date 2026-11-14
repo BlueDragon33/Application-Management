@@ -13,8 +13,9 @@ const when=(value:string|null)=>{
   ?new Intl.DateTimeFormat("vi-VN",{dateStyle:"short",timeStyle:"short",
     timeZone:"Europe/Moscow"}).format(date)+" (Moscow)":"Chưa xác minh";
 };
-export default function OwnerManagerPurgePanel({onChanged=()=>{},surface="launch",onManage}: {
+export default function OwnerManagerPurgePanel({onChanged=()=>{},surface="launch",onManage,durations=[]}: {
  onChanged?:()=>void;surface?:"launch"|"cards";onManage?:(accountId:string)=>void;
+ durations?:{accountId:string;expiresAt:string|null;state:string|null;active:boolean}[];
 }){
  const [open,setOpen]=useState(false);
  const [filter,setFilter]=useState<"all"|"pending"|"blocked"|"active"|"eligible">("all");
@@ -154,6 +155,7 @@ export default function OwnerManagerPurgePanel({onChanged=()=>{},surface="launch
    {scanned?<div className={styles.directGrid}>
     {visible.map(r=>{
      const state=r.accessStatus==="blocked"?"Đã thu hồi":r.accessStatus==="pending"?"Chờ xác nhận":"Đang hoạt động";
+     const entitlement=durations.find(item=>item.accountId===r.accountId);
      return <article key={r.accountId} className={styles.directCard} data-status={r.accessStatus||"unknown"}>
       <div className={styles.cardTop}>
        <label className={styles.cardCheck} title={r.eligible?"Chọn tài khoản để xóa":"Tài khoản được bảo vệ"}>
@@ -168,6 +170,9 @@ export default function OwnerManagerPurgePanel({onChanged=()=>{},surface="launch
       <small className={styles.cardRole}>Cán bộ quản lý · {r.stage||"Hồ sơ chưa xác minh"}</small>
       <div className={styles.cardMeta}><span>Đăng ký</span><strong>{when(r.createdAt)}</strong></div>
       <div className={styles.cardMeta}><span>Phiên hiện tại</span><strong>{r.activeSessions??"—"}</strong></div>
+      {onManage?<div className={styles.cardMeta}><span>Thời hạn sử dụng</span>
+       <strong>{entitlement?.expiresAt==="9999-12-31T23:59:59.000Z"?"Không giới hạn":
+        entitlement?.expiresAt?when(entitlement.expiresAt):"Chưa cấp"}</strong></div>:null}
       <div className={styles.cardMeta}><span>Trạng thái xóa</span><strong>{r.eligible?"Đủ điều kiện":"Được bảo vệ"}</strong></div>
       {!r.eligible?<small className={styles.blocker} title={r.blockers.join("; ")}>{r.blockers.join("; ")||"Không được phép xóa theo chính sách D1"}</small>:null}
       <footer className={styles.cardActions}>
