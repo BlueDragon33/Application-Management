@@ -25,8 +25,20 @@ test("V18 Owner navigation exposes all nine full page destinations and their rol
  for(const title of heading)assert.ok(ui.includes(title),title);
  assert.match(ui,/CÔNG CỤ CHUYÊN BIỆT/);
  assert.match(ui,/access\.role==="owner"\?\[/);
- assert.match(ui,/canReviewContent\?<button/);
+ assert.match(ui,/canReviewContent\?\[/);
  assert.match(ui,/className="boi-main-contents" role="region"/);
+ const nav=ui.slice(ui.indexOf('<nav aria-label="Quản trị Bơi Ếch — điều hướng chính">'),ui.indexOf("</nav>",ui.indexOf('<nav aria-label="Quản trị Bơi Ếch — điều hướng chính">')));
+ const menu=ui.slice(ui.indexOf('<div id="boi-specialist-tabs"'),ui.indexOf("</div>",ui.indexOf('<div id="boi-specialist-tabs"')));
+ for(const title of ["Tổng quan","Thiết bị & Tiến độ","Tài khoản & Duyệt cán bộ","Giảng viên & Học viên","Công cụ chuyên biệt"])
+  assert.ok(nav.includes(title),title);
+ for(const title of ["Thời hạn & Chính sách","Điều hành AI","Vai trò & Quyền","Báo cáo & Thống kê","Duyệt nội dung"])
+  assert.ok(menu.includes(title),title);
+ assert.match(nav,/aria-expanded=\{specialistOpen\}/);
+ assert.match(menu,/hidden=\{!specialistOpen\}/);
+ assert.match(shell,/boi-specialist-list\[hidden\]/);
+ assert.match(shell,/boi-specialist-list button/);
+ assert.match(shell,/grid-template-columns:1fr!important/);
+
  assert.doesNotMatch(ui,/boi-owner-task-dialog|const utilityOpen=/);
  assert.match(ui,/BoiOwnerOverview onNavigate=\{setTab\}/);
  assert.match(ui,/AccountExpiryPanel section="accounts"/);
