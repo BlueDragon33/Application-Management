@@ -1,10 +1,11 @@
 "use client";
 
+import {useId} from "react";
 import type {BoiDeviceBinding,BoiDeviceRegistry} from "../../boi-device-registry";
 import styles from "./boi-owner-device-insights.module.css";
 
 export type DeviceKind="all"|"phone"|"tablet"|"desktop";
-type Kind=Exclude<DeviceKind,"all">;
+type Kind=Exclude<DeviceKind,"all">|"unknown";
 
 const categoryMeta=[
  {kind:"phone",title:"Điện thoại",detail:"Trình duyệt trên điện thoại",glyph:"phone"},
@@ -13,31 +14,33 @@ const categoryMeta=[
 ] as const;
 
 export function BoiClientDeviceIcon({kind,size=54}:{kind:Kind;size?:number}){
+ const gradientId=useId().replace(/:/g,"");
  return <svg width={size} height={size} viewBox="0 0 76 76" aria-hidden="true" focusable="false"
   fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
-  <defs><linearGradient id={"device-icon-"+kind} x1="0" y1="0" x2="1" y2="1">
+  <defs><linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
     <stop stopColor="#62ddff"/><stop offset=".55" stopColor="#3589ff"/><stop offset="1" stopColor="#9f64ff"/></linearGradient></defs>
   {kind==="phone"?<>
    <rect x="23" y="4" width="31" height="67" rx="7" stroke="#c3efff"/>
-   <rect x="27" y="12" width="23" height="47" rx="2.5" fill={"url(#device-icon-"+kind+")"} stroke="#8fd8ff"/>
+   <rect x="27" y="12" width="23" height="47" rx="2.5" fill={`url(#${gradientId})`} stroke="#8fd8ff"/>
    <path d="M34 8h10M36 65h4" stroke="#ccefff"/>
    <path d="M29 44c8-17 12-2 20-18" stroke="#f2eaff" opacity=".9"/>
   </>:null}
   {kind==="tablet"?<>
    <rect x="11" y="5" width="54" height="66" rx="7" stroke="#c3efff"/>
-   <rect x="17" y="10" width="42" height="54" rx="2" fill={"url(#device-icon-"+kind+")"} stroke="#89dcff"/>
+   <rect x="17" y="10" width="42" height="54" rx="2" fill={`url(#${gradientId})`} stroke="#89dcff"/>
    <circle cx="38" cy="67" r="1.5" fill="#daf8ff" stroke="none"/>
    <path d="M19 51c15-26 23-5 37-33" stroke="#f9e8ff" opacity=".8"/>
   </>:null}
+  {kind==="unknown"?<><rect x="13" y="11" width="50" height="48" rx="8" stroke="#a5c9ec" strokeDasharray="4 5"/><path d="M30 30a9 9 0 1 1 13 8c-3 2-5 3-5 7M38 53h.01" stroke="#d4ecff"/></>:null}
   {kind==="desktop"?<>
    <rect x="10" y="8" width="56" height="43" rx="4" stroke="#c6f2ff" fill="#0d2e67"/>
-   <rect x="14" y="12" width="48" height="34" rx="1.5" fill={"url(#device-icon-"+kind+")"} stroke="#7ccfff"/>
+   <rect x="14" y="12" width="48" height="34" rx="1.5" fill={`url(#${gradientId})`} stroke="#7ccfff"/>
    <path d="M7 56h62l5 10H2z" fill="#7190d7" stroke="#b8e7ff"/>
    <path d="M18 61h40M32 65h12M15 37c12-21 22 3 41-14" stroke="#f0eaff" opacity=".85"/>
   </>:null}
  </svg>;
 }
-const classKind=(row:BoiDeviceBinding):Kind=>row.clientClass==="phone"?"phone":row.clientClass==="tablet"?"tablet":"desktop";
+const classKind=(row:BoiDeviceBinding):Kind=>row.clientClass==="phone"?"phone":row.clientClass==="tablet"?"tablet":row.clientClass==="desktop"?"desktop":"unknown";
 export function classifyBinding(row:BoiDeviceBinding):Kind{return classKind(row);}
 export function deviceSummary(devices:BoiDeviceBinding[]){
  const count=(filter:(r:BoiDeviceBinding)=>boolean)=>devices.filter(filter).length;
@@ -66,7 +69,7 @@ export function deviceSummary(devices:BoiDeviceBinding[]){
   medium:progress.filter(n=>n>=30&&n<70).length,
   high:progress.filter(n=>n>=70).length
  }:null;
- return {total:devices.length,approved:count(d=>d.status==="approved"),
+ return {total:devices.length,unclassified:count(d=>classKind(d)==="unknown"),approved:count(d=>d.status==="approved"),
   pending:count(d=>d.status==="pending"),blocked:count(d=>d.status==="blocked"),
   categories,learning};
 }
@@ -129,6 +132,6 @@ export function BoiOwnerDeviceInsights({registry,verified,filter,onFilter}:{
     </div>:<p>Không tự suy đoán tiến độ từ trạng thái của thiết bị. Số liệu chỉ hiển thị khi D1 trả về kết quả học tập của tài khoản.</p>}
    </section>
   </div>
-  <p className={styles.note}>“Laptop / máy tính” là nhóm trình duyệt desktop. Hệ thống không khẳng định thiết bị vật lý là laptop hay máy bàn; tiến độ học tập gắn với tài khoản chứ không gắn riêng từng khóa trình duyệt.</p>
+  <p className={styles.note}>{stats?.unclassified?`${stats.unclassified} liên kết chưa có bằng chứng phân loại trình duyệt. `:""}“Laptop / máy tính” là nhóm trình duyệt desktop. Hệ thống không khẳng định thiết bị vật lý là laptop hay máy bàn; tiến độ học tập gắn với tài khoản chứ không gắn riêng từng khóa trình duyệt.</p>
  </div>;
 }
