@@ -1639,6 +1639,12 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
         {tab==="policies" && access.role==="owner" ? <div className="boi-owner-workspace"><AccountExpiryPanel section="policies"/></div> : null}
         {tab==="roles" ? <section className="boi-console-card boi-rbac-panel" aria-label="Ma trận phân quyền đọc-only"><header><div><span>GIẢI THÍCH QUYỀN, KHÔNG PHẢI MÀN HÌNH CẤP QUYỀN</span><h2>Phân tách quyền theo vai trò</h2></div></header>
           <p>Quyền thực tế luôn do API Bơi Ếch kiểm tra. Bảng này chỉ giải thích phạm vi; không chứa nút cấp quyền.</p>
+          <div className="boi-v18-role-grid" aria-label="Bốn vai trò với trách nhiệm phân tách">
+            <article data-role="owner"><strong>Owner</strong><span>Quản trị hệ thống · duyệt cán bộ</span><small>Quyết định nhạy cảm qua xác minh MFA và API</small></article>
+            <article data-role="manager"><strong>Cán bộ quản lý</strong><span>Điều hành lớp · phòng · lịch</span><small>Duyệt giảng viên, học viên theo phạm vi được cấp</small></article>
+            <article data-role="teacher"><strong>Giảng viên</strong><span>Giảng dạy · phản hồi học viên</span><small>Không có quyền duyệt tài khoản</small></article>
+            <article data-role="learner"><strong>Học viên</strong><span>Học tập · video AI</span><small>Quản lý kết quả và dữ liệu cá nhân</small></article>
+          </div>
           <div className="boi-owner-table-scroll"><table className="boi-owner-table"><thead><tr><th>Chức năng</th><th>Owner</th><th>Cán bộ</th><th>Giảng viên</th><th>Học viên</th></tr></thead><tbody>
           <tr><td>Mời, duyệt cán bộ quản lý</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
           <tr><td>Duyệt giảng viên và học viên</td><td>Giám sát</td><td>Theo phạm vi được cấp</td><td>—</td><td>—</td></tr>
@@ -1818,9 +1824,25 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
           {access.role === "owner" ? <DeletedDevicesPanel readOnly devices={dashboard?.deletedDevices ?? []} restore={(device, confirmation) => dashboardAction({ action: "manage-learning-device", operation: "restore-deleted-device", targetDeviceId: device.deviceId, confirmDeviceCode: confirmation }, `Đã cho phép ${device.deviceCode} đăng ký lại. Thiết bị sẽ xuất hiện như hồ sơ mới khi mở Site Bơi ếch.`)} /> : null}
         </> : null}
 
-        {tab === "ai" && dashboard?.boiBridge ? <AiControlCenter role={access.role} api={(init) => boiApi<AiControlData>(dashboard.boiBridge, "/api/control/ai", init)} onNotice={setNotice} /> : null}
+        {tab === "ai" && dashboard?.boiBridge ? <>
+          <section className="boi-v18-workflow" aria-label="Điều hành AI trong Bơi Ếch">
+            <span>AI OPS · QUẢN TRỊ CHUYÊN BIỆT</span><h2>Giám sát & điều chỉnh AI</h2>
+            <p>Trạng thái và hành động chỉ có hiệu lực khi Control API xác minh. Phân tích video học viên là công cụ hỗ trợ, không thay thế Giảng viên và giám sát an toàn bơi.</p>
+          </section>
+          <AiControlCenter role={access.role} api={(init) => boiApi<AiControlData>(dashboard.boiBridge, "/api/control/ai", init)} onNotice={setNotice} />
+        </> : null}
 
-        {tab === "content" && dashboard?.boiBridge ? <ContentReviewCenter bridge={dashboard.boiBridge} access={access} automation={dashboard.automation} saveAutomation={(enabled, defaultAccessDays, defaultDeviceLimit) => dashboardAction({ action: "manage-learning-device", operation: "update-automation", enabled, defaultAccessDays, defaultDeviceLimit }, `Đã ${enabled ? "bật" : "tắt"} tự động duyệt; mặc định ${defaultAccessDays} ngày cho tối đa ${defaultDeviceLimit} thiết bị.`)} /> : null}
+        {tab === "content" && dashboard?.boiBridge ? <>
+          <section className="boi-v18-workflow" aria-label="Quy trình duyệt học liệu">
+            <span>CONTENT GOVERNANCE · DÙNG DỮ LIỆU THẬT</span><h2>Duyệt nội dung học liệu</h2>
+            <div className="boi-v18-flow-steps">
+              <b>01 · Đề nghị chỉnh sửa</b><b>02 · Kiểm tra & phản hồi</b>
+              <b>03 · Duyệt đúng quyền</b><b>04 · Phát hành có nhật ký</b>
+            </div>
+            <p>Không đồng nhất bản sửa cục bộ của Giảng viên với bản đã publish. Quyết định phát hành vẫn đi qua API, quyền duyệt và bằng chứng thực tế.</p>
+          </section>
+          <ContentReviewCenter bridge={dashboard.boiBridge} access={access} automation={dashboard.automation} saveAutomation={(enabled, defaultAccessDays, defaultDeviceLimit) => dashboardAction({ action: "manage-learning-device", operation: "update-automation", enabled, defaultAccessDays, defaultDeviceLimit }, `Đã ${enabled ? "bật" : "tắt"} tự động duyệt; mặc định ${defaultAccessDays} ngày cho tối đa ${defaultDeviceLimit} thiết bị.`)} />
+        </> : null}
         </div>
       </section>
 
