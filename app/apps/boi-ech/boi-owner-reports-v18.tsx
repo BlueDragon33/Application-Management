@@ -1,7 +1,7 @@
 "use client";
 
 import type {BoiDeviceRegistry} from "../../boi-device-registry";
-import {deviceSummary} from "./boi-owner-device-insights";
+import {deviceSummary} from "./boi-owner-device-summary";
 import styles from "./boi-owner-reports-v18.module.css";
 
 type LegacyDevice={status:"pending"|"approved"|"blocked";active:boolean;personRole:string|null;completionPercent:number;learnerName:string|null};
