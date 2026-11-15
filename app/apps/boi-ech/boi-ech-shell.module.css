@@ -1323,3 +1323,75 @@
 }
 .scope :global(.control-shell[data-admin-design="owner-v18"] .boi-rbac-panel>header span){color:#84eaff!important}
 .scope :global(.control-shell[data-admin-design="owner-v18"] .boi-rbac-panel>header h2){color:#fff!important}
+
+/* V19 — compact five-entry Owner sidebar.
+   The fifth entry is a true disclosure button; its children expand VERTICALLY
+   below the main navigation and do not create a second nested scroll area. */
+.scope :global(.control-shell[data-admin-design="owner-v18"] .boi-specialist-trigger){
+  position:relative;min-width:0;
+}
+.scope :global(.control-shell[data-admin-design="owner-v18"] .boi-specialist-trigger .boi-specialist-chevron){
+  flex:0 0 17px;width:17px;height:17px;margin-left:auto;color:#c9e8ff;
+  transition:transform .16s ease;
+}
+.scope :global(.control-shell[data-admin-design="owner-v18"] .boi-specialist-trigger[aria-expanded="true"] .boi-specialist-chevron){
+  transform:rotate(180deg);
+}
+.scope :global(.control-shell[data-admin-design="owner-v18"] .boi-specialist-list){
+  display:grid;gap:5px;margin:3px 2px 8px 16px;padding:8px 0 8px 10px;
+  border-left:2px solid #428ce7;
+  background:linear-gradient(90deg,#143c751f,transparent 90%);
+  border-radius:0 12px 12px 0;
+}
+.scope :global(.control-shell[data-admin-design="owner-v18"] .boi-specialist-list[hidden]){
+  display:none!important;
+}
+.scope :global(.control-shell[data-admin-design="owner-v18"] .boi-specialist-list button){
+  display:flex;align-items:center;gap:10px;min-width:0;width:100%;
+  padding:10px 9px!important;min-height:42px;border:1px solid #34538c70!important;
+  border-radius:10px!important;background:#16315a65!important;color:#d9ecff!important;
+  text-align:left;cursor:pointer;font:inherit;
+}
+.scope :global(.control-shell[data-admin-design="owner-v18"] .boi-specialist-list button:hover){
+  background:#26518abb!important;border-color:#6aa6f5!important;
+}
+.scope :global(.control-shell[data-admin-design="owner-v18"] .boi-specialist-list button.active){
+  background:linear-gradient(107deg,#175ad1,#4c40c6)!important;
+  border-color:#7ed4ff!important;color:#fff!important;
+  box-shadow:0 3px 12px #1d6eef4d!important;
+}
+.scope :global(.control-shell[data-admin-design="owner-v18"] .boi-specialist-list button i){
+  display:grid;place-items:center;width:24px;height:24px;flex:0 0 24px;
+  font-style:normal;color:#b9dcff;
+}
+.scope :global(.control-shell[data-admin-design="owner-v18"] .boi-specialist-list button.active i){color:#fff}
+.scope :global(.control-shell[data-admin-design="owner-v18"] .boi-specialist-list button strong){
+  color:inherit;font-size:12px;line-height:1.35;font-weight:800;overflow-wrap:anywhere;
+}
+.scope :global(.control-shell[data-admin-design="owner-v18"] .boi-specialist-list button:focus-visible){
+  outline:3px solid #ffd260!important;outline-offset:2px!important;
+}
+/* On phones, five top-level buttons can swipe horizontally.
+   The expanded tools remain a readable VERTICAL list outside that scroller. */
+@media(max-width:820px){
+  .scope :global(.control-shell[data-admin-design="owner-v18"] .boi-specialist-list){
+    display:grid!important;grid-template-columns:1fr!important;
+    margin:2px 6px 8px 10px;overflow:visible!important;max-height:none!important;
+    border-left-color:#58a9fa;
+  }
+  .scope :global(.control-shell[data-admin-design="owner-v18"] .boi-specialist-list[hidden]){
+    display:none!important;
+  }
+  .scope :global(.control-shell[data-admin-design="owner-v18"] .boi-specialist-list button){
+    display:flex!important;flex:initial!important;width:100%!important;max-width:none!important;
+    min-height:43px!important;white-space:normal!important;
+  }
+  .scope :global(.control-shell[data-admin-design="owner-v18"] .boi-specialist-list button strong){
+    white-space:normal!important;max-width:none!important;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  .scope :global(.control-shell[data-admin-design="owner-v18"] .boi-specialist-trigger .boi-specialist-chevron){
+    transition:none!important;
+  }
+}
