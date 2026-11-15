@@ -7,25 +7,25 @@ const source=fs.readFileSync(new URL("../app/apps/boi-ech/boi-ech-control-center
 const css=fs.readFileSync(new URL("../app/apps/boi-ech/boi-ech-shell.module.css",import.meta.url),"utf8");
 const tree=ts.createSourceFile("boi-ech-control-center.tsx",source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 
-test("Owner navigation exposes the daily work directly and keeps secondary tools in Account Space",()=>{
- const nav=source.slice(source.indexOf('<nav aria-label="Quản trị Bơi ếch — điều hướng chính">'),
-   source.indexOf("</nav>",source.indexOf('<nav aria-label="Quản trị Bơi ếch — điều hướng chính">')));
+test("Owner V18 shows all nine destinations, specialist tools are full-page, not unsafe modal overlays",()=>{
+ const nav=source.slice(source.indexOf('<nav aria-label="Quản trị Bơi Ếch — điều hướng chính">'),
+    source.indexOf('</nav>',source.indexOf('<nav aria-label="Quản trị Bơi Ếch — điều hướng chính">')));
+ const tools=source.slice(source.indexOf('<nav aria-label="Công cụ chuyên biệt Bơi Ếch">'),
+    source.indexOf('</nav>',source.indexOf('<nav aria-label="Công cụ chuyên biệt Bơi Ếch">')));
  for(const title of ["Tổng quan","Thiết bị & Tiến độ","Tài khoản & Duyệt cán bộ",
-   "Giảng viên & Học viên","Thời hạn & Chính sách","Điều hành AI"]) assert.ok(nav.includes(title),title);
- assert.doesNotMatch(nav,/Nghiệp vụ khác|Báo cáo & Thống kê|Vai trò & Quyền|Duyệt nội dung|Cloudflare Preview/);
+    "Giảng viên & Học viên","Thời hạn & Chính sách","Điều hành AI"]) assert.ok(nav.includes(title),title);
+ for(const title of ["Báo cáo & Thống kê","Vai trò & Quyền","Duyệt nội dung"]) assert.ok(tools.includes(title),title);
+ assert.match(source,/canReviewContent\?<button/);
+ assert.match(source,/access\.role==="owner"\?\[/);
+ assert.match(source,/className="boi-main-contents" role="region"/);
+ assert.doesNotMatch(source,/boi-owner-task-dialog|boi-task-scrim|const utilityOpen=/);
  const account=source.slice(source.indexOf('<nav className="boi-owner-account-modal-actions"'),
    source.indexOf("</nav>",source.indexOf('<nav className="boi-owner-account-modal-actions"')));
- for(const title of ["Báo cáo & Thống kê","Vai trò & Quyền","Duyệt nội dung","Cloudflare Preview"])
-   assert.ok(account.includes(title),title);
+ for(const title of ["Cloudflare Preview","Hồ sơ · Đổi mật khẩu","Vai trò & Quyền"])
+  assert.ok(account.includes(title),title);
  assert.doesNotMatch(source,/toolsMenuOpen|boi-owner-task-selector/);
- assert.match(source,/const utilityOpen=\["roles","reports","content"\]\.includes\(tab\)/);
- assert.match(source,/role=\{utilityOpen\?"dialog":undefined\}/);
- assert.match(source,/aria-modal=\{utilityOpen\?true:undefined\}/);
- assert.match(source,/id=\{utilityOpen\?"boi-owner-task-dialog":undefined\}/);
  assert.match(source,/event\.key!=="Tab"/);
  assert.match(source,/event\.shiftKey/);
- assert.match(source,/previous\.focus\(\{preventScroll:true\}\)/);
- assert.match(source,/window\.addEventListener\("keydown",onKey\)/);
 });
 
 test("owner profile is at top right, not in sidebar; boundary notice and sidebar security link removed",()=>{
@@ -55,7 +55,7 @@ test("authentication switch refreshes only on real resume/online events and pres
 });
 
 test("role-specific operations remain guarded, no learner or teacher approvals in Owner app",()=>{
- assert.match(source,/access\.role==="owner"\?<>/);
+ assert.match(source,/access\.role==="owner"\?\[/);
  assert.ok(source.includes('tab==="accounts" && access.role==="owner" ? <div className="boi-owner-workspace"><AccountExpiryPanel section="accounts"/>'));
  assert.match(source,/AccountExpiryPanel section="oversight"/);
  assert.match(source,/AccountExpiryPanel section="policies"/);
