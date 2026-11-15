@@ -56,8 +56,17 @@ test("Manager roster is date-aware, V2 cards restore icons and no false online c
  const client=readFileSync("app/boi-access-client.ts","utf8");
  for(const part of ["FOUR_DAYS_MS","m.activeSessions===0","managerFilter","archiveBoiManagerAccount",
     "boi-manager-facts","boi-manager-archive-dialog","LUU TRU","managerSearch"])assert.ok(ui.includes(part),part);
- for(const part of ["boi-registry-grid","boi-registry-metrics","boi-registry-toolbar",
-    "<Laptop active={false} status={device.status}","registryFilter","visibleRegistryDevices"])assert.ok(device.includes(part),part);
+ for(const part of ["boi-registry-grid","boi-registry-toolbar","registryFilter",
+    "visibleRegistryDevices","BoiOwnerDeviceInsights","BoiClientDeviceIcon"])
+    assert.ok(device.includes(part),part);
+ const insight=readFileSync("app/apps/boi-ech/boi-owner-device-insights.tsx","utf8");
+ const summary=readFileSync("app/apps/boi-ech/boi-owner-device-summary.ts","utf8");
+ assert.match(insight,/className=\{styles\.metrics\}/);
+ assert.match(insight,/className=\{styles\.categories\}/);
+ assert.match(insight,/BoiClientDeviceIcon kind=\{item\.kind\}/);
+ assert.match(summary,/devices\.filter\(d=>classifyBinding\(d\)===x\.kind\)/);
+ assert.match(device,/onClick=\{\(\)=>void inspectBinding\(device\.deviceId\)\}/);
+ assert.match(device,/expectedStatus:details\.status,expectedCreatedAt:details\.createdAt/);
  assert.match(css,/boi-manager-archive-dialog/);assert.match(css,/boi-registry-grid/);
  assert.match(api,/createdAt:a.createdAt,lastSeenAt:a.lastSeenAt/);
  assert.match(client,/activeSessions:number/);
