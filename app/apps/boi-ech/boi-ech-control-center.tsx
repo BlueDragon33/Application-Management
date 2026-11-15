@@ -1497,7 +1497,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
   };
   const visibleRegistryDevices=deviceRegistry?.devices.filter(device=>
     (registryFilter==="all"||device.status===registryFilter)
-    && (registryKind==="all"||(device.clientClass??"desktop")===registryKind)
+    && (registryKind==="all"||device.clientClass===registryKind)
     && [device.deviceId,device.account?.accountId,device.account?.name,device.account?.role,device.browserLabel]
       .some(value=>(value??"").toLocaleLowerCase("vi").includes(registrySearch.trim().toLocaleLowerCase("vi"))))??[];
   const canReviewContent = ["reviewer","publisher","owner"].includes(access.role);
@@ -1702,7 +1702,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
                   <button type="button" className={bindingUi.openDetails}
                     onClick={()=>void inspectBinding(device.deviceId)}
                     aria-label={`Xem liên kết trình duyệt của ${device.account?.name||"tài khoản chưa khai báo"} ${device.deviceId.slice(0,12)}`}>
-                    <BoiClientDeviceIcon kind={device.clientClass==="phone"?"phone":device.clientClass==="tablet"?"tablet":"desktop"} size={54}/>
+                    <BoiClientDeviceIcon kind={device.clientClass==="phone"?"phone":device.clientClass==="tablet"?"tablet":device.clientClass==="desktop"?"desktop":"unknown"} size={54}/>
                   </button>
                 </div>
                 <button type="button" className="boi-registry-card" data-status={device.status}
@@ -1714,7 +1714,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
                     device.account?.role==="teacher"?"Giảng viên":
                     device.account?.role==="learner"?"Học viên":"Vai trò chưa xác minh"}
                     {" · "}{device.clientClass==="phone"?"Điện thoại":
-                    device.clientClass==="tablet"?"iPad / Tablet":"Laptop / máy tính"}</small>
+                    device.clientClass==="tablet"?"iPad / Tablet":device.clientClass==="desktop"?"Laptop / máy tính":"Chưa phân loại"}</small>
                   {device.account?.role==="learner"?<small>Tiến độ tài khoản: {device.progress
                     ? `${device.progress.completed}/${device.progress.total} bài được ghi nhận`
                     : "Chưa có dữ liệu xác minh"} · Không phải tiến độ riêng của trình duyệt</small>:null}
