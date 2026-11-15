@@ -394,8 +394,17 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
         onClick={()=>setOversightCleanupOpen(v=>!v)}
         aria-expanded={oversightCleanupOpen}>⌫ {oversightCleanupOpen?"Đóng công cụ dọn tài khoản":"Kiểm tra & xóa hồ sơ cũ"}</button>
     </div>
-    <div className={design.peopleGrid}>
-      {displayed.filter(a=>(oversightRole==="all"||a.role===oversightRole)&&(
+    {(["learner","teacher"] as const).filter(group=>oversightRole==="all"||oversightRole===group).map(group=>
+    <section key={group} className={design.peopleGroup} data-role={group}
+      aria-label={group==="learner"?"Khu vực Học viên":"Khu vực Giảng viên"}>
+      <header className={design.groupHeader}>
+       <span className={design.groupIcon} aria-hidden="true">{group==="learner"?"♙":"♧"}</span>
+       <div><h3>{group==="learner"?"Học viên":"Giảng viên"}</h3>
+         <p>{group==="learner"?"Giám sát tiến độ hồ sơ và hạn học":"Theo dõi hồ sơ giảng dạy và thời hạn tài khoản"}</p></div>
+       <strong>{displayed.filter(a=>a.role===group).length} hồ sơ trong tập đã tải</strong>
+      </header>
+      <div className={design.peopleGrid}>
+      {displayed.filter(a=>a.role===group&&(
         oversightState==="all"||
         oversightState==="pending"&&!a.entitlement||
         oversightState==="active"&&Boolean(a.entitlement?.active)||
@@ -416,7 +425,14 @@ export default function AccountExpiryPanel({section="accounts"}:{section?:"accou
         </div>
         <code title={a.accountId}>{a.accountId.slice(0,20)}…</code>
       </article>)}
-    </div>
+       {displayed.filter(a=>a.role===group&&(
+          oversightState==="all"||
+          (oversightState==="pending"&&!a.entitlement)||
+          (oversightState==="active"&&Boolean(a.entitlement?.active))||
+          (oversightState==="blocked"&&a.entitlement?.state==="suspended")
+        )).length===0?<p className={design.groupEmpty}>Không có hồ sơ phù hợp bộ lọc hiện tại.</p>:null}
+      </div>
+    </section>)}
     <p className={design.peopleNote}>Giám sát chỉ đọc · Hồ sơ đang hoạt động không được xóa từ danh sách giám sát.
       Chỉ Owner mới có thể kiểm kê và xóa dữ liệu đã được D1 xác nhận đủ điều kiện.</p>
     {oversightCleanupOpen?<div className={design.oversightCleanup}><OwnerAccountCleanupPanel/></div>:null}
