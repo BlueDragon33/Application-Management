@@ -1204,3 +1204,59 @@
    animation-duration:.01ms!important;transition-duration:.01ms!important;
  }
 }
+
+/* Role cards and two governed specialist workflows — no simulated data. */
+.scope :global(.control-shell[data-admin-design="owner-v18"] .boi-v18-role-grid){
+ display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px;margin:16px 0 23px;
+}
+.scope :global(.control-shell[data-admin-design="owner-v18"] .boi-v18-role-grid article){
+ display:grid;gap:8px;align-content:start;min-height:141px;border-radius:14px;
+ padding:16px;border:1px solid #266bdc;background:linear-gradient(145deg,#ddecff,#eaf2ff);
+}
+.scope :global(.control-shell[data-admin-design="owner-v18"] .boi-v18-role-grid article[data-role=owner]){
+ border-color:#278aaf;background:linear-gradient(142deg,#ccf8ff,#e2f5ff);
+}
+.scope :global(.control-shell[data-admin-design="owner-v18"] .boi-v18-role-grid article[data-role=teacher]){
+ border-color:#9a76de;background:linear-gradient(142deg,#e6d9ff,#f5efff);
+}
+.scope :global(.control-shell[data-admin-design="owner-v18"] .boi-v18-role-grid article[data-role=learner]){
+ border-color:#4d9fef;background:linear-gradient(142deg,#d8f2ff,#eaf3ff);
+}
+.scope :global(.control-shell[data-admin-design="owner-v18"] .boi-v18-role-grid strong){color:#0b326b;font-size:16px}
+.scope :global(.control-shell[data-admin-design="owner-v18"] .boi-v18-role-grid span){color:#174983;font-size:12px;font-weight:850;line-height:1.5}
+.scope :global(.control-shell[data-admin-design="owner-v18"] .boi-v18-role-grid small){color:#365574;font-size:11px;line-height:1.55}
+.scope :global(.control-shell[data-admin-design="owner-v18"] .boi-v18-workflow){
+ display:grid;gap:10px;margin:0 0 8px;padding:clamp(15px,2vw,22px);
+ border:1px solid #3985e2;border-radius:17px;
+ background:radial-gradient(ellipse at 92% 10%,#3d2074,transparent 48%),
+ linear-gradient(137deg,#0b316e,#0d1e48);color:#eff9ff;
+ box-shadow:0 9px 20px #000c2c45;
+}
+.scope :global(.control-shell[data-admin-design="owner-v18"] .boi-v18-workflow > span){
+ color:#6ceaff;font-size:11px;font-weight:900;letter-spacing:.09em;
+}
+.scope :global(.control-shell[data-admin-design="owner-v18"] .boi-v18-workflow h2){
+ color:#fff;font-size:clamp(20px,2.5vw,28px);margin:0;font-weight:850;
+}
+.scope :global(.control-shell[data-admin-design="owner-v18"] .boi-v18-workflow p){
+ color:#d0e7ff;font-size:12px;line-height:1.6;margin:0;
+}
+.scope :global(.control-shell[data-admin-design="owner-v18"] .boi-v18-flow-steps){
+ display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:7px 0 2px;
+}
+.scope :global(.control-shell[data-admin-design="owner-v18"] .boi-v18-flow-steps b){
+ background:#153a78;border:1px solid #4f8ce2;border-radius:11px;
+ padding:12px;color:#f2faff;font-size:12px;line-height:1.5;
+}
+@media(max-width:1110px){
+ .scope :global(.control-shell[data-admin-design="owner-v18"] .boi-v18-role-grid),
+ .scope :global(.control-shell[data-admin-design="owner-v18"] .boi-v18-flow-steps){
+  grid-template-columns:repeat(2,minmax(0,1fr));
+ }
+}
+@media(max-width:510px){
+ .scope :global(.control-shell[data-admin-design="owner-v18"] .boi-v18-role-grid),
+ .scope :global(.control-shell[data-admin-design="owner-v18"] .boi-v18-flow-steps){
+  grid-template-columns:1fr;
+ }
+}
