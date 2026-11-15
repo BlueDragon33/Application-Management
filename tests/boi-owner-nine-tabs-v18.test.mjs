@@ -23,7 +23,7 @@ test("V18 Owner navigation exposes all nine full page destinations and their rol
  "Giảng viên & Học viên","Thời hạn & Chính sách","Điều hành AI","Vai trò & Quyền",
  "Báo cáo & Thống kê","Duyệt nội dung"];
  for(const title of heading)assert.ok(ui.includes(title),title);
- assert.match(ui,/CÔNG CỤ CHUYÊN BIỆT/);
+ assert.match(ui,/Công cụ chuyên biệt/);
  assert.match(ui,/access\.role==="owner"\?\[/);
  assert.match(ui,/canReviewContent\?\[/);
  assert.match(ui,/className="boi-main-contents" role="region"/);
