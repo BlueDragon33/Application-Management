@@ -15,6 +15,9 @@ import {useBoiSyncNotices,broadcastBoiChange} from "./manual-sync-notices";
 import AiControlCenter, { type AiControlData } from "../../ai-control-center";
 import { csvCell } from "../../report-exports";
 import { parseBoiDeviceRegistry, type BoiDeviceRegistry } from "../../boi-device-registry";
+import {BoiOwnerDeviceInsights,BoiClientDeviceIcon,type DeviceKind} from "./boi-owner-device-insights";
+import BoiOwnerReportsV18 from "./boi-owner-reports-v18";
+import {OwnerNavIcon} from "./boi-owner-nav-icons";
 
 type ControlRole = "viewer" | "reviewer" | "publisher" | "owner";
 type DeviceStatus = "pending" | "approved" | "blocked";
@@ -842,6 +845,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
   const [search, setSearch] = useState("");
   const [registrySearch,setRegistrySearch]=useState("");
   const [registryFilter,setRegistryFilter]=useState<"all"|"approved"|"pending"|"blocked">("all");
+  const [registryKind,setRegistryKind]=useState<DeviceKind>("all");
  const [registrySelected,setRegistrySelected]=useState<string[]>([]);
  const [registryBulkBusy,setRegistryBulkBusy]=useState(false);
  const [registryBulkError,setRegistryBulkError]=useState("");
@@ -860,7 +864,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
   const [selectedActivityLoading, setSelectedActivityLoading] = useState(false);
   const [online, setOnline] = useState(true);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
-  // Compact shell keeps rare work in task dialogs, not permanent navigation.
+  // V18: nine owner destinations are full page tabs, account MFA remains modal.
   const [accountMenuOpen,setAccountMenuOpen]=useState(false);
    const accountModalRef=useRef<HTMLElement|null>(null);
    const accountTriggerRef=useRef<HTMLButtonElement|null>(null);
@@ -879,13 +883,6 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
   const [managementAuth, setManagementAuth] = useState(false);
   const managementAuthRef = useRef<((verified: boolean) => void) | null>(null);
   useEffect(() => () => { managementAuthRef.current?.(false); }, []);
-  // Main operational destinations remain in the sidebar; only secondary reference tools use a dialog.
-  const utilityOpen=["roles","reports","content"].includes(tab);
-  const taskTitle:Record<string,string>={
-    accounts:"Tài khoản & Duyệt cán bộ",oversight:"Giám sát GV / học viên",
-    roles:"Vai trò & Quyền",policies:"Thời hạn & Chính sách",reports:"Báo cáo & Thống kê",
-    ai:"Điều hành AI",content:"Duyệt nội dung"
-  };
   useEffect(()=>{
     const initial=window.setTimeout(()=>setClockNow(Date.now()),0);
     const timer=window.setInterval(()=>setClockNow(Date.now()),60_000);
@@ -911,30 +908,6 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
     window.addEventListener("online",onResume);
     return()=>{alive=false;window.removeEventListener("focus",onResume);window.removeEventListener("online",onResume);};
   },[authAutoCheck]);
-  useEffect(()=>{
-    if(!utilityOpen)return;
-    const previous=document.activeElement instanceof HTMLElement?document.activeElement:null;
-    const dialog=document.getElementById("boi-owner-task-dialog");
-    const onKey=(event:KeyboardEvent)=>{
-      if(event.key==="Escape"){event.preventDefault();setTab("overview");return;}
-      if(event.key!=="Tab"||!dialog)return;
-      const items=[...dialog.querySelectorAll<HTMLElement>('button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex="0"]')]
-        .filter(item=>item.getClientRects().length>0);
-      if(!items.length){event.preventDefault();dialog.focus();return;}
-      const first=items[0],last=items[items.length-1];
-      if(event.shiftKey&&(document.activeElement===first||document.activeElement===dialog)){
-        event.preventDefault();last.focus();
-      } else if(!event.shiftKey&&(document.activeElement===last||document.activeElement===dialog)){
-        event.preventDefault();first.focus();
-      }
-    };
-    window.addEventListener("keydown",onKey);
-    const focus=window.setTimeout(()=>dialog?.focus(),0);
-    return()=>{
-      window.removeEventListener("keydown",onKey);window.clearTimeout(focus);
-      if(previous?.isConnected)previous.focus({preventScroll:true});
-    };
-  },[utilityOpen,tab]);
   useEffect(()=>{
     if(!accountMenuOpen)return;
     const previousOverflow=document.body.style.overflow;
@@ -1524,6 +1497,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
   };
   const visibleRegistryDevices=deviceRegistry?.devices.filter(device=>
     (registryFilter==="all"||device.status===registryFilter)
+    && (registryKind==="all"||device.clientClass===registryKind)
     && [device.deviceId,device.account?.accountId,device.account?.name,device.account?.role,device.browserLabel]
       .some(value=>(value??"").toLocaleLowerCase("vi").includes(registrySearch.trim().toLocaleLowerCase("vi"))))??[];
   const canReviewContent = ["reviewer","publisher","owner"].includes(access.role);
@@ -1535,6 +1509,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
       inert={managementAuth}
       aria-hidden={managementAuth || undefined}
       className="control-shell"
+      data-admin-design="owner-v18"
       data-text-size={appearance.textSize}
       style={{
         "--paper": activeTheme.paper,
@@ -1547,19 +1522,38 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
     >
       <aside className="control-sidebar">
         <Link className="control-back-link" href="/"><span>←</span><div><small>SERVER</small><strong>Application Management</strong></div></Link>
-        <div className="control-brand"><div className="brand-seal">BE</div><div><span>CLIENT CẤP 1</span><strong>Quản trị Bơi ếch</strong></div></div>
+        <div className="control-brand"><div className="brand-seal" aria-hidden="true">≋</div>
+          <div><span>OWNER · PREMIUM CONSOLE</span><strong>BƠI ẾCH AI</strong></div></div>
 
         <div className="boi-nav-caption">ĐIỀU HÀNH ỨNG DỤNG</div>
-        <nav aria-label="Quản trị Bơi ếch — điều hướng chính">
-          <button type="button" aria-current={tab==="overview"?"page":undefined} className={tab==="overview"?"active":""} onClick={()=>setTab("overview")}><i aria-hidden="true">⌂</i><span><strong>Tổng quan</strong></span></button>
-          <button type="button" aria-current={tab==="devices"?"page":undefined} className={tab==="devices"?"active":""} onClick={()=>setTab("devices")}><i aria-hidden="true">▣</i><span><strong>Thiết bị & Tiến độ</strong></span></button>
-          {access.role==="owner"?<>
-          <button type="button" aria-current={tab==="accounts"?"page":undefined} className={tab==="accounts"?"active":""} onClick={()=>setTab("accounts")}><i aria-hidden="true">♙</i><span><strong>Tài khoản & Duyệt cán bộ</strong></span></button>
-          <button type="button" aria-current={tab==="oversight"?"page":undefined} className={tab==="oversight"?"active":""} onClick={()=>setTab("oversight")}><i aria-hidden="true">◎</i><span><strong>Giảng viên & Học viên</strong></span></button>
-          <button type="button" aria-current={tab==="policies"?"page":undefined} className={tab==="policies"?"active":""} onClick={()=>setTab("policies")}><i aria-hidden="true">◷</i><span><strong>Thời hạn & Chính sách</strong></span></button>
-          </>:null}
-          {access.role!=="viewer"?<button type="button" aria-current={tab==="ai"?"page":undefined} className={tab==="ai"?"active":""} onClick={()=>setTab("ai")}><i aria-hidden="true">✦</i><span><strong>Điều hành AI</strong></span></button>:null}
+        <nav aria-label="Quản trị Bơi Ếch — điều hướng chính">
+          {([
+            {id:"overview",label:"Tổng quan",icon:"overview"},
+            {id:"devices",label:"Thiết bị & Tiến độ",icon:"devices"},
+            ...(access.role==="owner"?[
+              {id:"accounts",label:"Tài khoản & Duyệt cán bộ",icon:"accounts"},
+              {id:"oversight",label:"Giảng viên & Học viên",icon:"oversight"},
+              {id:"policies",label:"Thời hạn & Chính sách",icon:"policies"}] as const:[]),
+            ...(access.role!=="viewer"?[{id:"ai",label:"Điều hành AI",icon:"ai"}] as const:[])
+          ] as const).map(item=><button type="button" key={item.id}
+             aria-current={tab===item.id?"page":undefined}
+             className={tab===item.id?"active":""} onClick={()=>setTab(item.id)}>
+            <i aria-hidden="true"><OwnerNavIcon name={item.icon}/></i><span><strong>{item.label}</strong></span>
+          </button>)}
         </nav>
+        <div className="boi-nav-caption boi-nav-specialized">CÔNG CỤ CHUYÊN BIỆT</div>
+        <nav aria-label="Công cụ chuyên biệt Bơi Ếch">
+          <button type="button" aria-current={tab==="roles"?"page":undefined} className={tab==="roles"?"active":""}
+            onClick={()=>setTab("roles")}><i><OwnerNavIcon name="roles"/></i><span><strong>Vai trò & Quyền</strong></span></button>
+          <button type="button" aria-current={tab==="reports"?"page":undefined} className={tab==="reports"?"active":""}
+            onClick={()=>setTab("reports")}><i><OwnerNavIcon name="reports"/></i><span><strong>Báo cáo & Thống kê</strong></span></button>
+          {canReviewContent?<button type="button" aria-current={tab==="content"?"page":undefined} className={tab==="content"?"active":""}
+            onClick={()=>setTab("content")}><i><OwnerNavIcon name="content"/></i><span><strong>Duyệt nội dung</strong></span></button>:null}
+        </nav>
+        <div className="boi-nav-source" role="note"><strong>Nguồn dữ liệu & quyền</strong>
+          <span>{devicesVerified?"D1 / Backend · Đã xác minh":"D1 / Backend · Chưa xác minh"}</span>
+          <small>Owner duyệt cán bộ; giảng viên và học viên do cán bộ được giao quản lý.</small>
+        </div>
         <div className="boi-side-clock" aria-label="Đồng hồ tại thiết bị">
           <strong>{clockNow ? new Date(clockNow).toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit"}) : "--:--"}</strong>
           <span>{clockNow ? new Date(clockNow).toLocaleDateString("vi-VN",{weekday:"long",day:"2-digit",month:"2-digit",year:"numeric"}) : "Giờ địa phương"}</span>
@@ -1628,7 +1622,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
         {notice ? <div className="notice" role="status">{notice}</div> : null}
 
 
-        {(tab==="overview"||utilityOpen) ? (access.role==="owner"
+        {tab==="overview" ? (access.role==="owner"
           ? <BoiOwnerOverview onNavigate={setTab}/>
           : <div className="boi-basic-overview">
               <section className="boi-account-metrics">
@@ -1639,16 +1633,18 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
               <section className="boi-console-card"><h2>Không gian điều hành Bơi Ếch</h2><p>Học viên/giảng viên được phê duyệt bởi cán bộ quản lý theo phạm vi. Khu quản trị này không thay thế luồng duyệt đó.</p><button type="button" onClick={()=>setTab("devices")}>Theo dõi thiết bị và tiến độ →</button></section>
             </div>) : null}
 
-        {utilityOpen?<button type="button" className="boi-task-scrim" aria-label="Đóng cửa sổ nghiệp vụ" onClick={()=>setTab("overview")}/>:null}
-        <div className={utilityOpen?"boi-task-dialog":"boi-main-contents"} role={utilityOpen?"dialog":undefined}
-          aria-modal={utilityOpen?true:undefined} aria-label={utilityOpen?taskTitle[tab]:undefined}
-          id={utilityOpen?"boi-owner-task-dialog":undefined} tabIndex={utilityOpen?-1:undefined}>
-          {utilityOpen?<header className="boi-task-header"><div><small>QUẢN TRỊ BƠI ẾCH · TÁC VỤ CHUYÊN BIỆT</small><h2>{taskTitle[tab]}</h2></div><button type="button" aria-label="Đóng cửa sổ nghiệp vụ" onClick={()=>setTab("overview")}>✕</button></header>:null}
+        <div className="boi-main-contents" role="region" aria-label="Nội dung tab quản trị Bơi Ếch">
         {tab==="accounts" && access.role==="owner" ? <div className="boi-owner-workspace"><AccountExpiryPanel section="accounts"/></div> : null}
         {tab==="oversight" && access.role==="owner" ? <div className="boi-owner-workspace"><AccountExpiryPanel section="oversight"/></div> : null}
         {tab==="policies" && access.role==="owner" ? <div className="boi-owner-workspace"><AccountExpiryPanel section="policies"/></div> : null}
         {tab==="roles" ? <section className="boi-console-card boi-rbac-panel" aria-label="Ma trận phân quyền đọc-only"><header><div><span>GIẢI THÍCH QUYỀN, KHÔNG PHẢI MÀN HÌNH CẤP QUYỀN</span><h2>Phân tách quyền theo vai trò</h2></div></header>
           <p>Quyền thực tế luôn do API Bơi Ếch kiểm tra. Bảng này chỉ giải thích phạm vi; không chứa nút cấp quyền.</p>
+          <div className="boi-v18-role-grid" aria-label="Bốn vai trò với trách nhiệm phân tách">
+            <article data-role="owner"><strong>Owner</strong><span>Quản trị hệ thống · duyệt cán bộ</span><small>Quyết định nhạy cảm qua xác minh MFA và API</small></article>
+            <article data-role="manager"><strong>Cán bộ quản lý</strong><span>Điều hành lớp · phòng · lịch</span><small>Duyệt giảng viên, học viên theo phạm vi được cấp</small></article>
+            <article data-role="teacher"><strong>Giảng viên</strong><span>Giảng dạy · phản hồi học viên</span><small>Không có quyền duyệt tài khoản</small></article>
+            <article data-role="learner"><strong>Học viên</strong><span>Học tập · video AI</span><small>Quản lý kết quả và dữ liệu cá nhân</small></article>
+          </div>
           <div className="boi-owner-table-scroll"><table className="boi-owner-table"><thead><tr><th>Chức năng</th><th>Owner</th><th>Cán bộ</th><th>Giảng viên</th><th>Học viên</th></tr></thead><tbody>
           <tr><td>Mời, duyệt cán bộ quản lý</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
           <tr><td>Duyệt giảng viên và học viên</td><td>Giám sát</td><td>Theo phạm vi được cấp</td><td>—</td><td>—</td></tr>
@@ -1657,18 +1653,14 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
           <tr><td>Học tập, theo dõi cá nhân</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
           </tbody></table></div></section> : null}
 
-        {deviceRegistry && (tab === "devices" || tab === "reports") ? <section className="boi-console-card boi-reports-workspace" aria-label="Trung tâm kiểm soát thiết bị Account-first">
+        {deviceRegistry && tab === "devices" ? <section className="boi-console-card boi-reports-workspace" aria-label="Trung tâm kiểm soát thiết bị Account-first">
           <header className="boi-registry-heading"><div><span>ACCOUNT-FIRST V2 · LIÊN KẾT PHIÊN ĐÃ XÁC MINH</span>
             <h2>Tài khoản & Khóa trình duyệt</h2>
             <p>Mỗi liên kết thuộc đúng một tài khoản. Đây là khóa phiên trình duyệt/P-256, không phải mã định danh phần cứng. Không suy diễn trạng thái Online hoặc tiến độ nếu chưa có dữ liệu xác minh.</p>
           </div><button type="button" onClick={exportDevices} disabled={!devicesVerified}>Xuất CSV liên kết</button></header>
           {devicesVerified ? <>
-            <div className="boi-registry-metrics" aria-label="Thống kê trạng thái thiết bị">
-              <article><span>Tổng liên kết</span><strong>{deviceRegistry.counts.total}</strong></article>
-              <article><span>Đã tin cậy</span><strong>{registryCounts.approved}</strong></article>
-              <article><span>Chờ xác nhận</span><strong>{registryCounts.pending}</strong></article>
-              <article><span>Đã thu hồi</span><strong>{registryCounts.blocked}</strong></article>
-            </div>
+            <BoiOwnerDeviceInsights registry={deviceRegistry} verified={devicesVerified}
+               filter={registryKind} onFilter={setRegistryKind}/>
             <div className="boi-registry-toolbar">
               <div className="boi-registry-filters" role="group" aria-label="Lọc trạng thái thiết bị">
                 {([["all","Tất cả"],["approved","Đã tin cậy"],["pending","Chờ xác nhận"],["blocked","Đã thu hồi"]] as const)
@@ -1716,7 +1708,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
                   <button type="button" className={bindingUi.openDetails}
                     onClick={()=>void inspectBinding(device.deviceId)}
                     aria-label={`Xem liên kết trình duyệt của ${device.account?.name||"tài khoản chưa khai báo"} ${device.deviceId.slice(0,12)}`}>
-                    <Laptop active={false} status={device.status}/>
+                    <BoiClientDeviceIcon kind={device.clientClass==="phone"?"phone":device.clientClass==="tablet"?"tablet":device.clientClass==="desktop"?"desktop":"unknown"} size={54}/>
                   </button>
                 </div>
                 <button type="button" className="boi-registry-card" data-status={device.status}
@@ -1728,7 +1720,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
                     device.account?.role==="teacher"?"Giảng viên":
                     device.account?.role==="learner"?"Học viên":"Vai trò chưa xác minh"}
                     {" · "}{device.clientClass==="phone"?"Điện thoại":
-                    device.clientClass==="tablet"?"Máy tính bảng":"Máy tính"}</small>
+                    device.clientClass==="tablet"?"iPad / Tablet":device.clientClass==="desktop"?"Laptop / máy tính":"Chưa phân loại"}</small>
                   {device.account?.role==="learner"?<small>Tiến độ tài khoản: {device.progress
                     ? `${device.progress.completed}/${device.progress.total} bài được ghi nhận`
                     : "Chưa có dữ liệu xác minh"} · Không phải tiến độ riêng của trình duyệt</small>:null}
@@ -1816,17 +1808,9 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
           </section>
         </div>:null}
 
-        {tab==="reports" && !deviceRegistry ? <section className="boi-console-card boi-reports-workspace"><header><div><span>BÁO CÁO DỮ LIỆU THẬT</span><h2>Thiết bị và tiến độ</h2></div></header>
-          <p>Đây là thống kê thiết bị BE; không lấy số thiết bị để thay thế tổng tài khoản hoặc số yêu cầu chờ duyệt.</p>
-          <section className="boi-account-metrics">
-            <article><div><small>Tổng thiết bị</small><strong>{deviceMetric(counts.total)}</strong></div></article>
-            <article><div><small>Đang hoạt động</small><strong>{deviceMetric(counts.active)}</strong></div></article>
-            <article><div><small>Chờ xử lý</small><strong>{deviceMetric(counts.pending)}</strong></div></article>
-            <article><div><small>Đã khóa</small><strong>{deviceMetric(counts.blocked)}</strong></div></article>
-          </section>
-          <div className="boi-report-actions"><button type="button" onClick={exportDevices} disabled={!devicesVerified}>Xuất CSV đã xác minh</button><button type="button" onClick={()=>setTab("devices")}>Xem danh sách thiết bị →</button></div>
-          {!devicesVerified?<p role="status">Chưa xác minh kết nối Bơi Ếch; không xuất báo cáo 0 giả.</p>:null}
-        </section> : null}
+        {tab==="reports" ? <BoiOwnerReportsV18 registry={deviceRegistry}
+           legacy={dashboard?.learningDevices??[]} verified={devicesVerified}
+           onExport={exportDevices} onDevices={()=>setTab("devices")}/> : null}
 
         {tab === "devices" && !deviceRegistry ? <>
           <section className="summary-grid"><article><span>Tổng thiết bị</span><strong>{deviceMetric(counts.total)}</strong><small>Bơi ếch</small></article><article><span>Online</span><strong>{deviceMetric(counts.active)}</strong><small>Tín hiệu ký số mỗi 60 giây</small></article><article><span>Chờ xử lý</span><strong>{deviceMetric(counts.pending)}</strong><small>Hồ sơ hoặc thanh toán</small></article><article><span>Nhóm trả phí</span><strong>{deviceMetric(counts.paid)}</strong><small>Tài khoản 50.000đ</small></article><article><span>Nhóm miễn phí</span><strong>{deviceMetric(counts.free)}</strong><small>Đã sàng lọc</small></article><article><span>Sửa bản riêng</span><strong>{deviceMetric(counts.personalEdit)}</strong><small>Không cập nhật máy chủ</small></article><article><span>Sắp/đã hết hạn</span><strong>{deviceMetric(counts.expiring + counts.expired)}</strong><small>{deviceMetric(counts.expired)} đã hết hạn</small></article><article><span>Đã khóa</span><strong>{deviceMetric(counts.blocked)}</strong><small>Không thể truy cập</small></article><article><span>Đã loại bỏ</span><strong>{deviceMetric(counts.deleted)}</strong><small>Không thể tự đăng ký lại</small></article></section>
@@ -1840,9 +1824,25 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
           {access.role === "owner" ? <DeletedDevicesPanel readOnly devices={dashboard?.deletedDevices ?? []} restore={(device, confirmation) => dashboardAction({ action: "manage-learning-device", operation: "restore-deleted-device", targetDeviceId: device.deviceId, confirmDeviceCode: confirmation }, `Đã cho phép ${device.deviceCode} đăng ký lại. Thiết bị sẽ xuất hiện như hồ sơ mới khi mở Site Bơi ếch.`)} /> : null}
         </> : null}
 
-        {tab === "ai" && dashboard?.boiBridge ? <AiControlCenter role={access.role} api={(init) => boiApi<AiControlData>(dashboard.boiBridge, "/api/control/ai", init)} onNotice={setNotice} /> : null}
+        {tab === "ai" && dashboard?.boiBridge ? <>
+          <section className="boi-v18-workflow" aria-label="Điều hành AI trong Bơi Ếch">
+            <span>AI OPS · QUẢN TRỊ CHUYÊN BIỆT</span><h2>Giám sát & điều chỉnh AI</h2>
+            <p>Trạng thái và hành động chỉ có hiệu lực khi Control API xác minh. Phân tích video học viên là công cụ hỗ trợ, không thay thế Giảng viên và giám sát an toàn bơi.</p>
+          </section>
+          <AiControlCenter role={access.role} api={(init) => boiApi<AiControlData>(dashboard.boiBridge, "/api/control/ai", init)} onNotice={setNotice} />
+        </> : null}
 
-        {tab === "content" && dashboard?.boiBridge ? <ContentReviewCenter bridge={dashboard.boiBridge} access={access} automation={dashboard.automation} saveAutomation={(enabled, defaultAccessDays, defaultDeviceLimit) => dashboardAction({ action: "manage-learning-device", operation: "update-automation", enabled, defaultAccessDays, defaultDeviceLimit }, `Đã ${enabled ? "bật" : "tắt"} tự động duyệt; mặc định ${defaultAccessDays} ngày cho tối đa ${defaultDeviceLimit} thiết bị.`)} /> : null}
+        {tab === "content" && dashboard?.boiBridge ? <>
+          <section className="boi-v18-workflow" aria-label="Quy trình duyệt học liệu">
+            <span>CONTENT GOVERNANCE · DÙNG DỮ LIỆU THẬT</span><h2>Duyệt nội dung học liệu</h2>
+            <div className="boi-v18-flow-steps">
+              <b>01 · Đề nghị chỉnh sửa</b><b>02 · Kiểm tra & phản hồi</b>
+              <b>03 · Duyệt đúng quyền</b><b>04 · Phát hành có nhật ký</b>
+            </div>
+            <p>Không đồng nhất bản sửa cục bộ của Giảng viên với bản đã publish. Quyết định phát hành vẫn đi qua API, quyền duyệt và bằng chứng thực tế.</p>
+          </section>
+          <ContentReviewCenter bridge={dashboard.boiBridge} access={access} automation={dashboard.automation} saveAutomation={(enabled, defaultAccessDays, defaultDeviceLimit) => dashboardAction({ action: "manage-learning-device", operation: "update-automation", enabled, defaultAccessDays, defaultDeviceLimit }, `Đã ${enabled ? "bật" : "tắt"} tự động duyệt; mặc định ${defaultAccessDays} ngày cho tối đa ${defaultDeviceLimit} thiết bị.`)} />
+        </> : null}
         </div>
       </section>
 
