@@ -1,17 +1,10 @@
 "use client";
 
 import {useId} from "react";
-import type {BoiDeviceBinding,BoiDeviceRegistry} from "../../boi-device-registry";
+import type {BoiDeviceRegistry} from "../../boi-device-registry";
+import {deviceSummary,deviceCategoryMeta as categoryMeta,type DeviceKind,type RegistryDeviceKind as Kind} from "./boi-owner-device-summary";
+export type {DeviceKind} from "./boi-owner-device-summary";
 import styles from "./boi-owner-device-insights.module.css";
-
-export type DeviceKind="all"|"phone"|"tablet"|"desktop";
-type Kind=Exclude<DeviceKind,"all">|"unknown";
-
-const categoryMeta=[
- {kind:"phone",title:"Điện thoại",detail:"Trình duyệt trên điện thoại",glyph:"phone"},
- {kind:"tablet",title:"iPad / Tablet",detail:"Máy tính bảng / iPad",glyph:"tablet"},
- {kind:"desktop",title:"Laptop / máy tính",detail:"Nhận diện trình duyệt máy tính",glyph:"laptop"}
-] as const;
 
 export function BoiClientDeviceIcon({kind,size=54}:{kind:Kind;size?:number}){
  const gradientId=useId().replace(/:/g,"");
@@ -39,39 +32,6 @@ export function BoiClientDeviceIcon({kind,size=54}:{kind:Kind;size?:number}){
    <path d="M18 61h40M32 65h12M15 37c12-21 22 3 41-14" stroke="#f0eaff" opacity=".85"/>
   </>:null}
  </svg>;
-}
-const classKind=(row:BoiDeviceBinding):Kind=>row.clientClass==="phone"?"phone":row.clientClass==="tablet"?"tablet":row.clientClass==="desktop"?"desktop":"unknown";
-export function classifyBinding(row:BoiDeviceBinding):Kind{return classKind(row);}
-export function deviceSummary(devices:BoiDeviceBinding[]){
- const count=(filter:(r:BoiDeviceBinding)=>boolean)=>devices.filter(filter).length;
- const categories=categoryMeta.map(x=>{
-  const records=devices.filter(d=>classKind(d)===x.kind);
-  return {...x,total:records.length,approved:records.filter(d=>d.status==="approved").length,
-   pending:records.filter(d=>d.status==="pending").length,
-   blocked:records.filter(d=>d.status==="blocked").length};
- });
- // Progress belongs to a signed-in learner ACCOUNT, not to individual browser keys.
- // Each account is counted once, only when the owner registry provides a verified record.
- const unique=new Map<string,number>();
- for(const item of devices){
-  if(item.account?.role!=="learner"||!item.account.accountId||!item.progress||
-    !Number.isSafeInteger(item.progress.completed)||!Number.isSafeInteger(item.progress.total)||
-    item.progress.total<=0||item.progress.completed<0||item.progress.completed>item.progress.total)continue;
-  const n=Math.round(item.progress.completed/item.progress.total*100);
-  const old=unique.get(item.account.accountId);
-  if(old===undefined)unique.set(item.account.accountId,n);
-  // Deliberately do not average contradictory browser data for the same account.
- }
- const progress=[...unique.values()];
- const learning=progress.length?{
-  total:progress.length,average:Math.round(progress.reduce((a,b)=>a+b,0)/progress.length),
-  low:progress.filter(n=>n<30).length,
-  medium:progress.filter(n=>n>=30&&n<70).length,
-  high:progress.filter(n=>n>=70).length
- }:null;
- return {total:devices.length,unclassified:count(d=>classKind(d)==="unknown"),approved:count(d=>d.status==="approved"),
-  pending:count(d=>d.status==="pending"),blocked:count(d=>d.status==="blocked"),
-  categories,learning};
 }
 function Kpi({label,value,detail,tone}:{label:string;value:string;detail:string;tone:string}){
  return <article className={styles.metric} data-tone={tone}><small>{label}</small>
