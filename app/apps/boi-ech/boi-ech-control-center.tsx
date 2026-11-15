@@ -883,13 +883,6 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
   const [managementAuth, setManagementAuth] = useState(false);
   const managementAuthRef = useRef<((verified: boolean) => void) | null>(null);
   useEffect(() => () => { managementAuthRef.current?.(false); }, []);
-  // All nine destinations are full-page; no hidden specialist modal.
-  const utilityOpen=false;
-  const taskTitle:Record<string,string>={
-    accounts:"Tài khoản & Duyệt cán bộ",oversight:"Giám sát GV / học viên",
-    roles:"Vai trò & Quyền",policies:"Thời hạn & Chính sách",reports:"Báo cáo & Thống kê",
-    ai:"Điều hành AI",content:"Duyệt nội dung"
-  };
   useEffect(()=>{
     const initial=window.setTimeout(()=>setClockNow(Date.now()),0);
     const timer=window.setInterval(()=>setClockNow(Date.now()),60_000);
@@ -915,30 +908,6 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
     window.addEventListener("online",onResume);
     return()=>{alive=false;window.removeEventListener("focus",onResume);window.removeEventListener("online",onResume);};
   },[authAutoCheck]);
-  useEffect(()=>{
-    if(!utilityOpen)return;
-    const previous=document.activeElement instanceof HTMLElement?document.activeElement:null;
-    const dialog=document.getElementById("boi-owner-task-dialog");
-    const onKey=(event:KeyboardEvent)=>{
-      if(event.key==="Escape"){event.preventDefault();setTab("overview");return;}
-      if(event.key!=="Tab"||!dialog)return;
-      const items=[...dialog.querySelectorAll<HTMLElement>('button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex="0"]')]
-        .filter(item=>item.getClientRects().length>0);
-      if(!items.length){event.preventDefault();dialog.focus();return;}
-      const first=items[0],last=items[items.length-1];
-      if(event.shiftKey&&(document.activeElement===first||document.activeElement===dialog)){
-        event.preventDefault();last.focus();
-      } else if(!event.shiftKey&&(document.activeElement===last||document.activeElement===dialog)){
-        event.preventDefault();first.focus();
-      }
-    };
-    window.addEventListener("keydown",onKey);
-    const focus=window.setTimeout(()=>dialog?.focus(),0);
-    return()=>{
-      window.removeEventListener("keydown",onKey);window.clearTimeout(focus);
-      if(previous?.isConnected)previous.focus({preventScroll:true});
-    };
-  },[utilityOpen,tab]);
   useEffect(()=>{
     if(!accountMenuOpen)return;
     const previousOverflow=document.body.style.overflow;
@@ -1664,11 +1633,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
               <section className="boi-console-card"><h2>Không gian điều hành Bơi Ếch</h2><p>Học viên/giảng viên được phê duyệt bởi cán bộ quản lý theo phạm vi. Khu quản trị này không thay thế luồng duyệt đó.</p><button type="button" onClick={()=>setTab("devices")}>Theo dõi thiết bị và tiến độ →</button></section>
             </div>) : null}
 
-        {utilityOpen?<button type="button" className="boi-task-scrim" aria-label="Đóng cửa sổ nghiệp vụ" onClick={()=>setTab("overview")}/>:null}
-        <div className={utilityOpen?"boi-task-dialog":"boi-main-contents"} role={utilityOpen?"dialog":undefined}
-          aria-modal={utilityOpen?true:undefined} aria-label={utilityOpen?taskTitle[tab]:undefined}
-          id={utilityOpen?"boi-owner-task-dialog":undefined} tabIndex={utilityOpen?-1:undefined}>
-          {utilityOpen?<header className="boi-task-header"><div><small>QUẢN TRỊ BƠI ẾCH · TÁC VỤ CHUYÊN BIỆT</small><h2>{taskTitle[tab]}</h2></div><button type="button" aria-label="Đóng cửa sổ nghiệp vụ" onClick={()=>setTab("overview")}>✕</button></header>:null}
+        <div className="boi-main-contents" role="region" aria-label="Nội dung tab quản trị Bơi Ếch">
         {tab==="accounts" && access.role==="owner" ? <div className="boi-owner-workspace"><AccountExpiryPanel section="accounts"/></div> : null}
         {tab==="oversight" && access.role==="owner" ? <div className="boi-owner-workspace"><AccountExpiryPanel section="oversight"/></div> : null}
         {tab==="policies" && access.role==="owner" ? <div className="boi-owner-workspace"><AccountExpiryPanel section="policies"/></div> : null}
