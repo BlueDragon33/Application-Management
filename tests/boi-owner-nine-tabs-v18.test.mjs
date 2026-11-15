@@ -108,3 +108,29 @@ test("V18 vivid accessible shell is applied to actual app and does not replace b
  assert.match(ui,/manualSync\(\)/);
  assert.doesNotMatch(ui,/document\.write\(|localStorage\.setItem\("owner-role"/);
 });
+
+test("V18 selected device filters satisfy WCAG 4.5:1 across BOTH gradient stops",()=>{
+ const css=src("boi-owner-device-insights.module.css");
+ const rule=css.match(/\.segment button\[aria-pressed=true\]\{([^}]+)\}/)?.[1];
+ assert.ok(rule,"selected device filter styling exists");
+ const gradient=rule.match(/linear-gradient\(130deg,(#[0-9a-f]{6}),(#[0-9a-f]{6})\)/i);
+ assert.ok(gradient,"must inspect both actual CSS colors");
+ const relativeLuminance=hex=>{
+  const rgb=hex.match(/[a-f0-9]{2}/ig).map(c=>parseInt(c,16)/255);
+  const linear=rgb.map(x=>x<=.04045?x/12.92:((x+.055)/1.055)**2.4);
+  return linear[0]*.2126+linear[1]*.7152+linear[2]*.0722;
+ };
+ for(const color of gradient.slice(1)){
+  const ratio=1.05/(relativeLuminance(color)+.05);
+  assert.ok(ratio>=4.5,`white text must meet 4.5:1 against ${color}, got ${ratio.toFixed(2)}:1`);
+ }
+ assert.match(css,/\.category:focus-visible/);
+});
+
+test("V18 mobile navigation stays accessible via horizontal swiping without nine stacked rows",()=>{
+ assert.match(shell,/scroll-snap-type:x proximity/);
+ assert.match(shell,/overflow-x:auto!important/);
+ assert.match(shell,/flex-direction:row!important/);
+ assert.match(shell,/scrollbar-color:#7aa8ee/);
+ assert.match(shell,/max-width:255px/);
+});
