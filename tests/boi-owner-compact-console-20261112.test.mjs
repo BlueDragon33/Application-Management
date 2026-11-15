@@ -7,16 +7,28 @@ const source=fs.readFileSync(new URL("../app/apps/boi-ech/boi-ech-control-center
 const css=fs.readFileSync(new URL("../app/apps/boi-ech/boi-ech-shell.module.css",import.meta.url),"utf8");
 const tree=ts.createSourceFile("boi-ech-control-center.tsx",source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 
-test("Owner V18 shows all nine destinations, specialist tools are full-page, not unsafe modal overlays",()=>{
- const nav=source.slice(source.indexOf('<nav aria-label="Quản trị Bơi Ếch — điều hướng chính">'),
-    source.indexOf('</nav>',source.indexOf('<nav aria-label="Quản trị Bơi Ếch — điều hướng chính">')));
- const tools=source.slice(source.indexOf('<nav aria-label="Công cụ chuyên biệt Bơi Ếch">'),
-    source.indexOf('</nav>',source.indexOf('<nav aria-label="Công cụ chuyên biệt Bơi Ếch">')));
- for(const title of ["Tổng quan","Thiết bị & Tiến độ","Tài khoản & Duyệt cán bộ",
-    "Giảng viên & Học viên","Thời hạn & Chính sách","Điều hành AI"]) assert.ok(nav.includes(title),title);
- for(const title of ["Báo cáo & Thống kê","Vai trò & Quyền","Duyệt nội dung"]) assert.ok(tools.includes(title),title);
- assert.match(source,/canReviewContent\?<button/);
- assert.match(source,/access\.role==="owner"\?\[/);
+test("Owner compact navigation shows four direct tabs and the fifth expandable specialist tab",()=>{
+ const navStart=source.indexOf('<nav aria-label="Quản trị Bơi Ếch — điều hướng chính">');
+ const nav=source.slice(navStart,source.indexOf('</nav>',navStart));
+ const submenuStart=source.indexOf('<div id="boi-specialist-tabs"');
+ const submenu=source.slice(submenuStart,source.indexOf('</div>',submenuStart));
+ assert.ok(navStart>=0,"main navigation exists");
+ assert.ok(submenuStart>navStart,"submenu is beneath main nav (not another scroll nav)");
+ for(const title of ["Tổng quan","Thiết bị & Tiến độ","Tài khoản & Duyệt cán bộ","Giảng viên & Học viên","Công cụ chuyên biệt"]){
+  assert.ok(nav.includes(title),title);
+ }
+ for(const title of ["Thời hạn & Chính sách","Điều hành AI","Vai trò & Quyền","Báo cáo & Thống kê","Duyệt nội dung"])
+  assert.ok(submenu.includes(title),title);
+ assert.doesNotMatch(nav,/label:"Thời hạn & Chính sách"|label:"Điều hành AI"/,"only five first-level items");
+ assert.match(nav,/aria-expanded=\{specialistOpen\}/);
+ assert.match(nav,/aria-controls="boi-specialist-tabs"/);
+ assert.match(submenu,/hidden=\{!specialistOpen\}/);
+ assert.match(source,/onClick=\{\(\)=>setSpecialistOpen\(open=>!open\)\}/);
+ assert.match(source,/setTab\(item.id\);setSpecialistOpen\(false\)/);
+ assert.match(source,/event.key==="Escape"/);
+ assert.match(source,/specialistTriggerRef.current\?\.focus\(\)/);
+ assert.match(source,/canReviewContent\?\[/);
+ assert.match(source,/access.role==="owner"\?\[/);
  assert.match(source,/className="boi-main-contents" role="region"/);
  assert.doesNotMatch(source,/boi-owner-task-dialog|boi-task-scrim|const utilityOpen=/);
  const account=source.slice(source.indexOf('<nav className="boi-owner-account-modal-actions"'),
@@ -24,8 +36,8 @@ test("Owner V18 shows all nine destinations, specialist tools are full-page, not
  for(const title of ["Cloudflare Preview","Hồ sơ · Đổi mật khẩu","Vai trò & Quyền"])
   assert.ok(account.includes(title),title);
  assert.doesNotMatch(source,/toolsMenuOpen|boi-owner-task-selector/);
- assert.match(source,/event\.key!=="Tab"/);
- assert.match(source,/event\.shiftKey/);
+ assert.match(source,/event.key!=="Tab"/);
+ assert.match(source,/event.shiftKey/);
 });
 
 test("owner profile is at top right, not in sidebar; boundary notice and sidebar security link removed",()=>{

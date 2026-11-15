@@ -841,6 +841,8 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
   const [boiOnline, setBoiOnline] = useState(false);
   const [manualCode, setManualCode] = useState("");
   const [tab, setTab] = useState<"overview" | "accounts" | "oversight" | "roles" | "policies" | "devices" | "reports" | "ai" | "content">("overview");
+  const [specialistOpen,setSpecialistOpen]=useState(false);
+  const specialistTriggerRef=useRef<HTMLButtonElement|null>(null);
   const [filter, setFilter] = useState<"all" | "active" | "pending" | "incomplete" | "payment" | "paid" | "free" | "expired" | "blocked">("all");
   const [search, setSearch] = useState("");
   const [registrySearch,setRegistrySearch]=useState("");
@@ -1501,6 +1503,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
     && [device.deviceId,device.account?.accountId,device.account?.name,device.account?.role,device.browserLabel]
       .some(value=>(value??"").toLocaleLowerCase("vi").includes(registrySearch.trim().toLocaleLowerCase("vi"))))??[];
   const canReviewContent = ["reviewer","publisher","owner"].includes(access.role);
+  const specialistActive=["policies","ai","roles","reports","content"].includes(tab);
   const activeTheme = adminThemes.find((item) => item.id === appearance.theme) ?? adminThemes[0];
   const activeFont = adminFonts.find((item) => item.id === appearance.font) ?? adminFonts[0];
 
@@ -1532,24 +1535,44 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
             {id:"devices",label:"Thiết bị & Tiến độ",icon:"devices"},
             ...(access.role==="owner"?[
               {id:"accounts",label:"Tài khoản & Duyệt cán bộ",icon:"accounts"},
-              {id:"oversight",label:"Giảng viên & Học viên",icon:"oversight"},
-              {id:"policies",label:"Thời hạn & Chính sách",icon:"policies"}] as const:[]),
-            ...(access.role!=="viewer"?[{id:"ai",label:"Điều hành AI",icon:"ai"}] as const:[])
+              {id:"oversight",label:"Giảng viên & Học viên",icon:"oversight"}] as const:[])
           ] as const).map(item=><button type="button" key={item.id}
-             aria-current={tab===item.id?"page":undefined}
-             className={tab===item.id?"active":""} onClick={()=>setTab(item.id)}>
-            <i aria-hidden="true"><OwnerNavIcon name={item.icon}/></i><span><strong>{item.label}</strong></span>
+            aria-current={tab===item.id?"page":undefined}
+            className={tab===item.id?"active":""}
+            onClick={()=>{setTab(item.id);setSpecialistOpen(false);}}>
+            <i aria-hidden="true"><OwnerNavIcon name={item.icon}/></i>
+            <span><strong>{item.label}</strong></span>
           </button>)}
+          <button type="button" ref={specialistTriggerRef}
+            className={specialistActive?"active boi-specialist-trigger":"boi-specialist-trigger"}
+            aria-expanded={specialistOpen} aria-controls="boi-specialist-tabs"
+            onClick={()=>setSpecialistOpen(open=>!open)}>
+            <i aria-hidden="true"><OwnerNavIcon name="roles"/></i>
+            <span><strong>Công cụ chuyên biệt</strong></span>
+            <svg className="boi-specialist-chevron" aria-hidden="true" width="17" height="17"
+              viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+              strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
         </nav>
-        <div className="boi-nav-caption boi-nav-specialized">CÔNG CỤ CHUYÊN BIỆT</div>
-        <nav aria-label="Công cụ chuyên biệt Bơi Ếch">
-          <button type="button" aria-current={tab==="roles"?"page":undefined} className={tab==="roles"?"active":""}
-            onClick={()=>setTab("roles")}><i><OwnerNavIcon name="roles"/></i><span><strong>Vai trò & Quyền</strong></span></button>
-          <button type="button" aria-current={tab==="reports"?"page":undefined} className={tab==="reports"?"active":""}
-            onClick={()=>setTab("reports")}><i><OwnerNavIcon name="reports"/></i><span><strong>Báo cáo & Thống kê</strong></span></button>
-          {canReviewContent?<button type="button" aria-current={tab==="content"?"page":undefined} className={tab==="content"?"active":""}
-            onClick={()=>setTab("content")}><i><OwnerNavIcon name="content"/></i><span><strong>Duyệt nội dung</strong></span></button>:null}
-        </nav>
+        <div id="boi-specialist-tabs" className="boi-specialist-list" hidden={!specialistOpen}
+          role="group" aria-label="Danh sách công cụ chuyên biệt"
+          onKeyDown={event=>{
+            if(event.key==="Escape"){setSpecialistOpen(false);specialistTriggerRef.current?.focus();}
+          }}>
+          {([
+            ...(access.role==="owner"?[{id:"policies",label:"Thời hạn & Chính sách",icon:"policies"}] as const:[]),
+            ...(access.role!=="viewer"?[{id:"ai",label:"Điều hành AI",icon:"ai"}] as const:[]),
+            {id:"roles",label:"Vai trò & Quyền",icon:"roles"},
+            {id:"reports",label:"Báo cáo & Thống kê",icon:"reports"},
+            ...(canReviewContent?[{id:"content",label:"Duyệt nội dung",icon:"content"}] as const:[])
+          ] as const).map(item=><button type="button" key={item.id}
+            aria-current={tab===item.id?"page":undefined}
+            className={tab===item.id?"active":""}
+            onClick={()=>{setTab(item.id);setSpecialistOpen(false);}}>
+            <i aria-hidden="true"><OwnerNavIcon name={item.icon}/></i>
+            <span><strong>{item.label}</strong></span>
+          </button>)}
+        </div>
         <div className="boi-nav-source" role="note"><strong>Nguồn dữ liệu & quyền</strong>
           <span>{devicesVerified?"D1 / Backend · Đã xác minh":"D1 / Backend · Chưa xác minh"}</span>
           <small>Owner duyệt cán bộ; giảng viên và học viên do cán bộ được giao quản lý.</small>
