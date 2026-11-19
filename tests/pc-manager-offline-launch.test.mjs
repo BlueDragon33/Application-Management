@@ -15,12 +15,17 @@ test("PC Manager has an exact allowlisted offline Windows launch, no online web 
   assert.match(entry[0], /contractState: "migrating"/);
 });
 
-test("Main application icon launches through Windows only, never local HTTP or remote shell", () => {
+test("PC Manager Windows handoff remains isolated from Overview admin navigation", () => {
   assert.match(dashboard, /app\.desktopLaunchUrl \|\| summary\?\.webHref/);
   assert.match(dashboard, /app\.id !== "pc-manager" \|\| app\.desktopLaunchUrl !== "pcmanager:\/\/open"/);
   assert.match(dashboard, /!\/Windows\/i\.test\(navigator\.userAgent\)/);
   assert.match(dashboard, /window\.open\(app\.desktopLaunchUrl, "_blank", "noopener,noreferrer"\)/);
-  assert.match(dashboard, /Mở ứng dụng cục bộ/);
+  const overview = dashboard.slice(
+    dashboard.indexOf('className="amv2-panel amv2-apps-panel amv2-overview-apps-launcher"'),
+    dashboard.indexOf('className="amv2-panel amv2-devices-panel"'),
+  );
+  assert.match(overview, /item\.kind === "app" \? item\.manageHref : item\.href/);
+  assert.doesNotMatch(overview, /void launchWeb\(item\.id\)|pcmanager:\/\/open/);
   assert.match(dashboard, /chưa xác nhận ứng dụng đã chạy/);
   assert.match(dashboard, /tự đăng ký pcmanager/);
 });
