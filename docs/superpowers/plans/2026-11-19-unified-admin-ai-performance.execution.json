@@ -39,7 +39,7 @@
     },
     "targetPolicy": "record baseline first; never claim % improvement without exact-env before/after"
   },
-  "status": "PLAN_READY_FOR_BASELINE",
+  "status": "CONSTITUTIONAL_GAPS_RECORDED_R0_2_READY_UNVERIFIED",
   "rounds": [
     {
       "round": "R0",
@@ -51,13 +51,42 @@
           "dependsOn": [],
           "state": "DONE",
           "evidenceLevel": "SOURCE_ONLY",
-          "evidence": [],
+          "evidence": [
+            {
+              "source": "https://github.com/BlueDragon33/Application-Management/blob/720521a905ddb71ebd54ac8c80c94be705438928/app/apps/boi-ech/boi-ech-control-center.tsx",
+              "level": "SOURCE_ONLY"
+            },
+            {
+              "source": "https://github.com/BlueDragon33/Application-Management/blob/720521a905ddb71ebd54ac8c80c94be705438928/app/management-dashboard-v2.tsx",
+              "level": "SOURCE_ONLY"
+            },
+            {
+              "source": "https://github.com/BlueDragon33/Application-Management/blob/720521a905ddb71ebd54ac8c80c94be705438928/app/application-registry.ts",
+              "level": "SOURCE_ONLY"
+            },
+            {
+              "source": "https://github.com/BlueDragon33/Application-Management/blob/720521a905ddb71ebd54ac8c80c94be705438928/docs/UNIVERSAL_MANAGEMENT_CONTRACT_V1.md",
+              "level": "SOURCE_ONLY"
+            },
+            {
+              "source": "https://github.com/BlueDragon33/Software-Blueprint-Hub/blob/main/docs/UNIVERSAL-CONSTITUTION.md",
+              "level": "POLICY_SOURCE_ONLY"
+            }
+          ],
           "changedFiles": [],
-          "candidateSha": null
+          "candidateSha": "720521a905ddb71ebd54ac8c80c94be705438928",
+          "linkedGates": [
+            "G00"
+          ],
+          "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
+          "remediesForSameRoot": 0,
+          "releaseAuthority": "NONE",
+          "browserEvidence": "UNVERIFIED",
+          "complianceClaim": "NONE_SOURCE_AUDIT_ONLY"
         },
         {
           "id": "R0.2",
-          "summary": "Measure candidate run with representative 10/50/200-client fixtures; desktop/tablet/phone, p50/p95, rerenders, network, memory, event-loop long tasks; pin env and SHA",
+          "summary": "Measure genuine browser+runtime baseline (10/50/200 app synthetic fixture) at exact SHA; capture p50/p95, requests, rerenders, memory, long tasks, computed contrast, local/QA only. Do not pretend source-only audit is performance proof.",
           "dependsOn": [
             "R0.1"
           ],
@@ -65,7 +94,16 @@
           "evidenceLevel": "RUNTIME_REQUIRED",
           "evidence": [],
           "changedFiles": [],
-          "candidateSha": null
+          "candidateSha": null,
+          "linkedGates": [
+            "G05"
+          ],
+          "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
+          "remediesForSameRoot": 0,
+          "releaseAuthority": "NONE",
+          "browserEvidence": "UNVERIFIED",
+          "entryGate": "READ_ONLY_MEASUREMENT_ALLOWED_WITHOUT_PASSING_ALL_FINAL_GATES",
+          "exitGate": "G05 BASELINE PROOF REPRODUCIBLE; runtime unavailable means blocked, not PASS"
         },
         {
           "id": "R0.3",
@@ -77,7 +115,16 @@
           "evidenceLevel": "MEASUREMENT_REQUIRED",
           "evidence": [],
           "changedFiles": [],
-          "candidateSha": null
+          "candidateSha": null,
+          "linkedGates": [
+            "G00",
+            "G01",
+            "G05"
+          ],
+          "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
+          "remediesForSameRoot": 0,
+          "releaseAuthority": "NONE",
+          "browserEvidence": "UNVERIFIED"
         }
       ]
     },
@@ -95,7 +142,15 @@
           "evidenceLevel": "PERFORMANCE_EVIDENCE",
           "evidence": [],
           "changedFiles": [],
-          "candidateSha": null
+          "candidateSha": null,
+          "linkedGates": [
+            "G05",
+            "G06"
+          ],
+          "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
+          "remediesForSameRoot": 0,
+          "releaseAuthority": "NONE",
+          "browserEvidence": "UNVERIFIED"
         },
         {
           "id": "R1.2",
@@ -107,7 +162,15 @@
           "evidenceLevel": "PERFORMANCE_EVIDENCE",
           "evidence": [],
           "changedFiles": [],
-          "candidateSha": null
+          "candidateSha": null,
+          "linkedGates": [
+            "G05",
+            "G06"
+          ],
+          "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
+          "remediesForSameRoot": 0,
+          "releaseAuthority": "NONE",
+          "browserEvidence": "UNVERIFIED"
         },
         {
           "id": "R1.3",
@@ -119,7 +182,15 @@
           "evidenceLevel": "REGRESSION_AND_BROWSER",
           "evidence": [],
           "changedFiles": [],
-          "candidateSha": null
+          "candidateSha": null,
+          "linkedGates": [
+            "G06",
+            "G09"
+          ],
+          "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
+          "remediesForSameRoot": 0,
+          "releaseAuthority": "NONE",
+          "browserEvidence": "UNVERIFIED"
         }
       ]
     },
@@ -137,11 +208,19 @@
           "evidenceLevel": "UX_SPEC",
           "evidence": [],
           "changedFiles": [],
-          "candidateSha": null
+          "candidateSha": null,
+          "linkedGates": [
+            "G00",
+            "G04"
+          ],
+          "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
+          "remediesForSameRoot": 0,
+          "releaseAuthority": "NONE",
+          "browserEvidence": "UNVERIFIED"
         },
         {
           "id": "R2.2",
-          "summary": "Implement one reusable capability-driven ClientAdminShell with accessible status, error and loading patterns",
+          "summary": "Implement one reusable capability-driven ClientAdminShell with accessible status, error and loading patterns; include generic permission-checked management route for dynamic-only Catalog apps, never public runtime fallback",
           "dependsOn": [
             "R2.1"
           ],
@@ -149,7 +228,16 @@
           "evidenceLevel": "CODE_AND_TEST",
           "evidence": [],
           "changedFiles": [],
-          "candidateSha": null
+          "candidateSha": null,
+          "linkedGates": [
+            "G01",
+            "G04"
+          ],
+          "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
+          "remediesForSameRoot": 0,
+          "releaseAuthority": "NONE",
+          "browserEvidence": "UNVERIFIED",
+          "requiredFixture": "DYNAMIC_ONLY_REGISTERED_APP_NO_STATIC_APP_ROUTE"
         },
         {
           "id": "R2.3",
@@ -161,7 +249,16 @@
           "evidenceLevel": "PILOT_BROWSER",
           "evidence": [],
           "changedFiles": [],
-          "candidateSha": null
+          "candidateSha": null,
+          "linkedGates": [
+            "G01",
+            "G02",
+            "G04"
+          ],
+          "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
+          "remediesForSameRoot": 0,
+          "releaseAuthority": "NONE",
+          "browserEvidence": "UNVERIFIED"
         }
       ]
     },
@@ -179,11 +276,19 @@
           "evidenceLevel": "CONTRACT_TEST",
           "evidence": [],
           "changedFiles": [],
-          "candidateSha": null
+          "candidateSha": null,
+          "linkedGates": [
+            "G01",
+            "G03"
+          ],
+          "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
+          "remediesForSameRoot": 0,
+          "releaseAuthority": "NONE",
+          "browserEvidence": "UNVERIFIED"
         },
         {
           "id": "R3.2",
-          "summary": "Use a single read-only central projection of queue, automation policy, audit and health; each owning app keeps authoritative records",
+          "summary": "Use a single read-only central projection of queue, automation policy, audit and health; each owning app keeps authoritative records; explicitly declare R11–R14 federation as MIGRATION_GATED until real signed approval/revocation proof",
           "dependsOn": [
             "R3.1"
           ],
@@ -191,7 +296,16 @@
           "evidenceLevel": "PROVENANCE_TEST",
           "evidence": [],
           "changedFiles": [],
-          "candidateSha": null
+          "candidateSha": null,
+          "linkedGates": [
+            "G01",
+            "G03",
+            "G06"
+          ],
+          "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
+          "remediesForSameRoot": 0,
+          "releaseAuthority": "NONE",
+          "browserEvidence": "UNVERIFIED"
         },
         {
           "id": "R3.3",
@@ -203,7 +317,15 @@
           "evidenceLevel": "MUTATION_GATE",
           "evidence": [],
           "changedFiles": [],
-          "candidateSha": null
+          "candidateSha": null,
+          "linkedGates": [
+            "G02",
+            "G06"
+          ],
+          "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
+          "remediesForSameRoot": 0,
+          "releaseAuthority": "NONE",
+          "browserEvidence": "UNVERIFIED"
         }
       ]
     },
@@ -221,7 +343,16 @@
           "evidenceLevel": "INTEGRATION_BROWSER",
           "evidence": [],
           "changedFiles": [],
-          "candidateSha": null
+          "candidateSha": null,
+          "linkedGates": [
+            "G02",
+            "G03",
+            "G04"
+          ],
+          "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
+          "remediesForSameRoot": 0,
+          "releaseAuthority": "NONE",
+          "browserEvidence": "UNVERIFIED"
         },
         {
           "id": "R4.2",
@@ -233,7 +364,16 @@
           "evidenceLevel": "INTEGRATION_BROWSER",
           "evidence": [],
           "changedFiles": [],
-          "candidateSha": null
+          "candidateSha": null,
+          "linkedGates": [
+            "G01",
+            "G02",
+            "G04"
+          ],
+          "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
+          "remediesForSameRoot": 0,
+          "releaseAuthority": "NONE",
+          "browserEvidence": "UNVERIFIED"
         },
         {
           "id": "R4.3",
@@ -245,7 +385,16 @@
           "evidenceLevel": "INTEGRATION_BROWSER",
           "evidence": [],
           "changedFiles": [],
-          "candidateSha": null
+          "candidateSha": null,
+          "linkedGates": [
+            "G01",
+            "G03",
+            "G04"
+          ],
+          "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
+          "remediesForSameRoot": 0,
+          "releaseAuthority": "NONE",
+          "browserEvidence": "UNVERIFIED"
         }
       ]
     },
@@ -263,11 +412,19 @@
           "evidenceLevel": "AI_PRIVACY_REVIEW",
           "evidence": [],
           "changedFiles": [],
-          "candidateSha": null
+          "candidateSha": null,
+          "linkedGates": [
+            "G03",
+            "G07"
+          ],
+          "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
+          "remediesForSameRoot": 0,
+          "releaseAuthority": "NONE",
+          "browserEvidence": "UNVERIFIED"
         },
         {
           "id": "R5.2",
-          "summary": "Implement ZERO-SPEND deterministic recommendations for latency anomalies, stale contracts, policy drift, duplicate events",
+          "summary": "Implement ZERO-SPEND deterministic recommendations for latency anomalies, stale contracts, policy drift, duplicate events; use pre-labeled blind/adversarial fixture and report false-accept errors; independent A/B reviewer work is external",
           "dependsOn": [
             "R5.1"
           ],
@@ -275,7 +432,14 @@
           "evidenceLevel": "BLIND_FIXTURE",
           "evidence": [],
           "changedFiles": [],
-          "candidateSha": null
+          "candidateSha": null,
+          "linkedGates": [
+            "G07"
+          ],
+          "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
+          "remediesForSameRoot": 0,
+          "releaseAuthority": "NONE",
+          "browserEvidence": "UNVERIFIED"
         },
         {
           "id": "R5.3",
@@ -287,7 +451,15 @@
           "evidenceLevel": "HUMAN_GATE_TEST",
           "evidence": [],
           "changedFiles": [],
-          "candidateSha": null
+          "candidateSha": null,
+          "linkedGates": [
+            "G02",
+            "G07"
+          ],
+          "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
+          "remediesForSameRoot": 0,
+          "releaseAuthority": "NONE",
+          "browserEvidence": "UNVERIFIED"
         }
       ]
     },
@@ -305,11 +477,19 @@
           "evidenceLevel": "PROFILING_AND_VISUAL",
           "evidence": [],
           "changedFiles": [],
-          "candidateSha": null
+          "candidateSha": null,
+          "linkedGates": [
+            "G05",
+            "G08"
+          ],
+          "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
+          "remediesForSameRoot": 0,
+          "releaseAuthority": "NONE",
+          "browserEvidence": "UNVERIFIED"
         },
         {
           "id": "R6.2",
-          "summary": "Execute exact-SHA cross-browser 10-app route/role QA, responsive/accessibility/perf/security regression with real evidence",
+          "summary": "Execute exact-SHA cross-browser 10-app route/role QA, responsive/accessibility/perf/security regression with real evidence; verify computed contrast, browser role gates, real restore drill and per-app rollback independent of CI",
           "dependsOn": [
             "R6.1"
           ],
@@ -317,11 +497,22 @@
           "evidenceLevel": "FULL_BROWSER",
           "evidence": [],
           "changedFiles": [],
-          "candidateSha": null
+          "candidateSha": null,
+          "linkedGates": [
+            "G02",
+            "G03",
+            "G04",
+            "G06",
+            "G09"
+          ],
+          "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
+          "remediesForSameRoot": 0,
+          "releaseAuthority": "NONE",
+          "browserEvidence": "UNVERIFIED"
         },
         {
           "id": "R6.3",
-          "summary": "Prepare independent review/Owner acceptance; request distinct merge/release approvals per exact SHA, never self-certify",
+          "summary": "Record canonical constitutional evidence, Owner UX/release readiness and external A/B reviewer status without performing their reviews or self-certifying any gate",
           "dependsOn": [
             "R6.2"
           ],
@@ -329,16 +520,25 @@
           "evidenceLevel": "EXTERNAL_HUMAN_REVIEW",
           "evidence": [],
           "changedFiles": [],
-          "candidateSha": null
+          "candidateSha": null,
+          "linkedGates": [
+            "G10",
+            "G11"
+          ],
+          "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
+          "remediesForSameRoot": 0,
+          "releaseAuthority": "NONE",
+          "browserEvidence": "UNVERIFIED"
         }
       ]
     }
   ],
   "activeNextAction": {
     "id": "R0.2",
-    "why": "Real browser/runtime measurements and fixture reproduction are required before changing common UI or claiming lag root cause.",
-    "blockedIfNoRuntime": "Record PERFORMANCE_BASELINE_UNVERIFIED; request isolated local baseline; do not publish merely for screenshots.",
-    "fallback": "Source-only hotspot inventory and test matrix; no merge/Production write."
+    "why": "Actual, reproducible performance/browser measurements are missing; constitutional audit also uncovered a dynamic-only Catalog route gap queued for R2.2. No implementation before measured source and acceptance baselines.",
+    "blockedIfNoRuntime": "Set R0.2=BLOCKED_RUNTIME, G05=UNVERIFIED and halt with exact local QA runtime prerequisite, never claim p50/p95 from static source.",
+    "fallback": "Read-only source checks only; existing user-facing production stays unchanged; no automatic human authority or reviews.",
+    "singleActionRule": true
   },
   "history": [
     {
@@ -347,6 +547,625 @@
       "result": "DONE",
       "evidenceLevel": "SOURCE_ONLY",
       "summary": "GitHub source comparison of Bơi ếch admin, seven other specialized shells, two generic admin surfaces, existing AI panel, registry/contract, active Constitution. Real runtime not measured."
+    },
+    {
+      "stepId": "R0.1",
+      "date": "2026-11-19",
+      "result": "CONSTITUTIONAL_AUDIT_SOURCE_ONLY",
+      "evidenceLevel": "SOURCE_ONLY",
+      "summary": "Reviewed all 32 execution rules plus 7 pillars, B4/E2 topology, CA-006 and WCAG computed contrast. Added 12 evidence gates. No runtime performance, AI adversarial, browser or federation proof claimed."
     }
-  ]
+  ],
+  "assessment": {
+    "status": "CONSTITUTIONAL_GAP_AUDIT_DONE_NOT_COMPLIANCE",
+    "reviewedAt": "2026-11-19",
+    "constitutionSource": "BlueDragon33/Software-Blueprint-Hub/docs/UNIVERSAL-CONSTITUTION.md@main",
+    "lawStatus": "ACTIVE_1.3.0",
+    "projectLevel": "B4",
+    "executionMode": "STRUCTURED",
+    "ecosystemTarget": "E2",
+    "ecosystemVerifiedState": "UNVERIFIED",
+    "projectProfileState": "DRAFT_REVIEW_REQUIRED",
+    "ownerReview": "PENDING",
+    "independentReviewerScope": "EXTERNAL_PENDING_NO_WAIVER",
+    "constitutionalAttestation": "UNVERIFIED",
+    "runtimeMeasurements": "UNVERIFIED",
+    "remoteWritesPerformed": false,
+    "decision": "Maintain bounded implementation budget, attach mandatory gates and owner matrices; no AI autonomous authority or production permission."
+  },
+  "lawCoverage": [
+    {
+      "rule": "R1",
+      "category": "delivery",
+      "applicability": "CENTRAL_APPLICABLE",
+      "state": "ACCEPTANCE_PENDING",
+      "gates": [
+        "G00",
+        "G06",
+        "G09",
+        "G10"
+      ]
+    },
+    {
+      "rule": "R2",
+      "category": "ux",
+      "applicability": "CENTRAL_APPLICABLE",
+      "state": "ACCEPTANCE_PENDING",
+      "gates": [
+        "G04",
+        "G05",
+        "G08"
+      ]
+    },
+    {
+      "rule": "R3",
+      "category": "delivery",
+      "applicability": "CENTRAL_APPLICABLE",
+      "state": "ACCEPTANCE_PENDING",
+      "gates": [
+        "G00",
+        "G06",
+        "G09",
+        "G10"
+      ]
+    },
+    {
+      "rule": "R4",
+      "category": "delivery",
+      "applicability": "CENTRAL_APPLICABLE",
+      "state": "ACCEPTANCE_PENDING",
+      "gates": [
+        "G00",
+        "G06",
+        "G09",
+        "G10"
+      ]
+    },
+    {
+      "rule": "R5",
+      "category": "identity",
+      "applicability": "CENTRAL_APPLICABLE",
+      "state": "ACCEPTANCE_PENDING",
+      "gates": [
+        "G01",
+        "G02",
+        "G03",
+        "G06"
+      ]
+    },
+    {
+      "rule": "R6",
+      "category": "ux",
+      "applicability": "CENTRAL_APPLICABLE",
+      "state": "ACCEPTANCE_PENDING",
+      "gates": [
+        "G04",
+        "G05",
+        "G08"
+      ]
+    },
+    {
+      "rule": "R7",
+      "category": "delivery",
+      "applicability": "CENTRAL_APPLICABLE",
+      "state": "ACCEPTANCE_PENDING",
+      "gates": [
+        "G00",
+        "G06",
+        "G09",
+        "G10"
+      ]
+    },
+    {
+      "rule": "R8",
+      "category": "delivery",
+      "applicability": "CENTRAL_APPLICABLE",
+      "state": "ACCEPTANCE_PENDING",
+      "gates": [
+        "G00",
+        "G06",
+        "G09",
+        "G10"
+      ]
+    },
+    {
+      "rule": "R9",
+      "category": "delivery",
+      "applicability": "CENTRAL_APPLICABLE",
+      "state": "ACCEPTANCE_PENDING",
+      "gates": [
+        "G00",
+        "G06",
+        "G09",
+        "G10"
+      ]
+    },
+    {
+      "rule": "R10",
+      "category": "delivery",
+      "applicability": "CENTRAL_APPLICABLE",
+      "state": "ACCEPTANCE_PENDING",
+      "gates": [
+        "G00",
+        "G06",
+        "G09",
+        "G10"
+      ]
+    },
+    {
+      "rule": "R11",
+      "category": "identity",
+      "applicability": "MIGRATION_GATED",
+      "state": "MIGRATION_UNVERIFIED",
+      "gates": [
+        "G01",
+        "G02",
+        "G03",
+        "G06"
+      ]
+    },
+    {
+      "rule": "R12",
+      "category": "identity",
+      "applicability": "MIGRATION_GATED",
+      "state": "MIGRATION_UNVERIFIED",
+      "gates": [
+        "G01",
+        "G02",
+        "G03",
+        "G06"
+      ]
+    },
+    {
+      "rule": "R13",
+      "category": "ux",
+      "applicability": "MIGRATION_GATED",
+      "state": "MIGRATION_UNVERIFIED",
+      "gates": [
+        "G04",
+        "G05",
+        "G08"
+      ]
+    },
+    {
+      "rule": "R14",
+      "category": "identity",
+      "applicability": "MIGRATION_GATED",
+      "state": "MIGRATION_UNVERIFIED",
+      "gates": [
+        "G01",
+        "G02",
+        "G03",
+        "G06"
+      ]
+    },
+    {
+      "rule": "R15",
+      "category": "profile-and-ecosystem",
+      "applicability": "CENTRAL_APPLICABLE",
+      "state": "ACCEPTANCE_PENDING",
+      "gates": [
+        "G00",
+        "G01",
+        "G10"
+      ]
+    },
+    {
+      "rule": "R16",
+      "category": "delivery",
+      "applicability": "CENTRAL_APPLICABLE",
+      "state": "ACCEPTANCE_PENDING",
+      "gates": [
+        "G00",
+        "G06",
+        "G09",
+        "G10"
+      ]
+    },
+    {
+      "rule": "R17",
+      "category": "delivery",
+      "applicability": "CENTRAL_APPLICABLE",
+      "state": "ACCEPTANCE_PENDING",
+      "gates": [
+        "G00",
+        "G06",
+        "G09",
+        "G10"
+      ]
+    },
+    {
+      "rule": "R18",
+      "category": "ux",
+      "applicability": "CENTRAL_APPLICABLE",
+      "state": "ACCEPTANCE_PENDING",
+      "gates": [
+        "G04",
+        "G05",
+        "G08"
+      ]
+    },
+    {
+      "rule": "R19",
+      "category": "delivery",
+      "applicability": "CENTRAL_APPLICABLE",
+      "state": "ACCEPTANCE_PENDING",
+      "gates": [
+        "G00",
+        "G06",
+        "G09",
+        "G10"
+      ]
+    },
+    {
+      "rule": "R20",
+      "category": "delivery",
+      "applicability": "CENTRAL_APPLICABLE",
+      "state": "ACCEPTANCE_PENDING",
+      "gates": [
+        "G00",
+        "G06",
+        "G09",
+        "G10"
+      ]
+    },
+    {
+      "rule": "R21",
+      "category": "profile-and-ecosystem",
+      "applicability": "CENTRAL_APPLICABLE",
+      "state": "ACCEPTANCE_PENDING",
+      "gates": [
+        "G00",
+        "G01",
+        "G10"
+      ]
+    },
+    {
+      "rule": "R22",
+      "category": "delivery",
+      "applicability": "CENTRAL_APPLICABLE",
+      "state": "ACCEPTANCE_PENDING",
+      "gates": [
+        "G00",
+        "G06",
+        "G09",
+        "G10"
+      ]
+    },
+    {
+      "rule": "R23",
+      "category": "profile-and-ecosystem",
+      "applicability": "CENTRAL_APPLICABLE",
+      "state": "ACCEPTANCE_PENDING",
+      "gates": [
+        "G00",
+        "G01",
+        "G10"
+      ]
+    },
+    {
+      "rule": "R24",
+      "category": "profile-and-ecosystem",
+      "applicability": "CENTRAL_APPLICABLE",
+      "state": "ACCEPTANCE_PENDING",
+      "gates": [
+        "G00",
+        "G01",
+        "G10"
+      ]
+    },
+    {
+      "rule": "R25",
+      "category": "profile-and-ecosystem",
+      "applicability": "CENTRAL_APPLICABLE",
+      "state": "ACCEPTANCE_PENDING",
+      "gates": [
+        "G00",
+        "G01",
+        "G10"
+      ]
+    },
+    {
+      "rule": "R26",
+      "category": "profile-and-ecosystem",
+      "applicability": "CENTRAL_APPLICABLE",
+      "state": "ACCEPTANCE_PENDING",
+      "gates": [
+        "G00",
+        "G01",
+        "G10"
+      ]
+    },
+    {
+      "rule": "R27",
+      "category": "profile-and-ecosystem",
+      "applicability": "CENTRAL_APPLICABLE",
+      "state": "ACCEPTANCE_PENDING",
+      "gates": [
+        "G00",
+        "G01",
+        "G10"
+      ]
+    },
+    {
+      "rule": "R28",
+      "category": "specialist-client",
+      "applicability": "DOWNSTREAM_LEARNING_CONTENT_ONLY_AS_APPLICABLE",
+      "state": "DELEGATED_NOT_VERIFIED",
+      "gates": [
+        "G01",
+        "G04",
+        "G10"
+      ]
+    },
+    {
+      "rule": "R29",
+      "category": "specialist-client",
+      "applicability": "DOWNSTREAM_LEARNING_CONTENT_ONLY_AS_APPLICABLE",
+      "state": "DELEGATED_NOT_VERIFIED",
+      "gates": [
+        "G01",
+        "G04",
+        "G10"
+      ]
+    },
+    {
+      "rule": "R30",
+      "category": "specialist-client",
+      "applicability": "DOWNSTREAM_LEARNING_CONTENT_ONLY_AS_APPLICABLE",
+      "state": "DELEGATED_NOT_VERIFIED",
+      "gates": [
+        "G01",
+        "G04",
+        "G10"
+      ]
+    },
+    {
+      "rule": "R31",
+      "category": "specialist-client",
+      "applicability": "DOWNSTREAM_LEARNING_CONTENT_ONLY_AS_APPLICABLE",
+      "state": "DELEGATED_NOT_VERIFIED",
+      "gates": [
+        "G01",
+        "G04",
+        "G10"
+      ]
+    },
+    {
+      "rule": "R32",
+      "category": "specialist-client",
+      "applicability": "DOWNSTREAM_LEARNING_CONTENT_ONLY_AS_APPLICABLE",
+      "state": "DELEGATED_NOT_VERIFIED",
+      "gates": [
+        "G01",
+        "G04",
+        "G10"
+      ]
+    }
+  ],
+  "qualityGates": [
+    {
+      "id": "G00",
+      "name": "Profile and topology",
+      "ownerStep": "R0.3",
+      "exitCriterion": "Reviewed B4/STRUCTURED/E2-target profile, real cross-client edges, owner/capability matrix and exact vertical slice",
+      "status": "UNVERIFIED",
+      "evidence": [],
+      "exactSha": null,
+      "verifiedAt": null,
+      "externalHumanReviewRequired": false,
+      "independentABReviewerState": "NOT_GATE_OWNER",
+      "noAutoPass": true
+    },
+    {
+      "id": "G01",
+      "name": "Architecture and compatibility",
+      "ownerStep": "R2.3",
+      "exitCriterion": "Versioned client contract, dynamic-only Catalog route, independent client owners, compatibility/deprecation testing",
+      "status": "BLOCKED_DEPENDENCIES",
+      "evidence": [],
+      "exactSha": null,
+      "verifiedAt": null,
+      "externalHumanReviewRequired": false,
+      "independentABReviewerState": "NOT_GATE_OWNER",
+      "noAutoPass": true
+    },
+    {
+      "id": "G02",
+      "name": "Identity, auth and role matrix",
+      "ownerStep": "R3.3",
+      "exitCriterion": "Owner/manager/reviewer/publisher/viewer + anonymous/blocked/expired, central and app-scoped approvals, revocation and replay scenarios",
+      "status": "BLOCKED_DEPENDENCIES",
+      "evidence": [],
+      "exactSha": null,
+      "verifiedAt": null,
+      "externalHumanReviewRequired": false,
+      "independentABReviewerState": "NOT_GATE_OWNER",
+      "noAutoPass": true
+    },
+    {
+      "id": "G03",
+      "name": "Data/privacy and recovery",
+      "ownerStep": "R6.2",
+      "exitCriterion": "Source-owner data classification, redacted AI evidence, retention and successful isolated restore test",
+      "status": "UNVERIFIED",
+      "evidence": [],
+      "exactSha": null,
+      "verifiedAt": null,
+      "externalHumanReviewRequired": false,
+      "independentABReviewerState": "NOT_GATE_OWNER",
+      "noAutoPass": true
+    },
+    {
+      "id": "G04",
+      "name": "Real UX and contrast",
+      "ownerStep": "R6.2",
+      "exitCriterion": "Real desktop/tablet/mobile and keyboard journeys, computed final-surface contrast, human UX acceptance",
+      "status": "UNVERIFIED",
+      "evidence": [],
+      "exactSha": null,
+      "verifiedAt": null,
+      "externalHumanReviewRequired": true,
+      "independentABReviewerState": "NOT_GATE_OWNER",
+      "noAutoPass": true
+    },
+    {
+      "id": "G05",
+      "name": "Performance and capacity",
+      "ownerStep": "R0.2",
+      "exitCriterion": "Exact SHA 10/50/200 fixture p50/p95/render/request/memory baseline; later after/before comparison",
+      "status": "UNVERIFIED",
+      "evidence": [],
+      "exactSha": null,
+      "verifiedAt": null,
+      "externalHumanReviewRequired": false,
+      "independentABReviewerState": "NOT_GATE_OWNER",
+      "noAutoPass": true
+    },
+    {
+      "id": "G06",
+      "name": "Reliability and persistence",
+      "ownerStep": "R3.3",
+      "exitCriterion": "CAS, idempotency, readback, retry/timeout and partial failures with per-app/field statuses",
+      "status": "BLOCKED_DEPENDENCIES",
+      "evidence": [],
+      "exactSha": null,
+      "verifiedAt": null,
+      "externalHumanReviewRequired": false,
+      "independentABReviewerState": "NOT_GATE_OWNER",
+      "noAutoPass": true
+    },
+    {
+      "id": "G07",
+      "name": "AI verification and safety",
+      "ownerStep": "R5.3",
+      "exitCriterion": "Held-out labeled blind/adversarial evaluations, privacy, injection, abstention and no unauthorized commands",
+      "status": "UNVERIFIED",
+      "evidence": [],
+      "exactSha": null,
+      "verifiedAt": null,
+      "externalHumanReviewRequired": false,
+      "independentABReviewerState": "NOT_GATE_OWNER",
+      "noAutoPass": true
+    },
+    {
+      "id": "G08",
+      "name": "Migration/entropy",
+      "ownerStep": "R6.1",
+      "exitCriterion": "Measured import/CSS/duplicate removal with UI/critical-path parity and no loss of useful code",
+      "status": "UNVERIFIED",
+      "evidence": [],
+      "exactSha": null,
+      "verifiedAt": null,
+      "externalHumanReviewRequired": false,
+      "independentABReviewerState": "NOT_GATE_OWNER",
+      "noAutoPass": true
+    },
+    {
+      "id": "G09",
+      "name": "Environment/operations",
+      "ownerStep": "R6.2",
+      "exitCriterion": "Local/Preview/Production isolation, health logs, exact revision, no leakage, fail-closed diagnostics",
+      "status": "BLOCKED_DEPENDENCIES",
+      "evidence": [],
+      "exactSha": null,
+      "verifiedAt": null,
+      "externalHumanReviewRequired": false,
+      "independentABReviewerState": "NOT_GATE_OWNER",
+      "noAutoPass": true
+    },
+    {
+      "id": "G10",
+      "name": "Governance/attestation",
+      "ownerStep": "R6.3",
+      "exitCriterion": "Canonical seven-pillar and universal-gate exact-SHA attestation, independent human and Owner authority separate",
+      "status": "UNVERIFIED",
+      "evidence": [],
+      "exactSha": null,
+      "verifiedAt": null,
+      "externalHumanReviewRequired": true,
+      "independentABReviewerState": "EXTERNAL_PENDING",
+      "noAutoPass": true
+    },
+    {
+      "id": "G11",
+      "name": "Rollout/resilience",
+      "ownerStep": "R6.3",
+      "exitCriterion": "Per-app staged release, independent rollback, tested restore, post-release observations and no P0/P1",
+      "status": "BLOCKED_DEPENDENCIES",
+      "evidence": [],
+      "exactSha": null,
+      "verifiedAt": null,
+      "externalHumanReviewRequired": true,
+      "independentABReviewerState": "NOT_GATE_OWNER",
+      "noAutoPass": true
+    }
+  ],
+  "b4CriticalJourneys": [
+    "central to client admin with role/permission and return",
+    "dynamic-only app manifest enrollment to authenticated internal admin without per-app center edit",
+    "account-first device scope/handoff/expiry/revocation without double approval or privilege escalation",
+    "versioned automation policy compare-and-set, idempotency, independent readback and per-field partial result",
+    "evidence-backed AI suggestion with explainable dry-run, human approval, authorization and post-action readback",
+    "local/offline degraded state with no false connected/saved/approved indicator",
+    "protected Production release and independently tested rollback per app"
+  ],
+  "migrationGate": {
+    "centralDeviceApprovalR11ToR14": "MIGRATION_UNVERIFIED",
+    "zeroCodeDynamicAdminRoute": "SOURCE_CONFIRMED_GAP",
+    "currentAuthCannotBeRemovedUntilCompatiblePilot": true,
+    "noUniversalSuperAdmin": true,
+    "sourceOfTruth": "Central orchestrates; each client owns domain registry/data and authoritative operations",
+    "ownerApprovalForNewCrossAppPrivileges": "REQUIRED"
+  },
+  "aiSafety": {
+    "defaultRuntime": "ZERO_SPEND_DETERMINISTIC",
+    "paidProvider": "NOT_AUTHORIZED",
+    "protectedDataToAI": "DENY_DEFAULT",
+    "aiCanMutate": false,
+    "aiCanSelfAttest": false,
+    "blindHeldOutEvaluation": "REQUIRED_FOR_R5_DONE",
+    "modelOutputsAreEvidence": false
+  },
+  "repairPolicy": {
+    "sameRootMaxDistinctRemedies": 3,
+    "repeatNeedsNewEvidence": true,
+    "afterLimit": "STOP_SPECULATIVE_WRITES_AND_REINVESTIGATE",
+    "noNewWorkPackageWithoutEvidence": true
+  },
+  "authority": {
+    "independentABReviewer": "EXTERNAL_TRACK_EXCLUDED_FROM_EXECUTION_NOT_WAIVED",
+    "humanUxAcceptance": "MANDATORY_WHERE_APPLICABLE",
+    "ownerDecision": "SEPARATE",
+    "productionRelease": "SEPARATE_EXACT_SHA",
+    "constitutionalCompliance": "CANONICAL_EVIDENCE_ONLY"
+  },
+  "profile": {
+    "purpose": "Unified B4 management UX and scoped operational AI across existing apps, not a new product.",
+    "personas": [
+      "owner",
+      "delegated manager",
+      "reviewer",
+      "publisher",
+      "viewer"
+    ],
+    "BLevel": "B4",
+    "execution": "STRUCTURED",
+    "ecosystemTarget": "E2",
+    "ecosystemActual": "UNVERIFIED",
+    "sourceOwner": "Application-Management owns control policy, operator-device/role/audit; clients retain business records and client-device registries",
+    "criticalData": [
+      "control-plane authorization",
+      "device and account identity metadata",
+      "client privacy-sensitive data excluded by default",
+      "sensitive credentials not projected"
+    ],
+    "scope": [
+      "10 canonical admin routes",
+      "Dynamic Catalog without per-app source edit",
+      "performance",
+      "AI decision proposal only",
+      "safe migration"
+    ]
+  }
 }
