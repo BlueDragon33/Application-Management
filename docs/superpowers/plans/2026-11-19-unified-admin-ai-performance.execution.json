@@ -39,7 +39,7 @@
     },
     "targetPolicy": "record baseline first; never claim % improvement without exact-env before/after"
   },
-  "status": "BLOCKED_R0_2_NO_LOCAL_RUNTIME",
+  "status": "BLOCKED_R0_2_NO_INSTRUMENTED_QA",
   "rounds": [
     {
       "round": "R0",
@@ -90,8 +90,8 @@
           "dependsOn": [
             "R0.1"
           ],
-          "state": "BLOCKED_RUNTIME",
-          "evidenceLevel": "RUNTIME_UNAVAILABLE",
+          "state": "BLOCKED_INSTRUMENTED_QA",
+          "evidenceLevel": "LOCAL_DOM_OBSERVED_NO_PERF_MEASUREMENT",
           "evidence": [
             {
               "kind": "RUNTIME_PROBE",
@@ -116,6 +116,18 @@
               "source": "https://github.com/BlueDragon33/Application-Management/blob/7dc82e29ac3bdfbe146c150d69d264a325a373b4/RUN_LOCAL.bat",
               "status": "DOCUMENTED_NOT_EXECUTED",
               "note": "Local start script invokes node scripts/run-local-offline-v2.mjs; local setup documented in docs/LOCAL_FIRST_RELEASE_STANDARD.md."
+            },
+            {
+              "kind": "BROWSER_LIVE_DOM_READ_ONLY",
+              "source": "mcp__Browser__get_tab_context tab 1718373828 http://127.0.0.1:3000/",
+              "status": "LOCAL_UI_VISIBLE_BUT_UNINSTRUMENTED",
+              "note": "Top-level center Overview rendered and app/tool inventory visible; local/standalone mode, not online verified. No performance metrics; process SHA not exposed."
+            },
+            {
+              "kind": "INDEPENDENT_DRAFT_FIX",
+              "source": "https://github.com/BlueDragon33/Application-Management/pull/415",
+              "status": "CODED_CI_PENDING",
+              "note": "NC03 v4/v5 allowlist and auth/write regression checks; does not imply PR #414 runtime state."
             }
           ],
           "changedFiles": [],
@@ -130,17 +142,18 @@
           "entryGate": "READ_ONLY_MEASUREMENT_ALLOWED_WITHOUT_PASSING_ALL_FINAL_GATES",
           "exitGate": "G05 BASELINE PROOF REPRODUCIBLE; runtime unavailable means blocked, not PASS",
           "blocker": {
-            "code": "NO_EXACT_SHA_LOCAL_OR_ISOLATED_QA_RUNTIME",
+            "code": "NO_EXACT_SHA_LOCAL_BROWSER_INSTRUMENTATION",
             "observedAt": "2026-11-19",
             "details": [
-              "Container Node.js 22 and Chromium exist, but repo checkout is unavailable in the tool execution filesystem; /mnt/data contains only a user image, not application sources.",
-              "git ls-remote GitHub failed: Could not resolve host github.com from the isolated shell.",
-              "HTTP request to http://127.0.0.1:3000 failed immediately: connection refused.",
-              "Connected browser tabs show Application Management Cloudflare Production, not a candidate-specific local/QA runtime. Do not benchmark Production as candidate.",
-              "Repository Preview publish workflow job is deliberately dormant (`if: ${{ false }}`); no Preview deployment was triggered."
+              "Browser connector sees an open http://127.0.0.1:3000/ tab titled Application Management and extracts its rendered text; this supersedes the earlier local tab unavailable observation.",
+              "The rendered UI displays central Overview, Inbox, Apps, device-review and audit navigation, with 10 app entries and 6 tools; it explicitly marks Production verification unknown and counts as em dashes.",
+              "Current Chat-mode browser connection supports tab listing and read-only page context; no navigation, DevTools performance/CDP control, metrics collection, fixture injection or readback of the local process SHA is available.",
+              "Earlier tool-side isolated shell has no access to user's local 127.0.0.1:3000; shell's loopback and user's Windows browser refer to different hosts.",
+              "NC03 full-stack launcher rejects current v5 protocol via exact-v4 comparison; candidate fix is in independent Draft PR #415 (scripts/run-local-system.mjs + tests/hybrid-local-control-plane.test.mjs), not merged/published.",
+              "App Manager PR #414 remains plan/ledger only; exact local checkout SHA was reported by Owner but not independently bound to the browser process."
             ],
-            "recoveryRequirement": "Authorized isolated local clone/checkout at the exact candidate SHA, Node >=22.13, RUN_LOCAL.bat or npm run local:system with D1 local only, Chromium automation/DevTools available, synthetic 10/50/200 app fixtures and measurement collection; no remote D1, Production, or provider credentials.",
-            "assessment": "No runtime measurements obtained; requesting setup is a genuine capability boundary, not a code defect."
+            "recoveryRequirement": "Run a local browser instrumentation session on user's Windows host against the pinned PR #414 checkout (verify process/checkout revision) with synthetic 10/50/200 app fixtures and repeatable profiles for click, p50/p95, requests, memory, CPU, React commits, CSS coverage and computed contrast. Do not use production data or claim integrated client gates from center-only runtime.",
+            "assessment": "Local UI is visible, but no valid measured performance sample or exact SHA-bound browser run was obtainable via read-only Chat browser access."
           },
           "measurements": {
             "sampleCount": 0,
@@ -155,7 +168,7 @@
             "longTasks": null,
             "cssCoveragePercent": null,
             "computedContrast": null,
-            "measurementStatus": "NOT_MEASURED"
+            "measurementStatus": "NOT_MEASURED_LOCAL_UI_OBSERVED"
           }
         },
         {
@@ -588,18 +601,21 @@
   ],
   "activeNextAction": {
     "id": "R0.2",
-    "type": "UNBLOCK_RUNTIME",
-    "state": "BLOCKED_RUNTIME",
-    "why": "No exact-SHA local/QA runtime can be reached from the current connected environment; baseline metrics cannot be fabricated from source or Production.",
-    "required": "Provision existing Application-Management repo checkout on the user's Windows machine at the live PR #414 HEAD, start existing RUN_LOCAL.bat in offline-only mode and make the local QA browser/measurement harness accessible to an authorized execution environment. Do not publish or mirror Production.",
+    "type": "BIND_AND_MEASURE_LOCAL_QA",
+    "state": "BLOCKED_INSTRUMENTED_QA",
+    "why": "Local Center UI is open in the user's browser, but current Chat browser access is read-only, no exact-SHA process attestation and no Chromium performance/fixture execution capability.",
+    "required": "Use authorized local Windows browser automation/DevTools (e.g. Desktop Work with computer access) to pin the running app to exact PR #414 HEAD, run synthetic 10/50/200-app fixtures and capture real p50/p95/requests/CPU/memory/React commit/CSS coverage/contrast. Keep full-stack NC03 v5 fix in separate PR #415, do not publish or bypass gates.",
     "expectedEvidence": [
-      "git rev-parse HEAD matching current PR #414 head",
-      "127.0.0.1:3000 local app ready",
-      "local-only D1 configuration verified",
-      "browser DevTools/Playwright access to local session",
-      "synthetic fixture wiring for 10/50/200 clients"
+      "exact SHA for served local source",
+      "instrumented sample files and environment/browser/browser profile identity",
+      "10/50/200 synthetic fixtures",
+      "p50/p95 and interaction samples",
+      "request and React render counts",
+      "CPU and memory trace",
+      "CSS coverage and computed text contrast",
+      "G05 truthfully marked only after evidence"
     ],
-    "fallback": "Until accessible: retain R0.2 BLOCKED_RUNTIME and G05 UNVERIFIED; do source-only scope inspection and no runtime or Production changes.",
+    "fallback": "Retain G05 UNVERIFIED and R0.2 BLOCKED_INSTRUMENTED_QA; use read-only UI observation only; PR #415 remains Draft until CI and isolated integration.",
     "singleActionRule": true
   },
   "history": [
@@ -623,6 +639,13 @@
       "result": "BLOCKED_RUNTIME",
       "evidenceLevel": "ENVIRONMENT_PROBE_NO_MEASUREMENTS",
       "summary": "Isolated runtime had no candidate checkout, DNS to GitHub blocked, localhost:3000 closed; connected browser only Production. No click/p50/p95/CPU/memory/requests/CSS measurements; G05 remains UNVERIFIED."
+    },
+    {
+      "stepId": "R0.2",
+      "date": "2026-11-19",
+      "result": "LOCAL_UI_OBSERVED_BUT_METRICS_BLOCKED",
+      "evidenceLevel": "LIVE_DOM_READ_ONLY",
+      "summary": "Read-only connected Windows browser tab displayed Application Management localhost:3000 Center Overview and inventory. No DevTools instrumented performance or synthetic fixtures possible through Chat-mode browser; distinct NC03 v5 compatibility fix opened as Draft PR #415; G05 UNVERIFIED."
     }
   ],
   "assessment": {
@@ -1102,7 +1125,13 @@
       "ownerStep": "R0.2",
       "exitCriterion": "Exact SHA 10/50/200 fixture p50/p95/render/request/memory baseline; later after/before comparison",
       "status": "UNVERIFIED",
-      "evidence": [],
+      "evidence": [
+        {
+          "source": "browser-readonly-tab-1718373828",
+          "status": "NON_PERFORMANCE_OBSERVATION",
+          "note": "Local center visible; not timing, CPU/memory/render or CSS measurements."
+        }
+      ],
       "exactSha": null,
       "verifiedAt": null,
       "externalHumanReviewRequired": false,
@@ -1288,6 +1317,8 @@
     ],
     "onReady": "Re-read live PR HEAD and confirm unchanged runtime code vs pinned baseline; run R0.2 exact-SHA measurements on that checkout.",
     "networkAndPrivacy": "Loopback only; no remote data writes, no user health/child/visa data, no Production bearer/session secrets.",
-    "status": "MISSING"
+    "status": "LOCAL_CENTER_VISIBLE_INSTRUMENTATION_AND_RUNTIME_SHA_UNVERIFIED",
+    "observedCenterUrl": "http://127.0.0.1:3000/",
+    "independentFix": "https://github.com/BlueDragon33/Application-Management/pull/415"
   }
 }
