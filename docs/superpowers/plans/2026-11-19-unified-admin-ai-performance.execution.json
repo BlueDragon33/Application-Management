@@ -571,7 +571,10 @@
     "constitutionalAttestation": "UNVERIFIED",
     "runtimeMeasurements": "UNVERIFIED",
     "remoteWritesPerformed": false,
-    "decision": "Maintain bounded implementation budget, attach mandatory gates and owner matrices; no AI autonomous authority or production permission."
+    "decision": "Maintain bounded implementation budget, attach mandatory gates and owner matrices; no AI autonomous authority or production permission.",
+    "canonicalQualityGateEvidence": "UNVERIFIED",
+    "planCompliance": "GAP_MAPPING_ONLY",
+    "qualityGatePromotionAllowed": false
   },
   "lawCoverage": [
     {
@@ -955,7 +958,10 @@
       "verifiedAt": null,
       "externalHumanReviewRequired": false,
       "independentABReviewerState": "NOT_GATE_OWNER",
-      "noAutoPass": true
+      "noAutoPass": true,
+      "kind": "PROJECT_ACCEPTANCE_CHECKLIST_NOT_CANONICAL",
+      "canonicalQualityGateMapping": "UNVERIFIED_PENDING_RESOLUTION",
+      "canonicalAuthorityOverride": false
     },
     {
       "id": "G01",
@@ -968,7 +974,10 @@
       "verifiedAt": null,
       "externalHumanReviewRequired": false,
       "independentABReviewerState": "NOT_GATE_OWNER",
-      "noAutoPass": true
+      "noAutoPass": true,
+      "kind": "PROJECT_ACCEPTANCE_CHECKLIST_NOT_CANONICAL",
+      "canonicalQualityGateMapping": "UNVERIFIED_PENDING_RESOLUTION",
+      "canonicalAuthorityOverride": false
     },
     {
       "id": "G02",
@@ -981,7 +990,10 @@
       "verifiedAt": null,
       "externalHumanReviewRequired": false,
       "independentABReviewerState": "NOT_GATE_OWNER",
-      "noAutoPass": true
+      "noAutoPass": true,
+      "kind": "PROJECT_ACCEPTANCE_CHECKLIST_NOT_CANONICAL",
+      "canonicalQualityGateMapping": "UNVERIFIED_PENDING_RESOLUTION",
+      "canonicalAuthorityOverride": false
     },
     {
       "id": "G03",
@@ -994,7 +1006,10 @@
       "verifiedAt": null,
       "externalHumanReviewRequired": false,
       "independentABReviewerState": "NOT_GATE_OWNER",
-      "noAutoPass": true
+      "noAutoPass": true,
+      "kind": "PROJECT_ACCEPTANCE_CHECKLIST_NOT_CANONICAL",
+      "canonicalQualityGateMapping": "UNVERIFIED_PENDING_RESOLUTION",
+      "canonicalAuthorityOverride": false
     },
     {
       "id": "G04",
@@ -1007,7 +1022,10 @@
       "verifiedAt": null,
       "externalHumanReviewRequired": true,
       "independentABReviewerState": "NOT_GATE_OWNER",
-      "noAutoPass": true
+      "noAutoPass": true,
+      "kind": "PROJECT_ACCEPTANCE_CHECKLIST_NOT_CANONICAL",
+      "canonicalQualityGateMapping": "UNVERIFIED_PENDING_RESOLUTION",
+      "canonicalAuthorityOverride": false
     },
     {
       "id": "G05",
@@ -1020,7 +1038,10 @@
       "verifiedAt": null,
       "externalHumanReviewRequired": false,
       "independentABReviewerState": "NOT_GATE_OWNER",
-      "noAutoPass": true
+      "noAutoPass": true,
+      "kind": "PROJECT_ACCEPTANCE_CHECKLIST_NOT_CANONICAL",
+      "canonicalQualityGateMapping": "UNVERIFIED_PENDING_RESOLUTION",
+      "canonicalAuthorityOverride": false
     },
     {
       "id": "G06",
@@ -1033,7 +1054,10 @@
       "verifiedAt": null,
       "externalHumanReviewRequired": false,
       "independentABReviewerState": "NOT_GATE_OWNER",
-      "noAutoPass": true
+      "noAutoPass": true,
+      "kind": "PROJECT_ACCEPTANCE_CHECKLIST_NOT_CANONICAL",
+      "canonicalQualityGateMapping": "UNVERIFIED_PENDING_RESOLUTION",
+      "canonicalAuthorityOverride": false
     },
     {
       "id": "G07",
@@ -1046,7 +1070,10 @@
       "verifiedAt": null,
       "externalHumanReviewRequired": false,
       "independentABReviewerState": "NOT_GATE_OWNER",
-      "noAutoPass": true
+      "noAutoPass": true,
+      "kind": "PROJECT_ACCEPTANCE_CHECKLIST_NOT_CANONICAL",
+      "canonicalQualityGateMapping": "UNVERIFIED_PENDING_RESOLUTION",
+      "canonicalAuthorityOverride": false
     },
     {
       "id": "G08",
@@ -1059,7 +1086,10 @@
       "verifiedAt": null,
       "externalHumanReviewRequired": false,
       "independentABReviewerState": "NOT_GATE_OWNER",
-      "noAutoPass": true
+      "noAutoPass": true,
+      "kind": "PROJECT_ACCEPTANCE_CHECKLIST_NOT_CANONICAL",
+      "canonicalQualityGateMapping": "UNVERIFIED_PENDING_RESOLUTION",
+      "canonicalAuthorityOverride": false
     },
     {
       "id": "G09",
@@ -1072,7 +1102,10 @@
       "verifiedAt": null,
       "externalHumanReviewRequired": false,
       "independentABReviewerState": "NOT_GATE_OWNER",
-      "noAutoPass": true
+      "noAutoPass": true,
+      "kind": "PROJECT_ACCEPTANCE_CHECKLIST_NOT_CANONICAL",
+      "canonicalQualityGateMapping": "UNVERIFIED_PENDING_RESOLUTION",
+      "canonicalAuthorityOverride": false
     },
     {
       "id": "G10",
@@ -1085,7 +1118,10 @@
       "verifiedAt": null,
       "externalHumanReviewRequired": true,
       "independentABReviewerState": "EXTERNAL_PENDING",
-      "noAutoPass": true
+      "noAutoPass": true,
+      "kind": "PROJECT_ACCEPTANCE_CHECKLIST_NOT_CANONICAL",
+      "canonicalQualityGateMapping": "UNVERIFIED_PENDING_RESOLUTION",
+      "canonicalAuthorityOverride": false
     },
     {
       "id": "G11",
@@ -1098,7 +1134,10 @@
       "verifiedAt": null,
       "externalHumanReviewRequired": true,
       "independentABReviewerState": "NOT_GATE_OWNER",
-      "noAutoPass": true
+      "noAutoPass": true,
+      "kind": "PROJECT_ACCEPTANCE_CHECKLIST_NOT_CANONICAL",
+      "canonicalQualityGateMapping": "UNVERIFIED_PENDING_RESOLUTION",
+      "canonicalAuthorityOverride": false
     }
   ],
   "b4CriticalJourneys": [
