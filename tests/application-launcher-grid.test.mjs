@@ -12,7 +12,7 @@ test("Applications view keeps launcher grid as the default mode", () => {
   assert.match(dashboard, /data-testid="app-launcher-list"/);
 });
 
-test("Overview opens app and Tool websites directly, with one separate Applications navigation", () => {
+test("Overview cards open per-client management pages; website launch remains separate", () => {
   const panelStart = dashboard.indexOf('className="amv2-panel amv2-apps-panel amv2-overview-apps-launcher"');
   const panelEnd = dashboard.indexOf('className="amv2-panel amv2-devices-panel"', panelStart);
   const panel = dashboard.slice(panelStart, panelEnd);
@@ -21,20 +21,24 @@ test("Overview opens app and Tool websites directly, with one separate Applicati
   assert.match(panel, /<button type="button" onClick=\{\(\) => switchView\("applications"\)\}>Xem tất cả/);
   assert.match(panel, /className="amv2-overview-app-screen"/);
   assert.match(panel, /className="amv2-overview-app-tile"/);
-  assert.match(panel, /void launchWeb\(item\.id\)/);
-  assert.match(panel, /window\.location\.assign\(item\.href\)/);
-  assert.match(panel, /disabled=\{!item\.canOpen \|\| webBusy === item\.id\}/);
+  assert.doesNotMatch(panel, /void launchWeb\(item\.id\)/);
+  assert.match(panel, /const destination = item\.kind === "app" \? item\.manageHref : item\.href/);
+  assert.match(panel, /window\.location\.assign\(destination\)/);
+  assert.match(panel, /disabled=\{!item\.canOpen\}/);
+  assert.match(panel, /aria-label=\{item\.kind === "app" \? `Quản trị/);
   assert.match(panel, /<b>Online<\/b>/);
   assert.match(panel, /item\.status/);
 });
 
-test("Overview keeps application clients before Tools without bypassing launch policy", () => {
+test("Overview uses only registered administration routes, keeping clients before Tools", () => {
   const start = dashboard.indexOf("const overviewItems = [");
   const end = dashboard.indexOf("return <>", start);
   const model = dashboard.slice(start, end);
   assert.ok(model.indexOf("...apps.map") < model.indexOf("...tools.map"));
-  assert.match(model, /canOpen: webAccessAvailable\(app, summary, localRuntime\)/);
+  assert.match(model, /const manageHref = staticApps\.find\(\(registered\) => registered\.id === app\.id\)\?\.href/);
+  assert.match(model, /canOpen: Boolean\(manageHref\)/);
   assert.match(model, /href: tool\.href/);
+  assert.doesNotMatch(model, /webAccessAvailable\(app, summary, localRuntime\)/);
 });
 
 test("Applications launcher defaults to manual app-first ordering", () => {
