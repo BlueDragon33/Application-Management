@@ -150,7 +150,9 @@ Recommended first UX targets from Blueprint NFR: local action acknowledgement <=
 ## Current status
 
 **R0.1 — SOURCE-AUDIT ONLY:** inspected GitHub source at baseline SHA; file/commit references now recorded in the ledger. This does not certify code/runtime UX, operational security, Constitutional compliance or performance.  
-**R0.2 — READY:** capture real runtime baseline in isolated ZERO-SPEND environment; the app's existing local-first procedure is described by `docs/LOCAL_FIRST_RELEASE_STANDARD.md`.  
+**R0.2 — BLOCKED_RUNTIME:** zero candidate browser measurements taken. The tool execution container has no application checkout; GitHub DNS is unavailable; loopback `127.0.0.1:3000` has no listener; connected browser tabs show **Production only**; dedicated Preview deploy job is intentionally disabled. This is not evidence of an app performance defect. G05 remains **UNVERIFIED**, as do p50/p95, clicks, CPU, memory, request count, React commits and CSS coverage. The precise blocker, probe evidence and recovery prerequisite are recorded in the canonical ledger.
+
+**Runtime unblocking action (one):** Reuse the existing repository on a Windows/local QA host, check out the **current exact Draft PR #414 head** (verify SHA again before running), start the existing `RUN_LOCAL.bat` with local-only D1, and make a local browser instrumentation session available in the same host to collect synthetic 10/50/200-app fixture measurements. Do not publish merely to create a test URL and do not run real Production identity/secret fixtures. Until this environment is available, **STOP R0.2**, not PASS. See `docs/LOCAL_FIRST_RELEASE_STANDARD.md` and `RUN_LOCAL.bat` for the existing supported entry point.  
 **R0.3+ — BLOCKED** until prerequisites are met.
 
 No runtime feature refactor is authorized by this planning checkpoint alone. 
