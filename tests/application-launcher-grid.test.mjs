@@ -41,6 +41,18 @@ test("Overview uses only registered administration routes, keeping clients befor
   assert.doesNotMatch(model, /webAccessAvailable\(app, summary, localRuntime\)/);
 });
 
+test("Every registry-listed client management route exists and checks the signed-in admin", () => {
+  const registry = fs.readFileSync("app/application-registry.ts", "utf8");
+  const routes = [...registry.matchAll(/href: "(\/apps\/[a-z0-9-]+)"/g)].map((match) => match[1]);
+  assert.ok(routes.length > 0, "Registry must expose concrete admin routes");
+  assert.equal(new Set(routes).size, routes.length, "Admin routes must be unique");
+  for (const route of routes) {
+    const pagePath = `app${route}/page.tsx`;
+    assert.ok(fs.existsSync(pagePath), `Missing administration page: ${pagePath}`);
+    assert.match(fs.readFileSync(pagePath, "utf8"), /await requireChatGPTUser\(/, `Missing management authentication: ${route}`);
+  }
+});
+
 test("Applications launcher defaults to manual app-first ordering", () => {
   assert.match(dashboard, /useState<AppLauncherSort>\("manual"\)/);
   assert.match(dashboard, /return \[\.\.\.appItems, \.\.\.toolItems\]/);
