@@ -1,0 +1,352 @@
+{
+  "schema": "application-management.modernization-execution/v1",
+  "project": "application-management",
+  "constitution": "blueprint-os:universal-century-grade@1.3.0",
+  "plan": "docs/superpowers/plans/2026-11-19-unified-admin-ai-performance.md",
+  "baseline": {
+    "repository": "BlueDragon33/Application-Management",
+    "mainSha": "720521a905ddb71ebd54ac8c80c94be705438928",
+    "date": "2026-11-19",
+    "scope": "10 registered apps plus dynamic contract; source-only audit"
+  },
+  "budget": {
+    "rounds": 7,
+    "maxStepsPerRound": 3,
+    "maxStepsTotal": 21,
+    "maxConcurrentReady": 1,
+    "expansionRequiresOwnerApproval": true
+  },
+  "constraints": {
+    "zeroSpend": true,
+    "localFirst": true,
+    "noNewServiceOrRepo": true,
+    "clientOwnsBusinessData": true,
+    "ciDoesNotAuthorizeRelease": true,
+    "noAutonomousAiMutations": true,
+    "doNotSelfApprove": true,
+    "productionRequiresSeparateOwnerApproval": true
+  },
+  "measurements": {
+    "runtimeLatency": "UNVERIFIED",
+    "requestBudget": "UNVERIFIED",
+    "reactRenderBudget": "UNVERIFIED",
+    "cssUnusedCoverage": "UNVERIFIED",
+    "browserUx": "UNVERIFIED",
+    "falseZeroAndStaleResults": "UNVERIFIED",
+    "NFRTargets": {
+      "localInteractionAckMs": 100,
+      "visiblePendingMs": 200
+    },
+    "targetPolicy": "record baseline first; never claim % improvement without exact-env before/after"
+  },
+  "status": "PLAN_READY_FOR_BASELINE",
+  "rounds": [
+    {
+      "round": "R0",
+      "title": "Baseline & bottleneck proof",
+      "steps": [
+        {
+          "id": "R0.1",
+          "summary": "Static source audit of Bơi ếch owner UX, current 10-client admin surfaces, common contract, existing AI and suspected hotspots",
+          "dependsOn": [],
+          "state": "DONE",
+          "evidenceLevel": "SOURCE_ONLY",
+          "evidence": [],
+          "changedFiles": [],
+          "candidateSha": null
+        },
+        {
+          "id": "R0.2",
+          "summary": "Measure candidate run with representative 10/50/200-client fixtures; desktop/tablet/phone, p50/p95, rerenders, network, memory, event-loop long tasks; pin env and SHA",
+          "dependsOn": [
+            "R0.1"
+          ],
+          "state": "READY",
+          "evidenceLevel": "RUNTIME_REQUIRED",
+          "evidence": [],
+          "changedFiles": [],
+          "candidateSha": null
+        },
+        {
+          "id": "R0.3",
+          "summary": "Prioritize evidenced root causes, lock change boundaries and regression probes for performance and UX",
+          "dependsOn": [
+            "R0.2"
+          ],
+          "state": "BLOCKED",
+          "evidenceLevel": "MEASUREMENT_REQUIRED",
+          "evidence": [],
+          "changedFiles": [],
+          "candidateSha": null
+        }
+      ]
+    },
+    {
+      "round": "R1",
+      "title": "P0 hot path reliability",
+      "steps": [
+        {
+          "id": "R1.1",
+          "summary": "Isolate high-frequency clock updates away from the large root management dashboard; measure before/after",
+          "dependsOn": [
+            "R0.3"
+          ],
+          "state": "BLOCKED",
+          "evidenceLevel": "PERFORMANCE_EVIDENCE",
+          "evidence": [],
+          "changedFiles": [],
+          "candidateSha": null
+        },
+        {
+          "id": "R1.2",
+          "summary": "Coalesce duplicate focus/visibility refreshes and bound request timeouts/cancellation without hiding live vs cached status",
+          "dependsOn": [
+            "R1.1"
+          ],
+          "state": "BLOCKED",
+          "evidenceLevel": "PERFORMANCE_EVIDENCE",
+          "evidence": [],
+          "changedFiles": [],
+          "candidateSha": null
+        },
+        {
+          "id": "R1.3",
+          "summary": "Prove no infinite pending, duplicate click, stale overwrite, or false-verified writes after hotspot fixes",
+          "dependsOn": [
+            "R1.2"
+          ],
+          "state": "BLOCKED",
+          "evidenceLevel": "REGRESSION_AND_BROWSER",
+          "evidence": [],
+          "changedFiles": [],
+          "candidateSha": null
+        }
+      ]
+    },
+    {
+      "round": "R2",
+      "title": "Shared shell & pilot",
+      "steps": [
+        {
+          "id": "R2.1",
+          "summary": "Derive minimal accessible visual tokens/navigation from existing Bơi ếch Owner console; classify universal vs specialized slots",
+          "dependsOn": [
+            "R1.3"
+          ],
+          "state": "BLOCKED",
+          "evidenceLevel": "UX_SPEC",
+          "evidence": [],
+          "changedFiles": [],
+          "candidateSha": null
+        },
+        {
+          "id": "R2.2",
+          "summary": "Implement one reusable capability-driven ClientAdminShell with accessible status, error and loading patterns",
+          "dependsOn": [
+            "R2.1"
+          ],
+          "state": "BLOCKED",
+          "evidenceLevel": "CODE_AND_TEST",
+          "evidence": [],
+          "changedFiles": [],
+          "candidateSha": null
+        },
+        {
+          "id": "R2.3",
+          "summary": "Move Bauman and PriceReport to shared shell via capability adapters; preserve independent control contracts",
+          "dependsOn": [
+            "R2.2"
+          ],
+          "state": "BLOCKED",
+          "evidenceLevel": "PILOT_BROWSER",
+          "evidence": [],
+          "changedFiles": [],
+          "candidateSha": null
+        }
+      ]
+    },
+    {
+      "round": "R3",
+      "title": "Common control-plane projection",
+      "steps": [
+        {
+          "id": "R3.1",
+          "summary": "Normalize per-app supported capability, role, source, revision, verifiedAt and live/offline/unsupported states",
+          "dependsOn": [
+            "R2.3"
+          ],
+          "state": "BLOCKED",
+          "evidenceLevel": "CONTRACT_TEST",
+          "evidence": [],
+          "changedFiles": [],
+          "candidateSha": null
+        },
+        {
+          "id": "R3.2",
+          "summary": "Use a single read-only central projection of queue, automation policy, audit and health; each owning app keeps authoritative records",
+          "dependsOn": [
+            "R3.1"
+          ],
+          "state": "BLOCKED",
+          "evidenceLevel": "PROVENANCE_TEST",
+          "evidence": [],
+          "changedFiles": [],
+          "candidateSha": null
+        },
+        {
+          "id": "R3.3",
+          "summary": "Stage cross-app actions only with explicit app scope, role/step-up, expected/CAS, idempotent command and independent per-app readback",
+          "dependsOn": [
+            "R3.2"
+          ],
+          "state": "BLOCKED",
+          "evidenceLevel": "MUTATION_GATE",
+          "evidence": [],
+          "changedFiles": [],
+          "candidateSha": null
+        }
+      ]
+    },
+    {
+      "round": "R4",
+      "title": "Migration by risk",
+      "steps": [
+        {
+          "id": "R4.1",
+          "summary": "Apply shell to RU_LIFE and Health_Care, preserving sessions and medical privacy boundaries",
+          "dependsOn": [
+            "R3.3"
+          ],
+          "state": "BLOCKED",
+          "evidenceLevel": "INTEGRATION_BROWSER",
+          "evidence": [],
+          "changedFiles": [],
+          "candidateSha": null
+        },
+        {
+          "id": "R4.2",
+          "summary": "Apply shell to PC Manager, CAD CAM 3D and NC03; keep native Windows/local-only semantics",
+          "dependsOn": [
+            "R4.1"
+          ],
+          "state": "BLOCKED",
+          "evidenceLevel": "INTEGRATION_BROWSER",
+          "evidence": [],
+          "changedFiles": [],
+          "candidateSha": null
+        },
+        {
+          "id": "R4.3",
+          "summary": "Apply shell to GrowUP and Blueprint; align Bơi ếch look only without replacing manager/teacher/learner or payment mechanics",
+          "dependsOn": [
+            "R4.2"
+          ],
+          "state": "BLOCKED",
+          "evidenceLevel": "INTEGRATION_BROWSER",
+          "evidence": [],
+          "changedFiles": [],
+          "candidateSha": null
+        }
+      ]
+    },
+    {
+      "round": "R5",
+      "title": "Evidence-led AI operations",
+      "steps": [
+        {
+          "id": "R5.1",
+          "summary": "Implement versioned evidence normalization from non-sensitive operational metadata and per-app provenance",
+          "dependsOn": [
+            "R4.3"
+          ],
+          "state": "BLOCKED",
+          "evidenceLevel": "AI_PRIVACY_REVIEW",
+          "evidence": [],
+          "changedFiles": [],
+          "candidateSha": null
+        },
+        {
+          "id": "R5.2",
+          "summary": "Implement ZERO-SPEND deterministic recommendations for latency anomalies, stale contracts, policy drift, duplicate events",
+          "dependsOn": [
+            "R5.1"
+          ],
+          "state": "BLOCKED",
+          "evidenceLevel": "BLIND_FIXTURE",
+          "evidence": [],
+          "changedFiles": [],
+          "candidateSha": null
+        },
+        {
+          "id": "R5.3",
+          "summary": "Implement human-facing decision cockpit with dry-run, risks, scope and rejection; AI cannot authorize or run cross-app writes",
+          "dependsOn": [
+            "R5.2"
+          ],
+          "state": "BLOCKED",
+          "evidenceLevel": "HUMAN_GATE_TEST",
+          "evidence": [],
+          "changedFiles": [],
+          "candidateSha": null
+        }
+      ]
+    },
+    {
+      "round": "R6",
+      "title": "Cleanup, quality & delivery",
+      "steps": [
+        {
+          "id": "R6.1",
+          "summary": "Remove only measured-unused legacy CSS/components, verify screenshots, preserve rollback and compare p95/requests/re-renders",
+          "dependsOn": [
+            "R5.3"
+          ],
+          "state": "BLOCKED",
+          "evidenceLevel": "PROFILING_AND_VISUAL",
+          "evidence": [],
+          "changedFiles": [],
+          "candidateSha": null
+        },
+        {
+          "id": "R6.2",
+          "summary": "Execute exact-SHA cross-browser 10-app route/role QA, responsive/accessibility/perf/security regression with real evidence",
+          "dependsOn": [
+            "R6.1"
+          ],
+          "state": "BLOCKED",
+          "evidenceLevel": "FULL_BROWSER",
+          "evidence": [],
+          "changedFiles": [],
+          "candidateSha": null
+        },
+        {
+          "id": "R6.3",
+          "summary": "Prepare independent review/Owner acceptance; request distinct merge/release approvals per exact SHA, never self-certify",
+          "dependsOn": [
+            "R6.2"
+          ],
+          "state": "BLOCKED",
+          "evidenceLevel": "EXTERNAL_HUMAN_REVIEW",
+          "evidence": [],
+          "changedFiles": [],
+          "candidateSha": null
+        }
+      ]
+    }
+  ],
+  "activeNextAction": {
+    "id": "R0.2",
+    "why": "Real browser/runtime measurements and fixture reproduction are required before changing common UI or claiming lag root cause.",
+    "blockedIfNoRuntime": "Record PERFORMANCE_BASELINE_UNVERIFIED; request isolated local baseline; do not publish merely for screenshots.",
+    "fallback": "Source-only hotspot inventory and test matrix; no merge/Production write."
+  },
+  "history": [
+    {
+      "stepId": "R0.1",
+      "date": "2026-11-19",
+      "result": "DONE",
+      "evidenceLevel": "SOURCE_ONLY",
+      "summary": "GitHub source comparison of Bơi ếch admin, seven other specialized shells, two generic admin surfaces, existing AI panel, registry/contract, active Constitution. Real runtime not measured."
+    }
+  ]
+}
