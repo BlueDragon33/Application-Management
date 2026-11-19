@@ -9,7 +9,7 @@ Nguồn chuẩn để đối chiếu các repo thuộc tài khoản `BlueDragon3
 | `BlueDragon33/Application-Management` | Control-plane trung tâm | Quản trị lõi |
 | `BlueDragon33/Software-Blueprint-Hub` | Blueprint OS / engineering compass | Có khu quản trị metadata-only · Phase 9 Compass Construction |
 | `BlueDragon33/Bauman-master-ai-system` | Bauman Hub | Có khu quản trị |
-| `BlueDragon33/Math_Bauman` | Site Toán Bauman | Theo dõi repo / liên kết Bauman |
+| `BlueDragon33/Blueprint-Russian-Expert-Engine` | AI kiểm định tiếng Nga / RU03 (Private) | Developing · RUE local controller Draft #4 · không có App-Manager launcher/Production đã xác minh |\n| `BlueDragon33/Math_Bauman` | Site Toán Bauman | Theo dõi repo / liên kết Bauman |
 | `BlueDragon33/BOIECH_AI` | Bơi ếch AI | Có khu quản trị |
 | `BlueDragon33/Health_Care` | Sức khỏe Y tế | Có khu quản trị |
 | `BlueDragon33/RU_LIFE` | Hòa nhập Nga | Có khu quản trị |
@@ -21,7 +21,13 @@ Nguồn chuẩn để đối chiếu các repo thuộc tài khoản `BlueDragon3
 | `BlueDragon33/MPC_PID_System` | Control Research Workbench | Theo dõi dự án kỹ thuật |
 | `BlueDragon33/CAD_CAM_3D` | CAD/CAM cho chi tiết in 3D | v1.0.0 Production · Universal Contract live · local-first observe/launch · Remote Admin fail-closed |
 
-Tổng: **14 repo hiện hữu**.
+Tổng: **15 repo đã ghi nhận** (bao gồm **1 repo Private** được chủ sở hữu cho phép công khai tên và metadata tối thiểu).
+
+## Russian Expert Engine (Private)
+
+Repository `BlueDragon33/Blueprint-Russian-Expert-Engine` là bộ máy nghiên cứu và thẩm định nội dung tiếng Nga/audio RU03. Chỉ công khai tên và metadata tối thiểu của repository; mã nguồn, corpus, tài liệu và audio vẫn Private. Bằng chứng Windows local do chủ máy báo cáo tại PR #4 SHA `aaa9b6c81366c4d5025ee0f6730171050d4814cd` cho thấy localhost start/restart và SHA readback đạt, nhưng **offline khi ngắt Internet, quản trị từ App-Manager, chấp thuận HUMAN_RU03 và Production chưa nghiệm thu**.
+
+Không đăng ký đường `managementHref`, `publicUrl`, `localUrl` hoặc app launcher cho RUE trước khi xác minh khởi động/runtime theo đúng SHA trong App-Manager. Blueprint OS là nơi duy nhất quản trị workflow và quyền Quality Gate; Application-Management chỉ theo dõi metadata dự án, không được tự cấp quyền thẩm định.
 
 ## Blueprint OS / engineering compass
 
