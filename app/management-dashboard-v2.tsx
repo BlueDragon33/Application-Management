@@ -1367,13 +1367,17 @@ function Overview({ apps, tools, summaryMap, devices, pendingDevices, approvalDe
     ...apps.map((app) => {
       const summary = summaryMap.get(app.id);
       const counts = operationalCounts(app.id, summary, devices);
+      // Only registry-owned admin routes can open from the Overview.
+      // A newly discovered client has no per-app admin page until registered.
+      const manageHref = staticApps.find((registered) => registered.id === app.id)?.href;
       const connection = offline ? "pending" as const : connectionFor(app, summary);
       return {
         id: app.id,
         name: app.shortName,
         iconAppId: app.id,
         kind: "app" as const,
-        canOpen: webAccessAvailable(app, summary, localRuntime),
+        manageHref,
+        canOpen: Boolean(manageHref),
         online: offline ? null : counts.online,
         connection,
         status: offline ? "Chưa xác minh" : connectionLabel(connection, summary),
@@ -1423,15 +1427,12 @@ function Overview({ apps, tools, summaryMap, devices, pendingDevices, approvalDe
             className="amv2-overview-app-tile"
             data-kind={item.kind}
             key={item.id}
-            disabled={!item.canOpen || webBusy === item.id}
-            title={item.canOpen ? `Mở ${item.name}` : `${item.name} chưa có đường dẫn hợp lệ`}
-            aria-label={item.id === "pc-manager" ? `Mở ứng dụng cục bộ ${item.name}` : `Mở web ${item.name}`}
+            disabled={!item.canOpen}
+            title={item.canOpen ? (item.kind === "app" ? `Quản trị ${item.name}` : `Mở công cụ ${item.name}`) : `${item.name} chưa có trang quản trị`}
+            aria-label={item.kind === "app" ? `Quản trị ${item.name}` : `Mở công cụ ${item.name}`}
             onClick={() => {
-              if (item.kind === "tool") {
-                if (item.href) window.location.assign(item.href);
-              } else {
-                void launchWeb(item.id);
-              }
+              const destination = item.kind === "app" ? item.manageHref : item.href;
+              if (destination) window.location.assign(destination);
             }}
           >
             <span className="amv2-overview-app-icon"><AppIcon appId={item.iconAppId}/></span>
