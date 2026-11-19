@@ -38,7 +38,7 @@ test("unverified policy inputs never masquerade as constants or overwrite live c
   assert.match(route, /targets\.includes\("boi-ech"\)/);
 });
 
-test("overview icon buttons open their own web while heading remains the app-tab link", () => {
+test("overview buttons open per-client admin routes while heading remains the app-tab link", () => {
   const ui = read("app/management-dashboard-v2.tsx");
   const start = ui.indexOf('className="amv2-panel amv2-apps-panel amv2-overview-apps-launcher"');
   const end = ui.indexOf('className="amv2-panel amv2-devices-panel"', start);
@@ -47,12 +47,12 @@ test("overview icon buttons open their own web while heading remains the app-tab
   assert.doesNotMatch(block, /role="button"|aria-label="Mở tab Ứng dụng"/);
   assert.match(block, /<button type="button" onClick=\{\(\) => switchView\("applications"\)\}>Xem tất cả/);
   assert.match(block, /className="amv2-overview-app-tile"/);
-  assert.match(block, /aria-label=\{item\.id === "pc-manager"/);
-  assert.match(block, /`Mở ứng dụng cục bộ \$\{item\.name\}`/);
-  assert.match(block, /`Mở web \$\{item\.name\}`/);
-  assert.match(block, /void launchWeb\(item\.id\)/);
-  assert.match(block, /window\.location\.assign\(item\.href\)/);
-  assert.match(block, /disabled=\{!item\.canOpen \|\| webBusy === item\.id\}/);
+  assert.match(block, /aria-label=\{item\.kind === "app"/);
+  assert.match(block, /`Quản trị \$\{item\.name\}`/);
+  assert.doesNotMatch(block, /void launchWeb\(item\.id\)/);
+  assert.match(block, /item\.kind === "app" \? item\.manageHref : item\.href/);
+  assert.match(block, /window\.location\.assign\(destination\)/);
+  assert.match(block, /disabled=\{!item\.canOpen\}/);
 });
 
 test("Boi free limits are editable and read back even when auto approval is disabled", () => {
