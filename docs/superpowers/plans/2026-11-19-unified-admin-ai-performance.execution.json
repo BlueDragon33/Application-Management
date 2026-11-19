@@ -39,7 +39,7 @@
     },
     "targetPolicy": "record baseline first; never claim % improvement without exact-env before/after"
   },
-  "status": "CONSTITUTIONAL_GAPS_RECORDED_R0_2_READY_UNVERIFIED",
+  "status": "BLOCKED_R0_2_NO_LOCAL_RUNTIME",
   "rounds": [
     {
       "round": "R0",
@@ -90,11 +90,36 @@
           "dependsOn": [
             "R0.1"
           ],
-          "state": "READY",
-          "evidenceLevel": "RUNTIME_REQUIRED",
-          "evidence": [],
+          "state": "BLOCKED_RUNTIME",
+          "evidenceLevel": "RUNTIME_UNAVAILABLE",
+          "evidence": [
+            {
+              "kind": "RUNTIME_PROBE",
+              "source": "tool-execution-environment",
+              "status": "UNVERIFIED",
+              "note": "No localhost:3000 listener; GitHub DNS blocked from isolated shell; source checkout unavailable. Test host is not user's Windows PC."
+            },
+            {
+              "kind": "CONNECTED_BROWSER_TABS",
+              "source": "browser-list-tabs",
+              "status": "NO_CANDIDATE_RUNTIME",
+              "note": "Production URL only: https://application-management.boiech-ai.workers.dev/; not used for candidate profiling."
+            },
+            {
+              "kind": "SOURCE_WORKFLOW",
+              "source": "https://github.com/BlueDragon33/Application-Management/blob/7dc82e29ac3bdfbe146c150d69d264a325a373b4/.github/workflows/deploy-application-management-preview.yml",
+              "status": "DORMANT",
+              "note": "deploy-preview job if: ${{ false }}; no deploy requested."
+            },
+            {
+              "kind": "SOURCE_LOCAL_RUNNER",
+              "source": "https://github.com/BlueDragon33/Application-Management/blob/7dc82e29ac3bdfbe146c150d69d264a325a373b4/RUN_LOCAL.bat",
+              "status": "DOCUMENTED_NOT_EXECUTED",
+              "note": "Local start script invokes node scripts/run-local-offline-v2.mjs; local setup documented in docs/LOCAL_FIRST_RELEASE_STANDARD.md."
+            }
+          ],
           "changedFiles": [],
-          "candidateSha": null,
+          "candidateSha": "7dc82e29ac3bdfbe146c150d69d264a325a373b4",
           "linkedGates": [
             "G05"
           ],
@@ -103,7 +128,35 @@
           "releaseAuthority": "NONE",
           "browserEvidence": "UNVERIFIED",
           "entryGate": "READ_ONLY_MEASUREMENT_ALLOWED_WITHOUT_PASSING_ALL_FINAL_GATES",
-          "exitGate": "G05 BASELINE PROOF REPRODUCIBLE; runtime unavailable means blocked, not PASS"
+          "exitGate": "G05 BASELINE PROOF REPRODUCIBLE; runtime unavailable means blocked, not PASS",
+          "blocker": {
+            "code": "NO_EXACT_SHA_LOCAL_OR_ISOLATED_QA_RUNTIME",
+            "observedAt": "2026-11-19",
+            "details": [
+              "Container Node.js 22 and Chromium exist, but repo checkout is unavailable in the tool execution filesystem; /mnt/data contains only a user image, not application sources.",
+              "git ls-remote GitHub failed: Could not resolve host github.com from the isolated shell.",
+              "HTTP request to http://127.0.0.1:3000 failed immediately: connection refused.",
+              "Connected browser tabs show Application Management Cloudflare Production, not a candidate-specific local/QA runtime. Do not benchmark Production as candidate.",
+              "Repository Preview publish workflow job is deliberately dormant (`if: ${{ false }}`); no Preview deployment was triggered."
+            ],
+            "recoveryRequirement": "Authorized isolated local clone/checkout at the exact candidate SHA, Node >=22.13, RUN_LOCAL.bat or npm run local:system with D1 local only, Chromium automation/DevTools available, synthetic 10/50/200 app fixtures and measurement collection; no remote D1, Production, or provider credentials.",
+            "assessment": "No runtime measurements obtained; requesting setup is a genuine capability boundary, not a code defect."
+          },
+          "measurements": {
+            "sampleCount": 0,
+            "fixtureCountsTested": [],
+            "click": null,
+            "p50Ms": null,
+            "p95Ms": null,
+            "networkRequests": null,
+            "reactCommits": null,
+            "peakMemoryMb": null,
+            "cpuMs": null,
+            "longTasks": null,
+            "cssCoveragePercent": null,
+            "computedContrast": null,
+            "measurementStatus": "NOT_MEASURED"
+          }
         },
         {
           "id": "R0.3",
@@ -535,9 +588,18 @@
   ],
   "activeNextAction": {
     "id": "R0.2",
-    "why": "Actual, reproducible performance/browser measurements are missing; constitutional audit also uncovered a dynamic-only Catalog route gap queued for R2.2. No implementation before measured source and acceptance baselines.",
-    "blockedIfNoRuntime": "Set R0.2=BLOCKED_RUNTIME, G05=UNVERIFIED and halt with exact local QA runtime prerequisite, never claim p50/p95 from static source.",
-    "fallback": "Read-only source checks only; existing user-facing production stays unchanged; no automatic human authority or reviews.",
+    "type": "UNBLOCK_RUNTIME",
+    "state": "BLOCKED_RUNTIME",
+    "why": "No exact-SHA local/QA runtime can be reached from the current connected environment; baseline metrics cannot be fabricated from source or Production.",
+    "required": "Provision existing Application-Management repo checkout on the user's Windows machine at the live PR #414 HEAD, start existing RUN_LOCAL.bat in offline-only mode and make the local QA browser/measurement harness accessible to an authorized execution environment. Do not publish or mirror Production.",
+    "expectedEvidence": [
+      "git rev-parse HEAD matching current PR #414 head",
+      "127.0.0.1:3000 local app ready",
+      "local-only D1 configuration verified",
+      "browser DevTools/Playwright access to local session",
+      "synthetic fixture wiring for 10/50/200 clients"
+    ],
+    "fallback": "Until accessible: retain R0.2 BLOCKED_RUNTIME and G05 UNVERIFIED; do source-only scope inspection and no runtime or Production changes.",
     "singleActionRule": true
   },
   "history": [
@@ -554,6 +616,13 @@
       "result": "CONSTITUTIONAL_AUDIT_SOURCE_ONLY",
       "evidenceLevel": "SOURCE_ONLY",
       "summary": "Reviewed all 32 execution rules plus 7 pillars, B4/E2 topology, CA-006 and WCAG computed contrast. Added 12 evidence gates. No runtime performance, AI adversarial, browser or federation proof claimed."
+    },
+    {
+      "stepId": "R0.2",
+      "date": "2026-11-19",
+      "result": "BLOCKED_RUNTIME",
+      "evidenceLevel": "ENVIRONMENT_PROBE_NO_MEASUREMENTS",
+      "summary": "Isolated runtime had no candidate checkout, DNS to GitHub blocked, localhost:3000 closed; connected browser only Production. No click/p50/p95/CPU/memory/requests/CSS measurements; G05 remains UNVERIFIED."
     }
   ],
   "assessment": {
@@ -1206,5 +1275,19 @@
       "AI decision proposal only",
       "safe migration"
     ]
+  },
+  "runtimePrerequisite": {
+    "environment": "LOCAL_WINDOWS_OR_ISOLATED_QA",
+    "sourceRef": "plan/unified-admin-ai-performance-20261119",
+    "observedCandidateSha": "7dc82e29ac3bdfbe146c150d69d264a325a373b4",
+    "requiredServices": [
+      "Application Management local on 127.0.0.1:3000",
+      "local-only D1",
+      "Chromium remote/browser automation on same host",
+      "synthetic fixture injection without sensitive/production data"
+    ],
+    "onReady": "Re-read live PR HEAD and confirm unchanged runtime code vs pinned baseline; run R0.2 exact-SHA measurements on that checkout.",
+    "networkAndPrivacy": "Loopback only; no remote data writes, no user health/child/visa data, no Production bearer/session secrets.",
+    "status": "MISSING"
   }
 }
