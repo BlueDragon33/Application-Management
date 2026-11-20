@@ -253,6 +253,26 @@ async function writeCredential(value: Credential) {
   });
 }
 
+/** Explicit Preview-only self-recovery for a browser key owned by another email.
+ * Do not rebind an existing key or touch server-owned device/account records. */
+const PREVIEW_ADMIN_HOST = "application-management-preview.boiech-ai.workers.dev";
+function isPreviewAdminHost() {
+  return typeof window !== "undefined" && window.location.hostname === PREVIEW_ADMIN_HOST;
+}
+async function forgetPreviewAdminCredential() {
+  if (!isPreviewAdminHost()) throw new Error("Chỉ môi trường Preview mới được thay khóa cục bộ.");
+  const db = await openDb();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction("credential", "readwrite");
+      transaction.objectStore("credential").delete("primary");
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error ?? new Error("Không thể thay khóa Preview."));
+      transaction.onabort = () => reject(transaction.error ?? new Error("Đã hủy thay khóa Preview."));
+    });
+  } finally { db.close(); }
+}
+
 async function credentialForDevice() {
   const current = await readCredential();
   if (current?.version === 1 && current.publicKey && current.privateKey) return current;
@@ -443,7 +463,10 @@ function Laptop({ active, status, badge }: { active: boolean; status: DeviceStat
   );
 }
 
-function DeviceGate({ access, checking, error, retry }: { access: Access | null; checking: boolean; error: string; retry: () => void }) {
+function DeviceGate({ access, checking, error, retry, identityConflict, recover }: {
+  access: Access | null; checking: boolean; error: string; retry: () => void;
+  identityConflict: boolean; recover: () => void;
+}) {
   return (
     <main className="gate-shell">
       <section className="gate-card">
@@ -452,6 +475,11 @@ function DeviceGate({ access, checking, error, retry }: { access: Access | null;
         <h1>{access?.status === "pending" ? "Thiết bị quản trị đang chờ Application Management cấp quyền." : access?.status === "blocked" ? "Thiết bị quản trị này đã bị khóa." : "Đang chuẩn bị khu quản trị Bơi ếch…"}</h1>
         <p>{access?.status === "pending" ? "Mã QT bên dưới thuộc Application Management. Sau khi Trung tâm cấp quyền, nhấn Kiểm tra lại quyền; hệ thống không hỏi máy chủ định kỳ." : error || "Khóa quản trị đang được kiểm tra trên thiết bị hiện tại."}</p>
         {access?.deviceCode ? <div className="gate-code"><span>Mã thiết bị quản trị</span><strong>{access.deviceCode}</strong><button onClick={() => navigator.clipboard.writeText(access.deviceCode)}>Sao chép mã</button></div> : null}
+        {identityConflict && isPreviewAdminHost() ? <section role="alert" aria-label="Khắc phục xung đột thiết bị Preview">
+          <p>Khóa quản trị cục bộ đã thuộc một tài khoản khác. Bạn có thể tạo khóa Preview mới nếu đang sử dụng đúng tài khoản được cấp quyền.</p>
+          <p>Thao tác này chỉ thay khóa trong trình duyệt của trang Preview; không chuyển quyền, không xóa tài khoản hoặc dữ liệu trên máy chủ. Khóa cũ sẽ không còn sử dụng được từ trình duyệt này.</p>
+          <button className="button" type="button" onClick={recover} disabled={checking}>Tạo khóa thiết bị Preview mới</button>
+        </section> : null}
         <button className="button primary" onClick={retry} disabled={checking}>{checking ? "Đang kiểm tra…" : "Kiểm tra lại quyền"}</button>
         <small>Quyền thiết bị QT được quản lý tập trung tại Application Management; dữ liệu người học vẫn thuộc Bơi ếch.</small>
       </section>
@@ -837,6 +865,7 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
   const [checking, setChecking] = useState(true);
   const {count:manualSyncCount,ids:manualSyncIds,acknowledge:ackManualSync}=useBoiSyncNotices(access?.role==="owner"?"owner":"");
   const [error, setError] = useState("");
+  const [identityConflict, setIdentityConflict] = useState(false);
   const [notice, setNotice] = useState("");
   const [boiOnline, setBoiOnline] = useState(false);
   const [manualCode, setManualCode] = useState("");
@@ -1187,14 +1216,29 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
   async function initialize() {
     setChecking(true);
     setError("");
+    setIdentityConflict(false);
     try {
       const key = await credentialForDevice();
       setCredential(key);
       const state = await register(key);
       setAccess(state);
       if (state.status === "approved") await refresh(key, state, { discoverNew: true });
-    } catch (caught) { setError(caught instanceof Error ? caught.message : "Không thể đăng ký thiết bị quản trị."); }
-    finally { setChecking(false); }
+    } catch (caught) {
+      setIdentityConflict(caught instanceof ApiError && caught.data.code === "DEVICE_BOUND_TO_OTHER_USER");
+      setError(caught instanceof Error ? caught.message : "Không thể đăng ký thiết bị quản trị.");
+    } finally { setChecking(false); }
+  }
+  async function recoverPreviewIdentity() {
+    if (checking || !identityConflict || !isPreviewAdminHost()) return;
+    if (!window.confirm("Tạo khóa quản trị mới CHỈ trên trang Preview này? Khóa cũ sẽ không còn sử dụng được từ trình duyệt này. Tài khoản và D1 hiện tại không bị thay đổi.")) return;
+    setChecking(true);
+    try {
+      await forgetPreviewAdminCredential();
+      window.location.reload();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Không thay được khóa Preview.");
+      setChecking(false);
+    }
   }
 
   useEffect(() => {
@@ -1472,7 +1516,8 @@ export default function BoiEchControlCenter({ user }: { user: { displayName: str
     });
   }, [dashboard?.learningDevices, filter, search]);
 
-  if (!access || access.status !== "approved") return <DeviceGate access={access} checking={checking} error={error} retry={() => void initialize()} />;
+  if (!access || access.status !== "approved") return <DeviceGate access={access} checking={checking} error={error} retry={() => void initialize()}
+    identityConflict={identityConflict} recover={() => void recoverPreviewIdentity()} />;
 
   const counts = {
     total: dashboard?.learningDevices.length ?? 0,
