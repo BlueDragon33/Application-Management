@@ -91,7 +91,7 @@
             "R0.1"
           ],
           "state": "BLOCKED_INSTRUMENTED_QA",
-          "evidenceLevel": "LOCAL_DOM_OBSERVED_NO_PERF_MEASUREMENT",
+          "evidenceLevel": "WINDOWS_SOURCE_AND_LOCAL_UI_OBSERVED_NO_PERF_MEASUREMENT",
           "evidence": [
             {
               "kind": "RUNTIME_PROBE",
@@ -126,34 +126,81 @@
             {
               "kind": "INDEPENDENT_DRAFT_FIX",
               "source": "https://github.com/BlueDragon33/Application-Management/pull/415",
-              "status": "CODED_CI_PENDING",
-              "note": "NC03 v4/v5 allowlist and auth/write regression checks; does not imply PR #414 runtime state."
+              "status": "CODED_CI_PASS_RUNTIME_UNVERIFIED",
+              "note": "Draft PR #415 at 65994b45fa4c967e5bfaeb8ebb7c4471bd531068: constitutional and dependency-sovereignty checks, fast-check and regression-check succeeded. preview-browser-readonly was skipped. Windows NC03 v5 integration is still UNVERIFIED."
+            },
+            {
+              "kind": "WINDOWS_CHECKOUT_AND_PR_HEAD",
+              "source": "https://github.com/BlueDragon33/Application-Management/compare/423d4bbb633c9d2e1f946ccd8dd18bd8abcdfaf7...146f74bc99e98c69c422e51c827361cbe2f6cafc",
+              "checkpoint": "https://github.com/BlueDragon33/Application-Management/pull/414#issuecomment-7021762787",
+              "observedAt": "2026-11-20T10:08:30+03:00",
+              "status": "HEAD_BEHIND_LIVE_DRAFT",
+              "checkout": "E:\\BaumanWeb\\Application-Management",
+              "checkoutHead": "423d4bbb633c9d2e1f946ccd8dd18bd8abcdfaf7",
+              "candidateSha": "146f74bc99e98c69c422e51c827361cbe2f6cafc",
+              "note": "Git rev-parse --verify HEAD with explicit Git directory and work tree agreed with the detached .git/HEAD. GitHub compare returned ahead_by=2, behind_by=0 and only the plan and ledger files changed. The shell could not confirm work-tree cleanliness. The compare describes the commits and supplies no evidence of what the listener is serving."
+            },
+            {
+              "kind": "WINDOWS_LOCAL_CENTER",
+              "source": "http://127.0.0.1:3000/",
+              "status": "LOCAL_DOM_OBSERVED_PID_AND_SERVED_SHA_UNVERIFIED",
+              "observedAt": "2026-11-20T10:08:30+03:00",
+              "pid": null,
+              "servedSha": null,
+              "note": "The existing Windows Chrome tab visibly rendered the Local Center overview, 10 managed apps, 6 tools and unverified online counts shown as em dashes. No reload, navigation or mutations were performed in that tab."
+            },
+            {
+              "kind": "WINDOWS_CHROMIUM_AND_LOOPBACK_PROBES",
+              "source": "Windows terminal and isolated Playwright context",
+              "observedAt": "2026-11-20T10:08:30+03:00",
+              "status": "CDP_PIPE_WORKS_LOOPBACK_ACCESS_DENIED",
+              "environment": {
+                "windowsNt": "10.0.26300.0",
+                "node": "24.15.0",
+                "playwright": "1.55.1",
+                "chrome": "157.0.8103.79",
+                "smokeProfile": "Headless Chrome, fresh Playwright context, no user profile"
+              },
+              "observations": [
+                "Get-NetTCPConnection could not access CIM. The restricted netstat view returned no row for TCP 3000. This view cannot establish listener absence or PID ownership.",
+                "Windows Node IPv4 connect to 127.0.0.1:3000 returned EACCES. A separately owned ephemeral IPv4 loopback listener bound, but a client in the same Node process also got EACCES.",
+                "Chromium on about:blank returned 36 CDP Performance.getMetrics entries, a tooling smoke with no application measurements. Playwright page.goto against a separately owned loopback-only HTTP probe returned net::ERR_NETWORK_ACCESS_DENIED."
+              ]
+            },
+            {
+              "kind": "WINDOWS_SYNTHETIC_FIXTURE_REVIEW",
+              "source": "https://github.com/BlueDragon33/Application-Management/blob/146f74bc99e98c69c422e51c827361cbe2f6cafc/scripts/automation-fixture-browser-check.mjs",
+              "status": "NO_QUALIFIED_ISOLATED_10_50_200_FIXTURE_EXECUTED",
+              "expectedFixtureAppCounts": [
+                10,
+                50,
+                200
+              ],
+              "note": "The existing CI fixture seeds nine dynamic Catalog entries with additional fixed mock clients, uses fixed ports, runs D1 migration and catalog writes and expects a disposable checkout. The regular CENTER ONLY launcher also applies D1 migrations. Neither runner was used on the existing local checkout. Only the temporary diagnostic listeners and browser created for this session were closed."
             }
           ],
           "changedFiles": [],
-          "candidateSha": "7dc82e29ac3bdfbe146c150d69d264a325a373b4",
+          "candidateSha": "146f74bc99e98c69c422e51c827361cbe2f6cafc",
           "linkedGates": [
             "G05"
           ],
           "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
           "remediesForSameRoot": 0,
           "releaseAuthority": "NONE",
-          "browserEvidence": "UNVERIFIED",
+          "browserEvidence": "LOCAL_UI_OBSERVED_CAPABILITY_SMOKE_ONLY",
           "entryGate": "READ_ONLY_MEASUREMENT_ALLOWED_WITHOUT_PASSING_ALL_FINAL_GATES",
           "exitGate": "G05 BASELINE PROOF REPRODUCIBLE; runtime unavailable means blocked, not PASS",
           "blocker": {
-            "code": "NO_EXACT_SHA_LOCAL_BROWSER_INSTRUMENTATION",
-            "observedAt": "2026-11-19",
+            "code": "WINDOWS_LOOPBACK_ACCESS_DENIED_AND_CHECKOUT_BEHIND",
+            "observedAt": "2026-11-20",
             "details": [
-              "Browser connector sees an open http://127.0.0.1:3000/ tab titled Application Management and extracts its rendered text; this supersedes the earlier local tab unavailable observation.",
-              "The rendered UI displays central Overview, Inbox, Apps, device-review and audit navigation, with 10 app entries and 6 tools; it explicitly marks Production verification unknown and counts as em dashes.",
-              "Current Chat-mode browser connection supports tab listing and read-only page context; no navigation, DevTools performance/CDP control, metrics collection, fixture injection or readback of the local process SHA is available.",
-              "Earlier tool-side isolated shell has no access to user's local 127.0.0.1:3000; shell's loopback and user's Windows browser refer to different hosts.",
-              "NC03 full-stack launcher rejects current v5 protocol via exact-v4 comparison; candidate fix is in independent Draft PR #415 (scripts/run-local-system.mjs + tests/hybrid-local-control-plane.test.mjs), not merged/published.",
-              "App Manager PR #414 remains plan/ledger only; exact local checkout SHA was reported by Owner but not independently bound to the browser process."
+              "Windows E:\\BaumanWeb\\Application-Management had HEAD 423d4bbb633c9d2e1f946ccd8dd18bd8abcdfaf7 while Draft PR #414 was 146f74bc99e98c69c422e51c827361cbe2f6cafc. The GitHub comparison changed only two documentation files.",
+              "The connected Windows Chrome application view rendered the Local Center. Restricted process lookup and denied loopback access prevented a listening PID or served SHA from being verified.",
+              "Playwright and Chromium CDP launched successfully. Both the Windows Node and Chromium QA clients were unable to connect to owned loopback probes.",
+              "The available CI fixture runner does not provide a ready isolated 10/50/200-app matrix. The existing checkout and its local D1 were left alone."
             ],
-            "recoveryRequirement": "Run a local browser instrumentation session on user's Windows host against the pinned PR #414 checkout (verify process/checkout revision) with synthetic 10/50/200 app fixtures and repeatable profiles for click, p50/p95, requests, memory, CPU, React commits, CSS coverage and computed contrast. Do not use production data or claim integrated client gates from center-only runtime.",
-            "assessment": "Local UI is visible, but no valid measured performance sample or exact SHA-bound browser run was obtainable via read-only Chat browser access."
+            "recoveryRequirement": "Use an authorized Windows Chromium/Playwright session with loopback access to bind the Local Center listener PID to the then-live Draft PR #414 SHA and capture the R0.2 baseline in an isolated checkout, browser profile and D1 with verified 10/50/200 synthetic app fixtures.",
+            "assessment": "No browser baseline samples were captured. G05 remains UNVERIFIED. Independent A/B reviews and the NC03 integration test are external to this attempt."
           },
           "measurements": {
             "sampleCount": 0,
@@ -168,7 +215,12 @@
             "longTasks": null,
             "cssCoveragePercent": null,
             "computedContrast": null,
-            "measurementStatus": "NOT_MEASURED_LOCAL_UI_OBSERVED"
+            "measurementStatus": "NOT_MEASURED_WINDOWS_LOOPBACK_DENIED",
+            "fixtureCountsPlanned": [
+              10,
+              50,
+              200
+            ]
           }
         },
         {
@@ -603,8 +655,8 @@
     "id": "R0.2",
     "type": "BIND_AND_MEASURE_LOCAL_QA",
     "state": "BLOCKED_INSTRUMENTED_QA",
-    "why": "Local Center UI is open in the user's browser, but current Chat browser access is read-only, no exact-SHA process attestation and no Chromium performance/fixture execution capability.",
-    "required": "Use authorized local Windows browser automation/DevTools (e.g. Desktop Work with computer access) to pin the running app to exact PR #414 HEAD, run synthetic 10/50/200-app fixtures and capture real p50/p95/requests/CPU/memory/React commit/CSS coverage/contrast. Keep full-stack NC03 v5 fix in separate PR #415, do not publish or bypass gates.",
+    "why": "The Windows checkout is two documentation commits behind the inspected PR head. The Local Center tab is visible, but the available execution environment could not read the listener PID or reach loopback via Playwright, and no qualified volume fixture ran.",
+    "required": "Use an authorized Windows Chromium/Playwright session with loopback access to bind the Local Center listener PID to the then-live Draft PR #414 SHA and capture the R0.2 baseline in an isolated checkout, browser profile and D1 with verified 10/50/200 synthetic app fixtures.",
     "expectedEvidence": [
       "exact SHA for served local source",
       "instrumented sample files and environment/browser/browser profile identity",
@@ -615,7 +667,7 @@
       "CSS coverage and computed text contrast",
       "G05 truthfully marked only after evidence"
     ],
-    "fallback": "Retain G05 UNVERIFIED and R0.2 BLOCKED_INSTRUMENTED_QA; use read-only UI observation only; PR #415 remains Draft until CI and isolated integration.",
+    "fallback": "If loopback, PID-to-SHA binding or isolated fixtures cannot be verified, keep R0.2 BLOCKED_INSTRUMENTED_QA and G05 UNVERIFIED with the concrete probe evidence and no benchmark samples.",
     "singleActionRule": true
   },
   "history": [
@@ -646,6 +698,15 @@
       "result": "LOCAL_UI_OBSERVED_BUT_METRICS_BLOCKED",
       "evidenceLevel": "LIVE_DOM_READ_ONLY",
       "summary": "Read-only connected Windows browser tab displayed Application Management localhost:3000 Center Overview and inventory. No DevTools instrumented performance or synthetic fixtures possible through Chat-mode browser; distinct NC03 v5 compatibility fix opened as Draft PR #415; G05 UNVERIFIED."
+    },
+    {
+      "stepId": "R0.2",
+      "date": "2026-11-20",
+      "result": "BLOCKED_INSTRUMENTED_QA",
+      "evidenceLevel": "WINDOWS_SOURCE_AND_LOCAL_UI_OBSERVED_NO_PERF_MEASUREMENT",
+      "inspectedPrSha": "146f74bc99e98c69c422e51c827361cbe2f6cafc",
+      "localCheckoutSha": "423d4bbb633c9d2e1f946ccd8dd18bd8abcdfaf7",
+      "summary": "The Windows Local Center tab rendered. Terminal CIM and loopback access were denied despite a working Chrome/CDP smoke on a blank page. No isolated 10/50/200-app run, runtime SHA binding or measured samples. G05 remains UNVERIFIED."
     }
   ],
   "assessment": {
@@ -1130,6 +1191,11 @@
           "source": "browser-readonly-tab-1718373828",
           "status": "NON_PERFORMANCE_OBSERVATION",
           "note": "Local center visible; not timing, CPU/memory/render or CSS measurements."
+        },
+        {
+          "source": "R0.2 Windows probes, 2026-11-20",
+          "status": "NO_QUALIFYING_SAMPLES",
+          "note": "The exact app SHA, listener PID, fixture matrix and measured samples were not established. The CDP about:blank smoke tested the measurement tool only."
         }
       ],
       "exactSha": null,
@@ -1308,7 +1374,7 @@
   "runtimePrerequisite": {
     "environment": "LOCAL_WINDOWS_OR_ISOLATED_QA",
     "sourceRef": "plan/unified-admin-ai-performance-20261119",
-    "observedCandidateSha": "7dc82e29ac3bdfbe146c150d69d264a325a373b4",
+    "observedCandidateSha": "146f74bc99e98c69c422e51c827361cbe2f6cafc",
     "requiredServices": [
       "Application Management local on 127.0.0.1:3000",
       "local-only D1",
@@ -1317,8 +1383,11 @@
     ],
     "onReady": "Re-read live PR HEAD and confirm unchanged runtime code vs pinned baseline; run R0.2 exact-SHA measurements on that checkout.",
     "networkAndPrivacy": "Loopback only; no remote data writes, no user health/child/visa data, no Production bearer/session secrets.",
-    "status": "LOCAL_CENTER_VISIBLE_INSTRUMENTATION_AND_RUNTIME_SHA_UNVERIFIED",
+    "status": "LOCAL_CENTER_VISIBLE_PID_SHA_AND_LOOPBACK_BLOCKED",
     "observedCenterUrl": "http://127.0.0.1:3000/",
-    "independentFix": "https://github.com/BlueDragon33/Application-Management/pull/415"
+    "independentFix": "https://github.com/BlueDragon33/Application-Management/pull/415",
+    "observedCheckoutSha": "423d4bbb633c9d2e1f946ccd8dd18bd8abcdfaf7",
+    "observedServingPid": null,
+    "observedServedSha": null
   }
 }
