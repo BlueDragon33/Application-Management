@@ -39,7 +39,7 @@
     },
     "targetPolicy": "record baseline first; never claim % improvement without exact-env before/after"
   },
-  "status": "BLOCKED_R0_2_NO_INSTRUMENTED_QA",
+  "status": "BLOCKED_R0_2_QA_WORKSPACE_AND_RUNTIME_PROVENANCE",
   "rounds": [
     {
       "round": "R0",
@@ -91,7 +91,7 @@
             "R0.1"
           ],
           "state": "BLOCKED_INSTRUMENTED_QA",
-          "evidenceLevel": "WINDOWS_TRACKED_SOURCE_AND_ACCESS_PROBES_ONLY",
+          "evidenceLevel": "WINDOWS_LOOPBACK_VERIFIED_RUNTIME_UNVERIFIED",
           "evidence": [
             {
               "kind": "RUNTIME_PROBE",
@@ -250,30 +250,98 @@
                 "isolatedD1Used": false
               },
               "note": "Only diagnostic listeners and a separate Chromium context were created and closed. No application benchmark, migration or seed ran."
+            },
+            {
+              "kind": "WINDOWS_LOOPBACK_AND_QA_WORKSPACE_PREFLIGHT",
+              "source": "https://github.com/BlueDragon33/Application-Management/compare/423d4bbb633c9d2e1f946ccd8dd18bd8abcdfaf7...e282cc355b20ae756393a94c1a1e252f102b17d9",
+              "status": "LOOPBACK_VERIFIED_QA_PREREQUISITES_BLOCKED",
+              "observedAt": "2026-11-21T13:13:24.699+03:00",
+              "inspectedPrHead": "e282cc355b20ae756393a94c1a1e252f102b17d9",
+              "constitution": {
+                "version": "1.3.0",
+                "status": "ACTIVE",
+                "projectLevel": "B4"
+              },
+              "windows": {
+                "ntVersion": "10.0.26300.0",
+                "platform": "win32",
+                "node": "24.15.0",
+                "playwright": "1.55.1",
+                "chromium": "157.0.8103.79"
+              },
+              "playwrightProbe": {
+                "capturedAtUtc": "2026-11-21T10:13:24.699Z",
+                "target": "http://127.0.0.1:51230/r02-qa-preflight",
+                "httpStatus": 200,
+                "independentResponseBodyVerified": true,
+                "browserProfile": "Separate headless Chromium profile and Playwright context, service workers blocked and requests limited to the owned endpoint.",
+                "cdpBlankPageResponded": true,
+                "nodeTestPortTcp": "CONNECTED",
+                "nodeCenterTcp": "CONNECTED",
+                "scope": "Owned HTTP listener and transport check only; the service on TCP 3000 received only a TCP connect probe. The owned diagnostic listeners and browser were closed."
+              },
+              "checkout": {
+                "path": "E:\\BaumanWeb\\Application-Management",
+                "observedHead": "423d4bbb633c9d2e1f946ccd8dd18bd8abcdfaf7",
+                "candidateObjectProbeExit": 128,
+                "gitHubDiffAhead": 4,
+                "changedPaths": [
+                  "docs/superpowers/plans/2026-11-19-unified-admin-ai-performance.execution.json",
+                  "docs/superpowers/plans/2026-11-19-unified-admin-ai-performance.md"
+                ],
+                "qaWriteTarget": "E:\\BaumanWeb\\_qa\\Application-Management-R0.2-e282cc35-20261121",
+                "qaWriteApproval": "AUTOMATICALLY_REJECTED_SANDBOX_APPROVAL_DISABLED",
+                "isolatedExactHeadCheckoutFound": false,
+                "checkoutCreated": false
+              },
+              "listener": {
+                "appPort": 3000,
+                "transport": "TCP_CONNECTED",
+                "netTcpConnection": "CIM resource unavailable",
+                "netstatVisibleListenerRowsFor3000": 0,
+                "nativeTcpOwnerTable": {
+                  "ipv4ReturnCode": 5,
+                  "ipv6ReturnCode": 5,
+                  "meaning": "ACCESS_DENIED"
+                },
+                "pid": null,
+                "executableOrBuild": null,
+                "exactServedSha": null
+              },
+              "fixture": {
+                "requiredAppCounts": [
+                  10,
+                  50,
+                  200
+                ],
+                "verifiedAppCounts": [],
+                "isolatedD1Used": false
+              },
+              "appMeasurementsCaptured": false
             }
           ],
           "changedFiles": [],
-          "candidateSha": "7a781abc878676219d1247d96f7be6c75259f73b",
+          "candidateSha": "e282cc355b20ae756393a94c1a1e252f102b17d9",
           "linkedGates": [
             "G05"
           ],
           "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
           "remediesForSameRoot": 0,
           "releaseAuthority": "NONE",
-          "browserEvidence": "CDP_CAPABILITY_SMOKE_ONLY_LOOPBACK_DENIED",
+          "browserEvidence": "OWNED_WINDOWS_LOOPBACK_HTTP_200",
           "entryGate": "READ_ONLY_MEASUREMENT_ALLOWED_WITHOUT_PASSING_ALL_FINAL_GATES",
           "exitGate": "G05 BASELINE PROOF REPRODUCIBLE; runtime unavailable means blocked, not PASS",
           "blocker": {
-            "code": "WINDOWS_LOOPBACK_DENIED_AND_EXACT_RUNTIME_UNVERIFIED",
-            "observedAt": "2026-11-20",
+            "code": "WINDOWS_QA_WORKSPACE_WRITE_AND_LISTENER_METADATA_BLOCKED",
+            "observedAt": "2026-11-21",
             "details": [
-              "The Windows checkout is still 423d4bbb633c9d2e1f946ccd8dd18bd8abcdfaf7. The live Draft head 7a781abc878676219d1247d96f7be6c75259f73b and the previous candidate are absent from local Git objects. Tracked file content matches the index after CRLF normalization. Full git status failed.",
-              "TCP :3000 PID, process command line, runtime directory, and build SHA could not be established. The Resource Monitor launch approval timed out and the shell could not query CIM.",
-              "Node got EACCES and Chromium got ERR_NETWORK_ACCESS_DENIED against an owned loopback probe. A subsequent Node probe reproduced EACCES against 3000 and another owned port.",
-              "The managed write roots did not include E:\\BaumanWeb, so there was no isolated exact-HEAD checkout, D1, or verified 10/50/200 synthetic fixture run."
+              "Playwright received HTTP 200 and matched the unique response body from a privately owned Windows loopback port. Node also connected to TCP 3000.",
+              "CIM could not read the TCP owner, the restricted netstat view showed no matching rows, and the native IPv4/IPv6 owner-PID table calls returned Windows error 5. Listener PID, executable/build and served SHA remain unverified.",
+              "The Windows checkout is 423d4bbb633c9d2e1f946ccd8dd18bd8abcdfaf7. Local Git could not read inspected Draft head e282cc355b20ae756393a94c1a1e252f102b17d9. The GitHub comparison lists only plan and ledger changes.",
+              "The managed session automatically rejected creation of a separate directory under E:\\BaumanWeb\\_qa because sandbox approvals are disabled. No isolated checkout, D1 or verified volume fixture was started."
             ],
-            "recoveryRequirement": "Run R0.2 in a Windows session with permitted loopback and an isolated writable QA directory under E:\\BaumanWeb. Verify a private Playwright HTTP probe and the listener-to-PID-to-build-to-exact-live-PR-SHA chain, use a separate Chromium profile and D1, and measure the verified synthetic 10/50/200-app matrix.",
-            "assessment": "Application measurement values remain null. G05 evidence requirements were not met."
+            "recoveryRequirement": "Use a local Windows session with write access to a new QA directory under E:\\BaumanWeb\\_qa and permission to read TCP listener/process metadata. Verify the listener-to-PID-to-build-to-live-PR-SHA chain and run the isolated D1 Chromium baseline for 10/50/200 verified synthetic apps.",
+            "assessment": "Loopback preflight is verified. Application benchmark metrics remain unmeasured."
           },
           "measurements": {
             "sampleCount": 0,
@@ -288,7 +356,7 @@
             "longTasks": null,
             "cssCoveragePercent": null,
             "computedContrast": null,
-            "measurementStatus": "NOT_MEASURED_WINDOWS_LOOPBACK_DENIED",
+            "measurementStatus": "NOT_MEASURED_QA_CHECKOUT_AND_PROVENANCE_BLOCKED",
             "fixtureCountsPlanned": [
               10,
               50,
@@ -732,8 +800,8 @@
     "id": "R0.2",
     "type": "BIND_AND_MEASURE_LOCAL_QA",
     "state": "BLOCKED_INSTRUMENTED_QA",
-    "why": "The owned Windows loopback preflight and listener/process provenance are blocked, and the current session cannot provision the required isolated QA checkout on E:.",
-    "required": "Run R0.2 in a Windows session with permitted loopback and an isolated writable QA directory under E:\\BaumanWeb. Verify a private Playwright HTTP probe and the listener-to-PID-to-build-to-exact-live-PR-SHA chain, use a separate Chromium profile and D1, and measure the verified synthetic 10/50/200-app matrix.",
+    "why": "The owned Chromium HTTP probe now succeeds. The session cannot create the required isolated checkout on E: or read the app listener owner and build provenance.",
+    "required": "Use a local Windows session with write access to a new QA directory under E:\\BaumanWeb\\_qa and permission to read TCP listener/process metadata. Verify the listener-to-PID-to-build-to-live-PR-SHA chain and run the isolated D1 Chromium baseline for 10/50/200 verified synthetic apps.",
     "expectedEvidence": [
       "exact SHA for served local source",
       "instrumented sample files and environment/browser/browser profile identity",
@@ -744,7 +812,7 @@
       "CSS coverage and computed text contrast",
       "G05 truthfully marked only after evidence"
     ],
-    "fallback": "Keep R0.2 BLOCKED_INSTRUMENTED_QA and G05 UNVERIFIED when the loopback probe, exact running SHA, or isolated D1/fixture checks cannot be verified. Record concrete diagnostic evidence and keep unmeasured metrics null.",
+    "fallback": "If the E: QA directory or exact PID/build/SHA and D1/fixture isolation cannot be proved, record the specific failed probe and retain R0.2 BLOCKED_INSTRUMENTED_QA and G05 UNVERIFIED. Keep the owned HTTP 200 loopback result as preflight evidence.",
     "singleActionRule": true
   },
   "history": [
@@ -793,6 +861,15 @@
       "inspectedPrSha": "7a781abc878676219d1247d96f7be6c75259f73b",
       "localCheckoutSha": "423d4bbb633c9d2e1f946ccd8dd18bd8abcdfaf7",
       "summary": "Reconfirmed ACTIVE 1.3.0 and the exact Draft ledger. Checked 569 regular tracked paths; the content matches after CRLF normalization. Owned Windows loopback probes returned access denied. Resource Monitor approval timed out. No isolated D1 or Chromium baseline was run."
+    },
+    {
+      "stepId": "R0.2",
+      "date": "2026-11-21",
+      "result": "BLOCKED_INSTRUMENTED_QA",
+      "evidenceLevel": "WINDOWS_LOOPBACK_VERIFIED_RUNTIME_UNVERIFIED",
+      "inspectedPrSha": "e282cc355b20ae756393a94c1a1e252f102b17d9",
+      "localCheckoutSha": "423d4bbb633c9d2e1f946ccd8dd18bd8abcdfaf7",
+      "summary": "Windows Chromium/Playwright verified HTTP 200 and the owned probe body. TCP 3000 accepted a connection. Windows owner-PID metadata was denied and the session automatically rejected write elevation for the separate E: checkout. No isolated D1 or volume fixture and no application samples."
     }
   ],
   "assessment": {
@@ -1287,6 +1364,11 @@
           "source": "R0.2 Windows runtime baseline recheck, 2026-11-20",
           "status": "NO_QUALIFYING_SAMPLES",
           "note": "Application port ownership, build/SHA, D1 isolation and synthetic volume-fixture evidence remain missing."
+        },
+        {
+          "source": "R0.2 Windows loopback and QA workspace preflight, 2026-11-21",
+          "status": "NO_QUALIFYING_SAMPLES",
+          "note": "The isolated loopback HTTP 200 proves Chromium connectivity. The exact app PID/build/SHA, D1 and fixture proof remain missing."
         }
       ],
       "exactSha": null,
@@ -1465,7 +1547,7 @@
   "runtimePrerequisite": {
     "environment": "LOCAL_WINDOWS_OR_ISOLATED_QA",
     "sourceRef": "plan/unified-admin-ai-performance-20261119",
-    "observedCandidateSha": "7a781abc878676219d1247d96f7be6c75259f73b",
+    "observedCandidateSha": "e282cc355b20ae756393a94c1a1e252f102b17d9",
     "requiredServices": [
       "Application Management local on 127.0.0.1:3000",
       "local-only D1",
@@ -1474,11 +1556,18 @@
     ],
     "onReady": "Re-read live PR HEAD and confirm unchanged runtime code vs pinned baseline; run R0.2 exact-SHA measurements on that checkout.",
     "networkAndPrivacy": "Loopback only; no remote data writes, no user health/child/visa data, no Production bearer/session secrets.",
-    "status": "WINDOWS_LOOPBACK_DENIED_AND_EXACT_RUNTIME_UNVERIFIED",
+    "status": "WINDOWS_QA_WORKSPACE_WRITE_AND_LISTENER_METADATA_BLOCKED",
     "observedCenterUrl": "http://127.0.0.1:3000/",
     "independentFix": "https://github.com/BlueDragon33/Application-Management/pull/415",
     "observedCheckoutSha": "423d4bbb633c9d2e1f946ccd8dd18bd8abcdfaf7",
     "observedServingPid": null,
-    "observedServedSha": null
+    "observedServedSha": null,
+    "windowsLoopbackEvidence": {
+      "state": "VERIFIED",
+      "observedAt": "2026-11-21T13:13:24.699+03:00",
+      "chromiumHttpStatus": 200,
+      "verifiedOwnedResponse": true,
+      "scope": "OWNED_HTTP_PREFLIGHT_ONLY"
+    }
   }
 }
