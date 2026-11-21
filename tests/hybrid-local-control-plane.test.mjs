@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
+import vm from "node:vm";
 
 function source(path) {
   return fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -173,8 +174,22 @@ test("NC03 startup gate verifies AUTH Source Probe compatibility before opening 
 });
 
 
-test("NC03 startup gate requires runtime v4, real-login and write-readiness protocols before manager launch", () => {
-  assert.match(launcher, /REQUIRED_NC03_RUNTIME_PROTOCOL = "nc03-local-runtime\/v4"/);
+test("NC03 local runtime gate explicitly accepts v4/v5 but rejects unknown and downgraded protocols", () => {
+  const match = launcher.match(/function isSupportedNc03RuntimeProtocol\(value\) \{[\s\S]*?\n\}/);
+  assert.ok(match, "pure protocol allowlist is missing");
+  const supports = vm.runInNewContext(`(${match[0]})`);
+  for (const protocol of ["nc03-local-runtime/v4", "nc03-local-runtime/v5"]) {
+    assert.equal(supports(protocol), true, `approved protocol rejected: ${protocol}`);
+  }
+  for (const protocol of ["nc03-local-runtime/v3", "nc03-local-runtime/v6", "nc03-local-runtime/v5-fake", "", null, undefined, 5]) {
+    assert.equal(supports(protocol), false, `unapproved protocol accepted: ${String(protocol)}`);
+  }
+  assert.match(launcher, /!isSupportedNc03RuntimeProtocol\(health\?\.runtimeProtocol\)/);
+  assert.match(launcher, /health\?\.authLoginProtocol !== REQUIRED_NC03_AUTH_LOGIN_PROTOCOL/);
+  assert.match(launcher, /health\?\.writeReadinessProtocol !== REQUIRED_NC03_WRITE_READINESS_PROTOCOL/);
+});
+
+test("NC03 startup gate preserves real-login and write-readiness checks before manager launch", () => {
   assert.match(launcher, /REQUIRED_NC03_AUTH_LOGIN_PROTOCOL = "nc03-auth-login\/v1"/);
   assert.match(launcher, /REQUIRED_NC03_WRITE_READINESS_PROTOCOL = "nc03-write-readiness\/v1"/);
   assert.match(launcher, /async function verifyNc03AuthRuntime/);

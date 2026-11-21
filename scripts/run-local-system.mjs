@@ -11,7 +11,11 @@ const defaultAppsRoot = resolve(centralRoot, "..");
 const isWindows = process.platform === "win32";
 const npm = isWindows ? "npm.cmd" : "npm";
 const npx = isWindows ? "npx.cmd" : "npx";
-const REQUIRED_NC03_RUNTIME_PROTOCOL = "nc03-local-runtime/v4";
+// NC03 v5 adds normalized reads; AUTH and WRITE still carry their own v1 gates.
+// Accept only explicitly reviewed local protocols, never a wildcard/future major.
+function isSupportedNc03RuntimeProtocol(value) {
+  return value === "nc03-local-runtime/v4" || value === "nc03-local-runtime/v5";
+}
 const REQUIRED_NC03_AUTH_LOGIN_PROTOCOL = "nc03-auth-login/v1";
 const REQUIRED_NC03_WRITE_READINESS_PROTOCOL = "nc03-write-readiness/v1";
 
@@ -262,12 +266,12 @@ async function verifyNc03AuthRuntime(origin) {
   }
   const health = await healthResponse.json().catch(() => null);
   if (!healthResponse.ok
-    || health?.runtimeProtocol !== REQUIRED_NC03_RUNTIME_PROTOCOL
+    || !isSupportedNc03RuntimeProtocol(health?.runtimeProtocol)
     || health?.authLoginProtocol !== REQUIRED_NC03_AUTH_LOGIN_PROTOCOL
     || health?.writeReadinessProtocol !== REQUIRED_NC03_WRITE_READINESS_PROTOCOL) {
     throw new Error(
-      `NC03 runtime quá cũ · runtime=${health?.runtimeProtocol ?? "unknown"} · auth=${health?.authLoginProtocol ?? "missing"} · write=${health?.writeReadinessProtocol ?? "missing"}. `
-      + "Hãy cập nhật repo NC03_Modem và dừng process 3010 cũ trước khi chạy lại.",
+      `NC03 runtime không tương thích (chỉ hỗ trợ v4/v5) · runtime=${health?.runtimeProtocol ?? "unknown"} · auth=${health?.authLoginProtocol ?? "missing"} · write=${health?.writeReadinessProtocol ?? "missing"}. `
+      + "Kiểm tra NC03_Modem và tiến trình local port 3010 trước khi chạy lại.",
     );
   }
 
@@ -287,7 +291,7 @@ async function verifyNc03AuthRuntime(origin) {
     && contract?.endpoints?.writeReadiness === "/api/nc03/write-readiness"
     && contract?.boundary?.applicationManagementOwnsModemCredentials === false;
   if (!contractOk) {
-    throw new Error("NC03 contract chưa đạt runtime v4 + WRITE readiness v1; hãy cập nhật NC03_Modem rồi restart.");
+    throw new Error("NC03 contract chưa đạt AUTH/WRITE readiness bắt buộc cho runtime v4/v5; kiểm tra NC03_Modem rồi restart.");
   }
 
   console.log(`[local-system] NC03 runtime gate · ${health.runtimeProtocol} · ${health.authLoginProtocol} · ${health.writeReadinessProtocol}`);
