@@ -120,18 +120,47 @@ try {
  $env:R02_QA_ROOT = $qa
  Record-Stage 'RUN_COMPLETE_INSTRUMENTED_QA'
  Write-Host ('R02_START=' + $sha414)
- $originalPreference = $ErrorActionPreference
- try {
-  $ErrorActionPreference = 'Continue'
-  $runnerLines = @(& node.exe $runnerTemp 2>&1)
-  $script:runnerExit = [int]$LASTEXITCODE
- } finally { $ErrorActionPreference = $originalPreference }
- foreach ($line in $runnerLines) {
-  $message = [string]$line
-  Write-Host $message
-  if ($message -match '^R02_EVIDENCE=(.+\.json)$') { $script:runnerEvidence = $Matches[1] }
+ # The former @(& node.exe ...) buffered stdout until the process completed.
+ # Owned log files permit live stage messages and a heartbeat during npm ci.
+ $runnerStdout = Join-Path $reportDir 'runner-stdout.log'
+ $runnerStderr = Join-Path $reportDir 'runner-stderr.log'
+ $nodeExecutable = (Get-Command 'node.exe').Source
+ $runnerProcess = Start-Process -FilePath $nodeExecutable -ArgumentList @('"' + $runnerTemp + '"') -WorkingDirectory $repo -RedirectStandardOutput $runnerStdout -RedirectStandardError $runnerStderr -PassThru -NoNewWindow
+ $seenLines = 0
+ $lastPulse = Get-Date
+ $runnerStartedAt = Get-Date
+ $lastStage = 'RUNNER_STARTING'
+ do {
+  Start-Sleep -Seconds 2
+  $runnerProcess.Refresh()
+  if (Test-Path -LiteralPath $runnerStdout) {
+   try {
+    $currentLines = @(Get-Content -LiteralPath $runnerStdout -ErrorAction Stop)
+    for ($index = $seenLines; $index -lt $currentLines.Count; $index++) {
+     $message = [string]$currentLines[$index]
+     if ($message -match '^R02_') {
+      Write-Host $message
+      if ($message -match '^R02_STAGE=(.+)$') { $lastStage = $Matches[1] }
+      if ($message -match '^R02_EVIDENCE=(.+\.json)$') { $script:runnerEvidence = $Matches[1] }
+     }
+    }
+    $seenLines = $currentLines.Count
+   } catch {
+    # The output file can be temporarily locked by the Windows writer.
+   }
+  }
+  if (-not $runnerProcess.HasExited -and ((Get-Date) - $lastPulse).TotalSeconds -ge 20) {
+   Write-Host ('R02_PACKAGE_HEARTBEAT=RUNNING;stage=' + $lastStage + ';elapsed_s=' + [int]((Get-Date) - $runnerStartedAt).TotalSeconds)
+   $lastPulse = Get-Date
+  }
+ } while (-not $runnerProcess.HasExited)
+ $runnerProcess.WaitForExit()
+ $script:runnerExit = [int]$runnerProcess.ExitCode
+ if ($script:runnerExit -ne 0) {
+  Write-Host ('R02_RUNNER_FAILED_STAGE=' + $lastStage)
+  Write-Host ('R02_RUNNER_STDERR=' + $runnerStderr)
+  throw ('RUNNER_FAILED_' + $script:runnerExit)
  }
- if ($script:runnerExit -ne 0) { throw ('RUNNER_FAILED_' + $script:runnerExit) }
  $script:status = 'MEASURED_NOT_ACCEPTED'
 }
 catch {
@@ -166,6 +195,9 @@ finally {
   try {
    $members = [System.Collections.Generic.List[string]]::new()
    $members.Add($summaryFile)
+   foreach ($logFile in @($runnerStdout, $runnerStderr)) {
+    if ($logFile -and (Test-Path -LiteralPath $logFile -PathType Leaf)) { $members.Add($logFile) }
+   }
    $runnerPath = [string]$script:runnerEvidence
    $rootFull = [IO.Path]::GetFullPath((Join-Path $qa '_r02_reports')) + [IO.Path]::DirectorySeparatorChar
    if ($runnerPath) {
