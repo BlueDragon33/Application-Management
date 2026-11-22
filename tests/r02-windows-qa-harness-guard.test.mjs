@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const harnessPath = path.join(here, "..", "scripts", "r02-windows-instrumented-qa.mjs");
 const source = fs.readFileSync(harnessPath, "utf8");
+const launcher = fs.readFileSync(path.join(here, "..", "scripts", "r02-windows-qa-package.ps1"), "utf8");
 
 test("R0.2 Windows harness parses as an ESM source file without executing its Windows actions", () => {
   const result = spawnSync(process.execPath, ["--check", harnessPath], { encoding: "utf8" });
@@ -50,4 +51,31 @@ test("R0.2 owns and cleans only its session; retains evidence on failures", () =
   assert.match(source, /R02_EVIDENCE=/);
   assert.match(source, /QA_CLEANUP_INCOMPLETE_USE_OWNERSHIP_MARKER/);
   assert.match(source, /reactCommits: "UNVERIFIED_NOT_INSTRUMENTED"/);
+});
+
+test("R0.2 single package is bounded, pinned, fail-closed and self-reports", () => {
+  assert.match(launcher, /ExpectedBundleSha/);
+  assert.match(launcher, /PR414_BUNDLE_SHA_CHANGED_STOP/);
+  assert.match(launcher, /MAIN_HEAD_CHANGED_STOP/);
+  assert.match(launcher, /PR417_HEAD_CHANGED_STOP/);
+  assert.match(launcher, /LIVE_SHA_ATTESTATION_ONCE/);
+  assert.match(launcher, /-Tries 3/);
+  assert.match(launcher, /FETCH_MISSING_PINNED_COMMITS/);
+  assert.match(launcher, /R02_PACKAGE_SUMMARY=/);
+  assert.match(launcher, /R02_PACKAGE_RESULT=/);
+  assert.match(launcher, /G05_UNVERIFIED/);
+  assert.doesNotMatch(launcher, /gh (?:workflow|pr merge|api -X)/);
+  assert.doesNotMatch(launcher, /git.exe.*(?:push|reset --hard)/);
+  assert.doesNotMatch(launcher, /NODE_TLS_REJECT_UNAUTHORIZED|GIT_SSL_NO_VERIFY/);
+});
+test("R0.2 runner captures root-cause logs at failing npm stage without running extra interactive probes", () => {
+  assert.match(source, /R02_STAGE=/);
+  assert.match(source, /FULL_LOG=/);
+  assert.match(source, /npmDiagnostics/);
+  assert.match(source, /recoveredFailures/);
+  assert.match(source, /_npm_cache/);
+  assert.match(source, /ONE_BOUNDED_NPM_RETRY/);
+  assert.match(source, /NPM_CI_/);
+  assert.match(source, /command-.*padStart/);
+  assert.match(source, /(?:EPERM|EACCES)/);
 });
