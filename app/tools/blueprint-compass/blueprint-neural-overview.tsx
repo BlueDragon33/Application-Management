@@ -26,8 +26,8 @@ const stateLabels: Record<string, string> = {
 };
 
 export default function BlueprintNeuralOverview({
-  projects, selectedProjectId,
-}: { projects: readonly NeuralProject[]; selectedProjectId: string }) {
+  projects, selectedProjectId, onSelectProject,
+}: { projects: readonly NeuralProject[]; selectedProjectId: string; onSelectProject: (projectId: string) => void }) {
   const diagram = useMemo(() => {
     const sorted = [...projects].sort((a, b) => a.id.localeCompare(b.id));
     const groups = [...new Set(sorted.map(p => p.group))].sort();
@@ -44,7 +44,7 @@ export default function BlueprintNeuralOverview({
     <div className={styles.neuralHead}>
       <div><small>NEURAL ATLAS · L0/L1 · NGUỒN REGISTRY</small>
         <h2 id="neural-atlas-heading">Toàn cảnh hệ sinh thái</h2>
-        <p>Đường cong biểu diễn <strong>nhóm và trạng thái đăng ký</strong>, không phải dependency đã kiểm thử. Chọn dự án ở danh sách phía dưới để đối chiếu GitHub.</p>
+        <p>Đường cong biểu diễn <strong>nhóm và trạng thái đăng ký</strong>, không phải dependency đã kiểm thử. Nhấn vào một node hoặc dùng Tab để chọn dự án và đối chiếu GitHub ngay bên dưới.</p>
       </div>
       <div className={styles.neuralStats}>
         <span><strong>{diagram.groups.length}</strong> nhóm</span>
@@ -53,6 +53,7 @@ export default function BlueprintNeuralOverview({
       </div>
     </div>
     {diagram.sorted.length ? <div className={styles.neuralTrack} tabIndex={0} role="region" aria-label="Bản đồ thần kinh phân loại dự án; cuộn ngang để xem đầy đủ">
+      <div className={styles.neuralStage} style={{ width: W, height: diagram.height }}>
       <svg className={styles.neuralCanvas} viewBox={`0 0 ${W} ${diagram.height}`} width={W} height={diagram.height} aria-hidden="true">
         <defs>
           <linearGradient id="blueprint-neural-curve" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -89,9 +90,7 @@ export default function BlueprintNeuralOverview({
           return <g key={"node:" + project.id}>
             <circle cx="460" cy={y} r={active ? 15 : 9} fill="#8a8fff" opacity={active ? ".20" : ".09"} filter="url(#blueprint-neural-glow)"/>
             <circle cx="460" cy={y} r={active ? 7.4 : 4.2} fill={active ? "#f4d382" : "#9daaff"}/>
-            <text x="482" y={y + 4} className={active ? styles.neuralSelectedLabel : styles.neuralProjectLabel}>
-              {project.name.length > 29 ? project.name.slice(0, 28) + "…" : project.name}
-            </text>
+
           </g>;
         })}
         {diagram.states.map(state => <g key={"state:" + state}>
@@ -100,6 +99,17 @@ export default function BlueprintNeuralOverview({
           <text x="859" y={(diagram.stateY.get(state) ?? 0) + 4} className={styles.neuralGroupLabel}>{stateLabels[state] ?? state}</text>
         </g>)}
       </svg>
+      {diagram.sorted.map(project => {
+        const y = diagram.projectY.get(project.id) ?? 0;
+        return <button key={"select:" + project.id} type="button"
+          className={styles.neuralNodeButton} style={{ top: y - 15, left: 470 }}
+          title={`Chọn ${project.name} · ${project.repository}`}
+          aria-pressed={project.id === selectedProjectId} aria-controls="compass-project-detail"
+          onClick={() => onSelectProject(project.id)}>
+          {project.name}
+        </button>;
+      })}
+      </div>
     </div> : <p>Registry chưa có dự án đã xác minh. Không hiển thị sơ đồ giả.</p>}
     <p className={styles.neuralFootnote}>Đây là phép chiếu danh mục từ Application Management, <strong>không phải Graph Intelligence live của Hub #173</strong>. Đồ thị dependency, Agent và lịch sử chạy thật chỉ được kích hoạt sau khi kết nối contract đã nghiệm thu.</p>
   </section>;
