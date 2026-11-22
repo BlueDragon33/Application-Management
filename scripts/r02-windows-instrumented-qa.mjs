@@ -405,6 +405,14 @@ async function sample(browser, origin, fixtureCount, label, viewport, repeat) {
       taskDurationDeltaSeconds: metricValue(after.metrics, "TaskDuration") - metricValue(before.metrics, "TaskDuration"),
       jsHeapUsedBytes: metricValue(after.metrics, "JSHeapUsedSize"),
       contrast: display.textContrast, cssCoverage, reactCommits: "UNVERIFIED_NOT_INSTRUMENTED" };
+  } catch (error) {
+    const shot = path.join(reportsDir, "failure-" + label + "-" + fixtureCount + "-" +
+      viewport.width + "x" + viewport.height + "-" + repeat + ".png");
+    try {
+      await page.screenshot({ path: shot, fullPage: true, timeout: 10_000 });
+      state.failureScreenshot = shot;
+    } catch { state.failureScreenshot = "UNAVAILABLE"; }
+    throw error;
   } finally { await context.close(); }
 }
 function percentile(values, p) {
