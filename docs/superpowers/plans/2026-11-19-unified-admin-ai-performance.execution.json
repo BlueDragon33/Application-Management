@@ -39,7 +39,7 @@
     },
     "targetPolicy": "record baseline first; never claim % improvement without exact-env before/after"
   },
-  "status": "BLOCKED_R0_2_WINDOWS_NPM_CI_UNDIAGNOSED_BUNDLE_READY",
+  "status": "BLOCKED_R0_2_WINDOWS_PACKAGE_NOT_REEXECUTED",
   "rounds": [
     {
       "round": "R0",
@@ -876,8 +876,8 @@
     "id": "R0.2",
     "type": "BIND_AND_MEASURE_LOCAL_QA",
     "state": "BLOCKED_INSTRUMENTED_QA",
-    "why": "One Windows R0.2 session correctly attested PR414 HEAD 5f63aca... and passed pre-Playwright npm install (debug log exit 0), then a later npm.cmd returned exit 1. The user-supplied log was for successful playwright-core install, so root cause of subsequent npm ci remains unverified. To avoid manual tiny debugging loops, a single end-to-end Windows package and an auto-diagnostic runner were built in the same Draft PR; no QA runtime 10/50/200 evidence has been obtained.",
-    "required": "Run only the pinned R0.2 one-shot Windows QA package once in authorized E:\\BaumanWeb\\_qa. It performs one Git SHA attestation, bounded transient Git/npm retries, exact main/candidate checkout, disposable local D1 fixtures, Playwright Chromium 10/50/200 sampling, owned teardown, and automatic full command logs/summary (R02_PACKAGE_SUMMARY + R02_EVIDENCE). Only the final machine report is needed; do not request extra manual log-reading commands or send intermediate snippets.",
+    "why": "User reported native PowerShell ParseException on the first one-run package before QA started. Exact GitHub source at prior PR414 HEAD 6041caab had a truncated R02_EVIDENCE regex at line 132 and duplicated catch/finally tail; the prior source-only regex tests did not detect syntax corruption. A minimal source fix removed the truncated text/duplicate tail, and Node regression now checks lexical closure and includes broken-input fixtures. No Windows native AST parse or runtime measurements performed yet.",
+    "required": "One Windows one-shot package attempt using a SHA-pinned launcher from the corrected PR414 HEAD. Before creating a ScriptBlock, use native System.Management.Automation.Language.Parser.ParseInput against downloaded text; fail closed with full parser errors if any. Only if native parse PASS, execute entire bundle once and return its single local ZIP report. Keep R0.2 BLOCKED/G05 UNVERIFIED pending real 10/50/200 evidence.",
     "expectedEvidence": [
       "exact SHA for served local source",
       "instrumented sample files and environment/browser/browser profile identity",
@@ -888,12 +888,12 @@
       "CSS coverage and computed text contrast",
       "G05 truthfully marked only after evidence"
     ],
-    "fallback": "If unable to run or a deterministic npm/runtime blocker remains, package writes a complete local final report including stage, root error, command-NNN.log and cleanup; mark R0.2 BLOCKED and G05 UNVERIFIED, stop without more user commands. Do not self-merge, publish, disable TLS, or touch Reviewer A/B.",
+    "fallback": "If native PowerShell parse, Git attestation, npm, local D1 or Chromium fails, stop once and retain package-owned evidence. Do not request separate short commands to inspect npm logs; do not use Production/Reviewer A/B/merge/publish. No fake acceptance.",
     "singleActionRule": true,
     "runner": {
       "path": "scripts/r02-windows-instrumented-qa.mjs",
       "guardTest": "tests/r02-windows-qa-harness-guard.test.mjs",
-      "sourceStage": "SOURCE_PACKAGE_WITH_NPM_DEBUG_RETENTION_COMMITTED_PENDING_FINAL_CI_AND_WINDOWS_QA",
+      "sourceStage": "POWERSHELL_PARSE_SOURCE_REPAIRED_NATIVE_WINDOWS_AST_PENDING",
       "reportsRoot": "E:\\BaumanWeb\\_qa\\_r02_reports",
       "requires": "Windows local filesystem + installed Chromium/Edge + Node>=22.13 + Git + npm",
       "doesNotProve": [
@@ -1027,6 +1027,18 @@
       "packageArtifact": "r02-evidence-package.zip",
       "localOnly": true,
       "note": "Package runner/source CI separate from Windows QA; R0.2 BLOCKED G05 UNVERIFIED. User submits only evidence-package.zip when a Windows session completes."
+    },
+    {
+      "stepId": "R0.2",
+      "date": "2026-11-22",
+      "result": "WINDOWS_POWERSHELL_PACKAGE_PARSE_EXCEPTION_SOURCE_REPAIRED",
+      "evidenceLevel": "USER_REPORTED_PARSER_ERROR_AND_GITHUB_SOURCE_DIFF_NO_WINDOWS_RERUN",
+      "observed": "truncated regex at prior package line 132 swallowed closing quotes and catch/finally; duplicated lines after complete outer finally; no QA execution",
+      "sourceFix": "scripts/r02-windows-qa-package.ps1 corrected regex and removed duplicated tail; Node lexical structural regression rejects the exact original corruption",
+      "tests": "tests/r02-windows-qa-harness-guard.test.mjs",
+      "acceptance": "native Windows PowerShell AST parser and 10/50/200 runtime samples still missing",
+      "qaState": "R0.2 BLOCKED G05 UNVERIFIED",
+      "release": "NO_MERGE_NO_PUBLISH"
     }
   ],
   "assessment": {
