@@ -33,6 +33,14 @@ export default function BlueprintNeuralOverview({
     [projects, selectedProjectId],
   );
   const highlightedEdges = [...diagram.links].sort((a, b) => Number(a.selected) - Number(b.selected));
+  const focusedProject = diagram.projects.find(project => project.selected);
+  const selectedLinks = diagram.links.filter(link => link.selected);
+  const relationLabels: Record<string, string> = {
+    "registry-group": "Nguồn registry → nhóm",
+    "group-project": "Nhóm → dự án",
+    "project-repository": "Dự án → repository",
+    "repository-state": "Repository → trạng thái",
+  };
 
   return <section className={styles.neuralAtlas} aria-labelledby="neural-atlas-heading">
     <div className={styles.neuralHead}>
@@ -126,6 +134,23 @@ export default function BlueprintNeuralOverview({
         </button>)}
       </div>
     </div> : <p>Registry chưa có dự án hợp lệ. Không hiển thị Graph giả.</p>}
+    {focusedProject ? <aside className={styles.neuralReadback} id="neural-selected-readback"
+      aria-label="Đường kết nối có nguồn cho dự án đang chọn" aria-live="polite">
+      <div>
+        <small>ĐANG CHỌN · THÔNG TIN REGISTRY</small>
+        <strong>{focusedProject.name}</strong>
+        <span>Nhóm: {groupLabels[focusedProject.group] ?? focusedProject.group}</span>
+        <span>Repository: <code>{focusedProject.repository}</code></span>
+        <span>Trạng thái danh mục: {stateLabels[focusedProject.state] ?? focusedProject.state}</span>
+      </div>
+      <div>
+        <small>ĐƯỜNG KẾT NỐI CÓ NGUỒN</small>
+        <ol>{selectedLinks.map(link => <li key={link.id}>
+          {relationLabels[link.kind] ?? "Quan hệ phân loại"} <span>· project-registry.ts</span>
+        </li>)}</ol>
+        <span>Không suy diễn QA, Agent hay dependency từ các cạnh này.</span>
+      </div>
+    </aside> : <p className={styles.neuralReadback}>Chưa chọn được dự án đã đăng ký. Không suy diễn trạng thái.</p>}
     <p className={styles.neuralFootnote}>
       Nguồn: <code>{diagram.provenance}</code>. Dải hình trực quan không mở rộng quyền Graph.
       Đây <strong>không phải Graph Intelligence live của Hub #173</strong>.
