@@ -2,35 +2,21 @@
 
 import { useEffect, useState } from "react";
 import styles from "./blueprint-compass.module.css";
-
-type HubContractSnapshot = {
-  ok: boolean;
-  status: "UNAUTHORIZED" | "UNVERIFIED" | "HUB_GRAPH_NOT_EXPOSED" | "HUB_GRAPH_AUTH_NOT_ESTABLISHED";
-  repository?: string;
-  hubHead?: string;
-  contractBlobSha?: string;
-  contractSchema?: string;
-  checkedAt?: string;
-  canReadGraph: false;
-  note?: string;
-};
+import { validateHubContractReadback, type HubContractReadback } from "../../blueprint-hub-contract-readback.mjs";
 
 export default function HubGraphContractAdmission() {
   const [requested, setRequested] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [snapshot, setSnapshot] = useState<HubContractSnapshot | null>(null);
+  const [snapshot, setSnapshot] = useState<HubContractReadback | null>(null);
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
     setSnapshot(null);
     void fetch("/api/tools/blueprint-compass/hub-contract", { cache: "no-store", signal: controller.signal })
       .then(async response => {
-        const data = await response.json() as HubContractSnapshot;
+        const data: unknown = await response.json();
         if (controller.signal.aborted) return;
-        if (!data || data.canReadGraph !== false || typeof data.status !== "string")
-          throw new Error("Hub Graph contract readback không hợp lệ");
-        if (response.ok !== data.ok) throw new Error("Hub contract status không đồng nhất");
-        setSnapshot(data);
+        setSnapshot(validateHubContractReadback(data, response.status));
       })
       .catch(() => {
         if (!controller.signal.aborted) setSnapshot({
