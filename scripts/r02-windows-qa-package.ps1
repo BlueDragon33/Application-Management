@@ -36,7 +36,7 @@ function Invoke-GitChecked([string[]]$GitArgs, [int]$Tries = 1) {
    $lines = @(& git.exe -C $repo @GitArgs 2>&1)
    $exit = $LASTEXITCODE
   } finally { $ErrorActionPreference = $prior }
-  if ($exit -eq 0) { return ,@($lines | ForEach-Object { [string]$_ }) }
+  if ($exit -eq 0) { return @($lines | ForEach-Object { [string]$_ }) }
   $reason = (($lines | Select-Object -Last 12) -join [Environment]::NewLine)
   $transient = $reason -match '(TLS|unexpected eof|timed out|connection reset|Could not resolve host|ECONNRESET|schannel)'
   if (-not $transient -or $attempt -eq $Tries) {
