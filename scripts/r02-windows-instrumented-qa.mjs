@@ -328,6 +328,7 @@ function percentile(values, p) {
 function summarize() {
   const groups = {};
   for (const m of state.measurements) {
+    if (typeof m.readyMs !== "number" || !Number.isFinite(m.readyMs)) continue;
     const key = m.label + "/" + m.fixtureCount + "/" + m.viewport;
     (groups[key] ||= []).push(m.readyMs);
   }
@@ -390,6 +391,10 @@ try {
       state.cleanup.push("removed session-owned npm/fixture files");
     }
   } catch (error) { state.cleanup.push("SESSION_CLEANUP_FAILED " + String(error.message).slice(0, 200)); }
+  if (state.cleanup.some(item => item.includes("CLEANUP_FAILED") || item.includes("WORKTREE_CLEANUP_FAILED"))) {
+    state.errors.push("QA_CLEANUP_INCOMPLETE_USE_OWNERSHIP_MARKER");
+    state.status = "BLOCKED";
+  }
   state.endTime ||= new Date().toISOString();
   try {
     fs.mkdirSync(reportsDir, { recursive: true });
