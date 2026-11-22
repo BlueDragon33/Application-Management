@@ -387,10 +387,10 @@ async function sample(browser, origin, fixtureCount, label, viewport, repeat, ap
   const cpuBefore = FOCUSED ? serverProcessCpuSeconds(appPid) : null;
   let cssCoverageStarted = false;
   try { await page.coverage.startCSSCoverage(); cssCoverageStarted = true; } catch {}
-  await page.addInitScript(() => {
+  await page.addInitScript((focused) => {
     window.__r02long = 0;
     window.__r02dom = 0;
-    if (window.__REACT_DEVTOOLS_GLOBAL_HOOK__ === undefined) {
+    if (focused && window.__REACT_DEVTOOLS_GLOBAL_HOOK__ === undefined) {
       window.__r02ReactCommitCount = 0;
       const renderers = new Map();
       let nextRendererId = 0;
@@ -412,7 +412,7 @@ async function sample(browser, origin, fixtureCount, label, viewport, repeat, ap
     } catch {}
     new MutationObserver(records => { window.__r02dom += records.length; })
       .observe(document, { subtree: true, childList: true, attributes: true, characterData: true });
-  });
+  }, FOCUSED);
   try {
     const start = performance.now();
     const pageResponse = await page.goto(origin + "/?view=applications", { waitUntil: "domcontentloaded", timeout: 60000 });
@@ -471,7 +471,7 @@ async function sample(browser, origin, fixtureCount, label, viewport, repeat, ap
           observer.observe(grid, { childList: true, subtree: true });
         });
         await filter.fill("qa-r02-0001");
-        await page.waitForFunction(() => window.__r02FilterPaint !== null, { timeout: 7500 });
+        await page.waitForFunction(() => window.__r02FilterPaint !== null, null, { timeout: 7500 });
         interaction = await page.evaluate(() => ({
           status: "BROWSER_FILTER_INPUT_TO_TWO_RAF",
           milliseconds: window.__r02FilterPaint - window.__r02FilterStart,
