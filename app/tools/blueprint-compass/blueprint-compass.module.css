@@ -96,3 +96,9 @@
  .header .guideButton{min-width:120px;min-height:44px}
  .neuralReadback{grid-template-columns:1fr}
 }
+
+.neuralToolbar{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:8px;color:#c7dafa;font-size:12px}
+.neuralToolbar button{min-height:44px;border:1px solid #92baf2;border-radius:9px;background:#284468;color:#fff;padding:8px 14px;font:700 13px system-ui,sans-serif;cursor:pointer}
+.neuralToolbar button:focus-visible{outline:3px solid #ffe49a;outline-offset:2px}
+.neuralToolbar button:hover{background:#385981}
+@media(max-width:760px){.neuralToolbar{gap:6px}.neuralToolbar button{min-height:44px}}
