@@ -447,6 +447,15 @@ async function sample(browser, origin, fixtureCount, label, viewport, repeat, ap
       renderedAppCards = await page.locator("[data-testid='app-launcher-grid'] .amv2-launcher-card").count();
       assert.ok(renderedAppCards >= fixtureCount, "UI_SYNTHETIC_CARD_COUNT_NOT_RENDERED");
     }
+    let contrastScreenshot = null;
+    if (FOCUSED && repeat === 1) {
+      const ownedShot = path.join(reportsDir, "focused-contrast-" + label + "-" +
+        fixtureCount + "-" + viewport.width + "x" + viewport.height + ".png");
+      try {
+        await page.screenshot({ path: ownedShot, fullPage: false, timeout: 10000 });
+        contrastScreenshot = ownedShot;
+      } catch { contrastScreenshot = "UNVERIFIED_SCREENSHOT_UNAVAILABLE"; }
+    }
     const readyMetrics = FOCUSED ? await cdp.send("Performance.getMetrics") : null;
     const cpuAtReady = FOCUSED ? serverProcessCpuSeconds(appPid) : null;
     const before = await cdp.send("Performance.getMetrics");
@@ -523,7 +532,7 @@ async function sample(browser, origin, fixtureCount, label, viewport, repeat, ap
       reactCommits: typeof display.reactCommits === "number" && display.reactCommits > 0
         ? { status: "BROWSER_DEVTOOLS_HOOK_OBSERVED", count: display.reactCommits, scope: "ENTIRE_PAGE_NOT_EXCLUSIVE_DASHBOARD" }
         : "UNVERIFIED_DEVTOOLS_HOOK_UNAVAILABLE",
-      ...(FOCUSED ? { apiNetworkMs, visualPaintReadyMs, renderedAppCards,
+      ...(FOCUSED ? { apiNetworkMs, visualPaintReadyMs, renderedAppCards, contrastScreenshot,
         bootstrapReadyMs: readyMs,
         browserRendererTaskStartupMs: difference(metricValue(preNavigationMetrics?.metrics, "TaskDuration"), metricValue(readyMetrics?.metrics, "TaskDuration")) === null
           ? null : difference(metricValue(preNavigationMetrics.metrics, "TaskDuration"), metricValue(readyMetrics.metrics, "TaskDuration")) * 1000,
