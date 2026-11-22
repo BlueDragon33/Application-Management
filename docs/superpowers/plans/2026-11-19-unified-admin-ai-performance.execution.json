@@ -39,7 +39,7 @@
     },
     "targetPolicy": "record baseline first; never claim % improvement without exact-env before/after"
   },
-  "status": "BLOCKED_R0_2_WINDOWS_GIT_TLS_EOF_RETRY",
+  "status": "BLOCKED_R0_2_WINDOWS_NPM_CI_UNDIAGNOSED_BUNDLE_READY",
   "rounds": [
     {
       "round": "R0",
@@ -876,8 +876,8 @@
     "id": "R0.2",
     "type": "BIND_AND_MEASURE_LOCAL_QA",
     "state": "BLOCKED_INSTRUMENTED_QA",
-    "why": "User-reported Windows R0.2 attempt returned BLOCKED before any application/browser measurement. The runner preflight path preceded its redundant git ls-remote, which failed transient TLS connect unexpected EOF (git error 128). The initial launcher git fetch PR #414 succeeded. No measured samples. The redundant runner network probe was removed in a new source-only candidate; awaiting fresh Windows evidence.",
-    "required": "Execute one bounded PowerShell launcher on Windows authorized for E:\\BaumanWeb\\_qa. It must independently attest main/PR414/PR417 heads in one git ls-remote call with bounded retries, fetch only missing pinned objects, source the runner from that exact attested PR414 head, provide short-lived R02_ATTEST_* variables, execute locally and return r02-evidence.json. Do not rerun unchanged GitHub regression on the earlier commit. Keep G05 UNVERIFIED until real fixture/runtime results.",
+    "why": "One Windows R0.2 session correctly attested PR414 HEAD 5f63aca... and passed pre-Playwright npm install (debug log exit 0), then a later npm.cmd returned exit 1. The user-supplied log was for successful playwright-core install, so root cause of subsequent npm ci remains unverified. To avoid manual tiny debugging loops, a single end-to-end Windows package and an auto-diagnostic runner were built in the same Draft PR; no QA runtime 10/50/200 evidence has been obtained.",
+    "required": "Run only the pinned R0.2 one-shot Windows QA package once in authorized E:\\BaumanWeb\\_qa. It performs one Git SHA attestation, bounded transient Git/npm retries, exact main/candidate checkout, disposable local D1 fixtures, Playwright Chromium 10/50/200 sampling, owned teardown, and automatic full command logs/summary (R02_PACKAGE_SUMMARY + R02_EVIDENCE). Only the final machine report is needed; do not request extra manual log-reading commands or send intermediate snippets.",
     "expectedEvidence": [
       "exact SHA for served local source",
       "instrumented sample files and environment/browser/browser profile identity",
@@ -888,12 +888,12 @@
       "CSS coverage and computed text contrast",
       "G05 truthfully marked only after evidence"
     ],
-    "fallback": "If remote head attestation, Git object fetch, Windows local QA or own cleanup fails, report precisely one blocker; retain evidence under _r02_reports. Do not claim R0.2 or G05 PASS, merge, publish, touch Reviewer A/B, or disable TLS verification.",
+    "fallback": "If unable to run or a deterministic npm/runtime blocker remains, package writes a complete local final report including stage, root error, command-NNN.log and cleanup; mark R0.2 BLOCKED and G05 UNVERIFIED, stop without more user commands. Do not self-merge, publish, disable TLS, or touch Reviewer A/B.",
     "singleActionRule": true,
     "runner": {
       "path": "scripts/r02-windows-instrumented-qa.mjs",
       "guardTest": "tests/r02-windows-qa-harness-guard.test.mjs",
-      "sourceStage": "GITHUB_SOURCE_PATCH_CI_PENDING_WINDOWS_NOT_EXECUTED",
+      "sourceStage": "SOURCE_COMMITTED_CI_STATUS_RECHECK_WINDOWS_NOT_EXECUTED",
       "reportsRoot": "E:\\BaumanWeb\\_qa\\_r02_reports",
       "requires": "Windows local filesystem + installed Chromium/Edge + Node>=22.13 + Git + npm",
       "doesNotProve": [
@@ -904,7 +904,12 @@
       ],
       "transport": "LAUNCHER_SINGLE_REMOTE_ATTESTATION_WITH_BOUNDED_RETRY",
       "remoteRetries": 3,
-      "runnerNetwork": "NONE_AFTER_ATTESTATION"
+      "runnerNetwork": "NONE_AFTER_ATTESTATION",
+      "packageLauncher": "scripts/r02-windows-qa-package.ps1",
+      "evidence": "E:\\BaumanWeb\\_qa\\_r02_reports",
+      "npmRecovery": "ONE_BOUNDED_RETRY_ONLY_TRANSIENT_CODES",
+      "finalReport": "R02_PACKAGE_SUMMARY_AND_R02_EVIDENCE",
+      "requireManualExtraLogs": false
     }
   },
   "history": [
@@ -1002,6 +1007,20 @@
       "sourceFix": "scripts/r02-windows-instrumented-qa.mjs now consumes 20-minute freshness-bounded launcher R02_ATTEST_* verification, checks canonical git origin and pinned local objects; removes redundant network calls.",
       "security": "TLS verification retained; no production/Reviewer A/B access; fail closed.",
       "qaStatus": "R0.2 BLOCKED; G05 UNVERIFIED; PR414/417 Draft; no merge/publish"
+    },
+    {
+      "stepId": "R0.2",
+      "date": "2026-11-22",
+      "result": "WINDOWS_NPM_BLOCKER_BUNDLED_ONE_SHOT_SELF_DIAGNOSTIC",
+      "evidenceLevel": "USER_REPORTED_NPM_LOG_PLAYWRIGHT_EXIT0_AND_RUNNER_BLOCKED_NO_PERFORMANCE_SAMPLES",
+      "reportPath": "E:\\BaumanWeb\\_qa\\_r02_reports\\am-r02-2026-11-22T20-03-27-260Z-c8aff34c\\r02-evidence.json",
+      "observed": "playwright-core 1.56.1 npm install debug log verbose exit 0; subsequent npm.cmd failed exit 1 with truncated npm warn cleanup; exact failing npm root unverified",
+      "package": "scripts/r02-windows-qa-package.ps1",
+      "runner": "scripts/r02-windows-instrumented-qa.mjs",
+      "tests": "tests/r02-windows-qa-harness-guard.test.mjs",
+      "newBehavior": "single launcher, pinned SHA attestation, owned D1, preflight HTTP 200, 10/50/200, full failed-command logs, guarded npm retry, single final summary and cleanup",
+      "qualityGate": "G05_UNVERIFIED",
+      "noMergePublish": true
     }
   ],
   "assessment": {
