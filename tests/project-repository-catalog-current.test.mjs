@@ -20,6 +20,7 @@ const repositories = [
   "BlueDragon33/Software-Blueprint-Hub",
   "BlueDragon33/Bauman-master-ai-system",
   "BlueDragon33/Math_Bauman",
+  "BlueDragon33/Blueprint-Russian-Expert-Engine",
   "BlueDragon33/BOIECH_AI",
   "BlueDragon33/Health_Care",
   "BlueDragon33/RU_LIFE",
@@ -37,7 +38,7 @@ test("project registry tracks the current owned project set", () => {
   assert.match(registry, /projectRepositoryCount = projectRepositories\.length/);
   assert.match(registry, /group: "accounting"/);
   assert.match(projectDocs, /BlueDragon33\/NC03_Modem/);
-  assert.match(projectDocs, /Tổng: \*\*14 repo hiện hữu\*\*/);
+  assert.match(projectDocs, /Tổng: \*\*15 repo đã ghi nhận\*\*/);
 });
 
 test("current dashboard exposes the GitHub project catalog", () => {
@@ -112,4 +113,19 @@ test("PriceReport catalog reflects V6.14 standalone-first access", () => {
   assert.match(block, /Standalone Mode/);
   assert.match(block, /Device Gate OFF/);
   assert.match(projectDocs, /V6\.14 Standalone-first/);
+});
+
+test("Russian Expert Engine is Private and only a developing project; no live App-Manager launcher", () => {
+  const start=registry.indexOf('id: "blueprint-russian-expert-engine"');
+  const end=registry.indexOf("\n  },",start);
+  assert.ok(start>=0 && end>start);
+  const entry=registry.slice(start,end);
+  assert.ok(entry.includes("BlueDragon33/Blueprint-Russian-Expert-Engine"));
+  assert.ok(entry.includes('state: "developing"'));
+  assert.ok(entry.includes('group: "learning"'));
+  assert.ok(entry.includes("Private"));
+  assert.doesNotMatch(entry,/^    managementHref:/m);
+  assert.doesNotMatch(entry,/^    (localUrl|publicUrl|desktopLaunchUrl):/m);
+  assert.match(projectDocs,/offline khi ngắt Internet.*chưa nghiệm thu/);
+  assert.match(projectDocs,/Quality Gate/);
 });
