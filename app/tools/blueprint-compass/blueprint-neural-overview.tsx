@@ -1,12 +1,13 @@
 "use client";
 
 /**
- * Registry-only L0/L1 neural atlas.
- * A curve means only a documented catalog classification (group or state).
- * Do not portray these arcs as tested code dependencies, verified runtime
- * telemetry, Agent execution or canonical QualityGate evidence.
+ * Five visual lanes on exactly two trusted REGISTRY ontology levels.
+ * Every link is an explicit source fact from projectRepositories:
+ * registered in category, project has repository, repository has registry state.
+ * No canonical dependency, Graph/Agent event or QA result is fabricated.
  */
 import { useMemo } from "react";
+import { buildRegistryNeuralGraph } from "../../blueprint-neural-registry-graph.mjs";
 import styles from "./blueprint-compass.module.css";
 
 export type NeuralProject = {
@@ -14,13 +15,12 @@ export type NeuralProject = {
   group: string; state: string; summary: string;
 };
 
-const W = 1040;
-const groupLabels: Record<string, string> = {
+const groupLabels: Record<string,string> = {
   core: "Lõi quản trị", learning: "Học tập", health: "Y tế",
   family: "Gia đình", accounting: "Kế toán", robotics: "Robot",
   control: "Điều khiển", simulation: "Mô phỏng", cad: "CAD/CAE",
 };
-const stateLabels: Record<string, string> = {
+const stateLabels: Record<string,string> = {
   operational: "Operational", developing: "Developing",
   prototype: "Prototype", scaffold: "Scaffold",
 };
@@ -28,89 +28,108 @@ const stateLabels: Record<string, string> = {
 export default function BlueprintNeuralOverview({
   projects, selectedProjectId, onSelectProject,
 }: { projects: readonly NeuralProject[]; selectedProjectId: string; onSelectProject: (projectId: string) => void }) {
-  const diagram = useMemo(() => {
-    const sorted = [...projects].sort((a, b) => a.id.localeCompare(b.id));
-    const groups = [...new Set(sorted.map(p => p.group))].sort();
-    const states = [...new Set(sorted.map(p => p.state))].sort();
-    const height = Math.max(520, sorted.length * 37 + 100, groups.length * 60 + 90);
-    const distribute = (i: number, count: number) => count <= 1 ? height / 2 : 65 + i * (height - 130) / (count - 1);
-    const groupY = new Map(groups.map((key, i) => [key, distribute(i, groups.length)]));
-    const projectY = new Map(sorted.map((p, i) => [p.id, distribute(i, sorted.length)]));
-    const stateY = new Map(states.map((key, i) => [key, distribute(i, states.length)]));
-    return { sorted, groups, states, height, groupY, projectY, stateY };
-  }, [projects]);
+  const diagram = useMemo(
+    () => buildRegistryNeuralGraph(projects, selectedProjectId),
+    [projects, selectedProjectId],
+  );
+  const highlightedEdges = [...diagram.links].sort((a, b) => Number(a.selected) - Number(b.selected));
 
   return <section className={styles.neuralAtlas} aria-labelledby="neural-atlas-heading">
     <div className={styles.neuralHead}>
-      <div><small>NEURAL ATLAS · L0/L1 · NGUỒN REGISTRY</small>
-        <h2 id="neural-atlas-heading">Toàn cảnh hệ sinh thái</h2>
-        <p>Đường cong biểu diễn <strong>nhóm và trạng thái đăng ký</strong>, không phải dependency đã kiểm thử. Nhấn vào một node hoặc dùng Tab để chọn dự án và đối chiếu GitHub ngay bên dưới.</p>
+      <div><small>NEURAL ATLAS · REGISTRY L0/L1 · NĂM DẢI TRỰC QUAN</small>
+        <h2 id="neural-atlas-heading">Toàn cảnh mạng dự án</h2>
+        <p>Mạng nhiều lớp lấy từ <strong>App Management project registry</strong>.
+          Các đường cong biểu diễn quan hệ nhóm, đăng ký repository và trạng thái,
+          <strong> không phải dependency hay QA đã kiểm thử</strong>.
+          Nhấn node hoặc dùng Tab/Enter để mở chi tiết dự án ở bên dưới.</p>
       </div>
       <div className={styles.neuralStats}>
         <span><strong>{diagram.groups.length}</strong> nhóm</span>
-        <span><strong>{diagram.sorted.length}</strong> dự án</span>
-        <span><strong>{diagram.sorted.length * 2}</strong> liên hệ phân loại</span>
+        <span><strong>{diagram.projects.length}</strong> dự án</span>
+        <span><strong>{diagram.links.length}</strong> cạnh có nguồn</span>
       </div>
     </div>
-    {diagram.sorted.length ? <div className={styles.neuralTrack} tabIndex={0} role="region" aria-label="Bản đồ thần kinh phân loại dự án; cuộn ngang để xem đầy đủ">
-      <div className={styles.neuralStage} style={{ width: W, height: diagram.height }}>
-      <svg className={styles.neuralCanvas} viewBox={`0 0 ${W} ${diagram.height}`} width={W} height={diagram.height} aria-hidden="true">
-        <defs>
-          <linearGradient id="blueprint-neural-curve" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#2dd4bf"/>
-            <stop offset="55%" stopColor="#8b9dff"/>
-            <stop offset="100%" stopColor="#ee8ff7"/>
-          </linearGradient>
-          <filter id="blueprint-neural-glow" x="-100%" y="-100%" width="300%" height="300%">
-            <feGaussianBlur stdDeviation="4"/>
-          </filter>
-        </defs>
-        <text x="48" y="29" className={styles.neuralLegend}>L0 · Nhóm lĩnh vực</text>
-        <text x="455" y="29" className={styles.neuralLegend}>L1 · Dự án được đăng ký</text>
-        <text x="830" y="29" className={styles.neuralLegend}>Trạng thái registry</text>
-        {diagram.sorted.map(project => {
-          const gy = diagram.groupY.get(project.group) ?? diagram.height / 2;
-          const py = diagram.projectY.get(project.id) ?? diagram.height / 2;
-          const sy = diagram.stateY.get(project.state) ?? diagram.height / 2;
-          const active = project.id === selectedProjectId;
-          return <g key={"edge:" + project.id}>
-            <path d={`M188 ${gy} C285 ${gy},310 ${py},428 ${py}`}
-              fill="none" stroke="url(#blueprint-neural-curve)" strokeWidth={active ? 2.8 : 1.15} strokeOpacity={active ? .94 : .36}/>
-            <path d={`M492 ${py} C605 ${py},690 ${sy},822 ${sy}`}
-              fill="none" stroke="url(#blueprint-neural-curve)" strokeWidth={active ? 2.5 : 1} strokeOpacity={active ? .84 : .27}/>
-          </g>;
-        })}
-        {diagram.groups.map(group => <g key={"group:" + group}>
-          <circle cx="167" cy={diagram.groupY.get(group)} r="14" fill="#2dd4bf" opacity=".18" filter="url(#blueprint-neural-glow)"/>
-          <circle cx="167" cy={diagram.groupY.get(group)} r="5.8" fill="#2dd4bf"/>
-          <text x="149" y={(diagram.groupY.get(group) ?? 0) - 13} textAnchor="end" className={styles.neuralGroupLabel}>{groupLabels[group] ?? group}</text>
-        </g>)}
-        {diagram.sorted.map(project => {
-          const active = project.id === selectedProjectId, y = diagram.projectY.get(project.id) ?? 0;
-          return <g key={"node:" + project.id}>
-            <circle cx="460" cy={y} r={active ? 15 : 9} fill="#8a8fff" opacity={active ? ".20" : ".09"} filter="url(#blueprint-neural-glow)"/>
-            <circle cx="460" cy={y} r={active ? 7.4 : 4.2} fill={active ? "#f4d382" : "#9daaff"}/>
-
-          </g>;
-        })}
-        {diagram.states.map(state => <g key={"state:" + state}>
-          <circle cx="840" cy={diagram.stateY.get(state)} r="12" fill="#ee8ff7" opacity=".17" filter="url(#blueprint-neural-glow)"/>
-          <circle cx="840" cy={diagram.stateY.get(state)} r="5.5" fill="#ee8ff7"/>
-          <text x="859" y={(diagram.stateY.get(state) ?? 0) + 4} className={styles.neuralGroupLabel}>{stateLabels[state] ?? state}</text>
-        </g>)}
-      </svg>
-      {diagram.sorted.map(project => {
-        const y = diagram.projectY.get(project.id) ?? 0;
-        return <button key={"select:" + project.id} type="button"
-          className={styles.neuralNodeButton} style={{ top: y - 15, left: 448 }}
+    {diagram.projects.length > 0 ? <div className={styles.neuralTrack} tabIndex={0} role="region"
+      aria-label="Sơ đồ 5 dải nguồn registry, nhóm, dự án, repository, trạng thái. Cuộn ngang để xem và Tab để chọn node">
+      <div className={styles.neuralStage} style={{ width: diagram.width, height: diagram.height }}>
+        <svg className={styles.neuralCanvas}
+          viewBox={`0 0 ${diagram.width} ${diagram.height}`}
+          width={diagram.width} height={diagram.height} aria-hidden="true" focusable="false">
+          <defs>
+            <linearGradient id="neural-source-gradient" x1="0%" y1="0%" x2="100%" y2="20%">
+              <stop offset="0%" stopColor="#36e0cb"/>
+              <stop offset="48%" stopColor="#839cff"/>
+              <stop offset="100%" stopColor="#f09af2"/>
+            </linearGradient>
+            <filter id="neural-source-halo" x="-150%" y="-150%" width="400%" height="400%">
+              <feGaussianBlur stdDeviation="4"/>
+            </filter>
+          </defs>
+          <g className={styles.neuralLayerLegends}>
+            <text x="26" y="35">L0 · NGUỒN</text>
+            <text x="235" y="35">L1 · NHÓM</text>
+            <text x="615" y="35">L1 · DỰ ÁN</text>
+            <text x="1000" y="35">METADATA · REPO</text>
+            <text x="1400" y="35">TRẠNG THÁI</text>
+          </g>
+          <g className={styles.neuralEdges}>
+            {highlightedEdges.map(link => {
+              const delta = (link.toX - link.fromX) * .46;
+              const d = `M${link.fromX} ${link.fromY} C${link.fromX + delta} ${link.fromY},${link.toX - delta} ${link.toY},${link.toX} ${link.toY}`;
+              return <path key={link.id} d={d} fill="none"
+                stroke="url(#neural-source-gradient)"
+                strokeWidth={link.selected ? 2.7 : .85}
+                strokeOpacity={link.selected ? .98 : .30}
+                data-relation={link.kind}/>;
+            })}
+          </g>
+          <g>
+            <circle cx="99" cy={diagram.sourceY} r="27" fill="#2dd4bf" opacity=".17" filter="url(#neural-source-halo)"/>
+            <circle cx="99" cy={diagram.sourceY} r="14" fill="#2dd4bf" opacity=".22"/>
+            <circle cx="99" cy={diagram.sourceY} r="6" fill="#5eead4"/>
+            <text x="99" y={diagram.sourceY - 33} textAnchor="middle" className={styles.neuralSourceLabel}>APP REGISTRY</text>
+            <text x="99" y={diagram.sourceY + 39} textAnchor="middle" className={styles.neuralSmallLabel}>source-only</text>
+          </g>
+          {diagram.groups.map(group => {
+            const active = diagram.projects.some(project => project.selected && project.group === group.id);
+            return <g key={"group:" + group.id}>
+              {active ? <circle cx="245" cy={group.y} r="16" opacity=".18" fill="#5eead4" filter="url(#neural-source-halo)"/> : null}
+              <circle cx="245" cy={group.y} r={active ? 7 : 5} fill={active ? "#f4d382" : "#55dfcf"}/>
+              <text x="258" y={group.y - 12} className={styles.neuralGroupLabel}>{groupLabels[group.id] ?? group.id}</text>
+            </g>;
+          })}
+          {diagram.projects.map(project => <g key={"project:" + project.id}>
+            {project.selected ? <circle cx="613" cy={project.y} r="18" fill="#ffe19a" opacity=".2" filter="url(#neural-source-halo)"/> : null}
+            <circle cx="613" cy={project.y} r={project.selected ? 8 : 5} fill={project.selected ? "#ffe19a" : "#9daaff"}/>
+            <title>Node: {project.name}; Nhóm: {project.group}; Trạng thái: {project.state}; Nguồn: project-registry.ts</title>
+            <circle cx="1008" cy={project.y} r={project.selected ? 7 : 4} fill={project.selected ? "#ffe19a" : "#a78bfa"}/>
+            <text x="1024" y={project.y + 4} className={project.selected ? styles.neuralSelectedLabel : styles.neuralRepoLabel}>
+              {project.repository.replace(/^BlueDragon33\//, "").slice(0, 29)}
+            </text>
+          </g>)}
+          {diagram.states.map(state => {
+            const active = diagram.projects.some(project => project.selected && project.state === state.id);
+            return <g key={"state:" + state.id}>
+              <circle cx="1424" cy={state.y} r={active ? 9 : 6} fill={active ? "#ffe19a" : "#f09af2"}/>
+              <text x="1442" y={state.y + 4} className={styles.neuralStateLabel}>{stateLabels[state.id] ?? state.id}</text>
+            </g>;
+          })}
+        </svg>
+        {diagram.projects.map(project => <button key={"select:" + project.id} type="button"
+          className={styles.neuralNodeButton}
+          style={{ top: project.y - 15, left: 601 }}
           title={`Chọn ${project.name} · ${project.repository}`}
-          aria-pressed={project.id === selectedProjectId} aria-controls="compass-project-detail"
+          aria-pressed={project.id === selectedProjectId}
+          aria-controls="compass-project-detail"
           onClick={() => onSelectProject(project.id)}>
           {project.name}
-        </button>;
-      })}
+        </button>)}
       </div>
-    </div> : <p>Registry chưa có dự án đã xác minh. Không hiển thị sơ đồ giả.</p>}
-    <p className={styles.neuralFootnote}>Đây là phép chiếu danh mục từ Application Management, <strong>không phải Graph Intelligence live của Hub #173</strong>. Đồ thị dependency, Agent và lịch sử chạy thật chỉ được kích hoạt sau khi kết nối contract đã nghiệm thu.</p>
+    </div> : <p>Registry chưa có dự án hợp lệ. Không hiển thị Graph giả.</p>}
+    <p className={styles.neuralFootnote}>
+      Nguồn: <code>{diagram.provenance}</code>. Dải hình trực quan không mở rộng quyền Graph.
+      Đây <strong>không phải Graph Intelligence live của Hub #173</strong>.
+      Trạng thái Agent, chạy thử, model, training, toán học và thuật toán chỉ được hiển thị sau khi có contract và evidence thật.
+    </p>
   </section>;
 }
