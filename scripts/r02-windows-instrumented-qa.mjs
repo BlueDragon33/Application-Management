@@ -33,6 +33,10 @@ const state = {
   measurements: [],
   errors: [],
   cleanup: [],
+  stage: "NOT_STARTED",
+  commands: [],
+  recoveredFailures: [],
+  npmDiagnostics: [],
 };
 let browser;
 let upstream;
@@ -42,20 +46,72 @@ const checkouts = [];
 const selfOwnedPaths = [];
 const listenPorts = [];
 
+function currentStage(name) {
+  state.stage = name;
+  state.stageAt = new Date().toISOString();
+  console.log("R02_STAGE=" + name);
+}
+function sanitize(value) {
+  return String(value ?? "").replace(/(\/\/[^\s\/]+\/[^\s:@]+):[^\s@]+@/g, "$1:[REDACTED]@")
+    .replace(/((?:_authToken|authorization|password|secret|credential|api[_-]?key)\s*[=:]\s*)[^\s"']+/gi, "$1[REDACTED]")
+    .replace(/(Bearer\s+)[A-Za-z0-9._~+/-]+/gi, "$1[REDACTED]");
+}
 function run(file, args, cwd = SOURCE, env = process.env, timeout = 240000) {
   const windowsCmd = process.platform === "win32" && /\.cmd$/i.test(file);
   const cmd = windowsCmd ? (process.env.ComSpec || "cmd.exe") : file;
   const argv = windowsCmd ? ["/d", "/s", "/c", file, ...args] : args;
-  const result = spawnSync(cmd, argv, { cwd, env, encoding: "utf8", windowsHide: true, timeout, maxBuffer: 12 * 1024 * 1024 });
+  const startedAt = new Date().toISOString();
+  const result = spawnSync(cmd, argv, { cwd, env, encoding: "utf8", windowsHide: true,
+    timeout, maxBuffer: 16 * 1024 * 1024 });
+  const stdout = sanitize(result.stdout || "");
+  const stderr = sanitize(result.stderr || "");
+  const detail = { stage: state.stage, tool: path.basename(file), args: args.map(x =>
+    /^(?:--(token|password|secret|key)=)/i.test(x) ? "[REDACTED]" : x),
+    cwd: path.basename(cwd), startedAt, exit: result.status,
+    durationMs: Date.now() - Date.parse(startedAt) };
+  state.commands.push(detail);
   if (result.error || result.status !== 0) {
-    throw new Error(path.basename(file) + " failed (" + String(result.status) + "): " +
-      String(result.error?.message || result.stderr || result.stdout || "unknown").slice(-1400));
+    const logPath = path.join(reportsDir, "command-" + String(state.commands.length).padStart(3, "0") + ".log");
+    fs.mkdirSync(reportsDir, { recursive: true });
+    fs.writeFileSync(logPath, [
+      "stage: " + state.stage, "tool: " + path.basename(file), "exit: " + result.status,
+      "error: " + sanitize(result.error?.message || ""), "--- STDOUT ---", stdout,
+      "--- STDERR ---", stderr ].join("\n").slice(-3_000_000));
+    detail.failureLog = logPath;
+    const entries = (stdout + "\n" + stderr).split(/\r?\n/).filter(Boolean);
+    const interesting = entries.filter(line =>
+      /npm (?:error|ERR)|(^|\s)(?:EACCES|EPERM|ENOTEMPTY|EBUSY|EUSAGE|ECONNRESET|ETIMEDOUT|ENOSPC|CERT_|ERR_PNPM)|(?:ERR!|error:)/i.test(line));
+    const reason = interesting.slice(-8).join(" | ") || entries.slice(-5).join(" | ");
+    const message = path.basename(file) + " failed (" + String(result.status) + ") at " + state.stage +
+      "; FULL_LOG=" + logPath + "; " + sanitize(result.error?.message || reason).slice(0, 1800);
+    const error = new Error(message);
+    error.code = result.status;
+    error.failureLog = logPath;
+    error.diagnostic = (stdout + "\n" + stderr).slice(-10000);
+    throw error;
   }
-  return String(result.stdout || "").trim();
+  return stdout.trim();
 }
 function git(args, cwd = SOURCE) { return run("git.exe", args, cwd); }
 function node(args, cwd = SOURCE, env = process.env, timeout) { return run(process.execPath, args, cwd, env, timeout); }
-function npm(args, cwd = SOURCE) { return run("npm.cmd", args, cwd, process.env, 600000); }
+function npm(args, cwd = SOURCE) {
+  const cacheDir = path.join(sessionDir, "_npm_cache");
+  fs.mkdirSync(cacheDir, { recursive: true });
+  const env = { ...process.env, npm_config_cache: cacheDir, npm_config_audit: "false",
+    npm_config_fund: "false", npm_config_update_notifier: "false" };
+  try {
+    return run("npm.cmd", args, cwd, env, 600000);
+  } catch (error) {
+    const diag = String(error.diagnostic || "");
+    const recoverable = /\b(?:EINTEGRITY|ECONNRESET|ETIMEDOUT|EAI_AGAIN|EBUSY|ENOTEMPTY)\b/i.test(diag);
+    state.npmDiagnostics.push({ stage: state.stage, log: error.failureLog, recoverable });
+    if (!recoverable) throw error;
+    state.recoveredFailures.push({ stage: state.stage, reason: "TRANSIENT_NPM_RETRY", previousLog: error.failureLog });
+    currentStage(state.stage + "_ONE_BOUNDED_NPM_RETRY");
+    // Exactly one retry; never disable TLS verification or use npm install as a silent substitute for npm ci.
+    return run("npm.cmd", args, cwd, env, 600000);
+  }
+}
 function verifyDir() {
   assert.equal(process.platform, "win32", "WINDOWS_REQUIRED");
   assert.equal(ROOT.toLowerCase(), path.resolve("E:\\BaumanWeb\\_qa").toLowerCase(), "QA_ROOT_MUST_BE_E_BAUMANWEB_QA");
@@ -102,6 +158,7 @@ function browserExecutable() {
   return locations.find(p => fs.existsSync(p)) || null;
 }
 function ensurePlaywright() {
+  currentStage("PREFLIGHT_PLAYWRIGHT_DEPENDENCY");
   // Only install the small Playwright protocol library in our owned, disposable QA workspace.
   const packageDir = path.join(sessionDir, "instrumentation");
   fs.mkdirSync(packageDir);
@@ -113,6 +170,7 @@ function ensurePlaywright() {
   return pw;
 }
 async function preflight() {
+  currentStage("PREFLIGHT_BROWSER_LOOPBACK_200");
   const executor = browserExecutable();
   assert.ok(executor, "NO_EXISTING_CHROMIUM_EDGE_OR_CHROME");
   playwright = ensurePlaywright();
@@ -133,6 +191,7 @@ async function preflight() {
   } finally { await closeServer(own.server); }
 }
 function checkLive() {
+  currentStage("REMOTE_SHA_LOCAL_READBACK");
   // The PowerShell launcher verifies all three remote heads in ONE bounded
   // git ls-remote call and fetches only missing commit objects. Reusing that
   // same short-lived attestation avoids a second TLS handshake (prior failure).
@@ -164,6 +223,7 @@ function checkLive() {
   }
 }
 function makeCheckout(label, sha) {
+  currentStage("QA_CHECKOUT_" + label.toUpperCase());
   const folder = path.join(sessionDir, label);
   assert.ok(!fs.existsSync(folder), "QA_CHECKOUT_ALREADY_EXISTS");
   git(["worktree", "add", "--detach", folder, sha]);
@@ -373,19 +433,24 @@ async function main() {
   for (const entry of [["baseline", MAIN], ["candidate", CANDIDATE]]) {
     const [label, sha] = entry;
     const folder = makeCheckout(label, sha);
+    currentStage("NPM_CI_" + label.toUpperCase());
     npm(["ci", "--no-audit", "--no-fund", "--prefer-offline"], folder);
     const env = qaEnv(upstream.port);
+    currentStage("D1_MIGRATE_" + label.toUpperCase());
     wrangler(folder, ["d1", "migrations", "apply", "learning-management-db", "--local", "--config", "wrangler.local.jsonc"], env);
+    currentStage("APP_START_" + label.toUpperCase());
     const started = await beginApp(folder, env);
     state.environment[label + "Runtime"] = { ...started, sha };
     try {
       for (const count of [10, 50, 200]) {
+        currentStage("D1_SEED_" + label.toUpperCase() + "_" + count);
         const seeded = seedD1(folder, count, env, label);
         const entry = { label, fixtureCount: count, commandReadback: seeded.queryOutput,
           d1CommandCompleted: true, appPid: started.pid };
         state.measurements.push(entry);
         for (const viewport of [{ width: 1440, height: 900 }, { width: 800, height: 900 }, { width: 390, height: 844 }]) {
           for (let repeat = 0; repeat < 3; repeat++) {
+            currentStage("CHROMIUM_" + label.toUpperCase() + "_" + count + "_" + viewport.width + "_" + (repeat + 1));
             state.measurements.push(await sample(browser, started.url, count, label, viewport, repeat + 1));
           }
         }
