@@ -18,8 +18,11 @@ $runnerTemp = Join-Path $env:TEMP ($runId + '.mjs')
 $script:stage = 'PRECHECK'
 $script:status = 'BLOCKED'
 $script:runnerExit = $null
+$script:runnerEvidence = $null
 $script:events = [System.Collections.Generic.List[object]]::new()
 $started = (Get-Date).ToUniversalTime().ToString('o')
+$priorConsoleOutputEncoding = [Console]::OutputEncoding
+[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 $attestedAt = $null
 $sha414 = $null
 
@@ -117,8 +120,81 @@ try {
  $env:R02_QA_ROOT = $qa
  Record-Stage 'RUN_COMPLETE_INSTRUMENTED_QA'
  Write-Host ('R02_START=' + $sha414)
- & node.exe $runnerTemp
- $script:runnerExit = [int]$LASTEXITCODE
+ $originalPreference = $ErrorActionPreference
+ try {
+  $ErrorActionPreference = 'Continue'
+  $runnerLines = @(& node.exe $runnerTemp 2>&1)
+  $script:runnerExit = [int]$LASTEXITCODE
+ } finally { $ErrorActionPreference = $originalPreference }
+ foreach ($line in $runnerLines) {
+  $message = [string]$line
+  Write-Host $message
+  if ($message -match '^R02_EVIDENCE=(.+\.json)
+ if ($script:runnerExit -ne 0) { throw ('RUNNER_FAILED_' + $script:runnerExit) }
+ $script:status = 'MEASURED_NOT_ACCEPTED'
+}
+catch {
+ $errorText = [string]$_.Exception.Message
+ $script:events.Add(@{stage=$script:stage;error=$errorText;time=(Get-Date).ToUniversalTime().ToString('o')})
+ Write-Host ('R02_PACKAGE_BLOCKER=' + $errorText)
+}
+finally {
+ Remove-Item -LiteralPath $runnerTemp -Force -ErrorAction SilentlyContinue
+ [Console]::OutputEncoding = $priorConsoleOutputEncoding
+ foreach ($key in @('R02_HARNESS_SHA','R02_ATTEST_MAIN','R02_ATTEST_PR414',
+                    'R02_ATTEST_PR417','R02_ATTESTED_AT','R02_APP_REPO','R02_QA_ROOT')) {
+  Remove-Item ('Env:\' + $key) -ErrorAction SilentlyContinue
+ }
+ if (Test-Path -LiteralPath $reportDir) {
+  $summary = @{
+   schema='application-management.r02.one-run-package/v1'
+   status=$script:status
+   gate='G05_UNVERIFIED'
+   runnerExit=$script:runnerExit
+   pinned=@{main=$main;candidate=$candidate;bundle=$sha414}
+   attestedAt=$attestedAt
+   startedAt=$started
+   endedAt=(Get-Date).ToUniversalTime().ToString('o')
+   events=@($script:events)
+   runnerEvidence=$script:runnerEvidence
+   note='Local-only evidence. Never grants merge, deploy, or gate PASS.'
+  }
+  [IO.File]::WriteAllText($summaryFile,($summary | ConvertTo-Json -Depth 12),[Text.UTF8Encoding]::new($false))
+  Write-Host ('R02_PACKAGE_SUMMARY=' + $summaryFile)
+  $zip = Join-Path $reportDir 'r02-evidence-package.zip'
+  try {
+   $members = [System.Collections.Generic.List[string]]::new()
+   $members.Add($summaryFile)
+   $runnerPath = [string]$script:runnerEvidence
+   $rootFull = [IO.Path]::GetFullPath((Join-Path $qa '_r02_reports')) + [IO.Path]::DirectorySeparatorChar
+   if ($runnerPath) {
+    $full = [IO.Path]::GetFullPath($runnerPath)
+    if (-not $full.StartsWith($rootFull,[StringComparison]::OrdinalIgnoreCase)) {
+     throw 'RUNNER_EVIDENCE_OUTSIDE_QA_ROOT'
+    }
+    if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { throw 'RUNNER_EVIDENCE_JSON_MISSING' }
+    $sourceDir = Split-Path -Parent $full
+    $targetDir = Join-Path $reportDir 'runner-evidence'
+    if ((Get-Item -LiteralPath $sourceDir -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) {
+     throw 'RUNNER_EVIDENCE_REPARSE_POINT_BLOCKED'
+    }
+    Copy-Item -LiteralPath $sourceDir -Destination $targetDir -Recurse
+    $members.Add($targetDir)
+   }
+   Compress-Archive -LiteralPath $members.ToArray() -DestinationPath $zip -Force
+   Write-Host ('R02_PACKAGE_ZIP=' + $zip)
+  } catch {
+   $zipFailure = [string]$_.Exception.Message
+   Write-Host ('R02_PACKAGE_ZIP_BLOCKER=' + $zipFailure)
+   $script:status = 'BLOCKED'
+  }
+ }
+ Write-Host ('R02_PACKAGE_RESULT=' + $script:status)
+ if ($script:status -ne 'MEASURED_NOT_ACCEPTED') { $global:LASTEXITCODE = 1 }
+ else { $global:LASTEXITCODE = 0 }
+}
+) { $script:runnerEvidence = $Matches[1] }
+ }
  if ($script:runnerExit -ne 0) { throw ('RUNNER_FAILED_' + $script:runnerExit) }
  $script:status = 'MEASURED_NOT_ACCEPTED'
 }
