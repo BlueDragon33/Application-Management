@@ -237,17 +237,20 @@ test("payload and bookmarklet no longer overwrite editable address and fax profi
 });
 
 
-test("admin creates two persistent intake form types and snapshots the type in defaults", () => {
+test("admin creates three persistent intake form types and snapshots the type in defaults", () => {
   assert.match(tool, /intakeFormType/);
   assert.match(tool, /Link 1 · Nhập học/);
   assert.match(tool, /Link 2 · Người thường/);
-  assert.match(adminApi, /formType = text\(body\.formType, 20\) === "general"/);
+  assert.match(adminApi, /const formType = requestedType === "general" \? "general" : requestedType === "electronic" \? "electronic" : "student"/);
+  assert.match(tool, /Link 3 · Thư mời điện tử/);
   assert.match(adminApi, /formType,/);
   assert.match(adminApi, /defaults\.formType==="general"/);
 });
 
 test("general intake does not inherit study-only KD-MID defaults while student intake requires Telex", () => {
-  assert.match(tool, /purposeSection: student \? store\.common\.purposeSection : ""/);
+  assert.match(tool, /purposeSection: electronic \? "УЧЕБА" : student \? store\.common\.purposeSection : ""/);
+  assert.match(tool, /entryDate: student \? store\.common\.entryDate : ""/);
+  assert.match(tool, /organization: student \? store\.common\.organization : ""/);
   assert.match(tool, /telex: student \? store\.common\.telex : ""/);
   assert.match(publicApi, /student \? "УЧЕБА" : ""/);
   assert.match(publicApi, /student \? "МОСКВА" : ""/);
@@ -601,7 +604,9 @@ test("Link 3 accepts electronic МВД invitations without inheriting Link 1 Tel
   assert.match(publicApi, /formType !== "student"/);
   assert.match(publicWorkerPage, /formType !== "student"/);
   assert.match(tool, /telex: student \? store\.common\.telex : ""/);
-  assert.match(tool, /telex: value\("telex"\) \|\| \(electronic \? "" : store\.common\.telex\)/);
+  assert.match(publicWorkerPage, /tin:value\("tin"\), telex:value\("telex"\), invitation:upperPlain\(value\("invitation"\)\)/);
+  assert.match(publicWorkerPage, /const d = student \? withStudentFallbacks\(rawDefaults\) : rawDefaults/);
+  assert.match(publicWorkerPage, /el\.required=student \|\| \(electronic && name==="organization"\)/);
 });
 
 test("electronic invitation number and issuing authority are required on the server, not Telex", () => {
