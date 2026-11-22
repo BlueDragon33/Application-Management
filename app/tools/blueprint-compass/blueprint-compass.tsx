@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import styles from "./blueprint-compass.module.css";
 import BlueprintNeuralOverview from "./blueprint-neural-overview";
+import HubGraphContractAdmission from "./hub-graph-contract-admission";
 
 type Project = { id: string; name: string; repository: string; group: string; state: string; summary: string };
 type Row = { number: number; title: string; url: string; draft: boolean; headSha: string | null; labels: string[] };
@@ -85,13 +86,14 @@ export default function BlueprintCompass({ projects }: { projects: Project[] }) 
       <ol className={styles.guideSteps}>
         <li><strong>1 · Chọn dự án</strong> Xem bản đồ phân loại L0/L1, tìm repository trong danh sách, mở một dự án.</li>
         <li><strong>2 · Đối chiếu nguồn</strong> Nhấn “Đọc lại GitHub”, kiểm tra default HEAD, PR HEAD riêng và thời điểm quan sát. Không xem nhãn Issue là kết luận đã được kiểm chứng.</li>
-        <li><strong>3 · Xem nhiệm vụ</strong> Mở PR/Issue liên quan rồi đối chiếu WorkPackage, QualityGate và Evidence tại Hub. Nếu nguồn lỗi, giữ UNVERIFIED.</li>
+        <li><strong>3 · Xem nhiệm vụ</strong> Mở PR/Issue liên quan rồi đối chiếu WorkPackage, QualityGate và Evidence tại Hub. Kiểm tra riêng cổng contract Graph: metadata-only không đồng nghĩa đã kết nối Graph. Nếu nguồn lỗi, giữ UNVERIFIED.</li>
         <li><strong>4 · Tiếp tục an toàn</strong> Chỉ đề xuất Next Action trong phạm vi quyền thật; chưa có backend runner đã xác minh nên không coi nút điều hướng là lệnh thực thi.</li>
       </ol>
       <p><strong>Nguyên tắc:</strong> tách dữ liệu đề xuất, quan sát và QA thực; không nhân bản ledger. Mọi quyền reviewer, phê chuẩn Constitution và Production giữ nguyên human gates. Khi đóng trang, Tool không tiếp tục chạy công việc.</p>
       <a href="https://github.com/BlueDragon33/Software-Blueprint-Hub/blob/main/docs/UNIVERSAL-CONSTITUTION.md" target="_blank" rel="noopener noreferrer">Đọc Hiến pháp ACTIVE tại nguồn chính GitHub</a>
     </section>
     <BlueprintNeuralOverview projects={projects} selectedProjectId={selected} onSelectProject={setSelected}/>
+    {entry?.id === "software-blueprint-hub" ? <HubGraphContractAdmission/> : null}
     <section className={styles.layout}>
       <aside className={styles.side} aria-label="Chọn dự án">
         <label htmlFor="compass-search">Tìm dự án</label>
