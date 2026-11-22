@@ -102,7 +102,7 @@ export default function BlueprintNeuralOverview({
       {diagram.sorted.map(project => {
         const y = diagram.projectY.get(project.id) ?? 0;
         return <button key={"select:" + project.id} type="button"
-          className={styles.neuralNodeButton} style={{ top: y - 15, left: 470 }}
+          className={styles.neuralNodeButton} style={{ top: y - 15, left: 448 }}
           title={`Chọn ${project.name} · ${project.repository}`}
           aria-pressed={project.id === selectedProjectId} aria-controls="compass-project-detail"
           onClick={() => onSelectProject(project.id)}>
