@@ -443,10 +443,33 @@
             "R0.3"
           ],
           "state": "BLOCKED",
-          "evidenceLevel": "PERFORMANCE_EVIDENCE",
-          "evidence": [],
-          "changedFiles": [],
-          "candidateSha": null,
+          "evidenceLevel": "SOURCE_CODE_CI_PASS_PERFORMANCE_UNVERIFIED",
+          "evidence": [
+            {
+              "kind": "EXACT_SHA_PR_CI",
+              "source": "https://github.com/BlueDragon33/Application-Management/pull/417",
+              "candidateSha": "92f7fbf6e3b1664d2431694fc5aeaef5b27df5c6",
+              "scope": "Source-only clock isolation; security-preserving snapshot freshness checks",
+              "checks": [
+                "constitution / constitution",
+                "Constitution 1.3 Application Management dependency sovereignty",
+                "fast-check",
+                "regression-check",
+                "full-check"
+              ],
+              "checksStatus": "PASS_AT_CANDIDATE_SHA",
+              "browser": "NOT_RUN_PREVIEW_BROWSER_READONLY_SKIPPED",
+              "performance": "NOT_MEASURED",
+              "release": "DRAFT_NOT_MERGED_OR_DEPLOYED"
+            }
+          ],
+          "changedFiles": [
+            "app/management-dashboard-v2.tsx",
+            "tests/management-dashboard-clock-isolation.test.mjs",
+            "tests/automation-live-snapshot-freshness.test.mjs",
+            "tests/boi-policy-save-runtime.test.mjs"
+          ],
+          "candidateSha": "92f7fbf6e3b1664d2431694fc5aeaef5b27df5c6",
           "linkedGates": [
             "G05",
             "G06"
@@ -454,7 +477,19 @@
           "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
           "remediesForSameRoot": 0,
           "releaseAuthority": "NONE",
-          "browserEvidence": "UNVERIFIED"
+          "browserEvidence": "UNVERIFIED_NO_EXACT_SHA_CHROMIUM_BASELINE",
+          "codeCandidate": {
+            "prNumber": 417,
+            "prUrl": "https://github.com/BlueDragon33/Application-Management/pull/417",
+            "baseMainSha": "89a89ce2d3d8ed634ee9562c52744a99223a2b2a",
+            "headSha": "92f7fbf6e3b1664d2431694fc5aeaef5b27df5c6",
+            "codeStage": "CODED_AND_CI_VERIFIED_NOT_R1_1_ACCEPTED",
+            "scope": "Root clock 1-second tick confined to OverviewClock; when modal open, root snapshot safety clock and independent click-time LIVE guard preserved.",
+            "gateStatus": "G05_UNVERIFIED",
+            "needs": "Exact-SHA before/after Chromium 10/50/200 fixture and affected real-UX policy-save journey; independent A/B track not executed in this WP",
+            "mergeAuthority": "NOT_GRANTED_BY_THIS_CHECKPOINT",
+            "rollback": "Revert scoped branch changes; no DB migrations or system-wide dependencies."
+          }
         },
         {
           "id": "R1.2",
@@ -920,6 +955,15 @@
       "inspectedPrSha": "02165d2c4e4b47dac5c0b0b32ae1f7a3be874067",
       "localCheckoutSha": "423d4bbb633c9d2e1f946ccd8dd18bd8abcdfaf7",
       "summary": "Fresh Windows Playwright Chromium preflight verified HTTP 200, response body and owned-listener cleanup. Execution stopped at QA checkout because E: QA write access was unavailable."
+    },
+    {
+      "stepId": "R1.1",
+      "date": "2026-11-22",
+      "result": "SOURCE_CANDIDATE_CI_PASS_NOT_ACCEPTED",
+      "evidenceLevel": "ACTUAL_CODE_AND_GITHUB_CI_NO_BROWSER_BENCHMARK",
+      "candidateSha": "92f7fbf6e3b1664d2431694fc5aeaef5b27df5c6",
+      "pr": 417,
+      "summary": "Implemented 1-second dashboard clock isolation and retained exact-time policy save freshness gate. Existing 9 regression failures caused by old extracted-function harness resolved by updating affected tests; new + existing suites, full build, Constitution passed. R0.2 prerequisite remains blocked; G05 UNVERIFIED; R1.1 BLOCKED pending measured proof. No merge/Production."
     }
   ],
   "assessment": {
