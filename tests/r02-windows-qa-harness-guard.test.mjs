@@ -77,6 +77,8 @@ test("R0.2 runner captures root-cause logs at failing npm stage without running 
   assert.match(source, /npmDiagnostics/);
   assert.match(source, /recoveredFailures/);
   assert.match(source, /_npm_cache/);
+  assert.match(source, /npm-debug-/);
+  assert.match(source, /preserveNpmDebug/);
   assert.match(source, /ONE_BOUNDED_NPM_RETRY/);
   assert.match(source, /NPM_CI_/);
   assert.match(source, /command-.*padStart/);
