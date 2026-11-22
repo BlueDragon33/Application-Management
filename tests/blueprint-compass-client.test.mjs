@@ -29,6 +29,7 @@ test("selection never displays another project's evidence, including pending and
     exports, AbortController, Date, Error,
     require: name => name === "next/link" ? { default: ({ children, ...props }) => React.createElement("a", props, children) }
       : name === "./blueprint-neural-overview" ? { default: () => React.createElement("div", { "data-testid": "neural-source-fixture" }) }
+      : name === "./hub-graph-contract-admission" ? { default: () => React.createElement("div", { "data-testid": "hub-contract-fixture" }) }
       : name.endsWith(".css") ? { default: {} } : require(name),
     fetch: (url, options) => url === "/api/projects/repositories"
       ? Promise.resolve({ ok: true, json: async () => ({ ok: true, unmanaged: [] }) })
