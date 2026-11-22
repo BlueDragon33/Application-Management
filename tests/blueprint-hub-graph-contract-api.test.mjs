@@ -3,13 +3,15 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
 import { createRequire } from "node:module";
+import { createHash, webcrypto } from "node:crypto";
 import { assessHubGraphContract } from "../app/blueprint-hub-graph-contract.mjs";
 
 const require = createRequire(import.meta.url);
 const ts = require("typescript");
 const SOURCE = fs.readFileSync(new URL("../app/api/tools/blueprint-compass/hub-contract/route.ts", import.meta.url), "utf8");
 const HUB = "BlueDragon33/Software-Blueprint-Hub";
-const HEAD = "a".repeat(40), BLOB = "b".repeat(40);
+const HEAD = "a".repeat(40);
+const gitBlobSha = bytes => createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex");
 const API_URL = "https://api.github.com/repos/" + HUB;
 
 function contract() {
@@ -28,18 +30,21 @@ function contract() {
   };
 }
 
-function setup({ authenticated = true, remoteContract = contract(), head = HEAD, blob = BLOB, outcome = "ok", encoded } = {}) {
+function setup({ authenticated = true, remoteContract = contract(), head = HEAD, blob, outcome = "ok", encoded } = {}) {
   const reads = [];
   const fetchStub = async (url, options) => {
     reads.push({ url, method: options.method, redirect: options.redirect, hasAuthorization: Boolean(options.headers?.Authorization) });
     if (outcome !== "ok") return Response.json({ message: "GitHub refused" }, { status: outcome === "forbidden" ? 403 : 503 });
     if (url === API_URL + "/commits/main") return Response.json({ sha: head });
-    if (url === API_URL + "/contents/control/application-management.contract.json?ref=" + HEAD)
+    if (url === API_URL + "/contents/control/application-management.contract.json?ref=" + HEAD) {
+      const content = encoded ?? Buffer.from(JSON.stringify(remoteContract), "utf8").toString("base64");
+      const decoded = Buffer.from(content, "base64");
       return Response.json({
         type: "file", path: "control/application-management.contract.json",
-        encoding: "base64", content: encoded ?? Buffer.from(JSON.stringify(remoteContract), "utf8").toString("base64"),
-        sha: blob,
+        encoding: "base64", content,
+        sha: blob ?? gitBlobSha(decoded),
       });
+    }
     throw new Error("Unexpected outbound read: " + url);
   };
   const transpiled = ts.transpileModule(SOURCE, {
@@ -50,7 +55,7 @@ function setup({ authenticated = true, remoteContract = contract(), head = HEAD,
   assert.equal(errors.length, 0);
   const exports = {};
   vm.runInNewContext(transpiled.outputText, {
-    exports, Request, Response, Date, Uint8Array, TextDecoder, atob, AbortSignal, fetch: fetchStub, Error,
+    exports, Request, Response, Date, Uint8Array, TextEncoder, TextDecoder, atob, crypto: webcrypto, AbortSignal, fetch: fetchStub, Error,
     require(name) {
       if (name === "../../../../chatgpt-auth") return { getChatGPTUser: async () => authenticated ? { userId: "test" } : null };
       if (name === "../../../../blueprint-hub-graph-contract.mjs") return { assessHubGraphContract };
@@ -76,7 +81,7 @@ test("Hub metadata-only real schema is source-pinned and Graph read stays denied
   assert.equal(response.status, 200);
   assert.equal(body.status, "HUB_GRAPH_NOT_EXPOSED");
   assert.equal(body.hubHead, HEAD);
-  assert.equal(body.contractBlobSha, BLOB);
+  assert.equal(body.contractBlobSha, gitBlobSha(Buffer.from(JSON.stringify(contract()), "utf8")));
   assert.equal(body.canReadGraph, false);
   assert.equal(body.qaPassed, false);
   assert.equal(reads.length, 2);
@@ -107,7 +112,7 @@ test("GitHub outage fails closed and never displays a connected graph", async ()
 
 test("invalid SHA, blob, policy and encoded content fail closed", async () => {
   for (const settings of [
-    { head: "main" }, { blob: "g".repeat(40) },
+    { head: "main" }, { blob: "g".repeat(40) }, { blob: "b".repeat(40) },
     { remoteContract: { ...contract(), policy: { ...contract().policy, applicationManagementMayPassQualityGates: true } } },
     { encoded: "garbage?" },
   ]) {
