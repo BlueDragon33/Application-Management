@@ -875,9 +875,9 @@
   "activeNextAction": {
     "id": "R0.2",
     "type": "BIND_AND_MEASURE_LOCAL_QA",
-    "state": "BLOCKED_INSTRUMENTED_QA",
-    "why": "User reported native PowerShell ParseException on the first one-run package before QA started. Exact GitHub source at prior PR414 HEAD 6041caab had a truncated R02_EVIDENCE regex at line 132 and duplicated catch/finally tail; the prior source-only regex tests did not detect syntax corruption. A minimal source fix removed the truncated text/duplicate tail, and Node regression now checks lexical closure and includes broken-input fixtures. No Windows native AST parse or runtime measurements performed yet.",
-    "required": "One Windows one-shot package attempt using a SHA-pinned launcher from the corrected PR414 HEAD. Before creating a ScriptBlock, use native System.Management.Automation.Language.Parser.ParseInput against downloaded text; fail closed with full parser errors if any. Only if native parse PASS, execute entire bundle once and return its single local ZIP report. Keep R0.2 BLOCKED/G05 UNVERIFIED pending real 10/50/200 evidence.",
+    "state": "BLOCKED_INSTRUMENTED_QA_RUNNING_UNVERIFIED",
+    "why": "User's currently running pinned one-shot QA package reached R02_START for HEAD 92b2026..., but previous launcher collected all Node output in a PowerShell array before printing anything. The apparent console hang is therefore not evidence of a deadlock or completion. Buffered output has been replaced by a new launcher using owned streaming logs and 20-second heartbeat; it applies only to subsequent runs and must not interrupt/restart the current QA session.",
+    "required": "FIRST: let the already-started SHA-pinned Windows QA session report its final R02_PACKAGE_RESULT, R02_PACKAGE_ZIP, or a factual failure; do not start concurrent QA checkouts. If the current run fails/terminates, use the new live-progress launcher with a fresh attested SHA and native PowerShell parser, and assess exactly one ZIP report. No manual npm log extraction.",
     "expectedEvidence": [
       "exact SHA for served local source",
       "instrumented sample files and environment/browser/browser profile identity",
@@ -888,12 +888,12 @@
       "CSS coverage and computed text contrast",
       "G05 truthfully marked only after evidence"
     ],
-    "fallback": "If native PowerShell parse, Git attestation, npm, local D1 or Chromium fails, stop once and retain package-owned evidence. Do not request separate short commands to inspect npm logs; do not use Production/Reviewer A/B/merge/publish. No fake acceptance.",
+    "fallback": "If the existing session appears stalled, do not claim it is blocked solely from no console output. Once it exits, inspect the package's final result/evidence; if it cannot finish, report unknown state without killing other processes or deleting unowned folders. G05 UNVERIFIED until Windows measurement evidence.",
     "singleActionRule": true,
     "runner": {
       "path": "scripts/r02-windows-instrumented-qa.mjs",
       "guardTest": "tests/r02-windows-qa-harness-guard.test.mjs",
-      "sourceStage": "POWERSHELL_PARSE_SOURCE_REPAIRED_NATIVE_WINDOWS_AST_PENDING",
+      "sourceStage": "LIVE_PROGRESS_FIX_COMMITTED_WINDOWS_NOT_EXECUTED",
       "reportsRoot": "E:\\BaumanWeb\\_qa\\_r02_reports",
       "requires": "Windows local filesystem + installed Chromium/Edge + Node>=22.13 + Git + npm",
       "doesNotProve": [
@@ -912,7 +912,11 @@
       "requireManualExtraLogs": false,
       "packageArtifact": "E:\\BaumanWeb\\_qa\\_r02_reports\\bundle-<session>\\r02-evidence-package.zip",
       "details": "One use: pinned Windows launcher produces one archive containing bundle-summary, r02-evidence and scoped command/browser logs; does not auto-upload to cloud.",
-      "npmDebugRetention": true
+      "npmDebugRetention": true,
+      "liveStageRelay": true,
+      "heartbeatSeconds": 20,
+      "stdoutFile": "runner-stdout.log",
+      "stderrFile": "runner-stderr.log"
     }
   },
   "history": [
@@ -1039,6 +1043,17 @@
       "acceptance": "native Windows PowerShell AST parser and 10/50/200 runtime samples still missing",
       "qaState": "R0.2 BLOCKED G05 UNVERIFIED",
       "release": "NO_MERGE_NO_PUBLISH"
+    },
+    {
+      "stepId": "R0.2",
+      "date": "2026-11-22",
+      "result": "WINDOWS_PACKAGE_BUFFERED_OUTPUT_DIAGNOSED_AND_LIVE_PROGRESS_FIXED_SOURCE_ONLY",
+      "evidenceLevel": "USER_SCREENSHOT_AND_GITHUB_SOURCE_DIFF_NO_NATIVE_RUNTIME_READBACK",
+      "observed": "PowerShell reached R02_START=92b2026... then no stdout; launcher assigned $runnerLines = @(& node.exe ...), which blocks display until the full runner process completes; not proof of a hang",
+      "fix": "scripts/r02-windows-qa-package.ps1 uses owned stdout/stderr files plus Start-Process progress relay and 20s heartbeat; ZIP now retains both logs",
+      "currentRunningSha": "92b2026cd31be18828f2f743b65c6499e19d40aa",
+      "release": "NO_MERGE_NO_PUBLISH",
+      "gate": "G05_UNVERIFIED"
     }
   ],
   "assessment": {
