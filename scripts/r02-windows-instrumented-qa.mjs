@@ -13,6 +13,7 @@ import { randomUUID } from "node:crypto";
 const APP = "BlueDragon33/Application-Management";
 const MAIN = "89a89ce2d3d8ed634ee9562c52744a99223a2b2a";
 const CANDIDATE = "92f7fbf6e3b1664d2431694fc5aeaef5b27df5c6";
+const FOCUSED = process.env.R02_FOCUSED === "1";
 const ROOT = path.resolve(process.env.R02_QA_ROOT || "E:\\BaumanWeb\\_qa");
 const SOURCE = path.resolve(process.env.R02_APP_REPO || "E:\\BaumanWeb\\Application-Management");
 const id = "am-r02-" + new Date().toISOString().replace(/[:.]/g, "-") + "-" + randomUUID().slice(0, 8);
@@ -22,6 +23,7 @@ const reportFile = path.join(reportsDir, "r02-evidence.json");
 const state = {
   schema: "application-management.r02.instrumented-qa/v1",
   status: "BLOCKED",
+  measurementMode: FOCUSED ? "FOCUSED_API_FRONTEND_CPU_INTERACTION" : "ORIGINAL_10_50_200",
   policy: "blueprint-os:universal-century-grade@1.3.0",
   gate: "G05_UNVERIFIED",
   repo: APP,
@@ -358,7 +360,19 @@ function stopApp() {
 function metricValue(metrics, key) {
   return metrics.find(x => x.name === key)?.value ?? null;
 }
-async function sample(browser, origin, fixtureCount, label, viewport, repeat) {
+function difference(a, b) {
+  return typeof a === "number" && typeof b === "number" && Number.isFinite(a) && Number.isFinite(b) ? b - a : null;
+}
+function serverProcessCpuSeconds(pid) {
+  if (!Number.isSafeInteger(pid) || pid <= 0) return null;
+  try {
+    const cmd = "(Get-Process -Id " + pid + " -ErrorAction Stop).CPU";
+    const output = run("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", cmd], SOURCE, process.env, 10000);
+    const value = Number(output.replace(",", "."));
+    return Number.isFinite(value) ? value : null;
+  } catch { return null; }
+}
+async function sample(browser, origin, fixtureCount, label, viewport, repeat, appPid) {
   const context = await browser.newContext({ viewport, locale: "vi-VN", serviceWorkers: "block" });
   const page = await context.newPage();
   let requests = 0;
@@ -369,11 +383,29 @@ async function sample(browser, origin, fixtureCount, label, viewport, repeat) {
   page.on("pageerror", error => errors.push(error.message.slice(0, 180)));
   const cdp = await context.newCDPSession(page);
   await cdp.send("Performance.enable");
+  const preNavigationMetrics = FOCUSED ? await cdp.send("Performance.getMetrics") : null;
+  const cpuBefore = FOCUSED ? serverProcessCpuSeconds(appPid) : null;
   let cssCoverageStarted = false;
   try { await page.coverage.startCSSCoverage(); cssCoverageStarted = true; } catch {}
   await page.addInitScript(() => {
     window.__r02long = 0;
     window.__r02dom = 0;
+    if (window.__REACT_DEVTOOLS_GLOBAL_HOOK__ === undefined) {
+      window.__r02ReactCommitCount = 0;
+      const renderers = new Map();
+      let nextRendererId = 0;
+      Object.defineProperty(window, "__REACT_DEVTOOLS_GLOBAL_HOOK__", { configurable: true, value: {
+        supportsFiber: true,
+        renderers,
+        inject(renderer) { const id = ++nextRendererId; renderers.set(id, renderer); return id; },
+        onCommitFiberRoot() { window.__r02ReactCommitCount += 1; },
+        onCommitFiberUnmount() {},
+        onScheduleFiberRoot() {},
+        onPostCommitFiberRoot() {},
+        getFiberRoots() { return new Set(); },
+        checkDCE() {}
+      }});
+    }
     try {
       new PerformanceObserver(list => { window.__r02long += list.getEntries().length; })
         .observe({ type: "longtask", buffered: true });
@@ -394,10 +426,14 @@ async function sample(browser, origin, fixtureCount, label, viewport, repeat) {
     const response = await responsePromise;
     assert.equal(response.status(), 200, "OPERATIONS_BOOTSTRAP_FAILED_" + response.status());
     const payload = await response.json();
+    const apiTiming = FOCUSED ? response.request().timing() : null;
+    const apiNetworkMs = apiTiming && apiTiming.responseEnd >= 0 ? apiTiming.responseEnd : null;
     const synthetic = (payload.managedApps || []).filter(x => /^qa-r02-\d+$/.test(x.id));
     assert.equal(synthetic.length, fixtureCount, "D1_CATALOG_LIVE_READBACK_COUNT_MISMATCH");
     await page.locator(".amv2-content[data-view='applications']").waitFor({ state: "visible", timeout: 45000 });
     const readyMs = Math.round(performance.now() - start);
+    const readyMetrics = FOCUSED ? await cdp.send("Performance.getMetrics") : null;
+    const cpuAtReady = FOCUSED ? serverProcessCpuSeconds(appPid) : null;
     const before = await cdp.send("Performance.getMetrics");
     await page.waitForTimeout(3000); // Measured steady-state observation period, not a gate-passing sleep.
     const after = await cdp.send("Performance.getMetrics");
@@ -410,13 +446,57 @@ async function sample(browser, origin, fixtureCount, label, viewport, repeat) {
         cssCoverage = { status: "CHROMIUM_OBSERVED", totalBytes, usedBytes };
       } catch { cssCoverage = { status: "UNVERIFIED_COVERAGE_READ_ERROR" }; }
     }
+    let interaction = { status: "UNVERIFIED_NOT_MEASURED" };
+    if (FOCUSED) {
+      try {
+        const filter = page.locator(".amv2-launcher-search input");
+        await filter.waitFor({ state: "visible", timeout: 10000 });
+        await page.evaluate(() => {
+          window.__r02FilterStart = null;
+          window.__r02FilterPaint = null;
+          const target = document.querySelector(".amv2-launcher-search input");
+          const grid = document.querySelector("[data-testid='app-launcher-grid']");
+          if (!target || !grid) return;
+          target.addEventListener("input", () => { window.__r02FilterStart = performance.now(); }, { once: true });
+          const observer = new MutationObserver(() => {
+            if (window.__r02FilterPaint != null || window.__r02FilterStart == null) return;
+            const cards = grid.querySelectorAll(".amv2-launcher-card");
+            if (cards.length === 1) {
+              requestAnimationFrame(() => requestAnimationFrame(() => {
+                window.__r02FilterPaint = performance.now();
+                observer.disconnect();
+              }));
+            }
+          });
+          observer.observe(grid, { childList: true, subtree: true });
+        });
+        await filter.fill("qa-r02-0001");
+        await page.waitForFunction(() => window.__r02FilterPaint !== null, { timeout: 7500 });
+        interaction = await page.evaluate(() => ({
+          status: "BROWSER_FILTER_INPUT_TO_TWO_RAF",
+          milliseconds: window.__r02FilterPaint - window.__r02FilterStart,
+          matches: document.querySelectorAll(".amv2-launcher-card").length,
+          note: "Browser input event to two animation frames after filtered card DOM update; not OS-to-display latency"
+        }));
+      } catch (error) {
+        interaction = { status: "UNVERIFIED_INPUT_PROBE_FAILED", reason: String(error?.message || error).slice(0, 180) };
+      }
+    }
     const display = await page.evaluate(() => ({
       domMutations: window.__r02dom ?? null, longTasks: window.__r02long ?? null,
+      reactCommits: window.__r02ReactCommitCount ?? null,
       textContrast: (() => {
         const h = document.querySelector(".amv2-page-title h1");
         if (!h) return { status: "UNVERIFIED_NO_TITLE" };
         const s = getComputedStyle(h);
-        return { status: "UNVERIFIED_COMPOSITED_BACKGROUND", foreground: s.color, background: s.backgroundColor };
+        const stack = [];
+        for (let node = h, depth = 0; node && depth < 12; node = node.parentElement, depth++) {
+          const style = getComputedStyle(node);
+          stack.push({ tag: node.tagName.toLowerCase(), backgroundColor: style.backgroundColor,
+            backgroundImage: style.backgroundImage, opacity: style.opacity });
+        }
+        return { status: "UNVERIFIED_COMPOSITED_BACKGROUND", foreground: s.color,
+          background: s.backgroundColor, ancestorBackgroundStack: stack };
       })()
     }));
     return { label, fixtureCount, viewport: viewport.width + "x" + viewport.height, repeat,
@@ -424,7 +504,17 @@ async function sample(browser, origin, fixtureCount, label, viewport, repeat) {
       longTasksObserved: display.longTasks, domMutationsObserved: display.domMutations,
       taskDurationDeltaSeconds: metricValue(after.metrics, "TaskDuration") - metricValue(before.metrics, "TaskDuration"),
       jsHeapUsedBytes: metricValue(after.metrics, "JSHeapUsedSize"),
-      contrast: display.textContrast, cssCoverage, reactCommits: "UNVERIFIED_NOT_INSTRUMENTED" };
+      contrast: display.textContrast, cssCoverage,
+      reactCommits: typeof display.reactCommits === "number" && display.reactCommits > 0
+        ? { status: "BROWSER_DEVTOOLS_HOOK_OBSERVED", count: display.reactCommits, scope: "ENTIRE_PAGE_NOT_EXCLUSIVE_DASHBOARD" }
+        : "UNVERIFIED_DEVTOOLS_HOOK_UNAVAILABLE",
+      ...(FOCUSED ? { apiNetworkMs,
+        browserRendererTaskStartupMs: difference(metricValue(preNavigationMetrics?.metrics, "TaskDuration"), metricValue(readyMetrics?.metrics, "TaskDuration")) === null
+          ? null : difference(metricValue(preNavigationMetrics.metrics, "TaskDuration"), metricValue(readyMetrics.metrics, "TaskDuration")) * 1000,
+        serverMainPidCpuSecondsDelta: difference(cpuBefore, cpuAtReady),
+        serverCpuScope: "VITE_NODE_PID_ONLY_NOT_WORKER_DESCENDANTS_OR_BROWSER",
+        apiTimingSource: "PLAYWRIGHT_REQUEST_TIMING_RESPONSE_END",
+        interaction, processCpuTotal: "UNVERIFIED_NOT_CAPTURED" } : {}) };
   } catch (error) {
     const shot = path.join(reportsDir, "failure-" + label + "-" + fixtureCount + "-" +
       viewport.width + "x" + viewport.height + "-" + repeat + ".png");
@@ -470,16 +560,18 @@ async function main() {
     const started = await beginApp(folder, env);
     state.environment[label + "Runtime"] = { ...started, sha };
     try {
-      for (const count of [10, 50, 200]) {
+      for (const count of (FOCUSED ? [50, 200] : [10, 50, 200])) {
         currentStage("D1_SEED_" + label.toUpperCase() + "_" + count);
         const seeded = seedD1(folder, count, env, label);
         const entry = { label, fixtureCount: count, commandReadback: seeded.queryOutput,
           d1CommandCompleted: true, appPid: started.pid };
         state.measurements.push(entry);
-        for (const viewport of [{ width: 1440, height: 900 }, { width: 800, height: 900 }, { width: 390, height: 844 }]) {
-          for (let repeat = 0; repeat < 3; repeat++) {
+        for (const viewport of (FOCUSED && count === 50
+          ? [{ width: 390, height: 844 }]
+          : [{ width: 1440, height: 900 }, { width: 800, height: 900 }, { width: 390, height: 844 }])) {
+          for (let repeat = 0; repeat < (FOCUSED ? 5 : 3); repeat++) {
             currentStage("CHROMIUM_" + label.toUpperCase() + "_" + count + "_" + viewport.width + "_" + (repeat + 1));
-            state.measurements.push(await sample(browser, started.url, count, label, viewport, repeat + 1));
+            state.measurements.push(await sample(browser, started.url, count, label, viewport, repeat + 1, started.pid));
           }
         }
       }
