@@ -50,7 +50,7 @@ test("R0.2 owns and cleans only its session; retains evidence on failures", () =
   assert.match(source, /"worktree", "remove", "--force", "--", folder/);
   assert.match(source, /R02_EVIDENCE=/);
   assert.match(source, /QA_CLEANUP_INCOMPLETE_USE_OWNERSHIP_MARKER/);
-  assert.match(source, /reactCommits: "UNVERIFIED_NOT_INSTRUMENTED"/);
+  assert.match(source, /UNVERIFIED_DEVTOOLS_HOOK_UNAVAILABLE/);
 });
 
 test("R0.2 single package is bounded, pinned, fail-closed and self-reports", () => {
@@ -155,4 +155,23 @@ test("R0.2 Windows package displays stage progress and bounded heartbeat instead
   assert.match(launcher, /R02_RUNNER_FAILED_STAGE=/);
   assert.doesNotMatch(launcher, /\$runnerLines\s*=\s*@\(& node\.exe/);
   assertPowerShellLexicalClosure(launcher);
+});
+
+test("R0.2 focused runner uses only proven 50 mobile and 200 three-viewport cohorts", () => {
+  assert.match(source, /R02_FOCUSED/);
+  assert.match(source, /FOCUSED \? \[50, 200\] : \[10, 50, 200\]/);
+  assert.match(source, /FOCUSED && count === 50/);
+  assert.match(source, /FOCUSED \? 5 : 3/);
+  assert.match(source, /apiNetworkMs/);
+  assert.match(source, /response\.request\(\)\.timing\(\)/);
+  assert.match(source, /browserRendererTaskStartupMs/);
+  assert.match(source, /serverMainPidCpuSecondsDelta/);
+  assert.match(source, /processCpuTotal: "UNVERIFIED_NOT_CAPTURED"/);
+  assert.match(source, /BROWSER_FILTER_INPUT_TO_TWO_RAF/);
+  assert.match(source, /UNVERIFIED_INPUT_PROBE_FAILED/);
+  assert.match(source, /UNVERIFIED_COMPOSITED_BACKGROUND/);
+  assert.match(source, /UNVERIFIED_DEVTOOLS_HOOK_UNAVAILABLE/);
+  assert.match(launcher, /\[switch\]\$Focused/);
+  assert.match(launcher, /\$env:R02_FOCUSED = '1'/);
+  assert.match(launcher, /'R02_FOCUSED'/);
 });
