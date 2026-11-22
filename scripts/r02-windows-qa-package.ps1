@@ -129,7 +129,8 @@ try {
  foreach ($line in $runnerLines) {
   $message = [string]$line
   Write-Host $message
-  if ($message -match '^R02_EVIDENCE=(.+\.json)
+  if ($message -match '^R02_EVIDENCE=(.+\.json)$') { $script:runnerEvidence = $Matches[1] }
+ }
  if ($script:runnerExit -ne 0) { throw ('RUNNER_FAILED_' + $script:runnerExit) }
  $script:status = 'MEASURED_NOT_ACCEPTED'
 }
@@ -188,42 +189,6 @@ finally {
    Write-Host ('R02_PACKAGE_ZIP_BLOCKER=' + $zipFailure)
    $script:status = 'BLOCKED'
   }
- }
- Write-Host ('R02_PACKAGE_RESULT=' + $script:status)
- if ($script:status -ne 'MEASURED_NOT_ACCEPTED') { $global:LASTEXITCODE = 1 }
- else { $global:LASTEXITCODE = 0 }
-}
-) { $script:runnerEvidence = $Matches[1] }
- }
- if ($script:runnerExit -ne 0) { throw ('RUNNER_FAILED_' + $script:runnerExit) }
- $script:status = 'MEASURED_NOT_ACCEPTED'
-}
-catch {
- $errorText = [string]$_.Exception.Message
- $script:events.Add(@{stage=$script:stage;error=$errorText;time=(Get-Date).ToUniversalTime().ToString('o')})
- Write-Host ('R02_PACKAGE_BLOCKER=' + $errorText)
-}
-finally {
- Remove-Item -LiteralPath $runnerTemp -Force -ErrorAction SilentlyContinue
- foreach ($key in @('R02_HARNESS_SHA','R02_ATTEST_MAIN','R02_ATTEST_PR414',
-                    'R02_ATTEST_PR417','R02_ATTESTED_AT','R02_APP_REPO','R02_QA_ROOT')) {
-  Remove-Item ('Env:\' + $key) -ErrorAction SilentlyContinue
- }
- if (Test-Path -LiteralPath $reportDir) {
-  $summary = @{
-   schema='application-management.r02.one-run-package/v1'
-   status=$script:status
-   gate='G05_UNVERIFIED'
-   runnerExit=$script:runnerExit
-   pinned=@{main=$main;candidate=$candidate;bundle=$sha414}
-   attestedAt=$attestedAt
-   startedAt=$started
-   endedAt=(Get-Date).ToUniversalTime().ToString('o')
-   events=@($script:events)
-   note='Local-only evidence. Never grants merge, deploy, or gate PASS.'
-  }
-  [IO.File]::WriteAllText($summaryFile,($summary | ConvertTo-Json -Depth 12),[Text.UTF8Encoding]::new($false))
-  Write-Host ('R02_PACKAGE_SUMMARY=' + $summaryFile)
  }
  Write-Host ('R02_PACKAGE_RESULT=' + $script:status)
  if ($script:status -ne 'MEASURED_NOT_ACCEPTED') { $global:LASTEXITCODE = 1 }
