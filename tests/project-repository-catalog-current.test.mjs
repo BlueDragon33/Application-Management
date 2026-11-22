@@ -84,7 +84,7 @@ test("Software Blueprint Hub is tracked as active core compass with a metadata-o
   assert.match(block, /BlueDragon33\/Software-Blueprint-Hub/);
   assert.match(block, /state: "developing"/);
   assert.match(block, /Phase 9 Compass Construction/);
-  assert.match(block, /managementHref: "\/tools\/blueprint-compass");
+  assert.match(block, /managementHref: "\/tools\/blueprint-compass"/);
   assert.match(projectDocs, /metadata-only/);
 });
 
