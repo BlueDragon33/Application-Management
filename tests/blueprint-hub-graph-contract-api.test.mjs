@@ -125,3 +125,27 @@ test("invalid SHA, blob, policy and encoded content fail closed", async () => {
     assert.equal(body.productionAuthorized, false);
   }
 });
+
+test("valid-format forged Git blob SHA is rejected even when JSON is well formed", async () => {
+  const { GET, reads } = setup({ blob: "b".repeat(40) });
+  const response = await GET();
+  const body = await response.json();
+  assert.equal(reads.length, 2);
+  assert.equal(response.status, 502);
+  assert.equal(body.status, "UNVERIFIED");
+  assert.equal(body.canReadGraph, false);
+  assert.equal(body.productionAuthorized, false);
+});
+
+test("GitHub base64 with line breaks still verifies the exact original Git blob", async () => {
+  const original = Buffer.from(JSON.stringify(contract()), "utf8");
+  const wrapped = original.toString("base64").match(/.{1,56}/g).join("\n");
+  const { GET, reads } = setup({ encoded: wrapped });
+  const response = await GET();
+  const body = await response.json();
+  assert.equal(reads.length, 2);
+  assert.equal(response.status, 200);
+  assert.equal(body.status, "HUB_GRAPH_NOT_EXPOSED");
+  assert.equal(body.contractBlobSha, gitBlobSha(original));
+  assert.equal(body.canReadGraph, false);
+});
