@@ -47,6 +47,15 @@ export async function GET() {
     if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(base64))
       throw new Error("HUB_CONTRACT_ENCODING_UNVERIFIED");
     const decoded = Uint8Array.from(atob(base64), value => value.charCodeAt(0));
+    // Verify the actual Git blob bytes, not just a plausible 40-character Contents API SHA.
+    // The canonical Git blob object is SHA-1("blob " + byteLength + NUL + bytes).
+    const prefix = new TextEncoder().encode(`blob ${decoded.byteLength}\0`);
+    const gitObject = new Uint8Array(prefix.byteLength + decoded.byteLength);
+    gitObject.set(prefix);
+    gitObject.set(decoded, prefix.byteLength);
+    const digest = await crypto.subtle.digest("SHA-1", gitObject);
+    const actualBlobSha = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+    if (actualBlobSha !== remote.sha) throw new Error("HUB_CONTRACT_BLOB_SHA_MISMATCH");
     const contract: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(decoded));
     const admission = assessHubGraphContract(contract, commit.sha, remote.sha, new Date().toISOString());
     return reply(admission, admission.ok ? 200 : 502);
