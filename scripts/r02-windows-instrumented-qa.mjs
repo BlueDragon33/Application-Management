@@ -103,7 +103,7 @@ function npm(args, cwd = SOURCE) {
     return run("npm.cmd", args, cwd, env, 600000);
   } catch (error) {
     const diag = String(error.diagnostic || "");
-    const recoverable = /\b(?:EINTEGRITY|ECONNRESET|ETIMEDOUT|EAI_AGAIN|EBUSY|ENOTEMPTY)\b/i.test(diag);
+    const recoverable = /\b(?:EINTEGRITY|ECONNRESET|ETIMEDOUT|EAI_AGAIN|EBUSY|ENOTEMPTY|EPERM|EACCES)\b/i.test(diag);
     state.npmDiagnostics.push({ stage: state.stage, log: error.failureLog, recoverable });
     if (!recoverable) throw error;
     state.recoveredFailures.push({ stage: state.stage, reason: "TRANSIENT_NPM_RETRY", previousLog: error.failureLog });
