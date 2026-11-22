@@ -47,7 +47,10 @@ test("Neural diagram is a semantic registry projection, never fabricated operati
   assert.match(graph, /không phải Graph Intelligence live/i);
   assert.doesNotMatch(graph, /Math\.random\(|requestAnimationFrame\(|setInterval\(/);
   assert.doesNotMatch(graph, /fetch\(/);
-  assert.match(graph, /diagram\.sorted\.length \* 2/);
+  assert.match(graph, /diagram\.links\.length/);
+  assert.match(graph, /buildRegistryNeuralGraph\(projects, selectedProjectId\)/);
+  assert.match(graph, /diagram\.projects\.map/);
+  assert.match(css, /\.neuralLayerLegends text/);
   assert.match(css, /@media\(prefers-reduced-motion:reduce\)/);
 });
 
