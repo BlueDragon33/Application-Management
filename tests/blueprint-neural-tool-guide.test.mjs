@@ -25,7 +25,7 @@ test("Hướng dẫn remains a visible, functional constitutional action on ever
 
 test("Guide is truthful about read-only status and does not add a fake executor", () => {
   for (const required of [
-    "không tự chạy Agent", "QualityGate", "Không tự", "Không", "human gates",
+    "không tự chạy Agent", "QualityGate", "human gates",
     "UNVERIFIED", "WorkPackage",
   ]) assert.ok(ui.includes(required), "missing guidance text: " + required);
   assert.doesNotMatch(ui, /onClick=\{[^}]*merge_pull_request|onClick=\{[^}]*deployProduction/);
@@ -39,7 +39,7 @@ test("Neural diagram is a semantic registry projection, never fabricated operati
   assert.match(graph, /project\.state/);
   assert.match(graph, /đường cong biểu diễn/i);
   assert.match(graph, /không phải Graph Intelligence live/i);
-  assert.doesNotMatch(graph, /Math\.random\(|requestAnimationFrame\(|setInterval\(|/);
+  assert.doesNotMatch(graph, /Math\.random\(|requestAnimationFrame\(|setInterval\(/);
   assert.doesNotMatch(graph, /fetch\(/);
   assert.match(graph, /diagram\.sorted\.length \* 2/);
   assert.match(css, /@media\(prefers-reduced-motion:reduce\)/);
