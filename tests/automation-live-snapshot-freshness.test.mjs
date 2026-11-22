@@ -13,13 +13,13 @@ test("cached automation snapshots cannot be labeled LIVE or written", () => {
   assert.match(editor, /const canSave = Boolean\(settings\) && verified/);
   assert.match(dashboard, /verified=\{automationSnapshotVerified\}/);
   const save = dashboard.slice(dashboard.indexOf("async function saveAutomation"), dashboard.indexOf("async function manageControlDevice"));
-  assert.match(save, /if \(!automationSnapshotVerified\) \{[\s\S]*?return null/);
+  assert.match(save, /if \(!hasVerifiedAutomationSnapshot\(operationsVerified, operations\?\.generatedAt\)\) \{[\s\S]*?return null/);
 });
 
 test("freshness is a verified online session with a bounded age", () => {
   const dashboard = source("app/management-dashboard-v2.tsx");
-  assert.match(dashboard, /const automationSnapshotVerified = operationsVerified/);
-  assert.match(dashboard, /Number\.isFinite\(snapshotAge\) && snapshotAge >= 0 && snapshotAge <= 120_000/);
+  assert.match(dashboard, /const automationSnapshotVerified = hasVerifiedAutomationSnapshot\(operationsVerified, operations\?\.generatedAt, snapshotNow\)/);
+  assert.match(dashboard, /return verified && Number\.isFinite\(age\) && age >= 0 && age <= 120_000/);
   assert.match(dashboard, /function openAutomationPolicies\(\)/);
   assert.match(dashboard, /age > 60_000/);
   assert.match(dashboard, /sync=\{syncOperationsNow\}/);
