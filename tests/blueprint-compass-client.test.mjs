@@ -53,9 +53,10 @@ test("selection never displays another project's evidence, including pending and
     assert.ok(guide, "Constitutional Hướng dẫn button must always be visible");
     await React.act(async () => guide.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })));
     assert.match(container.textContent, /Hướng dẫn theo Hiến pháp Blueprint OS/);
+    assert.equal(container.querySelector("#blueprint-tool-guide").hidden, false);
     assert.match(container.textContent, /Không tự.*Agent|không tự chạy Agent/i);
     await React.act(async () => guide.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })));
-    assert.doesNotMatch(container.textContent, /Hướng dẫn theo Hiến pháp Blueprint OS/);
+    assert.equal(container.querySelector("#blueprint-tool-guide").hidden, true);
     await select("Manager");
     assert.ok(!commits.some(commit => commit.project === "Manager" && commit.text.includes("hub-evidence")), "new selection must hide the prior project's snapshot in every commit");
     assert.doesNotMatch(container.textContent, /hub-evidence/);
