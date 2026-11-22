@@ -1,4 +1,5 @@
 import { getChatGPTUser } from "../../../../chatgpt-auth";
+import { assessHubGraphContract } from "../../../../blueprint-hub-graph-contract.mjs";
 
 export const dynamic = "force-dynamic";
 const HUB = "BlueDragon33/Software-Blueprint-Hub";
@@ -46,44 +47,9 @@ export async function GET() {
     if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(base64))
       throw new Error("HUB_CONTRACT_ENCODING_UNVERIFIED");
     const decoded = Uint8Array.from(atob(base64), value => value.charCodeAt(0));
-    const contract = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(decoded)) as {
-      schema?: unknown; protocol?: unknown; contractVersion?: unknown;
-      application?: { repository?: unknown };
-      policy?: {
-        metadataOnly?: unknown; applicationManagementMayMutateCanonicalBlueprintState?: unknown;
-        applicationManagementMayPassQualityGates?: unknown;
-        applicationManagementMayAuthorizeProductionRelease?: unknown;
-      };
-      endpoints?: unknown;
-    };
-    if (contract?.schema !== "application-management.contract/v1"
-      || contract.protocol !== "blueprint-os-compass-metadata-v1"
-      || contract.contractVersion !== 1
-      || contract.application?.repository !== HUB
-      || !contract.policy || contract.policy.applicationManagementMayMutateCanonicalBlueprintState !== false
-      || contract.policy.applicationManagementMayPassQualityGates !== false
-      || contract.policy.applicationManagementMayAuthorizeProductionRelease !== false
-      || !contract.endpoints || Array.isArray(contract.endpoints)
-      || typeof contract.endpoints !== "object") throw new Error("HUB_CONTRACT_INCOMPATIBLE");
-
-    const metadataOnly = contract.policy.metadataOnly === true;
-    const endpoints = Object.keys(contract.endpoints);
-    const status = metadataOnly && endpoints.length === 0
-      ? "HUB_GRAPH_NOT_EXPOSED"
-      : "HUB_GRAPH_AUTH_NOT_ESTABLISHED";
-    return reply({
-      ok: true, status,
-      repository: HUB, hubHead: commit.sha, contractBlobSha: remote.sha,
-      contractSchema: "application-management.contract/v1",
-      contractVersion: 1,
-      source: "github-public-rest-pinned-contract",
-      checkedAt: new Date().toISOString(),
-      canReadGraph: false, canWriteWorkPackages: false,
-      qaPassed: false, productionAuthorized: false,
-      note: metadataOnly && endpoints.length === 0
-        ? "Hub mới cấp contract metadata-only; chưa có endpoint Graph được xác thực."
-        : "Contract khác metadata-only. Cần kiểm duyệt quyền/identity và contract versioned trước khi cấp Graph read.",
-    });
+    const contract: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(decoded));
+    const admission = assessHubGraphContract(contract, commit.sha, remote.sha, new Date().toISOString());
+    return reply(admission, admission.ok ? 200 : 502);
   } catch {
     return reply({
       ok: false, status: "UNVERIFIED", repository: HUB, canReadGraph: false,
