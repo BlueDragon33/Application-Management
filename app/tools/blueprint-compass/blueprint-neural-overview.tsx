@@ -6,7 +6,7 @@
  * registered in category, project has repository, repository has registry state.
  * No canonical dependency, Graph/Agent event or QA result is fabricated.
  */
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { buildRegistryNeuralGraph } from "../../blueprint-neural-registry-graph.mjs";
 import styles from "./blueprint-compass.module.css";
 
@@ -28,6 +28,7 @@ const stateLabels: Record<string,string> = {
 export default function BlueprintNeuralOverview({
   projects, selectedProjectId, onSelectProject,
 }: { projects: readonly NeuralProject[]; selectedProjectId: string; onSelectProject: (projectId: string) => void }) {
+  const trackRef = useRef<HTMLDivElement | null>(null);
   const diagram = useMemo(
     () => buildRegistryNeuralGraph(projects, selectedProjectId),
     [projects, selectedProjectId],
@@ -57,7 +58,16 @@ export default function BlueprintNeuralOverview({
         <span><strong>{diagram.links.length}</strong> cạnh có nguồn</span>
       </div>
     </div>
-    {diagram.projects.length > 0 ? <div className={styles.neuralTrack} tabIndex={0} role="region"
+    {diagram.projects.length > 0 ? <>
+      <div className={styles.neuralToolbar}>
+        <button type="button" onClick={() => {
+          const track = trackRef.current;
+          if (!track) return;
+          track.scrollTo({ left: Math.max(0, 613 - track.clientWidth / 2), behavior: "auto" });
+        }}>◎ Đến node dự án</button>
+        <span>Tab để chọn dự án · Kéo ngang để khám phá 5 dải · Chỉ dữ liệu registry</span>
+      </div>
+      <div ref={trackRef} className={styles.neuralTrack} tabIndex={0} role="region"
       aria-label="Sơ đồ 5 dải nguồn registry, nhóm, dự án, repository, trạng thái. Cuộn ngang để xem và Tab để chọn node">
       <div className={styles.neuralStage} style={{ width: diagram.width, height: diagram.height }}>
         <svg className={styles.neuralCanvas}
@@ -133,7 +143,8 @@ export default function BlueprintNeuralOverview({
           {project.name}
         </button>)}
       </div>
-    </div> : <p>Registry chưa có dự án hợp lệ. Không hiển thị Graph giả.</p>}
+    </div>
+    </> : <p>Registry chưa có dự án hợp lệ. Không hiển thị Graph giả.</p>}
     {focusedProject ? <aside className={styles.neuralReadback} id="neural-selected-readback"
       aria-label="Đường kết nối có nguồn cho dự án đang chọn" aria-live="polite">
       <div>
