@@ -81,3 +81,43 @@ The harness executed exact test callback bodies and genuine pure JS contract/Com
 **ONE environment/acceptance blocker:** The present execution environment has Node 22.16.0 and a Chromium binary, but **does not have an authorized full Git checkout at #418 exact HEAD, the repository's React/JSDOM and build dependencies, or an accessible authenticated candidate deployment**; GitHub `git ls-remote` from container fails DNS. The connected browser's attempted read of the APP Production tab was denied host permission; it cannot verify the undeployed candidate. Therefore no full clean checkout QA, real browser click/reload/phone/role/performance (APP R0.2 10/50/200), private reviewer bridge 8 cases, signed Hub Graph read or running Agents were performed. GitHub Actions at pre-C21 SHA had zero exact-head runs and none was triggered (ZERO-SPEND). Don't treat a text description, source regex or SVG as browser acceptance.
 
 **Checkpoint decision:** APP #418 remains **DRAFT / NO MERGE / NO PUBLISH**, Hub #173 remains Draft, law ACTIVE unchanged. No root-level Graph read API exists in Hub's exposed APP metadata-only contract; a versioned authenticated read-only projection is prerequisite for real Hub Graph. **Next action** requires authorized exact-head Node checkout & browser candidate to execute full tests and fix actual failures, then add Hub-native scoped Graph read contract and verify separate reviewer/Owner release gates. Preserve the permanent **Hướng dẫn** button inside Tool and the separate, real ChatGPT **Active Next Action** continuation control in the conversation; neither confers release/executor authority.
+
+## C22 — Exact GitHub blob-matched Node.js test execution and one real defect (2026-11-22)
+
+**Preflight (live via GitHub):** APP #418 at `bcf0f192b22436272a6fed69164bd9c49964f208` was OPEN/DRAFT; APP main `89a89ce2d3d8ed634ee9562c52744a99223a2b2a`, Hub #173 `a349542e450bc0e9d31bc02f85d113f37163fadc` OPEN/DRAFT; Hub main `4e9c30cd718dca5c4cd01eabaa1a728f63ed25d1`. Constitution ACTIVE 1.3.0 with `productionReleaseAuthority=false`. Hub APP contract blob `7525dc3333c51c2b94d83ee353a62719ce15f87c` is `metadataOnly=true`, `endpoints={}`, no release/QA/Graph authority; Hub Graph live adapter is therefore **NOT_ENABLED**, not artificially passed. No GitHub Actions run was found for #418 at the preflight HEAD.
+
+### Actual runnable QA vs unsupported full-checkout claims
+
+In this C22 session the task environment had **Node 22.16.0, git, Chromium executable and global TypeScript**, but **no full authorized checkout of APP #418, no React/react-dom/jsdom/Next project deps**, and network `git ls-remote github.com` failed DNS. Rather than claim `npm run typecheck` / `npm run build` / `npm test` or a live browser run, we reconstructed a **limited independent checkout with exactly six repository files downloaded through the authenticated GitHub connector at the exact PR SHA**. For every local file, Git blob SHA-1 was computed by `SHA1("blob " + byteLength + "\\0" + bytes)` and verified equal to the GitHub `fetch_file` blob SHA.
+
+| Exact source/test path | Verified Git blob |
+|---|---|
+| `app/blueprint-compass-core.mjs` | `f176900399ecbea202282e1bb44288c25846230e` |
+| `tests/blueprint-compass-core.test.mjs` | `d71ff4b992d2266804b9e25a6c8123ba7b79170f` |
+| `app/blueprint-hub-graph-contract.mjs` | `14f8e57af6ed1af5cdce53cf02d90d8958b53259` |
+| `tests/blueprint-hub-graph-contract.test.mjs` | `fc94410dc3aa59e773aa2e002c4789bb1e4035e4` |
+| `app/api/tools/blueprint-compass/hub-contract/route.ts` | `5aeffa105a6c85238eb122ac2f8f10a8358ad80f` |
+| `tests/blueprint-hub-graph-contract-api.test.mjs` | `842528dd7409f0df2246a971e81d3d7e0524daf2` (post-fix) |
+
+**Reproduced a real C21 test defect:** The initial exact-blob `tests/blueprint-hub-graph-contract-api.test.mjs` (blob `75d5ba8152d0c21ac1ca0d9fa6ba019ed157dfb6`) failed to initialize in the real Node test runner: `ReferenceError: Cannot access 'URL' before initialization` when `new URL(...)` executes before the later module-level `const URL = "..."` binding. This is a JavaScript temporal-dead-zone / global constructor shadowing defect in the test, not a Graph runtime authorization defect. Minimal fix: rename `const URL` to `const API_URL` and update its references only. GitHub committed this fix at `6fda7e015454b527d4210910748f995873ccda24` and confirmed fixed test blob `842528dd7409f0df2246a971e81d3d7e0524daf2`, **byte-for-byte matching the code actually tested**.
+
+**Actual test command:** `NODE_PATH=$(npm root -g) node --test /mnt/data/c22_source_qa/tests/*.test.mjs`. Global TypeScript was used by the existing route test's `ts.transpileModule` to compile the **actual** `route.ts` bytes and inject controlled fake GitHub/auth providers into Node VM; no real external endpoint was contacted during tests. The contract model and Compass test import exact source modules. This uses the **real Node built-in test runner and original test functions**, not a fabricated V8 callback count.
+
+| Node test suite | Actual results |
+|---|---|
+| Compass core | 11/11 PASS |
+| Hub Graph contract admission | 9/9 PASS |
+| Hub Graph contract API: authenticated/401, pinning, hostile URL, 403, malformed bytes/authority | 5/5 PASS |
+| **Total** | **25/25 PASS, 0 FAIL, 0 SKIP; Node exit code 0** |
+
+TAP log SHA-256: `25b6559fabd245a5e79c0380fec5753d49088a30605309aa0ed446b8c8ff0658`. A local read-only QA bundle with the six exact source bytes, TAP log, and SHA manifest is available in the task execution sandbox (not a GitHub Production artifact). The previous C21 50/50 results were **source callback checks in V8** and are not added to this real Node count.
+
+### Explicit remaining blockers and gates
+
+- **Full repository** `npm run typecheck`, `npm run build`, `node --test tests/*.test.mjs`: **NOT_RUN**; no complete checkout/dependency graph, and no claim that isolated 25 tests equal full project quality.
+- **Real authenticated candidate URL/Chrome QA:** **NOT_RUN**; no trusted preview deployment and no authorized full project runtime. React/JSDOM `tests/blueprint-neural-interaction.test.mjs` and existing guide open/close browser acceptance **NOT_RUN** (node_modules absent). No mobile/keyboard/role/legacy path/reload/slow network/performance measured. This is one environment/acceptance dependency: **authorized exact-SHA checkout plus real authenticated candidate runner**.
+- **Hub Graph authorization:** contract remains `endpoints={}`, not approved for private Graph. Keep source-true **HUB_GRAPH_NOT_EXPOSED**, no counterfeit Graph, and no outside Worker execution.
+- **Review/release:** Hub CAS C15-ANA-CAS-01 still OPEN; A/B private protected bridge 0/8; Production/Owner release authority not granted. APP #418 remains DRAFT, NO MERGE, NO PRODUCTION, ZERO-SPEND.
+- The user-mandated **❔ Hướng dẫn** persists as a wired stateful button in `app/tools/blueprint-compass/blueprint-compass.tsx`; real keyboard/touch/browser acceptance is outstanding. **Active Next Action** belongs to the ChatGPT conversation, not to the application's backend.
+
+**C23 dependency:** obtain authorized exact SHA checkout/project deps and run full test/build/Chromium QA; fix only reproduced failures; then negotiate a versioned authenticated read-only Hub Graph projection, not a public metadata workaround. The same PR #418 and Hub Issue #159 remain the only portfolio entrypoints; no new ledger, no automatic merge/ratify/publish.
