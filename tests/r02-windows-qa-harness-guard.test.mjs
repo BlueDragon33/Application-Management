@@ -32,6 +32,17 @@ test("R0.2 uses pinned main/candidate revisions, owned preflight and independent
   assert.match(source, /D1_CATALOG_LIVE_READBACK_COUNT_MISMATCH/);
   assert.match(source, /QA_LISTENER_PID_NOT_OWNED/);
 });
+test("R0.2 reuses one fresh remote attestation and never performs redundant Git network probes", () => {
+  assert.match(source, /R02_ATTESTED_AT/);
+  assert.match(source, /R02_ATTEST_MAIN/);
+  assert.match(source, /R02_ATTEST_PR414/);
+  assert.match(source, /R02_ATTEST_PR417/);
+  assert.match(source, /R02_REMOTE_ATTESTATION_MISSING_OR_EXPIRED/);
+  assert.match(source, /PR414_HARNESS_CHANGED_STOP/);
+  assert.match(source, /R02_SOURCE_REMOTE_NOT_CANONICAL/);
+  assert.doesNotMatch(source, /git\(\["ls-remote"/);
+  assert.doesNotMatch(source, /git\(\["fetch"/);
+});
 test("R0.2 owns and cleans only its session; retains evidence on failures", () => {
   assert.match(source, /QA_OWNERSHIP\.json/);
   assert.match(source, /"_r02_reports"/);
