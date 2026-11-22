@@ -133,20 +133,35 @@ async function preflight() {
   } finally { await closeServer(own.server); }
 }
 function checkLive() {
-  const output = git(["ls-remote", "origin", "refs/heads/main", "refs/pull/414/head", "refs/pull/417/head"]);
-  const refs = Object.fromEntries(output.split(/\r?\n/).map(line => {
-    const parts = line.trim().split(/\s+/);
-    return [parts[1], parts[0]];
-  }));
-  assert.equal(refs["refs/heads/main"], MAIN, "MAIN_HEAD_CHANGED_STOP");
-  assert.equal(refs["refs/pull/417/head"], CANDIDATE, "PR417_HEAD_CHANGED_STOP");
+  // The PowerShell launcher verifies all three remote heads in ONE bounded
+  // git ls-remote call and fetches only missing commit objects. Reusing that
+  // same short-lived attestation avoids a second TLS handshake (prior failure).
+  // Never replace it with unverified local origin/main or cached assumptions.
+  const issued = Date.parse(process.env.R02_ATTESTED_AT || "");
+  assert.ok(Number.isFinite(issued) && issued <= Date.now() + 5000 &&
+    Date.now() - issued <= 20 * 60_000, "R02_REMOTE_ATTESTATION_MISSING_OR_EXPIRED");
+  const refs = {
+    main: process.env.R02_ATTEST_MAIN || "",
+    pr414: process.env.R02_ATTEST_PR414 || "",
+    pr417: process.env.R02_ATTEST_PR417 || ""
+  };
+  for (const value of Object.values(refs)) {
+    assert.match(value, /^[0-9a-f]{40}$/, "R02_ATTESTED_REF_INVALID");
+  }
+  assert.equal(refs.main, MAIN, "MAIN_HEAD_CHANGED_STOP");
+  assert.equal(refs.pr417, CANDIDATE, "PR417_HEAD_CHANGED_STOP");
   const harnessSha = process.env.R02_HARNESS_SHA || "";
   assert.match(harnessSha, /^[0-9a-f]{40}$/, "HARNESS_SHA_MISSING");
-  assert.equal(refs["refs/pull/414/head"], harnessSha, "PR414_HARNESS_CHANGED_STOP");
+  assert.equal(refs.pr414, harnessSha, "PR414_HARNESS_CHANGED_STOP");
+  const remote = git(["remote", "get-url", "origin"]).trim();
+  assert.match(remote, /^(?:https:\/\/github\.com\/BlueDragon33\/Application-Management(?:\.git)?|git@github\.com:BlueDragon33\/Application-Management(?:\.git)?)$/i,
+    "R02_SOURCE_REMOTE_NOT_CANONICAL");
   state.pinned.harness = harnessSha;
-  git(["fetch", "--no-tags", "origin", "refs/heads/main", "refs/pull/417/head"]);
-  assert.equal(git(["rev-parse", "--verify", MAIN + "^{commit}"]), MAIN);
-  assert.equal(git(["rev-parse", "--verify", CANDIDATE + "^{commit}"]), CANDIDATE);
+  state.sourceAttestation = { method: "LAUNCHER_GIT_LS_REMOTE_PINNED_ONCE", issuedAt: new Date(issued).toISOString(), refs, remote };
+  for (const sha of [MAIN, CANDIDATE]) {
+    assert.equal(git(["rev-parse", "--verify", sha + "^{commit}"]), sha,
+      "R02_MISSING_VERIFIED_COMMIT_OBJECT_" + sha.slice(0, 12));
+  }
 }
 function makeCheckout(label, sha) {
   const folder = path.join(sessionDir, label);
