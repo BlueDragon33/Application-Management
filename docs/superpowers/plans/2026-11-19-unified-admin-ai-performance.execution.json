@@ -876,8 +876,8 @@
     "id": "R0.2",
     "type": "BIND_AND_MEASURE_LOCAL_QA",
     "state": "BLOCKED_INSTRUMENTED_QA",
-    "why": "Windows Playwright loopback preflight passed and the owned listener closed. The managed session does not authorize a new isolated checkout under E:\\BaumanWeb\\_qa.",
-    "required": "Open a local Windows session with E:\\BaumanWeb\\_qa authorized as writable workspace. After reviewing live Draft PR #414 HEAD and passing the owned loopback preflight, create a fresh application-management-r02-<sha-prefix> checkout at the exact current SHA. Use its isolated D1 state and a session-owned port for PID/build/SHA attestation and the 10/50/200 Chromium baseline.",
+    "why": "Connected Chat cannot execute Windows filesystem/Playwright. A disposable source-only Windows QA runner now exists on the same Draft PR #414; no runtime measurements have been obtained and G05 remains UNVERIFIED.",
+    "required": "Run the single PowerShell handoff that fetches current PR #414 runner from GitHub into an owned temporary file and executes it locally with authorized E:\\BaumanWeb\\_qa access. Pin exact main 89a89ce2d3d8ed634ee9562c52744a99223a2b2a and PR #417 92f7fbf6e3b1664d2431694fc5aeaef5b27df5c6; obtain Playwright HTTP 200 preflight in that Windows session, app SHA/PID ownership, isolated local D1 and synthetic 10/50/200 browser samples on desktop/tablet/mobile; write r02-evidence.json. Treat React commits, composited contrast and any other unsupported measurement as UNVERIFIED, not PASS.",
     "expectedEvidence": [
       "exact SHA for served local source",
       "instrumented sample files and environment/browser/browser profile identity",
@@ -888,8 +888,21 @@
       "CSS coverage and computed text contrast",
       "G05 truthfully marked only after evidence"
     ],
-    "fallback": "Stop at QA checkout if its E: directory cannot be created with approved access. Keep R0.2 BLOCKED_INSTRUMENTED_QA and G05 UNVERIFIED and retain only the Windows loopback preflight evidence until instrumented application data exists.",
-    "singleActionRule": true
+    "fallback": "If Windows QA cannot run or evidence status is BLOCKED, retain report in E:\\BaumanWeb\\_qa\\_r02_reports; stop at one factual blocker. Do not run GitHub-hosted QA as a substitute, claim G05 PASS, merge or publish. Session-owned worktrees must be cleaned safely; keep the evidence. Never touch Reviewer A/B.",
+    "singleActionRule": true,
+    "runner": {
+      "path": "scripts/r02-windows-instrumented-qa.mjs",
+      "guardTest": "tests/r02-windows-qa-harness-guard.test.mjs",
+      "sourceStage": "RUNNER_COMMITTED_SOURCE_ONLY_NOT_WINDOWS_EXECUTED",
+      "reportsRoot": "E:\\BaumanWeb\\_qa\\_r02_reports",
+      "requires": "Windows local filesystem + installed Chromium/Edge + Node>=22.13 + Git + npm",
+      "doesNotProve": [
+        "React commit counts",
+        "composited contrast WCAG",
+        "human UX acceptance",
+        "G05 PASS"
+      ]
+    }
   },
   "history": [
     {
@@ -964,6 +977,17 @@
       "candidateSha": "92f7fbf6e3b1664d2431694fc5aeaef5b27df5c6",
       "pr": 417,
       "summary": "Implemented 1-second dashboard clock isolation and retained exact-time policy save freshness gate. Existing 9 regression failures caused by old extracted-function harness resolved by updating affected tests; new + existing suites, full build, Constitution passed. R0.2 prerequisite remains blocked; G05 UNVERIFIED; R1.1 BLOCKED pending measured proof. No merge/Production."
+    },
+    {
+      "stepId": "R0.2",
+      "date": "2026-11-22",
+      "result": "WINDOWS_RUNNER_SOURCE_PREPARED",
+      "evidenceLevel": "SOURCE_ONLY_GITHUB_CI_NOT_LOCAL_WINDOWS_QA",
+      "runnerPath": "scripts/r02-windows-instrumented-qa.mjs",
+      "guardTest": "tests/r02-windows-qa-harness-guard.test.mjs",
+      "baselineSha": "89a89ce2d3d8ed634ee9562c52744a99223a2b2a",
+      "candidateSha": "92f7fbf6e3b1664d2431694fc5aeaef5b27df5c6",
+      "note": "Added disposable Windows-only R0.2 preflight/instrumentation runner and Node parser/ownership guard. Existing CI checks on earlier runner revision passed; latest exact-tree checks must be verified separately. Zero performance/runtime samples. R0.2 BLOCKED; G05 UNVERIFIED. PRs Draft; no merge/Production."
     }
   ],
   "assessment": {
