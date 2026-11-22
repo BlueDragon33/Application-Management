@@ -274,6 +274,8 @@ async function sample(browser, origin, fixtureCount, label, viewport, repeat) {
   page.on("pageerror", error => errors.push(error.message.slice(0, 180)));
   const cdp = await context.newCDPSession(page);
   await cdp.send("Performance.enable");
+  let cssCoverageStarted = false;
+  try { await page.coverage.startCSSCoverage(); cssCoverageStarted = true; } catch {}
   await page.addInitScript(() => {
     window.__r02long = 0;
     window.__r02dom = 0;
@@ -304,6 +306,15 @@ async function sample(browser, origin, fixtureCount, label, viewport, repeat) {
     const before = await cdp.send("Performance.getMetrics");
     await page.waitForTimeout(3000); // Measured steady-state observation period, not a gate-passing sleep.
     const after = await cdp.send("Performance.getMetrics");
+    let cssCoverage = { status: "UNVERIFIED_UNSUPPORTED" };
+    if (cssCoverageStarted) {
+      try {
+        const entries = await page.coverage.stopCSSCoverage();
+        const totalBytes = entries.reduce((sum, entry) => sum + entry.text.length, 0);
+        const usedBytes = entries.reduce((sum, entry) => sum + entry.ranges.reduce((a, b) => a + b.end - b.start, 0), 0);
+        cssCoverage = { status: "CHROMIUM_OBSERVED", totalBytes, usedBytes };
+      } catch { cssCoverage = { status: "UNVERIFIED_COVERAGE_READ_ERROR" }; }
+    }
     const display = await page.evaluate(() => ({
       domMutations: window.__r02dom ?? null, longTasks: window.__r02long ?? null,
       textContrast: (() => {
@@ -318,7 +329,7 @@ async function sample(browser, origin, fixtureCount, label, viewport, repeat) {
       longTasksObserved: display.longTasks, domMutationsObserved: display.domMutations,
       taskDurationDeltaSeconds: metricValue(after.metrics, "TaskDuration") - metricValue(before.metrics, "TaskDuration"),
       jsHeapUsedBytes: metricValue(after.metrics, "JSHeapUsedSize"),
-      contrast: display.textContrast, reactCommits: "UNVERIFIED_NOT_INSTRUMENTED" };
+      contrast: display.textContrast, cssCoverage, reactCommits: "UNVERIFIED_NOT_INSTRUMENTED" };
   } finally { await context.close(); }
 }
 function percentile(values, p) {
