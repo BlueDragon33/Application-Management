@@ -112,6 +112,13 @@ function standaloneCenter(user: { displayName: string; email: string }): CenterB
 }
 const systemTools: readonly SystemTool[] = [
   {
+    id: "tool-blueprint-compass",
+    name: "Blueprint Compass · Kim chỉ nam",
+    href: "/tools/blueprint-compass",
+    category: "Tool",
+    note: "Định hướng kỹ thuật và theo dõi GitHub cho mọi dự án; không tự phê duyệt, merge hoặc Production.",
+  },
+  {
     id: "tool-russian-daily",
     name: "Russian Daily · Lịch học & từ vựng",
     href: "/tools/russian-daily",
@@ -541,8 +548,10 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   }
 
   const activeApps = useMemo<ApplicationConfig[]>(() => {
-    const merged = new Map<string, ApplicationConfig>(staticApps.map((app) => [app.id, app]));
+    const merged = new Map<string, ApplicationConfig>(staticApps.filter(app => app.id !== "software-blueprint-hub").map((app) => [app.id, app]));
     for (const dynamicApp of operations?.managedApps ?? []) {
+      // Blueprint OS is shown once as an internal Tool, not as a live client.
+      if (dynamicApp.id === "software-blueprint-hub") continue;
       const existing = merged.get(dynamicApp.id);
       merged.set(dynamicApp.id, {
         ...(existing ?? {}),

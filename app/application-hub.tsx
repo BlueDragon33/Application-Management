@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { applicationRegistry, type ApplicationConfig } from "./application-registry";
+import { applicationRegistry as registeredApplications, type ApplicationConfig } from "./application-registry";
 import {
   centerAdminAction,
   connectAdminCenter,
@@ -36,6 +36,8 @@ type ExtendedOperationsSettings = OperationsBootstrap["settings"] & {
 };
 
 const appearanceStorageKey = "application-management:appearance:v1";
+// Legacy UI: keep Blueprint OS repository metadata, but render it only as a Tool.
+const applicationRegistry = registeredApplications.filter(app => app.id !== "software-blueprint-hub");
 const appearanceFonts: AppearanceFont[] = ["Inter", "Times New Roman", "Arial", "Georgia", "Verdana"];
 const appearanceFontSizes: Array<{ value: AppearanceFontSize; label: string; hint: string }> = [
   { value: 14, label: "Nhỏ", hint: "14 px" },
@@ -75,6 +77,14 @@ const viewTitles: Record<CenterView, { title: string; description: string }> = {
 };
 
 const systemTools = [
+  {
+    id: "tool-blueprint-compass",
+    name: "Blueprint Compass · Kim chỉ nam",
+    href: "/tools/blueprint-compass",
+    initials: "BP",
+    category: "Tool",
+    description: "Định hướng kỹ thuật cho mọi dự án; đọc GitHub, không tự duyệt hay phát hành.",
+  },
   {
     id: "tool-secret-generator",
     name: "Tạo Key / Secret",

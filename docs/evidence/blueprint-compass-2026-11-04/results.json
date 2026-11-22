@@ -1,0 +1,168 @@
+{
+  "base": "f347bd0ccd5e7f7e4e4bca4a31168e1219c18370",
+  "status": "LOCAL_QA_PASS_LIVE_E2E_BLOCKED",
+  "tests": {
+    "command": "npm test",
+    "passed": 847,
+    "failed": 0,
+    "skipped": 0
+  },
+  "localSmoke": {
+    "command": "npm run test:compass:local",
+    "passedChecks": 5,
+    "liveGitHub": "BLOCKED_UNVERIFIED",
+    "browserE2E": "NOT_RUN",
+    "fullAcceptance": false
+  },
+  "legacyRegistryAndSso": "UNCHANGED",
+  "sourceBundleSha256": "0c96a94b4b1fc0e086aa4a6e6465ec48d788b1c8cc9bc7b0fb3ced936f9af87b",
+  "manifestEntriesVerified": 14,
+  "patchOrder": [
+    "01_V1_AppManager_Internal_Tool_SourceOnly.patch",
+    "02_V2_Exact_PR_Source_Hardening.patch"
+  ],
+  "advisoryReview": {
+    "critical": 0,
+    "importantFound": 1,
+    "importantFixed": [
+      "cross-project intermediate stale render, real React DOM RED to GREEN"
+    ],
+    "humanApproval": false
+  },
+  "remainingBlockers": [
+    "browser cannot reach command-scoped local server",
+    "runtime GitHub outbound access unavailable",
+    "canonical Hub WorkPackage/QA authority not verified"
+  ],
+  "sourceFiles": [
+    {
+      "path": "app/api/tools/blueprint-compass/route.ts",
+      "sha256": "02df2cd318d9e99390b8f9f14e8e2439784b1dace6a8ebccdaf07be93f3018d0",
+      "gitBlob": "bfd8f2708afe8bfdeda43f1abf77d8a88fa1ec7d"
+    },
+    {
+      "path": "app/application-hub.tsx",
+      "sha256": "e710e71ce3c645fd96b821f88c139672fbeb9c5942a71af727de5b8262d74fd5",
+      "gitBlob": "38d2c0b401954520e87c98b077f51089397acc51"
+    },
+    {
+      "path": "app/apps/software-blueprint-hub/page.tsx",
+      "sha256": "055d961aec8fc66b0ce4f084b53a6c547be914de8a53aadd4d9867824af564a2",
+      "gitBlob": "ca3c36cb6fa4fd32c4481eb385c45a297ed44e30"
+    },
+    {
+      "path": "app/blueprint-compass-core.d.mts",
+      "sha256": "123d015a39359b1cdcc0c7deef136a6b4e6e4b0891d066cc6f9cb91243ea1776",
+      "gitBlob": "d75f011867444d4dff548be9afe0c9898a72cb48"
+    },
+    {
+      "path": "app/blueprint-compass-core.mjs",
+      "sha256": "128494c2743ccb058f1c56ce0bfa92931982b8b390e9a0910624a3569f5d588b",
+      "gitBlob": "f176900399ecbea202282e1bb44288c25846230e"
+    },
+    {
+      "path": "app/management-dashboard-v2.tsx",
+      "sha256": "5abce9119950dfaa56807b31e195bea87d1d403122ad964300ef5914df3a2c0a",
+      "gitBlob": "37ed3c8b19686625ee4f58ce52ecf8c4352f6078"
+    },
+    {
+      "path": "app/project-registry.ts",
+      "sha256": "70ac7f8b6450d22b0d0036b59961ba426d37a6c2a4a69f1ec83468b053d21442",
+      "gitBlob": "c9c4c842052b52fe85cae047bdf3c01ded98e07a"
+    },
+    {
+      "path": "app/tools/blueprint-compass/blueprint-compass.module.css",
+      "sha256": "39f939f5d5a5bd79a4ca7ee4b852b63c1a18a185be214207fb81ff8379a0ce65",
+      "gitBlob": "eaf4d88c1ae4d354ed27279b65515c477f3aa103"
+    },
+    {
+      "path": "app/tools/blueprint-compass/blueprint-compass.tsx",
+      "sha256": "e62d3afb0197f2fc465bc6a5f68c2caf060ae988db8c9be45601acbb5db6cfb5",
+      "gitBlob": "d6235a075f6ff53f363b52ded7157613d1c871fb"
+    },
+    {
+      "path": "app/tools/blueprint-compass/page.tsx",
+      "sha256": "4d3e8489d5a521ed6789ad501035c04f22ab36913582567261e1d0cb1d13564e",
+      "gitBlob": "4ec2699f90f65267c9ffb7f4d9c496c3890a1633"
+    },
+    {
+      "path": "package.json",
+      "sha256": "f2308ad1ea6522e5be76066fc9a071f82806225fc4741de8a7d09d090d58e4af",
+      "gitBlob": "50ce38c3b13b0f9f15e065d9196c788f6a71bad2"
+    },
+    {
+      "path": "scripts/blueprint-compass-local-smoke.mjs",
+      "sha256": "6b74f9046c581295927b340fae5c2d67efc994d9070f5d08d6fa7d1908597c86",
+      "gitBlob": "2688511fad569324183f2707718476fd10a0a9cb"
+    },
+    {
+      "path": "tests/blueprint-compass-api-mock.test.mjs",
+      "sha256": "386e20ef17bab0ce36664222dffbc3b3ceef5033b3242531fc622611fef7e7d7",
+      "gitBlob": "67687db655de8ed4ea58f8fdd14b8b82a0eadbdd"
+    },
+    {
+      "path": "tests/blueprint-compass-client.test.mjs",
+      "sha256": "4f7fbb7539c44ca1dcd79144374729cb68a6645f0785b1f4e7dd419ae54530f8",
+      "gitBlob": "459e1b1abaa74ca94ffa65413db3f4a07dfda8e9"
+    },
+    {
+      "path": "tests/blueprint-compass-core.test.mjs",
+      "sha256": "3efe5685ca2fb45fbb1605e3365e16ef18c7feec3b7e83b6b4d0acc2109ac9cc",
+      "gitBlob": "d71ff4b992d2266804b9e25a6c8123ba7b79170f"
+    },
+    {
+      "path": "tests/blueprint-compass-integration-hardening.test.mjs",
+      "sha256": "5d3d27f437e6282ece802e21505852683861fe4d2e8f90c55f274591a06fb828",
+      "gitBlob": "4df0cf7262b042d0fdce2dc678b1258b5bcdb063"
+    },
+    {
+      "path": "tests/blueprint-compass-tool.test.mjs",
+      "sha256": "bca45e4ef910415531e7e0418c7d53f5f925df7cd53c96a479b9b645785222f9",
+      "gitBlob": "4da2f918623fff5687c17c49c603483313350491"
+    },
+    {
+      "path": "tests/project-repository-catalog-current.test.mjs",
+      "sha256": "568a3b94f57620077dc2a9098ff4b6d1e2e7692f3e362d263feae6e7415d6a8a",
+      "gitBlob": "b488060716c8064729542c9d3625cc9447450738"
+    },
+    {
+      "path": "tests/software-blueprint-managed-app.test.mjs",
+      "sha256": "42cc73a57229717dfba9d1b0585ce419d174a987313e9637282374aad1b27675",
+      "gitBlob": "eeb68937a3f7a643b9fa70034f7034b8b8c2841c"
+    }
+  ],
+  "notAuthorized": {
+    "humanApproval": false,
+    "ratification": false,
+    "merge": false,
+    "production": false
+  },
+  "evidenceDate": "2026-11-04",
+  "logs": [
+    {
+      "path": "docs/evidence/blueprint-compass-2026-11-04/app-full-reviewed.log",
+      "sha256": "ee1ca2a6437762cb15b889525a8f7e3c39b4550fd5a26f842f0e8b573bcc3693"
+    },
+    {
+      "path": "docs/evidence/blueprint-compass-2026-11-04/app-local-smoke-final.log",
+      "sha256": "f7a3537a098ef0a09edbdd659284f158c84c440cfca11e01cc415f6729d4bd78"
+    },
+    {
+      "path": "docs/evidence/blueprint-compass-2026-11-04/app-stale-render-red.log",
+      "sha256": "4b2413a020d0af637e8ffadbe6973dd1712a79dcb66feaa0c3ec8e60dffad91c"
+    },
+    {
+      "path": "docs/evidence/blueprint-compass-2026-11-04/app-stale-render-green.log",
+      "sha256": "df5cbc30df24325c9e2b76f1b0012c9d6f74ae16bd2341f43461c92140c2a1d7"
+    }
+  ],
+  "zeroSpendPreflight": {
+    "newTechnicalBranchOnly": true,
+    "commitSkipAnnotation": "[skip ci]",
+    "nonSkippableWorkflowTriggerFound": false,
+    "hostingGitLinkedProjectsObserved": 0,
+    "deploymentsDispatched": 0,
+    "githubHostedActionsDispatched": 0
+  },
+  "logNormalization": "ANSI/carriage returns and trailing whitespace removed; assertion messages and counts preserved."
+}

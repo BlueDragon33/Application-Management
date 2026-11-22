@@ -76,7 +76,7 @@ test("technical repositories do not invent remote controls", () => {
 });
 
 
-test("Software Blueprint Hub is tracked as active core compass with a metadata-only management surface", () => {
+test("Software Blueprint Hub is tracked as an internal compass while retaining metadata-only compatibility", () => {
   const start = registry.indexOf('id: "software-blueprint-hub"');
   const end = registry.indexOf("\n  },", start);
   const block = registry.slice(start, end);
@@ -84,7 +84,7 @@ test("Software Blueprint Hub is tracked as active core compass with a metadata-o
   assert.match(block, /BlueDragon33\/Software-Blueprint-Hub/);
   assert.match(block, /state: "developing"/);
   assert.match(block, /Phase 9 Compass Construction/);
-  assert.match(block, /managementHref: "\/apps\/software-blueprint-hub"/);
+  assert.match(block, /managementHref: "\/tools\/blueprint-compass"/);
   assert.match(projectDocs, /metadata-only/);
 });
 
