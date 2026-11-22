@@ -15,6 +15,8 @@ $runId = 'bundle-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [guid]::NewGui
 $reportDir = Join-Path $qa ('_r02_reports\' + $runId)
 $summaryFile = Join-Path $reportDir 'bundle-summary.json'
 $runnerTemp = Join-Path $env:TEMP ($runId + '.mjs')
+$runnerStdout = Join-Path $reportDir 'runner-stdout.log'
+$runnerStderr = Join-Path $reportDir 'runner-stderr.log'
 $script:stage = 'PRECHECK'
 $script:status = 'BLOCKED'
 $script:runnerExit = $null
@@ -122,8 +124,6 @@ try {
  Write-Host ('R02_START=' + $sha414)
  # The former @(& node.exe ...) buffered stdout until the process completed.
  # Owned log files permit live stage messages and a heartbeat during npm ci.
- $runnerStdout = Join-Path $reportDir 'runner-stdout.log'
- $runnerStderr = Join-Path $reportDir 'runner-stderr.log'
  $nodeExecutable = (Get-Command 'node.exe').Source
  $runnerProcess = Start-Process -FilePath $nodeExecutable -ArgumentList @('"' + $runnerTemp + '"') -WorkingDirectory $repo -RedirectStandardOutput $runnerStdout -RedirectStandardError $runnerStderr -PassThru -NoNewWindow
  $seenLines = 0
