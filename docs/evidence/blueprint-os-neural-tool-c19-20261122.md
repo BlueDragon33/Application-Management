@@ -26,3 +26,32 @@
 **Next dependency slices:** S1 stop at source/real QA blockers and fix only demonstrated defects; S2 versioned authenticated read-only Hub Graph adapter with proper access; S3 L0→L3 true dependency/algorithm/evidence provenance, densely layered video fidelity; S4 observed Worker/Reviewer orchestration, then CAS-gated writes after proven transaction authority. Always retain the Hướng dẫn button at the primary Tool shell and preserve existing canonical records.
 
 **Stop policy:** keep the integration PR **DRAFT** until actual runtime tests, independent technical review and required owner authority are recorded. No merge, ratification or publish is authorized by this checkpoint.
+
+## C20 — Exact-source targeted QA and corrected source regression (2026-11-22)
+
+**Scope and methodology:** The actual GitHub UTF-8 bytes were read at exact candidate SHA `c700fe86b852073add80341a09e4b802f16477bc`. Six original `node:test` files were evaluated as their **actual source test callback bodies** in an isolated V8 JS harness, with only the Node module import and read-only filesystem lookup replaced by explicit in-memory file reads from the exact same candidate commit; `assert` equivalents were provided. This is a genuine executed subset of the source assertions, **NOT** Node's test runner, full TypeScript typecheck, Vinext/Next build, React/JSDOM, browser or Production QA, and does not reuse historic #376 QA.
+
+**Executed at corrected C20 HEAD — 41/41 source test callbacks PASS:**
+
+| Test file | Execution count | Outcome |
+| --- | ---: | --- |
+| `tests/blueprint-compass-core.test.mjs` | 11 | 11 PASS |
+| `tests/blueprint-compass-integration-hardening.test.mjs` | 8 | 8 PASS |
+| `tests/blueprint-compass-tool.test.mjs` | 5 | 5 PASS |
+| `tests/blueprint-neural-tool-guide.test.mjs` | 5 | 5 PASS |
+| `tests/software-blueprint-managed-app.test.mjs` | 5 | 5 PASS |
+| `tests/project-repository-catalog-current.test.mjs` | 7 | 7 PASS |
+
+Additional initial C19 20/20 direct core behavioral scenarios passed at `1500389db38dc862bcc37b3a235230bcdde0937f`, core blob `f176900399ecbea202282e1bb44288c25846230e`, unchanged at C20. These overlap with the 41 and are **not** added as unique project pass counts.
+
+**Actual defect, not a simulated failing test:** The first execution of the current-main catalog test at earlier C19 HEAD exposed an **unparsable regular expression** in `tests/project-repository-catalog-current.test.mjs`: `assert.match(block, /managementHref: "\/tools\/blueprint-compass");` (missing the closing slash before `);`). This resulted from the previous migration assertion. Fixed only that line via commit `c700fe86b852073add80341a09e4b802f16477bc`; re-read and parsed the entire corrected test, then executed all seven callbacks PASS. Previous first harness attempts also had a missing mock file, explicitly an **evaluation-harness fixture gap**, not a product defect; fixed by loading `app/tools/blueprint-compass/page.tsx` at exact HEAD.
+
+**Real source/UX enhancement:** At commit `b1b53191bb6253e5bfadf22738260cccb508914e`, the Tool now initially focuses registered `software-blueprint-hub` when available (otherwise the first project) and offers a real, separately authenticated Hub website link with `target="_blank" rel="noopener noreferrer"`. A guide regression guards these paths. Existing `Hướng dẫn` remains a visible interactive button in a sticky header with a mounted aria-labelled disclosure region; test callback PASS is **not equivalent to a real click on a deployed browser**.
+
+**Independent observed Production evidence:** a read-only browser tab inspection of the user's already-open `https://application-management.boiech-ai.workers.dev/?view=applications` showed Blueprint OS still as an application, **not** the new Tool. This is evidence only for the inspected Production page at the observation time, **not** browser QA on the undeployed draft. No Production mutation performed.
+
+**R0 release blockers at C20:** No validated full Node/React/TypeScript build/worktree accessible in this session and no GitHub Actions workflow runs/check-runs at the candidate commit. No authenticated real browser smoke on the candidate URL, Windows E:\BaumanWeb or mobile Chromium, no performance/per-project authorization E2E. Hub read-only Graph projection requires a versioned authenticated adapter and cannot truthfully be claimed connected. C15-ANA-CAS-01 WorkPackage global CAS remains OPEN; protected Reviewer A/B bridge cases 0/8. APP #414 R0.2 synthetic 10/50/200 runtime measurements still BLOCKED. Candidate stays DRAFT; no merge, ratify, publish, paid resources, or fabricated QA PASS.
+
+**Distinct controls (must not conflate):** The user-requested permanent **Hướng dẫn** button is a *real Tool UI component* inside Application Management. **Active Next Action in ChatGPT** is a *conversational continuation action* intended to submit a next task turn and reduce typing; it must not be mistaken for an Application Management Agent executor or turned into a decorative text label. A ChatGPT conversational button does not grant backend execution, approval, cross-session persistence, merge or Production rights.
+
+**Next evidence-gated action:** exact-head `npm run typecheck`, `npm run build`, `node --test tests/*.test.mjs` in a clean authorized checkout; fix only true failures. Then inspect actual candidate UI/guide with authenticated desktop+phone Chromium and role isolation; only when those pass begin Hub read-only Graph adapter, high-density neural fidelity and Owner release decision for R0/R0.1. No standalone PowerShell snippets requested.
