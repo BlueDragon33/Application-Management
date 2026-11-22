@@ -27,7 +27,7 @@
     "productionRequiresSeparateOwnerApproval": true
   },
   "measurements": {
-    "runtimeLatency": "R02_WINDOWS_MEASURED_54_SAMPLES_PERF_REGRESSION_AT_200_G05_UNVERIFIED",
+    "runtimeLatency": "R02_BOOTSTRAP_PROXY_MEASURED_API_SUBTRACTION_EXPLORATORY; FULL_GRID_PAINT_UNVERIFIED",
     "requestBudget": "R02_OBSERVED_107_REQUESTS_PER_SAMPLE_NOT_REDUCED_BY_CANDIDATE",
     "reactRenderBudget": "UNVERIFIED_NO_REACT_COMMITS",
     "cssUnusedCoverage": "CHROMIUM_CSS_COVERAGE_CAPTURED; COMPOSITED_CONTRAST_UNVERIFIED",
@@ -207,6 +207,71 @@
       ],
       "acceptance": "R0.2_MEASURED_NOT_ACCEPTED_G05_UNVERIFIED",
       "noReleaseAuthority": true
+    },
+    "r02ApiFrontendAttribution": {
+      "status": "SOURCE_ARCHIVE_RETROSPECTIVE_ATTRIBUTION_NOT_CAUSALITY",
+      "sourceZipSha256": "e6cc48519ade6ee33505b942c4ed1faf9fe3f9191052dbb85518807255ab7349",
+      "report": "docs/evidence/r02-bootstrap-api-attribution-2026-11-23.md",
+      "metricDefinition": "readyMs stopped after /api/operations response JSON and visible page shell; not verified rendered cards or actual interaction-ready",
+      "alignment": "27 rounded Vite /api/operations success entries per variant, paired by sequential sample order with 27 respective browser measurements",
+      "unit": "milliseconds",
+      "eachCohortN": 9,
+      "cohorts": [
+        {
+          "fixtures": 10,
+          "baseline": {
+            "bootstrapProxyP50": 2576,
+            "viteApiRoundedP50": 2000,
+            "nonApiDifferenceP50": 536
+          },
+          "candidate": {
+            "bootstrapProxyP50": 2526,
+            "viteApiRoundedP50": 2000,
+            "nonApiDifferenceP50": 526
+          }
+        },
+        {
+          "fixtures": 50,
+          "baseline": {
+            "bootstrapProxyP50": 2556,
+            "viteApiRoundedP50": 2000,
+            "nonApiDifferenceP50": 529
+          },
+          "candidate": {
+            "bootstrapProxyP50": 2662,
+            "viteApiRoundedP50": 2100,
+            "nonApiDifferenceP50": 575
+          }
+        },
+        {
+          "fixtures": 200,
+          "baseline": {
+            "bootstrapProxyP50": 2655,
+            "viteApiRoundedP50": 2000,
+            "nonApiDifferenceP50": 649
+          },
+          "candidate": {
+            "bootstrapProxyP50": 2873,
+            "viteApiRoundedP50": 2100,
+            "nonApiDifferenceP50": 773
+          }
+        }
+      ],
+      "causality": "UNVERIFIED_ORDER_CONFUNDED_AND_API_ROUNDED",
+      "sourceInvestigation": {
+        "api": "7 specialized client loaders plus dynamic catalog concurrently, no per-loader spans",
+        "frontend": "200-app derived list and unvirtualized ApplicationsView cards; not directly altered by PR417 clock isolation",
+        "pr417": "only isolated clock/freshness interaction; no evidence of direct backend change",
+        "absolutePotentialBottleneck": "~2s /api/operations across workloads; requires attribution, not heuristic refactor"
+      },
+      "missing": [
+        "FIRST_FULL_GRID_PAINT",
+        "EXACT_BROWSER_API_DURATION",
+        "REACT_COMMIT_RENDER_DURATION",
+        "PROCESS_LEVEL_CPU_BOTH_BROWSER_AND_WORKER",
+        "COMPOSITED_WCAG_CONTRAST",
+        "INPUT_ACK"
+      ]
     }
   },
   "status": "R0_2_WINDOWS_MEASURED_NOT_ACCEPTED_G05_UNVERIFIED",
@@ -547,6 +612,13 @@
               "failedRequests": 0,
               "pageErrors": 0,
               "acceptanceNote": "200 apps regression in readyMs; missing React commits, CPU process and composed contrast. p95 max of three. G05 remains UNVERIFIED."
+            },
+            {
+              "kind": "R02_API_FRONTEND_RETROSPECTIVE_20261123",
+              "source": "docs/evidence/r02-bootstrap-api-attribution-2026-11-23.md",
+              "status": "SOURCE_REVIEW_AND_UPLOADED_ZIP_54_SAMPLES",
+              "zipSha256": "e6cc48519ade6ee33505b942c4ed1faf9fe3f9191052dbb85518807255ab7349",
+              "summary": "/api/operations 27 success lines per revision, 200-app API median 2000->2100 ms, bootstrap proxy p50 2655->2873 ms; non-API difference median 649->773 ms. Metric is API-bootstrap proxy, NOT painted-grid readiness. Cause UNVERIFIED."
             }
           ],
           "changedFiles": [],
@@ -561,11 +633,12 @@
           "entryGate": "READ_ONLY_MEASUREMENT_ALLOWED_WITHOUT_PASSING_ALL_FINAL_GATES",
           "exitGate": "G05 BASELINE PROOF REPRODUCIBLE; runtime unavailable means blocked, not PASS",
           "blocker": {
-            "code": "PERFORMANCE_ACCEPTANCE_INCOMPLETE",
+            "code": "PERFORMANCE_ROOT_CAUSE_AND_MISSING_PROOF_UNVERIFIED",
             "details": [
-              "200-app readyMs candidate p50 slower across all 3 viewports",
-              "React render commits, CPU process trace, composited contrast, interaction latency not measured",
-              "n=3/stratum and serial execution are not robust acceptance proof"
+              "Existing readyMs is an API-bootstrap proxy, not fully painted grid.",
+              "At 200 apps, approximate p50 API +100ms and non-API gap +124ms, not additive causal decomposition.",
+              "Original n=3/viewport, serial baseline-first order, rounded Vite API duration.",
+              "New focused mode is SOURCE_ONLY, not native Windows execution."
             ],
             "remediation": "Scoped initial-readiness profiling + missing acceptance instrumentation; no rerun of all 54 exploratory samples as default"
           },
@@ -1164,24 +1237,25 @@
   ],
   "activeNextAction": {
     "id": "R0.2",
-    "type": "TARGETED_PERFORMANCE_REGRESSION_AND_G05_GAP_CLOSURE",
-    "state": "MEASURED_NOT_ACCEPTED",
-    "why": "Windows QA evidence ZIP has been independently inspected: 54/54 Chromium samples, 6/6 Wrangler local D1 counts, all 54 app API readbacks, zero network/page errors and successful owned-worktree cleanup. The candidate reduces 3s CDP TaskDuration/200-app JS heap but has +6.6%/+8.5%/+9.8% p50 readyMs at 200 apps. n=3 exploratory; React commits, process CPU and composited contrast missing. G05 remains UNVERIFIED.",
-    "required": "One scoped P0 action in PR #417 ownership: isolate and measure the 50/200-app initial readiness overhead by separating /api/operations backend response from frontend navigation/bootstrap; instrument React commits, process CPU and composited contrast for exact pinned before/after; use native Windows local QA for missing proofs, no repeating unchanged 54-sample pilot. Do not assume causality or auto-mark G05 PASS.",
+    "type": "TARGETED_WINDOWS_50_200_API_UI_PROFILING",
+    "state": "FOCUSED_QA_SOURCE_STAGED_NOT_EXECUTED",
+    "why": "Existing evidence proves 54 Chromium browser samples and exact D1 counts, but original readyMs stopped at JSON/API bootstrap not visual paint. Retrospective log analysis: at 200 apps, p50 API 2000->2100ms and non-API gap 649->773ms; no per-loader or React commitment evidence. No code-level PR417 regression cause proven.",
+    "required": "Exactly one opt-in focused local Windows QA package in E:\\BaumanWeb\\_qa, SHA pinned and native PowerShell AST parsed, using -Focused. The 40-case subset is 50 mobile only plus 200 desktop/tablet/mobile, 5 samples per variant/stratum; evidence includes Playwright API request timing, fully painted synthetic-card grid, browser task duration at startup, owned Vite PID CPU seconds, local filter input-to-2RAFs, best-effort React DevTools hook and screenshot/background stack. Read the single ZIP; do NOT repeat original 54-case matrix.",
     "expectedEvidence": [
-      "exact SHA changes and isolated before/after readyMs with sufficient repeats",
-      "backend /api/operations vs frontend await/commit attribution",
-      "React commit counts and CPU trace",
-      "composited text contrast where relevant",
-      "preserved local D1 10/50/200 and isolated QA",
-      "G05 proof only after no material regression and scoped acceptance"
+      "exact baseline/candidate SHA and independent D1 readbacks",
+      "per-sample exact Playwright API network timing and visual paint time",
+      "local Vite process CPU + Chrome renderer startup task duration (not total CPU)",
+      "React hook count if observable, else UNVERIFIED",
+      "browser filter latency measured from input event to two RAFs",
+      "screenshot/background stack for contrast; no unsupported WCAG PASS",
+      "paired attribution before any change to PR417"
     ],
-    "fallback": "If scoped exact-SHA Windows proof cannot be obtained, maintain R0.2 MEASURED_NOT_ACCEPTED and G05 UNVERIFIED; report one blocker with canonical checkpoint. Do not touch Reviewer A/B, merge, ratify or publish.",
+    "fallback": "If Windows instrumentation fails/unavailable, preserve R0.2=MEASURED_NOT_ACCEPTED and G05=UNVERIFIED with one precise blocker. Do not modify PR417 from a hypothesis, trigger GitHub-hosted benchmark, touch A/B, merge/ratify/publish or use Production.",
     "singleActionRule": true,
     "runner": {
       "path": "scripts/r02-windows-instrumented-qa.mjs",
       "guardTest": "tests/r02-windows-qa-harness-guard.test.mjs",
-      "sourceStage": "LIVE_PROGRESS_FIX_COMMITTED_WINDOWS_NOT_EXECUTED",
+      "sourceStage": "SOURCE_COMMITTED_CI_UNVERIFIED_WINDOWS_FOCUSED_NOT_EXECUTED",
       "reportsRoot": "E:\\BaumanWeb\\_qa\\_r02_reports",
       "requires": "Windows local filesystem + installed Chromium/Edge + Node>=22.13 + Git + npm",
       "doesNotProve": [
@@ -1204,7 +1278,13 @@
       "liveStageRelay": true,
       "heartbeatSeconds": 20,
       "stdoutFile": "runner-stdout.log",
-      "stderrFile": "runner-stderr.log"
+      "stderrFile": "runner-stderr.log",
+      "focused": true,
+      "focusedEnv": "R02_FOCUSED=1",
+      "focusedPackageArg": "-Focused",
+      "samplesPlanned": 40,
+      "report": "docs/evidence/r02-bootstrap-api-attribution-2026-11-23.md",
+      "requiresNativeWindows": true
     }
   },
   "history": [
@@ -1358,6 +1438,19 @@
       "qualityGate": "G05_UNVERIFIED",
       "releaseAuthority": "NONE",
       "noMergeOrPublish": true
+    },
+    {
+      "stepId": "R0.2",
+      "date": "2026-11-23",
+      "result": "R02_API_FRONTEND_ATTRIBUTION_AND_FOCUSED_QA_INSTRUMENTATION",
+      "evidenceLevel": "UPLOADED_ZIP_POST_HOC_API_LOG_RECOMPUTATION_AND_SOURCE_CODE_PREPARED",
+      "sourceZipSha256": "e6cc48519ade6ee33505b942c4ed1faf9fe3f9191052dbb85518807255ab7349",
+      "report": "docs/evidence/r02-bootstrap-api-attribution-2026-11-23.md",
+      "detail": "27 Vite /api/operations lines each revision; API & residual p50 recomputed; discovered original readyMs measures API bootstrap proxy not full grid; focused 40-case Windows harness added to Draft #414, not executed.",
+      "candidateApp": "PR417_UNCHANGED_CAUSE_NOT_PROVEN",
+      "r02": "MEASURED_NOT_ACCEPTED",
+      "g05": "UNVERIFIED",
+      "authority": "NO_MERGE_NO_PUBLISH"
     }
   ],
   "assessment": {
@@ -1868,6 +1961,12 @@
           "samples": 54,
           "independentD1Counts": 6,
           "reason": "Candidate 200-app readyMs slower across desktop/tablet/mobile, n=3 exploratory; React render counts, process CPU, composed contrast and interaction timing not established."
+        },
+        {
+          "kind": "R02_ATTRIBUTION_UNVERIFIED_20261123",
+          "source": "docs/evidence/r02-bootstrap-api-attribution-2026-11-23.md",
+          "status": "SOURCE_ONLY_ATTRIBUTION_NO_NEW_WINDOWS_RUNTIME",
+          "note": "API Vite logs time rounded; no direct React commit, first grid paint, full CPU or contrast. G05 cannot pass; PR417 app source untouched."
         }
       ],
       "exactSha": null,
