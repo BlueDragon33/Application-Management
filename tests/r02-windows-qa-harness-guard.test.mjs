@@ -84,3 +84,64 @@ test("R0.2 runner captures root-cause logs at failing npm stage without running 
   assert.match(source, /command-.*padStart/);
   assert.match(source, /(?:EPERM|EACCES)/);
 });
+
+
+// CI runs on Linux: reject the exact multiline-quote corruption that swallowed
+// the catch/finally block. Native Windows PowerShell parsing remains mandatory.
+function assertPowerShellLexicalClosure(code) {
+  const brackets = new Map([["(", ")"], ["{", "}"], ["[", "]"]]);
+  const stack = [];
+  let quote = null;
+  let comment = false;
+  for (let i = 0; i < code.length; i++) {
+    const c = code[i];
+    const next = code[i + 1];
+    if (comment) {
+      if (c === "\n") comment = false;
+      continue;
+    }
+    if (quote === "'") {
+      if (c === "'") {
+        if (next === "'") i += 1;
+        else quote = null;
+      }
+      continue;
+    }
+    if (quote === '"') {
+      if (c.charCodeAt(0) === 96) { i += 1; continue; }
+      if (c === '"') {
+        if (next === '"') i += 1;
+        else quote = null;
+      }
+      continue;
+    }
+    if (c === "#") { comment = true; continue; }
+    if (c === "'" || c === '"') { quote = c; continue; }
+    if (c.charCodeAt(0) === 96) { i += 1; continue; }
+    if (brackets.has(c)) {
+      stack.push({ opener: c, offset: i });
+      continue;
+    }
+    if ([")", "}", "]"].includes(c)) {
+      const previous = stack.pop();
+      assert.ok(previous && brackets.get(previous.opener) === c,
+        "PowerShell unmatched bracket " + c + " at offset " + i);
+    }
+  }
+  assert.equal(quote, null, "Unterminated PowerShell quoted string");
+  assert.equal(stack.length, 0, "PowerShell unclosed brackets: " + JSON.stringify(stack.slice(-3)));
+}
+test("R0.2 PowerShell launcher closes quoted strings and braces through final result", () => {
+  assertPowerShellLexicalClosure(launcher);
+  assert.equal((launcher.match(/R02_PACKAGE_RESULT=/g) || []).length, 1, "Duplicate package result");
+  assert.equal((launcher.match(/R02_EVIDENCE=/g) || []).length, 1, "Broken or duplicate evidence capture");
+});
+test("R0.2 guard rejects original truncated regex and duplicated tail", () => {
+  const truncated = launcher.replace(
+    "if ($message -match '^R02_EVIDENCE=(.+\\.json)$')",
+    "if ($message -match '^R02_EVIDENCE=(.+\\.json)"
+  );
+  assert.notEqual(truncated, launcher, "Broken string fixture did not match");
+  assert.throws(() => assertPowerShellLexicalClosure(truncated));
+  assert.throws(() => assertPowerShellLexicalClosure(launcher + ")\n"));
+});
