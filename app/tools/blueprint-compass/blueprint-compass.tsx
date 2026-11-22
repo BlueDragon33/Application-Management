@@ -91,7 +91,7 @@ export default function BlueprintCompass({ projects }: { projects: Project[] }) 
       <p><strong>Nguyên tắc:</strong> tách dữ liệu đề xuất, quan sát và QA thực; không nhân bản ledger. Mọi quyền reviewer, phê chuẩn Constitution và Production giữ nguyên human gates. Khi đóng trang, Tool không tiếp tục chạy công việc.</p>
       <a href="https://github.com/BlueDragon33/Software-Blueprint-Hub/blob/main/docs/UNIVERSAL-CONSTITUTION.md" target="_blank" rel="noopener noreferrer">Đọc Hiến pháp ACTIVE tại nguồn chính GitHub</a>
     </section>
-    <BlueprintNeuralOverview projects={projects} selectedProjectId={selected}/>
+    <BlueprintNeuralOverview projects={projects} selectedProjectId={selected} onSelectProject={setSelected}/>
     <section className={styles.layout}>
       <aside className={styles.side} aria-label="Chọn dự án">
         <label htmlFor="compass-search">Tìm dự án</label>
@@ -104,7 +104,7 @@ export default function BlueprintCompass({ projects }: { projects: Project[] }) 
           {unmanaged.slice(0, 25).map(repo => <a key={repo.repository} href={`https://github.com/${repo.repository}`} target="_blank" rel="noreferrer">{repo.name || repo.repository} · Cần đăng ký</a>)}
         </section>
       </aside>
-      <section className={styles.body} aria-live="polite">
+      <section id="compass-project-detail" className={styles.body} aria-live="polite">
         {entry ? <><div className={styles.topline}><div><small>PROJECT · {entry.group}</small><h2>{entry.name}</h2><code>{entry.repository}</code></div><button type="button" onClick={() => setRequested(i=>i+1)} disabled={loading}>{loading ? "Đang đối chiếu…" : "↻ Đọc lại GitHub"}</button></div>
           <p className={styles.summary}>{entry.summary}</p>
           <div className={styles.status}><span>Trạng thái registry: <strong>{entry.state}</strong></span><span>Default branch HEAD: <code>{snapshot?.ok && snapshot.head ? snapshot.head : "UNVERIFIED"}</code></span><span>Nguồn QA: <strong>{snapshot?.evidenceClass ?? "UNVERIFIED"}</strong></span><span>Đối chiếu: <strong>{snapshot?.checkedAt ? new Date(snapshot.checkedAt).toLocaleString("vi-VN") : "UNVERIFIED"}</strong></span></div>
