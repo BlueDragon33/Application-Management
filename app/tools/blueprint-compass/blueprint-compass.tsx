@@ -12,7 +12,7 @@ type Snapshot = { ok: boolean; repository: string; checkedAt?: string; head?: st
 export default function BlueprintCompass({ projects }: { projects: Project[] }) {
   const [guideOpen, setGuideOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState(projects[0]?.id ?? "");
+  const [selected, setSelected] = useState(projects.find(project => project.id === "software-blueprint-hub")?.id ?? projects[0]?.id ?? "");
   const [loadedSnapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [loading, setLoading] = useState(false);
   const [requested, setRequested] = useState(0);
@@ -76,6 +76,7 @@ export default function BlueprintCompass({ projects }: { projects: Project[] }) 
           {guideOpen ? "Ẩn Hướng dẫn" : "❔ Hướng dẫn"}
         </button>
         <Link href="/">Quản trị Ứng dụng</Link><Link href="/projects">Danh mục dự án</Link>
+        <a href="https://software-blueprint-hub.vercel.app/" target="_blank" rel="noopener noreferrer">Mở Hub (đăng nhập riêng)</a>
       </div>
     </header>
     <section id="blueprint-tool-guide" className={styles.guidePanel} hidden={!guideOpen} role="region" aria-labelledby="blueprint-tool-guide-heading">
