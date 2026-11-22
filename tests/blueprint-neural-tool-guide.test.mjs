@@ -34,7 +34,11 @@ test("Guide is truthful about read-only status and does not add a fake executor"
 });
 
 test("Neural diagram is a semantic registry projection, never fabricated operational telemetry", () => {
-  assert.match(ui, /<BlueprintNeuralOverview projects=\{projects\} selectedProjectId=\{selected\}/);
+  assert.match(ui, /<BlueprintNeuralOverview projects=\{projects\} selectedProjectId=\{selected\} onSelectProject=\{setSelected\}/);
+  assert.match(graph, /onClick=\{\(\) => onSelectProject\(project\.id\)\}/);
+  assert.match(graph, /aria-pressed=\{project\.id === selectedProjectId\}/);
+  assert.match(graph, /aria-controls="compass-project-detail"/);
+  assert.match(css, /\.neuralNodeButton:focus-visible/);
   assert.match(graph, /project\.group/);
   assert.match(graph, /project\.state/);
   assert.match(graph, /đường cong biểu diễn/i);
