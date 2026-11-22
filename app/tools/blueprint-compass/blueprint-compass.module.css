@@ -25,7 +25,7 @@
 .neuralTrack:focus-visible,.guideButton:focus-visible{outline:3px solid #ffdf94;outline-offset:3px}
 .neuralStage{position:relative;width:1040px;isolation:isolate}
 .neuralCanvas{display:block;min-width:1040px;pointer-events:none}
-.neuralNodeButton{position:absolute;width:300px;min-height:30px;max-height:30px;padding:3px 7px;text-align:left;background:transparent;color:#dfe7ff;border:1px solid transparent;border-radius:7px;cursor:pointer;font:600 12px/20px system-ui,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.neuralNodeButton{position:absolute;width:300px;min-height:30px;max-height:30px;padding:3px 7px 3px 34px;text-align:left;background:transparent;color:#dfe7ff;border:1px solid transparent;border-radius:7px;cursor:pointer;font:600 12px/20px system-ui,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .neuralNodeButton:hover{background:#263b60;border-color:#7bc6eb;color:#fff}
 .neuralNodeButton[aria-pressed="true"]{background:#35466b;border-color:#f4d382;color:#ffeda9;font-weight:800}
 .neuralNodeButton:focus-visible{outline:3px solid #ffe08b;outline-offset:2px;background:#25365a;color:#fff}
