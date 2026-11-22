@@ -78,3 +78,21 @@
  .neuralAtlas .neuralNodeButton{min-height:32px}
  .neuralTrack{scrollbar-gutter:stable}
 }
+
+
+/* C26 source trace: live selection is only a verified local-registry projection. */
+.neuralReadback{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px;border:1px solid #485f8e;border-radius:12px;padding:12px;background:rgba(22,36,64,.92);color:#f1f5ff;font-size:13px;line-height:1.55}
+.neuralReadback>div{display:flex;flex-direction:column;gap:3px;min-width:0}
+.neuralReadback small{color:#bdd7ff;font-size:11px;font-weight:800;letter-spacing:.08em}
+.neuralReadback strong{font-size:16px;color:#fff1b6}
+.neuralReadback code{overflow-wrap:anywhere;color:#b5d4fc;font-size:12px}
+.neuralReadback ol{list-style:decimal;padding-left:21px;margin:3px 0}
+.neuralReadback li{padding:2px 0}
+.neuralReadback li span{color:#bacce8}
+@media(max-width:760px){
+ .header h1{font-size:19px;line-height:1.18}
+ .header p{display:none}
+ .header .actions{margin-top:8px}
+ .header .guideButton{min-width:120px;min-height:44px}
+ .neuralReadback{grid-template-columns:1fr}
+}
