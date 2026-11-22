@@ -351,6 +351,24 @@ function deviceKind(device: OperationsDevice) {
   return device.deviceTypeLabel || "Chưa phân loại";
 }
 
+// Snapshot freshness is a write safety gate, independent of the visible clock.
+function hasVerifiedAutomationSnapshot(verified: boolean, generatedAt: string | undefined, now = Date.now()) {
+  const age = generatedAt ? now - Date.parse(generatedAt) : Infinity;
+  return verified && Number.isFinite(age) && age >= 0 && age <= 120_000;
+}
+
+// The one-second clock must not schedule a render of the whole admin dashboard.
+function OverviewClock({ offline, unavailableCount }: { offline: boolean; unavailableCount: number }) {
+  const [clock, setClock] = useState<Date | null>(null);
+  useEffect(() => {
+    const update = () => setClock(new Date());
+    update();
+    const timer = window.setInterval(update, 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+  return <section className="amv2-clock"><span>▣</span><div><small>{clock ? new Intl.DateTimeFormat("vi-VN", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }).format(clock) : ""}</small><strong>{clock ? new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(clock) : ""}</strong></div><i/><div><small>Hệ thống</small><strong>{offline ? "Chưa xác minh online" : unavailableCount ? "Cần kiểm tra" : "Hoạt động ổn định"}</strong></div></section>;
+}
+
 function Gate({ busy, error, access, retry }: { busy: boolean; error: string; access: AdminAccess | null; retry: () => void }) {
   return <main className="amv2-gate"><section><div>QT</div><h1>Quản trị Ứng dụng</h1><p>{busy ? "Đang xác minh thiết bị quản trị…" : error || (access?.status === "pending" ? "Thiết bị này đang chờ Chủ hệ thống cấp quyền." : access?.status === "blocked" ? "Thiết bị quản trị đã bị khóa." : "Không thể mở Trung tâm quản trị.")}</p>{busy ? <span/> : <button onClick={retry}>Kiểm tra lại</button>}</section></main>;
 }
@@ -378,7 +396,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   const automationSaveLockRef = useRef(false);
   const actionLocksRef = useRef<Set<string>>(new Set());
   const operationsRefreshPromiseRef = useRef<Promise<OperationsBootstrap | null> | null>(null);
-  const [clock, setClock] = useState<Date | null>(null);
+  const [snapshotNow, setSnapshotNow] = useState(() => Date.now());
   const [webMenu, setWebMenu] = useState(false);
   const [autoPolicyOpen, setAutoPolicyOpen] = useState(false);
   const [automationStepUpRequired, setAutomationStepUpRequired] = useState(false);
@@ -425,6 +443,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   }
 
   function openAutomationPolicies() {
+    setSnapshotNow(Date.now());
     setNotice("");
     setAutomationStepUpRequired(false);
     setAutoPolicyOpen(true);
@@ -477,7 +496,6 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
     };
     const cancelInitialization = scheduleClientInitialization(() => {
       resolveView();
-      setClock(new Date());
       setLocalRuntime(["127.0.0.1", "localhost"].includes(window.location.hostname));
       try {
         const saved = window.localStorage.getItem(approvalGateStorageKey);
@@ -487,13 +505,11 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
         // Standalone preference is device-local and optional.
       }
     });
-    const timer = window.setInterval(() => setClock(new Date()), 1000);
     const onFocus = () => void refreshOperations(true);
     window.addEventListener("popstate", resolveView);
     window.addEventListener("focus", onFocus);
     return () => {
       cancelInitialization();
-      window.clearInterval(timer);
       window.removeEventListener("popstate", resolveView);
       window.removeEventListener("focus", onFocus);
     };
@@ -504,6 +520,14 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
     return scheduleClientInitialization(() => { void initialize(); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [approvalGateEnabled]);
+
+  // A fresh policy snapshot expires while its editor is open. Keep the
+  // one-second check local to the editing journey, not the normal dashboard.
+  useEffect(() => {
+    if (!autoPolicyOpen) return;
+    const timer = window.setInterval(() => setSnapshotNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [autoPolicyOpen]);
 
   useEffect(() => {
     if (notificationListRef.current) notificationListRef.current.scrollTop = 0;
@@ -573,11 +597,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   }).length;
   const highAlerts = workItems.filter((item) => item.priority === "high").length;
   const offline = !operationsVerified;
-  const snapshotAge = operations?.generatedAt && clock
-    ? clock.getTime() - Date.parse(operations.generatedAt)
-    : Infinity;
-  const automationSnapshotVerified = operationsVerified
-    && Number.isFinite(snapshotAge) && snapshotAge >= 0 && snapshotAge <= 120_000;
+  const automationSnapshotVerified = hasVerifiedAutomationSnapshot(operationsVerified, operations?.generatedAt, snapshotNow);
   const notificationCount = offline ? 0 : workItems.length;
   const approvalCount = approvalDevices.length;
   const onlineApps = activeApps.filter((app) => connectionFor(app, summaryMap.get(app.id)) === "connected").length;
@@ -861,7 +881,8 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
     if (automationSaveLockRef.current) return null;
     setNotice("");
     setAutomationStepUpRequired(false);
-    if (!automationSnapshotVerified) {
+    // Always re-evaluate at click time: a stale modal render cannot authorize writes.
+    if (!hasVerifiedAutomationSnapshot(operationsVerified, operations?.generatedAt)) {
       setNotice("Cấu hình automation chưa được xác minh LIVE với quyền quản trị. Hãy đồng bộ trước khi lưu.");
       return null;
     }
@@ -1165,7 +1186,7 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
             </div>
           </section>
           <div className="amv2-page-tools">
-            {view === "overview" ? <section className="amv2-clock"><span>▣</span><div><small>{clock ? new Intl.DateTimeFormat("vi-VN", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }).format(clock) : ""}</small><strong>{clock ? new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(clock) : ""}</strong></div><i/><div><small>Hệ thống</small><strong>{offline ? "Chưa xác minh online" : unavailableCount ? "Cần kiểm tra" : "Hoạt động ổn định"}</strong></div></section> : <button className="amv2-sync" disabled={syncing} onClick={() => void syncOperationsNow()}>{syncing ? "Đang đồng bộ…" : "↻ Đồng bộ"}</button>}
+            {view === "overview" ? <OverviewClock offline={offline} unavailableCount={unavailableCount}/> : <button className="amv2-sync" disabled={syncing} onClick={() => void syncOperationsNow()}>{syncing ? "Đang đồng bộ…" : "↻ Đồng bộ"}</button>}
           </div>
         </header>
 
