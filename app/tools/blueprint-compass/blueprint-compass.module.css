@@ -60,3 +60,21 @@
 .hubAdmission dd{margin:4px 0 0;overflow-wrap:anywhere;font-size:12px}
 .hubAdmissionBoundary{border-top:1px solid #5c6b85;padding-top:9px}
 @media(max-width:760px){.hubAdmission dl{grid-template-columns:1fr}}
+
+/* C25 semantic five-lane neural mesh: dense curved registry paths, never fake agent telemetry. */
+.neuralStage{width:1660px}
+.neuralCanvas{min-width:1660px}
+.neuralTrack{background:repeating-linear-gradient(90deg,transparent 0,transparent 199px,rgba(81,122,181,.045) 200px,transparent 202px),radial-gradient(ellipse at 52% 46%,#202b50 0%,#121c34 48%,#07131e 100%)}
+.neuralLayerLegends text{font-size:12px;font-weight:800;letter-spacing:1.2px;fill:#afcaf1}
+.neuralSourceLabel{font-size:11px;font-weight:800;fill:#a5ffe3;letter-spacing:.8px}
+.neuralSmallLabel{font-size:10px;fill:#c3d8f1}
+.neuralRepoLabel{fill:#c9b6ff;font-size:12px;font-weight:600}
+.neuralStateLabel{fill:#f3b9f6;font-size:13px;font-weight:800}
+.neuralEdges path{vector-effect:non-scaling-stroke}
+.neuralAtlas .neuralNodeButton{width:290px;border-radius:8px;background:rgba(24,38,74,.45);font-size:12px}
+.neuralAtlas .neuralNodeButton:hover{background:#314973;border-color:#85c5ff}
+.neuralAtlas .neuralNodeButton[aria-pressed="true"]{background:#415078;border-color:#ffe09b;color:#fff1ba}
+@media(max-width:760px){
+ .neuralAtlas .neuralNodeButton{min-height:32px}
+ .neuralTrack{scrollbar-gutter:stable}
+}
