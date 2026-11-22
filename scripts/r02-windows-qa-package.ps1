@@ -3,7 +3,8 @@
 [CmdletBinding()]
 param(
  [Parameter(Mandatory=$true)][ValidatePattern('^[a-f0-9]{40}$')]
- [string]$ExpectedBundleSha
+ [string]$ExpectedBundleSha,
+ [switch]$Focused
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -120,6 +121,7 @@ try {
  $env:R02_ATTESTED_AT = $attestedAt
  $env:R02_APP_REPO = $repo
  $env:R02_QA_ROOT = $qa
+ if ($Focused) { $env:R02_FOCUSED = '1' }
  Record-Stage 'RUN_COMPLETE_INSTRUMENTED_QA'
  Write-Host ('R02_START=' + $sha414)
  # The former @(& node.exe ...) buffered stdout until the process completed.
@@ -172,7 +174,7 @@ finally {
  Remove-Item -LiteralPath $runnerTemp -Force -ErrorAction SilentlyContinue
  [Console]::OutputEncoding = $priorConsoleOutputEncoding
  foreach ($key in @('R02_HARNESS_SHA','R02_ATTEST_MAIN','R02_ATTEST_PR414',
-                    'R02_ATTEST_PR417','R02_ATTESTED_AT','R02_APP_REPO','R02_QA_ROOT')) {
+                    'R02_ATTEST_PR417','R02_ATTESTED_AT','R02_APP_REPO','R02_QA_ROOT','R02_FOCUSED')) {
   Remove-Item ('Env:\' + $key) -ErrorAction SilentlyContinue
  }
  if (Test-Path -LiteralPath $reportDir) {
@@ -187,6 +189,8 @@ finally {
    endedAt=(Get-Date).ToUniversalTime().ToString('o')
    events=@($script:events)
    runnerEvidence=$script:runnerEvidence
+   focused=[bool]$Focused
+   measurementStatus='MEASURED_NOT_ACCEPTED_G05_UNVERIFIED'
    note='Local-only evidence. Never grants merge, deploy, or gate PASS.'
   }
   [IO.File]::WriteAllText($summaryFile,($summary | ConvertTo-Json -Depth 12),[Text.UTF8Encoding]::new($false))
