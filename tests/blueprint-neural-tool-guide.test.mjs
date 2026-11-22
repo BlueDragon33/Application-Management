@@ -16,7 +16,7 @@ test("Hướng dẫn remains a visible, functional constitutional action on ever
   assert.match(ui, /aria-controls="blueprint-tool-guide"/);
   assert.match(ui, /onClick=\{\(\) => setGuideOpen\(open => !open\)\}/);
   assert.match(ui, /"❔ Hướng dẫn"/);
-  assert.match(ui, /role="region" aria-labelledby="blueprint-tool-guide-heading"/);
+  assert.match(ui, /hidden=\{!guideOpen\} role="region" aria-labelledby="blueprint-tool-guide-heading"/);
   assert.match(ui, /Hướng dẫn theo Hiến pháp Blueprint OS/);
   assert.match(ui, /Đọc Hiến pháp ACTIVE tại nguồn chính GitHub/);
   assert.match(css, /\.header\{position:sticky/);
