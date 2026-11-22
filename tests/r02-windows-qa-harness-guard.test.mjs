@@ -145,3 +145,14 @@ test("R0.2 guard rejects original truncated regex and duplicated tail", () => {
   assert.throws(() => assertPowerShellLexicalClosure(truncated));
   assert.throws(() => assertPowerShellLexicalClosure(launcher + ")\n"));
 });
+
+test("R0.2 Windows package displays stage progress and bounded heartbeat instead of buffering all output", () => {
+  assert.match(launcher, /Start-Process -FilePath \$nodeExecutable/);
+  assert.match(launcher, /runner-stdout\.log/);
+  assert.match(launcher, /runner-stderr\.log/);
+  assert.match(launcher, /R02_PACKAGE_HEARTBEAT=/);
+  assert.match(launcher, /R02_STAGE=/);
+  assert.match(launcher, /R02_RUNNER_FAILED_STAGE=/);
+  assert.doesNotMatch(launcher, /\$runnerLines\s*=\s*@\(& node\.exe/);
+  assertPowerShellLexicalClosure(launcher);
+});
