@@ -164,6 +164,9 @@ test("R0.2 focused runner uses only proven 50 mobile and 200 three-viewport coho
   assert.match(source, /FOCUSED \? 5 : 3/);
   assert.match(source, /apiNetworkMs/);
   assert.match(source, /response\.request\(\)\.timing\(\)/);
+  assert.match(source, /visualPaintReadyMs/);
+  assert.match(source, /UI_SYNTHETIC_CARD_COUNT_NOT_RENDERED/);
+  assert.match(source, /bootstrapReadyMs: readyMs/);
   assert.match(source, /browserRendererTaskStartupMs/);
   assert.match(source, /serverMainPidCpuSecondsDelta/);
   assert.match(source, /processCpuTotal: "UNVERIFIED_NOT_CAPTURED"/);
