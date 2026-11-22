@@ -429,6 +429,10 @@ async function sample(browser, origin, fixtureCount, label, viewport, repeat, ap
     const payload = await response.json();
     const apiTiming = FOCUSED ? response.request().timing() : null;
     const apiNetworkMs = apiTiming && apiTiming.responseEnd >= 0 ? apiTiming.responseEnd : null;
+    const apiTtfbMs = apiTiming && apiTiming.responseStart >= 0 ? apiTiming.responseStart : null;
+    const apiDownloadMs = apiTiming && apiTiming.responseEnd >= apiTiming.responseStart && apiTiming.responseStart >= 0
+      ? apiTiming.responseEnd - apiTiming.responseStart : null;
+    const apiPayloadApproxBytes = FOCUSED ? Buffer.byteLength(JSON.stringify(payload), "utf8") : null;
     const synthetic = (payload.managedApps || []).filter(x => /^qa-r02-\d+$/.test(x.id));
     assert.equal(synthetic.length, fixtureCount, "D1_CATALOG_LIVE_READBACK_COUNT_MISMATCH");
     await page.locator(".amv2-content[data-view='applications']").waitFor({ state: "visible", timeout: 45000 });
@@ -532,7 +536,8 @@ async function sample(browser, origin, fixtureCount, label, viewport, repeat, ap
       reactCommits: typeof display.reactCommits === "number" && display.reactCommits > 0
         ? { status: "BROWSER_DEVTOOLS_HOOK_OBSERVED", count: display.reactCommits, scope: "ENTIRE_PAGE_NOT_EXCLUSIVE_DASHBOARD" }
         : "UNVERIFIED_DEVTOOLS_HOOK_UNAVAILABLE",
-      ...(FOCUSED ? { apiNetworkMs, visualPaintReadyMs, renderedAppCards, contrastScreenshot,
+      ...(FOCUSED ? { apiNetworkMs, apiTtfbMs, apiDownloadMs, apiPayloadApproxBytes,
+        visualPaintReadyMs, renderedAppCards, contrastScreenshot,
         bootstrapReadyMs: readyMs,
         browserRendererTaskStartupMs: difference(metricValue(preNavigationMetrics?.metrics, "TaskDuration"), metricValue(readyMetrics?.metrics, "TaskDuration")) === null
           ? null : difference(metricValue(preNavigationMetrics.metrics, "TaskDuration"), metricValue(readyMetrics.metrics, "TaskDuration")) * 1000,
