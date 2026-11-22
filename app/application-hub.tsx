@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { applicationRegistry, type ApplicationConfig } from "./application-registry";
+import { applicationRegistry as registeredApplications, type ApplicationConfig } from "./application-registry";
 import {
   centerAdminAction,
   connectAdminCenter,
@@ -35,6 +35,8 @@ type ExtendedOperationsSettings = OperationsBootstrap["settings"] & {
   pendingBlockAfterHoursByApp?: Record<string, number>;
 };
 
+// Preserve backend canonical metadata while rendering Blueprint once as the internal Tool.
+const applicationRegistry = registeredApplications.filter(app => app.id !== "software-blueprint-hub");
 const appearanceStorageKey = "application-management:appearance:v1";
 const appearanceFonts: AppearanceFont[] = ["Inter", "Times New Roman", "Arial", "Georgia", "Verdana"];
 const appearanceFontSizes: Array<{ value: AppearanceFontSize; label: string; hint: string }> = [
@@ -75,6 +77,14 @@ const viewTitles: Record<CenterView, { title: string; description: string }> = {
 };
 
 const systemTools = [
+  {
+    id: "tool-blueprint-compass",
+    name: "Blueprint OS · Neural Command Center",
+    href: "/tools/blueprint-compass",
+    initials: "BP",
+    category: "Tool",
+    description: "Bản đồ dự án Neural và hướng dẫn theo Hiến pháp, đọc GitHub; không tự chạy Agent, duyệt hay phát hành.",
+  },
   {
     id: "tool-secret-generator",
     name: "Tạo Key / Secret",
