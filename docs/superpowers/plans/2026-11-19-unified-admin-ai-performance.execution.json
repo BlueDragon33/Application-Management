@@ -27,19 +27,189 @@
     "productionRequiresSeparateOwnerApproval": true
   },
   "measurements": {
-    "runtimeLatency": "UNVERIFIED",
-    "requestBudget": "UNVERIFIED",
-    "reactRenderBudget": "UNVERIFIED",
-    "cssUnusedCoverage": "UNVERIFIED",
-    "browserUx": "UNVERIFIED",
+    "runtimeLatency": "R02_WINDOWS_MEASURED_54_SAMPLES_PERF_REGRESSION_AT_200_G05_UNVERIFIED",
+    "requestBudget": "R02_OBSERVED_107_REQUESTS_PER_SAMPLE_NOT_REDUCED_BY_CANDIDATE",
+    "reactRenderBudget": "UNVERIFIED_NO_REACT_COMMITS",
+    "cssUnusedCoverage": "CHROMIUM_CSS_COVERAGE_CAPTURED; COMPOSITED_CONTRAST_UNVERIFIED",
+    "browserUx": "BROWSER_HTTP_200_AND_MANAGED_APP_D1_COUNTS_VERIFIED; HUMAN_UX_UNVERIFIED",
     "falseZeroAndStaleResults": "UNVERIFIED",
     "NFRTargets": {
       "localInteractionAckMs": 100,
       "visiblePendingMs": 200
     },
-    "targetPolicy": "record baseline first; never claim % improvement without exact-env before/after"
+    "targetPolicy": "record baseline first; never claim % improvement without exact-env before/after",
+    "r02WindowsInstrumentedQa": {
+      "status": "WINDOWS_RUNTIME_MEASURED_NOT_ACCEPTED",
+      "source": "USER_UPLOADED_QA_ZIP_EXAMINED_IN_CHAT",
+      "zipSha256": "e6cc48519ade6ee33505b942c4ed1faf9fe3f9191052dbb85518807255ab7349",
+      "zipBasename": "r02-evidence-package.zip",
+      "windowUtc": {
+        "start": "2026-11-22T21:13:02.6199742Z",
+        "end": "2026-11-22T21:20:25.2826289Z"
+      },
+      "pinned": {
+        "baseline": "89a89ce2d3d8ed634ee9562c52744a99223a2b2a",
+        "candidate": "92f7fbf6e3b1664d2431694fc5aeaef5b27df5c6",
+        "harness": "92b2026cd31be18828f2f743b65c6499e19d40aa"
+      },
+      "environment": {
+        "os": "Windows",
+        "browser": "Chrome 157.0.8103.79",
+        "node": "24.15.0",
+        "execution": "isolated loopback QA; local D1"
+      },
+      "preflight": {
+        "httpStatus": 200,
+        "browser": "Chrome",
+        "result": "PASS"
+      },
+      "sampleCount": 54,
+      "samplesPerVariant": 27,
+      "cohortCounts": [
+        10,
+        50,
+        200
+      ],
+      "viewportSizes": [
+        "1440x900",
+        "800x900",
+        "390x844"
+      ],
+      "samplesPerStratumPerVariant": 3,
+      "d1": {
+        "wranglerCliReadbacks": "6/6_MATCHED_10_50_200",
+        "appApiReadbacks": "54/54_MATCHED",
+        "mode": "LOCAL_ONLY"
+      },
+      "network": {
+        "pageHttp200": "54/54",
+        "failedRequests": 0,
+        "pageErrors": 0,
+        "requestsPerSample": 107,
+        "localDeviceSession409": "54_EXPECTED_NONPRODUCTION_SESSION_FALLBACK_RESPONSES"
+      },
+      "cleanup": {
+        "worktrees": "2_REMOVED_REPORTED",
+        "session": "REMOVED_REPORTED",
+        "reporterErrors": 0
+      },
+      "readyMs": [
+        {
+          "apps": 10,
+          "viewport": "1440x900",
+          "nPerVariant": 3,
+          "baselineP50Ms": 3905,
+          "candidateP50Ms": 2545,
+          "p50DeltaPercent": -34.8,
+          "baselineP95Ms": 5045,
+          "candidateP95Ms": 3411
+        },
+        {
+          "apps": 10,
+          "viewport": "800x900",
+          "nPerVariant": 3,
+          "baselineP50Ms": 2576,
+          "candidateP50Ms": 2529,
+          "p50DeltaPercent": -1.8,
+          "baselineP95Ms": 2758,
+          "candidateP95Ms": 2559
+        },
+        {
+          "apps": 10,
+          "viewport": "390x844",
+          "nPerVariant": 3,
+          "baselineP50Ms": 2514,
+          "candidateP50Ms": 2495,
+          "p50DeltaPercent": -0.8,
+          "baselineP95Ms": 2536,
+          "candidateP95Ms": 2499
+        },
+        {
+          "apps": 50,
+          "viewport": "1440x900",
+          "nPerVariant": 3,
+          "baselineP50Ms": 2595,
+          "candidateP50Ms": 2622,
+          "p50DeltaPercent": 1,
+          "baselineP95Ms": 2625,
+          "candidateP95Ms": 2756
+        },
+        {
+          "apps": 50,
+          "viewport": "800x900",
+          "nPerVariant": 3,
+          "baselineP50Ms": 2556,
+          "candidateP50Ms": 2642,
+          "p50DeltaPercent": 3.4,
+          "baselineP95Ms": 2726,
+          "candidateP95Ms": 2662
+        },
+        {
+          "apps": 50,
+          "viewport": "390x844",
+          "nPerVariant": 3,
+          "baselineP50Ms": 2529,
+          "candidateP50Ms": 2749,
+          "p50DeltaPercent": 8.7,
+          "baselineP95Ms": 2537,
+          "candidateP95Ms": 2802
+        },
+        {
+          "apps": 200,
+          "viewport": "1440x900",
+          "nPerVariant": 3,
+          "baselineP50Ms": 2693,
+          "candidateP50Ms": 2871,
+          "p50DeltaPercent": 6.6,
+          "baselineP95Ms": 2724,
+          "candidateP95Ms": 2889
+        },
+        {
+          "apps": 200,
+          "viewport": "800x900",
+          "nPerVariant": 3,
+          "baselineP50Ms": 2635,
+          "candidateP50Ms": 2860,
+          "p50DeltaPercent": 8.5,
+          "baselineP95Ms": 2655,
+          "candidateP95Ms": 2992
+        },
+        {
+          "apps": 200,
+          "viewport": "390x844",
+          "nPerVariant": 3,
+          "baselineP50Ms": 2662,
+          "candidateP50Ms": 2922,
+          "p50DeltaPercent": 9.8,
+          "baselineP95Ms": 2681,
+          "candidateP95Ms": 2947
+        }
+      ],
+      "observedMeanAt200": {
+        "jsHeapBaselineMB": 26.86,
+        "jsHeapCandidateMB": 14.72,
+        "changePercent": -45.2,
+        "cdpTaskDurationThreeSecondsBaselineMs": 156,
+        "cdpTaskDurationThreeSecondsCandidateMs": 26,
+        "changePercentTask": -83.4,
+        "domMutationsBaseline": 578.2,
+        "domMutationsCandidate": 558
+      },
+      "interpretation": "Candidate 200-app readyMs p50 is slower on all 3 viewports (+6.6/+8.5/+9.8%); reduction in 3-second post-ready CDP TaskDuration and JS heap does not establish end-to-end speedup; n=3 and serial baseline-before-candidate runs are exploratory only.",
+      "limitations": [
+        "NO_REACT_COMMIT_INSTRUMENTATION",
+        "NO_COMPOSITED_CONTRAST_VERIFICATION",
+        "NO_PROCESS_CPU_TRACE",
+        "NO_INTERACTION_ACK_P50_P95",
+        "N3_P95_EQUALS_MAX",
+        "ORDER_EFFECT_BASELINE_FIRST",
+        "ONLY_ONE_WINDOWS_RUN"
+      ],
+      "acceptance": "R0.2_MEASURED_NOT_ACCEPTED_G05_UNVERIFIED",
+      "noReleaseAuthority": true
+    }
   },
-  "status": "BLOCKED_R0_2_WINDOWS_PACKAGE_NOT_REEXECUTED",
+  "status": "R0_2_WINDOWS_MEASURED_NOT_ACCEPTED_G05_UNVERIFIED",
   "rounds": [
     {
       "round": "R0",
@@ -90,8 +260,8 @@
           "dependsOn": [
             "R0.1"
           ],
-          "state": "BLOCKED_INSTRUMENTED_QA",
-          "evidenceLevel": "WINDOWS_LOOPBACK_VERIFIED_QA_CHECKOUT_BLOCKED",
+          "state": "MEASURED_NOT_ACCEPTED",
+          "evidenceLevel": "EXACT_SHA_WINDOWS_CHROMIUM_54_AND_D1_6_READBACKS_EXPLORATORY",
           "evidence": [
             {
               "kind": "RUNTIME_PROBE",
@@ -360,29 +530,44 @@
               "isolatedD1Used": false,
               "verifiedFixtureCounts": [],
               "applicationSamplesCaptured": false
+            },
+            {
+              "kind": "WINDOWS_R02_20261122_54_SAMPLE_QA",
+              "source": "user-provided r02-evidence-package.zip",
+              "sha256": "e6cc48519ade6ee33505b942c4ed1faf9fe3f9191052dbb85518807255ab7349",
+              "observedAtUtc": "2026-11-22T21:20:25.2826289Z",
+              "status": "MEASURED_NOT_ACCEPTED",
+              "baselineSha": "89a89ce2d3d8ed634ee9562c52744a99223a2b2a",
+              "candidateSha": "92f7fbf6e3b1664d2431694fc5aeaef5b27df5c6",
+              "runnerSha": "92b2026cd31be18828f2f743b65c6499e19d40aa",
+              "preflight": "PASS_HTTP_200",
+              "chromeSamples": 54,
+              "wranglerReadbacks": 6,
+              "appApiMatched": 54,
+              "failedRequests": 0,
+              "pageErrors": 0,
+              "acceptanceNote": "200 apps regression in readyMs; missing React commits, CPU process and composed contrast. p95 max of three. G05 remains UNVERIFIED."
             }
           ],
           "changedFiles": [],
-          "candidateSha": "02165d2c4e4b47dac5c0b0b32ae1f7a3be874067",
+          "candidateSha": "92f7fbf6e3b1664d2431694fc5aeaef5b27df5c6",
           "linkedGates": [
             "G05"
           ],
           "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
           "remediesForSameRoot": 0,
           "releaseAuthority": "NONE",
-          "browserEvidence": "OWNED_WINDOWS_LOOPBACK_HTTP_200",
+          "browserEvidence": "CHROMIUM_54_SAMPLES_10_50_200_WINDOWS_LOCAL",
           "entryGate": "READ_ONLY_MEASUREMENT_ALLOWED_WITHOUT_PASSING_ALL_FINAL_GATES",
           "exitGate": "G05 BASELINE PROOF REPRODUCIBLE; runtime unavailable means blocked, not PASS",
           "blocker": {
-            "code": "WINDOWS_QA_CHECKOUT_WRITE_NOT_AUTHORIZED",
-            "observedAt": "2026-11-21",
+            "code": "PERFORMANCE_ACCEPTANCE_INCOMPLETE",
             "details": [
-              "A fresh Playwright Chromium instance verified HTTP 200 and the owned response at 127.0.0.1:63581. The listener was closed.",
-              "The exact QA directory E:\\BaumanWeb\\_qa\\application-management-r02-02165d2c is absent and its parent is outside the session's writable roots. Sandbox write elevation is disabled.",
-              "Stopped before fetch into a QA checkout, runtime launch, PID/build/SHA verification, D1 writes and fixture instrumentation."
+              "200-app readyMs candidate p50 slower across all 3 viewports",
+              "React render commits, CPU process trace, composited contrast, interaction latency not measured",
+              "n=3/stratum and serial execution are not robust acceptance proof"
             ],
-            "recoveryRequirement": "Open a local Windows session with E:\\BaumanWeb\\_qa authorized as writable workspace. After reviewing live Draft PR #414 HEAD and passing the owned loopback preflight, create a fresh application-management-r02-<sha-prefix> checkout at the exact current SHA. Use its isolated D1 state and a session-owned port for PID/build/SHA attestation and the 10/50/200 Chromium baseline.",
-            "assessment": "Only an owned-loopback preflight was completed. No candidate QA runtime, fixture or application metrics were measured."
+            "remediation": "Scoped initial-readiness profiling + missing acceptance instrumentation; no rerun of all 54 exploratory samples as default"
           },
           "measurements": {
             "sampleCount": 0,
@@ -391,7 +576,7 @@
             "p50Ms": null,
             "p95Ms": null,
             "networkRequests": null,
-            "reactCommits": null,
+            "reactCommits": "UNVERIFIED",
             "peakMemoryMb": null,
             "cpuMs": null,
             "longTasks": null,
@@ -406,7 +591,112 @@
             "navigation": null,
             "duplicateRequests": null,
             "reactRerenders": null,
-            "jsCoveragePercent": null
+            "jsCoveragePercent": null,
+            "measuredSamples": 54,
+            "fixtureCountsVerified": [
+              10,
+              50,
+              200
+            ],
+            "independentD1CountReadbacks": 6,
+            "exactBaselineSha": "89a89ce2d3d8ed634ee9562c52744a99223a2b2a",
+            "exactCandidateSha": "92f7fbf6e3b1664d2431694fc5aeaef5b27df5c6",
+            "sourceZipSha256": "e6cc48519ade6ee33505b942c4ed1faf9fe3f9191052dbb85518807255ab7349",
+            "readyMsCohortResults": [
+              {
+                "apps": 10,
+                "viewport": "1440x900",
+                "nPerVariant": 3,
+                "baselineP50Ms": 3905,
+                "candidateP50Ms": 2545,
+                "p50DeltaPercent": -34.8,
+                "baselineP95Ms": 5045,
+                "candidateP95Ms": 3411
+              },
+              {
+                "apps": 10,
+                "viewport": "800x900",
+                "nPerVariant": 3,
+                "baselineP50Ms": 2576,
+                "candidateP50Ms": 2529,
+                "p50DeltaPercent": -1.8,
+                "baselineP95Ms": 2758,
+                "candidateP95Ms": 2559
+              },
+              {
+                "apps": 10,
+                "viewport": "390x844",
+                "nPerVariant": 3,
+                "baselineP50Ms": 2514,
+                "candidateP50Ms": 2495,
+                "p50DeltaPercent": -0.8,
+                "baselineP95Ms": 2536,
+                "candidateP95Ms": 2499
+              },
+              {
+                "apps": 50,
+                "viewport": "1440x900",
+                "nPerVariant": 3,
+                "baselineP50Ms": 2595,
+                "candidateP50Ms": 2622,
+                "p50DeltaPercent": 1,
+                "baselineP95Ms": 2625,
+                "candidateP95Ms": 2756
+              },
+              {
+                "apps": 50,
+                "viewport": "800x900",
+                "nPerVariant": 3,
+                "baselineP50Ms": 2556,
+                "candidateP50Ms": 2642,
+                "p50DeltaPercent": 3.4,
+                "baselineP95Ms": 2726,
+                "candidateP95Ms": 2662
+              },
+              {
+                "apps": 50,
+                "viewport": "390x844",
+                "nPerVariant": 3,
+                "baselineP50Ms": 2529,
+                "candidateP50Ms": 2749,
+                "p50DeltaPercent": 8.7,
+                "baselineP95Ms": 2537,
+                "candidateP95Ms": 2802
+              },
+              {
+                "apps": 200,
+                "viewport": "1440x900",
+                "nPerVariant": 3,
+                "baselineP50Ms": 2693,
+                "candidateP50Ms": 2871,
+                "p50DeltaPercent": 6.6,
+                "baselineP95Ms": 2724,
+                "candidateP95Ms": 2889
+              },
+              {
+                "apps": 200,
+                "viewport": "800x900",
+                "nPerVariant": 3,
+                "baselineP50Ms": 2635,
+                "candidateP50Ms": 2860,
+                "p50DeltaPercent": 8.5,
+                "baselineP95Ms": 2655,
+                "candidateP95Ms": 2992
+              },
+              {
+                "apps": 200,
+                "viewport": "390x844",
+                "nPerVariant": 3,
+                "baselineP50Ms": 2662,
+                "candidateP50Ms": 2922,
+                "p50DeltaPercent": 9.8,
+                "baselineP95Ms": 2681,
+                "candidateP95Ms": 2947
+              }
+            ],
+            "compositedContrast": "UNVERIFIED",
+            "cpuProcessTrace": "UNVERIFIED",
+            "acceptance": "MEASURED_NOT_ACCEPTED"
           }
         },
         {
@@ -874,21 +1164,19 @@
   ],
   "activeNextAction": {
     "id": "R0.2",
-    "type": "BIND_AND_MEASURE_LOCAL_QA",
-    "state": "BLOCKED_INSTRUMENTED_QA_RUNNING_UNVERIFIED",
-    "why": "User's currently running pinned one-shot QA package reached R02_START for HEAD 92b2026..., but previous launcher collected all Node output in a PowerShell array before printing anything. The apparent console hang is therefore not evidence of a deadlock or completion. Buffered output has been replaced by a new launcher using owned streaming logs and 20-second heartbeat; it applies only to subsequent runs and must not interrupt/restart the current QA session.",
-    "required": "FIRST: let the already-started SHA-pinned Windows QA session report its final R02_PACKAGE_RESULT, R02_PACKAGE_ZIP, or a factual failure; do not start concurrent QA checkouts. If the current run fails/terminates, use the new live-progress launcher with a fresh attested SHA and native PowerShell parser, and assess exactly one ZIP report. No manual npm log extraction.",
+    "type": "TARGETED_PERFORMANCE_REGRESSION_AND_G05_GAP_CLOSURE",
+    "state": "MEASURED_NOT_ACCEPTED",
+    "why": "Windows QA evidence ZIP has been independently inspected: 54/54 Chromium samples, 6/6 Wrangler local D1 counts, all 54 app API readbacks, zero network/page errors and successful owned-worktree cleanup. The candidate reduces 3s CDP TaskDuration/200-app JS heap but has +6.6%/+8.5%/+9.8% p50 readyMs at 200 apps. n=3 exploratory; React commits, process CPU and composited contrast missing. G05 remains UNVERIFIED.",
+    "required": "One scoped P0 action in PR #417 ownership: isolate and measure the 50/200-app initial readiness overhead by separating /api/operations backend response from frontend navigation/bootstrap; instrument React commits, process CPU and composited contrast for exact pinned before/after; use native Windows local QA for missing proofs, no repeating unchanged 54-sample pilot. Do not assume causality or auto-mark G05 PASS.",
     "expectedEvidence": [
-      "exact SHA for served local source",
-      "instrumented sample files and environment/browser/browser profile identity",
-      "10/50/200 synthetic fixtures",
-      "p50/p95 and interaction samples",
-      "request and React render counts",
-      "CPU and memory trace",
-      "CSS coverage and computed text contrast",
-      "G05 truthfully marked only after evidence"
+      "exact SHA changes and isolated before/after readyMs with sufficient repeats",
+      "backend /api/operations vs frontend await/commit attribution",
+      "React commit counts and CPU trace",
+      "composited text contrast where relevant",
+      "preserved local D1 10/50/200 and isolated QA",
+      "G05 proof only after no material regression and scoped acceptance"
     ],
-    "fallback": "If the existing session appears stalled, do not claim it is blocked solely from no console output. Once it exits, inspect the package's final result/evidence; if it cannot finish, report unknown state without killing other processes or deleting unowned folders. G05 UNVERIFIED until Windows measurement evidence.",
+    "fallback": "If scoped exact-SHA Windows proof cannot be obtained, maintain R0.2 MEASURED_NOT_ACCEPTED and G05 UNVERIFIED; report one blocker with canonical checkpoint. Do not touch Reviewer A/B, merge, ratify or publish.",
     "singleActionRule": true,
     "runner": {
       "path": "scripts/r02-windows-instrumented-qa.mjs",
@@ -1054,6 +1342,22 @@
       "currentRunningSha": "92b2026cd31be18828f2f743b65c6499e19d40aa",
       "release": "NO_MERGE_NO_PUBLISH",
       "gate": "G05_UNVERIFIED"
+    },
+    {
+      "stepId": "R0.2",
+      "date": "2026-11-22",
+      "result": "R02_WINDOWS_54_SAMPLE_EVIDENCE_ANALYZED",
+      "evidenceLevel": "UPLOADED_ZIP_PARSED_AND_COHORT_METRICS_INDEPENDENTLY_RECOMPUTED",
+      "zipSha256": "e6cc48519ade6ee33505b942c4ed1faf9fe3f9191052dbb85518807255ab7349",
+      "baselineSha": "89a89ce2d3d8ed634ee9562c52744a99223a2b2a",
+      "candidateSha": "92f7fbf6e3b1664d2431694fc5aeaef5b27df5c6",
+      "runnerSha": "92b2026cd31be18828f2f743b65c6499e19d40aa",
+      "samples": 54,
+      "independentD1Readbacks": 6,
+      "summary": "10/50/200 * 3 viewports * 3 repetitions per variant. No page failures, no failed requests, exact local D1 counts. 200-app candidate p50 slower by 6.6%,8.5%,9.8%; 200-app JS heap -45.2%, 3-second CDP taskDuration -83.4%. Low n, order bias, missing React commits/contrast/process CPU. Not accepted.",
+      "qualityGate": "G05_UNVERIFIED",
+      "releaseAuthority": "NONE",
+      "noMergeOrPublish": true
     }
   ],
   "assessment": {
@@ -1553,6 +1857,17 @@
           "source": "R0.2 Windows loopback and QA workspace preflight, 2026-11-21",
           "status": "NO_QUALIFYING_SAMPLES",
           "note": "The isolated loopback HTTP 200 proves Chromium connectivity. The exact app PID/build/SHA, D1 and fixture proof remain missing."
+        },
+        {
+          "kind": "R02_WINDOWS_EVIDENCE_20261122",
+          "source": "user-uploaded r02-evidence-package.zip",
+          "sha256": "e6cc48519ade6ee33505b942c4ed1faf9fe3f9191052dbb85518807255ab7349",
+          "status": "RUNTIME_MEASURED_G05_NOT_ACCEPTED",
+          "pinnedBaselineSha": "89a89ce2d3d8ed634ee9562c52744a99223a2b2a",
+          "pinnedCandidateSha": "92f7fbf6e3b1664d2431694fc5aeaef5b27df5c6",
+          "samples": 54,
+          "independentD1Counts": 6,
+          "reason": "Candidate 200-app readyMs slower across desktop/tablet/mobile, n=3 exploratory; React render counts, process CPU, composed contrast and interaction timing not established."
         }
       ],
       "exactSha": null,
