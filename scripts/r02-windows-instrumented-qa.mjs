@@ -361,7 +361,8 @@ function metricValue(metrics, key) {
   return metrics.find(x => x.name === key)?.value ?? null;
 }
 function difference(a, b) {
-  return typeof a === "number" && typeof b === "number" && Number.isFinite(a) && Number.isFinite(b) ? b - a : null;
+  return typeof a === "number" && typeof b === "number" && Number.isFinite(a) && Number.isFinite(b) && b >= a
+    ? b - a : null;
 }
 function serverProcessCpuSeconds(pid) {
   if (!Number.isSafeInteger(pid) || pid <= 0) return null;
