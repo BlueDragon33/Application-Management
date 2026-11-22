@@ -78,7 +78,7 @@ export default function BlueprintCompass({ projects }: { projects: Project[] }) 
         <Link href="/">Quản trị Ứng dụng</Link><Link href="/projects">Danh mục dự án</Link>
       </div>
     </header>
-    {guideOpen && <section id="blueprint-tool-guide" className={styles.guidePanel} role="region" aria-labelledby="blueprint-tool-guide-heading">
+    <section id="blueprint-tool-guide" className={styles.guidePanel} hidden={!guideOpen} role="region" aria-labelledby="blueprint-tool-guide-heading">
       <h2 id="blueprint-tool-guide-heading">Hướng dẫn theo Hiến pháp Blueprint OS</h2>
       <p>Chế độ hiện tại: <strong>đọc nguồn và đề xuất bước tiếp</strong>. Phần mềm không tự chạy Agent, duyệt QA, thay đổi dữ liệu dự án, merge hoặc phát hành.</p>
       <ol className={styles.guideSteps}>
@@ -89,7 +89,7 @@ export default function BlueprintCompass({ projects }: { projects: Project[] }) 
       </ol>
       <p><strong>Nguyên tắc:</strong> tách dữ liệu đề xuất, quan sát và QA thực; không nhân bản ledger. Mọi quyền reviewer, phê chuẩn Constitution và Production giữ nguyên human gates. Khi đóng trang, Tool không tiếp tục chạy công việc.</p>
       <a href="https://github.com/BlueDragon33/Software-Blueprint-Hub/blob/main/docs/UNIVERSAL-CONSTITUTION.md" target="_blank" rel="noopener noreferrer">Đọc Hiến pháp ACTIVE tại nguồn chính GitHub</a>
-    </section>}
+    </section>
     <BlueprintNeuralOverview projects={projects} selectedProjectId={selected}/>
     <section className={styles.layout}>
       <aside className={styles.side} aria-label="Chọn dự án">
