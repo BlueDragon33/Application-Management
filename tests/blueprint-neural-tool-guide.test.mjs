@@ -39,6 +39,8 @@ test("Neural diagram is a semantic registry projection, never fabricated operati
   assert.match(graph, /aria-pressed=\{project\.id === selectedProjectId\}/);
   assert.match(graph, /aria-controls="compass-project-detail"/);
   assert.match(css, /\.neuralNodeButton:focus-visible/);
+  assert.match(ui, /<HubGraphContractAdmission\/>/);
+  assert.match(ui, /entry\?\.id === "software-blueprint-hub"/);
   assert.match(graph, /project\.group/);
   assert.match(graph, /project\.state/);
   assert.match(graph, /đường cong biểu diễn/i);
