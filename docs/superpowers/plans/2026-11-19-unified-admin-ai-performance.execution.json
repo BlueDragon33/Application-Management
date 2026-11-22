@@ -39,7 +39,7 @@
     },
     "targetPolicy": "record baseline first; never claim % improvement without exact-env before/after"
   },
-  "status": "BLOCKED_R0_2_QA_CHECKOUT_WRITE_NOT_AUTHORIZED",
+  "status": "BLOCKED_R0_2_WINDOWS_GIT_TLS_EOF_RETRY",
   "rounds": [
     {
       "round": "R0",
@@ -876,8 +876,8 @@
     "id": "R0.2",
     "type": "BIND_AND_MEASURE_LOCAL_QA",
     "state": "BLOCKED_INSTRUMENTED_QA",
-    "why": "Connected Chat cannot execute Windows filesystem/Playwright. A disposable source-only Windows QA runner now exists on the same Draft PR #414; no runtime measurements have been obtained and G05 remains UNVERIFIED.",
-    "required": "Run the single PowerShell handoff that fetches current PR #414 runner from GitHub into an owned temporary file and executes it locally with authorized E:\\BaumanWeb\\_qa access. Pin exact main 89a89ce2d3d8ed634ee9562c52744a99223a2b2a and PR #417 92f7fbf6e3b1664d2431694fc5aeaef5b27df5c6; obtain Playwright HTTP 200 preflight in that Windows session, app SHA/PID ownership, isolated local D1 and synthetic 10/50/200 browser samples on desktop/tablet/mobile; write r02-evidence.json. Treat React commits, composited contrast and any other unsupported measurement as UNVERIFIED, not PASS.",
+    "why": "User-reported Windows R0.2 attempt returned BLOCKED before any application/browser measurement. The runner preflight path preceded its redundant git ls-remote, which failed transient TLS connect unexpected EOF (git error 128). The initial launcher git fetch PR #414 succeeded. No measured samples. The redundant runner network probe was removed in a new source-only candidate; awaiting fresh Windows evidence.",
+    "required": "Execute one bounded PowerShell launcher on Windows authorized for E:\\BaumanWeb\\_qa. It must independently attest main/PR414/PR417 heads in one git ls-remote call with bounded retries, fetch only missing pinned objects, source the runner from that exact attested PR414 head, provide short-lived R02_ATTEST_* variables, execute locally and return r02-evidence.json. Do not rerun unchanged GitHub regression on the earlier commit. Keep G05 UNVERIFIED until real fixture/runtime results.",
     "expectedEvidence": [
       "exact SHA for served local source",
       "instrumented sample files and environment/browser/browser profile identity",
@@ -888,12 +888,12 @@
       "CSS coverage and computed text contrast",
       "G05 truthfully marked only after evidence"
     ],
-    "fallback": "If Windows QA cannot run or evidence status is BLOCKED, retain report in E:\\BaumanWeb\\_qa\\_r02_reports; stop at one factual blocker. Do not run GitHub-hosted QA as a substitute, claim G05 PASS, merge or publish. Session-owned worktrees must be cleaned safely; keep the evidence. Never touch Reviewer A/B.",
+    "fallback": "If remote head attestation, Git object fetch, Windows local QA or own cleanup fails, report precisely one blocker; retain evidence under _r02_reports. Do not claim R0.2 or G05 PASS, merge, publish, touch Reviewer A/B, or disable TLS verification.",
     "singleActionRule": true,
     "runner": {
       "path": "scripts/r02-windows-instrumented-qa.mjs",
       "guardTest": "tests/r02-windows-qa-harness-guard.test.mjs",
-      "sourceStage": "RUNNER_COMMITTED_SOURCE_ONLY_NOT_WINDOWS_EXECUTED",
+      "sourceStage": "GITHUB_SOURCE_PATCH_CI_PENDING_WINDOWS_NOT_EXECUTED",
       "reportsRoot": "E:\\BaumanWeb\\_qa\\_r02_reports",
       "requires": "Windows local filesystem + installed Chromium/Edge + Node>=22.13 + Git + npm",
       "doesNotProve": [
@@ -901,7 +901,10 @@
         "composited contrast WCAG",
         "human UX acceptance",
         "G05 PASS"
-      ]
+      ],
+      "transport": "LAUNCHER_SINGLE_REMOTE_ATTESTATION_WITH_BOUNDED_RETRY",
+      "remoteRetries": 3,
+      "runnerNetwork": "NONE_AFTER_ATTESTATION"
     }
   },
   "history": [
@@ -988,6 +991,17 @@
       "baselineSha": "89a89ce2d3d8ed634ee9562c52744a99223a2b2a",
       "candidateSha": "92f7fbf6e3b1664d2431694fc5aeaef5b27df5c6",
       "note": "Added disposable Windows-only R0.2 preflight/instrumentation runner and Node parser/ownership guard. Existing CI checks on earlier runner revision passed; latest exact-tree checks must be verified separately. Zero performance/runtime samples. R0.2 BLOCKED; G05 UNVERIFIED. PRs Draft; no merge/Production."
+    },
+    {
+      "stepId": "R0.2",
+      "date": "2026-11-22",
+      "result": "WINDOWS_TLS_ERROR_REPORTED_AND_SOURCE_FIX_STAGED",
+      "evidenceLevel": "USER_REPORTED_WINDOWS_LOG_AND_SOURCE_DIFF_NO_RUNTIME_SAMPLES",
+      "reportPath": "E:\\BaumanWeb\\_qa\\_r02_reports\\am-r02-2026-11-22T18-31-36-796Z-22015431\\r02-evidence.json",
+      "blocker": "git ls-remote error 128: TLS connect unexpected eof while reading; no benchmark",
+      "sourceFix": "scripts/r02-windows-instrumented-qa.mjs now consumes 20-minute freshness-bounded launcher R02_ATTEST_* verification, checks canonical git origin and pinned local objects; removes redundant network calls.",
+      "security": "TLS verification retained; no production/Reviewer A/B access; fail closed.",
+      "qaStatus": "R0.2 BLOCKED; G05 UNVERIFIED; PR414/417 Draft; no merge/publish"
     }
   ],
   "assessment": {
