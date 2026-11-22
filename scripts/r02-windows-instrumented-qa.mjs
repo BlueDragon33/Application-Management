@@ -99,17 +99,37 @@ function npm(args, cwd = SOURCE) {
   fs.mkdirSync(cacheDir, { recursive: true });
   const env = { ...process.env, npm_config_cache: cacheDir, npm_config_audit: "false",
     npm_config_fund: "false", npm_config_update_notifier: "false" };
+  const preserveNpmDebug = (error) => {
+    const logsDir = path.join(cacheDir, "_logs");
+    let latest = "";
+    try {
+      const files = fs.readdirSync(logsDir).filter(name => name.endsWith("-debug-0.log")).sort();
+      if (files.length) {
+        const source = path.join(logsDir, files[files.length - 1]);
+        latest = path.join(reportsDir, "npm-debug-" + String(state.commands.length).padStart(3, "0") + ".log");
+        fs.mkdirSync(reportsDir, { recursive: true });
+        fs.writeFileSync(latest, sanitize(fs.readFileSync(source, "utf8")).slice(-500_000));
+      }
+    } catch (readError) {
+      state.npmDiagnostics.push({stage: state.stage, debugLogCapture: "UNAVAILABLE",
+        reason: String(readError?.message || readError).slice(0, 180)});
+    }
+    state.npmDiagnostics.push({stage: state.stage, commandLog: error.failureLog, npmDebugLog: latest || null});
+    return latest;
+  };
   try {
     return run("npm.cmd", args, cwd, env, 600000);
   } catch (error) {
-    const diag = String(error.diagnostic || "");
+    const debugFile = preserveNpmDebug(error);
+    const debug = debugFile && fs.existsSync(debugFile) ? fs.readFileSync(debugFile, "utf8").slice(-10_000) : "";
+    const diag = String(error.diagnostic || "") + "\n" + debug;
     const recoverable = /\b(?:EINTEGRITY|ECONNRESET|ETIMEDOUT|EAI_AGAIN|EBUSY|ENOTEMPTY|EPERM|EACCES)\b/i.test(diag);
-    state.npmDiagnostics.push({ stage: state.stage, log: error.failureLog, recoverable });
     if (!recoverable) throw error;
     state.recoveredFailures.push({ stage: state.stage, reason: "TRANSIENT_NPM_RETRY", previousLog: error.failureLog });
     currentStage(state.stage + "_ONE_BOUNDED_NPM_RETRY");
     // Exactly one retry; never disable TLS verification or use npm install as a silent substitute for npm ci.
-    return run("npm.cmd", args, cwd, env, 600000);
+    try { return run("npm.cmd", args, cwd, env, 600000); }
+    catch (retryError) { preserveNpmDebug(retryError); throw retryError; }
   }
 }
 function verifyDir() {
