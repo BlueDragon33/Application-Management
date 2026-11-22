@@ -10,7 +10,7 @@ const ts = require("typescript");
 const SOURCE = fs.readFileSync(new URL("../app/api/tools/blueprint-compass/hub-contract/route.ts", import.meta.url), "utf8");
 const HUB = "BlueDragon33/Software-Blueprint-Hub";
 const HEAD = "a".repeat(40), BLOB = "b".repeat(40);
-const URL = "https://api.github.com/repos/" + HUB;
+const API_URL = "https://api.github.com/repos/" + HUB;
 
 function contract() {
   return {
@@ -33,8 +33,8 @@ function setup({ authenticated = true, remoteContract = contract(), head = HEAD,
   const fetchStub = async (url, options) => {
     reads.push({ url, method: options.method, redirect: options.redirect, hasAuthorization: Boolean(options.headers?.Authorization) });
     if (outcome !== "ok") return Response.json({ message: "GitHub refused" }, { status: outcome === "forbidden" ? 403 : 503 });
-    if (url === URL + "/commits/main") return Response.json({ sha: head });
-    if (url === URL + "/contents/control/application-management.contract.json?ref=" + HEAD)
+    if (url === API_URL + "/commits/main") return Response.json({ sha: head });
+    if (url === API_URL + "/contents/control/application-management.contract.json?ref=" + HEAD)
       return Response.json({
         type: "file", path: "control/application-management.contract.json",
         encoding: "base64", content: encoded ?? Buffer.from(JSON.stringify(remoteContract), "utf8").toString("base64"),
@@ -80,7 +80,7 @@ test("Hub metadata-only real schema is source-pinned and Graph read stays denied
   assert.equal(body.canReadGraph, false);
   assert.equal(body.qaPassed, false);
   assert.equal(reads.length, 2);
-  assert.equal(reads[1].url, URL + "/contents/control/application-management.contract.json?ref=" + HEAD);
+  assert.equal(reads[1].url, API_URL + "/contents/control/application-management.contract.json?ref=" + HEAD);
   assert.ok(reads.every(x => x.method === "GET" && x.redirect === "manual" && !x.hasAuthorization));
 });
 
