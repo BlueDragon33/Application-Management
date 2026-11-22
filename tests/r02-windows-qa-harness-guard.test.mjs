@@ -62,6 +62,9 @@ test("R0.2 single package is bounded, pinned, fail-closed and self-reports", () 
   assert.match(launcher, /-Tries 3/);
   assert.match(launcher, /FETCH_MISSING_PINNED_COMMITS/);
   assert.match(launcher, /R02_PACKAGE_SUMMARY=/);
+  assert.match(launcher, /R02_PACKAGE_ZIP=/);
+  assert.match(launcher, /Compress-Archive/);
+  assert.match(launcher, /RUNNER_EVIDENCE_OUTSIDE_QA_ROOT/);
   assert.match(launcher, /R02_PACKAGE_RESULT=/);
   assert.match(launcher, /G05_UNVERIFIED/);
   assert.doesNotMatch(launcher, /gh (?:workflow|pr merge|api -X)/);
