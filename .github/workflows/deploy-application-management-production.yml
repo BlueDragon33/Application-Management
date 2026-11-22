@@ -11,6 +11,14 @@ on:
         description: "SHA 40 ký tự của bản đã duyệt, phải trùng nhánh được chọn; bỏ trống khi chỉ kiểm tra"
         required: false
         type: string
+      backup_confirm:
+        description: "Tùy chọn chỉ khi INSPECT_PRODUCTION: EXPORT_ENCRYPTED_BACKUP để sao lưu mã hóa hai D1 và ảnh thanh toán được tham chiếu; không phát hành"
+        required: false
+        type: string
+      backup_public_key_b64:
+        description: "Khóa CÔNG KHAI RSA3072+ SPKI PEM ở dạng base64; không nhập khóa riêng"
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -23,7 +31,7 @@ jobs:
   inspect-production:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.confirm == 'INSPECT_PRODUCTION' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 25
     environment: application-management-production
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -41,6 +49,20 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - name: Inspect protected production without writes
         run: node scripts/inspect-production-readiness.mjs
+      - name: Optional owner-encrypted target backup without writes
+        if: ${{ inputs.backup_confirm != '' || inputs.backup_public_key_b64 != '' }}
+        env:
+          CUTOVER_BACKUP_CONFIRM: ${{ inputs.backup_confirm }}
+          CUTOVER_BACKUP_PUBLIC_KEY_B64: ${{ inputs.backup_public_key_b64 }}
+        run: node scripts/encrypted-cutover-backup.mjs
+      - name: Upload only owner-encrypted backup
+        if: ${{ success() && inputs.backup_confirm == 'EXPORT_ENCRYPTED_BACKUP' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: owner-encrypted-cutover-backup
+          path: .sites-runtime/encrypted-cutover-backup/cutover-backup.enc
+          if-no-files-found: error
+          retention-days: 7
       - uses: actions/upload-artifact@v4
         if: always()
         with:
