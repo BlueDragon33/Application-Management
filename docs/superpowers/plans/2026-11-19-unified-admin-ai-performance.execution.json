@@ -893,7 +893,7 @@
     "runner": {
       "path": "scripts/r02-windows-instrumented-qa.mjs",
       "guardTest": "tests/r02-windows-qa-harness-guard.test.mjs",
-      "sourceStage": "SINGLE_PACKAGE_SOURCE_READY_AWAIT_EXACT_HEAD_CI_AND_WINDOWS_EXECUTION",
+      "sourceStage": "SOURCE_PACKAGE_WITH_NPM_DEBUG_RETENTION_COMMITTED_PENDING_FINAL_CI_AND_WINDOWS_QA",
       "reportsRoot": "E:\\BaumanWeb\\_qa\\_r02_reports",
       "requires": "Windows local filesystem + installed Chromium/Edge + Node>=22.13 + Git + npm",
       "doesNotProve": [
@@ -911,7 +911,8 @@
       "finalReport": "R02_PACKAGE_SUMMARY_AND_R02_EVIDENCE",
       "requireManualExtraLogs": false,
       "packageArtifact": "E:\\BaumanWeb\\_qa\\_r02_reports\\bundle-<session>\\r02-evidence-package.zip",
-      "details": "One use: pinned Windows launcher produces one archive containing bundle-summary, r02-evidence and scoped command/browser logs; does not auto-upload to cloud."
+      "details": "One use: pinned Windows launcher produces one archive containing bundle-summary, r02-evidence and scoped command/browser logs; does not auto-upload to cloud.",
+      "npmDebugRetention": true
     }
   },
   "history": [
@@ -1020,12 +1021,12 @@
       "package": "scripts/r02-windows-qa-package.ps1",
       "runner": "scripts/r02-windows-instrumented-qa.mjs",
       "tests": "tests/r02-windows-qa-harness-guard.test.mjs",
-      "newBehavior": "single launcher, pinned SHA attestation, owned D1, preflight HTTP 200, 10/50/200, full failed-command logs, guarded npm retry, single final summary and cleanup",
+      "newBehavior": "single launcher, pinned SHA attestation, owned D1, preflight HTTP 200, 10/50/200, full failed-command logs, guarded npm retry, single final summary and cleanup; preserves sanitized npm debug-0.log (including on second bounded retry) before deleting session-owned directories",
       "qualityGate": "G05_UNVERIFIED",
       "noMergePublish": true,
       "packageArtifact": "r02-evidence-package.zip",
       "localOnly": true,
-      "note": "No additional manual log commands; on failure capture complete evidence in owned ZIP. Node tests source verification only; Windows QA still pending."
+      "note": "Package runner/source CI separate from Windows QA; R0.2 BLOCKED G05 UNVERIFIED. User submits only evidence-package.zip when a Windows session completes."
     }
   ],
   "assessment": {
