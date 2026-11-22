@@ -893,7 +893,7 @@
     "runner": {
       "path": "scripts/r02-windows-instrumented-qa.mjs",
       "guardTest": "tests/r02-windows-qa-harness-guard.test.mjs",
-      "sourceStage": "SOURCE_COMMITTED_CI_STATUS_RECHECK_WINDOWS_NOT_EXECUTED",
+      "sourceStage": "SINGLE_PACKAGE_SOURCE_READY_AWAIT_EXACT_HEAD_CI_AND_WINDOWS_EXECUTION",
       "reportsRoot": "E:\\BaumanWeb\\_qa\\_r02_reports",
       "requires": "Windows local filesystem + installed Chromium/Edge + Node>=22.13 + Git + npm",
       "doesNotProve": [
@@ -909,7 +909,9 @@
       "evidence": "E:\\BaumanWeb\\_qa\\_r02_reports",
       "npmRecovery": "ONE_BOUNDED_RETRY_ONLY_TRANSIENT_CODES",
       "finalReport": "R02_PACKAGE_SUMMARY_AND_R02_EVIDENCE",
-      "requireManualExtraLogs": false
+      "requireManualExtraLogs": false,
+      "packageArtifact": "E:\\BaumanWeb\\_qa\\_r02_reports\\bundle-<session>\\r02-evidence-package.zip",
+      "details": "One use: pinned Windows launcher produces one archive containing bundle-summary, r02-evidence and scoped command/browser logs; does not auto-upload to cloud."
     }
   },
   "history": [
@@ -1020,7 +1022,10 @@
       "tests": "tests/r02-windows-qa-harness-guard.test.mjs",
       "newBehavior": "single launcher, pinned SHA attestation, owned D1, preflight HTTP 200, 10/50/200, full failed-command logs, guarded npm retry, single final summary and cleanup",
       "qualityGate": "G05_UNVERIFIED",
-      "noMergePublish": true
+      "noMergePublish": true,
+      "packageArtifact": "r02-evidence-package.zip",
+      "localOnly": true,
+      "note": "No additional manual log commands; on failure capture complete evidence in owned ZIP. Node tests source verification only; Windows QA still pending."
     }
   ],
   "assessment": {
