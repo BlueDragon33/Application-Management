@@ -1099,7 +1099,15 @@
           ],
           "state": "BLOCKED",
           "evidenceLevel": "CODE_AND_TEST",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "EXACT_SHA_CI",
+              "source": "https://github.com/BlueDragon33/Application-Management/actions/runs/45226119579",
+              "status": "TYPECHECK_BUILD_981_TESTS_LINT_PASS_BROWSER_SKIPPED",
+              "candidateSha": "2136c51081173213b1bd38318d5f312a3a40aaca",
+              "note": "Shared shell source for 2/10 clients; local authenticated UX and capability QA remain missing"
+            }
+          ],
           "changedFiles": [],
           "candidateSha": null,
           "linkedGates": [
@@ -1112,8 +1120,8 @@
           "browserEvidence": "UNVERIFIED",
           "requiredFixture": "DYNAMIC_ONLY_REGISTERED_APP_NO_STATIC_APP_ROUTE",
           "sourceCandidate": {
-            "status": "SOURCE_ONLY_PILOT_PR419_NOT_ACCEPTED",
-            "sha": "b43eae3bb7d75b22d5bda018b7a949550db5aa27",
+            "status": "SOURCE_CI_PASS_PILOT_BROWSER_NOT_ACCEPTED",
+            "sha": "2136c51081173213b1bd38318d5f312a3a40aaca",
             "appCount": 2,
             "plannedTotal": 10,
             "report": "docs/design/boi-ech-owner-client-admin-rollout-2026-11-23.md",
@@ -1128,7 +1136,15 @@
           ],
           "state": "BLOCKED",
           "evidenceLevel": "PILOT_BROWSER",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "PILOT_QA_CHECKPOINT",
+              "source": "https://github.com/BlueDragon33/Application-Management/actions/runs/45226119579",
+              "status": "BLOCKED_NO_AUTHENTICATED_LOCAL_CANDIDATE_BROWSER",
+              "candidateSha": "2136c51081173213b1bd38318d5f312a3a40aaca",
+              "note": "1440/800/390, Escape/focus, role denial, app-owned real readback are not verified; source-only focus fix and regression guard do not equal browser acceptance."
+            }
+          ],
           "changedFiles": [],
           "candidateSha": null,
           "linkedGates": [
@@ -1417,9 +1433,9 @@
   "activeNextAction": {
     "id": "R0.3",
     "type": "PILOT_UX_EVIDENCE_AND_CHANGE_BOUNDARY_REVIEW",
-    "state": "PENDING_AUTHORIZED_LOCAL_BROWSER_QA_AND_DEPENDENCIES",
+    "state": "BLOCKED_UNTIL_AUTHORIZED_AUTHENTICATED_LOCAL_BROWSER_QA",
     "why": "User explicitly requires complete Bơi Ếch Owner-derived UI rollout to all ten subordinate app-admin surfaces before moving to another work item. New standalone Draft PR #419 stages shared presentation-only shell in Bauman and PriceReport, avoiding cross-app auth/data refactor. Prior Windows performance measured 94 samples and no source-level PR417 regression established; defer additional backend microprofiling unless a UX blocker remains.",
-    "required": "One scoped P0 action: review PR #419 exact source/CI and perform authorized authenticated local desktop/tablet/mobile and keyboard/role/source-status QA for Bauman and PriceReport against Bơi Ếch reference, preserving app-owned contracts. Record one pass/fail checkpoint; do not mark R2.2 done or expand rollout before pilot proofs and prerequisite gates. Then migrate remaining eight apps in predeclared groups, maintaining one canonical ledger.",
+    "required": "Exactly one authorized exact-SHA QA package for PR #419 at 2136c51081173213b1bd38318d5f312a3a40aaca: independently run Bauman and PriceReport on isolated local/QA runtime (not Production) with 1440/800/390 screenshots, primary/specialist navigation, Tab/Enter/Escape focus, denied/approved roles, owned contract and independent real-source readback. Capture sanitized evidence and update this one ledger; do not expand rollout if any acceptance item is unverified.",
     "expectedEvidence": [
       "exact candidate SHA with type/build/regression",
       "screenshots for 1440/800/390 reference and both pilots",
@@ -1628,6 +1644,48 @@
       "coverage": "2/10 source-staged, 0/10 newly accepted under this rollout",
       "spec": "docs/design/boi-ech-owner-client-admin-rollout-2026-11-23.md",
       "constraints": "existing client roles/D1/contracts untouched; draft only; G05 UNVERIFIED; no release authority"
+    },
+    {
+      "stepId": "R2.3",
+      "date": "2026-11-23",
+      "result": "BOI_OWNER_PILOT_CI_PASS_BROWSER_QA_BLOCKED_20261123",
+      "evidenceLevel": "EXACT_SHA_GITHUB_TYPECHECK_BUILD_981_REGRESSION_SOURCE_ONLY_NO_AUTHENTICATED_BROWSER",
+      "pilotPr": 419,
+      "pilotSha": "2136c51081173213b1bd38318d5f312a3a40aaca",
+      "apps": [
+        "bauman-master-ai",
+        "price-report-tunggiabao"
+      ],
+      "codeFix": "Escape from specialist submenu now returns focus to visible trigger before collapsing hidden nav; source-level regression assertion added",
+      "ci": {
+        "typecheck": "PASS",
+        "build": "PASS",
+        "nodeTests": "981/981 PASS",
+        "lint": "PASS_WARNINGS",
+        "fastCheck": "PASS",
+        "constitution": "PASS",
+        "dependencySovereignty": "PASS",
+        "browserPreview": "SKIPPED",
+        "workflow": "https://github.com/BlueDragon33/Application-Management/actions/runs/45226119579",
+        "constitutionWorkflow": "https://github.com/BlueDragon33/Application-Management/actions/runs/45226120578"
+      },
+      "runtime": {
+        "qaCandidate": "UNAVAILABLE_IN_THIS_SESSION",
+        "viewports": [
+          "1440",
+          "800",
+          "390"
+        ],
+        "screenshots": "NOT_COLLECTED",
+        "keyboardFocus": "SOURCE_FIX_NOT_BROWSER_VERIFIED",
+        "roleMatrix": "NOT_EXECUTED",
+        "realAppReadback": "NOT_EXECUTED",
+        "production": "NOT_USED"
+      },
+      "outcome": "BLOCKED_BROWSER_ROLE_SOURCE_PROOF_MISSING",
+      "acceptedAppCount": 0,
+      "releaseAuthority": "NONE",
+      "noMerge": true
     }
   ],
   "assessment": {
@@ -2372,8 +2430,8 @@
     "pilot": {
       "pr": 419,
       "branch": "feat/boi-owner-client-admin-shell-20261123",
-      "sourceSha": "b43eae3bb7d75b22d5bda018b7a949550db5aa27",
-      "sourceStatus": "DRAFT_TWO_APPS_STAGED_QA_NOT_ACCEPTED",
+      "sourceSha": "2136c51081173213b1bd38318d5f312a3a40aaca",
+      "sourceStatus": "DRAFT_SOURCE_TYPE_BUILD_CI_PASS_BROWSER_QA_BLOCKED",
       "apps": [
         "bauman-master-ai",
         "price-report-tunggiabao"
@@ -2382,7 +2440,49 @@
         "app/components/client-admin-shell.tsx",
         "app/components/client-admin-shell.module.css"
       ],
-      "spec": "docs/design/boi-ech-owner-client-admin-rollout-2026-11-23.md"
+      "spec": "docs/design/boi-ech-owner-client-admin-rollout-2026-11-23.md",
+      "lastScopedQa": {
+        "stepId": "R2.3",
+        "date": "2026-11-23",
+        "result": "BOI_OWNER_PILOT_CI_PASS_BROWSER_QA_BLOCKED_20261123",
+        "evidenceLevel": "EXACT_SHA_GITHUB_TYPECHECK_BUILD_981_REGRESSION_SOURCE_ONLY_NO_AUTHENTICATED_BROWSER",
+        "pilotPr": 419,
+        "pilotSha": "2136c51081173213b1bd38318d5f312a3a40aaca",
+        "apps": [
+          "bauman-master-ai",
+          "price-report-tunggiabao"
+        ],
+        "codeFix": "Escape from specialist submenu now returns focus to visible trigger before collapsing hidden nav; source-level regression assertion added",
+        "ci": {
+          "typecheck": "PASS",
+          "build": "PASS",
+          "nodeTests": "981/981 PASS",
+          "lint": "PASS_WARNINGS",
+          "fastCheck": "PASS",
+          "constitution": "PASS",
+          "dependencySovereignty": "PASS",
+          "browserPreview": "SKIPPED",
+          "workflow": "https://github.com/BlueDragon33/Application-Management/actions/runs/45226119579",
+          "constitutionWorkflow": "https://github.com/BlueDragon33/Application-Management/actions/runs/45226120578"
+        },
+        "runtime": {
+          "qaCandidate": "UNAVAILABLE_IN_THIS_SESSION",
+          "viewports": [
+            "1440",
+            "800",
+            "390"
+          ],
+          "screenshots": "NOT_COLLECTED",
+          "keyboardFocus": "SOURCE_FIX_NOT_BROWSER_VERIFIED",
+          "roleMatrix": "NOT_EXECUTED",
+          "realAppReadback": "NOT_EXECUTED",
+          "production": "NOT_USED"
+        },
+        "outcome": "BLOCKED_BROWSER_ROLE_SOURCE_PROOF_MISSING",
+        "acceptedAppCount": 0,
+        "releaseAuthority": "NONE",
+        "noMerge": true
+      }
     },
     "scope": "COMMON_PRESENTATION_PLUS_APP_OWNED_CAPABILITIES; NO_BACKEND_UNIFICATION_NO_FAKE_AUTHORITIES",
     "constraints": [
