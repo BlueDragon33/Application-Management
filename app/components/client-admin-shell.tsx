@@ -2,7 +2,7 @@
 
 // Shared PRESENTATION only. Authentication, mutations and source-owned data stay in each app.
 // Extracted from Bơi Ếch Owner V18's primary + specialist navigation pattern.
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import base from "../application-admin.module.css";
 import shell from "./client-admin-shell.module.css";
@@ -35,6 +35,7 @@ export function ClientAdminSidebar<T extends string>({
 }: ClientAdminSidebarProps<T>) {
   const [specialistOpen, setSpecialistOpen] = useState(() =>
     specialist.some((item) => item.id === activeView));
+  const specialistTriggerRef = useRef<HTMLButtonElement>(null);
   const specialistActive = specialist.some((item) => item.id === activeView);
 
   function selectView(next: T) {
@@ -66,7 +67,7 @@ export function ClientAdminSidebar<T extends string>({
       <span className={base.navGroup}>{navTitle}</span>
       {primary.map(renderItem)}
       {specialist.length > 0 ? <button
-        type="button" className={shell.specialistTrigger}
+        type="button" ref={specialistTriggerRef} className={shell.specialistTrigger}
         aria-expanded={specialistOpen}
         aria-controls={`client-specialist-${appId}`}
         data-active={specialistActive}
@@ -83,7 +84,12 @@ export function ClientAdminSidebar<T extends string>({
       aria-label={`Công cụ chuyên biệt ${appName}`}
       hidden={!specialistOpen}
       onKeyDown={(event) => {
-        if (event.key === "Escape") setSpecialistOpen(false);
+        if (event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          specialistTriggerRef.current?.focus();
+          setSpecialistOpen(false);
+        }
       }}
     >{specialist.map((item, index) => renderItem(item, primary.length + index))}</nav> : null}
     <div className={`${base.clientBoundary} ${shell.boundary}`}>
