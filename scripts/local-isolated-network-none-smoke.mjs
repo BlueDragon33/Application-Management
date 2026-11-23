@@ -33,8 +33,33 @@ try{
   await pause(1500);
  }
  if(!got)throw new Error("Local management home did not become available with external network denied");
- console.log(JSON.stringify({result:"LOCAL_NETWORK_NONE_COLD_START_PASS",
-  isolation:"Docker --network none",verifiedRoutes:["/"],
+ // Exercise actual localhost routes in the same physically network-isolated runtime.
+ // Do not claim saved-record or authentication proof without real persistence tests.
+ async function mustFetch(path){
+   const resp=await fetch(new URL(path,address),{redirect:"manual",signal:AbortSignal.timeout(6000)});
+   if(resp.status!==200)throw new Error("Offline local route "+path+" returned HTTP "+resp.status);
+   return resp;
+ }
+ const contract=await (await mustFetch("/api/desktop-agent/contract")).json();
+ if(contract.transport?.direction!=="client-outbound-only" || contract.transport?.inboundPortRequired!==false)
+   throw new Error("Desktop Agent offline transport boundary changed");
+ if(!Array.isArray(contract.prohibited) || !contract.prohibited.includes("arbitrary-powershell"))
+   throw new Error("Desktop Agent contract no longer prohibits arbitrary remote shell");
+ const manifest=await (await mustFetch("/manifest.webmanifest")).json();
+ if(manifest.start_url!=="/" || manifest.scope!=="/" || manifest.display!=="standalone")
+   throw new Error("Offline PWA entrypoint/scope invalid");
+ const sw=await (await mustFetch("/sw.js")).text();
+ if(!/self|serviceWorker|cache|addEventListener/i.test(sw) || sw.length<100)
+   throw new Error("Offline Service Worker response is not a usable script");
+ const second=await mustFetch("/");
+ const markup=await second.text();
+ if(!/<html|<!doctype html/i.test(markup))
+   throw new Error("Local app failed repeat navigation with internet disconnected");
+ console.log(JSON.stringify({result:"LOCAL_NETWORK_NONE_COLD_START_AND_CONTRACT_PASS",
+  isolation:"Docker --network none",
+  verifiedRoutes:["/","/api/desktop-agent/contract","/manifest.webmanifest","/sw.js","/ (repeat)"],
+  transport:"client-outbound-only",
+  sourceRevision:process.env.GITHUB_SHA||"unknown",
   integrationWithOtherApps:"UNVERIFIED",saveAndRestore:"UNVERIFIED",
   authenticationUX:"UNVERIFIED",productionAuthorized:false}));
 }catch(e){
