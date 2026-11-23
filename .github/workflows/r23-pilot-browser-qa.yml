@@ -1,0 +1,54 @@
+name: R2.3 Pilot Chromium Evidence (local-only, not release)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - scripts/r23-pilot-browser-qa.mjs
+      - .github/workflows/r23-pilot-browser-qa.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: application-management-r23-browser-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  r23-local-browser:
+    if: github.event_name == 'pull_request' && github.event.pull_request.number == 419
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      R23_EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+      WRANGLER_SEND_METRICS: "false"
+    steps:
+      - name: Checkout exact candidate, not merge/base
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+          cache: npm
+
+      - name: Install existing locked application dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Install QA-only Chromium without changing source lockfile
+        run: |
+          npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.55.1
+          npx playwright install --with-deps chromium
+
+      - name: Real browser owner/pending/blocked + responsive + focus + local timings
+        run: node scripts/r23-pilot-browser-qa.mjs
+
+      - name: Preserve sanitized R2.3 evidence even on failure
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r23-pilot-browser-evidence
+          path: qa-artifacts/r23-pilot-browser/
+          if-no-files-found: error
+          retention-days: 7
