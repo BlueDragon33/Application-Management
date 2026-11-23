@@ -56,26 +56,32 @@
   .chevron { transition: none; }
 }
 
-/* Read-only builder assistance extends the already gated shared Owner shell.
-   Separate from learner's Help PRO and from privileged admin operations. */
-.developerSupport{margin:8px 8px 12px;min-width:0;border:1px solid #c6d7e4;border-radius:13px;background:#f4f8fc}
-.developerSupportTrigger{width:100%;min-height:52px;display:flex;gap:10px;align-items:center;padding:10px 11px;border:0;border-radius:12px;text-align:left;background:transparent;color:#102d49;cursor:pointer}
-.developerSupportTrigger span:nth-child(2){flex:1;min-width:0;display:grid;gap:3px}
-.developerSupportTrigger strong{font-size:13px;line-height:1.25}
-.developerSupportTrigger small{font-size:11px;color:#415c75}
-.developerSupportPanel{padding:9px 12px 15px;border-top:1px solid #cad9e6;color:#12304a;font-size:12px;line-height:1.45}
+
+/* Real owner prompt-review flow; extends existing authenticated admin shell. */
+.developerSupport{margin:8px 8px 12px;border:1px solid #c6d7e4;border-radius:12px;background:#f4f8fc}
+.developerSupportTrigger{min-height:54px;width:100%;display:flex;gap:9px;align-items:center;border:0;border-radius:12px;padding:10px;text-align:left;background:transparent;color:#102d49;cursor:pointer}
+.developerSupportTrigger span:nth-child(2){min-width:0;flex:1;display:grid;gap:3px}
+.developerSupportTrigger strong{font-size:13px}.developerSupportTrigger small{font-size:11px;color:#415c75}
+.developerSupportBackdrop{position:fixed;inset:0;background:#071727b8;z-index:1098}
+.developerSupportPanel{position:fixed;top:0;right:0;bottom:0;z-index:1099;width:min(100%,580px);max-height:100dvh;display:flex;flex-direction:column;background:#f7fafc;color:#122b43;box-shadow:-9px 0 40px #081b2b70}
 .developerSupportPanel[hidden]{display:none!important}
-.developerSupportPanel p{margin:9px 0}
-.developerSupportPanel dl{margin:9px 0}
-.developerSupportPanel dl div{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid #dbe6ef}
-.developerSupportPanel dt{color:#526479}
-.developerSupportPanel dd{margin:0;text-align:right;overflow-wrap:anywhere}
-.developerSupportLinks{display:grid;gap:6px;padding:7px 0}
-.developerSupportLinks a,.developerSupportCopy{display:block;padding:9px 10px;min-height:44px;background:#e3edf7;border:1px solid #b8cedd;color:#123956;border-radius:9px;text-align:left;text-decoration:none;font-weight:650;font-size:12px}
-.developerSupportCopy{width:100%;cursor:pointer;background:#194f75;color:#fff}
-.developerSupportPanel textarea{width:100%;max-width:100%;padding:9px;margin:6px 0;border:1px solid #9ab6c9;border-radius:9px;background:#fff;color:#163851;resize:vertical;font:11px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace}
-.developerSupportPanel label{display:block;font-weight:700;margin-top:10px}
-.developerSupportMessage{min-height:1.25em;color:#22577f}
-.developerSupportWarning{font-size:11px;color:#664f20}
-.developerSupport :global(button):focus-visible,.developerSupport :global(a):focus-visible,.developerSupport textarea:focus-visible{outline:3px solid #3272b6;outline-offset:2px}
-@media(prefers-reduced-motion:reduce){.developerSupport *{scroll-behavior:auto}}
+.developerSupportHeader{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:16px 18px;border-bottom:1px solid #b8cbd8}
+.developerSupportHeader small{font-size:10px;letter-spacing:.07em;color:#37658a}.developerSupportHeader h2{font-size:20px;margin:4px 0}
+.developerSupportHeader button{border:1px solid #abc0d0;border-radius:8px;background:#e4eef6;padding:10px;min-height:44px;color:#12304a}
+.developerSupportContent{flex:1;min-height:0;overflow-y:auto;padding:16px 20px;overscroll-behavior:contain;line-height:1.55;font-size:13px}
+.developerSupportContent p{margin:8px 0 15px}.developerSupportContent dl{margin:0 0 14px}
+.developerSupportContent dl div{display:flex;gap:12px;justify-content:space-between;border-bottom:1px solid #dae5ed;padding:7px 0}
+.developerSupportContent dd{margin:0;overflow-wrap:anywhere;text-align:right}.developerSupportContent label{display:block;font-weight:700;margin:14px 0 7px}
+.developerSupportContent textarea{box-sizing:border-box;display:block;width:100%;max-width:100%;min-width:0;padding:10px 12px;border:1px solid #90a9c0;background:#fff;color:#152f46;border-radius:9px;resize:vertical;line-height:1.5}
+.developerSupportContent textarea[readonly]{background:#ecf2f8;font:12px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace}
+.developerSupportContent textarea:disabled{background:#e8ecf0;color:#596b78}
+.developerSupportActions{display:grid;gap:9px;grid-template-columns:1fr 1fr;margin:14px 0}
+.developerSupportActions button,.developerSupportCopy{min-height:44px;border:1px solid #5381a2;border-radius:9px;background:#184c73;color:#fff;font-weight:700;padding:10px;cursor:pointer}
+.developerSupportActions button:first-child{grid-column:1/-1;background:#13665f}.developerSupportActions button:disabled{background:#dee6ec;color:#5b6d79;border-color:#adbac6;cursor:not-allowed}
+.developerSupportCopy{width:100%}.developerSupportChatLink,.developerSupportLinks a{display:block;padding:10px 12px;min-height:44px;border:1px solid #b4c6d7;border-radius:9px;color:#16415c;background:#edf4f9;text-decoration:none;font-weight:650}
+.developerSupportLinks{display:grid;gap:8px;margin:12px 0}
+.developerSupportFooter{border-top:1px solid #bdcfda;padding:12px 18px max(12px,env(safe-area-inset-bottom));display:grid;gap:4px;font-size:12px}
+.developerSupportWarning{color:#725222;font-size:12px}
+.developerSupportPanel :global(button):focus-visible,.developerSupportPanel :global(a):focus-visible,.developerSupportPanel textarea:focus-visible,.developerSupportTrigger:focus-visible{outline:3px solid #17629c;outline-offset:3px}
+@media(max-width:500px){.developerSupportPanel{width:100%}.developerSupportContent{padding:12px 15px}.developerSupportActions{grid-template-columns:1fr}.developerSupportActions button:first-child{grid-column:auto}}
+@media(prefers-reduced-motion:reduce){.developerSupportPanel *{scroll-behavior:auto}}
