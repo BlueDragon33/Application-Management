@@ -1,12 +1,16 @@
-# Developer Support Button — separate builder surface (source-only pilot)
+# App Builder PRO — real prompt composer + review pilot (2026-11-23)
 
-Parent: Application-Management Draft PR #419 exact HEAD `2136c51081173213b1bd38318d5f312a3a40aaca`.
-Active law: Blueprint OS universal 1.3.0 (R2, R11, R13, R14, R18, P9-010). This change does not amend the law, PR #419, its #414 execution ledger, or any protected authority.
+Scoped candidate: Application-Management branch \`candidate/app-builder-support-shared-shell-20261123\`; based on Draft PR #419 source \`2136c51081173213b1bd38318d5f312a3a40aaca\`. The canonical ledger remains PR #414. Do not merge, publish or ratify.
 
-**Product correction:** The prior Bauman-Russian-iOS **✦ Hỗ trợ PRO** belongs to the Russian learner. This **🛠 Hỗ trợ người làm app** belongs to Application-Management, and is mounted in the existing authenticated ClientAdminSidebar for the Bauman/PriceReport pilot only. It is NOT a learning-app floating privileged button.
+## Corrected user request
+Click **🛠 Hỗ trợ lập trình PRO** in the authenticated Bauman or PriceReport Owner shared shell. This immediately generates a *real, populated* next-work prompt from the app's read-only control-plane UI readiness and active tab. The user can edit the suggested work item and add 2,000 characters of personal requirements, review the full generated prompt, and an **Owner** can approve it for copying/exporting. Re-edits, regeneration or changes in the originating UI snapshot revoke the local approved state. Copy and Markdown export are available only while the Owner's approved prompt remains fresh. A manual ChatGPT link opens only after copy-only approval and never transmits text or private data automatically.
 
-Functionality delivered in this candidate: accessible expandable disclosure, display of app name, role label and source-reported connection, link to existing contract diagnostic, link to the canonical Constitution, voluntary ChatGPT analysis link, redacted standardized bug report with explicit UNVERIFIED gates, one-click copy with manual fallback, Escape/focus restoration. No app data/PII, source code or device codes in report; no network API, new backend, duplicated registry, auth bypass or automatic mutation.
+## Authority & privacy
+- The generated text is a **derived candidate**, not the canonical Hub P6-007 PromptProjectionSnapshot or automatically acquired WorkPackage. It visibly requires a live Constitution/HEAD/ledger check before code changes. No false SHA or reviewer evidence.
+- Reviewer and publisher can draft but not approve; viewer sees read-only proposal; pending and blocked admin devices do not enter the parent workspaces at all. This is a UI gate, not a server authority grant. Owner approval for *copy-only* never authorizes protected mutations.
+- Source notes are non-secret readiness labels. No customer records, device codes, tokens, third-party data, server AI execution, shadow database or new dashboard. Common prompt generation rejects overt secrets and unrecognized app IDs. No direct ChatGPT API or prompt transmission.
+- Shared shell component remains opt-in to two pilot clients; other managed apps unaffected until exact-source TS/build/regression plus real authenticated browser/role/accessibility validation.
+- UI: dialog drawer, focus-on-open, Escape/return-focus, Tab trap, disabled buttons, explicit DRAFT/STALE/APPROVED_FOR_COPY_ONLY. Manual clipboard fallback and Markdown download.
 
-**Critical status:** The shell is a read-only projection; it does not authenticate users itself. The Bauman and PriceReport client workspaces already gate on approved admin access, but role-specific builder/owner entitlement and a secure AI copilot backend have NOT been independently verified. Thus this is an operator assistance tool, not an owner-only privilege or an embedded AI agent. All eventual protected execution must remain with the existing authorised App-Management/control plane. A user-visible label PRO does not claim a paid AI entitlement.
-
-**Acceptance next:** local TS/React build + exact-head full regression, verify both pilot clients by authenticated Playwright at 1440/800/390; tab/Enter/Escape, roles owner/reviewer/viewer/pending/blocked, clipboard denial, online/warning, backend identity/contract and full QA provenance. No GitHub-hosted Actions, merge, Production or independent reviewer approval claimed.
+## QA & blockers
+The pure .mjs prompt builder runs in Node with tests under \`tests/client-developer-prompt.test.mjs\`. Existing shell regression under \`tests/client-developer-support.test.mjs\` updated, not skipped. Required to complete: exact-head full Next/React typecheck/build, 1440/800/390 screenshots, owner/reviewer/publisher/viewer/pending/blocked authenticated browser paths, clipboard denied behavior, prompt regeneration after source drift and protected-backend no mutation. Until then: SOURCE_CANDIDATE, BROWSER_QA_NOT_RUN, NOT_APPROVED.
