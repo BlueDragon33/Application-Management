@@ -59,3 +59,16 @@ test("shared presentation has no backend writes, unbounded timers or role bypass
   assert.match(shell, /boundary: \{ title: string; description: string \}/);
   assert.match(shell, /data-status=\{connection\.state\}/);
 });
+
+test("Escape from an open specialist submenu restores focus before hiding the focused subtree", () => {
+  assert.match(shell, /useRef<HTMLButtonElement>\(null\)/);
+  assert.match(shell, /ref=\{specialistTriggerRef\}/);
+  const handler = shell.match(/if \(event\.key === "Escape"\) \{([\s\S]*?)\n\s*\}/)?.[1] ?? "";
+  assert.match(handler, /specialistTriggerRef\.current\?\.focus\(\)/);
+  assert.match(handler, /setSpecialistOpen\(false\)/);
+  assert.ok(
+    handler.indexOf("specialistTriggerRef.current?.focus()") <
+    handler.indexOf("setSpecialistOpen(false)"),
+    "Focus must move to the visible trigger before the specialist nav becomes hidden",
+  );
+});
