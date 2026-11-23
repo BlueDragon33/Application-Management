@@ -301,17 +301,23 @@ async function exerciseMobile(origin) {
       const pair = [luminance(style.color), luminance(style.backgroundColor)].sort((a, b) => b - a);
       return (pair[0] + .05) / (pair[1] + .05);
     });
+    const longestMotionMs = Math.max(...buttons.flatMap(button => {
+      const style = getComputedStyle(button);
+      return [style.transitionDuration, style.animationDuration]
+        .flatMap(duration => duration.split(",").map(value => parseFloat(value) * 1000));
+    }));
     return {
       controls: buttons.length,
       contrast: Math.min(...ratios),
       height: Math.min(...buttons.map(button => button.getBoundingClientRect().height)),
       reducedMotion: matchMedia("(prefers-reduced-motion: reduce)").matches,
-      longestTransition: Math.max(...buttons.flatMap(button => getComputedStyle(button).transitionDuration.split(",").map(parseFloat))),
+      longestMotionMs,
     };
   });
   assert.equal(accessibility.controls, 2, JSON.stringify(accessibility));
   assert.ok(accessibility.contrast >= 4.5 && accessibility.height >= 44, JSON.stringify(accessibility));
-  assert.ok(accessibility.reducedMotion && accessibility.longestTransition === 0, JSON.stringify(accessibility));
+  // The shared shell's reduced-motion stylesheet caps these durations at .001ms.
+  assert.ok(accessibility.reducedMotion && accessibility.longestMotionMs <= 0.001, JSON.stringify(accessibility));
   assert.deepEqual(errors, []);
   pass("Header controls meet computed text contrast and target size in reduced motion", accessibility);
   await phone.close();
@@ -330,6 +336,7 @@ try {
   });
   browser = await chromium.launch({ channel: process.env.TRAINER_QA_BROWSER || undefined });
   browserVersion = browser.version();
+  console.log(JSON.stringify({ sha, node: process.version, browserVersion }));
   await withRuntime(true, async origin => {
     for (const [group, verify] of [
       ["desktop", exerciseDesktop],

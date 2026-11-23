@@ -18,6 +18,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 12
     env:
+      TRAINER_QA_BROWSER: chrome
       TRAINER_QA_EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
     steps:
       - uses: actions/checkout@v4
@@ -32,7 +33,7 @@ jobs:
       - name: Install Chromium test runtime
         run: |
           npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.55.1
-          npx playwright install --with-deps chromium
+          google-chrome --version
       - name: Run exact-revision browser QA
         run: node scripts/russian-time-trainer-browser-qa.mjs
       - name: Publish QA summary in the run
