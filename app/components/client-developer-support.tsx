@@ -34,7 +34,7 @@ export function ClientDeveloperSupport({appId,appName,role,roleLabel,connection,
  function exportMarkdown(){
   if(!approved)return setNotice("Chưa duyệt prompt.");
   const url=URL.createObjectURL(new Blob([prompt+"\n"],{type:"text/markdown;charset=utf-8"}));
-  try{const a=document.createElement("a");a.href=url;a.download="app-builder-"+appId+"-approved-prompt.md";document.body.append(a);a.click();a.remove();setNotice("Đã yêu cầu tải file Markdown. Không gửi lên server.");}
+  try{const a=document.createElement("a");a.href=url;a.download="app-builder-"+appId+"-approved-prompt.md";document.body.appendChild(a);a.click();a.remove();setNotice("Đã yêu cầu tải file Markdown. Không gửi lên server.");}
   finally{window.setTimeout(()=>URL.revokeObjectURL(url),0);}
  }
  function keyboard(e:KeyboardEvent<HTMLElement>){
@@ -45,7 +45,22 @@ export function ClientDeveloperSupport({appId,appName,role,roleLabel,connection,
   if(e.shiftKey&&document.activeElement===first&&last){e.preventDefault();last.focus();}
   if(!e.shiftKey&&document.activeElement===last&&first){e.preventDefault();first.focus();}
  }
- useEffect(()=>{if(open)closeRef.current?.focus();},[open]);
+ useEffect(()=>{
+  if(!open)return;
+  closeRef.current?.focus();
+  // Capture Escape globally: changing an underlying admin view or downloading
+  // a file can remove focus from the dialog. A dialog-local keydown is not enough.
+  const onDocumentKeyDown=(event:globalThis.KeyboardEvent)=>{
+    if(event.key!=="Escape")return;
+    event.preventDefault();
+    event.stopPropagation();
+    setOpen(false);
+    setNotice("");
+    triggerRef.current?.focus();
+  };
+  document.addEventListener("keydown",onDocumentKeyDown,true);
+  return()=>document.removeEventListener("keydown",onDocumentKeyDown,true);
+ },[open]);
  return <>
   <section className={styles.developerSupport} data-client-developer-support="prompt-review-v2" data-app-id={appId}>
    <button type="button" ref={triggerRef} className={styles.developerSupportTrigger} aria-expanded={open} aria-haspopup="dialog" aria-controls={panelId} onClick={open?close:show}>

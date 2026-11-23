@@ -34,3 +34,12 @@ test("bounded prompt UI cannot approve devices, run Actions, access secrets or s
  assert.doesNotMatch(builder,/deviceCode|accessToken|apiKey|user\.email|git push|deployProduction/);
  assert.match(builder,/KHÔNG phải duyệt reviewer/);
 });
+
+test("Windows TS/owner Escape regressions keep DOM append types and global modal close",()=>{
+ assert.match(builder,/document\.body\.appendChild\(a\)/);
+ assert.doesNotMatch(builder,/document\.body\.append\(a\)/);
+ assert.match(builder,/document\.addEventListener\("keydown",onDocumentKeyDown,true\)/);
+ assert.match(builder,/document\.removeEventListener\("keydown",onDocumentKeyDown,true\)/);
+ assert.match(builder,/event\.stopPropagation\(\)/);
+ assert.match(builder,/triggerRef\.current\?\.focus\(\)/);
+});
