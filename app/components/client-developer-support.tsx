@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useId, useRef, useState, type KeyboardEvent } from "react";
 import Link from "next/link";
 import styles from "./client-admin-shell.module.css";
 
@@ -51,7 +51,7 @@ export function ClientDeveloperSupport({
     }
   }
 
-  function closeOnEscape(event: React.KeyboardEvent<HTMLElement>) {
+  function closeOnEscape(event: KeyboardEvent<HTMLElement>) {
     if (event.key !== "Escape") return;
     event.preventDefault();
     event.stopPropagation();
