@@ -1,0 +1,50 @@
+name: Russian Time Trainer Browser QA
+
+on:
+  pull_request:
+    paths:
+      - 'app/tools/russian-time-trainer/**'
+      - 'app/application-hub.tsx'
+      - 'app/management-dashboard-v2.tsx'
+      - 'scripts/russian-time-trainer-browser-qa.mjs'
+      - '.github/workflows/russian-time-trainer-browser-qa.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  browser-qa:
+    if: github.event.repository.visibility == 'public' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      TRAINER_QA_EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install locked dependencies
+        run: npm run install:ci
+      - name: Install Chromium test runtime
+        run: |
+          npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.55.1
+          npx playwright install --with-deps chromium
+      - name: Run exact-revision browser QA
+        run: node scripts/russian-time-trainer-browser-qa.mjs
+      - name: Publish QA summary in the run
+        if: always()
+        run: |
+          summary="$RUNNER_TEMP/russian-time-trainer/summary.md"
+          if test -f "$summary"; then cat "$summary" >> "$GITHUB_STEP_SUMMARY"; fi
+      - name: Attach screenshots and results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: russian-time-trainer-browser-qa
+          path: ${{ runner.temp }}/russian-time-trainer/
+          retention-days: 7
+          if-no-files-found: ignore
