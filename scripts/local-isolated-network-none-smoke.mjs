@@ -6,6 +6,11 @@ if(process.env.OFFLINE_NETWORK_ISOLATED!=="1"){
  console.error("BLOCKED: this smoke must run in a Docker --network none container");
  process.exit(2);
 }
+const revision=String(process.env.SOURCE_REVISION||"");
+if(!/^[0-9a-f]{40}$/.test(revision)){
+ console.error("BLOCKED: exact GitHub source HEAD must be supplied to isolated smoke");
+ process.exit(2);
+}
 const address="http://127.0.0.1:4174/";
 const app=spawn("npm",["run","dev","--","--host","127.0.0.1","--port","4174"],{
   cwd:process.cwd(),
@@ -59,7 +64,7 @@ try{
   isolation:"Docker --network none",
   verifiedRoutes:["/","/api/desktop-agent/contract","/manifest.webmanifest","/sw.js","/ (repeat)"],
   transport:"client-outbound-only",
-  sourceRevision:process.env.GITHUB_SHA||"unknown",
+  sourceRevision:process.env.SOURCE_REVISION,
   integrationWithOtherApps:"UNVERIFIED",saveAndRestore:"UNVERIFIED",
   authenticationUX:"UNVERIFIED",productionAuthorized:false}));
 }catch(e){
