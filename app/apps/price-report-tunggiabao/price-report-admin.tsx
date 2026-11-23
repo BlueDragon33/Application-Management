@@ -12,6 +12,7 @@ import {
   type OperationsSummary,
 } from "../../admin-device-client";
 import type { ApplicationConfig } from "../../application-registry";
+import { ClientAdminSidebar, ClientAdminTopbar } from "../../components/client-admin-shell";
 import styles from "../../application-admin.module.css";
 import deviceStyles from "./price-report-admin.module.css";
 
@@ -149,30 +150,45 @@ export default function PriceReportAdmin({ application, user }: { application: A
         : ["KẾ TOÁN · CLIENT CONTROL", "Quản trị Báo giá Tùng Gia Bảo", "PriceReport là client Kế toán độc lập; dữ liệu báo giá ở client, Trung tâm chỉ quản trị contract và thiết bị khi có backend thật."];
 
   return <main className={styles.workspaceShell}>
-    <aside className={styles.clientSidebar}>
-      <Link href="/" className={styles.serverBack}><span>←</span><div><small>SERVER</small><strong>Application Management</strong></div></Link>
-      <div className={styles.clientBrand}><span>KT</span><div><small>CLIENT · KẾ TOÁN</small><strong>Báo giá Tùng Gia Bảo</strong></div></div>
-      <div className={styles.clientStatus}><i data-status={webConnected ? "online" : "warning"}/><div><strong>{summary ? connectionLabel[summary.connection] : "Đang đọc contract"}</strong><small>{remoteAdminReady ? "Remote registry KT- sẵn sàng" : "Phân loại thiết bị đã có · remote registry chưa có"}</small></div></div>
-      <nav className={styles.clientNav}>
-        <span className={styles.navGroup}>QUẢN TRỊ KẾ TOÁN</span>
-        <button data-active={view === "overview"} onClick={() => setView("overview")}><span>01</span><div><strong>Tổng quan</strong><small>Runtime & ranh giới</small></div></button>
-        <button data-active={view === "devices"} onClick={() => setView("devices")}><span>02</span><div><strong>Thiết bị & quyền</strong><small>{pending} chờ · {approved} duyệt · {blocked} khóa</small></div></button>
-        <button data-active={view === "experience"} onClick={() => setView("experience")}><span>03</span><div><strong>Giao diện thiết bị</strong><small>Desktop · Tablet · Phone</small></div></button>
-        <button data-active={view === "contract"} onClick={() => setView("contract")}><span>04</span><div><strong>Contract</strong><small>{readiness.filter((item) => item.state === "available").length}/{readiness.length} sẵn sàng</small></div></button>
-      </nav>
-      <div className={styles.clientBoundary}><span>RANH GIỚI</span><strong>Không đưa báo giá, khách hàng hoặc backup vào Application Management.</strong><p>Trung tâm không dùng LocalStorage của client làm registry quyền và không bật nút Duyệt/Khóa giả.</p></div>
-      <div className={styles.clientUser}><span>{user.displayName.slice(0,1).toUpperCase()}</span><div><strong>{user.displayName}</strong><small>{roleLabels[access.role]}</small><small>{access.deviceCode}</small></div></div>
-    </aside>
+    <ClientAdminSidebar<View>
+      appId={APP_ID}
+      appName="Báo giá Tùng Gia Bảo"
+      initials="KT"
+      category="CLIENT · KẾ TOÁN"
+      navTitle="ĐIỀU HÀNH KẾ TOÁN"
+      activeView={view}
+      onSelect={setView}
+      primary={[
+        { id: "overview", label: "Tổng quan", description: "Runtime & ranh giới", glyph: "01" },
+        { id: "devices", label: "Thiết bị & quyền", description: `${pending} chờ · ${approved} duyệt · ${blocked} khóa`, glyph: "02" },
+        { id: "experience", label: "Giao diện thiết bị", description: "Desktop · Tablet · Phone", glyph: "03" },
+      ]}
+      specialist={[
+        { id: "contract", label: "Contract", description: `${readiness.filter((item) => item.state === "available").length}/${readiness.length} sẵn sàng`, glyph: "04" },
+      ]}
+      connection={{
+        state: webConnected ? "online" : "warning",
+        label: summary ? connectionLabel[summary.connection] : "Đang đọc contract",
+        note: remoteAdminReady ? "Remote registry KT- sẵn sàng" : "Remote registry chưa xác minh",
+      }}
+      boundary={{
+        title: "Không đưa báo giá, khách hàng hoặc backup vào Application Management.",
+        description: "Thiết bị KT- thuộc client. Chưa có capability hợp lệ thì Duyệt/Khóa phải được giữ khóa.",
+      }}
+      user={{ displayName: user.displayName, roleLabel: roleLabels[access.role], deviceCode: access.deviceCode }}
+    />
 
     <section className={styles.workspaceMain}>
-      <header className={styles.workspaceTopbar}>
-        <div><span>{title[0]}</span><h1>{title[1]}</h1><p>{title[2]}</p></div>
-        <div className={styles.topbarActions}>
+      <ClientAdminTopbar
+        eyebrow={title[0]}
+        title={title[1]}
+        description={title[2]}
+        actions={<>
           {summary?.webHref ? <a href={summary.webHref} target="_blank" rel="noreferrer">Mở PriceReport ↗</a> : application.publicUrl ? <a href={application.publicUrl} target="_blank" rel="noreferrer">Mở PriceReport ↗</a> : null}
           <Link href="/">Hệ thống</Link>
           <button onClick={() => void load()} disabled={busy}>{busy ? "Đang cập nhật…" : "Cập nhật"}</button>
-        </div>
-      </header>
+        </>}
+      />
 
       {error ? <div className={styles.workspaceError}>{error}</div> : null}
 
