@@ -13,6 +13,19 @@ const average = values => values.reduce((total, value) => total + value, 0) / va
 const distribute = (i, size, height) => size < 2 ? height / 2
   : 110 + i * (height - 220) / (size - 1);
 
+/** Center a real selected registry node within the scrollable atlas, never outside bounds. */
+export function centerNeuralViewport(targetX, targetY, contentWidth, contentHeight, viewportWidth, viewportHeight) {
+  const values = [targetX, targetY, contentWidth, contentHeight, viewportWidth, viewportHeight];
+  if (!values.every(Number.isFinite) || contentWidth <= 0 || contentHeight <= 0
+    || viewportWidth <= 0 || viewportHeight <= 0 || targetX < 0 || targetX > contentWidth
+    || targetY < 0 || targetY > contentHeight) return null;
+  const clamp = (value, max) => Math.max(0, Math.min(value, Math.max(0, max)));
+  return {
+    left: clamp(targetX - viewportWidth / 2, contentWidth - viewportWidth),
+    top: clamp(targetY - viewportHeight / 2, contentHeight - viewportHeight),
+  };
+}
+
 export function buildRegistryNeuralGraph(projects, selectedProjectId = "") {
   const seen = new Set();
   const sorted = (Array.isArray(projects) ? projects : []).filter(project => {

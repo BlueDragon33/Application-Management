@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildRegistryNeuralGraph } from "../app/blueprint-neural-registry-graph.mjs";
+import { buildRegistryNeuralGraph, centerNeuralViewport } from "../app/blueprint-neural-registry-graph.mjs";
 
 const examples = [
   {id:"hub",name:"Blueprint Hub",repository:"BlueDragon33/Software-Blueprint-Hub",group:"core",state:"developing",summary:"core"},
@@ -86,3 +86,27 @@ test("large catalog stays bounded and geometry remains readable", () => {
 });
 
 
+test("atlas focus centers the selected node on desktop, tablet and mobile", () => {
+  for (const [viewportWidth, viewportHeight, left, top] of [
+    [1440, 600, 26, 1000], [800, 480, 346, 1060], [390, 320, 551, 1140],
+  ]) {
+    assert.deepEqual(centerNeuralViewport(746, 1300, 1660, 2550, viewportWidth, viewportHeight), { left, top });
+  }
+});
+
+test("atlas focus clamps both axes at content boundaries and when content fits", () => {
+  assert.deepEqual(centerNeuralViewport(10, 10, 1660, 2550, 390, 320), { left: 0, top: 0 });
+  assert.deepEqual(centerNeuralViewport(1650, 2540, 1660, 2550, 390, 320), { left: 1270, top: 2230 });
+  assert.deepEqual(centerNeuralViewport(80, 70, 160, 140, 800, 600), { left: 0, top: 0 });
+});
+
+test("atlas focus refuses unselected or invalid geometry without scrolling", () => {
+  for (const args of [
+    [NaN, 100, 1660, 2550, 390, 320],
+    [100, Infinity, 1660, 2550, 390, 320],
+    [100, 100, 1660, 2550, 0, 320],
+    [100, 100, 1660, -1, 390, 320],
+    [1661, 100, 1660, 2550, 390, 320],
+    [100, -1, 1660, 2550, 390, 320],
+  ]) assert.equal(centerNeuralViewport(...args), null);
+});

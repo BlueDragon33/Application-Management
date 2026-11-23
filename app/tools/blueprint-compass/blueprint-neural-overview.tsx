@@ -7,7 +7,7 @@
  * No canonical dependency, Graph/Agent event or QA result is fabricated.
  */
 import { useMemo, useRef } from "react";
-import { buildRegistryNeuralGraph } from "../../blueprint-neural-registry-graph.mjs";
+import { buildRegistryNeuralGraph, centerNeuralViewport } from "../../blueprint-neural-registry-graph.mjs";
 import styles from "./blueprint-compass.module.css";
 
 export type NeuralProject = {
@@ -62,8 +62,16 @@ export default function BlueprintNeuralOverview({
       <div className={styles.neuralToolbar}>
         <button type="button" onClick={() => {
           const track = trackRef.current;
-          if (!track) return;
-          track.scrollTo({ left: Math.max(0, 613 - track.clientWidth / 2), behavior: "auto" });
+          const node = track?.querySelector<HTMLButtonElement>('button[aria-pressed="true"]');
+          if (!track || !node) return;
+          const target = centerNeuralViewport(
+            node.offsetLeft + node.offsetWidth / 2,
+            node.offsetTop + node.offsetHeight / 2,
+            track.scrollWidth, track.scrollHeight, track.clientWidth, track.clientHeight,
+          );
+          if (!target) return;
+          track.scrollTo({ ...target, behavior: "auto" });
+          node.focus({ preventScroll: true });
         }}>◎ Đến node dự án</button>
         <span>Tab để chọn dự án · Kéo ngang để khám phá 5 dải · Chỉ dữ liệu registry</span>
       </div>
