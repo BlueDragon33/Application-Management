@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - scripts/r23-pilot-browser-qa.mjs
+      - scripts/r23-client-source-probe.mjs
       - .github/workflows/r23-pilot-browser-qa.yml
 
 permissions:
@@ -50,5 +51,56 @@ jobs:
         with:
           name: r23-pilot-browser-evidence
           path: qa-artifacts/r23-pilot-browser/
+          if-no-files-found: error
+          retention-days: 7
+
+  r23-independent-client-source:
+    if: github.event_name == 'pull_request' && github.event.pull_request.number == 419
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    env:
+      R23_EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+      WRANGLER_SEND_METRICS: "false"
+    steps:
+      - name: Checkout exact Application Management candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - name: Checkout independent Bauman source at pinned SHA
+        uses: actions/checkout@v4
+        with:
+          repository: BlueDragon33/Bauman-master-ai-system
+          ref: 16d8f7a963e27a12520d510f29b161374b5c5df3
+          path: r23-clients/bauman
+          persist-credentials: false
+
+      - name: Checkout independent PriceReport source at pinned SHA
+        uses: actions/checkout@v4
+        with:
+          repository: BlueDragon33/PriceReport_Tunggiabao
+          ref: 9e8df71f2839989b067af79ef22c389f541664e5
+          path: r23-clients/price
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+
+      - name: Install pinned child service dependencies, without remote D1
+        run: |
+          npm ci --prefix r23-clients/bauman/control-service --no-audit --no-fund
+          npm ci --prefix r23-clients/price/control-service --no-audit --no-fund
+
+      - name: Verify signed child Control API against independent local BM-/KT- D1
+        run: node scripts/r23-client-source-probe.mjs
+
+      - name: Upload independent source-only QA evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r23-client-owned-source-evidence
+          path: qa-artifacts/r23-client-source/
           if-no-files-found: error
           retention-days: 7
