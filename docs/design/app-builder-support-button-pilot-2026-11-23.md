@@ -14,3 +14,12 @@ Click **🛠 Hỗ trợ lập trình PRO** in the authenticated Bauman or PriceR
 
 ## QA & blockers
 The pure .mjs prompt builder runs in Node with tests under \`tests/client-developer-prompt.test.mjs\`. Existing shell regression under \`tests/client-developer-support.test.mjs\` updated, not skipped. Required to complete: exact-head full Next/React typecheck/build, 1440/800/390 screenshots, owner/reviewer/publisher/viewer/pending/blocked authenticated browser paths, clipboard denied behavior, prompt regeneration after source drift and protected-backend no mutation. Until then: SOURCE_CANDIDATE, BROWSER_QA_NOT_RUN, NOT_APPROVED.
+
+
+## Executed focused QA (exact source, 2026-11-23)
+- Core module Git blob \`app/components/client-developer-prompt.mjs\` = \`6cc17ceb5d806ee6b167acb436f30df2d8418052\`. Local \`git hash-object\` matched that GitHub blob **exactly**, syntax \`node --check\` PASS.
+- Actual Node **v22.16.0** execution of 3 targeted tests against that identical code: **3 PASS / 0 FAIL / 0 SKIP**. Cases: distinct per-client populated next prompt + personal requirements + Constitution guardrails; different Bauman/PriceReport prompt and source fingerprint; reject invalid role/app/connection, overlong text, blank task and overt secret patterns.
+- V8 evaluation of exact-HEAD GitHub source + scoped structural probes: **26 PASS / 0 FAIL**, including owner-only approval, edit invalidation, stale fingerprint guard, source-only gating, upstream approved-device gate, no privileged backend writes.
+- Exact candidate source SHA at this checkpoint \`06be48050bb1696c3c84094a16c8bb080fe07f94\`.
+- **NOT_RUN:** full Node repo tests, TypeScript/Next build, authenticated React behavior at 1440/800/390, clipboard permission negative path, real browser focus/voiceover, role matrix (Owner/reviewer/publisher/viewer/pending/blocked). These must PASS before adding this candidate to Draft PR #419 or distributing to any other client.
+- Production/main/PR #419 unchanged. No GitHub Actions, merge, review approval, publish or ratify.
