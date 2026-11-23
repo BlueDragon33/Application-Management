@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type MouseEvent, type PointerEvent, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type MouseEvent, type PointerEvent, type RefObject } from "react";
 import { translatedWord, translateStudyText, type Translation } from "./content";
 import styles from "./trainer.module.css";
 
@@ -50,15 +50,15 @@ export function useContextTranslation(root: RefObject<HTMLElement | null>) {
   const input = useRef<HTMLInputElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
 
-  function clearHold() {
+  const clearHold = useCallback(() => {
     if (press.current) window.clearTimeout(press.current.timer);
     press.current = null;
-  }
+  }, []);
 
-  function dismiss() {
+  const dismiss = useCallback(() => {
     clearHold();
     setWord(null);
-  }
+  }, [clearHold]);
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
@@ -69,7 +69,7 @@ export function useContextTranslation(root: RefObject<HTMLElement | null>) {
       clearHold();
       window.removeEventListener("keydown", handleKey);
     };
-  }, []);
+  }, [clearHold, dismiss]);
 
   function reveal(target: HTMLElement) {
     const term = target.dataset.studyWord;

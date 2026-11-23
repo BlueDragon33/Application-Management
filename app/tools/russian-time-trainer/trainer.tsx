@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { scheduleClientInitialization } from "../../client-initialization";
 import { timeLessons, type Bilingual, type TimeLesson } from "./content";
 import {
   emptyProgress,
@@ -94,13 +95,18 @@ export default function RussianTimeTrainer({ storagePrefix }: { storagePrefix: s
         return null;
       }
     };
-    const state = restore();
-    if (state?.lessonId) setLessonId(state.lessonId);
+    const cancelInitialization = scheduleClientInitialization(() => {
+      const state = restore();
+      if (state?.lessonId) setLessonId(state.lessonId);
+    });
     const sync = (event: StorageEvent) => {
       if (event.key?.startsWith(storagePrefix)) restore();
     };
     window.addEventListener("storage", sync);
-    return () => window.removeEventListener("storage", sync);
+    return () => {
+      cancelInitialization();
+      window.removeEventListener("storage", sync);
+    };
   }, [storagePrefix]);
 
   const lesson = timeLessons.find(item => item.id === lessonId) ?? timeLessons[0];

@@ -129,6 +129,8 @@ async function checkAudioContract(origin, desktop) {
     } });
   });
   await speechPage.goto(origin + trainerPath);
+  await speechPage.waitForFunction(() => document.documentElement.lang === "en");
+  assert.ok(await speechPage.evaluate(() => speechSynthesis.getVoices().some(voice => voice.localService && voice.lang === "ru-RU")));
   await speechPage.getByRole("button", { name: "Listen: Который час?" }).click();
   await speechPage.getByRole("status").filter({ hasText: "Playing Russian audio." }).waitFor();
   assert.deepEqual(await speechPage.evaluate(() => window.trainerQASpeech), { text: "Который час?", lang: "ru-RU", local: true });
@@ -324,7 +326,8 @@ try {
 } catch (error) {
   if (page && !page.isClosed()) await screenshot(page, "failure").catch(() => {});
   results.push({ status: "FAIL", error: error.message });
-  throw error;
+  console.error(error);
+  process.exitCode = 1;
 } finally {
   if (browser) await browser.close();
   await writeFile(path.join(evidence, "results.json"), JSON.stringify({ sha, node: process.version, browserVersion, results }, null, 2) + "\n");
