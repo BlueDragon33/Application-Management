@@ -111,8 +111,10 @@ async function focusRestored(locator) {
   await locator.and(locator.page().locator(":focus")).waitFor();
 }
 
-async function checkAudioContract(origin, desktop) {
-  const speechPage = await desktop.newPage();
+async function checkAudioContract(origin) {
+  const context = await makeContext(origin, { viewport: { width: 1440, height: 900 } });
+  page = await context.newPage();
+  const speechPage = page;
   await speechPage.addInitScript(() => {
     class Utterance {
       constructor(text) { this.text = text; }
@@ -134,7 +136,7 @@ async function checkAudioContract(origin, desktop) {
   await speechPage.getByRole("button", { name: "Listen: Который час?" }).click();
   await speechPage.getByRole("status").filter({ hasText: "Playing Russian audio." }).waitFor();
   assert.deepEqual(await speechPage.evaluate(() => window.trainerQASpeech), { text: "Который час?", lang: "ru-RU", local: true });
-  await speechPage.close();
+  await context.close();
   pass("Russian pronunciation uses the local ru-RU voice when present", { testDouble: true, audiblePlayback: "UNVERIFIED" });
 }
 
@@ -175,8 +177,12 @@ async function exerciseDesktop(origin) {
   await page.keyboard.press("Enter");
   await translations(page).locator("[lang=vi]").filter({ hasText: "tám giờ rưỡi" }).waitFor();
   await page.keyboard.press("Escape");
+  await translations(page).waitFor({ state: "hidden" });
+  await focusRestored(translate(page));
   await page.keyboard.press("Tab");
-  assert.ok(await help(page).evaluate(element => document.activeElement === element && getComputedStyle(element).outlineStyle !== "none"));
+  await focusRestored(help(page));
+  const outline = await help(page).evaluate(element => getComputedStyle(element).outlineStyle);
+  assert.notEqual(outline, "none");
   pass("Keyboard-only translation and visible keyboard focus");
 
   await page.getByRole("button", { name: "Listen: Который час?" }).click();
@@ -187,7 +193,6 @@ async function exerciseDesktop(origin) {
     await page.getByText("Кото́рый ча́с?", { exact: true }).waitFor();
     pass("Russian pronunciation without an installed voice shows the stress guide");
   }
-  await checkAudioContract(origin, desktop);
 
   await practice(page).click();
   await page.getByRole("button", { name: "Во сколько начинается урок?", exact: true }).click();
@@ -320,8 +325,20 @@ try {
   browser = await chromium.launch({ channel: process.env.TRAINER_QA_BROWSER || undefined });
   browserVersion = browser.version();
   await withRuntime(true, async origin => {
-    await exerciseDesktop(origin);
-    await exerciseMobile(origin);
+    for (const [group, verify] of [
+      ["desktop", exerciseDesktop],
+      ["mobile", exerciseMobile],
+      ["speech-contract", checkAudioContract],
+    ]) {
+      try {
+        await verify(origin);
+      } catch (error) {
+        if (page && !page.isClosed()) await screenshot(page, group + "-failure").catch(() => {});
+        results.push({ name: group, status: "FAIL", error: error.message });
+        console.error(group, error);
+        process.exitCode = 1;
+      }
+    }
   });
 } catch (error) {
   if (page && !page.isClosed()) await screenshot(page, "failure").catch(() => {});
@@ -332,7 +349,7 @@ try {
   if (browser) await browser.close();
   await writeFile(path.join(evidence, "results.json"), JSON.stringify({ sha, node: process.version, browserVersion, results }, null, 2) + "\n");
   const lines = ["# Russian Time Trainer browser QA", "", "Source: " + sha, "", ...results.map(result =>
-    "- " + result.status + " — " + (result.name ?? result.error) + (result.detail ? " (" + JSON.stringify(result.detail) + ")" : ""),
+    "- " + result.status + " — " + (result.name ?? "Runtime") + (result.error ? " (" + result.error + ")" : "") + (result.detail ? " (" + JSON.stringify(result.detail) + ")" : ""),
   )];
   await writeFile(path.join(evidence, "summary.md"), lines.join("\n") + "\n");
 }

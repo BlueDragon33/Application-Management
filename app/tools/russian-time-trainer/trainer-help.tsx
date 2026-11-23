@@ -42,9 +42,10 @@ export default function TrainerHelp({ lesson, view, onOpen }: { lesson: string; 
       onOpen();
       setReviewed("");
       setCopy(null);
+      trigger.current?.focus({ preventScroll: true });
       dialog.current?.showModal();
     }}><span aria-hidden="true">❔</span> Help <span lang="ru">Помощь</span></button>
-    <dialog ref={dialog} className={styles.dialog} aria-labelledby="rtt-help-title" onClose={() => trigger.current?.focus()}>
+    <dialog ref={dialog} className={styles.dialog} aria-labelledby="rtt-help-title">
       <header className={styles.dialogHeader}>
         <h2 id="rtt-help-title">Help <span lang="ru">Помощь</span></h2>
         <button type="button" className={styles.dismiss} onClick={() => dialog.current?.close()} aria-label="Close help">×</button>

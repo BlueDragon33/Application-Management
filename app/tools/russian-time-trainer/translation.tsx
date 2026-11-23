@@ -116,6 +116,7 @@ export function useContextTranslation(root: RefObject<HTMLElement | null>) {
     dismiss();
     setQuery(selection);
     setResult(selection ? translateStudyText(selection) : null);
+    trigger.current?.focus({ preventScroll: true });
     dialog.current?.showModal();
     input.current?.focus();
   }
@@ -149,7 +150,6 @@ export function useContextTranslation(root: RefObject<HTMLElement | null>) {
       <dialog ref={dialog} className={styles.dialog} aria-labelledby="rtt-translate-title" onClose={() => {
         setResult(null);
         setQuery("");
-        trigger.current?.focus();
       }}>
         <header className={styles.dialogHeader}>
           <h2 id="rtt-translate-title">Translation <span lang="ru">Перевод</span></h2>
