@@ -59,6 +59,11 @@ test("R2.3 local QA does not make source CI a role or Production readback PASS",
   assert.match(sourceGuard, /DEVICE_PENDING/);
   assert.match(sourceGuard, /DEVICE_MISMATCH/);
   assert.match(sourceGuard, /isOwnerEmail\(email\)/);
-  const shellTest = fs.readFileSync(path.join(root, "tests", "client-admin-shell-pilot.test.mjs"), "utf8");
-  assert.match(shellTest, /role gate unchanged|existing role gate unchanged|access\.status !== "approved"/i);
+  for (const admin of [
+    "app/apps/bauman-master-ai/bauman-admin.tsx",
+    "app/apps/price-report-tunggiabao/price-report-admin.tsx",
+  ]) {
+    const source = fs.readFileSync(path.join(root, admin), "utf8");
+    assert.match(source, /if \(!access \|\| access\.status !== "approved"\)/, admin);
+  }
 });
