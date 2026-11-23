@@ -5,6 +5,7 @@
 import { useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import base from "../application-admin.module.css";
+import { ClientDeveloperSupport } from "./client-developer-support";
 import shell from "./client-admin-shell.module.css";
 
 export type ClientAdminNavItem<T extends string> = {
@@ -92,6 +93,7 @@ export function ClientAdminSidebar<T extends string>({
         }
       }}
     >{specialist.map((item, index) => renderItem(item, primary.length + index))}</nav> : null}
+    <ClientDeveloperSupport appId={appId} appName={appName} connection={connection} roleLabel={user.roleLabel} />
     <div className={`${base.clientBoundary} ${shell.boundary}`}>
       <span>RANH GIỚI NGUỒN DỮ LIỆU</span>
       <strong>{boundary.title}</strong>

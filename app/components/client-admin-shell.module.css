@@ -55,3 +55,27 @@
 @media (prefers-reduced-motion: reduce) {
   .chevron { transition: none; }
 }
+
+/* Read-only builder assistance extends the already gated shared Owner shell.
+   Separate from learner's Help PRO and from privileged admin operations. */
+.developerSupport{margin:8px 8px 12px;min-width:0;border:1px solid #c6d7e4;border-radius:13px;background:#f4f8fc}
+.developerSupportTrigger{width:100%;min-height:52px;display:flex;gap:10px;align-items:center;padding:10px 11px;border:0;border-radius:12px;text-align:left;background:transparent;color:#102d49;cursor:pointer}
+.developerSupportTrigger span:nth-child(2){flex:1;min-width:0;display:grid;gap:3px}
+.developerSupportTrigger strong{font-size:13px;line-height:1.25}
+.developerSupportTrigger small{font-size:11px;color:#415c75}
+.developerSupportPanel{padding:9px 12px 15px;border-top:1px solid #cad9e6;color:#12304a;font-size:12px;line-height:1.45}
+.developerSupportPanel[hidden]{display:none!important}
+.developerSupportPanel p{margin:9px 0}
+.developerSupportPanel dl{margin:9px 0}
+.developerSupportPanel dl div{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid #dbe6ef}
+.developerSupportPanel dt{color:#526479}
+.developerSupportPanel dd{margin:0;text-align:right;overflow-wrap:anywhere}
+.developerSupportLinks{display:grid;gap:6px;padding:7px 0}
+.developerSupportLinks a,.developerSupportCopy{display:block;padding:9px 10px;min-height:44px;background:#e3edf7;border:1px solid #b8cedd;color:#123956;border-radius:9px;text-align:left;text-decoration:none;font-weight:650;font-size:12px}
+.developerSupportCopy{width:100%;cursor:pointer;background:#194f75;color:#fff}
+.developerSupportPanel textarea{width:100%;max-width:100%;padding:9px;margin:6px 0;border:1px solid #9ab6c9;border-radius:9px;background:#fff;color:#163851;resize:vertical;font:11px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace}
+.developerSupportPanel label{display:block;font-weight:700;margin-top:10px}
+.developerSupportMessage{min-height:1.25em;color:#22577f}
+.developerSupportWarning{font-size:11px;color:#664f20}
+.developerSupport :global(button):focus-visible,.developerSupport :global(a):focus-visible,.developerSupport textarea:focus-visible{outline:3px solid #3272b6;outline-offset:2px}
+@media(prefers-reduced-motion:reduce){.developerSupport *{scroll-behavior:auto}}
