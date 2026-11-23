@@ -951,7 +951,15 @@
           ],
           "state": "BLOCKED",
           "evidenceLevel": "MEASUREMENT_REQUIRED",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "PILOT_QA_PREREQUISITE",
+              "source": "https://github.com/BlueDragon33/Application-Management/pull/419",
+              "candidateSha": "2136c51081173213b1bd38318d5f312a3a40aaca",
+              "status": "BLOCKED_AUTHORIZED_QA_IDENTITY_AND_DEVICE_FIXTURES_MISSING",
+              "note": "See the same-SHA R2.3 Windows checkpoint. The exact candidate responded locally and both pilot routes required sign-in. Authenticated change-boundary evidence remains pending."
+            }
+          ],
           "changedFiles": [],
           "candidateSha": null,
           "linkedGates": [
@@ -1143,6 +1151,63 @@
               "status": "BLOCKED_NO_AUTHENTICATED_LOCAL_CANDIDATE_BROWSER",
               "candidateSha": "2136c51081173213b1bd38318d5f312a3a40aaca",
               "note": "1440/800/390, Escape/focus, role denial, app-owned real readback are not verified; source-only focus fix and regression guard do not equal browser acceptance."
+            },
+            {
+              "kind": "WINDOWS_LOCAL_PILOT_QA_CHECKPOINT",
+              "observedOn": "2026-11-23",
+              "source": "https://github.com/BlueDragon33/Application-Management/pull/419",
+              "status": "BLOCKED_AUTHORIZED_QA_IDENTITY_AND_DEVICE_FIXTURES_MISSING",
+              "candidateSha": "2136c51081173213b1bd38318d5f312a3a40aaca",
+              "treeSha": "fc02da44a3de4e0d39bf4671849a657af2d41686",
+              "verifiedSource": {
+                "baseSha": "89a89ce2d3d8ed634ee9562c52744a99223a2b2a",
+                "changedBlobs": 6,
+                "trackedFilesByteVerified": 571,
+                "mismatches": 0
+              },
+              "ci": {
+                "workflow": "https://github.com/BlueDragon33/Application-Management/actions/runs/45226119579",
+                "mergeRef": "1ed96ae8f1bf0f13c6cc45050a9f57a7575c7595",
+                "mergeTreeMatchesCandidate": true,
+                "typecheck": "PASS",
+                "build": "PASS",
+                "nodeTestsPassed": 981,
+                "nodeTestsFailed": 0,
+                "browserPreview": "SKIPPED",
+                "constitutionWorkflow": "https://github.com/BlueDragon33/Application-Management/actions/runs/45226120578"
+              },
+              "windows": {
+                "workspace": "E:\\BaumanWeb",
+                "node": "24.15.0",
+                "playwright": "1.55.1",
+                "chromium": "Chrome 157.0.8103.79",
+                "sessionOwnedHttpStatus": 200,
+                "candidateAssetHttpStatus": 200,
+                "candidateOrigin": "http://127.0.0.1:5173",
+                "candidatePid": 28324,
+                "listenerClosed": true,
+                "packageInstall": "LOCKED_OFFLINE"
+              },
+              "auth": {
+                "baumanAnonymousHttpStatus": 307,
+                "priceReportAnonymousHttpStatus": 307,
+                "sameOriginSignInRedirect": true,
+                "configuredDevelopmentIdentity": "EXAMPLE_AUTO_OWNER_INELIGIBLE",
+                "authorizedIdentityAndDeviceFixtures": "NOT_AVAILABLE"
+              },
+              "remaining": {
+                "viewports": [
+                  "1440x900",
+                  "800x900",
+                  "390x844"
+                ],
+                "screenshots": "NOT_COLLECTED",
+                "navigationFocusContrastMotionLoadingError": "UNVERIFIED",
+                "authenticatedRoleMatrix": "NOT_EXECUTED",
+                "independentBmKtReadbackAndMutationAuthority": "UNVERIFIED"
+              },
+              "appSourceChange": "NONE",
+              "acceptedAppCount": 0
             }
           ],
           "changedFiles": [],
@@ -1435,7 +1500,7 @@
     "type": "PILOT_UX_EVIDENCE_AND_CHANGE_BOUNDARY_REVIEW",
     "state": "BLOCKED_UNTIL_AUTHORIZED_AUTHENTICATED_LOCAL_BROWSER_QA",
     "why": "User explicitly requires complete Bơi Ếch Owner-derived UI rollout to all ten subordinate app-admin surfaces before moving to another work item. New standalone Draft PR #419 stages shared presentation-only shell in Bauman and PriceReport, avoiding cross-app auth/data refactor. Prior Windows performance measured 94 samples and no source-level PR417 regression established; defer additional backend microprofiling unless a UX blocker remains.",
-    "required": "Exactly one authorized exact-SHA QA package for PR #419 at 2136c51081173213b1bd38318d5f312a3a40aaca: independently run Bauman and PriceReport on isolated local/QA runtime (not Production) with 1440/800/390 screenshots, primary/specialist navigation, Tab/Enter/Escape focus, denied/approved roles, owned contract and independent real-source readback. Capture sanitized evidence and update this one ledger; do not expand rollout if any acceptance item is unverified.",
+    "required": "Provide the authorized local QA identity and pre-provisioned device-state fixtures for the isolated Windows runtime, then execute exactly one authenticated Bauman and PriceReport QA package at PR #419 2136c51081173213b1bd38318d5f312a3a40aaca. Capture 1440x900, 800x900, and 390x844 screenshots, verify primary/specialist navigation, keyboard and focus, reduced motion, contrast, loading/error, approved/pending/blocked/denied gates, and compare independent BM-/KT- source/contract readbacks, status freshness, and allowed operations. Update this ledger with sanitized evidence.",
     "expectedEvidence": [
       "exact candidate SHA with type/build/regression",
       "screenshots for 1440/800/390 reference and both pilots",
@@ -1445,7 +1510,7 @@
       "device action/contract state unchanged",
       "Owner UI acceptance separate from CI"
     ],
-    "fallback": "If authorized browser/role pilot cannot be executed or fails, keep PR #419 Draft and R2.2 BLOCKED, report one blocker and do not auto-publish. Other app shells remain unchanged. G05 UNVERIFIED; no A/B reviewer mutations.",
+    "fallback": "If the authorized authenticated pilot cannot execute or any acceptance item remains unverified, keep PR #419 Draft, R0.3/R2.2/R2.3 BLOCKED, and G04/G05 UNVERIFIED. Keep rollout and release gated.",
     "singleActionRule": true
   },
   "history": [
