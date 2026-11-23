@@ -290,7 +290,9 @@ async function exerciseMobile(origin) {
   pass("Mobile Translate opens the selected phrase and Help opens by touch", { selection: "DOM Range in Chromium touch emulation" });
 
   const accessibility = await page.evaluate(() => {
-    const buttons = [...document.querySelectorAll("main > header button")];
+    // Help renders its dialog inside the header. Measure the two header triggers.
+    const buttons = [...document.querySelectorAll("main > header button")]
+      .filter(button => !button.closest("dialog") && button.checkVisibility());
     const linearize = x => x <= .04045 ? x / 12.92 : ((x + .055) / 1.055) ** 2.4;
     const luminance = color => color.match(/\d+/g).slice(0, 3).map(n => linearize(+n / 255))
       .reduce((total, value, i) => total + value * [.2126, .7152, .0722][i], 0);
@@ -300,14 +302,16 @@ async function exerciseMobile(origin) {
       return (pair[0] + .05) / (pair[1] + .05);
     });
     return {
+      controls: buttons.length,
       contrast: Math.min(...ratios),
       height: Math.min(...buttons.map(button => button.getBoundingClientRect().height)),
       reducedMotion: matchMedia("(prefers-reduced-motion: reduce)").matches,
       longestTransition: Math.max(...buttons.flatMap(button => getComputedStyle(button).transitionDuration.split(",").map(parseFloat))),
     };
   });
-  assert.ok(accessibility.contrast >= 4.5 && accessibility.height >= 44);
-  assert.ok(accessibility.reducedMotion && accessibility.longestTransition === 0);
+  assert.equal(accessibility.controls, 2, JSON.stringify(accessibility));
+  assert.ok(accessibility.contrast >= 4.5 && accessibility.height >= 44, JSON.stringify(accessibility));
+  assert.ok(accessibility.reducedMotion && accessibility.longestTransition === 0, JSON.stringify(accessibility));
   assert.deepEqual(errors, []);
   pass("Header controls meet computed text contrast and target size in reduced motion", accessibility);
   await phone.close();
