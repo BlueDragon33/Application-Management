@@ -110,6 +110,11 @@ export function useContextTranslation(root: RefObject<HTMLElement | null>) {
     if (target && (press.current || ("pointerType" in native && native.pointerType === "touch"))) reveal(target);
   }
 
+  function clearTranslation() {
+    setResult(null);
+    setQuery("");
+  }
+
   function open() {
     const selection = selectedStudyText(root.current) || preservedSelection.current;
     preservedSelection.current = "";
@@ -147,13 +152,14 @@ export function useContextTranslation(root: RefObject<HTMLElement | null>) {
         </div>
         <button type="button" className={styles.dismiss} aria-label="Dismiss translation" onClick={dismiss}>×</button>
       </aside>}
-      <dialog ref={dialog} className={styles.dialog} aria-labelledby="rtt-translate-title" onClose={() => {
-        setResult(null);
-        setQuery("");
-      }}>
+      <dialog ref={dialog} className={styles.dialog} aria-labelledby="rtt-translate-title"
+        onCancel={clearTranslation} onClose={clearTranslation}>
         <header className={styles.dialogHeader}>
           <h2 id="rtt-translate-title">Translation <span lang="ru">Перевод</span></h2>
-          <button type="button" className={styles.dismiss} onClick={() => dialog.current?.close()} aria-label="Close translation">×</button>
+          <button type="button" className={styles.dismiss} aria-label="Close translation" onClick={() => {
+            clearTranslation();
+            dialog.current?.close();
+          }}>×</button>
         </header>
         <form className={styles.dialogBody} onSubmit={event => {
           event.preventDefault();

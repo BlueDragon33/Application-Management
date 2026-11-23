@@ -281,6 +281,8 @@ async function exerciseMobile(origin) {
   await translations(page).locator("[lang=vi]").filter({ hasText: "Bây giờ là mấy giờ?" }).waitFor();
   await screenshot(page, "mobile-phrase");
   await translations(page).getByRole("button", { name: "Close translation" }).tap();
+  await translations(page).waitFor({ state: "hidden" });
+  await page.locator("main [lang=vi]").first().waitFor({ state: "detached" });
   await defaultLanguages(page);
   await help(page).tap();
   await page.getByRole("dialog", { name: "Help Помощь" }).getByRole("textbox", { name: /Prompt preview/ }).waitFor();
