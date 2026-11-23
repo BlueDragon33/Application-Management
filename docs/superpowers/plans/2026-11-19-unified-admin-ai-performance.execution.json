@@ -1497,20 +1497,19 @@
   ],
   "activeNextAction": {
     "id": "R0.3",
-    "type": "PILOT_UX_EVIDENCE_AND_CHANGE_BOUNDARY_REVIEW",
-    "state": "BLOCKED_UNTIL_AUTHORIZED_AUTHENTICATED_LOCAL_BROWSER_QA",
-    "why": "User explicitly requires complete Bơi Ếch Owner-derived UI rollout to all ten subordinate app-admin surfaces before moving to another work item. New standalone Draft PR #419 stages shared presentation-only shell in Bauman and PriceReport, avoiding cross-app auth/data refactor. Prior Windows performance measured 94 samples and no source-level PR417 regression established; defer additional backend microprofiling unless a UX blocker remains.",
-    "required": "Provide the authorized local QA identity and pre-provisioned device-state fixtures for the isolated Windows runtime, then execute exactly one authenticated Bauman and PriceReport QA package at PR #419 2136c51081173213b1bd38318d5f312a3a40aaca. Capture 1440x900, 800x900, and 390x844 screenshots, verify primary/specialist navigation, keyboard and focus, reduced motion, contrast, loading/error, approved/pending/blocked/denied gates, and compare independent BM-/KT- source/contract readbacks, status freshness, and allowed operations. Update this ledger with sanitized evidence.",
+    "type": "ISOLATED_BROWSER_AND_REAL_ROLE_SOURCE_ACCEPTANCE",
+    "state": "BLOCKED_UNTIL_AUTHENTICATED_AND_INDEPENDENT_QA",
+    "why": "Local Vite was ready, but the original manual QA instructions omitted a matching CONTROL_OWNER_EMAILS value. Local identity authentication and local D1 P-256 device/Owner approval are separate; the observed pending state is expected fail-closed. PR #419 now includes a guarded isolated local QA launcher; no Production access is implied.",
+    "required": "At exact live PR #419 HEAD, execute one authorized browser QA package using the safe fixture launcher in a detached local checkout and independent role/source fixtures: 1440x900, 800x900, 390x844; screenshots/contrast/keyboard focus; owner, pending, blocked, denied; BM- and KT- real client-owned readback; performance p50/p95 with suitable reproducible baselines. Record sanitized evidence and independent Owner acceptance here. Only then consider ready-for-review, merge, and exact approved revision Production release.",
     "expectedEvidence": [
-      "exact candidate SHA with type/build/regression",
-      "screenshots for 1440/800/390 reference and both pilots",
-      "role and pending/blocked gate denial",
-      "keyboard specialist expanded/collapsed/focus",
-      "no duplicate buttons, overflow or fake online status",
-      "device action/contract state unchanged",
-      "Owner UI acceptance separate from CI"
+      "CI type/build/regression exact current SHA (not prior SHA)",
+      "3-viewports screenshot and computed contrast",
+      "real owner and denied/pending/blocked gate proof, not fixture owner alone",
+      "independent live BM-/KT- readbacks and mutation authorization",
+      "G05 measured baseline/after and capacity evidence",
+      "separate human authorization and exact-SHA release readback"
     ],
-    "fallback": "If the authorized authenticated pilot cannot execute or any acceptance item remains unverified, keep PR #419 Draft, R0.3/R2.2/R2.3 BLOCKED, and G04/G05 UNVERIFIED. Keep rollout and release gated.",
+    "fallback": "If browser/role/source/measurements or human acceptance are missing, keep PR #419 and PR #414 Draft, R2.3 BLOCKED, G04/G05 UNVERIFIED, and Production unchanged. CI or local fixture identity is not release authority.",
     "singleActionRule": true
   },
   "history": [
@@ -1751,6 +1750,50 @@
       "acceptedAppCount": 0,
       "releaseAuthority": "NONE",
       "noMerge": true
+    },
+    {
+      "stepId": "R2.3",
+      "date": "2026-11-23",
+      "result": "LOCAL_QA_PENDING_ROOT_CAUSE_AND_FAIL_CLOSED_PILOT_LAUNCHER_STAGED",
+      "evidenceLevel": "EXACT_SOURCE_CONTROL_FLOW_PLUS_USER_REPORTED_WINDOWS_VITE_404_AND_PENDING_NO_NEW_BROWSER_ROLE_PROOF",
+      "pilotPr": 419,
+      "pilotSha": "0c049559e783d55a937d092ecc46a6f1d492a58c",
+      "diagnosis": {
+        "localVite": "user reported Vite 8.0.13 ready on 127.0.0.1:5188",
+        "priorRedirect": "/signin-with-chatgpt 404 when LOCAL_DEV_AUTH not enabled",
+        "subsequentPending": "LOCAL_DEV_AUTH set to qa-r23@example.test without matching CONTROL_OWNER_EMAILS; local user authentication is not device approval",
+        "source": "app/chatgpt-auth.ts; app/control-device.server.ts; app/admin-device-client.ts",
+        "identityGate": "getChatGPTUser -> LOCAL_DEV_AUTH + email on loopback",
+        "ownerGate": "control_accounts active owner or matching CONTROL_OWNER_EMAILS",
+        "deviceGate": "P-256 register; no owner match -> pending; existing IndexedDB credential may be bound to different local email",
+        "assessment": "QA configuration issue observed; no verified Production defect or Production role bypass"
+      },
+      "changes": {
+        "launcher": "scripts/run-r23-owner-pilot-qa.mjs",
+        "guard": "tests/r23-owner-local-qa-guard.test.mjs",
+        "guide": "docs/design/boi-ech-owner-client-admin-rollout-2026-11-23.md",
+        "scope": "isolated detached local-only QA; port 5191; synthetic fixture owner; refuse remote/production bindings; no PR bypass",
+        "notYetRun": "authenticated desktop/tablet/mobile browser role and independent BM-/KT- source proof"
+      },
+      "ci": {
+        "constitution": "PASS",
+        "fastCheck": "PASS",
+        "regression": "PENDING",
+        "run": "https://github.com/BlueDragon33/Application-Management/actions/runs/45263447896",
+        "constitutionRun": "https://github.com/BlueDragon33/Application-Management/actions/runs/45263448382"
+      },
+      "acceptance": {
+        "R23": "BLOCKED",
+        "G04": "UNVERIFIED",
+        "G05": "UNVERIFIED",
+        "sourceOnly": true,
+        "acceptedAppCount": 0
+      },
+      "release": {
+        "ownerIntent": "USER_REQUESTS_PRODUCTION_RELEASE",
+        "actual": "NOT_MERGED_NOT_DEPLOYED",
+        "authority": "RELEASE_GATE_NOT_YET_SATISFIED"
+      }
     }
   ],
   "assessment": {
@@ -2495,8 +2538,8 @@
     "pilot": {
       "pr": 419,
       "branch": "feat/boi-owner-client-admin-shell-20261123",
-      "sourceSha": "2136c51081173213b1bd38318d5f312a3a40aaca",
-      "sourceStatus": "DRAFT_SOURCE_TYPE_BUILD_CI_PASS_BROWSER_QA_BLOCKED",
+      "sourceSha": "0c049559e783d55a937d092ecc46a6f1d492a58c",
+      "sourceStatus": "DRAFT_LOCAL_QA_OWNER_FIXTURE_STAGED_CI_PENDING_BROWSER_ROLE_SOURCE_NOT_ACCEPTED",
       "apps": [
         "bauman-master-ai",
         "price-report-tunggiabao"
@@ -2509,44 +2552,46 @@
       "lastScopedQa": {
         "stepId": "R2.3",
         "date": "2026-11-23",
-        "result": "BOI_OWNER_PILOT_CI_PASS_BROWSER_QA_BLOCKED_20261123",
-        "evidenceLevel": "EXACT_SHA_GITHUB_TYPECHECK_BUILD_981_REGRESSION_SOURCE_ONLY_NO_AUTHENTICATED_BROWSER",
+        "result": "LOCAL_QA_PENDING_ROOT_CAUSE_AND_FAIL_CLOSED_PILOT_LAUNCHER_STAGED",
+        "evidenceLevel": "EXACT_SOURCE_CONTROL_FLOW_PLUS_USER_REPORTED_WINDOWS_VITE_404_AND_PENDING_NO_NEW_BROWSER_ROLE_PROOF",
         "pilotPr": 419,
-        "pilotSha": "2136c51081173213b1bd38318d5f312a3a40aaca",
-        "apps": [
-          "bauman-master-ai",
-          "price-report-tunggiabao"
-        ],
-        "codeFix": "Escape from specialist submenu now returns focus to visible trigger before collapsing hidden nav; source-level regression assertion added",
+        "pilotSha": "0c049559e783d55a937d092ecc46a6f1d492a58c",
+        "diagnosis": {
+          "localVite": "user reported Vite 8.0.13 ready on 127.0.0.1:5188",
+          "priorRedirect": "/signin-with-chatgpt 404 when LOCAL_DEV_AUTH not enabled",
+          "subsequentPending": "LOCAL_DEV_AUTH set to qa-r23@example.test without matching CONTROL_OWNER_EMAILS; local user authentication is not device approval",
+          "source": "app/chatgpt-auth.ts; app/control-device.server.ts; app/admin-device-client.ts",
+          "identityGate": "getChatGPTUser -> LOCAL_DEV_AUTH + email on loopback",
+          "ownerGate": "control_accounts active owner or matching CONTROL_OWNER_EMAILS",
+          "deviceGate": "P-256 register; no owner match -> pending; existing IndexedDB credential may be bound to different local email",
+          "assessment": "QA configuration issue observed; no verified Production defect or Production role bypass"
+        },
+        "changes": {
+          "launcher": "scripts/run-r23-owner-pilot-qa.mjs",
+          "guard": "tests/r23-owner-local-qa-guard.test.mjs",
+          "guide": "docs/design/boi-ech-owner-client-admin-rollout-2026-11-23.md",
+          "scope": "isolated detached local-only QA; port 5191; synthetic fixture owner; refuse remote/production bindings; no PR bypass",
+          "notYetRun": "authenticated desktop/tablet/mobile browser role and independent BM-/KT- source proof"
+        },
         "ci": {
-          "typecheck": "PASS",
-          "build": "PASS",
-          "nodeTests": "981/981 PASS",
-          "lint": "PASS_WARNINGS",
-          "fastCheck": "PASS",
           "constitution": "PASS",
-          "dependencySovereignty": "PASS",
-          "browserPreview": "SKIPPED",
-          "workflow": "https://github.com/BlueDragon33/Application-Management/actions/runs/45226119579",
-          "constitutionWorkflow": "https://github.com/BlueDragon33/Application-Management/actions/runs/45226120578"
+          "fastCheck": "PASS",
+          "regression": "PENDING",
+          "run": "https://github.com/BlueDragon33/Application-Management/actions/runs/45263447896",
+          "constitutionRun": "https://github.com/BlueDragon33/Application-Management/actions/runs/45263448382"
         },
-        "runtime": {
-          "qaCandidate": "UNAVAILABLE_IN_THIS_SESSION",
-          "viewports": [
-            "1440",
-            "800",
-            "390"
-          ],
-          "screenshots": "NOT_COLLECTED",
-          "keyboardFocus": "SOURCE_FIX_NOT_BROWSER_VERIFIED",
-          "roleMatrix": "NOT_EXECUTED",
-          "realAppReadback": "NOT_EXECUTED",
-          "production": "NOT_USED"
+        "acceptance": {
+          "R23": "BLOCKED",
+          "G04": "UNVERIFIED",
+          "G05": "UNVERIFIED",
+          "sourceOnly": true,
+          "acceptedAppCount": 0
         },
-        "outcome": "BLOCKED_BROWSER_ROLE_SOURCE_PROOF_MISSING",
-        "acceptedAppCount": 0,
-        "releaseAuthority": "NONE",
-        "noMerge": true
+        "release": {
+          "ownerIntent": "USER_REQUESTS_PRODUCTION_RELEASE",
+          "actual": "NOT_MERGED_NOT_DEPLOYED",
+          "authority": "RELEASE_GATE_NOT_YET_SATISFIED"
+        }
       }
     },
     "scope": "COMMON_PRESENTATION_PLUS_APP_OWNED_CAPABILITIES; NO_BACKEND_UNIFICATION_NO_FAKE_AUTHORITIES",
