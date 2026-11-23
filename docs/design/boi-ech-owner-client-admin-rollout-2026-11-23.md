@@ -57,3 +57,20 @@ All rows refer to **existing** routes and owner modules; do not create new websi
 4. **Closeout:** screenshots/interaction/regression/security QA across ten apps plus owner review, rollback, restore; update only canonical ledger and seek explicit independent release authority. ZERO-SPEND, no auto-merge or Production.
 
 **One next action now:** complete source CI for Draft PR #419, then authorized local authenticated Bauman + PriceReport browser pilot. R0.2 G05 UNVERIFIED does not auto-become PASS; R2 implementation is staging, not final accepted WP.
+
+
+## R2.3 local QA Owner fixture (not Production approval)
+
+**Root cause of observed Pending:** `LOCAL_DEV_AUTH=1` accepts a loopback test identity, but does not authorize the device or make an arbitrary email an Owner. `isOwnerEmail()` requires a matching active `control_accounts` owner or an exact match in `CONTROL_OWNER_EMAILS`; `registerControlDevice()` leaves other newly registered devices `pending`. Existing IndexedDB P-256 credentials bound to a previous local email may instead produce `DEVICE_BOUND_TO_OTHER_USER`. Both are correct fail-closed behaviors, not a reason to bypass the role gate.
+
+Previous manual command set `LOCAL_DEV_USER_EMAIL=qa-r23@example.test` but omitted matching `CONTROL_OWNER_EMAILS`, causing the fixture to fall into pending. Use the **isolated** launcher on an approved, detached QA checkout (not `main`, Production or a developer environment containing `.dev.vars`):
+
+```powershell
+# Stop the old localhost:5188 Vite process first. In a detached QA worktree:
+node scripts/run-r23-owner-pilot-qa.mjs --check-only
+node scripts/run-r23-owner-pilot-qa.mjs
+```
+
+The launcher configures `LOCAL_DEV_USER_EMAIL` and `CONTROL_OWNER_EMAILS` to the **same synthetic test-only identity**, creates/migrates **local** D1, then runs Vite bound to `127.0.0.1:5191`. Port 5191 isolates browser IndexedDB credentials from the prior 5188 session. It refuses any inherited Production/remote Cloudflare setting and never signs in to Production, writes real role data, or issues release approval.
+
+Acceptance remains strict: this local Owner fixture can unblock **visual layout QA**, but **cannot** certify real authenticated role matrices, Bauman BM-/PriceReport KT- independent source readbacks, G04, G05 or Production. Pending, blocked, wrong-account and failed P-256 proofs must still be tested separately. Automated source guard: `tests/r23-owner-local-qa-guard.test.mjs`. No merge/publish until canonical gates pass.
