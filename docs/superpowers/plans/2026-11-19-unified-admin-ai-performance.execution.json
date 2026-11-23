@@ -1110,7 +1110,15 @@
           "remediesForSameRoot": 0,
           "releaseAuthority": "NONE",
           "browserEvidence": "UNVERIFIED",
-          "requiredFixture": "DYNAMIC_ONLY_REGISTERED_APP_NO_STATIC_APP_ROUTE"
+          "requiredFixture": "DYNAMIC_ONLY_REGISTERED_APP_NO_STATIC_APP_ROUTE",
+          "sourceCandidate": {
+            "status": "SOURCE_ONLY_PILOT_PR419_NOT_ACCEPTED",
+            "sha": "b43eae3bb7d75b22d5bda018b7a949550db5aa27",
+            "appCount": 2,
+            "plannedTotal": 10,
+            "report": "docs/design/boi-ech-owner-client-admin-rollout-2026-11-23.md",
+            "gates": "R0/R1/G00-G04_DEPENDENCIES_STILL_UNVERIFIED"
+          }
         },
         {
           "id": "R2.3",
@@ -1407,58 +1415,22 @@
     }
   ],
   "activeNextAction": {
-    "id": "R0.2",
-    "type": "QA_ONLY_SEVEN_LOADER_CRITICAL_PATH_PROFILING",
-    "state": "FOCUSED_40_MEASURED_NOT_ACCEPTED",
-    "why": "Second native Windows focused evidence ZIP independently reviewed: 40/40 samples, 4/4 independent D1 counts, no browser errors. PR417 candidate does not reproducibly slow 200-app painted grid; reduces page-wide React commits 15->10 and JS heap ~44%. A common /api/operations ~2.07s remains in both; no per-loader spans to identify cause.",
-    "required": "ONE bounded QA-only tracing step: on exact SHA-pinned checkout and local D1/loopback only, instrument elapsed spans of seven buildBootstrap specialized loaders and probeDynamicManagedApplications, including critical-path max vs total response. Read existing 50/200 fixture data without rerunning unchanged 40/54 browser matrices. Protect secrets/PII, record raw non-sensitive spans and independent readback. Only then propose a minimum code change if a measured loader causes the ~2.07s delay.",
+    "id": "R0.3",
+    "type": "PILOT_UX_EVIDENCE_AND_CHANGE_BOUNDARY_REVIEW",
+    "state": "PENDING_AUTHORIZED_LOCAL_BROWSER_QA_AND_DEPENDENCIES",
+    "why": "User explicitly requires complete Bơi Ếch Owner-derived UI rollout to all ten subordinate app-admin surfaces before moving to another work item. New standalone Draft PR #419 stages shared presentation-only shell in Bauman and PriceReport, avoiding cross-app auth/data refactor. Prior Windows performance measured 94 samples and no source-level PR417 regression established; defer additional backend microprofiling unless a UX blocker remains.",
+    "required": "One scoped P0 action: review PR #419 exact source/CI and perform authorized authenticated local desktop/tablet/mobile and keyboard/role/source-status QA for Bauman and PriceReport against Bơi Ếch reference, preserving app-owned contracts. Record one pass/fail checkpoint; do not mark R2.2 done or expand rollout before pilot proofs and prerequisite gates. Then migrate remaining eight apps in predeclared groups, maintaining one canonical ledger.",
     "expectedEvidence": [
-      "seven specialized adapters and Dynamic Catalog elapsedMs, on same request/span clock",
-      "slowest critical path and /api/operations total elapsedMs with same pinned SHA",
-      "D1 independent count and local-only non-production status",
-      "zero production secrets and redacted payloads",
-      "no speculative PR417 refactor",
-      "one canonical G05 checkpoint, no self-approval"
+      "exact candidate SHA with type/build/regression",
+      "screenshots for 1440/800/390 reference and both pilots",
+      "role and pending/blocked gate denial",
+      "keyboard specialist expanded/collapsed/focus",
+      "no duplicate buttons, overflow or fake online status",
+      "device action/contract state unchanged",
+      "Owner UI acceptance separate from CI"
     ],
-    "fallback": "If isolated Windows backend spans cannot be obtained, retain R0.2=MEASURED_NOT_ACCEPTED and G05=UNVERIFIED, record one precise blocker. Do not rerun 40/54 samples, touch Reviewer A/B, merge/ratify/publish or mutate Production.",
-    "singleActionRule": true,
-    "runner": {
-      "path": "scripts/r02-windows-instrumented-qa.mjs",
-      "guardTest": "tests/r02-windows-qa-harness-guard.test.mjs",
-      "sourceStage": "FOCUSED_40_NATIVE_WINDOWS_EXECUTED_AND_INDEPENDENTLY_ANALYZED",
-      "reportsRoot": "E:\\BaumanWeb\\_qa\\_r02_reports",
-      "requires": "Windows local filesystem + installed Chromium/Edge + Node>=22.13 + Git + npm",
-      "doesNotProve": [
-        "React commit counts",
-        "composited contrast WCAG",
-        "human UX acceptance",
-        "G05 PASS"
-      ],
-      "transport": "LAUNCHER_SINGLE_REMOTE_ATTESTATION_WITH_BOUNDED_RETRY",
-      "remoteRetries": 3,
-      "runnerNetwork": "NONE_AFTER_ATTESTATION",
-      "packageLauncher": "scripts/r02-windows-qa-package.ps1",
-      "evidence": "E:\\BaumanWeb\\_qa\\_r02_reports",
-      "npmRecovery": "ONE_BOUNDED_RETRY_ONLY_TRANSIENT_CODES",
-      "finalReport": "R02_PACKAGE_SUMMARY_AND_R02_EVIDENCE",
-      "requireManualExtraLogs": false,
-      "packageArtifact": "E:\\BaumanWeb\\_qa\\_r02_reports\\bundle-<session>\\r02-evidence-package.zip",
-      "details": "One use: pinned Windows launcher produces one archive containing bundle-summary, r02-evidence and scoped command/browser logs; does not auto-upload to cloud.",
-      "npmDebugRetention": true,
-      "liveStageRelay": true,
-      "heartbeatSeconds": 20,
-      "stdoutFile": "runner-stdout.log",
-      "stderrFile": "runner-stderr.log",
-      "focused": true,
-      "focusedEnv": "R02_FOCUSED=1",
-      "focusedPackageArg": "-Focused",
-      "samplesPlanned": 40,
-      "report": "docs/evidence/r02-bootstrap-api-attribution-2026-11-23.md",
-      "requiresNativeWindows": true,
-      "focusedProofZipSha256": "e7706007c9bb3670c7052d6ed9eed0bbb0a5453f3946503139a35b09b5970cb4",
-      "focusedAnalysis": "docs/evidence/r02-focused-windows-40-2026-11-23.md",
-      "focusedSampleCount": 40
-    }
+    "fallback": "If authorized browser/role pilot cannot be executed or fails, keep PR #419 Draft and R2.2 BLOCKED, report one blocker and do not auto-publish. Other app shells remain unchanged. G05 UNVERIFIED; no A/B reviewer mutations.",
+    "singleActionRule": true
   },
   "history": [
     {
@@ -1641,6 +1613,21 @@
       "qaAcceptance": "MEASURED_NOT_ACCEPTED",
       "releaseAuthority": "NONE",
       "sourceAppChanged": false
+    },
+    {
+      "stepId": "R2.2",
+      "date": "2026-11-23",
+      "result": "BOI_ECH_OWNER_SHARED_SHELL_DRAFT_PILOT_STAGED",
+      "evidenceLevel": "GITHUB_SOURCE_PILOT_NO_RUNTIME_ROLE_QA",
+      "pilotPr": 419,
+      "pilotSha": "b43eae3bb7d75b22d5bda018b7a949550db5aa27",
+      "apps": [
+        "bauman-master-ai",
+        "price-report-tunggiabao"
+      ],
+      "coverage": "2/10 source-staged, 0/10 newly accepted under this rollout",
+      "spec": "docs/design/boi-ech-owner-client-admin-rollout-2026-11-23.md",
+      "constraints": "existing client roles/D1/contracts untouched; draft only; G05 UNVERIFIED; no release authority"
     }
   ],
   "assessment": {
@@ -2365,5 +2352,46 @@
       "listenerClosed": true,
       "scope": "OWNED_HTTP_PREFLIGHT_ONLY"
     }
+  },
+  "uxModernizationPriority": {
+    "source": "2026-11-23 USER_CLARIFICATION_CONTINUE_SAME_APPLICATION_MANAGEMENT_PROJECT",
+    "goal": "Fully implement Bơi Ếch Owner V18-inspired navigation and administration UX across ALL existing Application Management client routes, with real roles/contract/state and specialist slots. Do not switch to another project.",
+    "reference": "app/apps/boi-ech/boi-ech-control-center.tsx",
+    "coverageTarget": [
+      "boi-ech",
+      "bauman-master-ai",
+      "price-report-tunggiabao",
+      "health-care",
+      "ru-life",
+      "pc-manager",
+      "cad-cam-3d",
+      "nc03-modem",
+      "growup-mychildren",
+      "software-blueprint-hub"
+    ],
+    "pilot": {
+      "pr": 419,
+      "branch": "feat/boi-owner-client-admin-shell-20261123",
+      "sourceSha": "b43eae3bb7d75b22d5bda018b7a949550db5aa27",
+      "sourceStatus": "DRAFT_TWO_APPS_STAGED_QA_NOT_ACCEPTED",
+      "apps": [
+        "bauman-master-ai",
+        "price-report-tunggiabao"
+      ],
+      "newSharedFiles": [
+        "app/components/client-admin-shell.tsx",
+        "app/components/client-admin-shell.module.css"
+      ],
+      "spec": "docs/design/boi-ech-owner-client-admin-rollout-2026-11-23.md"
+    },
+    "scope": "COMMON_PRESENTATION_PLUS_APP_OWNED_CAPABILITIES; NO_BACKEND_UNIFICATION_NO_FAKE_AUTHORITIES",
+    "constraints": [
+      "B4/STRUCTURED",
+      "Constitution ACTIVE 1.3.0",
+      "ZERO_SPEND",
+      "no automatic merge/publish",
+      "independent Owner UX and role QA",
+      "R0.2 G05 UNVERIFIED"
+    ]
   }
 }
