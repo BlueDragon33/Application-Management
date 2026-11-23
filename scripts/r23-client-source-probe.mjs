@@ -95,14 +95,25 @@ async function start(item,secret) {
   const bin=path.join(item.dir,"node_modules","wrangler","bin","wrangler.js");
   const args=[bin,"dev","--local","--config","wrangler.local.jsonc",
     "--ip","127.0.0.1","--port",String(item.port),
-    "--var",item.secretKey+":"+secret,
+    "--inspector-port",String(item.port+6000),
+    "--var",item.secretKey+":"+secret];
+  // KT local config already declares both origins; duplicate CLI vars can
+  // replace the configured vars block rather than only the secret.
+  if(item.label==="bauman") args.push(
     "--var","APPLICATION_MANAGEMENT_ORIGIN:http://127.0.0.1:5191",
-    "--var",item.extraKey+":http://127.0.0.1:5191"];
-  const proc=spawn(process.execPath,args,{cwd:item.dir,stdio:"ignore",env:{...process.env,WRANGLER_SEND_METRICS:"false"}});
+    "--var",item.extraKey+":http://127.0.0.1:5191");
+  const proc=spawn(process.execPath,args,{
+    cwd:item.dir,stdio:["ignore","pipe","pipe"],env:{...process.env,WRANGLER_SEND_METRICS:"false"}
+  });
+  const log=[];
+  for(const stream of [proc.stdout,proc.stderr]) stream.on("data",chunk=>{
+    log.push(String(chunk).replaceAll(secret,"[REDACTED]"));
+    if(log.length>100) log.shift();
+  });
   processes.push(proc);
   const deadline=Date.now()+60000;
   while(Date.now()<deadline) {
-    if(proc.exitCode!==null) throw Error(item.label+" worker exited before readiness");
+    if(proc.exitCode!==null) throw Error(item.label+" worker exited before readiness; sanitized log: "+log.join("").slice(-2600));
     try {
       const response=await fetch(url,{signal:AbortSignal.timeout(1800)});
       if(response.status===200) {
@@ -113,7 +124,7 @@ async function start(item,secret) {
     } catch {}
     await new Promise(resolve=>setTimeout(resolve,350));
   }
-  throw Error(item.label+" local worker /health timeout");
+  throw Error(item.label+" local worker /health timeout; sanitized log: "+log.join("").slice(-2600));
 }
 async function seed(item) {
   const {subtle}=webcrypto;
