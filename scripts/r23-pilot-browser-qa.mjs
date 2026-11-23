@@ -2,9 +2,7 @@
 // This is local-only / synthetic identity QA; it cannot authorize G04/G05 or release.
 import assert from "node:assert/strict";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
-import { createServer } from "node:http";
 import { mkdirSync, writeFileSync, existsSync } from "node:fs";
-import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -92,12 +90,12 @@ function envFor(email) {
 async function start(email) {
   const test = await fetch(origin, { signal: AbortSignal.timeout(1800) }).then(() => true).catch(() => false);
   if (test) throw new Error("QA port occupied; refusing to reuse an unrelated process on " + origin);
-  const onWindows = process.platform === "win32";
-  const exe = onWindows ? process.env.ComSpec || "cmd.exe" : "npm";
-  const args = onWindows
-    ? ["/d", "/s", "/c", "npm.cmd", "run", "dev", "--", "--host", "127.0.0.1", "--port", String(port), "--strictPort"]
-    : ["run", "dev", "--", "--host", "127.0.0.1", "--port", String(port), "--strictPort"];
-  server = spawn(exe, args, { cwd: root, env: envFor(email), shell: false, stdio: ["ignore", "pipe", "pipe"] });
+  // Launch Vite directly: npm can orphan its Vite descendant on shutdown.
+  const vite = path.join(root, "node_modules", "vite", "bin", "vite.js");
+  if (!existsSync(vite)) throw new Error("Locked Vite executable is missing");
+  server = spawn(process.execPath,
+    [vite, "--host", "127.0.0.1", "--port", String(port), "--strictPort"],
+    { cwd: root, env: envFor(email), shell: false, stdio: ["ignore", "pipe", "pipe"] });
   const logs = [];
   server.stdout?.on("data", value => logs.push(String(value)));
   server.stderr?.on("data", value => logs.push(String(value)));
@@ -125,6 +123,7 @@ async function stop() {
     if (!busy) break;
     await new Promise(resolve => setTimeout(resolve, 250));
   }
+  if (child.exitCode === null && process.platform !== "win32") child.kill("SIGKILL");
 }
 function percentile(values, fraction) {
   const ordered = [...values].sort((a,b) => a-b);
