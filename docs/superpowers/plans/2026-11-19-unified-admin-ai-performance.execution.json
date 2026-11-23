@@ -1498,7 +1498,7 @@
   "activeNextAction": {
     "id": "R0.3",
     "type": "ISOLATED_BROWSER_AND_REAL_ROLE_SOURCE_ACCEPTANCE",
-    "state": "BLOCKED_UNTIL_AUTHENTICATED_AND_INDEPENDENT_QA",
+    "state": "BLOCKED_UNTIL_AUTHENTICATED_INDEPENDENT_BROWSER_PERFORMANCE_QA_AND_OWNER_ACCEPTANCE",
     "why": "Local Vite was ready, but the original manual QA instructions omitted a matching CONTROL_OWNER_EMAILS value. Local identity authentication and local D1 P-256 device/Owner approval are separate; the observed pending state is expected fail-closed. PR #419 now includes a guarded isolated local QA launcher; no Production access is implied.",
     "required": "At live PR #419 HEAD baeb52bcf765417991ff4daef4821798f594ec74, execute one authorized browser QA package using the safe fixture launcher in a detached local checkout and independent role/source fixtures: 1440x900, 800x900, 390x844; screenshots/contrast/keyboard focus; owner, pending, blocked, denied; BM- and KT- real client-owned readback; performance p50/p95 with suitable reproducible baselines. Record sanitized evidence and independent Owner acceptance here. Only then consider ready-for-review, merge, and exact approved revision Production release.",
     "expectedEvidence": [
@@ -1777,13 +1777,17 @@
         "regressionCorrection": "tests/r23-owner-local-qa-guard.test.mjs now directly verifies exact Bauman and PriceReport access gates instead of asserting source inside a different test file"
       },
       "ci": {
-        "constitution": "PASS",
+        "typecheck": "PASS",
+        "build": "PASS",
+        "nodeTests": "984/984 PASS; 0 failed 0 skipped",
         "fastCheck": "PASS",
-        "regression": "RUNNING_AFTER_TEST_ASSERTION_REPAIR",
-        "run": "https://github.com/BlueDragon33/Application-Management/actions/runs/45263774943",
-        "constitutionRun": "https://github.com/BlueDragon33/Application-Management/actions/runs/45263775837",
+        "constitution": "PASS",
+        "dependencySovereignty": "PASS",
+        "previewBrowser": "SKIPPED",
+        "workflow": "https://github.com/BlueDragon33/Application-Management/actions/runs/45263774943",
+        "constitutionWorkflow": "https://github.com/BlueDragon33/Application-Management/actions/runs/45263775837",
         "previousRun": "https://github.com/BlueDragon33/Application-Management/actions/runs/45263447896",
-        "previousRunFailure": "1/984 new test assertion failure: checked source of a test, not Bauman and PriceReport source; repaired without app business code changes"
+        "previousRunIssue": "Corrected one test assertion before final passing run; application code/role gates unchanged"
       },
       "acceptance": {
         "R23": "BLOCKED",
@@ -2542,7 +2546,7 @@
       "pr": 419,
       "branch": "feat/boi-owner-client-admin-shell-20261123",
       "sourceSha": "baeb52bcf765417991ff4daef4821798f594ec74",
-      "sourceStatus": "DRAFT_LOCAL_QA_FIXTURE_STAGED_CONSTITUTION_PASS_REGRESSION_RUNNING_BROWSER_ROLE_SOURCE_NOT_ACCEPTED",
+      "sourceStatus": "DRAFT_SOURCE_TYPE_BUILD_984_REGRESSION_AND_CONSTITUTION_PASS_BROWSER_QA_ROLE_SOURCE_G04_G05_BLOCKED",
       "apps": [
         "bauman-master-ai",
         "price-report-tunggiabao"
@@ -2558,7 +2562,7 @@
         "result": "LOCAL_QA_PENDING_ROOT_CAUSE_AND_FAIL_CLOSED_PILOT_LAUNCHER_STAGED",
         "evidenceLevel": "EXACT_SOURCE_CONTROL_FLOW_PLUS_USER_REPORTED_WINDOWS_VITE_404_AND_PENDING_NO_NEW_BROWSER_ROLE_PROOF",
         "pilotPr": 419,
-        "pilotSha": "0c049559e783d55a937d092ecc46a6f1d492a58c",
+        "pilotSha": "baeb52bcf765417991ff4daef4821798f594ec74",
         "diagnosis": {
           "localVite": "user reported Vite 8.0.13 ready on 127.0.0.1:5188",
           "priorRedirect": "/signin-with-chatgpt 404 when LOCAL_DEV_AUTH not enabled",
@@ -2574,14 +2578,21 @@
           "guard": "tests/r23-owner-local-qa-guard.test.mjs",
           "guide": "docs/design/boi-ech-owner-client-admin-rollout-2026-11-23.md",
           "scope": "isolated detached local-only QA; port 5191; synthetic fixture owner; refuse remote/production bindings; no PR bypass",
-          "notYetRun": "authenticated desktop/tablet/mobile browser role and independent BM-/KT- source proof"
+          "notYetRun": "authenticated desktop/tablet/mobile browser role and independent BM-/KT- source proof",
+          "regressionCorrection": "tests/r23-owner-local-qa-guard.test.mjs now directly verifies exact Bauman and PriceReport access gates instead of asserting source inside a different test file"
         },
         "ci": {
-          "constitution": "PASS",
+          "typecheck": "PASS",
+          "build": "PASS",
+          "nodeTests": "984/984 PASS; 0 failed 0 skipped",
           "fastCheck": "PASS",
-          "regression": "PENDING",
-          "run": "https://github.com/BlueDragon33/Application-Management/actions/runs/45263447896",
-          "constitutionRun": "https://github.com/BlueDragon33/Application-Management/actions/runs/45263448382"
+          "constitution": "PASS",
+          "dependencySovereignty": "PASS",
+          "previewBrowser": "SKIPPED",
+          "workflow": "https://github.com/BlueDragon33/Application-Management/actions/runs/45263774943",
+          "constitutionWorkflow": "https://github.com/BlueDragon33/Application-Management/actions/runs/45263775837",
+          "previousRun": "https://github.com/BlueDragon33/Application-Management/actions/runs/45263447896",
+          "previousRunIssue": "Corrected one test assertion before final passing run; application code/role gates unchanged"
         },
         "acceptance": {
           "R23": "BLOCKED",
