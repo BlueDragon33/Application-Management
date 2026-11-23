@@ -27,12 +27,13 @@ export type ClientAdminSidebarProps<T extends string> = {
   specialist?: readonly ClientAdminNavItem<T>[];
   connection: { state: "online" | "warning"; label: string; note: string };
   boundary: { title: string; description: string };
-  user: { displayName: string; roleLabel: string; deviceCode?: string };
+  user: { displayName: string; roleLabel: string; deviceCode?: string; role?: "owner"|"reviewer"|"publisher"|"viewer" };
+  builderSupport?: { activeView: string; workTitle: string; observation: string; sourceNote: string };
 };
 
 export function ClientAdminSidebar<T extends string>({
   appId, appName, initials, category, navTitle, activeView, onSelect,
-  primary, specialist = [], connection, boundary, user,
+  primary, specialist = [], connection, boundary, user, builderSupport,
 }: ClientAdminSidebarProps<T>) {
   const [specialistOpen, setSpecialistOpen] = useState(() =>
     specialist.some((item) => item.id === activeView));
@@ -93,7 +94,7 @@ export function ClientAdminSidebar<T extends string>({
         }
       }}
     >{specialist.map((item, index) => renderItem(item, primary.length + index))}</nav> : null}
-    <ClientDeveloperSupport appId={appId} appName={appName} connection={connection} roleLabel={user.roleLabel} />
+    {builderSupport ? <ClientDeveloperSupport appId={appId} appName={appName} connection={connection} role={user.role ?? "viewer"} roleLabel={user.roleLabel} task={builderSupport} /> : null}
     <div className={`${base.clientBoundary} ${shell.boundary}`}>
       <span>RANH GIỚI NGUỒN DỮ LIỆU</span>
       <strong>{boundary.title}</strong>

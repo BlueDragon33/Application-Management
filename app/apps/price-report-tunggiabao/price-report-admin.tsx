@@ -175,7 +175,15 @@ export default function PriceReportAdmin({ application, user }: { application: A
         title: "Không đưa báo giá, khách hàng hoặc backup vào Application Management.",
         description: "Thiết bị KT- thuộc client. Chưa có capability hợp lệ thì Duyệt/Khóa phải được giữ khóa.",
       }}
-      user={{ displayName: user.displayName, roleLabel: roleLabels[access.role], deviceCode: access.deviceCode }}
+      builderSupport={{
+        activeView: view,
+        workTitle: readiness.find(item => item.state !== "available")
+          ? "Xác minh " + readiness.find(item => item.state !== "available")!.label + " của PriceReport trước khi mở rộng quyền quản trị"
+          : "Chạy kiểm thử vai trò và giao diện PriceReport 1440/800/390, keyboard/focus, backend contract",
+        observation: readiness.find(item => item.state !== "available")?.note ?? summary?.note ?? "Không có dữ liệu vận hành chi tiết.",
+        sourceNote: summary ? "Control-plane OperationsBootstrap UI projection; không phải canonical WorkPackage" : "Fallback UI — chưa có snapshot control-plane live"
+      }}
+      user={{ displayName: user.displayName, roleLabel: roleLabels[access.role], role: access.role, deviceCode: access.deviceCode }}
     />
 
     <section className={styles.workspaceMain}>

@@ -187,7 +187,15 @@ export default function BaumanAdmin({ application, user }: { application: Applic
         title: "Đây là khu quản trị, không phải site học Bauman.",
         description: "Không iframe runtime, không dùng DB thiết bị của Bơi ếch/Health/RU. Bauman giữ registry BM- riêng.",
       }}
-      user={{ displayName: user.displayName, roleLabel: roleLabels[access.role], deviceCode: access.deviceCode }}
+      builderSupport={{
+        activeView: view,
+        workTitle: readiness.find(item => item.state !== "available")
+          ? "Xác minh " + readiness.find(item => item.state !== "available")!.label + " ở Bauman với quyền và source readback thật"
+          : "Kiểm thử regression giao diện quản trị Bauman, quyền Owner/reviewer/publisher/viewer và các cổng source QA",
+        observation: readiness.find(item => item.state !== "available")?.note ?? summary?.note ?? "Không có dữ liệu vận hành chi tiết.",
+        sourceNote: summary ? "Control-plane OperationsBootstrap UI projection; không phải canonical WorkPackage" : "Fallback UI — chưa có snapshot control-plane live"
+      }}
+      user={{ displayName: user.displayName, roleLabel: roleLabels[access.role], role: access.role, deviceCode: access.deviceCode }}
     />
 
     <section className={styles.workspaceMain}>
