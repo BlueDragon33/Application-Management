@@ -1497,18 +1497,18 @@
   ],
   "activeNextAction": {
     "id": "R0.3",
-    "type": "CONSUME_GITHUB_CLIENT_SOURCE_AND_INTEGRATED_PILOT_GATE_EVIDENCE",
-    "state": "BLOCKED_UNTIL_KT_AND_REAL_END_TO_END_ACCEPTANCE",
-    "why": "GitHub-hosted real Chromium local QA achieved six 1440/800/390 Bauman/PriceReport screenshots, six keyboard focus returns, zero document horizontal overflows, four pending/blocked denials and bounded pilot navigation timings. BM client-owned actual Control Worker plus independent D1 local proof passed. KT worker failed to start in first run and rerun is in flight; no central UI-to-real-client mutation/readback and no full G04/G05 evidence.",
-    "required": "Inspect exact result and artifact of https://github.com/BlueDragon33/Application-Management/actions/runs/45269609603 at PR #419 current HEAD; repair only actual KT worker-local blocker if failed. Then run one genuinely integrated approved/pending/blocked Bauman and PriceReport Owner UI->central authorization->BM-/KT- source D1 independent readback with 1440/800/390 keyboard/contrast acceptance and reproducible 10/50/200 G05 p50/p95 benchmarks. Record separate human UX approval and exact SHA before merge/publish.",
+    "type": "INTEGRATED_OWNER_END_TO_END_AND_PERFORMANCE_ACCEPTANCE",
+    "state": "BLOCKED_UNTIL_G04_G05_REAL_ACCEPTANCE",
+    "why": "Real Chromium 6/6 responsive and focus with 4/4 pending/blocked local denied on unchanged UI; now both source-owned BM-/KT- Control Workers and D1 signed API, owner/viewer, CAS, idempotency and independent real local readback PASS with exact pinned child SHAs. Prior KT QA blocker was incompatible Wrangler toolchain and is fixed with QA-only isolated 4.167.0. None of these proofs covers Central Owner UI to child source end to end or G05 10/50/200 comparative capacity and human UX acceptance.",
+    "required": "At verified live PR #419 HEAD 7a3916ae00c47ef94360b39eff865e1caad92af8 run one scoped genuine integrated owner browser -> central P-256 auth -> signed BM/KT child control mutation -> independent D1 readback with owner, pending/blocked/denied branches and full computed contrast at 1440x900/800x900/390x844. Measure reproducible baseline/after 10/50/200 app cohorts p50/p95 request/render/CPU/memory (not single navigation samples), capture authorized human UI acceptance. Read and update only ledger PR #414 with exact SHA and evidence. No redoing prior unchanged UI 6/6 or BM/KT signed source tests except when required for integrated setup.",
     "expectedEvidence": [
-      "GitHub native child Control Worker signed ticket, Owner CAS/idempotency/Viewer denial, independent D1 CLI for BM and KT",
-      "central UI-to-client real readback and role matrix, not only local synthetic Owner",
-      "computed controls contrast and human-reviewed 1440/800/390 screenshots",
-      "G05 repeatable baseline and after cohort 10/50/200 p50/p95/render/request/memory",
-      "same exact approved SHA, canonical ledger, rollback and release readback"
+      "real central-authenticated click-to-child Worker-to-independent D1 mutation/readback, BM-/KT-",
+      "correct pending/blocked/denied matrix and no fake Owner in Production",
+      "full computed contrast + user UX acceptance",
+      "G05 10/50/200 repeated p50/p95 with before/after baseline, render, requests, CPU/memory",
+      "exact approved SHA, audit, rollback and post-release Production readback"
     ],
-    "fallback": "If any evidence or approval missing, keep Draft PR #419/#414, R2.3 BLOCKED, G04/G05 UNVERIFIED, no merge/publish/Production D1 writes.",
+    "fallback": "If integrated source, G04/G05, human UX or canonical release authority are missing, keep PR #419 and #414 Draft, G04/G05 UNVERIFIED and Production unchanged. Do not claim automatic release.",
     "singleActionRule": true
   },
   "history": [
@@ -1884,6 +1884,101 @@
         "acceptedClientCount": 0
       },
       "singleNextAction": "Consume completed exact-SHA independent BM-/KT- source QA artifact, then one real integrated Owner UI->authenticated control API->client-owned independent D1 readback and valid G05 capacity/contrast/human UX acceptance before merger/release."
+    },
+    {
+      "stepId": "R2.3",
+      "date": "2026-11-24",
+      "result": "BM_KT_INDEPENDENT_REAL_CONTROL_WORKER_D1_LOCAL_SOURCE_PASS_G04_G05_NOT_RELEASE_ACCEPTED",
+      "evidenceLevel": "EXACT_SHA_NATIVE_SIGNED_CONTROL_API_INDEPENDENT_CHILD_D1_LOCAL_READBACK_TWO_CLIENTS_PLUS_PRIOR_REAL_CHROMIUM",
+      "candidate": {
+        "pr": 419,
+        "head": "7a3916ae00c47ef94360b39eff865e1caad92af8",
+        "draft": true,
+        "merged": false
+      },
+      "sourceEvidence": {
+        "run": "https://github.com/BlueDragon33/Application-Management/actions/runs/45338478223",
+        "job": "r23-independent-client-source",
+        "jobConclusion": "SUCCESS",
+        "artifactId": 14894781616,
+        "artifactName": "r23-client-owned-source-evidence",
+        "downloadedEvidenceZipSha256": "b3ec9308091394001281837089d3d7df0d073c332b54108fd8dcaa014873303e",
+        "reportError": null,
+        "sourceRepositories": [
+          {
+            "app": "bauman-master-ai",
+            "repository": "BlueDragon33/Bauman-master-ai-system",
+            "sha": "16d8f7a963e27a12520d510f29b161374b5c5df3",
+            "namespace": "BM-",
+            "result": "PASS"
+          },
+          {
+            "app": "price-report-tunggiabao",
+            "repository": "BlueDragon33/PriceReport_Tunggiabao",
+            "sha": "9e8df71f2839989b067af79ef22c389f541664e5",
+            "namespace": "KT-",
+            "result": "PASS"
+          }
+        ],
+        "scope": [
+          "actual local Worker and local D1 per independent child repo, no mock",
+          "owner signed API status/device read and independent Wrangler D1 CLI readback",
+          "viewer 403 refusal, owner CAS approves pending, independent API + D1 readback approved",
+          "commandId idempotent replay exactly one ledger row",
+          "stale expectedStatus 409, forged Bearer ticket refused"
+        ],
+        "ktRootCause": "QA pinned Wrangler 4.92.0 workerd supported max 2026-05-22 while KT config requires 2026-09-22. Isolated QA-only Wrangler 4.167.0 installed outside child repo with no forced dependency override or Production config change",
+        "workerCleanup": "owned isolated workerd process groups killed and streams closed",
+        "environment": "GitHub-hosted ephemeral local D1, ZERO-SPEND, no production writes"
+      },
+      "visualEvidence": {
+        "existingRun": "https://github.com/BlueDragon33/Application-Management/actions/runs/45268222513",
+        "qaCommit": "eb132ed231fd24ab9b550ad524b1179302dad986",
+        "status": "PASS_FOR_TESTED_LOCAL_SURFACES",
+        "viewports": [
+          "1440x900",
+          "800x900",
+          "390x844"
+        ],
+        "pilotSurfaces": "6/6",
+        "overflow": "0/6",
+        "keyboardEscapeFocus": "6/6",
+        "pendingBlockedDenials": "4/4",
+        "sourceInvariant": "GitHub compare eb132ed231fd24ab9b550ad524b1179302dad986..7a3916ae00c47ef94360b39eff865e1caad92af8 changed only scripts/r23-client-source-probe.mjs and .github/workflows/r23-pilot-browser-qa.yml; no app UI/role source changes",
+        "currentRerun": [
+          {
+            "name": "r23-local-browser",
+            "status": "in_progress",
+            "conclusion": null
+          },
+          {
+            "name": "r23-independent-client-source",
+            "status": "completed",
+            "conclusion": "success"
+          }
+        ]
+      },
+      "ci": {
+        "fast": "PASS",
+        "constitution": "PASS",
+        "fastUrl": "https://github.com/BlueDragon33/Application-Management/actions/runs/45338478224",
+        "constitutionUrl": "https://github.com/BlueDragon33/Application-Management/actions/runs/45338478772"
+      },
+      "missing": {
+        "centralOwnerEndToEnd": "NOT_VERIFIED_UI_TO_CENTRAL_AUTH_TO_REAL_BM_KT_READBACK",
+        "completeComputedContrast": "NOT_VERIFIED_ALL_SURFACES_HUMAN",
+        "g05": "MISSING_REPRODUCIBLE_10_50_200_LOAD_MATRIX_P50_P95_RENDER_REQUEST_CPU_MEMORY_AND_BEFORE_AFTER_BASELINE",
+        "humanUxAcceptance": "NOT_RECEIVED",
+        "releaseGate": "BLOCKED_NOT_MERGED_NOT_DEPLOYED"
+      },
+      "gateStates": {
+        "R23": "BLOCKED_INTEGRATED_AND_PERFORMANCE",
+        "G04": "UNVERIFIED",
+        "G05": "UNVERIFIED",
+        "G10": "UNVERIFIED",
+        "release": "BLOCKED"
+      },
+      "oneNextAction": "Run exactly one integrated end-to-end Owner QA package at exact PR419 SHA tying actual browser UI + Central P-256/role + signed BM-/KT- Control Worker mutation to independently reread child D1; extend it with 10/50/200 fixture p50/p95/render/request/CPU/memory and computed contrast/human approval, then update the same ledger; release only if all canonical gates genuinely PASS."
     }
   ],
   "assessment": {
@@ -2628,8 +2723,8 @@
     "pilot": {
       "pr": 419,
       "branch": "feat/boi-owner-client-admin-shell-20261123",
-      "sourceSha": "149f6604eb06395f89dd770cf15a5551fb56e20a",
-      "sourceStatus": "DRAFT_REAL_CHROMIUM_6_OF_6_LOCAL_VISUAL_AND_4_ROLE_DENIAL_PASS_BM_SOURCE_PARTIAL_KT_AND_G04_G05_UNVERIFIED",
+      "sourceSha": "7a3916ae00c47ef94360b39eff865e1caad92af8",
+      "sourceStatus": "DRAFT_BM_KT_SOURCE_REAL_LOCAL_D1_PASS_CHROMIUM_VISUAL_PASS_G04_G05_INTEGRATED_HUMAN_UNVERIFIED",
       "apps": [
         "bauman-master-ai",
         "price-report-tunggiabao"
@@ -2641,87 +2736,98 @@
       "spec": "docs/design/boi-ech-owner-client-admin-rollout-2026-11-23.md",
       "lastScopedQa": {
         "stepId": "R2.3",
-        "date": "2026-11-23",
-        "result": "REAL_GITHUB_CHROMIUM_LOCAL_BROWSER_PILOT_PASS_CLIENT_SOURCE_FOLLOWUP_RUNNING_NOT_RELEASE_ACCEPTED",
-        "evidenceLevel": "GITHUB_HOSTED_REAL_CHROMIUM_6_SCREENSHOTS_4_LOCAL_ROLE_DENIALS_1_CLIENT_SOURCE_NATIVE_CONTROL_PROOF",
-        "pilotPr": 419,
-        "candidateHeadObserved": "149f6604eb06395f89dd770cf15a5551fb56e20a",
-        "browser": {
-          "run": "https://github.com/BlueDragon33/Application-Management/actions/runs/45268222513",
+        "date": "2026-11-24",
+        "result": "BM_KT_INDEPENDENT_REAL_CONTROL_WORKER_D1_LOCAL_SOURCE_PASS_G04_G05_NOT_RELEASE_ACCEPTED",
+        "evidenceLevel": "EXACT_SHA_NATIVE_SIGNED_CONTROL_API_INDEPENDENT_CHILD_D1_LOCAL_READBACK_TWO_CLIENTS_PLUS_PRIOR_REAL_CHROMIUM",
+        "candidate": {
+          "pr": 419,
+          "head": "7a3916ae00c47ef94360b39eff865e1caad92af8",
+          "draft": true,
+          "merged": false
+        },
+        "sourceEvidence": {
+          "run": "https://github.com/BlueDragon33/Application-Management/actions/runs/45338478223",
+          "job": "r23-independent-client-source",
+          "jobConclusion": "SUCCESS",
+          "artifactId": 14894781616,
+          "artifactName": "r23-client-owned-source-evidence",
+          "downloadedEvidenceZipSha256": "b3ec9308091394001281837089d3d7df0d073c332b54108fd8dcaa014873303e",
+          "reportError": null,
+          "sourceRepositories": [
+            {
+              "app": "bauman-master-ai",
+              "repository": "BlueDragon33/Bauman-master-ai-system",
+              "sha": "16d8f7a963e27a12520d510f29b161374b5c5df3",
+              "namespace": "BM-",
+              "result": "PASS"
+            },
+            {
+              "app": "price-report-tunggiabao",
+              "repository": "BlueDragon33/PriceReport_Tunggiabao",
+              "sha": "9e8df71f2839989b067af79ef22c389f541664e5",
+              "namespace": "KT-",
+              "result": "PASS"
+            }
+          ],
+          "scope": [
+            "actual local Worker and local D1 per independent child repo, no mock",
+            "owner signed API status/device read and independent Wrangler D1 CLI readback",
+            "viewer 403 refusal, owner CAS approves pending, independent API + D1 readback approved",
+            "commandId idempotent replay exactly one ledger row",
+            "stale expectedStatus 409, forged Bearer ticket refused"
+          ],
+          "ktRootCause": "QA pinned Wrangler 4.92.0 workerd supported max 2026-05-22 while KT config requires 2026-09-22. Isolated QA-only Wrangler 4.167.0 installed outside child repo with no forced dependency override or Production config change",
+          "workerCleanup": "owned isolated workerd process groups killed and streams closed",
+          "environment": "GitHub-hosted ephemeral local D1, ZERO-SPEND, no production writes"
+        },
+        "visualEvidence": {
+          "existingRun": "https://github.com/BlueDragon33/Application-Management/actions/runs/45268222513",
           "qaCommit": "eb132ed231fd24ab9b550ad524b1179302dad986",
-          "runStatus": "PASS",
-          "artifactId": 14864481759,
-          "artifactSha256": "6813e37e10a5056d248331f26aefe9ab3c257b9593a94388b056401dd75915bf",
-          "artifactName": "r23-pilot-browser-evidence.zip",
-          "platform": "GitHub ubuntu-24.04 / Node v22.13.0 / real Chromium",
-          "screenshots": 10,
-          "responsiveSurfaces": 6,
+          "status": "PASS_FOR_TESTED_LOCAL_SURFACES",
           "viewports": [
             "1440x900",
             "800x900",
             "390x844"
           ],
-          "horizontalOverflow": "0/6",
-          "keyboardEscapeFocus": "6/6 PASS",
-          "localOwner": "APPROVED_SYNTHETIC_ISOLATED_ONLY",
-          "pendingBlockedDenials": "4/4 PASS",
-          "contrastSamples": "18 selectors, title/nav/status only; sampled ratios 11.68–15.55, not full computed WCAG acceptance",
-          "timings": {
-            "kind": "THREE_SINGLE_VIEWPORT_PILOT_NAV_SAMPLES_NO_REPEATED_COHORT_BASELINE",
-            "baumanByViewportMs": {
-              "390": 387,
-              "800": 379,
-              "1440": 1115
-            },
-            "priceReportByViewportMs": {
-              "390": 257,
-              "800": 253,
-              "1440": 317
-            },
-            "notForG05": true
-          },
-          "apiReadback": "NOT_INCLUDED_IN_BROWSER_RUN",
-          "humanAcceptance": "NOT_OBTAINED"
-        },
-        "clientSource": {
-          "firstRun": "https://github.com/BlueDragon33/Application-Management/actions/runs/45269312253",
-          "result": "BAUMAN_PASSED_PRICE_REPORT_WORKER_EXITED_SOURCE_JOB_FAILED",
-          "bauman": "GENUINE_PINNED_BM_CONTROL_WORKER_AND_D1_LOCAL_P256_SEEDED_PENDING_VIEWER_DENIAL_OWNER_CAS_APPROVED_INDEPENDENT_CLI_READBACK_REPLAY_STALE_DENIAL",
-          "baumanSourceSha": "16d8f7a963e27a12520d510f29b161374b5c5df3",
-          "priceReportSourceSha": "9e8df71f2839989b067af79ef22c389f541664e5",
-          "followupRun": "https://github.com/BlueDragon33/Application-Management/actions/runs/45269609603",
-          "followupAtCheckpoint": [
+          "pilotSurfaces": "6/6",
+          "overflow": "0/6",
+          "keyboardEscapeFocus": "6/6",
+          "pendingBlockedDenials": "4/4",
+          "sourceInvariant": "GitHub compare eb132ed231fd24ab9b550ad524b1179302dad986..7a3916ae00c47ef94360b39eff865e1caad92af8 changed only scripts/r23-client-source-probe.mjs and .github/workflows/r23-pilot-browser-qa.yml; no app UI/role source changes",
+          "currentRerun": [
             {
-              "job": "r23-local-browser",
-              "status": "completed",
-              "conclusion": "success"
-            },
-            {
-              "job": "r23-independent-client-source",
+              "name": "r23-local-browser",
               "status": "in_progress",
               "conclusion": null
+            },
+            {
+              "name": "r23-independent-client-source",
+              "status": "completed",
+              "conclusion": "success"
             }
-          ],
-          "claim": "NO KT- OR END_TO_END_LIVE_SOURCE_PASS YET",
-          "scope": "LOCAL_QA_ONLY_NOT_PRODUCTION"
+          ]
         },
         "ci": {
-          "currentCandidate": "149f6604eb06395f89dd770cf15a5551fb56e20a",
-          "fastRegression": "PASS",
+          "fast": "PASS",
           "constitution": "PASS",
-          "ciWorkflow": "https://github.com/BlueDragon33/Application-Management/actions/runs/45269609539",
-          "constitutionWorkflow": "https://github.com/BlueDragon33/Application-Management/actions/runs/45269610216",
-          "appBusinessLogicChanges": "NONE_AFTER_PRIOR_ACCEPTED_984_TEST_SOURCE"
+          "fastUrl": "https://github.com/BlueDragon33/Application-Management/actions/runs/45338478224",
+          "constitutionUrl": "https://github.com/BlueDragon33/Application-Management/actions/runs/45338478772"
+        },
+        "missing": {
+          "centralOwnerEndToEnd": "NOT_VERIFIED_UI_TO_CENTRAL_AUTH_TO_REAL_BM_KT_READBACK",
+          "completeComputedContrast": "NOT_VERIFIED_ALL_SURFACES_HUMAN",
+          "g05": "MISSING_REPRODUCIBLE_10_50_200_LOAD_MATRIX_P50_P95_RENDER_REQUEST_CPU_MEMORY_AND_BEFORE_AFTER_BASELINE",
+          "humanUxAcceptance": "NOT_RECEIVED",
+          "releaseGate": "BLOCKED_NOT_MERGED_NOT_DEPLOYED"
         },
         "gateStates": {
-          "R23": "BLOCKED_FOR_FULL_ACCEPTANCE",
+          "R23": "BLOCKED_INTEGRATED_AND_PERFORMANCE",
           "G04": "UNVERIFIED",
           "G05": "UNVERIFIED",
-          "humanUx": "NOT_ACCEPTED",
-          "release": "NOT_MERGED_NOT_DEPLOYED",
-          "acceptedClientCount": 0
+          "G10": "UNVERIFIED",
+          "release": "BLOCKED"
         },
-        "singleNextAction": "Consume completed exact-SHA independent BM-/KT- source QA artifact, then one real integrated Owner UI->authenticated control API->client-owned independent D1 readback and valid G05 capacity/contrast/human UX acceptance before merger/release."
+        "oneNextAction": "Run exactly one integrated end-to-end Owner QA package at exact PR419 SHA tying actual browser UI + Central P-256/role + signed BM-/KT- Control Worker mutation to independently reread child D1; extend it with 10/50/200 fixture p50/p95/render/request/CPU/memory and computed contrast/human approval, then update the same ledger; release only if all canonical gates genuinely PASS."
       }
     },
     "scope": "COMMON_PRESENTATION_PLUS_APP_OWNED_CAPABILITIES; NO_BACKEND_UNIFICATION_NO_FAKE_AUTHORITIES",
