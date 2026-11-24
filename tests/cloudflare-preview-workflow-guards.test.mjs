@@ -17,14 +17,31 @@ test('manual Preview requires exact confirmation before checkout and stays dorma
 });
 test('restoring the Preview artifact cannot publish when its guard fails',()=>{
  const step=workflow.jobs['deploy-preview'].steps.find(s=>s.name==='Restore exact Preview artifact after secret versions');
- const dir=fs.mkdtempSync(path.join(os.tmpdir(),'preview-guard-'));
- try{
-  const log=path.join(dir,'calls');
-  fs.writeFileSync(path.join(dir,'npm'),'#!/bin/sh\nprintf "check\\n" >> "$CALL_LOG"\nexit "$CHECK_EXIT"\n',{mode:0o755});
-  fs.writeFileSync(path.join(dir,'npx'),'#!/bin/sh\nprintf "publish\\n" >> "$CALL_LOG"\n',{mode:0o755});
-  let result=spawnSync('bash',['-e','-c',step.run],{env:{...process.env,PATH:dir+':'+process.env.PATH,CALL_LOG:log,CHECK_EXIT:'31'}});
-  assert.equal(result.status,31);assert.equal(fs.readFileSync(log,'utf8'),'check\n');
-  fs.writeFileSync(log,'');result=spawnSync('bash',['-e','-c',step.run],{env:{...process.env,PATH:dir+':'+process.env.PATH,CALL_LOG:log,CHECK_EXIT:'0'}});
-  assert.equal(result.status,0);assert.equal(fs.readFileSync(log,'utf8'),'check\npublish\n');
- }finally{fs.rmSync(dir,{recursive:true,force:true});}
+ // Emulate external commands as Bash functions, not filesystem executables.
+ // Git-for-Windows receives a native Windows PATH; prepending a POSIX ':' can
+ // make bash unresolvable and incorrectly return spawnSync.status === null.
+ // Argument matching also guards the exact check-before-deploy contract.
+ const guarded=[
+  'npm() {',
+  '  [[ "$*" == "run cloudflare:artifact:check" ]] || return 90',
+  "  printf 'check\\n'",
+  '  return "$CHECK_EXIT"',
+  '}',
+  'npx() {',
+  '  [[ "$*" == "wrangler deploy" ]] || return 91',
+  "  printf 'publish\\n'",
+  '}',
+  step.run,
+ ].join('\\n');
+ const execute=(code)=>spawnSync('bash',['-e','-c',guarded],{
+  env:{...process.env,CHECK_EXIT:String(code)},encoding:'utf8'
+ });
+ const rejected=execute(31);
+ assert.ifError(rejected.error);
+ assert.equal(rejected.status,31,rejected.stderr);
+ assert.equal(rejected.stdout,'check\\n','Artifact check failure must prevent publish');
+ const accepted=execute(0);
+ assert.ifError(accepted.error);
+ assert.equal(accepted.status,0,accepted.stderr);
+ assert.equal(accepted.stdout,'check\\npublish\\n','Only successful artifact check may publish');
 });
