@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { scheduleClientInitialization } from "../../client-initialization";
+import AudioStudy from "./audio-study";
 import { timeLessons, type Bilingual, type TimeLesson } from "./content";
 import {
   emptyProgress,
@@ -19,6 +20,8 @@ import { StudyWords, useContextTranslation } from "./translation";
 import styles from "./trainer.module.css";
 
 const views = {
+  audio: { en: "Audio practice", ru: "Аудиотренировка" },
+  daily: { en: "14-day plan", ru: "План на 14 дней" },
   learn: { en: "Learn", ru: "Уроки" },
   practice: { en: "Practice", ru: "Практика" },
   progress: { en: "Progress", ru: "Прогресс" },
@@ -61,7 +64,7 @@ export default function RussianTimeTrainer({ storagePrefix }: { storagePrefix: s
   const focusPending = useRef(false);
   const translation = useContextTranslation(content);
   const speech = useRussianAudio();
-  const [view, setView] = useState<View>("learn");
+  const [view, setView] = useState<View>("audio");
   const [lessonId, setLessonId] = useState(timeLessons[0].id);
   const [direction, setDirection] = useState<PracticeDirection>("en-ru");
   const [question, setQuestion] = useState(0);
@@ -185,12 +188,10 @@ export default function RussianTimeTrainer({ storagePrefix }: { storagePrefix: s
     </header>
 
     <div className={styles.container} ref={content} {...translation.interaction}>
-      <section className={styles.hero} aria-labelledby="rtt-title">
+      <section className={view === "learn" ? styles.hero : styles.hero + " " + styles.heroCompact} aria-labelledby="rtt-title">
         <div>
           <h1 id="rtt-title">Russian Time Trainer</h1>
           <p lang="ru" className={styles.heroTitleRu}>Время по-русски</p>
-          <p>Ask for the time, read the clock, and make plans.</p>
-          <p lang="ru">Спрашивайте время, называйте часы и договаривайтесь о встречах.</p>
         </div>
         {view === "learn" && featured.clock && <div className={styles.heroClock}>
           <Clock clock={featured.clock} />
@@ -203,8 +204,8 @@ export default function RussianTimeTrainer({ storagePrefix }: { storagePrefix: s
           aria-pressed={view === item} onClick={() => moveTo(item)}><Pair text={views[item]} /></button>)}
       </nav>
 
-      <div className={styles.workspace}>
-        <aside className={styles.sidebar} aria-label="Lessons">
+      <div className={view === "audio" || view === "daily" ? styles.singleWorkspace : styles.workspace}>
+        {view !== "audio" && view !== "daily" && <aside className={styles.sidebar} aria-label="Lessons">
           <h2><Pair text={{ en: "Lessons", ru: "Уроки" }} /></h2>
           <ol>
             {timeLessons.map(item => <li key={item.id}>
@@ -212,10 +213,11 @@ export default function RussianTimeTrainer({ storagePrefix }: { storagePrefix: s
                 onClick={() => selectLesson(item)}><Pair text={item.title} /></button>
             </li>)}
           </ol>
-        </aside>
+        </aside>}
 
         <article className={styles.study}>
-          <h2 ref={heading} tabIndex={-1}><Pair text={view === "progress" ? views.progress : lesson.title} /></h2>
+          <h2 ref={heading} tabIndex={-1}><Pair text={view === "learn" || view === "practice" ? lesson.title : views[view]} /></h2>
+          <AudioStudy storagePrefix={storagePrefix} speech={speech} display={view} openAudio={() => moveTo("audio", true)} />
           {view === "learn" && <>
             <div className={styles.studyCopy}><StudyPair text={lesson.objective} /></div>
             <section className={styles.rule}>

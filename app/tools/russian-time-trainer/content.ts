@@ -1,3 +1,5 @@
+import { calendarGroups } from "./calendar-content";
+
 export type Bilingual = Readonly<{ en: string; ru: string }>;
 type StudyText = Bilingual & { vi: string };
 
@@ -205,6 +207,13 @@ for (const [variants, meaning] of [...wordGlosses, ...phrases]) {
 }
 for (const lesson of timeLessons) {
   for (const entry of [lesson.objective, lesson.rule, ...lesson.examples.map(example => example.phrase)]) {
+    glossary.set(normalize(entry.en), entry.vi);
+    glossary.set(normalize(entry.ru), entry.vi);
+  }
+}
+
+for (const group of calendarGroups) {
+  for (const entry of [...group.forms, group.example]) {
     glossary.set(normalize(entry.en), entry.vi);
     glossary.set(normalize(entry.ru), entry.vi);
   }

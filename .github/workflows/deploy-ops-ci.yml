@@ -16,6 +16,9 @@ on:
       - "scripts/prepare-cloudflare-production.mjs"
       - ".github/workflows/*deploy*.yml"
       - "tests/deploy-ops.test.mjs"
+      - "app/tools/russian-time-trainer/**"
+      - "public/russian-time-trainer/**"
+      - "tests/russian-time-trainer.test.mjs"
   workflow_dispatch:
 
 permissions:
