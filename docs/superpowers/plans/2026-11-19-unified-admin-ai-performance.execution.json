@@ -600,6 +600,33 @@
         "interpretation": "Cold/warm-up order sensitivity plausible but not proven; raw samples preserved; no post-hoc removal from primary p95"
       },
       "scope": "GitHub Ubuntu Node22 Chromium140, local D1; two app Vite runtimes share runner; CPU includes QA harness; RSS sum counts shared pages; first full-grid plus 2 RAF is paint proxy, not production display"
+    },
+    "r23G05ColdStart": {
+      "status": "MEASURED_NOT_ACCEPTED",
+      "baselineSha": "89a89ce2d3d8ed634ee9562c52744a99223a2b2a",
+      "candidateSha": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
+      "run": "https://github.com/BlueDragon33/Application-Management/actions/runs/45407829546",
+      "sampleCount": 40,
+      "sourceOrder": "ABBA",
+      "artifactId": 14925264540,
+      "p50Ms": {
+        "baseline": 1337.05,
+        "candidate": 1333.9,
+        "deltaPercent": -0.24
+      },
+      "p95Ms": {
+        "baseline": 1439.84,
+        "candidate": 1372.69,
+        "deltaPercent": -4.66
+      },
+      "causalInterpretation": "Original 360-run warm-process p95 discrepancy is sensitive to early initialization/optimizer state. Under paired fully fresh Vite and browser, no persistent candidate p95 regression observed. No original outlier removed. Distinct cold vs warm contexts must not be collapsed. This supports source-side regression not reproducible, but does not conclusively isolate Vite vs OS cache or certify Production latency.",
+      "limits": [
+        "local QA only",
+        "Vite/Chromium restart per sample",
+        "not Production environment",
+        "disk cache still present",
+        "no automatic G05 PASS"
+      ]
     }
   },
   "status": "R0_2_FOCUSED_WINDOWS_MEASURED_NOT_ACCEPTED_G05_UNVERIFIED",
@@ -1678,16 +1705,16 @@
   ],
   "activeNextAction": {
     "id": "R0.3",
-    "type": "TARGETED_COLD_START_P95_AND_OWNER_UX_ACCEPTANCE",
-    "state": "BLOCKED_UNTIL_G04_HUMAN_G05_TAIL_REVIEW",
-    "why": "Real BM/KT native local D1 and integrated Owner UI->signed Worker->independent child D1->UI final readback PASS. 261 sampled computed contrast pairs >=4.5. Exact-SHA matched G05 360 samples complete but candidate 10-app desktop paint p95 1320.95ms vs 524.32ms baseline from two early outliers; no confirmed persistent p50 regression, root cause unverified. Human UX acceptance missing.",
-    "required": "Perform ONE scoped order-balanced fresh Chromium cold-start 10-app 1440x900 baseline/candidate test at pinned SHA, preserving all original 360 results and comparing p95 without censoring. Present exact current 6 BM/KT screenshots and receive explicit human Owner UX approval. Update PR414 only, then separately resolve G10/G11 and controlled exact-SHA release eligibility.",
+    "type": "OWNER_G04_UX_SIGNOFF_AND_SEPARATE_G05_EVIDENCE_REVIEW",
+    "state": "BLOCKED_UNTIL_EXPLICIT_HUMAN_UX_AND_G05_EVIDENCE_ACCEPTANCE",
+    "why": "Exact-SHA G04 real Chromium BM/KT 3 viewports and independent child D1/UI readback PASS with 261 sampled contrast points >=4.5, but Owner UX signoff not provided. G05 original 360 paired fixtures PASS with 10 desktop warm p95 outlier; targeted exact-SHA 40 balanced fully fresh Chromium/Vite sessions show baseline p50/p95 1337.05/1439.84ms versus candidate 1333.9/1372.69ms, no persistent candidate regression. Gate G05 is noAutoPass; QA timing is not Production resource certification. G10/G11 still incomplete.",
+    "required": "Present six exact SHA BM/KT screenshots to Owner and record an explicit APPROVE/CHANGE decision. Independently assess G05 360+40 evidence against acceptance criteria and keep noAutoPass enforcement. Then resolve separate G10 governance/release authority and G11 rollout/rollback before any merge/deploy.",
     "expectedEvidence": [
-      "fresh-browser order-controlled cold-start p95 and p50 with source/fixture/readback",
-      "explicit Owner G04 UX acceptance for exact SHA",
-      "exact SHA G10/G11 release and rollback sign-off"
+      "explicit owner G04 visual acceptance or actionable corrections",
+      "independent exact-SHA G05 evidence acceptance with limitations recorded",
+      "canonical G10 release authority and G11 rollback/recovery signoff"
     ],
-    "fallback": "Keep G04/G05/G10 UNVERIFIED, G11 BLOCKED and both PRs Draft; no Production changes or fake PASS.",
+    "fallback": "If any required approval/evidence is absent, retain Draft PRs and UNVERIFIED G04/G05/G10, BLOCKED G11, no Production changes.",
     "singleActionRule": true
   },
   "history": [
@@ -2486,6 +2513,154 @@
       },
       "nextAction": "One exact-SHA targeted 10-desktop cold-start order-control and explicit Owner review of six 1440/800/390 BM/KT screens; no merge/ratify/publish before canonical gates and release authority.",
       "fallback": "If G04 human review, G05 cold-tail, G10/G11 or authority cannot be demonstrated, retain Draft PRs and Production unchanged."
+    },
+    {
+      "stepId": "R2.3",
+      "date": "2026-11-24",
+      "result": "G05_COLD_START_40_OF_40_EXACT_SHA_AB_BA_NO_PERSISTENT_TAIL_REGRESSION_TECHNICAL_EVIDENCE_READY_NOT_ACCEPTED",
+      "constitution": "blueprint-os:universal-century-grade@1.3.0",
+      "repo": "BlueDragon33/Application-Management",
+      "candidate": {
+        "pr": 419,
+        "sha": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
+        "draft": true,
+        "merged": false
+      },
+      "baseline": {
+        "source": "main",
+        "sha": "89a89ce2d3d8ed634ee9562c52744a99223a2b2a"
+      },
+      "workflow": {
+        "url": "https://github.com/BlueDragon33/Application-Management/actions/runs/45407829546",
+        "runId": 45407829546,
+        "jobConclusion": "SUCCESS",
+        "sourceHarnessPr": 414,
+        "harnessSha": "5962062a589db954850f0ea9211661c8e187e712",
+        "artifactId": 14925264540,
+        "artifactName": "r23-g05-controlled-cold-10-evidence",
+        "artifactZipSha256": "735693ff6661a1f461b860388be16f15ea490903f0ccb1a7bb972c3c54b1f018",
+        "runReportStatus": "MEASURED_NOT_ACCEPTED",
+        "original360Run": "https://github.com/BlueDragon33/Application-Management/actions/runs/45344470024"
+      },
+      "scope": {
+        "cohort": 10,
+        "viewport": "1440x900",
+        "count": 40,
+        "repeatsPerSource": 20,
+        "order": "20 AB/BA pairs alternated",
+        "baselineAndCandidateSourcePinned": true,
+        "freshProcesses": "Each observation independently launches new Vite process and Chromium browser; app dependencies and Vite optimizer disk cache may persist",
+        "independentD1": "2/2 source-local D1 readback count exactly 10",
+        "http": "40/40 HTTP200",
+        "errors": 0,
+        "productionWrites": false,
+        "timing": "Navigation to complete 10-card grid plus two requestAnimationFrame callbacks, excludes Vite startup and Chromium launch"
+      },
+      "results": {
+        "renderPaintedGridProxyMs": {
+          "p50": {
+            "baseline": 1337.05,
+            "candidate": 1333.9,
+            "deltaPercent": -0.24
+          },
+          "p95": {
+            "baseline": 1439.84,
+            "candidate": 1372.69,
+            "deltaPercent": -4.66
+          }
+        },
+        "bootstrapMs": {
+          "p50": {
+            "baseline": 1287.73,
+            "candidate": 1287.26
+          },
+          "p95": {
+            "baseline": 1390.22,
+            "candidate": 1316.22
+          }
+        },
+        "apiNetworkMs": {
+          "p50": {
+            "baseline": 60.03,
+            "candidate": 60.09
+          },
+          "p95": {
+            "baseline": 86.54,
+            "candidate": 66.07
+          }
+        },
+        "rendererTaskMs": {
+          "p50": {
+            "baseline": 296.66,
+            "candidate": 297.87
+          },
+          "p95": {
+            "baseline": 314.8,
+            "candidate": 314.11
+          }
+        },
+        "cpuSecondsIncludesQa": {
+          "p50": {
+            "baseline": 1.86,
+            "candidate": 1.84
+          },
+          "p95": {
+            "baseline": 2.07,
+            "candidate": 2
+          }
+        },
+        "rssMBIncludesSharedPages": {
+          "p50": {
+            "baseline": 1539.58,
+            "candidate": 1546.31
+          },
+          "p95": {
+            "baseline": 1565.21,
+            "candidate": 1553.7
+          }
+        },
+        "jsHeapMB": {
+          "p50": {
+            "baseline": 8.66,
+            "candidate": 8.64
+          }
+        },
+        "requestsP50": {
+          "baseline": 105,
+          "candidate": 105
+        },
+        "viteStartupMs": {
+          "baselineApproxP50": 5003,
+          "candidateApproxP50": 5008,
+          "excludedFromNavigationMetric": true
+        },
+        "orderStrataPaintedGridMs": {
+          "baselineFirstMedian": 1331.24,
+          "baselineSecondMedian": 1341.36,
+          "candidateFirstMedian": 1333.25,
+          "candidateSecondMedian": 1345.23,
+          "samplesPerStratum": 10
+        }
+      },
+      "comparisonToOriginal": {
+        "originalCandidate10DesktopP95Ms": 1320.95,
+        "originalBaseline10DesktopP95Ms": 524.32,
+        "originalFirstTwoCandidateSamplesMs": [
+          1320.95,
+          1383.02
+        ],
+        "originalBaselineFirstSampleMs": 1596.68,
+        "interpretation": "Original 360-run warm-process p95 discrepancy is sensitive to early initialization/optimizer state. Under paired fully fresh Vite and browser, no persistent candidate p95 regression observed. No original outlier removed. Distinct cold vs warm contexts must not be collapsed. This supports source-side regression not reproducible, but does not conclusively isolate Vite vs OS cache or certify Production latency."
+      },
+      "remaining": {
+        "G04": "Owner has not explicitly approved six exact source SHA screenshots; technical Chromium/D1 PASS only",
+        "G05": "NoAutoPass true; review evidence and quality target/policy before changing gate status. Benchmark is QA environment and CPU/RSS include harness/shared pages.",
+        "G10": "UNVERIFIED governance/authority, Hub productionReleaseAuthority false",
+        "G11": "BLOCKED_DEPENDENCIES rollout/rollback resilience",
+        "release": "NOT_AUTHORIZED_NO_MERGE_NO_PUBLISH"
+      },
+      "singleNextAction": "Obtain explicit Owner G04 UX acceptance or precise requested changes after showing six authenticated local BM/KT screenshots at exactly sha419; independently review G05 benchmark before any gate transition. Keep G10/G11 release authority/rollback requirements separate.",
+      "fallback": "If Owner UX rejects, G05 reviewers cannot attest, or G10/G11 not valid, leave #419/#414 Draft, gates unchanged, Production untouched."
     }
   ],
   "assessment": {
@@ -3025,6 +3200,23 @@
           "exactSha": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
           "status": "360_SAMPLES_MEASURED_NOT_ACCEPTED_P95_COLD_OUTLIER",
           "artifactId": 14898660354
+        },
+        {
+          "source": "https://github.com/BlueDragon33/Application-Management/actions/runs/45407829546",
+          "artifactId": 14925264540,
+          "exactSha": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
+          "baselineSha": "89a89ce2d3d8ed634ee9562c52744a99223a2b2a",
+          "status": "COLD_START_40_PAIRED_MEASURED_NOT_ACCEPTED_NO_PERSISTENT_CANDIDATE_TAIL_REGRESSION",
+          "p50Ms": {
+            "baseline": 1337.05,
+            "candidate": 1333.9,
+            "deltaPercent": -0.24
+          },
+          "p95Ms": {
+            "baseline": 1439.84,
+            "candidate": 1372.69,
+            "deltaPercent": -4.66
+          }
         }
       ],
       "exactSha": null,
@@ -3247,7 +3439,7 @@
       "pr": 419,
       "branch": "feat/boi-owner-client-admin-shell-20261123",
       "sourceSha": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
-      "sourceStatus": "DRAFT_G04_TECHNICAL_PASS_G05_360_PAIRED_MEASURED_NOT_ACCEPTED_HUMAN_AND_COLD_TAIL_UNVERIFIED",
+      "sourceStatus": "DRAFT_G04_BM_KT_FULL_NATIVE_TECHNICAL_PASS_HUMAN_UX_PENDING_G05_360_PLUS_40_COLD_MEASURED_NOT_ACCEPTED",
       "apps": [
         "bauman-master-ai",
         "price-report-tunggiabao"
@@ -3260,233 +3452,150 @@
       "lastScopedQa": {
         "stepId": "R2.3",
         "date": "2026-11-24",
-        "result": "G04_BM_KT_NATIVE_CHROMIUM_SOURCE_UI_D1_TECHNICAL_PASS_G05_360_PAIRED_MEASURED_NOT_ACCEPTED",
-        "baselineSha": "89a89ce2d3d8ed634ee9562c52744a99223a2b2a",
-        "candidateSha": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
-        "pr": 419,
-        "g04": {
-          "run": "https://github.com/BlueDragon33/Application-Management/actions/runs/45344447276",
-          "chromiumArtifactId": 14898400230,
-          "chromiumZipSha256": "6c4b9c623b268c7309207949606686fb8068057c03840b398c4a9be3afaf73fc",
-          "integratedArtifactId": 14897553787,
-          "integratedZipSha256": "a8a8bb5089de3bf90d467c4decd031dd873b5673064b4d1ac20a69e84b334a2a",
-          "technical": "Chromium 6/6 responsive screens no horizontal overflow; Escape focus 6/6; pending/blocked 4/4; real local Owner→central authenticated API→signed BM/KT Worker→independent child D1→final blocked UI 2/2; source CAS/replay/viewer-denial PASS",
-          "contrast": "261 visible computed text/background pairs with translucent background composited over local page #f3f6fa; 0 below 4.5, minimum BM 5.44, KT 5.61; NOT whole WCAG",
-          "status": "TECHNICAL_PASS_HUMAN_UX_OWNER_ACCEPTANCE_NOT_RECEIVED"
+        "result": "G05_COLD_START_40_OF_40_EXACT_SHA_AB_BA_NO_PERSISTENT_TAIL_REGRESSION_TECHNICAL_EVIDENCE_READY_NOT_ACCEPTED",
+        "constitution": "blueprint-os:universal-century-grade@1.3.0",
+        "repo": "BlueDragon33/Application-Management",
+        "candidate": {
+          "pr": 419,
+          "sha": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
+          "draft": true,
+          "merged": false
         },
-        "g05": {
-          "run": "https://github.com/BlueDragon33/Application-Management/actions/runs/45344470024",
-          "artifactId": 14898660354,
-          "zipSha256": "7a24274918401238e3cf2e74e0c12fd22f84d9addbfe0a58f0545a3d73773ffe",
-          "reportStatus": "MEASURED_NOT_ACCEPTED",
-          "samples": 360,
-          "nPerVariantCohortViewport": 20,
-          "groups": 9,
-          "d1Counts": "6/6",
-          "http": "360/360",
-          "renderedCards": "360/360",
-          "apiCounts": "360/360",
-          "pageJsErrors": 0,
-          "failedRequests": 0,
-          "p50RenderDeltaRangePct": [
-            -2.22,
-            2.66
-          ],
-          "p50Requests": "105 baseline and 105 candidate across all strata",
-          "metrics": [
-            {
-              "apps": 10,
-              "viewport": "1440x900",
-              "nPerVariant": 20,
-              "paintedGridProxyMs": {
-                "baselineP50": 459.36,
-                "candidateP50": 456.17,
-                "baselineP95": 524.32,
-                "candidateP95": 1320.95,
-                "deltaP50Pct": -0.69,
-                "deltaP95Pct": 151.94
-              },
-              "apiNetworkP50Ms": {
-                "baseline": 27.64,
-                "candidate": 25.86
-              }
+        "baseline": {
+          "source": "main",
+          "sha": "89a89ce2d3d8ed634ee9562c52744a99223a2b2a"
+        },
+        "workflow": {
+          "url": "https://github.com/BlueDragon33/Application-Management/actions/runs/45407829546",
+          "runId": 45407829546,
+          "jobConclusion": "SUCCESS",
+          "sourceHarnessPr": 414,
+          "harnessSha": "5962062a589db954850f0ea9211661c8e187e712",
+          "artifactId": 14925264540,
+          "artifactName": "r23-g05-controlled-cold-10-evidence",
+          "artifactZipSha256": "735693ff6661a1f461b860388be16f15ea490903f0ccb1a7bb972c3c54b1f018",
+          "runReportStatus": "MEASURED_NOT_ACCEPTED",
+          "original360Run": "https://github.com/BlueDragon33/Application-Management/actions/runs/45344470024"
+        },
+        "scope": {
+          "cohort": 10,
+          "viewport": "1440x900",
+          "count": 40,
+          "repeatsPerSource": 20,
+          "order": "20 AB/BA pairs alternated",
+          "baselineAndCandidateSourcePinned": true,
+          "freshProcesses": "Each observation independently launches new Vite process and Chromium browser; app dependencies and Vite optimizer disk cache may persist",
+          "independentD1": "2/2 source-local D1 readback count exactly 10",
+          "http": "40/40 HTTP200",
+          "errors": 0,
+          "productionWrites": false,
+          "timing": "Navigation to complete 10-card grid plus two requestAnimationFrame callbacks, excludes Vite startup and Chromium launch"
+        },
+        "results": {
+          "renderPaintedGridProxyMs": {
+            "p50": {
+              "baseline": 1337.05,
+              "candidate": 1333.9,
+              "deltaPercent": -0.24
             },
-            {
-              "apps": 10,
-              "viewport": "800x900",
-              "nPerVariant": 20,
-              "paintedGridProxyMs": {
-                "baselineP50": 426.69,
-                "candidateP50": 424.54,
-                "baselineP95": 444.56,
-                "candidateP95": 445.18,
-                "deltaP50Pct": -0.5,
-                "deltaP95Pct": 0.14
-              },
-              "apiNetworkP50Ms": {
-                "baseline": 25.61,
-                "candidate": 24.03
-              }
-            },
-            {
-              "apps": 10,
-              "viewport": "390x844",
-              "nPerVariant": 20,
-              "paintedGridProxyMs": {
-                "baselineP50": 425.26,
-                "candidateP50": 425.28,
-                "baselineP95": 458.89,
-                "candidateP95": 451.5,
-                "deltaP50Pct": 0,
-                "deltaP95Pct": -1.61
-              },
-              "apiNetworkP50Ms": {
-                "baseline": 26.34,
-                "candidate": 24.15
-              }
-            },
-            {
-              "apps": 50,
-              "viewport": "1440x900",
-              "nPerVariant": 20,
-              "paintedGridProxyMs": {
-                "baselineP50": 461.53,
-                "candidateP50": 473.82,
-                "baselineP95": 490.66,
-                "candidateP95": 501.19,
-                "deltaP50Pct": 2.66,
-                "deltaP95Pct": 2.15
-              },
-              "apiNetworkP50Ms": {
-                "baseline": 26.95,
-                "candidate": 29.3
-              }
-            },
-            {
-              "apps": 50,
-              "viewport": "800x900",
-              "nPerVariant": 20,
-              "paintedGridProxyMs": {
-                "baselineP50": 457.64,
-                "candidateP50": 457.48,
-                "baselineP95": 473.12,
-                "candidateP95": 491.36,
-                "deltaP50Pct": -0.03,
-                "deltaP95Pct": 3.86
-              },
-              "apiNetworkP50Ms": {
-                "baseline": 26.76,
-                "candidate": 26.47
-              }
-            },
-            {
-              "apps": 50,
-              "viewport": "390x844",
-              "nPerVariant": 20,
-              "paintedGridProxyMs": {
-                "baselineP50": 456.77,
-                "candidateP50": 456.98,
-                "baselineP95": 472.62,
-                "candidateP95": 473.68,
-                "deltaP50Pct": 0.05,
-                "deltaP95Pct": 0.22
-              },
-              "apiNetworkP50Ms": {
-                "baseline": 27.43,
-                "candidate": 26.17
-              }
-            },
-            {
-              "apps": 200,
-              "viewport": "1440x900",
-              "nPerVariant": 20,
-              "paintedGridProxyMs": {
-                "baselineP50": 602.75,
-                "candidateP50": 597.3,
-                "baselineP95": 631.24,
-                "candidateP95": 619.38,
-                "deltaP50Pct": -0.9,
-                "deltaP95Pct": -1.88
-              },
-              "apiNetworkP50Ms": {
-                "baseline": 51.93,
-                "candidate": 48.51
-              }
-            },
-            {
-              "apps": 200,
-              "viewport": "800x900",
-              "nPerVariant": 20,
-              "paintedGridProxyMs": {
-                "baselineP50": 597.83,
-                "candidateP50": 584.53,
-                "baselineP95": 674.23,
-                "candidateP95": 660.31,
-                "deltaP50Pct": -2.22,
-                "deltaP95Pct": -2.06
-              },
-              "apiNetworkP50Ms": {
-                "baseline": 49.72,
-                "candidate": 50.72
-              }
-            },
-            {
-              "apps": 200,
-              "viewport": "390x844",
-              "nPerVariant": 20,
-              "paintedGridProxyMs": {
-                "baselineP50": 581.73,
-                "candidateP50": 585.11,
-                "baselineP95": 652.25,
-                "candidateP95": 615.11,
-                "deltaP50Pct": 0.58,
-                "deltaP95Pct": -5.69
-              },
-              "apiNetworkP50Ms": {
-                "baseline": 50.25,
-                "candidate": 49.07
-              }
+            "p95": {
+              "baseline": 1439.84,
+              "candidate": 1372.69,
+              "deltaPercent": -4.66
             }
-          ],
-          "anomaly": {
-            "apps": 10,
-            "viewport": "1440x900",
-            "baselinePaintP95Ms": 524.32,
-            "candidatePaintP95Ms": 1320.95,
-            "deltaPct": 151.94,
-            "candidateFirstTwoMs": [
-              1320.95,
-              1383.02
-            ],
-            "baselineFirstMs": 1596.68,
-            "postHocExcludingFirstTwoEach": {
-              "n": 18,
-              "baselineP95Ms": 524.32,
-              "candidateP95Ms": 493.75
-            },
-            "interpretation": "Cold/warm-up order sensitivity plausible but not proven; raw samples preserved; no post-hoc removal from primary p95"
           },
-          "measurementScope": "GitHub Ubuntu Node22 Chromium140, local D1; two app Vite runtimes share runner; CPU includes QA harness; RSS sum counts shared pages; first full-grid plus 2 RAF is paint proxy, not production display",
-          "status": "MEASURED_COMPARATIVE_EXPLORATORY_G05_UNVERIFIED"
+          "bootstrapMs": {
+            "p50": {
+              "baseline": 1287.73,
+              "candidate": 1287.26
+            },
+            "p95": {
+              "baseline": 1390.22,
+              "candidate": 1316.22
+            }
+          },
+          "apiNetworkMs": {
+            "p50": {
+              "baseline": 60.03,
+              "candidate": 60.09
+            },
+            "p95": {
+              "baseline": 86.54,
+              "candidate": 66.07
+            }
+          },
+          "rendererTaskMs": {
+            "p50": {
+              "baseline": 296.66,
+              "candidate": 297.87
+            },
+            "p95": {
+              "baseline": 314.8,
+              "candidate": 314.11
+            }
+          },
+          "cpuSecondsIncludesQa": {
+            "p50": {
+              "baseline": 1.86,
+              "candidate": 1.84
+            },
+            "p95": {
+              "baseline": 2.07,
+              "candidate": 2
+            }
+          },
+          "rssMBIncludesSharedPages": {
+            "p50": {
+              "baseline": 1539.58,
+              "candidate": 1546.31
+            },
+            "p95": {
+              "baseline": 1565.21,
+              "candidate": 1553.7
+            }
+          },
+          "jsHeapMB": {
+            "p50": {
+              "baseline": 8.66,
+              "candidate": 8.64
+            }
+          },
+          "requestsP50": {
+            "baseline": 105,
+            "candidate": 105
+          },
+          "viteStartupMs": {
+            "baselineApproxP50": 5003,
+            "candidateApproxP50": 5008,
+            "excludedFromNavigationMetric": true
+          },
+          "orderStrataPaintedGridMs": {
+            "baselineFirstMedian": 1331.24,
+            "baselineSecondMedian": 1341.36,
+            "candidateFirstMedian": 1333.25,
+            "candidateSecondMedian": 1345.23,
+            "samplesPerStratum": 10
+          }
         },
-        "ci": {
-          "sourceSha": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
-          "fast": "PASS",
-          "constitution": "PASS",
-          "urls": [
-            "https://github.com/BlueDragon33/Application-Management/actions/runs/45344447271",
-            "https://github.com/BlueDragon33/Application-Management/actions/runs/45344447451"
-          ]
+        "comparisonToOriginal": {
+          "originalCandidate10DesktopP95Ms": 1320.95,
+          "originalBaseline10DesktopP95Ms": 524.32,
+          "originalFirstTwoCandidateSamplesMs": [
+            1320.95,
+            1383.02
+          ],
+          "originalBaselineFirstSampleMs": 1596.68,
+          "interpretation": "Original 360-run warm-process p95 discrepancy is sensitive to early initialization/optimizer state. Under paired fully fresh Vite and browser, no persistent candidate p95 regression observed. No original outlier removed. Distinct cold vs warm contexts must not be collapsed. This supports source-side regression not reproducible, but does not conclusively isolate Vite vs OS cache or certify Production latency."
         },
-        "gates": {
-          "G04": "UNVERIFIED_HUMAN",
-          "G05": "UNVERIFIED_COLD_TAIL_AND_PRODUCTION_REPRESENTATIVENESS",
-          "G10": "UNVERIFIED",
-          "G11": "BLOCKED_DEPENDENCIES",
-          "production": "UNCHANGED"
+        "remaining": {
+          "G04": "Owner has not explicitly approved six exact source SHA screenshots; technical Chromium/D1 PASS only",
+          "G05": "NoAutoPass true; review evidence and quality target/policy before changing gate status. Benchmark is QA environment and CPU/RSS include harness/shared pages.",
+          "G10": "UNVERIFIED governance/authority, Hub productionReleaseAuthority false",
+          "G11": "BLOCKED_DEPENDENCIES rollout/rollback resilience",
+          "release": "NOT_AUTHORIZED_NO_MERGE_NO_PUBLISH"
         },
-        "nextAction": "One exact-SHA targeted 10-desktop cold-start order-control and explicit Owner review of six 1440/800/390 BM/KT screens; no merge/ratify/publish before canonical gates and release authority.",
-        "fallback": "If G04 human review, G05 cold-tail, G10/G11 or authority cannot be demonstrated, retain Draft PRs and Production unchanged."
+        "singleNextAction": "Obtain explicit Owner G04 UX acceptance or precise requested changes after showing six authenticated local BM/KT screenshots at exactly sha419; independently review G05 benchmark before any gate transition. Keep G10/G11 release authority/rollback requirements separate.",
+        "fallback": "If Owner UX rejects, G05 reviewers cannot attest, or G10/G11 not valid, leave #419/#414 Draft, gates unchanged, Production untouched."
       }
     },
     "scope": "COMMON_PRESENTATION_PLUS_APP_OWNED_CAPABILITIES; NO_BACKEND_UNIFICATION_NO_FAKE_AUTHORITIES",
