@@ -505,3 +505,8 @@
   .player .actions > .primary { flex: 1 1 100%; }
   .focusToggle { justify-self: start; }
 }
+
+.adaptiveTask { display: grid; min-width: 0; gap: 12px; }
+.adaptiveTask > :is(h3, p), .adaptiveTask .feedback p { margin: 0; overflow-wrap: anywhere; }
+.adaptiveTask .feedback { display: grid; gap: 8px; }
+.progressList small { display: block; color: var(--secondary); }

@@ -1,4 +1,5 @@
 import { calendarGroups } from "./calendar-content";
+import { adaptiveTexts } from "./adaptive-content";
 
 export type Bilingual = Readonly<{ en: string; ru: string }>;
 type StudyText = Bilingual & { vi: string };
@@ -216,6 +217,13 @@ for (const group of calendarGroups) {
   for (const entry of [...group.forms, group.example]) {
     glossary.set(normalize(entry.en), entry.vi);
     glossary.set(normalize(entry.ru), entry.vi);
+  }
+}
+
+for (const entry of adaptiveTexts) {
+  for (const phrase of [entry.en, entry.ru]) {
+    const key = normalize(phrase);
+    if (!glossary.has(key)) glossary.set(key, entry.vi);
   }
 }
 

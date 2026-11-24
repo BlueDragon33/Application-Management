@@ -4,9 +4,12 @@ import { useEffect, useId, useRef, useState } from "react";
 import { calendarForms, calendarGroups, categories, soundNotes } from "./calendar-content";
 import type { Bilingual } from "./content";
 import { dailyLessons } from "./daily";
-import { memoryEntry, nextReview, readMemory, setMemory, skills, spellingDifference, type MemoryEntry, type Skill } from "./memory";
+import { adaptiveEligible, memoryEntry, nextAdaptiveTask, nextReview, readMemory, recordAdaptiveAnswer, recordAdaptiveSelfRecall, setMemory, skills, spellingDifference, type MemoryEntry, type ReviewSkill, type Skill } from "./memory";
 import { PronunciationStatus, type AudioSettings, type useRussianAudio } from "./pronunciation";
 import { Recording } from "./recording";
+import AdaptivePractice from "./adaptive-practice";
+import { adaptiveTask, adaptiveTasks, type AdaptiveSkill } from "./adaptive-content";
+import type { AudioSource } from "./audio-assets";
 import { knowledgeLinks, type KnowledgeRelation } from "./knowledge-links";
 import { StudyWords } from "./translation";
 import styles from "./trainer.module.css";
@@ -19,14 +22,16 @@ const modes = {
   read: { en: "Reading", ru: "Чтение" },
   speak: { en: "Speaking", ru: "Говорение" },
   dictate: { en: "Dictation", ru: "Диктант" },
+  sound: { en: "Sound Lab", ru: "Различение звуков" },
+  context: { en: "Conversation Lab", ru: "Диалоги и контекст" },
   review: { en: "Smart Review", ru: "Умное повторение" },
 } satisfies Record<string, Bilingual>;
 
 type Mode = keyof typeof modes;
-type ExerciseMode = Exclude<Mode, "review">;
+type ExerciseMode = Exclude<Mode, "review" | AdaptiveSkill>;
 type Memory = Record<string, MemoryEntry>;
-const reviewModes: Record<Skill, ExerciseMode> = {
-  listening: "repeat", understanding: "meaning", speaking: "speak", reading: "read", spelling: "dictate",
+const reviewModes: Record<ReviewSkill, ExerciseMode | AdaptiveSkill> = {
+  listening: "repeat", understanding: "meaning", speaking: "speak", reading: "read", spelling: "dictate", sound: "sound", context: "context",
 };
 const assessedSkills: Partial<Record<ExerciseMode, Skill>> = {
   repeat: "listening", meaning: "understanding", shadow: "speaking", speak: "speaking", read: "reading", dictate: "spelling",
@@ -194,7 +199,8 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
   const [hidden, setHidden] = useState(true);
   const [settings, setSettings] = useState<AudioSettings>({ rate: 0.75, repeats: 1, pause: 2 });
   const [id, setId] = useState("today-1");
-  const [review, setReview] = useState<{ id: string; skill: Skill }>();
+  const [review, setReview] = useState<{ id: string; skill: ReviewSkill }>();
+  const [labId, setLabId] = useState<string>();
   const [round, setRound] = useState(0);
   const playButton = useRef<HTMLButtonElement>(null);
   const [heardEpoch, setHeardEpoch] = useState<number | null>(null);
@@ -245,7 +251,10 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
 
   const form = calendarForms.find(item => item.id === (mode === "review" ? review?.id : id)) ?? calendarForms[0];
   const group = form.group;
-  const exerciseMode = mode === "review" ? review && reviewModes[review.skill] : mode;
+  const selectedMode = mode === "review" ? review && reviewModes[review.skill] : mode;
+  const labMode = selectedMode === "sound" || selectedMode === "context";
+  const exerciseMode: ExerciseMode | undefined = selectedMode === "sound" || selectedMode === "context" ? undefined : selectedMode;
+  const activeLab = labMode ? adaptiveTask(mode === "review" ? review?.id : labId) : undefined;
   const category = categories[group.category];
   const categoryGroups = calendarGroups.filter(item => item.category === group.category);
   const selectedDay = dailyLessons[day];
@@ -272,22 +281,57 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
     savePreference(modeKey, id);
   }
 
-  function selectReview(time: number) {
+  function selectReview(time: number, skipCurrent = false) {
     setNow(time);
-    setReview(nextReview(latest.current, time, review && review.id + ":" + review.skill));
+    setReview(nextReview(latest.current, time, review && review.id + ":" + review.skill, skipCurrent));
     resetExercise();
+  }
+
+  function persistMemory(transform: (base: Memory, storage?: Storage) => Memory) {
+    let next: Memory;
+    try {
+      const base = { ...latest.current, ...readMemory(localStorage, storagePrefix) };
+      next = transform(base, localStorage);
+      if (next === base) return false;
+    } catch {
+      next = transform(latest.current);
+      if (next === latest.current) return false;
+      setSaveFailed(true);
+    }
+    latest.current = next;
+    setEntries(next);
+    return true;
   }
 
   function update(skill: Skill, result: boolean, time: number) {
     setNow(time);
-    try {
-      const saved = readMemory(localStorage, storagePrefix);
-      latest.current = setMemory({ ...latest.current, ...saved }, form.id, skill, result, time, localStorage, storagePrefix);
-    } catch {
-      latest.current = setMemory(latest.current, form.id, skill, result, time);
-      setSaveFailed(true);
-    }
-    setEntries(latest.current);
+    persistMemory((base, storage) => setMemory(base, form.id, skill, result, time, storage, storagePrefix));
+  }
+
+  function selectLab(skill: AdaptiveSkill, time: number, exclude?: string) {
+    setNow(time);
+    setLabId(nextAdaptiveTask(latest.current, time, skill, exclude)?.id);
+    resetExercise();
+  }
+
+  function updateLab(choice: number, time: number, source?: AudioSource) {
+    if (!activeLab) return false;
+    setNow(time);
+    return persistMemory((base, storage) => recordAdaptiveAnswer(base, activeLab.id, choice, time, source, storage, storagePrefix));
+  }
+
+  function updateSelfRecall(recalled: boolean) {
+    return !!activeLab && persistMemory((base, storage) => recordAdaptiveSelfRecall(base, activeLab.id, recalled, storage, storagePrefix));
+  }
+
+  function advanceLab(time: number, correct: boolean) {
+    if (!activeLab) return;
+    if (mode === "review") { selectReview(time, true); return; }
+    const continuation = correct && adaptiveTasks.find(task => task.requires === activeLab.id && adaptiveEligible(task, latest.current));
+    if (continuation) {
+      setLabId(continuation.id);
+      resetExercise();
+    } else selectLab(activeLab.skill, time, activeLab.id);
   }
 
   const saveNotice = saveFailed && <p role="status"><Pair text={{
@@ -308,6 +352,20 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
         <progress max={calendarForms.length} value={attempted.length} aria-label={skills[skill].en} />
         <span>{attempted.length}/{calendarForms.length} · {dueCount} due <span lang="ru">к повторению</span></span></li>;
     })}</ul>
+    <h3>Adaptive evidence <span lang="ru">Результаты адаптивной практики</span></h3>
+    <p className={styles.saveNote}>Choice outcomes and self-reports are separate; neither proves pronunciation. <span lang="ru">Выбор ответов и самооценка не доказывают правильность произношения.</span></p>
+    <ul className={styles.progressList}>{(["sound", "context"] as const).map(skill => {
+      const attempted = adaptiveTasks.filter(task => task.skill === skill && memoryEntry(entries, task.id, skill)?.evidence);
+      return <li key={skill}><span><Pair text={modes[skill]} /></span><progress max={adaptiveTasks.filter(task => task.skill === skill).length} value={attempted.length} aria-label={modes[skill].en} /><span>{attempted.length} attempted</span></li>;
+    })}</ul>
+    <details className={styles.knowledge}><summary>Personal errors <span lang="ru">Личные ошибки</span></summary>
+      <ul className={styles.progressList}>{adaptiveTasks.filter(task => (memoryEntry(entries, task.id, task.skill)?.evidence?.wrongAttempts ?? 0) > 0).map(task => {
+        const evidence = memoryEntry(entries, task.id, task.skill)!.evidence!;
+        return <li key={task.id}><span><Pair text={task.title} /><small>{evidence.correct ? "Corrected / Исправлено" : "Review needed / Нужно повторить"}</small></span>
+          <span>{evidence.wrongAttempts} <span lang="ru">ошибок</span></span>
+          <button type="button" className={styles.control} disabled={!adaptiveEligible(task, entries)} onClick={() => { setMode(task.skill); setLabId(task.id); resetExercise(); openAudio(); }}>Practice <span lang="ru">Повторить</span></button></li>;
+      })}</ul>
+    </details>
     <p>Review intervals <span lang="ru">Интервалы повторения</span> · 0 / 1 / 3 / 7 / 14 / 30 <span lang="ru">дней</span> (days)</p>
   </>;
 
@@ -396,7 +454,7 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
       <PronunciationStatus audio={speech.audio} id={form.group.example.id} />
       <p className={styles.playerHint}>{settings.rate}× · {settings.repeats === "continuous" ? "∞" : settings.repeats} · {settings.pause}s <span lang="ru">пауза</span></p>
     </section>}
-    {dailySession !== undefined && <div className={styles.rule}>
+    {dailySession !== undefined && !labMode && <div className={styles.rule}>
       <p>Day {dailySession + 1} <span lang="ru">День {dailySession + 1}</span></p>
       <div className={styles.actions}>
         {calendarGroups.filter(item => dailyGroups.includes(item.id)).map(item =>
@@ -413,12 +471,13 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
           const next = event.target.value as Mode;
           setMode(next);
           if (next === "review") selectReview(Date.now());
+          else if (next === "sound" || next === "context") selectLab(next, Date.now());
           else resetExercise();
         }}>
           {Object.entries(modes).map(([key, label]) => <option key={key} value={key}>{label.en} / {label.ru}</option>)}
         </select>
       </label>
-      {mode !== "review" && <label><Pair text={{ en: "Topic", ru: "Тема" }} />
+      {mode !== "review" && !labMode && <label><Pair text={{ en: "Topic", ru: "Тема" }} />
         <select value={group.category} onChange={event => {
           const next = calendarGroups.find(item => item.category === event.target.value);
           if (next) select(next.forms[0].id);
@@ -427,7 +486,7 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
         </select>
       </label>}
     </div>
-    {mode !== "review" && <>
+    {mode !== "review" && !labMode && <>
       <label className={styles.check}><input type="checkbox" checked={effectiveHidden} disabled={hideForAssessment} onChange={event => setHidden(event.target.checked)} />
         <Pair text={{ en: "Hide words while listening", ru: "Скрывать слова при прослушивании" }} />
       </label>
@@ -451,6 +510,10 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
       <PronunciationStatus audio={speech.audio} id="topic" />
     </>}
     {mode === "review" && !review && <p role="status"><Pair text={{ en: "Nothing is due. Practice a topic to add words to review.", ru: "Повторений пока нет. Потренируйте слова, чтобы добавить их на повторение." }} /></p>}
+    {labMode && activeLab && <AdaptivePractice key={activeLab.id + ":" + round + ":" + sessionEpoch}
+      task={activeLab} speech={speech} settings={settings} seed={round + sessionEpoch}
+      onAnswer={updateLab} onSelfRecall={updateSelfRecall} onAdvance={advanceLab} onRetry={resetExercise} />}
+    {labMode && !activeLab && <p role="status">No other eligible task. Choose another mode. <span lang="ru">Других доступных заданий нет. Выберите другой режим.</span></p>}
     {exerciseMode && <Exercise key={form.id + mode + round + ":" + sessionEpoch} form={form}
       mode={exerciseMode} speech={speech} hidden={effectiveHidden} heard={heard} choiceSeed={round + sessionEpoch}
       onResult={update} onSelect={next => {
@@ -466,7 +529,7 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
         savePreference(repeatKey, JSON.stringify(value));
       }} />
     </details>
-    {mode === "review" && review && <button type="button" className={styles.control} onClick={() => selectReview(Date.now())}>
+    {mode === "review" && review && !labMode && <button type="button" className={styles.control} onClick={() => selectReview(Date.now())}>
       Next review <span lang="ru">Следующее повторение</span>
     </button>}
   </section>;

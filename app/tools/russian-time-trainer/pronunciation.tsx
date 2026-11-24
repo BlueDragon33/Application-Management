@@ -39,7 +39,7 @@ export function useRussianAudio() {
     setAudio(null);
   }
 
-  function play(id: string, clips: readonly AudioClip[], settings: AudioSettings = defaults, onClipCompleted?: () => void) {
+  function play(id: string, clips: readonly AudioClip[], settings: AudioSettings = defaults, onClipCompleted?: (source: AudioSource) => void) {
     if (!clips.length) return;
     cancel();
     const engine = window.speechSynthesis;
@@ -80,14 +80,14 @@ export function useRussianAudio() {
     function next() {
       if (active.current !== session) return;
       // An ended event alone is not playback evidence. Require a matching start.
-      if (!clipStarted) {
+      if (!clipStarted || !lastSource) {
         finish("error");
         return;
       }
       clipStarted = false;
       if (!completedOnce) {
         completedOnce = true;
-        onClipCompleted?.();
+        onClipCompleted?.(lastSource);
       }
       window.clearTimeout(session.watchdog);
       session.utterance = undefined;
