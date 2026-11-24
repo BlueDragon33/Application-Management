@@ -20,7 +20,7 @@ jobs:
     timeout-minutes: 36
     env:
       G05_BASE_SHA: 89a89ce2d3d8ed634ee9562c52744a99223a2b2a
-      G05_CANDIDATE_SHA: ded9ff2ee8e8614923da3d7b6171dd5e395501ed
+      G05_CANDIDATE_SHA: 9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9
       G05_TARGET_PR: "419"
       G05_PR: "414"
       WRANGLER_SEND_METRICS: "false"
@@ -41,7 +41,7 @@ jobs:
       - name: Checkout immutable R2.3 candidate PR 419 SHA
         uses: actions/checkout@v4
         with:
-          ref: ded9ff2ee8e8614923da3d7b6171dd5e395501ed
+          ref: 9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9
           path: r23-g05-candidate
           persist-credentials: false
 
