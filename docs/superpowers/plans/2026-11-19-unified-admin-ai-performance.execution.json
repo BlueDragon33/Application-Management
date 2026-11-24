@@ -758,9 +758,65 @@
       "sourceOwnedFix": "NOT_JUSTIFIED",
       "gateDecision": "HOLD_G05",
       "newQaNotRun": true
+    },
+    "r23G05BudgetProposal": {
+      "id": "AM-R23-G05-P95-BUDGET-DRAFT-v1",
+      "status": "PROPOSED_NOT_APPROVED",
+      "basis": "Owner project-specific target proposal, not a Constitution change. Hub NFR B0 design baseline gives 100ms local ACK/200ms pending feedback, not this app boot budget. Plan line 139 requires reviewed target after baseline.",
+      "baselineMainSha": "739adcc7c4d516b8f4c90bc2ffa0e492f8837621",
+      "pilotSha": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
+      "integratedTree": "1fe24059faa2a878d6001d3b03e419263cf2a8cd",
+      "scope": "local QA exact source; separate cold/warm, same source fixture and browser/viewport; does not certify Production",
+      "rules": {
+        "renderAndBootstrapP95": {
+          "relativeIncreaseMaxPct": 10,
+          "absoluteIncreaseMaxMs": 50,
+          "comparison": "BOTH maximums apply; p95 candidate <= baseline + min(10% of baseline, 50ms)"
+        },
+        "apiNetworkP95": {
+          "relativeIncreaseMaxPct": 10,
+          "absoluteIncreaseMaxMs": 10,
+          "comparison": "BOTH maximums apply; p95 candidate <= baseline + min(10% of baseline, 10ms)"
+        },
+        "requests": "No unexplained new requests; never drop auth, readback or error reporting to meet budget",
+        "resource": "Review CPU/RSS with measurement boundaries; no unapproved hard cap on summed shared runner RSS",
+        "uncertainty": "n=20/stratum nearest-rank p95 exploratory; preserve all original samples, paired AB/BA order. If a metric exceeds proposed limit or is inconclusive, one prospective focused confirmation with predeclared protocol (at least 40 matched pairs, actual per-request timing and source spans, preserve cold/warm distinction) only after budget approval; no full 480 rerun. Source fix only on proven owner and cause. No auto-pass.",
+        "qualification": "Existing observed data is diagnostic, not held-out proof for this newly proposed budget. Independent authorized evaluator must review scope, thresholds and evidence; no retroactive gate promotion."
+      },
+      "diagnosticApplication": {
+        "warmRenderP95": {
+          "baselineMs": 507.04,
+          "candidateMs": 540.15,
+          "deltaMs": 33.11,
+          "deltaPct": 6.53,
+          "outcome": "WITHIN_PROPOSED_BOUNDS_ONLY"
+        },
+        "warmBootstrapP95": {
+          "baselineMs": 466.1,
+          "candidateMs": 507.62,
+          "deltaMs": 41.52,
+          "deltaPct": 8.91,
+          "outcome": "WITHIN_PROPOSED_BOUNDS_ONLY"
+        },
+        "warmApiP95": {
+          "baselineMs": 33.35,
+          "candidateMs": 42.41,
+          "deltaMs": 9.06,
+          "deltaPct": 27.17,
+          "outcome": "EXCEEDS_PROPOSED_RELATIVE_LIMIT_REVIEW_NOT_PROVEN_REGRESSION"
+        },
+        "coldRenderP95": {
+          "baselineMs": 1368.65,
+          "candidateMs": 1377.44,
+          "deltaMs": 8.79,
+          "deltaPct": 0.64,
+          "outcome": "WITHIN_PROPOSED_BOUNDS_ONLY"
+        }
+      },
+      "approval": "PENDING_EXPLICIT_OWNER_REVIEW_AND_AUTHORIZED_G05_ACCEPTANCE"
     }
   },
-  "status": "R0_2_FOCUSED_WINDOWS_MEASURED_NOT_ACCEPTED_G05_UNVERIFIED",
+  "status": "STREAMLINED_RECONCILED_DRAFT_BUDGET_AND_DEPENDENCY_REVIEW_PENDING",
   "rounds": [
     {
       "round": "R0",
@@ -803,7 +859,14 @@
           "remediesForSameRoot": 0,
           "releaseAuthority": "NONE",
           "browserEvidence": "UNVERIFIED",
-          "complianceClaim": "NONE_SOURCE_AUDIT_ONLY"
+          "complianceClaim": "NONE_SOURCE_AUDIT_ONLY",
+          "streamlinedReconciliation": {
+            "implementationStatus": "SOURCE_AUDIT_DONE",
+            "note": "Existing source audit only; not a compliance attestation.",
+            "scope": "OBSERVATION_ONLY_NOT_GATE_ACCEPTANCE",
+            "acceptanceState": "DONE",
+            "recordedOn": "2026-11-24"
+          }
         },
         {
           "id": "R0.2",
@@ -1280,6 +1343,13 @@
             "totalProcessCpu": "UNVERIFIED",
             "fullCompositedContrast": "UNVERIFIED",
             "humanUX": "UNVERIFIED"
+          },
+          "streamlinedReconciliation": {
+            "implementationStatus": "MEASURED_NOT_ACCEPTED",
+            "note": "480 R2.3 browser samples across historical and current-main scopes; distinct R0.2 PR417 Windows 54+40 evidence retained. Current-main exact integration tree only 10 desktop; coverage and formal G05 acceptance remain open.",
+            "scope": "OBSERVATION_ONLY_NOT_GATE_ACCEPTANCE",
+            "acceptanceState": "MEASURED_NOT_ACCEPTED",
+            "recordedOn": "2026-11-24"
           }
         },
         {
@@ -1309,7 +1379,14 @@
           "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
           "remediesForSameRoot": 0,
           "releaseAuthority": "NONE",
-          "browserEvidence": "UNVERIFIED"
+          "browserEvidence": "UNVERIFIED",
+          "streamlinedReconciliation": {
+            "implementationStatus": "REVIEWED_BOUNDARY_DRAFT_BUDGET_PENDING",
+            "note": "Raw paired warm-tail review completed; no source-owned deterministic defect. Draft G05 budget and scope decision require review.",
+            "scope": "OBSERVATION_ONLY_NOT_GATE_ACCEPTANCE",
+            "acceptanceState": "BLOCKED",
+            "recordedOn": "2026-11-24"
+          }
         }
       ]
     },
@@ -1370,6 +1447,13 @@
             "needs": "Exact-SHA before/after Chromium 10/50/200 fixture and affected real-UX policy-save journey; independent A/B track not executed in this WP",
             "mergeAuthority": "NOT_GRANTED_BY_THIS_CHECKPOINT",
             "rollback": "Revert scoped branch changes; no DB migrations or system-wide dependencies."
+          },
+          "streamlinedReconciliation": {
+            "implementationStatus": "CODED_CI_AND_SCOPED_MEASURED_NOT_ACCEPTED",
+            "note": "PR417 exact HEAD 92f7fbf6e3b1664d2431694fc5aeaef5b27df5c6 remains separate unmerged Draft; prior Windows 54+40 on that SHA, 200 cohort near parity in focused test. Not integrated with PR419 or live main.",
+            "scope": "OBSERVATION_ONLY_NOT_GATE_ACCEPTANCE",
+            "acceptanceState": "BLOCKED",
+            "recordedOn": "2026-11-24"
           }
         },
         {
@@ -1390,7 +1474,14 @@
           "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
           "remediesForSameRoot": 0,
           "releaseAuthority": "NONE",
-          "browserEvidence": "UNVERIFIED"
+          "browserEvidence": "UNVERIFIED",
+          "streamlinedReconciliation": {
+            "implementationStatus": "NOT_ATTESTED",
+            "note": "No exact-scope evidence for duplicate focus/visibility refresh and timeouts.",
+            "scope": "OBSERVATION_ONLY_NOT_GATE_ACCEPTANCE",
+            "acceptanceState": "BLOCKED",
+            "recordedOn": "2026-11-24"
+          }
         },
         {
           "id": "R1.3",
@@ -1410,7 +1501,14 @@
           "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
           "remediesForSameRoot": 0,
           "releaseAuthority": "NONE",
-          "browserEvidence": "UNVERIFIED"
+          "browserEvidence": "UNVERIFIED",
+          "streamlinedReconciliation": {
+            "implementationStatus": "PARTIAL_PILOT_PROOF_ONLY",
+            "note": "BM/KT Owner lock independent D1 and denied pending/blocked verified, not global automation/batch/reliability.",
+            "scope": "OBSERVATION_ONLY_NOT_GATE_ACCEPTANCE",
+            "acceptanceState": "BLOCKED",
+            "recordedOn": "2026-11-24"
+          }
         }
       ]
     },
@@ -1436,7 +1534,14 @@
           "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
           "remediesForSameRoot": 0,
           "releaseAuthority": "NONE",
-          "browserEvidence": "UNVERIFIED"
+          "browserEvidence": "UNVERIFIED",
+          "streamlinedReconciliation": {
+            "implementationStatus": "SPEC_SOURCE_STAGED",
+            "note": "Existing 10-app design spec at PR419 describes V18 navigation, roles and source boundaries; not whole-project UX acceptance.",
+            "scope": "OBSERVATION_ONLY_NOT_GATE_ACCEPTANCE",
+            "acceptanceState": "BLOCKED",
+            "recordedOn": "2026-11-24"
+          }
         },
         {
           "id": "R2.2",
@@ -1473,6 +1578,13 @@
             "plannedTotal": 10,
             "report": "docs/design/boi-ech-owner-client-admin-rollout-2026-11-23.md",
             "gates": "R0/R1/G00-G04_DEPENDENCIES_STILL_UNVERIFIED"
+          },
+          "streamlinedReconciliation": {
+            "implementationStatus": "SHARED_SHELL_IMPLEMENTED_PILOT_ONLY",
+            "note": "ClientAdminSidebar/Topbar exist and proven in two pilots. Generic dynamic-only internal authenticated management route not attested.",
+            "scope": "OBSERVATION_ONLY_NOT_GATE_ACCEPTANCE",
+            "acceptanceState": "BLOCKED",
+            "recordedOn": "2026-11-24"
           }
         },
         {
@@ -1559,7 +1671,14 @@
           "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
           "remediesForSameRoot": 0,
           "releaseAuthority": "NONE",
-          "browserEvidence": "UNVERIFIED"
+          "browserEvidence": "UNVERIFIED",
+          "streamlinedReconciliation": {
+            "implementationStatus": "PILOT_TECHNICAL_PASS_OWNER_UX_APPROVED",
+            "note": "6/6 screenshots/role QA, 2/2 independent child D1 + final UI; Owner explicit acceptance at original PR419 exact SHA. No global gate promotion or combined-tree UX certification.",
+            "scope": "OBSERVATION_ONLY_NOT_GATE_ACCEPTANCE",
+            "acceptanceState": "BLOCKED",
+            "recordedOn": "2026-11-24"
+          }
         }
       ]
     },
@@ -1585,7 +1704,14 @@
           "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
           "remediesForSameRoot": 0,
           "releaseAuthority": "NONE",
-          "browserEvidence": "UNVERIFIED"
+          "browserEvidence": "UNVERIFIED",
+          "streamlinedReconciliation": {
+            "implementationStatus": "SOURCE_CONTRACT_BASE_EXISTS",
+            "note": "Existing Universal Management Contract and source ownership docs; normalized projection runtime not attested.",
+            "scope": "OBSERVATION_ONLY_NOT_GATE_ACCEPTANCE",
+            "acceptanceState": "BLOCKED",
+            "recordedOn": "2026-11-24"
+          }
         },
         {
           "id": "R3.2",
@@ -1606,7 +1732,14 @@
           "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
           "remediesForSameRoot": 0,
           "releaseAuthority": "NONE",
-          "browserEvidence": "UNVERIFIED"
+          "browserEvidence": "UNVERIFIED",
+          "streamlinedReconciliation": {
+            "implementationStatus": "SOURCE_CONTRACT_BASE_EXISTS",
+            "note": "Existing automation source-of-truth defines live owner policy, read-only viewer and audit fallback. Unified projection not attested.",
+            "scope": "OBSERVATION_ONLY_NOT_GATE_ACCEPTANCE",
+            "acceptanceState": "BLOCKED",
+            "recordedOn": "2026-11-24"
+          }
         },
         {
           "id": "R3.3",
@@ -1626,7 +1759,14 @@
           "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
           "remediesForSameRoot": 0,
           "releaseAuthority": "NONE",
-          "browserEvidence": "UNVERIFIED"
+          "browserEvidence": "UNVERIFIED",
+          "streamlinedReconciliation": {
+            "implementationStatus": "PARTIAL_PILOT_PROOF_ONLY",
+            "note": "BM/KT signed control and readback proof not cross-app batch/federated identity proof.",
+            "scope": "OBSERVATION_ONLY_NOT_GATE_ACCEPTANCE",
+            "acceptanceState": "BLOCKED",
+            "recordedOn": "2026-11-24"
+          }
         }
       ]
     },
@@ -1653,7 +1793,14 @@
           "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
           "remediesForSameRoot": 0,
           "releaseAuthority": "NONE",
-          "browserEvidence": "UNVERIFIED"
+          "browserEvidence": "UNVERIFIED",
+          "streamlinedReconciliation": {
+            "implementationStatus": "NOT_STARTED_IN_THIS_PROGRAM",
+            "note": "RU_LIFE/Health privacy and own session proof required.",
+            "scope": "OBSERVATION_ONLY_NOT_GATE_ACCEPTANCE",
+            "acceptanceState": "BLOCKED",
+            "recordedOn": "2026-11-24"
+          }
         },
         {
           "id": "R4.2",
@@ -1674,7 +1821,14 @@
           "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
           "remediesForSameRoot": 0,
           "releaseAuthority": "NONE",
-          "browserEvidence": "UNVERIFIED"
+          "browserEvidence": "UNVERIFIED",
+          "streamlinedReconciliation": {
+            "implementationStatus": "NOT_STARTED_IN_THIS_PROGRAM",
+            "note": "PC Manager/CAD/NC03 native/local-only limits retained.",
+            "scope": "OBSERVATION_ONLY_NOT_GATE_ACCEPTANCE",
+            "acceptanceState": "BLOCKED",
+            "recordedOn": "2026-11-24"
+          }
         },
         {
           "id": "R4.3",
@@ -1695,7 +1849,14 @@
           "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
           "remediesForSameRoot": 0,
           "releaseAuthority": "NONE",
-          "browserEvidence": "UNVERIFIED"
+          "browserEvidence": "UNVERIFIED",
+          "streamlinedReconciliation": {
+            "implementationStatus": "NOT_STARTED_IN_THIS_PROGRAM",
+            "note": "GrowUP/Blueprint privacy/authority; Bơi Ếch reference only.",
+            "scope": "OBSERVATION_ONLY_NOT_GATE_ACCEPTANCE",
+            "acceptanceState": "BLOCKED",
+            "recordedOn": "2026-11-24"
+          }
         }
       ]
     },
@@ -1721,7 +1882,14 @@
           "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
           "remediesForSameRoot": 0,
           "releaseAuthority": "NONE",
-          "browserEvidence": "UNVERIFIED"
+          "browserEvidence": "UNVERIFIED",
+          "streamlinedReconciliation": {
+            "implementationStatus": "NOT_ATTESTED",
+            "note": "Non-sensitive evidence normalization.",
+            "scope": "OBSERVATION_ONLY_NOT_GATE_ACCEPTANCE",
+            "acceptanceState": "BLOCKED",
+            "recordedOn": "2026-11-24"
+          }
         },
         {
           "id": "R5.2",
@@ -1740,7 +1908,14 @@
           "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
           "remediesForSameRoot": 0,
           "releaseAuthority": "NONE",
-          "browserEvidence": "UNVERIFIED"
+          "browserEvidence": "UNVERIFIED",
+          "streamlinedReconciliation": {
+            "implementationStatus": "NOT_ATTESTED",
+            "note": "Deterministic advisory and blind/adversarial validation.",
+            "scope": "OBSERVATION_ONLY_NOT_GATE_ACCEPTANCE",
+            "acceptanceState": "BLOCKED",
+            "recordedOn": "2026-11-24"
+          }
         },
         {
           "id": "R5.3",
@@ -1760,7 +1935,14 @@
           "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
           "remediesForSameRoot": 0,
           "releaseAuthority": "NONE",
-          "browserEvidence": "UNVERIFIED"
+          "browserEvidence": "UNVERIFIED",
+          "streamlinedReconciliation": {
+            "implementationStatus": "NOT_ATTESTED",
+            "note": "Human decision cockpit, no autonomous writes.",
+            "scope": "OBSERVATION_ONLY_NOT_GATE_ACCEPTANCE",
+            "acceptanceState": "BLOCKED",
+            "recordedOn": "2026-11-24"
+          }
         }
       ]
     },
@@ -1786,7 +1968,14 @@
           "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
           "remediesForSameRoot": 0,
           "releaseAuthority": "NONE",
-          "browserEvidence": "UNVERIFIED"
+          "browserEvidence": "UNVERIFIED",
+          "streamlinedReconciliation": {
+            "implementationStatus": "NOT_ATTESTED",
+            "note": "Measured dead code only; no bulk removal.",
+            "scope": "OBSERVATION_ONLY_NOT_GATE_ACCEPTANCE",
+            "acceptanceState": "BLOCKED",
+            "recordedOn": "2026-11-24"
+          }
         },
         {
           "id": "R6.2",
@@ -1809,7 +1998,14 @@
           "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
           "remediesForSameRoot": 0,
           "releaseAuthority": "NONE",
-          "browserEvidence": "UNVERIFIED"
+          "browserEvidence": "UNVERIFIED",
+          "streamlinedReconciliation": {
+            "implementationStatus": "PARTIAL_PILOT_PROOF_ONLY",
+            "note": "BM/KT QA not full 10-app/browser/restore proof.",
+            "scope": "OBSERVATION_ONLY_NOT_GATE_ACCEPTANCE",
+            "acceptanceState": "BLOCKED",
+            "recordedOn": "2026-11-24"
+          }
         },
         {
           "id": "R6.3",
@@ -1829,23 +2025,30 @@
           "stopPredicate": "Only mark scoped acceptance when exact-SHA evidence covers directly affected critical journeys; otherwise BLOCKED/UNVERIFIED.",
           "remediesForSameRoot": 0,
           "releaseAuthority": "NONE",
-          "browserEvidence": "UNVERIFIED"
+          "browserEvidence": "UNVERIFIED",
+          "streamlinedReconciliation": {
+            "implementationStatus": "BLOCKED_GOVERNANCE_RELEASE",
+            "note": "No canonical attestation; production authority false.",
+            "scope": "OBSERVATION_ONLY_NOT_GATE_ACCEPTANCE",
+            "acceptanceState": "BLOCKED",
+            "recordedOn": "2026-11-24"
+          }
         }
       ]
     }
   ],
   "activeNextAction": {
     "id": "R0.3",
-    "type": "FORMAL_G05_P95_BUDGET_AND_INDEPENDENT_ACCEPTANCE",
-    "state": "BLOCKED_UNTIL_REVIEWED_TARGET_AND_INDEPENDENT_QA_ACCEPTANCE",
-    "why": "80 current-main/integrated exact source Chromium samples and local D1 readback valid. Warm render p95 candidate +6.53% (33.11ms), API p95 +27.17% (9.06ms) but 11/20 paired renders faster, paired median -0.94ms, cold p95 +0.64%, cold/warm startup outlier/order effects. No published bootstrap/API p95 acceptance budget exists for this app. No proven source-owned failure, so do not refactor speculatively or rerun full suites.",
-    "required": "Record a reviewed non-regression target separately for browser bootstrap/render p95 and API p95, with absolute and relative budget and confidence guidance for n=20. Request valid independent assessment of the existing warm/cold raw evidence against that target. If rejected, instrument only warm candidate repeats 5/9/12 with exact combined tree, then implement minimal fix only when the responsible source owner is established.",
+    "type": "REVIEW_G05_BUDGET_AND_STREAMLINED_DEPENDENCY_PROPOSAL",
+    "state": "BLOCKED_MANDATORY_REVIEW",
+    "why": "21 WPs reconciled without fake PASS. Existing plan requires reviewed G05 targets, one READY WP and serial dependencies. Existing p95 evidence has no approved threshold; proposed 10%/50ms render/bootstrap and 10%/10ms API prospective rules flag warm API for review. No canonical attestation or Production authority.",
+    "required": "Owner review draft AM-R23-G05-P95-BUDGET-DRAFT-v1 and AM-STREAMLINED-EXECUTION-DRAFT-v1 (no merge or release authorization). After valid review, resolve targeted G05 warm API uncertainty and sequence eligible WPs one at a time; actual canonical gate decisions separate.",
     "expectedEvidence": [
-      "reviewed and versioned G05 budget, not retrofitted after reading held-out results without explicit review",
-      "independent G05 accept/reject decision referencing exact pinned source, full raw 80 samples and variance",
-      "if rejected, narrow cause-attributed trace and minimal fix on correct owner with focused warm-only QA"
+      "explicit acceptance or revision of draft project budget and dependency proposal",
+      "authorized G05 evaluator outcome, focused evidence only if required",
+      "canonical G10 evidence and G11 actual restore/rollback before release"
     ],
-    "fallback": "Keep G05/G10 UNVERIFIED, G11 BLOCKED and both PRs Draft, preserve G04 Owner acceptance at PR419 exact SHA, no Production writes or merge/publish.",
+    "fallback": "Keep both Draft, all acceptance states and Owner G04 exact SHA intact; source-only preparation only, no speculative implementation or production.",
     "singleActionRule": true
   },
   "history": [
@@ -3341,6 +3544,282 @@
       },
       "singleNextAction": "At the existing exact current-main/integrated QA baseline, approve a written G05 performance non-regression budget for bootstrap/render and API p95 (absolute and relative tolerances, uncertainty with n=20), obtain legitimate independent acceptance of 80 raw samples or a scoped owner-tagged trace for warm repeats 5 and 9 if policy rejects. Only then consider minimal source fix. Keep release gates separate.",
       "fallback": "Without a reviewed budget and independent QA acceptance, freeze PR419 source, preserve Owner G04 UX acceptance at exact SHA, leave G05/G10 UNVERIFIED and G11 BLOCKED, both PRs Draft, Production unchanged."
+    },
+    {
+      "stepId": "R0.3",
+      "date": "2026-11-24",
+      "result": "STREAMLINED_21_WP_RECONCILIATION_G05_BUDGET_DRAFT_AND_DEPENDENCY_PROPOSAL_HUMAN_REVIEW_REQUIRED",
+      "source": {
+        "main": "739adcc7c4d516b8f4c90bc2ffa0e492f8837621",
+        "pilot": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
+        "tree": "1fe24059faa2a878d6001d3b03e419263cf2a8cd",
+        "priorLedger": "f2ff021c9876c06d9939ecde9da62a16619dda30",
+        "hubHead": "b6699207612ea836c14dd4a9c1ea59549f7de2bb",
+        "constitution": "1.3.0"
+      },
+      "reconciliation": {
+        "count": 21,
+        "acceptanceCounts": {
+          "DONE": 1,
+          "MEASURED_NOT_ACCEPTED": 1,
+          "BLOCKED": 19
+        },
+        "pilotCoverage": {
+          "reference": 1,
+          "approvedPilots": 2,
+          "remaining": 7
+        },
+        "proof": [
+          {
+            "id": "R0.1",
+            "status": "SOURCE_AUDIT_DONE",
+            "note": "Existing source audit only; not a compliance attestation."
+          },
+          {
+            "id": "R0.2",
+            "status": "MEASURED_NOT_ACCEPTED",
+            "note": "480 R2.3 browser samples across historical and current-main scopes; distinct R0.2 PR417 Windows 54+40 evidence retained. Current-main exact integration tree only 10 desktop; coverage and formal G05 acceptance remain open."
+          },
+          {
+            "id": "R0.3",
+            "status": "REVIEWED_BOUNDARY_DRAFT_BUDGET_PENDING",
+            "note": "Raw paired warm-tail review completed; no source-owned deterministic defect. Draft G05 budget and scope decision require review."
+          },
+          {
+            "id": "R1.1",
+            "status": "CODED_CI_AND_SCOPED_MEASURED_NOT_ACCEPTED",
+            "note": "PR417 exact HEAD 92f7fbf6e3b1664d2431694fc5aeaef5b27df5c6 remains separate unmerged Draft; prior Windows 54+40 on that SHA, 200 cohort near parity in focused test. Not integrated with PR419 or live main."
+          },
+          {
+            "id": "R1.2",
+            "status": "NOT_ATTESTED",
+            "note": "No exact-scope evidence for duplicate focus/visibility refresh and timeouts."
+          },
+          {
+            "id": "R1.3",
+            "status": "PARTIAL_PILOT_PROOF_ONLY",
+            "note": "BM/KT Owner lock independent D1 and denied pending/blocked verified, not global automation/batch/reliability."
+          },
+          {
+            "id": "R2.1",
+            "status": "SPEC_SOURCE_STAGED",
+            "note": "Existing 10-app design spec at PR419 describes V18 navigation, roles and source boundaries; not whole-project UX acceptance."
+          },
+          {
+            "id": "R2.2",
+            "status": "SHARED_SHELL_IMPLEMENTED_PILOT_ONLY",
+            "note": "ClientAdminSidebar/Topbar exist and proven in two pilots. Generic dynamic-only internal authenticated management route not attested."
+          },
+          {
+            "id": "R2.3",
+            "status": "PILOT_TECHNICAL_PASS_OWNER_UX_APPROVED",
+            "note": "6/6 screenshots/role QA, 2/2 independent child D1 + final UI; Owner explicit acceptance at original PR419 exact SHA. No global gate promotion or combined-tree UX certification."
+          },
+          {
+            "id": "R3.1",
+            "status": "SOURCE_CONTRACT_BASE_EXISTS",
+            "note": "Existing Universal Management Contract and source ownership docs; normalized projection runtime not attested."
+          },
+          {
+            "id": "R3.2",
+            "status": "SOURCE_CONTRACT_BASE_EXISTS",
+            "note": "Existing automation source-of-truth defines live owner policy, read-only viewer and audit fallback. Unified projection not attested."
+          },
+          {
+            "id": "R3.3",
+            "status": "PARTIAL_PILOT_PROOF_ONLY",
+            "note": "BM/KT signed control and readback proof not cross-app batch/federated identity proof."
+          },
+          {
+            "id": "R4.1",
+            "status": "NOT_STARTED_IN_THIS_PROGRAM",
+            "note": "RU_LIFE/Health privacy and own session proof required."
+          },
+          {
+            "id": "R4.2",
+            "status": "NOT_STARTED_IN_THIS_PROGRAM",
+            "note": "PC Manager/CAD/NC03 native/local-only limits retained."
+          },
+          {
+            "id": "R4.3",
+            "status": "NOT_STARTED_IN_THIS_PROGRAM",
+            "note": "GrowUP/Blueprint privacy/authority; Bơi Ếch reference only."
+          },
+          {
+            "id": "R5.1",
+            "status": "NOT_ATTESTED",
+            "note": "Non-sensitive evidence normalization."
+          },
+          {
+            "id": "R5.2",
+            "status": "NOT_ATTESTED",
+            "note": "Deterministic advisory and blind/adversarial validation."
+          },
+          {
+            "id": "R5.3",
+            "status": "NOT_ATTESTED",
+            "note": "Human decision cockpit, no autonomous writes."
+          },
+          {
+            "id": "R6.1",
+            "status": "NOT_ATTESTED",
+            "note": "Measured dead code only; no bulk removal."
+          },
+          {
+            "id": "R6.2",
+            "status": "PARTIAL_PILOT_PROOF_ONLY",
+            "note": "BM/KT QA not full 10-app/browser/restore proof."
+          },
+          {
+            "id": "R6.3",
+            "status": "BLOCKED_GOVERNANCE_RELEASE",
+            "note": "No canonical attestation; production authority false."
+          }
+        ]
+      },
+      "draftBudget": {
+        "id": "AM-R23-G05-P95-BUDGET-DRAFT-v1",
+        "status": "PROPOSED_NOT_APPROVED",
+        "basis": "Owner project-specific target proposal, not a Constitution change. Hub NFR B0 design baseline gives 100ms local ACK/200ms pending feedback, not this app boot budget. Plan line 139 requires reviewed target after baseline.",
+        "baselineMainSha": "739adcc7c4d516b8f4c90bc2ffa0e492f8837621",
+        "pilotSha": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
+        "integratedTree": "1fe24059faa2a878d6001d3b03e419263cf2a8cd",
+        "scope": "local QA exact source; separate cold/warm, same source fixture and browser/viewport; does not certify Production",
+        "rules": {
+          "renderAndBootstrapP95": {
+            "relativeIncreaseMaxPct": 10,
+            "absoluteIncreaseMaxMs": 50,
+            "comparison": "BOTH maximums apply; p95 candidate <= baseline + min(10% of baseline, 50ms)"
+          },
+          "apiNetworkP95": {
+            "relativeIncreaseMaxPct": 10,
+            "absoluteIncreaseMaxMs": 10,
+            "comparison": "BOTH maximums apply; p95 candidate <= baseline + min(10% of baseline, 10ms)"
+          },
+          "requests": "No unexplained new requests; never drop auth, readback or error reporting to meet budget",
+          "resource": "Review CPU/RSS with measurement boundaries; no unapproved hard cap on summed shared runner RSS",
+          "uncertainty": "n=20/stratum nearest-rank p95 exploratory; preserve all original samples, paired AB/BA order. If a metric exceeds proposed limit or is inconclusive, one prospective focused confirmation with predeclared protocol (at least 40 matched pairs, actual per-request timing and source spans, preserve cold/warm distinction) only after budget approval; no full 480 rerun. Source fix only on proven owner and cause. No auto-pass.",
+          "qualification": "Existing observed data is diagnostic, not held-out proof for this newly proposed budget. Independent authorized evaluator must review scope, thresholds and evidence; no retroactive gate promotion."
+        },
+        "diagnosticApplication": {
+          "warmRenderP95": {
+            "baselineMs": 507.04,
+            "candidateMs": 540.15,
+            "deltaMs": 33.11,
+            "deltaPct": 6.53,
+            "outcome": "WITHIN_PROPOSED_BOUNDS_ONLY"
+          },
+          "warmBootstrapP95": {
+            "baselineMs": 466.1,
+            "candidateMs": 507.62,
+            "deltaMs": 41.52,
+            "deltaPct": 8.91,
+            "outcome": "WITHIN_PROPOSED_BOUNDS_ONLY"
+          },
+          "warmApiP95": {
+            "baselineMs": 33.35,
+            "candidateMs": 42.41,
+            "deltaMs": 9.06,
+            "deltaPct": 27.17,
+            "outcome": "EXCEEDS_PROPOSED_RELATIVE_LIMIT_REVIEW_NOT_PROVEN_REGRESSION"
+          },
+          "coldRenderP95": {
+            "baselineMs": 1368.65,
+            "candidateMs": 1377.44,
+            "deltaMs": 8.79,
+            "deltaPct": 0.64,
+            "outcome": "WITHIN_PROPOSED_BOUNDS_ONLY"
+          }
+        },
+        "approval": "PENDING_EXPLICIT_OWNER_REVIEW_AND_AUTHORIZED_G05_ACCEPTANCE"
+      },
+      "schedule": {
+        "id": "AM-STREAMLINED-EXECUTION-DRAFT-v1",
+        "status": "PROPOSED_DEPENDENCY_AMENDMENT_NOT_ACTIVE",
+        "retains": "21 WPs, max one READY implementation WP, 1 ledger, all original acceptance dependencies, canonical authority, ZERO-SPEND; no new WP or runtime code authorized by this proposal",
+        "reason": "Existing chain makes R2-R6 acceptance blocked by R0.2 even when scoped pilot proof exists. Separate eligible preparatory/source-only work from gate-authorized implementation; change implementation sequencing only after owner review and lawful dependency review.",
+        "packages": [
+          {
+            "id": "P1",
+            "steps": [
+              "R0.1",
+              "R0.2",
+              "R0.3",
+              "R1.1",
+              "R1.2",
+              "R1.3",
+              "R2.1",
+              "R2.2",
+              "R2.3"
+            ],
+            "exit": "Reviewed G05 budget, reconcile PR417 with PR419/main without changing approved pilot SHA, complete actual remaining scoped reliability and dynamic route evidence; preserve acceptance dependencies."
+          },
+          {
+            "id": "P2",
+            "steps": [
+              "R3.1",
+              "R3.2",
+              "R3.3"
+            ],
+            "exit": "Capability projection, read-only policy/queue/audit with stale/live status, explicitly selected app commands CAS/idempotency/readback; R11–R14 stays migration-gated."
+          },
+          {
+            "id": "P3",
+            "steps": [
+              "R4.1",
+              "R4.2",
+              "R4.3"
+            ],
+            "exit": "7 remaining routes use shared presentation where real capability permits; preserve Boi Ech reference and privacy/native/constitutional boundaries."
+          },
+          {
+            "id": "P4",
+            "steps": [
+              "R5.1",
+              "R5.2",
+              "R5.3"
+            ],
+            "exit": "Verified non-sensitive metadata, deterministic ZERO-SPEND recommendations, blind fixture validation and human decision."
+          },
+          {
+            "id": "P5",
+            "steps": [
+              "R6.1",
+              "R6.2",
+              "R6.3"
+            ],
+            "exit": "Exact combined release revision, 10-app real QA, rollback/restore, canonical attestation and separate Production approval."
+          }
+        ],
+        "safePreparatoryWork": "Read-only source/diff inventory, requirement mapping, evidence reconciliation and design proposals may be conducted now without changing acceptance states. No runtime code for blocked WPs until actual prerequisites or reviewed plan amendment.",
+        "rollout": "Pilot-only release is a proposal, not currently authorized. Full release requires applicable canonical gates and actual authority."
+      },
+      "sourceAudit": {
+        "sharedShell": "app/components/client-admin-shell.tsx@9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
+        "rolloutSpec": "docs/design/boi-ech-owner-client-admin-rollout-2026-11-23.md@9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
+        "sourceContract": "docs/UNIVERSAL_MANAGEMENT_CONTRACT_V1.md@739adcc7c4d516b8f4c90bc2ffa0e492f8837621",
+        "automation": "docs/AUTOMATION_SOURCE_OF_TRUTH.md@739adcc7c4d516b8f4c90bc2ffa0e492f8837621",
+        "topology": "docs/CONTROL_PLANE_TOPOLOGY.md@739adcc7c4d516b8f4c90bc2ffa0e492f8837621",
+        "hubNfr": "docs/NFR-CAPACITY-BUDGETS.v1.md@b6699207612ea836c14dd4a9c1ea59549f7de2bb",
+        "authority": "docs/CONSTITUTION-AUTHORITY-PROTOCOL.v1.md@b6699207612ea836c14dd4a9c1ea59549f7de2bb",
+        "attestation": "docs/CONSTITUTION-COMPLIANCE-ATTESTATION.v1.md@b6699207612ea836c14dd4a9c1ea59549f7de2bb",
+        "snapshot": {
+          "path": "control/constitution-compliance-snapshot.json",
+          "appObservation": "standard-attestation-not-found",
+          "observedRevision": "a9d3cbe1a87e4ce80bc10c082a443c8d3569a2ba",
+          "scope": "historical snapshot only; not live canonical attestation for candidate"
+        },
+        "rollback": "Existing runbook and scripts inspect-production-readiness.mjs / production-release-control.mjs; actual isolated restore/rollback not attested."
+      },
+      "controls": {
+        "newRuntimeCode": false,
+        "newTests": false,
+        "oldBenchmarksPreserved": true,
+        "gatePromotion": false,
+        "productionWrites": false,
+        "zeroSpend": true
+      },
+      "blocker": "Review G05 target and proposed sequencing (no authority waiver). Current plan enforces serial implementation dependencies and one READY WP; cannot advance blocked runtime WPs by relabeling."
     }
   ],
   "assessment": {
