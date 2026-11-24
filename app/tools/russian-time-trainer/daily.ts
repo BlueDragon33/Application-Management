@@ -9,7 +9,7 @@ export const dailyLessons = [
   { groups: ["may", "jun", "jul", "aug"], ru: "У тебя отпуск в июне? — Нет, в июле.", en: "Are you on vacation in June? — No, in July." },
   { groups: ["sep", "oct", "nov", "dec"], ru: "Когда начинается учёба? — В сентябре.", en: "When do classes start? — In September." },
   { groups: ["today", "thursday", "friday"], ru: "Который час? — Половина девятого.", en: "What time is it? — Half past eight." },
-  { groups: ["monday", "wednesday", "evening"], ru: "Во сколько встреча в среду? — В девять.", en: "What time is the meeting on Wednesday? — At nine." },
+  { groups: ["monday", "wednesday", "evening"], ru: "Во сколько мы встретимся в среду? — В девять.", en: "What time are we meeting on Wednesday? — At nine." },
   { groups: ["saturday", "day-after", "morning"], ru: "Когда отправляется поезд? — В субботу утром, в шесть сорок.", en: "When does the train leave? — Saturday morning at six forty." },
   { groups: ["winter", "dec", "jan", "tomorrow"], ru: "Ты приедешь в декабре? — Нет, в январе.", en: "Will you arrive in December? — No, in January." },
   { groups: ["today", "sunday", "summer", "jul"], ru: "Давай встретимся в воскресенье утром. — Хорошо, в девять часов.", en: "Let’s meet on Sunday morning. — All right, at nine." },
