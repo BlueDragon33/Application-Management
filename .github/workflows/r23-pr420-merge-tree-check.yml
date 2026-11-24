@@ -1,0 +1,67 @@
+name: R2.3 Post-PR420 Source Tree Integration (QA only)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/r23-pr420-merge-tree-check.yml
+
+permissions:
+  contents: read
+
+jobs:
+  merge-tree-source-check:
+    if: github.event_name == 'pull_request' && github.event.pull_request.number == 414
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    env:
+      R23_MAIN_SHA: 739adcc7c4d516b8f4c90bc2ffa0e492f8837621
+      R23_PILOT_SHA: 9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9
+    steps:
+      - name: Checkout exact QA-ledger revision (not application production)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Exact source-tree non-mutating integration check
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p qa-artifacts/r23-post-pr420
+          if [[ "$(git log -1 --format=%s)" != "qa(r23): one-shot PR420 and PR419 merge-tree proof" ]]; then
+            echo '{"status":"SKIPPED_ONE_SHOT_RECORDED","reason":"ledger only change; do not repeat source tree check"}' > qa-artifacts/r23-post-pr420/report.json
+            exit 0
+          fi
+          git fetch --no-tags origin "$R23_MAIN_SHA" "$R23_PILOT_SHA"
+          evidence=qa-artifacts/r23-post-pr420/report.json
+          if ! tree="$(git merge-tree --write-tree "$R23_MAIN_SHA" "$R23_PILOT_SHA" 2> qa-artifacts/r23-post-pr420/merge-error.txt)"; then
+            printf '{"status":"BLOCKED_SOURCE_CONFLICT","main":"%s","pilot":"%s"}\n' "$R23_MAIN_SHA" "$R23_PILOT_SHA" > "$evidence"
+            exit 1
+          fi
+          if ! [[ "$tree" =~ ^[a-f0-9]{40}$ ]]; then
+            printf '{"status":"BLOCKED_UNRECOGNIZED_TREE","main":"%s","pilot":"%s"}\n' "$R23_MAIN_SHA" "$R23_PILOT_SHA" > "$evidence"
+            exit 1
+          fi
+          for path in app/management-dashboard-v2.tsx app/application-hub.tsx app/tools/russian-time-trainer/tool-entry.ts; do
+            [[ "$(git rev-parse "$tree:$path")" == "$(git rev-parse "$R23_MAIN_SHA:$path")" ]] || {
+              echo "BLOCKED: PR420 source mismatch at $path"
+              exit 1
+            }
+          done
+          for path in app/application-admin.module.css app/apps/bauman-master-ai/bauman-admin.tsx app/apps/price-report-tunggiabao/price-report-admin.tsx app/components/client-admin-shell.tsx; do
+            [[ "$(git rev-parse "$tree:$path")" == "$(git rev-parse "$R23_PILOT_SHA:$path")" ]] || {
+              echo "BLOCKED: PR419 source mismatch at $path"
+              exit 1
+            }
+          done
+          printf '{"status":"PASS_SOURCE_TREE_ONLY","main":"%s","pilot":"%s","combinedTree":"%s","mainFilesVerified":3,"pilotFilesVerified":4,"productionWrites":false,"buildTested":false,"runtimeTested":false,"g05":"UNVERIFIED"}\n' "$R23_MAIN_SHA" "$R23_PILOT_SHA" "$tree" > "$evidence"
+          cat "$evidence"
+      - name: Preserve scoped source proof, including failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r23-pr420-pr419-merge-tree-proof
+          path: qa-artifacts/r23-post-pr420/
+          if-no-files-found: error
+          retention-days: 7
