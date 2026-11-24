@@ -32,9 +32,9 @@ test("knowledge connections reference canonical forms without duplicate or self 
 });
 
 test("playback evidence requires start then end, and cancellation rejects stale completion", () => {
-  let media;
+  const instances = [];
   class FakeAudio {
-    constructor() { media = this; }
+    constructor() { instances.push(this); }
     getAttribute() { return null; }
     play() { return Promise.resolve(); }
     pause() {}
@@ -48,16 +48,16 @@ test("playback evidence requires start then end, and cancellation rejects stale 
   let complete = 0;
   const play = () => speech.play("test", [{ id: "test", ru: "тест" }], undefined, () => { complete++; });
   play();
-  media.onended();
+  instances.at(-1).onended();
   assert.equal(complete, 0);
   play();
-  media.onplaying();
+  instances.at(-1).onplaying();
   assert.equal(complete, 0);
-  media.onended();
+  instances.at(-1).onended();
   assert.equal(complete, 1);
   play();
-  media.onplaying();
-  const stale = media.onended;
+  instances.at(-1).onplaying();
+  const stale = instances.at(-1).onended;
   speech.stop();
   stale();
   assert.equal(complete, 1);

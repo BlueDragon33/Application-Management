@@ -184,8 +184,8 @@ function readSettings(raw: string | null): AudioSettings | undefined {
     [2, 3, 4, 5].includes(value.pause)) return value;
 }
 
-export default function AudioStudy({ storagePrefix, speech, display, openAudio }: {
-  storagePrefix: string; speech: ReturnType<typeof useRussianAudio>; display: "audio" | "daily" | "progress" | "learn" | "practice"; openAudio: () => void;
+export default function AudioStudy({ storagePrefix, speech, display, openAudio, sessionEpoch }: {
+  storagePrefix: string; speech: ReturnType<typeof useRussianAudio>; display: "audio" | "daily" | "progress" | "learn" | "practice"; openAudio: () => void; sessionEpoch: number;
 }) {
   const [entries, setEntries] = useState<Memory>({});
   const latest = useRef(entries);
@@ -196,9 +196,9 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio }
   const [id, setId] = useState("today-1");
   const [review, setReview] = useState<{ id: string; skill: Skill }>();
   const [round, setRound] = useState(0);
-  const [choiceSeed, setChoiceSeed] = useState(0);
   const playButton = useRef<HTMLButtonElement>(null);
-  const [heard, setHeard] = useState(false);
+  const [heardEpoch, setHeardEpoch] = useState<number | null>(null);
+  const heard = heardEpoch === sessionEpoch;
   const [days, setDays] = useState<number[]>([]);
   const [day, setDay] = useState(0);
   const [dailySession, setDailySession] = useState<number>();
@@ -261,9 +261,8 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio }
 
   function resetExercise() {
     speech.stop();
-    setHeard(false);
+    setHeardEpoch(null);
     setRound(value => value + 1);
-    setChoiceSeed(Math.floor(Math.random() * 2147483647));
   }
 
   function select(id: string) {
@@ -273,8 +272,7 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio }
     savePreference(modeKey, id);
   }
 
-  function selectReview() {
-    const time = Date.now();
+  function selectReview(time: number) {
     setNow(time);
     setReview(nextReview(latest.current, time, review && review.id + ":" + review.skill));
     resetExercise();
@@ -291,12 +289,6 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio }
     }
     setEntries(latest.current);
   }
-
-  useEffect(() => {
-    // A return from another view is a new exercise, not evidence of a new playback.
-    setHeard(false);
-    setRound(value => value + 1);
-  }, [display]);
 
   const saveNotice = saveFailed && <p role="status"><Pair text={{
     en: "Some progress could only be kept for this visit.", ru: "Часть прогресса доступна только в этом сеансе.",
@@ -358,7 +350,7 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio }
         setDailySession(day);
         if (due) {
           setMode("review");
-          selectReview();
+          selectReview(Date.now());
         } else {
           setMode("listen");
           select(first.forms[0].id);
@@ -381,7 +373,7 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio }
     {saveNotice}
     {due && mode !== "review" && <div className={styles.nextTask}>
       <span><Pair text={{ en: "Review is due", ru: "Пора повторить" }} /></span>
-      <button type="button" className={styles.control} onClick={() => { setMode("review"); selectReview(); }}>
+      <button type="button" className={styles.control} onClick={() => { setMode("review"); selectReview(Date.now()); }}>
         Start review <span lang="ru">Начать повторение</span>
       </button>
     </div>}
@@ -390,8 +382,8 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio }
       <p className={styles.playerHint}><Pair text={{ en: "Listen first. Reveal the text when you need it.", ru: "Сначала слушайте. Откройте текст при необходимости." }} /></p>
       <div className={styles.actions}>
         <button ref={playButton} type="button" className={styles.primary} onClick={() => {
-          setHeard(false);
-          speech.play(form.id, [form], settings, () => setHeard(true));
+          setHeardEpoch(null);
+          speech.play(form.id, [form], settings, () => setHeardEpoch(sessionEpoch));
         }}>
           Play word or phrase <span lang="ru">Слушать слово или фразу</span>
         </button>
@@ -420,7 +412,7 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio }
         <select value={mode} onChange={event => {
           const next = event.target.value as Mode;
           setMode(next);
-          if (next === "review") selectReview();
+          if (next === "review") selectReview(Date.now());
           else resetExercise();
         }}>
           {Object.entries(modes).map(([key, label]) => <option key={key} value={key}>{label.en} / {label.ru}</option>)}
@@ -459,8 +451,8 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio }
       <PronunciationStatus audio={speech.audio} id="topic" />
     </>}
     {mode === "review" && !review && <p role="status"><Pair text={{ en: "Nothing is due. Practice a topic to add words to review.", ru: "Повторений пока нет. Потренируйте слова, чтобы добавить их на повторение." }} /></p>}
-    {exerciseMode && <Exercise key={form.id + mode + round} form={form}
-      mode={exerciseMode} speech={speech} hidden={effectiveHidden} heard={heard} choiceSeed={choiceSeed}
+    {exerciseMode && <Exercise key={form.id + mode + round + ":" + sessionEpoch} form={form}
+      mode={exerciseMode} speech={speech} hidden={effectiveHidden} heard={heard} choiceSeed={round + sessionEpoch}
       onResult={update} onSelect={next => {
         if (mode === "review") setMode("listen");
         select(next);
@@ -474,7 +466,7 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio }
         savePreference(repeatKey, JSON.stringify(value));
       }} />
     </details>
-    {mode === "review" && review && <button type="button" className={styles.control} onClick={selectReview}>
+    {mode === "review" && review && <button type="button" className={styles.control} onClick={() => selectReview(Date.now())}>
       Next review <span lang="ru">Следующее повторение</span>
     </button>}
   </section>;

@@ -70,6 +70,7 @@ export default function RussianTimeTrainer({ storagePrefix }: { storagePrefix: s
   const speech = useRussianAudio();
   const [view, setView] = useState<View>("audio");
   const [focusMode, setFocusMode] = useState(false);
+  const [sessionEpoch, setSessionEpoch] = useState(0);
   const [lessonId, setLessonId] = useState(timeLessons[0].id);
   const [direction, setDirection] = useState<PracticeDirection>("en-ru");
   const [question, setQuestion] = useState(0);
@@ -138,6 +139,7 @@ export default function RussianTimeTrainer({ storagePrefix }: { storagePrefix: s
     focusPending.current = focusContent;
     resetExercise(lesson, direction);
     if (nextView !== "audio") setFocusMode(false);
+    setSessionEpoch(value => value + 1);
     setView(nextView);
   }
 
@@ -151,7 +153,10 @@ export default function RussianTimeTrainer({ storagePrefix }: { storagePrefix: s
         setSaveState("session");
       }
     }
-    if (view === "progress") setView("learn");
+    if (view === "progress") {
+      setSessionEpoch(value => value + 1);
+      setView("learn");
+    }
   }
 
   function answerExercise(choice: string) {
@@ -229,7 +234,7 @@ export default function RussianTimeTrainer({ storagePrefix }: { storagePrefix: s
 
         <article className={styles.study}>
           <h2 ref={heading} tabIndex={-1}><Pair text={view === "learn" || view === "practice" ? lesson.title : views[view]} /></h2>
-          <AudioStudy storagePrefix={storagePrefix} speech={speech} display={view} openAudio={() => moveTo("audio", true)} />
+          <AudioStudy storagePrefix={storagePrefix} speech={speech} display={view} sessionEpoch={sessionEpoch} openAudio={() => moveTo("audio", true)} />
           {view === "learn" && <>
             <div className={styles.studyCopy}><StudyPair text={lesson.objective} /></div>
             <section className={styles.rule}>
