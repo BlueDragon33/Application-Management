@@ -1497,18 +1497,17 @@
   ],
   "activeNextAction": {
     "id": "R0.3",
-    "type": "INTEGRATED_OWNER_END_TO_END_AND_PERFORMANCE_ACCEPTANCE",
-    "state": "BLOCKED_UNTIL_G04_G05_REAL_ACCEPTANCE",
-    "why": "Real Chromium 6/6 responsive and focus with 4/4 pending/blocked local denied on unchanged UI; now both source-owned BM-/KT- Control Workers and D1 signed API, owner/viewer, CAS, idempotency and independent real local readback PASS with exact pinned child SHAs. Prior KT QA blocker was incompatible Wrangler toolchain and is fixed with QA-only isolated 4.167.0. None of these proofs covers Central Owner UI to child source end to end or G05 10/50/200 comparative capacity and human UX acceptance.",
-    "required": "At verified live PR #419 HEAD 7a3916ae00c47ef94360b39eff865e1caad92af8 run one scoped genuine integrated owner browser -> central P-256 auth -> signed BM/KT child control mutation -> independent D1 readback with owner, pending/blocked/denied branches and full computed contrast at 1440x900/800x900/390x844. Measure reproducible baseline/after 10/50/200 app cohorts p50/p95 request/render/CPU/memory (not single navigation samples), capture authorized human UI acceptance. Read and update only ledger PR #414 with exact SHA and evidence. No redoing prior unchanged UI 6/6 or BM/KT signed source tests except when required for integrated setup.",
+    "type": "EXACT_SHA_G05_PAIRED_BENCHMARK_AND_G04_HUMAN_UX_ACCEPTANCE",
+    "state": "BLOCKED_UNTIL_COMPLETE_PERFORMANCE_AND_HUMAN_REVIEW",
+    "why": "At pinned source BM/KT both signed native Control Workers and independent D1 readbacks PASS. Integrated real Chromium Central Owner action -> signed BM/KT Worker -> independent child D1 -> final UI blocked state PASS, with 3 viewports each. Genuine dark-panel and small-font contrast issue found and fixed with focused CSS only, regression and CI PASS. Latest CSS change requires current real Chromium rerun. G05 prior 10/50/200 data compares main to PR417, not current PR419, and cannot establish current release capacity. Human G04 acceptance not recorded.",
+    "required": "At exact live PR #419 HEAD, consume running https://github.com/BlueDragon33/Application-Management/actions/runs/45342453102 for final CSS real-browser verification. Then execute ONE scoped paired G05 10/50/200 benchmark with repeat samples, same instrumentation on baseline main vs current PR419 (p50/p95, HTTP requests, render/paint, total relevant CPU/memory, compare and protect regressions), and present current BM/KT screenshot and computed contrast review for independent human UX acceptance. Record sanitized results in the sole Draft PR #414 ledger. Only consider merge/publish if canonical G04/G05/G10/G11 and release authority pass for exact SHA.",
     "expectedEvidence": [
-      "real central-authenticated click-to-child Worker-to-independent D1 mutation/readback, BM-/KT-",
-      "correct pending/blocked/denied matrix and no fake Owner in Production",
-      "full computed contrast + user UX acceptance",
-      "G05 10/50/200 repeated p50/p95 with before/after baseline, render, requests, CPU/memory",
-      "exact approved SHA, audit, rollback and post-release Production readback"
+      "latest post-contrast-fix Chromium 1440/800/390 artifacts and computed foreground/background samples",
+      "paired baseline/current 10/50/200 performance with repeatable p50/p95, request, render, CPU, memory",
+      "explicit Owner human UX acceptance separate from CI",
+      "exact-SHA canonical release authorization and independent Production readback if release eligible"
     ],
-    "fallback": "If integrated source, G04/G05, human UX or canonical release authority are missing, keep PR #419 and #414 Draft, G04/G05 UNVERIFIED and Production unchanged. Do not claim automatic release.",
+    "fallback": "If exact candidate matched performance, human G04 or release gate evidence is missing, leave PR #419/#414 Draft, G04/G05 UNVERIFIED, Production unchanged; do not fake PASS or merge.",
     "singleActionRule": true
   },
   "history": [
@@ -1979,6 +1978,103 @@
         "release": "BLOCKED"
       },
       "oneNextAction": "Run exactly one integrated end-to-end Owner QA package at exact PR419 SHA tying actual browser UI + Central P-256/role + signed BM-/KT- Control Worker mutation to independently reread child D1; extend it with 10/50/200 fixture p50/p95/render/request/CPU/memory and computed contrast/human approval, then update the same ledger; release only if all canonical gates genuinely PASS."
+    },
+    {
+      "stepId": "R2.3",
+      "date": "2026-11-24",
+      "result": "REAL_INTEGRATED_OWNER_TO_BM_KT_BLOCKED_D1_AND_OWNER_UI_PASS_CONTRAST_FIX_CI_PASS_G04_G05_NOT_ACCEPTED",
+      "evidenceLevel": "GITHUB_HOSTED_REAL_CHROMIUM_AND_LOCAL_NATIVE_SIGNED_CHILD_WORKER_INDEPENDENT_D1_EXACT_SHA",
+      "pilotPr": 419,
+      "pilotSha": "ded9ff2ee8e8614923da3d7b6171dd5e395501ed",
+      "sourceChangesScope": "QA-only runner, shared shell BM/KT CSS and focused contrast regression; business/auth/Production unchanged",
+      "chromiumIntegrated": {
+        "run": "https://github.com/BlueDragon33/Application-Management/actions/runs/45341605697",
+        "testedSha": "f7c9162d0811dbe7178ba836504b0de7b177a1cb",
+        "job": "r23-independent-client-source",
+        "jobResult": "PASS",
+        "artifactId": 14895853911,
+        "artifactName": "r23-client-owned-source-evidence",
+        "artifactZipSha256": "ca0ba411238f8b58f1adc17de7f642404950e2ea7f4df993710e3c583d7a9955",
+        "apps": [
+          {
+            "id": "bauman-master-ai",
+            "pinnedChildSha": "16d8f7a963e27a12520d510f29b161374b5c5df3",
+            "nativeReadback": "PASS",
+            "integration": "PASS_LOCAL_UI_TO_CENTRAL_P256_OWNER_TO_SIGNED_BM_CONTROL_TO_INDEPENDENT_D1",
+            "source": "BM-"
+          },
+          {
+            "id": "price-report-tunggiabao",
+            "pinnedChildSha": "9e8df71f2839989b067af79ef22c389f541664e5",
+            "nativeReadback": "PASS",
+            "integration": "PASS_LOCAL_UI_TO_CENTRAL_P256_OWNER_TO_SIGNED_KT_CONTROL_TO_INDEPENDENT_D1",
+            "source": "KT-"
+          }
+        ],
+        "testedActions": "synthetic local Owner legitimately authenticated in QA-only control D1, actual browser click Khóa, central action HTTP200, independent real child D1 blocked, Owner UI article[data-status=blocked] confirmed, signed token, command CAS/readback and P-256 device proof; not a Production user",
+        "responsive": {
+          "viewports": [
+            "1440x900",
+            "800x900",
+            "390x844"
+          ],
+          "integratedScreenshots": 6,
+          "overflowPx": 0,
+          "ownerUiReadback": "BLOCKED_RENDERED_BM_AND_KT",
+          "computedStyleSamples": "43 BM and 40 KT opaque foreground/background text pairs per viewport on real local UI, full WCAG across dynamic backgrounds still UNVERIFIED"
+        }
+      },
+      "uxSourceFix": {
+        "reason": "real BM mobile screenshot displayed legacy translucent dark list with 7–9px illegible text under light Owner Shared Shell; KT blocked cards used opacity:.82; computed sample audit then identified shared/KT muted metadata below 4.5 contrast",
+        "files": [
+          "app/apps/bauman-master-ai/bauman-admin.module.css",
+          "app/apps/price-report-tunggiabao/price-report-admin.module.css",
+          "app/application-admin.module.css",
+          "tests/r23-client-panel-css-contrast.test.mjs"
+        ],
+        "changes": "BM device panel light legible 11px+ labels and 12-13px values; KT blocked-row opacity removed; muted shell/caption colors changed to #47586f where required with contrast >=4.5 against observed opaque backgrounds",
+        "qaCurrentCandidate": "ded9ff2ee8e8614923da3d7b6171dd5e395501ed",
+        "scope": "PRESENTATION_CSS_ONLY",
+        "currentRerun": "https://github.com/BlueDragon33/Application-Management/actions/runs/45342453102",
+        "currentRerunAtCheckpoint": [
+          {
+            "name": "r23-independent-client-source",
+            "status": "in_progress",
+            "conclusion": null
+          },
+          {
+            "name": "r23-local-browser",
+            "status": "in_progress",
+            "conclusion": null
+          }
+        ]
+      },
+      "ci": {
+        "latestSha": "ded9ff2ee8e8614923da3d7b6171dd5e395501ed",
+        "fast": "PASS",
+        "constitution": "PASS",
+        "fastUrl": "https://github.com/BlueDragon33/Application-Management/actions/runs/45342453159",
+        "constitutionUrl": "https://github.com/BlueDragon33/Application-Management/actions/runs/45342453520",
+        "sourceBeforeCssTests": "PASS"
+      },
+      "performance": {
+        "candidateCohortBaseline10_50_200": "NOT_MEASURED_EXACT_R23_SHA",
+        "previousR02Source": "docs/evidence/r02-focused-windows-40-2026-11-23.md",
+        "previousR02PinnedBaselineSha": "89a89ce2d3d8ed634ee9562c52744a99223a2b2a",
+        "previousR02Candidate": "PR417 NOT PR419; CANNOT USE TO ATTEST R23",
+        "g05": "UNVERIFIED"
+      },
+      "humanAcceptance": "NOT_GIVEN_FOR_EXACT_SHA",
+      "gateStates": {
+        "R23": "PARTIAL_PASS_NATIVE_BROWSER_E2E_BUT_NOT_FULL_ACCEPTANCE",
+        "G04": "UNVERIFIED",
+        "G05": "UNVERIFIED",
+        "G10": "UNVERIFIED",
+        "G11": "BLOCKED_DEPENDENCIES",
+        "release": "NO_MERGE_NO_DEPLOY_NO_PRODUCTION_D1_WRITE"
+      },
+      "production": "UNCHANGED",
+      "singleNextAction": "With exact current candidate SHA, collect reproducible matched baseline/candidate 10/50/200 G05 p50/p95 request/render/processCPU/memory on isolated QA, review complete computed/visual contrast and human Owner UX acceptance for BM/KT; only if canonical release gates PASS allow exact-SHA merge/publish/readback. Keep G04/G05 UNVERIFIED pending."
     }
   ],
   "assessment": {
@@ -2723,8 +2819,8 @@
     "pilot": {
       "pr": 419,
       "branch": "feat/boi-owner-client-admin-shell-20261123",
-      "sourceSha": "7a3916ae00c47ef94360b39eff865e1caad92af8",
-      "sourceStatus": "DRAFT_BM_KT_SOURCE_REAL_LOCAL_D1_PASS_CHROMIUM_VISUAL_PASS_G04_G05_INTEGRATED_HUMAN_UNVERIFIED",
+      "sourceSha": "ded9ff2ee8e8614923da3d7b6171dd5e395501ed",
+      "sourceStatus": "DRAFT_REAL_CHROMIUM_BM_KT_LOCAL_INTEGRATED_SOURCE_D1_AND_UI_READBACK_PASS_CSS_CONTRAST_REPAIR_CI_PASS_G04_G05_NOT_ACCEPTED",
       "apps": [
         "bauman-master-ai",
         "price-report-tunggiabao"
@@ -2737,97 +2833,99 @@
       "lastScopedQa": {
         "stepId": "R2.3",
         "date": "2026-11-24",
-        "result": "BM_KT_INDEPENDENT_REAL_CONTROL_WORKER_D1_LOCAL_SOURCE_PASS_G04_G05_NOT_RELEASE_ACCEPTED",
-        "evidenceLevel": "EXACT_SHA_NATIVE_SIGNED_CONTROL_API_INDEPENDENT_CHILD_D1_LOCAL_READBACK_TWO_CLIENTS_PLUS_PRIOR_REAL_CHROMIUM",
-        "candidate": {
-          "pr": 419,
-          "head": "7a3916ae00c47ef94360b39eff865e1caad92af8",
-          "draft": true,
-          "merged": false
-        },
-        "sourceEvidence": {
-          "run": "https://github.com/BlueDragon33/Application-Management/actions/runs/45338478223",
+        "result": "REAL_INTEGRATED_OWNER_TO_BM_KT_BLOCKED_D1_AND_OWNER_UI_PASS_CONTRAST_FIX_CI_PASS_G04_G05_NOT_ACCEPTED",
+        "evidenceLevel": "GITHUB_HOSTED_REAL_CHROMIUM_AND_LOCAL_NATIVE_SIGNED_CHILD_WORKER_INDEPENDENT_D1_EXACT_SHA",
+        "pilotPr": 419,
+        "pilotSha": "ded9ff2ee8e8614923da3d7b6171dd5e395501ed",
+        "sourceChangesScope": "QA-only runner, shared shell BM/KT CSS and focused contrast regression; business/auth/Production unchanged",
+        "chromiumIntegrated": {
+          "run": "https://github.com/BlueDragon33/Application-Management/actions/runs/45341605697",
+          "testedSha": "f7c9162d0811dbe7178ba836504b0de7b177a1cb",
           "job": "r23-independent-client-source",
-          "jobConclusion": "SUCCESS",
-          "artifactId": 14894781616,
+          "jobResult": "PASS",
+          "artifactId": 14895853911,
           "artifactName": "r23-client-owned-source-evidence",
-          "downloadedEvidenceZipSha256": "b3ec9308091394001281837089d3d7df0d073c332b54108fd8dcaa014873303e",
-          "reportError": null,
-          "sourceRepositories": [
+          "artifactZipSha256": "ca0ba411238f8b58f1adc17de7f642404950e2ea7f4df993710e3c583d7a9955",
+          "apps": [
             {
-              "app": "bauman-master-ai",
-              "repository": "BlueDragon33/Bauman-master-ai-system",
-              "sha": "16d8f7a963e27a12520d510f29b161374b5c5df3",
-              "namespace": "BM-",
-              "result": "PASS"
+              "id": "bauman-master-ai",
+              "pinnedChildSha": "16d8f7a963e27a12520d510f29b161374b5c5df3",
+              "nativeReadback": "PASS",
+              "integration": "PASS_LOCAL_UI_TO_CENTRAL_P256_OWNER_TO_SIGNED_BM_CONTROL_TO_INDEPENDENT_D1",
+              "source": "BM-"
             },
             {
-              "app": "price-report-tunggiabao",
-              "repository": "BlueDragon33/PriceReport_Tunggiabao",
-              "sha": "9e8df71f2839989b067af79ef22c389f541664e5",
-              "namespace": "KT-",
-              "result": "PASS"
+              "id": "price-report-tunggiabao",
+              "pinnedChildSha": "9e8df71f2839989b067af79ef22c389f541664e5",
+              "nativeReadback": "PASS",
+              "integration": "PASS_LOCAL_UI_TO_CENTRAL_P256_OWNER_TO_SIGNED_KT_CONTROL_TO_INDEPENDENT_D1",
+              "source": "KT-"
             }
           ],
-          "scope": [
-            "actual local Worker and local D1 per independent child repo, no mock",
-            "owner signed API status/device read and independent Wrangler D1 CLI readback",
-            "viewer 403 refusal, owner CAS approves pending, independent API + D1 readback approved",
-            "commandId idempotent replay exactly one ledger row",
-            "stale expectedStatus 409, forged Bearer ticket refused"
-          ],
-          "ktRootCause": "QA pinned Wrangler 4.92.0 workerd supported max 2026-05-22 while KT config requires 2026-09-22. Isolated QA-only Wrangler 4.167.0 installed outside child repo with no forced dependency override or Production config change",
-          "workerCleanup": "owned isolated workerd process groups killed and streams closed",
-          "environment": "GitHub-hosted ephemeral local D1, ZERO-SPEND, no production writes"
+          "testedActions": "synthetic local Owner legitimately authenticated in QA-only control D1, actual browser click Khóa, central action HTTP200, independent real child D1 blocked, Owner UI article[data-status=blocked] confirmed, signed token, command CAS/readback and P-256 device proof; not a Production user",
+          "responsive": {
+            "viewports": [
+              "1440x900",
+              "800x900",
+              "390x844"
+            ],
+            "integratedScreenshots": 6,
+            "overflowPx": 0,
+            "ownerUiReadback": "BLOCKED_RENDERED_BM_AND_KT",
+            "computedStyleSamples": "43 BM and 40 KT opaque foreground/background text pairs per viewport on real local UI, full WCAG across dynamic backgrounds still UNVERIFIED"
+          }
         },
-        "visualEvidence": {
-          "existingRun": "https://github.com/BlueDragon33/Application-Management/actions/runs/45268222513",
-          "qaCommit": "eb132ed231fd24ab9b550ad524b1179302dad986",
-          "status": "PASS_FOR_TESTED_LOCAL_SURFACES",
-          "viewports": [
-            "1440x900",
-            "800x900",
-            "390x844"
+        "uxSourceFix": {
+          "reason": "real BM mobile screenshot displayed legacy translucent dark list with 7–9px illegible text under light Owner Shared Shell; KT blocked cards used opacity:.82; computed sample audit then identified shared/KT muted metadata below 4.5 contrast",
+          "files": [
+            "app/apps/bauman-master-ai/bauman-admin.module.css",
+            "app/apps/price-report-tunggiabao/price-report-admin.module.css",
+            "app/application-admin.module.css",
+            "tests/r23-client-panel-css-contrast.test.mjs"
           ],
-          "pilotSurfaces": "6/6",
-          "overflow": "0/6",
-          "keyboardEscapeFocus": "6/6",
-          "pendingBlockedDenials": "4/4",
-          "sourceInvariant": "GitHub compare eb132ed231fd24ab9b550ad524b1179302dad986..7a3916ae00c47ef94360b39eff865e1caad92af8 changed only scripts/r23-client-source-probe.mjs and .github/workflows/r23-pilot-browser-qa.yml; no app UI/role source changes",
-          "currentRerun": [
+          "changes": "BM device panel light legible 11px+ labels and 12-13px values; KT blocked-row opacity removed; muted shell/caption colors changed to #47586f where required with contrast >=4.5 against observed opaque backgrounds",
+          "qaCurrentCandidate": "ded9ff2ee8e8614923da3d7b6171dd5e395501ed",
+          "scope": "PRESENTATION_CSS_ONLY",
+          "currentRerun": "https://github.com/BlueDragon33/Application-Management/actions/runs/45342453102",
+          "currentRerunAtCheckpoint": [
             {
-              "name": "r23-local-browser",
+              "name": "r23-independent-client-source",
               "status": "in_progress",
               "conclusion": null
             },
             {
-              "name": "r23-independent-client-source",
-              "status": "completed",
-              "conclusion": "success"
+              "name": "r23-local-browser",
+              "status": "in_progress",
+              "conclusion": null
             }
           ]
         },
         "ci": {
+          "latestSha": "ded9ff2ee8e8614923da3d7b6171dd5e395501ed",
           "fast": "PASS",
           "constitution": "PASS",
-          "fastUrl": "https://github.com/BlueDragon33/Application-Management/actions/runs/45338478224",
-          "constitutionUrl": "https://github.com/BlueDragon33/Application-Management/actions/runs/45338478772"
+          "fastUrl": "https://github.com/BlueDragon33/Application-Management/actions/runs/45342453159",
+          "constitutionUrl": "https://github.com/BlueDragon33/Application-Management/actions/runs/45342453520",
+          "sourceBeforeCssTests": "PASS"
         },
-        "missing": {
-          "centralOwnerEndToEnd": "NOT_VERIFIED_UI_TO_CENTRAL_AUTH_TO_REAL_BM_KT_READBACK",
-          "completeComputedContrast": "NOT_VERIFIED_ALL_SURFACES_HUMAN",
-          "g05": "MISSING_REPRODUCIBLE_10_50_200_LOAD_MATRIX_P50_P95_RENDER_REQUEST_CPU_MEMORY_AND_BEFORE_AFTER_BASELINE",
-          "humanUxAcceptance": "NOT_RECEIVED",
-          "releaseGate": "BLOCKED_NOT_MERGED_NOT_DEPLOYED"
+        "performance": {
+          "candidateCohortBaseline10_50_200": "NOT_MEASURED_EXACT_R23_SHA",
+          "previousR02Source": "docs/evidence/r02-focused-windows-40-2026-11-23.md",
+          "previousR02PinnedBaselineSha": "89a89ce2d3d8ed634ee9562c52744a99223a2b2a",
+          "previousR02Candidate": "PR417 NOT PR419; CANNOT USE TO ATTEST R23",
+          "g05": "UNVERIFIED"
         },
+        "humanAcceptance": "NOT_GIVEN_FOR_EXACT_SHA",
         "gateStates": {
-          "R23": "BLOCKED_INTEGRATED_AND_PERFORMANCE",
+          "R23": "PARTIAL_PASS_NATIVE_BROWSER_E2E_BUT_NOT_FULL_ACCEPTANCE",
           "G04": "UNVERIFIED",
           "G05": "UNVERIFIED",
           "G10": "UNVERIFIED",
-          "release": "BLOCKED"
+          "G11": "BLOCKED_DEPENDENCIES",
+          "release": "NO_MERGE_NO_DEPLOY_NO_PRODUCTION_D1_WRITE"
         },
-        "oneNextAction": "Run exactly one integrated end-to-end Owner QA package at exact PR419 SHA tying actual browser UI + Central P-256/role + signed BM-/KT- Control Worker mutation to independently reread child D1; extend it with 10/50/200 fixture p50/p95/render/request/CPU/memory and computed contrast/human approval, then update the same ledger; release only if all canonical gates genuinely PASS."
+        "production": "UNCHANGED",
+        "singleNextAction": "With exact current candidate SHA, collect reproducible matched baseline/candidate 10/50/200 G05 p50/p95 request/render/processCPU/memory on isolated QA, review complete computed/visual contrast and human Owner UX acceptance for BM/KT; only if canonical release gates PASS allow exact-SHA merge/publish/readback. Keep G04/G05 UNVERIFIED pending."
       }
     },
     "scope": "COMMON_PRESENTATION_PLUS_APP_OWNED_CAPABILITIES; NO_BACKEND_UNIFICATION_NO_FAKE_AUTHORITIES",
