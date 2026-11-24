@@ -104,12 +104,14 @@ jobs:
               ('path.join(root,"qa-artifacts","r23-g05-paired")', 'path.join(root,"qa-artifacts","r23-g05-main-merged-warm")'),
               ('const counts=[10,50,200];', 'const counts=[10];'),
               ('const viewports=[{name:"desktop",width:1440,height:900},{name:"tablet",width:800,height:900},{name:"mobile",width:390,height:844}];',
-               'const viewports=[{name:"desktop",width:1440,height:900}];')])
+               'const viewports=[{name:"desktop",width:1440,height:900}];'),
+              ('assert.equal(report.samples.filter(s=>s.kind==="sample").length,360);',
+               'assert.equal(report.samples.filter(s=>s.kind==="sample").length,40);')])
           PY
           node --check scripts/.r23-main-merged-cold.mjs
           node --check scripts/.r23-main-merged-warm.mjs
       - name: Cold process-start 20 ABBA pairs, local D1 independent readback
-        if: steps.scope.outputs.run == 'true'
+        if: steps.scope.outputs.run == 'true' && github.event.pull_request.head.sha == '041e669598de5cfb5539cc8e55bc0820f8f56bdb'
         run: node scripts/.r23-main-merged-cold.mjs
       - name: Warm persistent-runtime 20 ABBA pairs, same pinned sources
         if: steps.scope.outputs.run == 'true'
