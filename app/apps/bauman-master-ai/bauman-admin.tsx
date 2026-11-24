@@ -13,6 +13,7 @@ import {
   type OperationsSubclient,
 } from "../../admin-device-client";
 import type { ApplicationConfig } from "../../application-registry";
+import { ClientAdminSidebar, ClientAdminTopbar } from "../../components/client-admin-shell";
 import styles from "../../application-admin.module.css";
 import baumanStyles from "./bauman-admin.module.css";
 
@@ -161,23 +162,45 @@ export default function BaumanAdmin({ application, user }: { application: Applic
   if (!access || access.status !== "approved") return <Gate access={access} busy={busy} error={error} retry={() => void load()} />;
 
   return <main className={styles.workspaceShell}>
-    <aside className={styles.clientSidebar}>
-      <Link href="/" className={styles.serverBack}><span>←</span><div><small>SERVER</small><strong>Application Management</strong></div></Link>
-      <div className={styles.clientBrand}><span>BM</span><div><small>CLIENT CẤP 1</small><strong>Bauman Hub</strong></div></div>
-      <div className={styles.clientStatus}><i data-status={liveConnected ? "online" : "warning"}/><div><strong>{summary ? connectionLabel[summary.connection] : "Đang đọc contract"}</strong><small>{liveConnected ? "Registry BM- đang phản hồi" : "Không bật thao tác khi capability chưa live"}</small></div></div>
-      <nav className={styles.clientNav}>
-        <span className={styles.navGroup}>QUẢN TRỊ BAUMAN</span>
-        <button data-active={view === "overview"} onClick={() => setView("overview")}><span>01</span><div><strong>Tổng quan</strong><small>Control & topology</small></div></button>
-        <button data-active={view === "devices"} onClick={() => setView("devices")}><span>02</span><div><strong>Thiết bị & truy cập</strong><small>{pending} chờ · {approved} được duyệt</small></div></button>
-        <button data-active={view === "subclients"} onClick={() => setView("subclients")}><span>03</span><div><strong>Sub-client</strong><small>{children.length} site/module/workflow</small></div></button>
-        <button data-active={view === "contract"} onClick={() => setView("contract")}><span>04</span><div><strong>Contract</strong><small>{ready}/{readiness.length} live/ready</small></div></button>
-      </nav>
-      <div className={styles.clientBoundary}><span>RANH GIỚI</span><strong>Đây là khu quản trị, không phải site học Bauman.</strong><p>Không iframe runtime, không dùng DB thiết bị của Bơi ếch/Health/RU. Thiết bị Bauman giữ namespace BM- và registry riêng.</p></div>
-      <div className={styles.clientUser}><span>{user.displayName.slice(0,1).toUpperCase()}</span><div><strong>{user.displayName}</strong><small>{roleLabels[access.role]}</small><small>{access.deviceCode}</small></div></div>
-    </aside>
+    <ClientAdminSidebar<View>
+      appId={BAUMAN_APP_ID}
+      appName="Bauman Hub"
+      initials="BM"
+      category="CLIENT CẤP 1"
+      navTitle="ĐIỀU HÀNH BAUMAN"
+      activeView={view}
+      onSelect={setView}
+      primary={[
+        { id: "overview", label: "Tổng quan", description: "Control & topology", glyph: "01" },
+        { id: "devices", label: "Thiết bị & truy cập", description: `${pending} chờ · ${approved} đã duyệt`, glyph: "02" },
+        { id: "subclients", label: "Sub-client", description: `${children.length} site/module/workflow`, glyph: "03" },
+      ]}
+      specialist={[
+        { id: "contract", label: "Contract", description: `${ready}/${readiness.length} live/ready`, glyph: "04" },
+      ]}
+      connection={{
+        state: liveConnected ? "online" : "warning",
+        label: summary ? connectionLabel[summary.connection] : "Đang đọc contract",
+        note: liveConnected ? "Registry BM- đang phản hồi" : "Chưa xác minh capability live",
+      }}
+      boundary={{
+        title: "Đây là khu quản trị, không phải site học Bauman.",
+        description: "Không iframe runtime, không dùng DB thiết bị của Bơi ếch/Health/RU. Bauman giữ registry BM- riêng.",
+      }}
+      user={{ displayName: user.displayName, roleLabel: roleLabels[access.role], deviceCode: access.deviceCode }}
+    />
 
     <section className={styles.workspaceMain}>
-      <header className={styles.workspaceTopbar}><div><span>{title.eyebrow}</span><h1>{title.title}</h1><p>{title.description}</p></div><div className={styles.topbarActions}><Link href="/">Hệ thống</Link><Link href="/tools/study-plan">Kế hoạch học tập</Link><button onClick={() => void load()} disabled={busy || Boolean(actioning)}>{busy ? "Đang cập nhật…" : "Cập nhật"}</button></div></header>
+      <ClientAdminTopbar
+        eyebrow={title.eyebrow}
+        title={title.title}
+        description={title.description}
+        actions={<>
+          <Link href="/">Hệ thống</Link>
+          <Link href="/tools/study-plan">Kế hoạch học tập</Link>
+          <button onClick={() => void load()} disabled={busy || Boolean(actioning)}>{busy ? "Đang cập nhật…" : "Cập nhật"}</button>
+        </>}
+      />
       {error ? <div className={styles.workspaceError}>{error}</div> : null}
 
       {view === "overview" ? <>

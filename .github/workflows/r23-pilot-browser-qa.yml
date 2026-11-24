@@ -1,0 +1,135 @@
+name: R2.3 Pilot Chromium Evidence (local-only, not release)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - scripts/r23-pilot-browser-qa.mjs
+      - scripts/r23-client-source-probe.mjs
+      - scripts/r23-integrated-owner-qa.mjs
+      - app/application-admin.module.css
+      - app/apps/bauman-master-ai/bauman-admin.module.css
+      - app/apps/price-report-tunggiabao/price-report-admin.module.css
+      - tests/r23-client-panel-css-contrast.test.mjs
+      - .github/workflows/r23-pilot-browser-qa.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: application-management-r23-browser-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  r23-local-browser:
+    if: github.event_name == 'pull_request' && github.event.pull_request.number == 419
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      R23_EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+      WRANGLER_SEND_METRICS: "false"
+    steps:
+      - name: Checkout exact candidate, not merge/base
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+          cache: npm
+
+      - name: Install existing locked application dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Install QA-only Chromium without changing source lockfile
+        run: |
+          npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.55.1
+          npx playwright install --with-deps chromium
+
+      - name: Real browser owner/pending/blocked + responsive + focus + local timings
+        run: node scripts/r23-pilot-browser-qa.mjs
+
+      - name: Preserve sanitized R2.3 evidence even on failure
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r23-pilot-browser-evidence
+          path: qa-artifacts/r23-pilot-browser/
+          if-no-files-found: error
+          retention-days: 7
+
+  r23-independent-client-source:
+    if: github.event_name == 'pull_request' && github.event.pull_request.number == 419
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    env:
+      R23_EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+      WRANGLER_SEND_METRICS: "false"
+    steps:
+      - name: Checkout exact Application Management candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - name: Checkout independent Bauman source at pinned SHA
+        uses: actions/checkout@v4
+        with:
+          repository: BlueDragon33/Bauman-master-ai-system
+          ref: 16d8f7a963e27a12520d510f29b161374b5c5df3
+          path: r23-clients/bauman
+          persist-credentials: false
+
+      - name: Checkout independent PriceReport source at pinned SHA
+        uses: actions/checkout@v4
+        with:
+          repository: BlueDragon33/PriceReport_Tunggiabao
+          ref: 9e8df71f2839989b067af79ef22c389f541664e5
+          path: r23-clients/price
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+
+      - name: Install pinned child service dependencies, without remote D1
+        run: |
+          npm ci --prefix r23-clients/bauman/control-service --no-audit --no-fund
+          npm ci --prefix r23-clients/price/control-service --no-audit --no-fund
+
+      - name: Install compatible KT QA Wrangler outside source checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          QA_WRANGLER_ROOT="$RUNNER_TEMP/r23-kt-wrangler"
+          mkdir -p "$QA_WRANGLER_ROOT"
+          npm install --prefix "$QA_WRANGLER_ROOT" --no-save --package-lock=false --no-audit --no-fund wrangler@4.167.0
+          QA_BIN="$QA_WRANGLER_ROOT/node_modules/wrangler/bin/wrangler.js"
+          node "$QA_BIN" --version
+          printf 'R23_PRICE_WRANGLER_PATH=%s\n' "$QA_BIN" >> "$GITHUB_ENV"
+          git -C r23-clients/price diff --quiet -- .
+          git -C r23-clients/price diff --cached --quiet -- .
+
+      - name: Verify signed child Control API against independent local BM-/KT- D1
+        run: node scripts/r23-client-source-probe.mjs
+
+      - name: Install app runtime and Chromium for real Central-to-child end-to-end
+        run: |
+          npm ci --no-audit --no-fund
+          npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.55.1
+          npx playwright install --with-deps chromium
+
+      - name: Integrate approved Owner UI, signed BM/KT Worker and independent D1 readback
+        run: node scripts/r23-integrated-owner-qa.mjs
+
+      - name: Upload independent source-only QA evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r23-client-owned-source-evidence
+          path: |
+            qa-artifacts/r23-client-source/
+            qa-artifacts/r23-integrated-owner/
+          if-no-files-found: error
+          retention-days: 7
