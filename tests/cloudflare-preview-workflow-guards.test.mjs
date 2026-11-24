@@ -32,16 +32,16 @@ test('restoring the Preview artifact cannot publish when its guard fails',()=>{
   "  printf 'publish\\n'",
   '}',
   step.run,
- ].join('\\n');
+ ].join('\n');
  const execute=(code)=>spawnSync('bash',['-e','-c',guarded],{
   env:{...process.env,CHECK_EXIT:String(code)},encoding:'utf8'
  });
  const rejected=execute(31);
  assert.ifError(rejected.error);
  assert.equal(rejected.status,31,rejected.stderr);
- assert.equal(rejected.stdout,'check\\n','Artifact check failure must prevent publish');
+ assert.equal(rejected.stdout,'check\n','Artifact check failure must prevent publish');
  const accepted=execute(0);
  assert.ifError(accepted.error);
  assert.equal(accepted.status,0,accepted.stderr);
- assert.equal(accepted.stdout,'check\\npublish\\n','Only successful artifact check may publish');
+ assert.equal(accepted.stdout,'check\npublish\n','Only successful artifact check may publish');
 });
