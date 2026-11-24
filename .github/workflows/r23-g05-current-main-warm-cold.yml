@@ -28,7 +28,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
-      - name: One-shot gate: never benchmark on ledger follow-up commits
+      - name: One-shot gate - never benchmark on ledger follow-up commits
         id: scope
         shell: bash
         run: |
