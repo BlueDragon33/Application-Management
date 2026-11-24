@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { scheduleClientInitialization } from "./client-initialization";
+import { russianTimeTrainerTool } from "./tools/russian-time-trainer/tool-entry";
 import { applicationRegistry, standardDeviceExperiences, type ApplicationConfig } from "./application-registry";
 import BoiAccessView from "./boi-access-view";
 import CentralDeviceInventory, { type CentralDeviceOperation } from "./central-device-inventory";
@@ -111,6 +112,7 @@ function standaloneCenter(user: { displayName: string; email: string }): CenterB
   };
 }
 const systemTools: readonly SystemTool[] = [
+  { ...russianTimeTrainerTool, note: russianTimeTrainerTool.description },
   {
     id: "tool-blueprint-compass",
     name: "Blueprint OS · Neural Command Center",
@@ -215,6 +217,7 @@ function appFor(apps: readonly ApplicationConfig[], appId: string) {
 }
 
 function appGlyph(appId: string) {
+  if (appId === russianTimeTrainerTool.id) return "◷";
   if (appId === "tool-study-plan") return "▤";
   if (appId === "tool-secret-generator") return "⚿";
   if (appId === "tool-managed-apps") return "◎";

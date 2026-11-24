@@ -1,0 +1,16 @@
+export const dailyLessons = [
+  { groups: ["yesterday", "today", "tomorrow"], ru: "У тебя сегодня урок? — Нет, завтра.", en: "Do you have a lesson today? — No, tomorrow." },
+  { groups: ["day-before", "day-after", "now", "early", "late"], ru: "Когда ты уезжаешь? — Послезавтра утром.", en: "When are you leaving? — The day after tomorrow in the morning." },
+  { groups: ["morning", "daytime", "evening", "night"], ru: "Когда ты свободен? — Вечером.", en: "When are you free? — In the evening." },
+  { groups: ["monday", "tuesday", "wednesday"], ru: "Увидимся во вторник? — Лучше в среду.", en: "See you on Tuesday? — Wednesday is better." },
+  { groups: ["thursday", "friday", "saturday", "sunday"], ru: "В субботу ты работаешь? — Нет, в пятницу.", en: "Do you work Saturday? — No, Friday." },
+  { groups: ["spring", "summer", "autumn", "winter"], ru: "Когда вы ездите на море? — Летом.", en: "When do you go to the seaside? — In summer." },
+  { groups: ["jan", "feb", "mar", "apr"], ru: "Когда экзамен? — В марте.", en: "When is the exam? — In March." },
+  { groups: ["may", "jun", "jul", "aug"], ru: "У тебя отпуск в июне? — Нет, в июле.", en: "Are you on vacation in June? — No, in July." },
+  { groups: ["sep", "oct", "nov", "dec"], ru: "Когда начинается учёба? — В сентябре.", en: "When do classes start? — In September." },
+  { groups: ["today", "thursday", "friday"], ru: "Который час? — Половина девятого.", en: "What time is it? — Half past eight." },
+  { groups: ["monday", "wednesday", "evening"], ru: "Во сколько мы встретимся в среду? — В девять.", en: "What time are we meeting on Wednesday? — At nine." },
+  { groups: ["saturday", "day-after", "morning"], ru: "Когда отправляется поезд? — В субботу утром, в шесть сорок.", en: "When does the train leave? — Saturday morning at six forty." },
+  { groups: ["winter", "dec", "jan", "tomorrow"], ru: "Ты приедешь в декабре? — Нет, в январе.", en: "Will you arrive in December? — No, in January." },
+  { groups: ["today", "sunday", "summer", "jul"], ru: "Давай встретимся в воскресенье утром. — Хорошо, в девять часов.", en: "Let’s meet on Sunday morning. — All right, at nine." },
+] as const;

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { russianTimeTrainerTool } from "./tools/russian-time-trainer/tool-entry";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { applicationRegistry as registeredApplications, type ApplicationConfig } from "./application-registry";
 import {
@@ -77,6 +78,7 @@ const viewTitles: Record<CenterView, { title: string; description: string }> = {
 };
 
 const systemTools = [
+  russianTimeTrainerTool,
   {
     id: "tool-blueprint-compass",
     name: "Blueprint OS · Neural Command Center",
