@@ -1,0 +1,80 @@
+name: R2.3 G05 Focused Cold Start 10 Desktop (QA only)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - scripts/r23-g05-cold-start-10.mjs
+      - .github/workflows/r23-g05-cold-start-10.yml
+permissions:
+  contents: read
+concurrency:
+  group: r23-g05-focused-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  cold-start-10:
+    if: github.event_name == 'pull_request' && github.event.pull_request.number == 414
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      G05_BASE_SHA: 89a89ce2d3d8ed634ee9562c52744a99223a2b2a
+      G05_CANDIDATE_SHA: 9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9
+      G05_TARGET_PR: "419"
+      G05_PR: "414"
+      WRANGLER_SEND_METRICS: "false"
+    steps:
+      - name: Checkout current QA-harness candidate PR414 HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: One-shot expensive QA guard (ledger updates never rerun experiment)
+        id: scope
+        shell: bash
+        run: |
+          subject="$(git log -1 --format=%s)"
+          if [[ "$subject" == "qa(r23): focused 10-app cold-start ABBA run" ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "Expected ledger-only commit: skip expensive QA"
+          fi
+      - name: Pin exact baseline and candidate sources
+        if: steps.scope.outputs.run == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: 89a89ce2d3d8ed634ee9562c52744a99223a2b2a
+          path: r23-g05-baseline
+          persist-credentials: false
+      - name: Pin exact candidate
+        if: steps.scope.outputs.run == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: 9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9
+          path: r23-g05-candidate
+          persist-credentials: false
+      - name: Setup Node 22
+        if: steps.scope.outputs.run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+          cache: npm
+      - name: Install source-locked app dependencies and QA Chromium
+        if: steps.scope.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm ci --prefix r23-g05-baseline --no-audit --no-fund
+          npm ci --prefix r23-g05-candidate --no-audit --no-fund
+          npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.55.1
+          npx playwright install --with-deps chromium
+      - name: Exact 40 sample fresh-process cold-start with independent local D1
+        if: steps.scope.outputs.run == 'true'
+        run: node scripts/r23-g05-cold-start-10.mjs
+      - name: Preserve raw evidence on PASS and BLOCKED
+        if: always() && steps.scope.outputs.run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: r23-g05-controlled-cold-10-evidence
+          path: qa-artifacts/r23-g05-cold-start-10/
+          if-no-files-found: error
+          retention-days: 7
