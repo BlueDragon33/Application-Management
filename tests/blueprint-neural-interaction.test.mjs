@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
 import { createRequire } from "node:module";
+import * as neuralGraph from "../app/blueprint-neural-registry-graph.mjs";
 
 const require = createRequire(import.meta.url);
 const React = require("react");
@@ -28,7 +29,8 @@ test("real neural node click updates selection without inventing graph telemetry
   });
   assert.equal(transpiled.diagnostics.filter(d => d.category === ts.DiagnosticCategory.Error).length, 0);
   vm.runInNewContext(transpiled.outputText, {
-    exports, require: name => name.endsWith(".css") ? { default: {} } : require(name),
+    exports, require: name => name.endsWith(".css") ? { default: {} }
+      : name === "../../blueprint-neural-registry-graph.mjs" ? neuralGraph : require(name),
   }, { filename: "blueprint-neural-overview.cjs" });
   const Component = exports.default;
   const projects = [
@@ -53,6 +55,29 @@ test("real neural node click updates selection without inventing graph telemetry
     assert.equal(app.getAttribute("aria-pressed"), "true", "graph click must update shared selection");
     assert.equal(buttons.filter(node => node.getAttribute("aria-pressed") === "true").length, 1);
     assert.match(dom.window.document.body.textContent, /không phải Graph Intelligence live của Hub/);
+    // JSDOM has no layout engine: provide explicit geometry and observe real component
+    // scroll/focus calls. Browser acceptance remains a separate test.
+    const track = dom.window.document.querySelector('[role="region"][tabindex="0"]');
+    const locator = [...dom.window.document.querySelectorAll("button")].find(node =>
+      node.textContent.includes("Đến node dự án"));
+    assert.ok(track && locator);
+    Object.defineProperties(track, {
+      scrollWidth: { value: 1660 }, scrollHeight: { value: 2550 },
+      clientWidth: { value: 390 }, clientHeight: { value: 320 },
+    });
+    Object.defineProperties(app, {
+      offsetLeft: { value: 601 }, offsetTop: { value: 1285 },
+      offsetWidth: { value: 290 }, offsetHeight: { value: 30 },
+    });
+    const scrolls = [];
+    track.scrollTo = options => scrolls.push(options);
+    await React.act(async () => locator.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })));
+    assert.equal(scrolls.length, 1);
+    assert.equal(scrolls[0].left, 551);
+    assert.equal(scrolls[0].top, 1140);
+    assert.equal(scrolls[0].behavior, "auto");
+    assert.equal(dom.window.document.activeElement, app);
+    assert.equal(app.getAttribute("aria-pressed"), "true");
   } finally {
     await React.act(async () => root.unmount());
     dom.window.close();

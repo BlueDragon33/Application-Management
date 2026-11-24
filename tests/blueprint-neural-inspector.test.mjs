@@ -41,7 +41,13 @@ test("one actual selected node state drives the graph and the Inspector", () => 
 test("mobile locator can navigate horizontally without initiating an AI run", () => {
   assert.match(tsx, /useRef<HTMLDivElement \| null>\(null\)/);
   assert.match(tsx, /ref=\{trackRef\}/);
-  assert.match(tsx, /track\.scrollTo\(\{ left: Math\.max\(0, 613 - track\.clientWidth \/ 2\), behavior: "auto" \}\)/);
+  assert.match(tsx, /const node = track\?\.querySelector<HTMLButtonElement>\('button\[aria-pressed="true"\]'\)/);
+  assert.match(tsx, /const target = centerNeuralViewport\(/);
+  assert.match(tsx, /node\.offsetLeft \+ node\.offsetWidth \/ 2/);
+  assert.match(tsx, /node\.offsetTop \+ node\.offsetHeight \/ 2/);
+  assert.match(tsx, /if \(!target\) return;/);
+  assert.match(tsx, /track\.scrollTo\(\{ \.\.\.target, behavior: "auto" \}\)/);
+  assert.match(tsx, /node\.focus\(\{ preventScroll: true \}\)/);
   assert.match(tsx, /Đến node dự án/);
   assert.match(css, /\.neuralToolbar button:focus-visible/);
   assert.doesNotMatch(tsx, /startAgent\(|deployProduction\(|runWorkflow\(/);
