@@ -36,3 +36,7 @@ export function buildRegistryNeuralGraph(
   projects: readonly NeuralRegistryProject[] | unknown,
   selectedProjectId?: string,
 ): NeuralRegistryGraph;
+export function centerNeuralViewport(
+  targetX: number, targetY: number, contentWidth: number, contentHeight: number,
+  viewportWidth: number, viewportHeight: number,
+): { left: number; top: number } | null;
