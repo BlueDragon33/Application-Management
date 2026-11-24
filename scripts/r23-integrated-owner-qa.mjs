@@ -195,8 +195,42 @@ async function probeClient(page,item){
  }
  assert.equal(observed,"blocked",item.key+" independent child D1 did not converge");
  record.independentChildD1="BLOCKED_CONFIRMED";
- record.uiStatus="PASS_LOCAL_E2E";
- await page.screenshot({path:path.join(artifact,item.key+"-integrated.png"),fullPage:true});
+ // Do not mistake accepted API/D1 for a fully re-rendered Owner screen.
+ const blockedRow=page.locator('article[data-status="blocked"]').filter({has:page.getByText(item.code,{exact:true})}).first();
+ try{await blockedRow.waitFor({timeout:45000});}
+ catch {
+  await page.screenshot({path:path.join(artifact,item.key+"-ui-readback-stuck.png"),fullPage:true});
+  throw Error(item.key+" D1 is blocked but Owner UI did not converge after readback");
+ }
+ record.ownerUiIndependentReadback="BLOCKED_RENDERED";
+ record.responsiveReadback=[];
+ for(const v of [{name:"desktop",width:1440,height:900},{name:"tablet",width:800,height:900},{name:"mobile",width:390,height:844}]){
+  await page.setViewportSize({width:v.width,height:v.height});
+  const presentation=await page.evaluate(()=>{
+   const geom={width:document.documentElement.scrollWidth,viewport:window.innerWidth};
+   const colors=[];
+   const sample=Array.from(document.querySelectorAll("h1,h2,h3,button,strong,small,dt,dd,p")).filter(el=>{
+     const cs=getComputedStyle(el);
+     return cs.display!=="none"&&cs.visibility!=="hidden"&&el.getBoundingClientRect().width>0&&el.textContent?.trim();
+   }).slice(0,240);
+   for(const el of sample){
+     let node=el,background=null;
+     while(node){
+       const css=getComputedStyle(node).backgroundColor;
+       if(css&&css!=="transparent"&&css!=="rgba(0, 0, 0, 0)"){background=css;break;}
+       node=node.parentElement;
+     }
+     colors.push({tag:el.tagName,text:el.textContent.trim().slice(0,55),
+       foreground:getComputedStyle(el).color,background:background??"unknown"});
+   }
+   return {geometry:geom,computedTextSamples:colors};
+  });
+  assert.ok(presentation.geometry.width<=v.width+2,item.key+" horizontal overflow at "+v.name);
+  record.responsiveReadback.push({viewport:v.name,overflowPx:Math.max(0,presentation.geometry.width-v.width),
+    screenshot:item.key+"-integrated-"+v.name+".png",contrastInputs:presentation.computedTextSamples});
+  await page.screenshot({path:path.join(artifact,item.key+"-integrated-"+v.name+".png"),fullPage:true});
+ }
+ record.uiStatus="PASS_LOCAL_E2E_AND_UI_READBACK";
 }
 let failed=false;
 try{
