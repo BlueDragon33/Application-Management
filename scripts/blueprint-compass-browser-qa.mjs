@@ -14,7 +14,12 @@ export async function verifyBlueprintCompass(origin, { makeContext, pass, screen
     const page = await context.newPage();
     const errors = [];
     let failReads = false;
-    page.on("pageerror", error => errors.push(error.message));
+    page.on("pageerror", error => { errors.push(error.message); console.error("Compass pageerror:", error.message); });
+    page.on("console", message => {
+      if (message.type() === "error" && /hydrat|<title>|server rendered HTML/i.test(message.text())) {
+        errors.push(message.text()); console.error("Compass hydration:", message.text());
+      }
+    });
     try {
       await page.route("**/api/projects/repositories", request => request.fulfill({ json: { ok: true, unmanaged: [] } }));
       await page.route("**/api/tools/blueprint-compass/hub-contract", request => request.fulfill({ json: {
@@ -50,6 +55,7 @@ export async function verifyBlueprintCompass(origin, { makeContext, pass, screen
       await page.getByText("HUB_GRAPH_NOT_EXPOSED", { exact: false }).first().waitFor();
       assert.ok(await nodes.count() > 2);
       assert.equal(await chosen.count(), 1);
+      assert.deepEqual(errors, [], "No hydration or page errors before interaction");
       await guide.click();
       await page.locator("#blueprint-tool-guide").waitFor({ state: "visible" });
       await guide.click();
@@ -86,6 +92,9 @@ export async function verifyBlueprintCompass(origin, { makeContext, pass, screen
       pass("Blueprint Compass " + width + "px: failed refresh clears stale evidence and remains UNVERIFIED", { githubFixture: true });
     } catch (error) {
       await screenshot(page, "compass-" + width + "-failure").catch(() => {});
+      const overlay = await page.locator("#__vinext_dev_error_overlay_root").innerText({ timeout: 1500 }).catch(() => "");
+      if (overlay) console.error("Compass dev overlay:", overlay);
+      if (errors.length) console.error("Compass captured errors:", JSON.stringify(errors));
       throw error;
     } finally {
       await context.close();

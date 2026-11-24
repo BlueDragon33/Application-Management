@@ -127,7 +127,7 @@ export default function BlueprintNeuralOverview({
           {diagram.projects.map(project => <g key={"project:" + project.id}>
             {project.selected ? <circle cx="613" cy={project.y} r="18" fill="#ffe19a" opacity=".2" filter="url(#neural-source-halo)"/> : null}
             <circle cx="613" cy={project.y} r={project.selected ? 8 : 5} fill={project.selected ? "#ffe19a" : "#9daaff"}/>
-            <title>Node: {project.name}; Nhóm: {project.group}; Trạng thái: {project.state}; Nguồn: project-registry.ts</title>
+            <title>{`Node: ${project.name}; Nhóm: ${project.group}; Trạng thái: ${project.state}; Nguồn: project-registry.ts`}</title>
             <circle cx="1008" cy={project.y} r={project.selected ? 7 : 4} fill={project.selected ? "#ffe19a" : "#a78bfa"}/>
             <text x="1024" y={project.y + 4} className={project.selected ? styles.neuralSelectedLabel : styles.neuralRepoLabel}>
               {project.repository.replace(/^BlueDragon33\//, "").slice(0, 29)}

@@ -46,6 +46,13 @@ test("real neural node click updates selection without inventing graph telemetry
     await React.act(async () => root.render(React.createElement(Harness)));
     const buttons = [...dom.window.document.querySelectorAll('button[aria-controls="compass-project-detail"]')];
     assert.equal(buttons.length, 2, "every real registry project must be selectable");
+    const titles = [...dom.window.document.querySelectorAll("svg title")];
+    assert.equal(titles.length, projects.length);
+    for (const title of titles) {
+      assert.equal(title.childNodes.length, 1, "SVG title must have one text node for server/client hydration");
+      assert.equal(title.firstChild.nodeType, 3);
+      assert.match(title.textContent, /Nguồn: project-registry\.ts$/);
+    }
     assert.equal(buttons.filter(node => node.getAttribute("aria-pressed") === "true").length, 1);
     const app = buttons.find(node => node.textContent.trim() === "App Management");
     assert.ok(app);
