@@ -118,6 +118,7 @@ async function checkAudioContract(origin) {
   const context = await makeContext(origin, { viewport: { width: 1440, height: 900 } });
   page = await context.newPage();
   const speechPage = page;
+  await speechPage.route("**/russian-time-trainer/prepared/what-time.mp3", route => route.abort());
   await speechPage.addInitScript(() => {
     class Utterance {
       constructor(text) { this.text = text; }
@@ -143,6 +144,7 @@ async function checkAudioContract(origin) {
   assert.deepEqual(await speechPage.evaluate(() => window.trainerQASpeech), { text: "Который час?", lang: "ru-RU", local: true });
   await speechPage.evaluate(() => { window.trainerQANoExactVoice = true; });
   await speechPage.getByRole("button", { name: "Listen: Который час?" }).click();
+  await speechPage.waitForFunction(() => window.trainerQASpeech?.lang === "ru");
   assert.deepEqual(await speechPage.evaluate(() => window.trainerQASpeech), { text: "Который час?", lang: "ru", local: true });
   await context.close();
   pass("Russian pronunciation prefers local ru-RU, then standard ru over another Russian locale", { testDouble: true, audiblePlayback: "UNVERIFIED" });
@@ -194,6 +196,8 @@ async function exerciseDesktop(origin) {
   assert.notEqual(outline, "none");
   pass("Keyboard-only translation and visible keyboard focus");
 
+  const unavailableAsset = "**/russian-time-trainer/prepared/what-time.mp3";
+  await page.route(unavailableAsset, route => route.abort());
   await page.getByRole("button", { name: "Listen: Который час?" }).click();
   const russianVoices = await page.evaluate(() => window.speechSynthesis?.getVoices()
     .filter(voice => voice.localService && /^ru(?:-|$)/i.test(voice.lang)).length ?? 0);
@@ -203,6 +207,7 @@ async function exerciseDesktop(origin) {
     pass("Russian pronunciation without an installed voice shows the stress guide");
   }
 
+  await page.unroute(unavailableAsset);
   await practice(page).click();
   await page.getByRole("button", { name: "Во сколько начинается урок?", exact: true }).click();
   await page.getByText("Проверьте нужную фразу").waitFor();
@@ -480,6 +485,16 @@ async function exerciseAudioPractice(origin) {
   await dayPlan(page).click();
   const day = page.getByRole("combobox", { name: /^Day / });
   assert.equal(await day.locator("option").count(), 14);
+  await day.selectOption("13");
+  const dialogue = page.getByRole("button", { name: /Play dialogue/ });
+  await dialogue.click();
+  await page.getByText("Prepared synthetic voice", { exact: false }).waitFor();
+  const decoded = await page.waitForFunction(() => window.trainerMedia.find(row => row.src.endsWith("/prepared/daily-13.mp3")));
+  const media = await decoded.jsonValue();
+  assert.ok(media.duration > 2 && media.pitch);
+  await page.getByText("Playback finished.").waitFor();
+  pass("A prepared dialogue decodes and plays without using the device voice", { file: "daily-13.mp3", duration: media.duration });
+  await day.selectOption("0");
   await page.getByRole("button", { name: /Dialogue text/ }).click();
   await page.getByText("Do you have a lesson today? — No, tomorrow.", { exact: true }).waitFor();
   await page.getByRole("button", { name: /Practice this day/ }).click();

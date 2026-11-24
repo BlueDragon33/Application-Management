@@ -115,3 +115,24 @@ test("recall dates advance independently and retain existing course progress", (
   assert.deepEqual(spellingDifference("сиводня", "сего́дня"), { correct: false, typed: "ив", expected: "ег" });
   assert.equal(spellingDifference("ДНЕМ", "днём").correct, false);
 });
+
+
+test("every playable Russian course entry has an exact-text bundled clip", () => {
+  const { calendarGroups, calendarForms } = loadTs(root + "calendar-content.ts");
+  const { dailyLessons } = loadTs(root + "daily.ts");
+  const { bundledAudio } = loadTs(root + "audio-assets.ts");
+  const entries = [
+    ...calendarForms,
+    ...calendarGroups.map(group => group.example),
+    ...dailyLessons.map((lesson, day) => ({ id: "daily-" + day, ru: lesson.ru })),
+    ...timeLessons.flatMap(lesson => lesson.examples.map(example => ({ id: example.id, ru: example.phrase.ru }))),
+  ];
+  assert.equal(entries.length, 123);
+  for (const entry of entries) {
+    const clip = bundledAudio(entry);
+    assert.ok(clip, "Missing bundled audio for " + entry.id);
+    assert.ok(fs.statSync("public" + clip.src).size > 1700, "Missing or truncated audio for " + entry.id);
+  }
+  assert.equal(bundledAudio({ id: "late-1", ru: "поздно" }).source, "recording");
+  assert.equal(bundledAudio({ id: "daily-13", ru: "Different text" }), undefined);
+});

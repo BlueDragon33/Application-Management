@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { nativeAudio } from "./native-audio";
+import { bundledAudio, type AudioClip, type AudioSource } from "./audio-assets";
 import styles from "./trainer.module.css";
 
-type AudioState = { id: string; partial?: boolean; status: "loading" | "speaking" | "pause" | "complete" | "unavailable" | "error" };
-export type AudioClip = { id: string; ru: string };
+type AudioState = { id: string; source?: AudioSource; partial?: boolean; status: "loading" | "speaking" | "pause" | "complete" | "unavailable" | "error" };
 export type AudioSettings = { rate: 0.5 | 0.75 | 1; repeats: 1 | 3 | 5 | "continuous"; pause: 2 | 3 | 4 | 5 };
 const defaults: AudioSettings = { rate: 1, repeats: 1, pause: 2 };
 
@@ -50,7 +49,7 @@ export function useRussianAudio() {
       ?? localVoices[0];
     const hasLocalVoice = Boolean(voice && window.SpeechSynthesisUtterance);
     const playable = hasLocalVoice || clips.length === 1 ? clips :
-      clips.filter(clip => nativeAudio[clip.id]?.ru === clip.ru);
+      clips.filter(clip => bundledAudio(clip));
     if (!playable.length) {
       setAudio({ id, status: "unavailable" });
       return;
@@ -60,9 +59,9 @@ export function useRussianAudio() {
     let position = 0;
     let rounds = 0;
 
-    function update(status: AudioState["status"]) {
+    function update(status: AudioState["status"], source?: AudioSource) {
       if (active.current !== session) return;
-      setAudio({ id, status, partial: playable.length < clips.length });
+      setAudio({ id, status, source, partial: playable.length < clips.length });
       if (status === "speaking") onPlaying?.();
     }
 
@@ -99,7 +98,7 @@ export function useRussianAudio() {
       utterance.lang = voice.lang;
       utterance.rate = settings.rate;
       utterance.pitch = 1;
-      utterance.onstart = () => update("speaking");
+      utterance.onstart = () => update("speaking", "device");
       utterance.onend = next;
       utterance.onerror = () => finish("error");
       session.utterance = utterance;
@@ -115,8 +114,8 @@ export function useRussianAudio() {
       const clip = playable[position];
       update("loading");
       session.watchdog = window.setTimeout(() => finish("error"), 30000);
-      const recording = nativeAudio[clip.id];
-      if (!recording || recording.ru !== clip.ru) {
+      const recording = bundledAudio(clip);
+      if (!recording) {
         speakLocal(clip.ru);
         return;
       }
@@ -132,7 +131,7 @@ export function useRussianAudio() {
         media.pause();
         speakLocal(clip.ru);
       };
-      media.onplaying = () => update("speaking");
+      media.onplaying = () => update("speaking", recording.source);
       media.onended = next;
       media.onerror = fallback;
       if (media.getAttribute("src") !== recording.src) media.src = recording.src;
@@ -161,10 +160,17 @@ const messages = {
   error: { en: "Audio could not play. Use the marked stress.", ru: "Не удалось включить звук. Ориентируйтесь на знаки ударения." },
 };
 
+const sources = {
+  recording: { en: "Speaker recording", ru: "Запись диктора" },
+  prepared: { en: "Prepared synthetic voice", ru: "Подготовленный синтез" },
+  device: { en: "Device voice", ru: "Голос устройства" },
+};
+
 export function PronunciationStatus({ audio, id }: { audio: AudioState | null; id: string }) {
   return audio?.id === id
     ? <p className={styles.audioStatus} role="status">
       {messages[audio.status].en} <span lang="ru">{messages[audio.status].ru}</span>
+      {audio.source && <> · {sources[audio.source].en} <span lang="ru">{sources[audio.source].ru}</span></>}
       {audio.partial && <> Some clips need a Russian device voice. <span lang="ru">Для части фраз нужен русский голос на устройстве.</span></>}
     </p>
     : null;

@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { nativeAudio } from "./native-audio";
+import { preparedVoice } from "./audio-assets";
 import styles from "./trainer.module.css";
 
 function buildPrompt(lesson: string, view: string, requirements: string) {
@@ -81,6 +82,10 @@ export default function TrainerHelp({ lesson, view, onOpen }: { lesson: string; 
         </p>
         <details>
           <summary>Audio credits <span lang="ru">Источники записей</span></summary>
+          <p>Prepared speech was synthesized offline with <a href={preparedVoice.source} target="_blank" rel="noreferrer">{preparedVoice.name}</a>.
+            {" "}Voice dataset speaker: {preparedVoice.speaker}. Model credits: {preparedVoice.contributors}.
+            {" "}<a href={preparedVoice.license} target="_blank" rel="noreferrer">CC BY-SA 4.0</a>
+            {" · "}<span lang="ru">Синтез речи выполнен локально. Авторские сведения указаны выше.</span></p>
           <p>Recordings were converted to MP3. <span lang="ru">Записи преобразованы в формат MP3.</span></p>
           <ul>{Object.values(nativeAudio).map(item => <li key={item.src}>
             <a href={item.source} target="_blank" rel="noreferrer" lang="ru">{item.ru}</a>{" · "}{item.author}{" · "}
