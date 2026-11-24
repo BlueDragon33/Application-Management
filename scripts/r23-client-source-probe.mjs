@@ -108,7 +108,7 @@ async function start(item,secret) {
     "--var","APPLICATION_MANAGEMENT_ORIGIN:http://127.0.0.1:5191",
     "--var",item.extraKey+":http://127.0.0.1:5191");
   const proc=spawn(process.execPath,args,{
-    cwd:item.dir,stdio:["ignore","pipe","pipe"],env:{...process.env,WRANGLER_SEND_METRICS:"false"}
+    cwd:item.dir,stdio:["ignore","pipe","pipe"],detached:process.platform!=="win32",env:{...process.env,WRANGLER_SEND_METRICS:"false"}
   });
   const log=[];
   for(const stream of [proc.stdout,proc.stderr]) stream.on("data",chunk=>{
@@ -198,8 +198,15 @@ try {
   console.error("[R23 SOURCE BLOCKED]",report.error);
 } finally {
   for(const child of processes.reverse()) {
-    if(child.exitCode===null) child.kill("SIGTERM");
-    if(child.exitCode===null) child.kill("SIGKILL");
+    if(process.platform!=="win32" && child.pid) {
+      try { process.kill(-child.pid,"SIGTERM"); } catch {}
+      await new Promise(resolve=>setTimeout(resolve,300));
+      try { process.kill(-child.pid,"SIGKILL"); } catch {}
+    } else if(child.pid && process.platform==="win32") {
+      try { execFileSync("taskkill.exe",["/PID",String(child.pid),"/T","/F"],{stdio:"ignore",timeout:5000}); } catch {}
+    }
+    child.stdout?.destroy();
+    child.stderr?.destroy();
   }
   writeFileSync(path.join(out,"report.json"),JSON.stringify(report,null,2)+"\n");
 }
