@@ -5,6 +5,7 @@ on:
     paths:
       - scripts/r23-pilot-browser-qa.mjs
       - scripts/r23-client-source-probe.mjs
+      - scripts/r23-integrated-owner-qa.mjs
       - .github/workflows/r23-pilot-browser-qa.yml
 
 permissions:
@@ -109,11 +110,21 @@ jobs:
       - name: Verify signed child Control API against independent local BM-/KT- D1
         run: node scripts/r23-client-source-probe.mjs
 
+      - name: Install app runtime and Chromium for real Central-to-child end-to-end
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Integrate approved Owner UI, signed BM/KT Worker and independent D1 readback
+        run: node scripts/r23-integrated-owner-qa.mjs
+
       - name: Upload independent source-only QA evidence
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: r23-client-owned-source-evidence
-          path: qa-artifacts/r23-client-source/
+          path: |
+            qa-artifacts/r23-client-source/
+            qa-artifacts/r23-integrated-owner/
           if-no-files-found: error
           retention-days: 7
