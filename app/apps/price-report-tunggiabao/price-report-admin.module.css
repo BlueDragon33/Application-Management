@@ -30,7 +30,7 @@
 .deviceList>article:first-child{border-top:0}
 .deviceList>article[data-status="pending"]{box-shadow:inset 3px 0 #d7a745}
 .deviceList>article[data-status="approved"]{box-shadow:inset 3px 0 #4bd69e}
-.deviceList>article[data-status="blocked"]{box-shadow:inset 3px 0 #df8477;opacity:.82}
+.deviceList>article[data-status="blocked"]{box-shadow:inset 3px 0 #c95c50;background:#fff9f8}
 
 .deviceIdentity{
   min-width:0;
