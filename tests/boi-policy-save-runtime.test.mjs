@@ -83,10 +83,14 @@ function dashboardWriter(settings, action, confirm = true, appIds = ["boi-ech"])
   const start = source.indexOf("  async function saveAutomation(");
   const end = source.indexOf("\n  async function manageControlDevice", start);
   assert.ok(start > 0 && end > start);
+  const freshnessStart = source.indexOf("function hasVerifiedAutomationSnapshot(");
+  const freshnessEnd = source.indexOf("\n// The one-second clock", freshnessStart);
+  assert.ok(freshnessStart > 0 && freshnessEnd > freshnessStart, "Use the actual dashboard freshness guard");
+  const freshness = stripTypeScriptTypes(source.slice(freshnessStart, freshnessEnd));
   const client = loadTs("app/admin-device-client.ts");
-  let current = { settings }; let stepUp = false;
+  let current = { settings, generatedAt: new Date().toISOString() }; let stepUp = false;
   const busy = []; const notices = [];
-  const values = { automationSaveLockRef: { current: false }, automationSnapshotVerified: true,
+  const values = { automationSaveLockRef: { current: false }, operationsVerified: true,
     setNotice: message => notices.push(message), setActionBusy: value => busy.push(value),
     operations: current, activeApps: [{ id: "boi-ech", shortName: "Bơi Ếch" }],
     operationsAction: body => action(body, client.AdminApiError),
@@ -95,7 +99,7 @@ function dashboardWriter(settings, action, confirm = true, appIds = ["boi-ech"])
     setOperations: update => { current = update(current); },
     setAutomationStepUpRequired: value => { stepUp = value; }, AdminApiError: client.AdminApiError,
   };
-  const write = new Function(...Object.keys(values), `${stripTypeScriptTypes(source.slice(start, end))}; return saveAutomation;`)(...Object.values(values));
+  const write = new Function(...Object.keys(values), `${freshness};\n${stripTypeScriptTypes(source.slice(start, end))}; return saveAutomation;`)(...Object.values(values));
   return { write: authenticate => write({ appIds, autoBlockAppIds: [], pendingBlockAfterHoursByApp: {}, defaultAccessDays: 90, defaultDeviceLimit: 80 }, authenticate),
     busy, notices, get settings() { return current.settings; }, get stepUp() { return stepUp; } };
 }
