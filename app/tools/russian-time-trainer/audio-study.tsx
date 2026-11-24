@@ -275,7 +275,9 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio }
     <ul className={styles.progressList}>{(Object.keys(skills) as Skill[]).map(skill => {
       const attempted = calendarForms.filter(item => memoryEntry(entries, item.id, skill));
       const dueCount = attempted.filter(item => memoryEntry(entries, item.id, skill).due <= now).length;
-      return <li key={skill}><Pair text={skills[skill]} /> <progress max={calendarForms.length} value={attempted.length} aria-label={skills[skill].en} />
+      return <li key={skill}>
+        <span><Pair text={skills[skill]} /></span>
+        <progress max={calendarForms.length} value={attempted.length} aria-label={skills[skill].en} />
         <span>{attempted.length}/{calendarForms.length} · {dueCount} due <span lang="ru">к повторению</span></span></li>;
     })}</ul>
     <p>Review intervals <span lang="ru">Интервалы повторения</span> · 0 / 1 / 3 / 7 / 14 / 30 <span lang="ru">дней</span> (days)</p>

@@ -257,7 +257,7 @@
   border-top: 1px solid var(--border);
   padding: 12px 0;
 }
-.progressList progress { width: 100%; accent-color: var(--active); }
+.progressList progress { width: 100%; min-height: .625rem; accent-color: var(--active); }
 
 .wordPreview {
   position: fixed;
