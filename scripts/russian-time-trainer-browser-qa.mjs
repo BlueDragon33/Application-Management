@@ -122,10 +122,11 @@ async function checkAudioContract(origin) {
     class Utterance {
       constructor(text) { this.text = text; }
     }
+    const alternatives = [{ lang: "ru-RU", localService: false }, { lang: "ru-CL", localService: true }, { lang: "ru", localService: true }];
     const voice = { lang: "ru-RU", localService: true };
     Object.defineProperty(window, "SpeechSynthesisUtterance", { value: Utterance });
     Object.defineProperty(window, "speechSynthesis", { value: {
-      getVoices: () => [{ lang: "ru-RU", localService: false }, voice],
+      getVoices: () => window.trainerQANoExactVoice ? alternatives : [...alternatives, voice],
       speak(utterance) {
         window.trainerQASpeech = { text: utterance.text, lang: utterance.lang, local: utterance.voice.localService };
         utterance.onstart();
@@ -140,8 +141,11 @@ async function checkAudioContract(origin) {
   await speechPage.getByRole("button", { name: "Listen: Который час?" }).click();
   await speechPage.getByRole("status").filter({ hasText: "Playing Russian audio." }).waitFor();
   assert.deepEqual(await speechPage.evaluate(() => window.trainerQASpeech), { text: "Который час?", lang: "ru-RU", local: true });
+  await speechPage.evaluate(() => { window.trainerQANoExactVoice = true; });
+  await speechPage.getByRole("button", { name: "Listen: Который час?" }).click();
+  assert.deepEqual(await speechPage.evaluate(() => window.trainerQASpeech), { text: "Который час?", lang: "ru", local: true });
   await context.close();
-  pass("Russian pronunciation uses the local ru-RU voice when present", { testDouble: true, audiblePlayback: "UNVERIFIED" });
+  pass("Russian pronunciation prefers local ru-RU, then standard ru over another Russian locale", { testDouble: true, audiblePlayback: "UNVERIFIED" });
 }
 
 async function exerciseDesktop(origin) {

@@ -45,7 +45,9 @@ export function useRussianAudio() {
     cancel();
     const engine = window.speechSynthesis;
     const localVoices = engine?.getVoices().filter(voice => voice.localService && /^ru(?:-|$)/i.test(voice.lang)) ?? [];
-    const voice = localVoices.find(item => item.lang.toLowerCase() === "ru-ru") ?? localVoices[0];
+    const voice = localVoices.find(item => item.lang.toLowerCase() === "ru-ru")
+      ?? localVoices.find(item => item.lang.toLowerCase() === "ru")
+      ?? localVoices[0];
     const hasLocalVoice = Boolean(voice && window.SpeechSynthesisUtterance);
     const playable = hasLocalVoice || clips.length === 1 ? clips :
       clips.filter(clip => nativeAudio[clip.id]?.ru === clip.ru);

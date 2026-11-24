@@ -12,5 +12,5 @@ export const dailyLessons = [
   { groups: ["monday", "wednesday", "evening"], ru: "Во сколько встреча в среду? — В девять.", en: "What time is the meeting on Wednesday? — At nine." },
   { groups: ["saturday", "day-after", "morning"], ru: "Когда отправляется поезд? — В субботу утром, в шесть сорок.", en: "When does the train leave? — Saturday morning at six forty." },
   { groups: ["winter", "dec", "jan", "tomorrow"], ru: "Ты приедешь в декабре? — Нет, в январе.", en: "Will you arrive in December? — No, in January." },
-  { groups: ["today", "sunday", "summer", "jul"], ru: "Давай встретимся в воскресенье. — Хорошо, в девять утра.", en: "Let’s meet on Sunday. — All right, at nine in the morning." },
+  { groups: ["today", "sunday", "summer", "jul"], ru: "Давай встретимся в воскресенье утром. — Хорошо, в девять часов.", en: "Let’s meet on Sunday morning. — All right, at nine." },
 ] as const;
