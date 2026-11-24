@@ -52,7 +52,10 @@ export function Recording({ stopModel }: { stopModel: () => void }) {
         return;
       }
       session.stream = stream;
-      const recorder = new MediaRecorder(stream);
+      const player = document.createElement("audio");
+      const mimeType = ["audio/webm;codecs=opus", "audio/mp4", "audio/ogg;codecs=opus"]
+        .find(type => MediaRecorder.isTypeSupported(type) && player.canPlayType(type));
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       const chunks: Blob[] = [];
       session.recorder = recorder;
       recorder.ondataavailable = event => { if (event.data.size) chunks.push(event.data); };
@@ -69,11 +72,11 @@ export function Recording({ stopModel }: { stopModel: () => void }) {
           setStatus("failed");
           return;
         }
-        session.url = URL.createObjectURL(new Blob(chunks, { type: recorder.mimeType }));
+        session.url = URL.createObjectURL(new Blob(chunks, { type: chunks[0].type || recorder.mimeType }));
         setUrl(session.url);
         setStatus("complete");
       };
-      recorder.start();
+      recorder.start(250);
       session.timeout = window.setTimeout(stopRecording, 30000);
       setStatus("recording");
     } catch {

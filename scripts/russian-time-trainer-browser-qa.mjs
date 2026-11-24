@@ -343,6 +343,24 @@ async function exerciseAudioPractice(origin) {
   });
   await page.addInitScript(() => {
     window.trainerMedia = [];
+    window.trainerRecordingErrors = [];
+    window.trainerRecordedChunks = 0;
+    const startRecorder = MediaRecorder.prototype.start;
+    MediaRecorder.prototype.start = function (...args) {
+      this.addEventListener("dataavailable", event => {
+        if (event.data.size > 0) window.trainerRecordedChunks++;
+      });
+      return startRecorder.apply(this, args);
+    };
+    const getUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+    navigator.mediaDevices.getUserMedia = async constraints => {
+      try {
+        return await getUserMedia(constraints);
+      } catch (error) {
+        window.trainerRecordingErrors.push(error.name + ": " + error.message);
+        throw error;
+      }
+    };
     document.addEventListener("playing", event => {
       if (event.target instanceof HTMLAudioElement) {
         window.trainerMedia.push({
@@ -444,7 +462,11 @@ async function exerciseAudioPractice(origin) {
   await page.waitForFunction(() => [...document.fonts].some(font => font.family === "Marck Script" && font.status === "loaded"));
   await mode.selectOption("shadow");
   await page.getByRole("button", { name: /^Record / }).click();
-  await page.getByText("Recording locally.").waitFor();
+  const recordingActive = page.getByText("Recording locally.");
+  const recordingFailed = page.getByText("Microphone access or recording failed.");
+  await recordingActive.or(recordingFailed).waitFor();
+  assert.ok(await recordingActive.isVisible(), JSON.stringify(await page.evaluate(() => window.trainerRecordingErrors)));
+  await page.waitForFunction(() => window.trainerRecordedChunks >= 2);
   await page.getByRole("button", { name: /Stop recording/ }).click();
   await page.locator("audio[controls]").waitFor();
   await page.locator("audio[controls]").evaluate(element => element.play());
@@ -485,7 +507,7 @@ try {
   browser = await chromium.launch({
     channel: process.env.TRAINER_QA_BROWSER || undefined,
     executablePath: process.env.TRAINER_QA_EXECUTABLE || undefined,
-    args: ["--use-fake-device-for-media-stream"],
+    args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"],
   });
   browserVersion = browser.version();
   console.log(JSON.stringify({ sha, node: process.version, browserVersion }));
