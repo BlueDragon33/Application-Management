@@ -63,6 +63,13 @@ test("selection never displays another project's evidence, including pending and
     assert.doesNotMatch(container.textContent, /hub-evidence/);
     await complete(reads.at(-1));
     assert.match(container.textContent, /manager-evidence/);
+    const refresh = [...container.querySelectorAll("button")].find(button => button.textContent.includes("Đọc lại GitHub"));
+    assert.ok(refresh && !refresh.disabled);
+    await React.act(async () => refresh.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })));
+    assert.doesNotMatch(container.textContent, /manager-evidence/, "same-project refresh must immediately hide previous evidence");
+    assert.equal(refresh.disabled, true);
+    await complete(reads.at(-1));
+    assert.match(container.textContent, /manager-evidence/);
     await select("Hub");
     const delayedHub = reads.at(-1);
     await select("Manager");

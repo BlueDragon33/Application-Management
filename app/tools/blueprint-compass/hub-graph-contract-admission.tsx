@@ -6,25 +6,23 @@ import { validateHubContractReadback, type HubContractReadback } from "../../blu
 
 export default function HubGraphContractAdmission() {
   const [requested, setRequested] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [snapshot, setSnapshot] = useState<HubContractReadback | null>(null);
+  const [loaded, setLoaded] = useState<{ request: number; snapshot: HubContractReadback } | null>(null);
+  const snapshot = loaded && loaded.request === requested ? loaded.snapshot : null;
+  const loading = snapshot === null;
   useEffect(() => {
     const controller = new AbortController();
-    setLoading(true);
-    setSnapshot(null);
     void fetch("/api/tools/blueprint-compass/hub-contract", { cache: "no-store", signal: controller.signal })
       .then(async response => {
         const data: unknown = await response.json();
         if (controller.signal.aborted) return;
-        setSnapshot(validateHubContractReadback(data, response.status));
+        setLoaded({ request: requested, snapshot: validateHubContractReadback(data, response.status) });
       })
       .catch(() => {
-        if (!controller.signal.aborted) setSnapshot({
+        if (!controller.signal.aborted) setLoaded({ request: requested, snapshot: {
           ok: false, status: "UNVERIFIED", canReadGraph: false,
           note: "Không xác minh được contract Hub. Không suy ra kết nối Graph.",
-        });
-      })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+        }});
+      });
     return () => controller.abort();
   }, [requested]);
 

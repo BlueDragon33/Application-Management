@@ -63,9 +63,10 @@ test("one Tool launcher and no duplicate standalone Blueprint in the visible app
   assert.match(read("app/apps/software-blueprint-hub/page.tsx"), /redirect\("\/tools\/blueprint-compass"\)/);
 });
 
-test("Tool opens with Blueprint Hub selected and links to the real separate authenticated Hub", () => {
+test("Tool opens with Blueprint Hub selected and links to canonical GitHub without requiring hosted Preview", () => {
   assert.match(ui, /projects\.find\(project => project\.id === "software-blueprint-hub"\)/);
-  assert.match(ui, /href="https:\/\/software-blueprint-hub\.vercel\.app\/" target="_blank" rel="noopener noreferrer"/);
-  assert.match(ui, /Mở Hub \(đăng nhập riêng\)/);
+  assert.match(ui, /href="https:\/\/github\.com\/BlueDragon33\/Software-Blueprint-Hub" target="_blank" rel="noopener noreferrer"/);
+  assert.match(ui, /Mở nguồn Blueprint Hub/);
+  assert.doesNotMatch(ui, /vercel\.app/);
   assert.match(ui, /href=\{`https:\/\/github\.com\/\$\{repo\.repository\}`\}/);
 });

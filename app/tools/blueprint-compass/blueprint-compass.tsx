@@ -13,15 +13,18 @@ type Snapshot = { ok: boolean; repository: string; checkedAt?: string; head?: st
 export default function BlueprintCompass({ projects }: { projects: Project[] }) {
   const [guideOpen, setGuideOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState(projects.find(project => project.id === "software-blueprint-hub")?.id ?? projects[0]?.id ?? "");
-  const [loadedSnapshot, setSnapshot] = useState<Snapshot | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [requested, setRequested] = useState(0);
+  const [selection, setSelection] = useState({ id: projects.find(project => project.id === "software-blueprint-hub")?.id ?? projects[0]?.id ?? "", request: 0 });
+  const { id: selected, request: requested } = selection;
+  const setSelected = (id: string) => setSelection(current => current.id === id ? current : { id, request: current.request + 1 });
+  const refresh = () => setSelection(current => ({ ...current, request: current.request + 1 }));
+  const [loaded, setLoaded] = useState<{ request: number; snapshot: Snapshot } | null>(null);
   const [unmanaged, setUnmanaged] = useState<Array<{ name: string; repository: string; url: string }>>([]);
   const [catalogStatus, setCatalogStatus] = useState("Đang đối chiếu danh mục công khai…");
   const entry = projects.find(project => project.id === selected);
-  // Selection changes render before passive effects run: never show another project's evidence.
-  const snapshot = loadedSnapshot?.repository === entry?.repository ? loadedSnapshot : null;
+  const repository = entry?.repository;
+  // Derive pending state synchronously from the request identity. Never flash stale evidence.
+  const snapshot = loaded && loaded.request === requested && loaded.snapshot.repository === repository ? loaded.snapshot : null;
+  const loading = Boolean(entry && !snapshot);
   const visible = useMemo(() => projects.filter(project =>
     `${project.name} ${project.repository} ${project.group}`.toLowerCase().includes(query.trim().toLowerCase()),
   ), [projects, query]);
@@ -41,31 +44,26 @@ export default function BlueprintCompass({ projects }: { projects: Project[] }) 
   }, []);
 
   useEffect(() => {
-    if (!selected) return;
+    if (!selected || !repository) return;
     const controller = new AbortController();
-    setLoading(true);
-    setSnapshot(null);
     void fetch(`/api/tools/blueprint-compass?id=${encodeURIComponent(selected)}`,
       { cache: "no-store", signal: controller.signal })
       .then(async response => {
         const data = await response.json() as Snapshot;
         if (controller.signal.aborted) return;
-        if (!data?.verdict || data.repository !== projects.find(project => project.id === selected)?.repository)
+        if (!data?.verdict || data.repository !== repository)
           throw new Error("GitHub readback không trùng dự án đã chọn.");
-        setSnapshot(data);
+        setLoaded({ request: requested, snapshot: data });
       })
       .catch(error => {
         if (controller.signal.aborted) return;
-        setSnapshot({ ok: false, repository: entry?.repository ?? "", error: error instanceof Error ? error.message : "Không thể tải dữ liệu", verdict: {
+        setLoaded({ request: requested, snapshot: { ok: false, repository, error: error instanceof Error ? error.message : "Không thể tải dữ liệu", verdict: {
           status: "UNVERIFIED", title: "Chưa xác minh", description: "Không có bằng chứng GitHub.",
           nextStep: "Kiểm tra kết nối và đối chiếu HEAD GitHub.", qaPassed: false, productionAuthorized: false,
-        }});
-      })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+        }}});
+      });
     return () => controller.abort();
-  // Selection is the only request authority; refreshing increments requested.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, requested]);
+  }, [selected, requested, repository]);
 
   return <main className={styles.shell}>
     <header className={styles.header}>
@@ -77,7 +75,7 @@ export default function BlueprintCompass({ projects }: { projects: Project[] }) 
           {guideOpen ? "Ẩn Hướng dẫn" : "❔ Hướng dẫn"}
         </button>
         <Link href="/">Quản trị Ứng dụng</Link><Link href="/projects">Danh mục dự án</Link>
-        <a href="https://software-blueprint-hub.vercel.app/" target="_blank" rel="noopener noreferrer">Mở Hub (đăng nhập riêng)</a>
+        <a href="https://github.com/BlueDragon33/Software-Blueprint-Hub" target="_blank" rel="noopener noreferrer">Mở nguồn Blueprint Hub</a>
       </div>
     </header>
     <section id="blueprint-tool-guide" className={styles.guidePanel} hidden={!guideOpen} role="region" aria-labelledby="blueprint-tool-guide-heading">
@@ -107,7 +105,7 @@ export default function BlueprintCompass({ projects }: { projects: Project[] }) 
         </section>
       </aside>
       <section id="compass-project-detail" className={styles.body} aria-live="polite">
-        {entry ? <><div className={styles.topline}><div><small>PROJECT · {entry.group}</small><h2>{entry.name}</h2><code>{entry.repository}</code></div><button type="button" onClick={() => setRequested(i=>i+1)} disabled={loading}>{loading ? "Đang đối chiếu…" : "↻ Đọc lại GitHub"}</button></div>
+        {entry ? <><div className={styles.topline}><div><small>PROJECT · {entry.group}</small><h2>{entry.name}</h2><code>{entry.repository}</code></div><button type="button" onClick={refresh} disabled={loading}>{loading ? "Đang đối chiếu…" : "↻ Đọc lại GitHub"}</button></div>
           <p className={styles.summary}>{entry.summary}</p>
           <div className={styles.status}><span>Trạng thái registry: <strong>{entry.state}</strong></span><span>Default branch HEAD: <code>{snapshot?.ok && snapshot.head ? snapshot.head : "UNVERIFIED"}</code></span><span>Nguồn QA: <strong>{snapshot?.evidenceClass ?? "UNVERIFIED"}</strong></span><span>Đối chiếu: <strong>{snapshot?.checkedAt ? new Date(snapshot.checkedAt).toLocaleString("vi-VN") : "UNVERIFIED"}</strong></span></div>
           {snapshot?.verdict ? <article className={styles.verdict} data-status={snapshot.verdict.status}><small>GỢI Ý XỬ LÝ · KHÔNG PHẢI QA APPROVAL</small><h3>{snapshot.verdict.title}</h3><p>{snapshot.verdict.description}</p><strong>Hướng xử lý tiếp</strong><p>{snapshot.verdict.nextStep}</p></article> : <p>Đang xác minh bằng chứng GitHub…</p>}
