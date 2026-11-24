@@ -93,12 +93,17 @@ jobs:
           npm ci --prefix r23-clients/bauman/control-service --no-audit --no-fund
           npm ci --prefix r23-clients/price/control-service --no-audit --no-fund
 
-      - name: Upgrade only isolated KT QA Wrangler to support exact compatibility date
+      - name: Install compatible KT QA Wrangler outside source checkout
+        shell: bash
         run: |
-          npm install --prefix r23-clients/price/control-service --no-save --package-lock=false --no-audit --no-fund wrangler@4.167.0
-          node r23-clients/price/control-service/node_modules/wrangler/bin/wrangler.js --version
-          git -C r23-clients/price status --porcelain | tee /tmp/r23-kt-status
-          test ! -s /tmp/r23-kt-status
+          set -euo pipefail
+          QA_WRANGLER_ROOT="$RUNNER_TEMP/r23-kt-wrangler"
+          mkdir -p "$QA_WRANGLER_ROOT"
+          npm install --prefix "$QA_WRANGLER_ROOT" --no-save --package-lock=false --no-audit --no-fund wrangler@4.167.0
+          QA_BIN="$QA_WRANGLER_ROOT/node_modules/wrangler/bin/wrangler.js"
+          node "$QA_BIN" --version
+          printf 'R23_PRICE_WRANGLER_PATH=%s\n' "$QA_BIN" >> "$GITHUB_ENV"
+          test -z "$(git -C r23-clients/price status --porcelain)"
 
       - name: Verify signed child Control API against independent local BM-/KT- D1
         run: node scripts/r23-client-source-probe.mjs

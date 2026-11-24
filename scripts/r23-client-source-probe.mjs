@@ -54,8 +54,10 @@ function preflight() {
 }
 const sqlQuote = value => "'"+String(value).replaceAll("'","''")+"'";
 function cli(item, args) {
-  const bin=path.join(item.dir,"node_modules","wrangler","bin","wrangler.js");
-  if(!existsSync(bin)) throw Error("Missing locked Wrangler "+item.label);
+  const bin=item.label==="price-report"
+    ? process.env.R23_PRICE_WRANGLER_PATH
+    : path.join(item.dir,"node_modules","wrangler","bin","wrangler.js");
+  if(!bin||!existsSync(bin)) throw Error("Missing verified isolated Wrangler for "+item.label);
   return execFileSync(process.execPath,[bin,...args],{
     cwd:item.dir,env:{...process.env,WRANGLER_SEND_METRICS:"false"},encoding:"utf8",timeout:120000,
     stdio:["ignore","pipe","pipe"],
@@ -92,7 +94,10 @@ async function request(item,secret,role,pathname,body) {
 async function start(item,secret) {
   const url="http://127.0.0.1:"+item.port+"/health";
   if(await fetch(url,{signal:AbortSignal.timeout(1000)}).then(()=>true).catch(()=>false)) throw Error("Port already active; abort "+item.port);
-  const bin=path.join(item.dir,"node_modules","wrangler","bin","wrangler.js");
+  const bin=item.label==="price-report"
+    ? process.env.R23_PRICE_WRANGLER_PATH
+    : path.join(item.dir,"node_modules","wrangler","bin","wrangler.js");
+  if(!bin||!existsSync(bin)) throw Error("Missing verified isolated Wrangler for "+item.label);
   const args=[bin,"dev","--local","--config","wrangler.local.jsonc",
     "--ip","127.0.0.1","--port",String(item.port),
     "--inspector-port",String(item.port+6000),
