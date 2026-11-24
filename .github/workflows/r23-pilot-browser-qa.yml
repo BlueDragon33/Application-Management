@@ -113,6 +113,7 @@ jobs:
       - name: Install app runtime and Chromium for real Central-to-child end-to-end
         run: |
           npm ci --no-audit --no-fund
+          npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.55.1
           npx playwright install --with-deps chromium
 
       - name: Integrate approved Owner UI, signed BM/KT Worker and independent D1 readback
