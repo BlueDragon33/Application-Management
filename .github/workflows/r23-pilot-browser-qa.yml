@@ -103,7 +103,8 @@ jobs:
           QA_BIN="$QA_WRANGLER_ROOT/node_modules/wrangler/bin/wrangler.js"
           node "$QA_BIN" --version
           printf 'R23_PRICE_WRANGLER_PATH=%s\n' "$QA_BIN" >> "$GITHUB_ENV"
-          test -z "$(git -C r23-clients/price status --porcelain)"
+          git -C r23-clients/price diff --quiet -- .
+          git -C r23-clients/price diff --cached --quiet -- .
 
       - name: Verify signed child Control API against independent local BM-/KT- D1
         run: node scripts/r23-client-source-probe.mjs
