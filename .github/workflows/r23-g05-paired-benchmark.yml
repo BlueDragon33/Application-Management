@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   g05-paired:
-    if: github.event_name == 'pull_request' && github.event.pull_request.number == 414
+    if: github.event_name == 'pull_request' && github.event.pull_request.number == 414 && github.event.pull_request.head.sha == '023a53b3fec820de4851440b720737479fc78a8a'
     runs-on: ubuntu-24.04
     timeout-minutes: 36
     env:
