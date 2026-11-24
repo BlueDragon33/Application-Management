@@ -39,7 +39,7 @@ export function useRussianAudio() {
     setAudio(null);
   }
 
-  function play(id: string, clips: readonly AudioClip[], settings: AudioSettings = defaults, onPlaying?: () => void) {
+  function play(id: string, clips: readonly AudioClip[], settings: AudioSettings = defaults, onClipCompleted?: () => void) {
     if (!clips.length) return;
     cancel();
     const engine = window.speechSynthesis;
@@ -58,21 +58,37 @@ export function useRussianAudio() {
     active.current = session;
     let position = 0;
     let rounds = 0;
+    let clipStarted = false;
+    let completedOnce = false;
+    let lastSource: AudioSource | undefined;
 
     function update(status: AudioState["status"], source?: AudioSource) {
       if (active.current !== session) return;
       setAudio({ id, status, source, partial: playable.length < clips.length });
-      if (status === "speaking") onPlaying?.();
+      if (status === "speaking") {
+        clipStarted = true;
+        lastSource = source;
+      }
     }
 
     function finish(status: AudioState["status"]) {
       if (active.current !== session) return;
-      update(status);
+      update(status, status === "complete" ? lastSource : undefined);
       cancel();
     }
 
     function next() {
       if (active.current !== session) return;
+      // An ended event alone is not playback evidence. Require a matching start.
+      if (!clipStarted) {
+        finish("error");
+        return;
+      }
+      clipStarted = false;
+      if (!completedOnce) {
+        completedOnce = true;
+        onClipCompleted?.();
+      }
       window.clearTimeout(session.watchdog);
       session.utterance = undefined;
       position += 1;
@@ -84,7 +100,7 @@ export function useRussianAudio() {
         finish("complete");
         return;
       }
-      update("pause");
+      update("pause", lastSource);
       session.timer = window.setTimeout(playClip, settings.pause * 1000);
     }
 
@@ -112,6 +128,7 @@ export function useRussianAudio() {
     function playClip() {
       if (active.current !== session) return;
       const clip = playable[position];
+      clipStarted = false;
       update("loading");
       session.watchdog = window.setTimeout(() => finish("error"), 30000);
       const recording = bundledAudio(clip);
@@ -125,6 +142,7 @@ export function useRussianAudio() {
       const fallback = () => {
         if (active.current !== session || fallbackStarted) return;
         fallbackStarted = true;
+        clipStarted = false;
         media.onplaying = null;
         media.onended = null;
         media.onerror = null;

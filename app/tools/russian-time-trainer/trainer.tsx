@@ -27,6 +27,10 @@ const views = {
   progress: { en: "Progress", ru: "Прогресс" },
 } satisfies Record<string, Bilingual>;
 type View = keyof typeof views;
+const compactViews: Record<View, Bilingual> = {
+  audio: { en: "Studio", ru: "Аудио" }, daily: { en: "Plan", ru: "План" },
+  learn: views.learn, practice: views.practice, progress: views.progress,
+};
 
 const directionLabels: Record<PracticeDirection, Bilingual> = {
   "en-ru": { en: "English to Russian", ru: "С английского на русский" },
@@ -65,6 +69,7 @@ export default function RussianTimeTrainer({ storagePrefix }: { storagePrefix: s
   const translation = useContextTranslation(content);
   const speech = useRussianAudio();
   const [view, setView] = useState<View>("audio");
+  const [focusMode, setFocusMode] = useState(false);
   const [lessonId, setLessonId] = useState(timeLessons[0].id);
   const [direction, setDirection] = useState<PracticeDirection>("en-ru");
   const [question, setQuestion] = useState(0);
@@ -132,6 +137,7 @@ export default function RussianTimeTrainer({ storagePrefix }: { storagePrefix: s
     if (nextView === view) return;
     focusPending.current = focusContent;
     resetExercise(lesson, direction);
+    if (nextView !== "audio") setFocusMode(false);
     setView(nextView);
   }
 
@@ -173,7 +179,7 @@ export default function RussianTimeTrainer({ storagePrefix }: { storagePrefix: s
     heading.current?.focus();
   }
 
-  return <main lang="en" className={styles.shell}>
+  return <main lang="en" className={styles.shell} data-focus={focusMode ? "true" : undefined}>
     <header className={styles.topbar}>
       <div className={styles.topbarInner}>
         <Link href="/?view=applications" className={styles.back}>
@@ -193,15 +199,21 @@ export default function RussianTimeTrainer({ storagePrefix }: { storagePrefix: s
           <h1 id="rtt-title">Russian Time Trainer</h1>
           <p lang="ru" className={styles.heroTitleRu}>Время по-русски</p>
         </div>
+        {view === "audio" && <button type="button" className={styles.focusToggle} aria-pressed={focusMode} onClick={() => setFocusMode(value => !value)}>
+          <Pair text={focusMode ? { en: "Exit focus", ru: "Выйти из фокуса" } : { en: "Focus mode", ru: "Режим фокуса" }} />
+        </button>}
         {view === "learn" && featured.clock && <div className={styles.heroClock}>
           <Clock clock={featured.clock} />
           <div><time dateTime={featured.clock}>{featured.clock}</time><p><StudyWords text={featured.phrase.ru} language="ru" /></p></div>
         </div>}
       </section>
 
-      <nav className={styles.views} aria-label="Trainer sections">
+      <nav className={styles.views} aria-label="Trainer sections" hidden={focusMode}>
         {(Object.keys(views) as View[]).map(item => <button key={item} type="button" className={styles.tab}
-          aria-pressed={view === item} onClick={() => moveTo(item)}><Pair text={views[item]} /></button>)}
+          aria-label={views[item].en + " " + views[item].ru} aria-pressed={view === item} onClick={() => moveTo(item)}>
+          <span className={styles.tabFull}><Pair text={views[item]} /></span>
+          <span className={styles.tabShort}><Pair text={compactViews[item]} /></span>
+        </button>)}
       </nav>
 
       <div className={view === "audio" || view === "daily" ? styles.singleWorkspace : styles.workspace}>
