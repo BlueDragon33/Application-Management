@@ -633,10 +633,12 @@
       "currentMainSha": "739adcc7c4d516b8f4c90bc2ffa0e492f8837621",
       "candidateSha": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
       "mergedPr": 420,
-      "requiresScopedReview": true,
-      "g05Status": "UNVERIFIED_REBASELINE_REQUIRED",
+      "requiresScopedReview": false,
+      "g05Status": "MEASURED_NOT_ACCEPTED",
       "combinedTreeSha": "1fe24059faa2a878d6001d3b03e419263cf2a8cd",
-      "sourceCompatibility": "PASS_SOURCE_TREE_ONLY"
+      "sourceCompatibility": "PASS_SOURCE_TREE_ONLY",
+      "scopedRebaselineMeasured": true,
+      "scopedRebaselineTreeSha": "1fe24059faa2a878d6001d3b03e419263cf2a8cd"
     },
     "r23CurrentMainIntegrationSource": {
       "status": "PASS_SOURCE_TREE_ONLY",
@@ -649,6 +651,45 @@
       "runtimeQA": "NOT_RUN",
       "performanceRebaseline": "SCOPED_REQUIRED",
       "productionWrites": false
+    },
+    "r23G05CurrentMainCombined": {
+      "status": "MEASURED_NOT_ACCEPTED",
+      "baselineSha": "739adcc7c4d516b8f4c90bc2ffa0e492f8837621",
+      "pilotSha": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
+      "combinedTreeSha": "1fe24059faa2a878d6001d3b03e419263cf2a8cd",
+      "localQA": true,
+      "samplesTotal": 80,
+      "readbacks": 4,
+      "runCold": "https://github.com/BlueDragon33/Application-Management/actions/runs/45456890934",
+      "runWarm": "https://github.com/BlueDragon33/Application-Management/actions/runs/45458495250",
+      "coldRenderP50Ms": {
+        "main": 1323.34,
+        "integrated": 1328.34,
+        "deltaPct": 0.38
+      },
+      "coldRenderP95Ms": {
+        "main": 1368.65,
+        "integrated": 1377.44,
+        "deltaPct": 0.64
+      },
+      "warmRenderP50Ms": {
+        "main": 486.38,
+        "integrated": 483.56,
+        "deltaPct": -0.58
+      },
+      "warmRenderP95Ms": {
+        "main": 507.04,
+        "integrated": 540.15,
+        "deltaPct": 6.53
+      },
+      "warmApiP95Ms": {
+        "main": 33.35,
+        "integrated": 42.41,
+        "deltaPct": 27.17
+      },
+      "requestP50": 106,
+      "possibleRegression": "WARM_RENDER_P95_PLUS_6_53_PERCENT_AND_API_P95_PLUS_27_17_PERCENT_REQUIRE_INDEPENDENT_ACCEPTANCE",
+      "notProductionCertification": true
     }
   },
   "status": "R0_2_FOCUSED_WINDOWS_MEASURED_NOT_ACCEPTED_G05_UNVERIFIED",
@@ -1727,16 +1768,16 @@
   ],
   "activeNextAction": {
     "id": "R0.3",
-    "type": "CURRENT_MAIN_SCOPED_10_APP_G05_COMBINED_TREE_VALIDATION",
-    "state": "READY_QA_ONLY_NOT_RELEASE",
-    "why": "Exact Git merge-tree of current main PR420 739adcc7 and pilot PR419 9ed41b7 generated source tree 1fe24059, no conflicting paths and 7 exact source blobs PASS in one no-write GitHub run. Main now imports Russian Time Trainer in the central dashboard/tool launcher, so historical 360+40 performance results on old baseline do not qualify for current integrated candidate; Owner G04 UX approval remains strictly pinned to original pilot. G10 constitutional release authority=false and external proof pending, G11 R2.3 restore/rollback drill absent.",
-    "required": "ONE isolated GitHub-hosted current-main 10-app desktop (1440x900) paired Chromium + D1 local rebaseline against ephemeral combined source tree 1fe24059 (source pinned main/pilot); measure p50/p95 UI boot/paint, request, CPU/RSS with cold/warm labels, no duplicate prior suites. Record only PR414 ledger. Review true G10/G11 authority/rollback separately; do not publish.",
+    "type": "INDEPENDENT_G05_WARM_TAIL_THRESHOLD_REVIEW",
+    "state": "BLOCKED_UNTIL_INDEPENDENT_G05_ACCEPTANCE_AND_G10_G11_RELEASE_AUTHORITY",
+    "why": "Scoped 10-app 1440x900 current-main vs exact composite 1fe24059 QA has 40 cold + 40 warm genuine Chromium observations with 4 source-local D1 readbacks and no errors. Cold render p95 +0.64%; warm render p95 +6.53% and API p95 +27.17%; medians near parity. NoAutoPass and 20 sample p95 limits; prior 360/40 on old main preserved. Owner UX G04 approval applies to pilot SHA 9ed41b7 only; G10 Hub productionReleaseAuthority=false and G11 R2.3 rollback/restore proof absent.",
+    "required": "Review exact G05 warm/cold raw samples and published non-regression target/tolerance at verified integrated source tree; explicitly accept or order a minimal source-owned performance remediation for the measured warm tail. Do not declare G05 PASS merely because QA jobs completed. Keep G10/G11 separate and validate independent rollback/governance authority before release.",
     "expectedEvidence": [
-      "pinned source tree and actual browser/D1 request/paint/CPU/RSS sample report",
-      "G05 acceptance against current main if independently justified, not auto-pass",
-      "canonical independent G10 authority and R2.3-specific G11 restore/rollback evidence"
+      "independent G05 p95 threshold assessment with 20 samples/variant/mode and confidence limits",
+      "exact integration tree and baseline/pilot source provenance",
+      "if necessary minimal measured warm-tail fix with precise repeat rather than full 360/40 retest"
     ],
-    "fallback": "If scoped current-main QA is blocked or release gate unapproved, no merge/publish; keep PR419/PR414 Draft and G05/G10/G11 states unchanged; retain G04 Owner approval at original SHA.",
+    "fallback": "If G05 independent acceptance or source-owned fix is unavailable, keep G05/G10 UNVERIFIED, G11 BLOCKED, Draft PRs and Production unchanged; retain exact original G04 Owner UX approval.",
     "singleActionRule": true
   },
   "history": [
@@ -2883,6 +2924,189 @@
       "productionWrites": false,
       "singleNextAction": "Run exactly one narrowly scoped, isolated, order-balanced current-main 10-app desktop G05 benchmark comparing main SHA 739adcc7 to the verified ephemeral integration tree 1fe24059 using real Chromium and independent local D1. Record raw p50/p95/requests/render/CPU/RSS and test source identity; do not rerun 360/40 benchmark or change PR419 source/Owner approval.",
       "fallback": "If combined-tree runtime, benchmark, rollback/restore, governance or release authority remains missing, leave both PRs Draft, G05/G10 UNVERIFIED, G11 BLOCKED, Production untouched by R2.3."
+    },
+    {
+      "stepId": "R2.3",
+      "date": "2026-11-24",
+      "result": "CURRENT_MAIN_INTEGRATED_SOURCE_TREE_G05_80_SAMPLES_MEASURED_NOT_ACCEPTED_WARM_P95_6_53_PERCENT",
+      "constitution": "blueprint-os:universal-century-grade@1.3.0",
+      "source": {
+        "repository": "BlueDragon33/Application-Management",
+        "mainSha": "739adcc7c4d516b8f4c90bc2ffa0e492f8837621",
+        "pilotPr": 419,
+        "pilotSha": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
+        "integratedTreeSha": "1fe24059faa2a878d6001d3b03e419263cf2a8cd",
+        "integrationRun": "https://github.com/BlueDragon33/Application-Management/actions/runs/45442122294",
+        "candidateCommit": "EPHEMERAL_RUNNER_ONLY_NOT_RELEASE_SHA",
+        "ephemeralCommits": {
+          "cold": "803c86712b6b5f79d44d990dd696255ec675df31",
+          "warm": "86c66343a312a9b2b1f43472feadff153fafd0f6"
+        },
+        "codeOverlap": 0,
+        "sourceTreeVerification": "PASS_EXACT_SEVEN_BLOBS"
+      },
+      "performance": {
+        "scope": "CURRENT_MAIN_VS_VERIFIED_EPHEMERAL_MERGED_TREE_10_APPS_1440x900_ONLY",
+        "totalValidBrowserSamples": 80,
+        "perMode": 40,
+        "perVariantPerMode": 20,
+        "alternatingABBA": true,
+        "independentD1Readback": "4/4; baseline and merged each 10 records in both runs",
+        "candidateAndBaselineHttp200": "80/80",
+        "requestFailures": 0,
+        "jsErrors": 0,
+        "renderedGridCounts": "80/80",
+        "cold": {
+          "runId": 45456890934,
+          "runUrl": "https://github.com/BlueDragon33/Application-Management/actions/runs/45456890934",
+          "artifactId": 14952495069,
+          "mode": "FRESH_VITE_CHROMIUM_EACH_OBSERVATION",
+          "samples": 40,
+          "sourceLocalD1Readback": "2/2 TRUE 10 QA APPS",
+          "childJobStep": "PASS",
+          "runOverall": "FAIL_FROM_LATER_WARM_ASSERTION_NOT_COLD",
+          "p50RenderMs": {
+            "main": 1323.34,
+            "integrated": 1328.34,
+            "deltaPct": 0.38
+          },
+          "p95RenderMs": {
+            "main": 1368.65,
+            "integrated": 1377.44,
+            "deltaPct": 0.64
+          },
+          "p50BootstrapMs": {
+            "main": 1279.9,
+            "integrated": 1286.11
+          },
+          "p95BootstrapMs": {
+            "main": 1323.44,
+            "integrated": 1323.62
+          },
+          "p50ApiMs": {
+            "main": 59.98,
+            "integrated": 57.19
+          },
+          "p95ApiMs": {
+            "main": 70.47,
+            "integrated": 61.87
+          },
+          "requestCountP50": {
+            "main": 106,
+            "integrated": 106
+          },
+          "cpuSecondsP50": {
+            "main": 1.84,
+            "integrated": 1.84
+          },
+          "ownedRssMBP50": {
+            "main": 1535.32,
+            "integrated": 1533.7
+          },
+          "rendererTaskMsP50": {
+            "main": 294.04,
+            "integrated": 297.07
+          }
+        },
+        "warm": {
+          "runId": 45458495250,
+          "runUrl": "https://github.com/BlueDragon33/Application-Management/actions/runs/45458495250",
+          "artifactId": 14952500762,
+          "mode": "PERSISTENT_VITE_CHROMIUM_FRESH_BROWSER_CONTEXT_PER_OBSERVATION",
+          "samples": 40,
+          "sourceLocalD1Readback": "2/2 TRUE 10 QA APPS",
+          "childJobStep": "PASS",
+          "runOverall": "SUCCESS",
+          "p50RenderMs": {
+            "main": 486.38,
+            "integrated": 483.56,
+            "deltaPct": -0.58
+          },
+          "p95RenderMs": {
+            "main": 507.04,
+            "integrated": 540.15,
+            "deltaPct": 6.53
+          },
+          "p50BootstrapMs": {
+            "main": 439.17,
+            "integrated": 435.89
+          },
+          "p95BootstrapMs": {
+            "main": 466.1,
+            "integrated": 507.62
+          },
+          "p50ApiMs": {
+            "main": 25.32,
+            "integrated": 26.68
+          },
+          "p95ApiMs": {
+            "main": 33.35,
+            "integrated": 42.41,
+            "deltaPct": 27.17
+          },
+          "requestCountP50": {
+            "main": 106,
+            "integrated": 106
+          },
+          "cpuSecondsP50": {
+            "main": 0.97,
+            "integrated": 0.96
+          },
+          "ownedRssMBP50": {
+            "main": 2930.13,
+            "integrated": 2928.61
+          },
+          "rendererTaskMsP50": {
+            "main": 276.25,
+            "integrated": 270.47
+          }
+        },
+        "runArtifacts": {
+          "coldZipSha256": "297522920c159a597ef0db1b7d355660e71b83a45e7d0c422349f5fa7ac7400d",
+          "warmZipSha256": "NOT_ATTESTED_IN_CONNECTOR_LOG_CANNOT_INFER",
+          "combinedLocalZipSha256": "165e535d5c3c41df11f99d60c0aaea572e4357c00e4ad0b0c0d2b06f6ff64b23"
+        },
+        "firstWarmAttempt": {
+          "status": "RUN_FAILED_LAST_ASSERTION_ONLY",
+          "reason": "QA fixture was intentionally narrowed from 360 to 40 browser samples, old source assertion still expected 360. All 40 samples and independent D1 readbacks existed and their original failure/error are retained in original artifact.",
+          "correction": "Scope assertion fixed to require exactly 40; second run warm PASS, cold not rerun",
+          "originalRun": "https://github.com/BlueDragon33/Application-Management/actions/runs/45456890934",
+          "passedWarmRun": "https://github.com/BlueDragon33/Application-Management/actions/runs/45458495250"
+        },
+        "limitations": [
+          "GitHub-hosted ephemeral local D1 and Chromium, synthetic 10-app desktop fixtures only; not real Production throughput",
+          "Cold process restarts preserve OS disk/optimizer caches; warm uses persistent Vite and browser with new contexts",
+          "Render metric is complete grid plus two RAF proxy, not physical screen paint",
+          "Process CPU includes QA harness; RSS sums shared pages and is not per-application unique memory",
+          "p95 nearest rank among only 20 samples; warm candidate p95 +6.53% and API p95 +27.17% require independent review",
+          "No current-main 50/200 retest by explicit narrow scope; earlier 360+40 results remain valid for old main but not independently current-merged"
+        ],
+        "assessment": "G05_MEASURED_NOT_ACCEPTED_WARM_TAIL_INCREASE_UNRESOLVED; NO_AUTO_PASS"
+      },
+      "g04": {
+        "ownerUx": "APPROVED_PR419_PILOT_ONLY",
+        "ownerApprovedExactSha": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
+        "combinedTreeUI": "NOT_EXPLICITLY_OWNER_APPROVED_AT_NEW_MERGE_TREE; source BM/KT panels preserved"
+      },
+      "g10": {
+        "status": "UNVERIFIED",
+        "hubProductionReleaseAuthority": false,
+        "canonicalIndependentAttestation": "MISSING"
+      },
+      "g11": {
+        "status": "BLOCKED_DEPENDENCIES",
+        "r23SpecificRestoreRollbackDrill": "NOT_ATTESTED",
+        "rollout": "NOT_AUTHORIZED"
+      },
+      "release": {
+        "merge": false,
+        "publish": false,
+        "productionWrites": false,
+        "productionD1Writes": false,
+        "zeroSpend": true
+      },
+      "singleNextAction": "Independent G05 evidence review at current-main integrated tree: classify +6.53% warm render p95 (+27.17% API p95) against explicit target/tolerance, decide scoped fix or acceptance, with exact raw 20 sample datasets and ABBA order; do not auto-PASS. G10/G11 stay separate protected gates.",
+      "fallback": "If performance tolerance/independent G05 authority cannot be demonstrated, preserve Draft #419/#414, prior Owner UX approval, G05/G10 UNVERIFIED and G11 BLOCKED; Production untouched."
     }
   ],
   "assessment": {
@@ -3509,6 +3733,26 @@
           "pilotSha": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
           "combinedTreeSha": "1fe24059faa2a878d6001d3b03e419263cf2a8cd",
           "artifactId": 14943721420
+        },
+        {
+          "kind": "CURRENT_MAIN_EXACT_INTEGRATED_TREE_G05_WARM_COLD",
+          "sourceTree": "1fe24059faa2a878d6001d3b03e419263cf2a8cd",
+          "mainSha": "739adcc7c4d516b8f4c90bc2ffa0e492f8837621",
+          "pilotSha": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
+          "runCold": "https://github.com/BlueDragon33/Application-Management/actions/runs/45456890934",
+          "runWarm": "https://github.com/BlueDragon33/Application-Management/actions/runs/45458495250",
+          "coldSamples": 40,
+          "warmSamples": 40,
+          "coldStage": "PASS",
+          "warmStage": "PASS",
+          "overallG05": "MEASURED_NOT_ACCEPTED",
+          "coldRenderP95DeltaPct": 0.64,
+          "warmRenderP95DeltaPct": 6.53,
+          "warmApiP95DeltaPct": 27.17,
+          "coldArtifactId": 14952495069,
+          "warmArtifactId": 14952500762,
+          "scope": "10 APPS DESKTOP ONLY",
+          "noAutoPass": true
         }
       ],
       "exactSha": null,
@@ -3760,7 +4004,7 @@
       "pr": 419,
       "branch": "feat/boi-owner-client-admin-shell-20261123",
       "sourceSha": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
-      "sourceStatus": "DRAFT_PILOT_OWNER_G04_UX_APPROVED_SOURCE_TREE_POST_PR420_PASS_G05_SCOPED_REBASELINE_AND_G10_G11_PENDING",
+      "sourceStatus": "DRAFT_OWNER_G04_UX_APPROVED_CURRENT_MAIN_INTEGRATED_80_SAMPLE_G05_MEASURED_NOT_ACCEPTED_G10_G11_GATED",
       "apps": [
         "bauman-master-ai",
         "price-report-tunggiabao"
@@ -3773,96 +4017,185 @@
       "lastScopedQa": {
         "stepId": "R2.3",
         "date": "2026-11-24",
-        "result": "POST_PR420_EXACT_SOURCE_TREE_COMPATIBLE_G05_NARROW_REBASELINE_REQUIRED_G10_G11_NOT_AUTHORIZED",
+        "result": "CURRENT_MAIN_INTEGRATED_SOURCE_TREE_G05_80_SAMPLES_MEASURED_NOT_ACCEPTED_WARM_P95_6_53_PERCENT",
         "constitution": "blueprint-os:universal-century-grade@1.3.0",
-        "inputs": {
+        "source": {
           "repository": "BlueDragon33/Application-Management",
           "mainSha": "739adcc7c4d516b8f4c90bc2ffa0e492f8837621",
-          "pr420MergeSha": "739adcc7c4d516b8f4c90bc2ffa0e492f8837621",
-          "oldG05BaselineSha": "89a89ce2d3d8ed634ee9562c52744a99223a2b2a",
           "pilotPr": 419,
           "pilotSha": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
-          "ledgerPr": 414
+          "integratedTreeSha": "1fe24059faa2a878d6001d3b03e419263cf2a8cd",
+          "integrationRun": "https://github.com/BlueDragon33/Application-Management/actions/runs/45442122294",
+          "candidateCommit": "EPHEMERAL_RUNNER_ONLY_NOT_RELEASE_SHA",
+          "ephemeralCommits": {
+            "cold": "803c86712b6b5f79d44d990dd696255ec675df31",
+            "warm": "86c66343a312a9b2b1f43472feadff153fafd0f6"
+          },
+          "codeOverlap": 0,
+          "sourceTreeVerification": "PASS_EXACT_SEVEN_BLOBS"
         },
-        "compatibility": {
-          "kind": "SOURCE_ONLY_EXACT_GIT_MERGE_TREE_CHECK_NON_MUTATING",
-          "run": "https://github.com/BlueDragon33/Application-Management/actions/runs/45442122294",
-          "artifactId": 14943721420,
-          "artifactName": "r23-pr420-pr419-merge-tree-proof",
-          "artifactZipSha256": "47595726aca2d1a5b873e6696410ae2281181a22409c3a28cd31b12c234dce39",
-          "runConclusion": "SUCCESS",
-          "result": "PASS_SOURCE_TREE_ONLY",
-          "combinedTreeSha": "1fe24059faa2a878d6001d3b03e419263cf2a8cd",
-          "filesChangedByMainPr420": 14,
-          "filesChangedByPilotPr419": 16,
-          "overlappingPaths": 0,
-          "verified": [
-            "app/management-dashboard-v2.tsx retains main 739adcc7 blob",
-            "app/application-hub.tsx retains main 739adcc7 blob",
-            "app/tools/russian-time-trainer/tool-entry.ts retains main 739adcc7 blob",
-            "app/application-admin.module.css retains pilot 9ed41b7 blob",
-            "app/apps/bauman-master-ai/bauman-admin.tsx retains pilot 9ed41b7 blob",
-            "app/apps/price-report-tunggiabao/price-report-admin.tsx retains pilot 9ed41b7 blob",
-            "app/components/client-admin-shell.tsx retains pilot 9ed41b7 blob"
+        "performance": {
+          "scope": "CURRENT_MAIN_VS_VERIFIED_EPHEMERAL_MERGED_TREE_10_APPS_1440x900_ONLY",
+          "totalValidBrowserSamples": 80,
+          "perMode": 40,
+          "perVariantPerMode": 20,
+          "alternatingABBA": true,
+          "independentD1Readback": "4/4; baseline and merged each 10 records in both runs",
+          "candidateAndBaselineHttp200": "80/80",
+          "requestFailures": 0,
+          "jsErrors": 0,
+          "renderedGridCounts": "80/80",
+          "cold": {
+            "runId": 45456890934,
+            "runUrl": "https://github.com/BlueDragon33/Application-Management/actions/runs/45456890934",
+            "artifactId": 14952495069,
+            "mode": "FRESH_VITE_CHROMIUM_EACH_OBSERVATION",
+            "samples": 40,
+            "sourceLocalD1Readback": "2/2 TRUE 10 QA APPS",
+            "childJobStep": "PASS",
+            "runOverall": "FAIL_FROM_LATER_WARM_ASSERTION_NOT_COLD",
+            "p50RenderMs": {
+              "main": 1323.34,
+              "integrated": 1328.34,
+              "deltaPct": 0.38
+            },
+            "p95RenderMs": {
+              "main": 1368.65,
+              "integrated": 1377.44,
+              "deltaPct": 0.64
+            },
+            "p50BootstrapMs": {
+              "main": 1279.9,
+              "integrated": 1286.11
+            },
+            "p95BootstrapMs": {
+              "main": 1323.44,
+              "integrated": 1323.62
+            },
+            "p50ApiMs": {
+              "main": 59.98,
+              "integrated": 57.19
+            },
+            "p95ApiMs": {
+              "main": 70.47,
+              "integrated": 61.87
+            },
+            "requestCountP50": {
+              "main": 106,
+              "integrated": 106
+            },
+            "cpuSecondsP50": {
+              "main": 1.84,
+              "integrated": 1.84
+            },
+            "ownedRssMBP50": {
+              "main": 1535.32,
+              "integrated": 1533.7
+            },
+            "rendererTaskMsP50": {
+              "main": 294.04,
+              "integrated": 297.07
+            }
+          },
+          "warm": {
+            "runId": 45458495250,
+            "runUrl": "https://github.com/BlueDragon33/Application-Management/actions/runs/45458495250",
+            "artifactId": 14952500762,
+            "mode": "PERSISTENT_VITE_CHROMIUM_FRESH_BROWSER_CONTEXT_PER_OBSERVATION",
+            "samples": 40,
+            "sourceLocalD1Readback": "2/2 TRUE 10 QA APPS",
+            "childJobStep": "PASS",
+            "runOverall": "SUCCESS",
+            "p50RenderMs": {
+              "main": 486.38,
+              "integrated": 483.56,
+              "deltaPct": -0.58
+            },
+            "p95RenderMs": {
+              "main": 507.04,
+              "integrated": 540.15,
+              "deltaPct": 6.53
+            },
+            "p50BootstrapMs": {
+              "main": 439.17,
+              "integrated": 435.89
+            },
+            "p95BootstrapMs": {
+              "main": 466.1,
+              "integrated": 507.62
+            },
+            "p50ApiMs": {
+              "main": 25.32,
+              "integrated": 26.68
+            },
+            "p95ApiMs": {
+              "main": 33.35,
+              "integrated": 42.41,
+              "deltaPct": 27.17
+            },
+            "requestCountP50": {
+              "main": 106,
+              "integrated": 106
+            },
+            "cpuSecondsP50": {
+              "main": 0.97,
+              "integrated": 0.96
+            },
+            "ownedRssMBP50": {
+              "main": 2930.13,
+              "integrated": 2928.61
+            },
+            "rendererTaskMsP50": {
+              "main": 276.25,
+              "integrated": 270.47
+            }
+          },
+          "runArtifacts": {
+            "coldZipSha256": "297522920c159a597ef0db1b7d355660e71b83a45e7d0c422349f5fa7ac7400d",
+            "warmZipSha256": "NOT_ATTESTED_IN_CONNECTOR_LOG_CANNOT_INFER",
+            "combinedLocalZipSha256": "165e535d5c3c41df11f99d60c0aaea572e4357c00e4ad0b0c0d2b06f6ff64b23"
+          },
+          "firstWarmAttempt": {
+            "status": "RUN_FAILED_LAST_ASSERTION_ONLY",
+            "reason": "QA fixture was intentionally narrowed from 360 to 40 browser samples, old source assertion still expected 360. All 40 samples and independent D1 readbacks existed and their original failure/error are retained in original artifact.",
+            "correction": "Scope assertion fixed to require exactly 40; second run warm PASS, cold not rerun",
+            "originalRun": "https://github.com/BlueDragon33/Application-Management/actions/runs/45456890934",
+            "passedWarmRun": "https://github.com/BlueDragon33/Application-Management/actions/runs/45458495250"
+          },
+          "limitations": [
+            "GitHub-hosted ephemeral local D1 and Chromium, synthetic 10-app desktop fixtures only; not real Production throughput",
+            "Cold process restarts preserve OS disk/optimizer caches; warm uses persistent Vite and browser with new contexts",
+            "Render metric is complete grid plus two RAF proxy, not physical screen paint",
+            "Process CPU includes QA harness; RSS sums shared pages and is not per-application unique memory",
+            "p95 nearest rank among only 20 samples; warm candidate p95 +6.53% and API p95 +27.17% require independent review",
+            "No current-main 50/200 retest by explicit narrow scope; earlier 360+40 results remain valid for old main but not independently current-merged"
           ],
-          "limits": "This PASS attests source-tree synthesis and 7 exact blob invariants only; NO candidate build, bundled runtime, authenticated E2E on combined tree or current-main performance benchmark. It is not an official merge, new release commit or Production modification."
+          "assessment": "G05_MEASURED_NOT_ACCEPTED_WARM_TAIL_INCREASE_UNRESOLVED; NO_AUTO_PASS"
         },
         "g04": {
-          "ownerDecision": "APPROVED",
-          "scope": "BM/KT pilot UX 1440x900 800x900 390x844 at exact PR419 SHA",
-          "exactOwnerApprovedSha": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
-          "pilotStatus": "OWNER_UX_APPROVED_TECHNICAL_QA_PASS",
-          "otherAppApproval": "NOT_GRANTED",
-          "combinedTreeImpact": "PR420 additions are in central dashboard and application-hub; original pilot app UI source blobs retained, but combined-tree navigation not yet runtime-tested",
-          "canonicalProjectGate": "UNVERIFIED",
-          "notReleaseAuthorization": true
-        },
-        "g05": {
-          "result": "REBASELINE_REQUIRED_FOR_CURRENT_MAIN_BUT_SCOPED",
-          "historicalProof": [
-            "https://github.com/BlueDragon33/Application-Management/actions/runs/45344470024",
-            "https://github.com/BlueDragon33/Application-Management/actions/runs/45407829546"
-          ],
-          "historicalSamples": 400,
-          "historicalSourceBaseSha": "89a89ce2d3d8ed634ee9562c52744a99223a2b2a",
-          "currentBaseline": "739adcc7c4d516b8f4c90bc2ffa0e492f8837621",
-          "targetSourceTree": "1fe24059faa2a878d6001d3b03e419263cf2a8cd",
-          "reason": "Russian Time Trainer is now imported into management-dashboard-v2.tsx and registered in application-hub.tsx; may affect client bootstrap and launcher tool-card count although PR419 changed no overlapping files. Historical exact-SHA 360+40 remains valid for its old source pair, not for current integrated baseline.",
-          "minimumMeasurement": "ONE 10-app 1440x900 scoped current main vs ephemeral combined-tree exact-source Chromium/D1-local paired bootstrap/render/HTTP request/CPU/RSS sample set. Pin main and pilot SHA, attest combined tree, preserve native source readback. Use repeated paired samples with p50/p95 and cold/warm labeling; do not rerun unchanged 360/40 suite, do not treat exploratory values as Production benchmark.",
-          "gateStatus": "UNVERIFIED"
+          "ownerUx": "APPROVED_PR419_PILOT_ONLY",
+          "ownerApprovedExactSha": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
+          "combinedTreeUI": "NOT_EXPLICITLY_OWNER_APPROVED_AT_NEW_MERGE_TREE; source BM/KT panels preserved"
         },
         "g10": {
-          "result": "UNVERIFIED_GOVERNANCE_EXACT_COMBINED_SHA_AND_INDEPENDENT_AUTHORITY",
-          "canonicalConstitutionVersion": "1.3.0",
+          "status": "UNVERIFIED",
           "hubProductionReleaseAuthority": false,
-          "externalIndependentReview": "PENDING",
-          "reason": "Application PR419 fast CI/Constitution PASS and 7-blob source integration do not satisfy seven-pillar attestation at a ratified release revision, grant independent review or create Production release authority.",
-          "otherNote": "PR414 gate list is PROJECT_ACCEPTANCE_CHECKLIST_NOT_CANONICAL; no project checklist status can overwrite canonical gate."
+          "canonicalIndependentAttestation": "MISSING"
         },
         "g11": {
-          "result": "BLOCKED_DEPENDENCIES_NOT_A_ROLLBACK_DRILL",
-          "existingSource": "docs/CLOUDFLARE_PRODUCTION_RUNBOOK.md and .github/workflows/deploy-application-management-production.yml; scripts/inspect-production-readiness.mjs",
-          "recentProductionUnrelated": {
-            "run": "https://github.com/BlueDragon33/Application-Management/actions/runs/45409920520",
-            "sha": "739adcc7c4d516b8f4c90bc2ffa0e492f8837621",
-            "result": "DEPLOY_PRODUCTION_SUCCESS_AND_EXACT_REVISION_READBACK_FOR_MAIN_ONLY",
-            "notPr419Release": true,
-            "productionReadinessArtifactId": 14928210363
-          },
-          "missing": "R2.3 staged per-app rollout rehearsal, independently observed rollback/restore drill, post-release observations with no P0/P1, exact approved release revision and separated G10 authority.",
-          "note": "A successful main production deployment or pre-release inspection cannot be repurposed as pilot PR419 rollback/restore acceptance."
+          "status": "BLOCKED_DEPENDENCIES",
+          "r23SpecificRestoreRollbackDrill": "NOT_ATTESTED",
+          "rollout": "NOT_AUTHORIZED"
         },
-        "gateStates": {
-          "G04": "UNVERIFIED",
-          "G04OwnerPilot": "APPROVED",
-          "G05": "UNVERIFIED",
-          "G10": "UNVERIFIED",
-          "G11": "BLOCKED_DEPENDENCIES",
-          "release": "BLOCKED_NO_AUTHORITY_NO_MERGE_NO_PUBLISH"
+        "release": {
+          "merge": false,
+          "publish": false,
+          "productionWrites": false,
+          "productionD1Writes": false,
+          "zeroSpend": true
         },
-        "productionWrites": false,
-        "singleNextAction": "Run exactly one narrowly scoped, isolated, order-balanced current-main 10-app desktop G05 benchmark comparing main SHA 739adcc7 to the verified ephemeral integration tree 1fe24059 using real Chromium and independent local D1. Record raw p50/p95/requests/render/CPU/RSS and test source identity; do not rerun 360/40 benchmark or change PR419 source/Owner approval.",
-        "fallback": "If combined-tree runtime, benchmark, rollback/restore, governance or release authority remains missing, leave both PRs Draft, G05/G10 UNVERIFIED, G11 BLOCKED, Production untouched by R2.3."
+        "singleNextAction": "Independent G05 evidence review at current-main integrated tree: classify +6.53% warm render p95 (+27.17% API p95) against explicit target/tolerance, decide scoped fix or acceptance, with exact raw 20 sample datasets and ABBA order; do not auto-PASS. G10/G11 stay separate protected gates.",
+        "fallback": "If performance tolerance/independent G05 authority cannot be demonstrated, preserve Draft #419/#414, prior Owner UX approval, G05/G10 UNVERIFIED and G11 BLOCKED; Production untouched."
       },
       "ownerUxAcceptance": {
         "decision": "APPROVED",
