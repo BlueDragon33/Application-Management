@@ -1,0 +1,98 @@
+import assert from "node:assert/strict";
+export async function verifyTrainerV61(origin, { makeContext, pass, screenshot }) {
+  const context = await makeContext(origin, { viewport: { width: 1440, height: 900 } });
+  const page = await context.newPage();
+  const errors = [];
+  page.on("pageerror", error => errors.push(error.message));
+  const mode = page.getByRole("combobox", { name: /Training mode/ });
+  const choice = name => page.getByRole("group", { name: "Adaptive answer choices" }).getByRole("button", { name, exact: true });
+  const progress = page.getByRole("button", { name: "Progress Прогресс", exact: true });
+  const studio = page.getByRole("button", { name: "Audio practice Аудиотренировка", exact: true });
+  const theme = page.getByRole("button", { name: /Dark mode/ });
+  const reveal = page.getByRole("button", { name: /Reveal response choices/ });
+  const next = page.getByRole("button", { name: /Next task/ });
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "speechSynthesis", { value: { getVoices: () => [], cancel() {} } });
+  });
+  try {
+    assert.equal((await page.goto(origin + "/tools/russian-time-trainer")).status(), 200);
+    await page.getByRole("heading", { name: "Russian Time Trainer", exact: true }).waitFor();
+    const focus = page.getByRole("button", { name: /Focus mode/ });
+    await focus.click();
+    assert.equal(await page.getByRole("navigation", { name: "Trainer sections" }).isVisible(), false);
+    await page.getByRole("button", { name: /Exit focus/ }).click();
+    await page.getByRole("navigation", { name: "Trainer sections" }).waitFor();
+    await theme.click();
+    assert.equal(await page.locator("main").getAttribute("data-theme"), "dark");
+    const contrast = await page.getByRole("button", { name: /Play word or phrase/ }).evaluate(element => {
+      const style = getComputedStyle(element);
+      const lum = value => {
+        const channels = value.match(/[\d.]+/g).slice(0, 3).map(Number).map(n => n / 255)
+          .map(n => n <= 0.04045 ? n / 12.92 : ((n + 0.055) / 1.055) ** 2.4);
+        return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+      };
+      const a = lum(style.color), b = lum(style.backgroundColor);
+      return (Math.max(a,b)+0.05)/(Math.min(a,b)+0.05);
+    });
+    assert.ok(contrast >= 4.5, "Dark player contrast " + contrast);
+    await screenshot(page, "v61-dark-studio");
+    await theme.click();
+    await page.getByRole("button", { name: /Reveal text/ }).click();
+    await page.getByText("Knowledge connections", { exact: false }).click();
+    await page.getByRole("button", { name: /за́втра.*Related context|за́втра.*Next/ }).click();
+    await page.getByRole("button", { name: /Play word or phrase/ }).and(page.locator(":focus")).waitFor();
+    pass("V6.1 focus mode, dark theme contrast and canonical knowledge-link focus", { contrast });
+    await mode.selectOption("context");
+    await choice("за́втра").click();
+    await page.getByRole("status").filter({ hasText: "Correct choice" }).waitFor();
+    await next.click();
+    await reveal.click();
+    await choice("Мы встре́тились вчера́.").click();
+    const feedback = page.getByRole("status").filter({ hasText: "Your answer" });
+    await feedback.waitFor();
+    assert.match(await feedback.innerText(), /Your answer[^\n]*Мы встре́тились вчера́/);
+    assert.match(await feedback.innerText(), /Model answer[^\n]*Дава́й встре́тимся за́втра/);
+    await screenshot(page, "v61-error-feedback");
+    await page.getByRole("button", { name: /Try again/ }).click();
+    await reveal.click();
+    await choice("Дава́й встре́тимся за́втра.").click();
+    await page.getByRole("button", { name: /I needed help/ }).click();
+    await next.click();
+    await page.getByText("Во ско́лько?", { exact: true }).waitFor();
+    await reveal.click();
+    await choice("В де́вять часо́в.").click();
+    await page.getByRole("status").filter({ hasText: "Correct choice" }).waitFor();
+    await progress.click();
+    await page.getByText("Personal errors", { exact: false }).click();
+    await page.getByText("Corrected / Исправлено").waitFor();
+    await theme.click();
+    await page.reload();
+    await page.waitForFunction(() => document.querySelector("main")?.getAttribute("data-theme") === "dark");
+    await progress.click();
+    await page.getByText("Personal errors", { exact: false }).click();
+    await page.getByText("Corrected / Исправлено").waitFor();
+    assert.equal(await page.getByRole("progressbar", { name: "Conversation Lab" }).getAttribute("value"), "3");
+    pass("V6.1 prerequisite, wrong answer/model separation, follow-up, corrected errors, theme and real reload persistence");
+    await studio.click();
+    await mode.selectOption("sound");
+    const options = page.getByRole("group", { name: "Adaptive answer choices" }).getByRole("button");
+    assert.equal(await options.count(), 2);
+    assert.ok(await options.first().isDisabled() && await options.last().isDisabled());
+    await page.getByRole("button", { name: /Play sound/ }).click();
+    await page.getByRole("status").filter({ hasText: "No Russian device voice" }).waitFor();
+    assert.ok(await options.first().isDisabled() && await options.last().isDisabled());
+    await page.getByRole("button", { name: /Skip for now/ }).click();
+    await page.getByRole("group", { name: "Adaptive answer choices" }).waitFor();
+    pass("V6.1 blind sound challenge remains locked without a local Russian voice; skip does not award results", { voiceAvailability: "forced unavailable negative-path test", humanAudioQuality: "UNVERIFIED" });
+    for (const width of [320, 390, 768, 1024, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      const metrics = await page.evaluate(() => ({ w: document.documentElement.scrollWidth, v: document.documentElement.clientWidth }));
+      assert.ok(metrics.w <= width && metrics.v <= width, JSON.stringify(metrics));
+    }
+    assert.deepEqual(errors, []);
+    pass("V6.1 adaptive screen 320–1440px no horizontal overflow and no page errors");
+  } catch (error) {
+    await screenshot(page, "v61-failure").catch(() => {});
+    throw error;
+  } finally { await context.close(); }
+}

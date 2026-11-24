@@ -164,11 +164,12 @@ function Exercise({ form, mode, speech, hidden, heard, choiceSeed, onResult, onS
       <p><StudyWords text={form.group.example.en} language="en" /></p>
       <details className={styles.knowledge}>
         <summary>Knowledge connections <span lang="ru">Связи знаний</span></summary>
+        <div className={styles.knowledgeRoot}><strong lang="ru">{form.stressed}</strong><small>{form.en}</small></div>
         <ul className={styles.knowledgeLinks}>
           {knowledgeLinks(form.id).map(link => {
             const target = calendarForms.find(item => item.id === link.id);
             if (!target) return null;
-            return <li key={link.id}><button type="button" className={styles.control} onClick={() => onSelect(target.id)}>
+            return <li key={link.id} data-relation={link.relation}><button type="button" className={styles.control} onClick={() => onSelect(target.id)}>
               <span lang="ru">{target.stressed}</span><small><Pair text={relationLabels[link.relation]} /></small>
             </button></li>;
           })}
@@ -361,7 +362,12 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
     <details className={styles.knowledge}><summary>Personal errors <span lang="ru">Личные ошибки</span></summary>
       <ul className={styles.progressList}>{adaptiveTasks.filter(task => (memoryEntry(entries, task.id, task.skill)?.evidence?.wrongAttempts ?? 0) > 0).map(task => {
         const evidence = memoryEntry(entries, task.id, task.skill)!.evidence!;
-        return <li key={task.id}><span><Pair text={task.title} /><small>{evidence.correct ? "Corrected / Исправлено" : "Review needed / Нужно повторить"}</small></span>
+        return <li key={task.id}><div><Pair text={task.title} /><small>{evidence.correct ? "Corrected / Исправлено" : "Review needed / Нужно повторить"}</small>
+          {evidence.lastWrongChoice !== undefined && <details className={styles.knowledge}><summary>Error detail <span lang="ru">Ошибка</span></summary>
+            <p>Previous choice <span lang="ru">Предыдущий выбор</span>: <StudyWords text={task.options[evidence.lastWrongChoice].ru} language="ru" /></p>
+            <p>Model <span lang="ru">Образец</span>: <StudyWords text={task.options[task.correct].ru} language="ru" /></p>
+            <p><Pair text={task.rule} /></p>
+          </details>}</div>
           <span>{evidence.wrongAttempts} <span lang="ru">ошибок</span></span>
           <button type="button" className={styles.control} disabled={!adaptiveEligible(task, entries)} onClick={() => { setMode(task.skill); setLabId(task.id); resetExercise(); openAudio(); }}>Practice <span lang="ru">Повторить</span></button></li>;
       })}</ul>
@@ -437,7 +443,12 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
     </div>}
     {exerciseMode && <section className={styles.player} aria-label="Audio player / Аудиоплеер">
       <p className={styles.playerMode}><Pair text={modes[exerciseMode]} /></p>
-      <p className={styles.playerHint}><Pair text={{ en: "Listen first. Reveal the text when you need it.", ru: "Сначала слушайте. Откройте текст при необходимости." }} /></p>
+      {(exerciseMode === "listen" || exerciseMode === "repeat") && <div className={styles.contextCue} aria-label="Context cue"><span aria-hidden="true">{group.cue}</span><Pair text={category} /></div>}
+      <p className={styles.playerHint}><Pair text={exerciseMode === "dictate" ? { en: "Listen, then type what you hear.", ru: "Прослушайте, затем напишите услышанное." } :
+        exerciseMode === "meaning" ? { en: "Listen, then choose the meaning.", ru: "Прослушайте, затем выберите значение." } :
+        exerciseMode === "speak" ? { en: "Say the phrase before listening to the model.", ru: "Произнесите фразу до прослушивания образца." } :
+        exerciseMode === "read" ? { en: "Read the phrase, then compare with the audio.", ru: "Прочитайте фразу и сравните со звуком." } :
+        { en: "Listen first. Reveal the text when you need it.", ru: "Сначала слушайте. Откройте текст при необходимости." }} /></p>
       <div className={styles.actions}>
         <button ref={playButton} type="button" className={styles.primary} onClick={() => {
           setHeardEpoch(null);
@@ -509,7 +520,9 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
       </div>
       <PronunciationStatus audio={speech.audio} id="topic" />
     </>}
-    {mode === "review" && !review && <p role="status"><Pair text={{ en: "Nothing is due. Practice a topic to add words to review.", ru: "Повторений пока нет. Потренируйте слова, чтобы добавить их на повторение." }} /></p>}
+    {mode === "review" && !review && <p role="status"><Pair text={due ?
+      { en: "A review remains due. Select Smart Review again later or choose another mode.", ru: "Есть отложенное повторение. Вернитесь к умному повторению позже или выберите другой режим." } :
+      { en: "Nothing is due. Practice a topic to add words to review.", ru: "Повторений пока нет. Потренируйте слова, чтобы добавить их на повторение." }} /></p>}
     {labMode && activeLab && <AdaptivePractice key={activeLab.id + ":" + round + ":" + sessionEpoch}
       task={activeLab} speech={speech} settings={settings} seed={round + sessionEpoch}
       onAnswer={updateLab} onSelfRecall={updateSelfRecall} onAdvance={advanceLab} onRetry={resetExercise} />}

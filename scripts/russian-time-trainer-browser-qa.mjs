@@ -532,6 +532,10 @@ try {
   console.log(JSON.stringify({ sha, node: process.version, browserVersion }));
   await withRuntime(true, async origin => {
     for (const [group, verify] of [
+      ["v61-adaptive", async origin => {
+        const { verifyTrainerV61 } = await import("./russian-time-trainer-v61-browser-qa.mjs");
+        await verifyTrainerV61(origin, { makeContext, pass, screenshot });
+      }],
       ["desktop", exerciseDesktop],
       ["mobile", exerciseMobile],
       ["speech-contract", checkAudioContract],

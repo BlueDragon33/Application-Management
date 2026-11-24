@@ -17,6 +17,7 @@ export default function AdaptivePractice({ task, speech, settings, seed, onAnswe
 }) {
   const [choice, setChoice] = useState<number | null>(null);
   const [heard, setHeard] = useState<AudioSource>();
+  const [answeredSource, setAnsweredSource] = useState<AudioSource>();
   const [reveal, setReveal] = useState(task.stage === "sound" || task.stage === "foundation");
   const [self, setSelf] = useState<boolean>();
   const sound = task.skill === "sound";
@@ -32,7 +33,7 @@ export default function AdaptivePractice({ task, speech, settings, seed, onAnswe
     <p><Pair text={task.goal} /></p>
     {sound ? <section className={styles.player} aria-label="Sound challenge / Звуковое задание">
       <p className={styles.playerMode}>Listen first <span lang="ru">Сначала слушайте</span></p>
-      <button type="button" className={styles.primary} onClick={() => {
+      <button type="button" className={styles.primary} disabled={choice !== null} onClick={() => {
         setHeard(undefined);
         speech.play(audioId, [{ id: task.id, ru: task.options[task.correct].ru.replaceAll("\u0301", "") }], { ...settings, repeats: 1 }, setHeard);
       }}>Play sound <span lang="ru">Слушать звук</span></button>
@@ -56,7 +57,12 @@ export default function AdaptivePractice({ task, speech, settings, seed, onAnswe
         {ordered.map(({ option, index }) => <button type="button" lang="ru" key={index} className={styles.choice}
           disabled={choice !== null || (sound && !heard)}
           data-result={choice === index ? correct ? "correct" : "incorrect" : undefined}
-          onClick={() => { if (choice === null && (!sound || heard) && onAnswer(index, Date.now(), sound ? heard : undefined)) setChoice(index); }}>
+          onClick={() => {
+            if (choice === null && (!sound || heard) && onAnswer(index, Date.now(), sound ? heard : undefined)) {
+              setAnsweredSource(sound ? heard : undefined);
+              setChoice(index);
+            }
+          }}>
           {option.ru}
         </button>)}
       </div>}
@@ -66,7 +72,14 @@ export default function AdaptivePractice({ task, speech, settings, seed, onAnswe
       <p>Model answer <span lang="ru">Образец ответа</span>: <StudyWords text={task.options[task.correct].ru} language="ru" /></p>
       <p><StudyWords text={task.options[task.correct].en} language="en" /> {task.options[task.correct].ipa && "[" + task.options[task.correct].ipa + "]"}</p>
       <p><Pair text={task.rule} /></p>
-      {sound && <p>Playback source: {heard === "device" ? "Device preview / Голос устройства" : heard === "prepared" ? "Prepared synthetic voice / Синтез" : "Recording / Запись"}</p>}
+      {sound && <>
+        <p>Playback source: {answeredSource === "device" ? "Device preview / Голос устройства" : answeredSource === "prepared" ? "Prepared synthetic voice / Синтез" : "Recording / Запись"}</p>
+        <div className={styles.actions}>{task.options.map((option, index) => <button type="button" key={index} className={styles.control}
+          onClick={() => speech.speak(task.id + "-compare-" + index, option.ru.replaceAll("\u0301", ""))}>
+          Listen: <span lang="ru">{option.ru}</span>
+        </button>)}</div>
+        {task.options.map((_, index) => <PronunciationStatus key={index} audio={speech.audio} id={task.id + "-compare-" + index} />)}
+      </>}
     </section>}
     {conversation && choice !== null && <section className={styles.rule}>
       <p>Self-report only · Самооценка</p>

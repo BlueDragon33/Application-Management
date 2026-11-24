@@ -81,7 +81,16 @@ function validEvidence(task: AdaptiveTask, entry: MemoryEntry) {
     (e.selfRecall === undefined || ((task.stage === "dialogue" || task.stage === "followup") && typeof e.selfRecall === "boolean"));
 }
 export function adaptiveEligible(task: AdaptiveTask, entries: Record<string, MemoryEntry>) {
-  return !task.requires || memoryEntry(entries, task.requires, "context")?.evidence?.correct === true;
+  const seen = new Set([task.id]);
+  let parent = task.requires;
+  while (parent) {
+    if (seen.has(parent) || memoryEntry(entries, parent, "context")?.evidence?.correct !== true) return false;
+    seen.add(parent);
+    const previous = adaptiveTask(parent);
+    if (!previous) return false;
+    parent = previous.requires;
+  }
+  return true;
 }
 export function recordAdaptiveAnswer(entries: Record<string, MemoryEntry>, id: string, choice: number, now: number,
   audioSource?: AudioSource, storage?: Pick<Storage, "setItem">, prefix = "") {
@@ -92,9 +101,10 @@ export function recordAdaptiveAnswer(entries: Record<string, MemoryEntry>, id: s
   const previous = entries[key];
   const correct = choice === task.correct;
   const next = scheduleReview(previous, correct, now);
+  const lastWrongChoice = correct ? previous?.evidence?.lastWrongChoice : choice;
   next.evidence = {
     choice, correct, wrongAttempts: (previous?.evidence?.wrongAttempts ?? 0) + Number(!correct),
-    lastWrongChoice: correct ? previous?.evidence?.lastWrongChoice : choice,
+    ...(lastWrongChoice !== undefined ? { lastWrongChoice } : {}),
     ...(audioSource ? { audioSource } : {}),
   };
   storage?.setItem(prefix + prefixVersion + key, JSON.stringify(next));

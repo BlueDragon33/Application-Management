@@ -70,6 +70,7 @@ export default function RussianTimeTrainer({ storagePrefix }: { storagePrefix: s
   const speech = useRussianAudio();
   const [view, setView] = useState<View>("audio");
   const [focusMode, setFocusMode] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
   const [sessionEpoch, setSessionEpoch] = useState(0);
   const [lessonId, setLessonId] = useState(timeLessons[0].id);
   const [direction, setDirection] = useState<PracticeDirection>("en-ru");
@@ -107,6 +108,10 @@ export default function RussianTimeTrainer({ storagePrefix }: { storagePrefix: s
     const cancelInitialization = scheduleClientInitialization(() => {
       const state = restore();
       if (state?.lessonId) setLessonId(state.lessonId);
+      try {
+        const preference = localStorage.getItem(storagePrefix + "appearance:v1");
+        if (preference === "dark" || preference === "light") setTheme(preference);
+      } catch { /* Appearance is session-only when storage is unavailable. */ }
     });
     const sync = (event: StorageEvent) => {
       if (event.key?.startsWith(storagePrefix)) restore();
@@ -184,7 +189,7 @@ export default function RussianTimeTrainer({ storagePrefix }: { storagePrefix: s
     heading.current?.focus();
   }
 
-  return <main lang="en" className={styles.shell} data-focus={focusMode ? "true" : undefined}>
+  return <main lang="en" className={styles.shell} data-focus={focusMode ? "true" : undefined} data-theme={theme}>
     <header className={styles.topbar}>
       <div className={styles.topbarInner}>
         <Link href="/?view=applications" className={styles.back}>
@@ -204,6 +209,12 @@ export default function RussianTimeTrainer({ storagePrefix }: { storagePrefix: s
           <h1 id="rtt-title">Russian Time Trainer</h1>
           <p lang="ru" className={styles.heroTitleRu}>Время по-русски</p>
         </div>
+        <div className={styles.heroActions}>
+          <button type="button" className={styles.focusToggle} aria-pressed={theme === "dark"} onClick={() => {
+            const next = theme === "dark" ? "light" : "dark";
+            setTheme(next);
+            try { localStorage.setItem(storagePrefix + "appearance:v1", next); } catch { /* Session preference remains usable. */ }
+          }}>Dark mode <span lang="ru">Тёмная тема</span></button>
         {view === "audio" && <button type="button" className={styles.focusToggle} aria-pressed={focusMode} onClick={() => setFocusMode(value => !value)}>
           <Pair text={focusMode ? { en: "Exit focus", ru: "Выйти из фокуса" } : { en: "Focus mode", ru: "Режим фокуса" }} />
         </button>}
@@ -211,6 +222,7 @@ export default function RussianTimeTrainer({ storagePrefix }: { storagePrefix: s
           <Clock clock={featured.clock} />
           <div><time dateTime={featured.clock}>{featured.clock}</time><p><StudyWords text={featured.phrase.ru} language="ru" /></p></div>
         </div>}
+        </div>
       </section>
 
       <nav className={styles.views} aria-label="Trainer sections" hidden={focusMode}>
