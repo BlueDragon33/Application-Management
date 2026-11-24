@@ -1,0 +1,127 @@
+name: R2.3 G05 Main vs Integrated Warm + Cold (local QA only)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/r23-g05-current-main-warm-cold.yml
+permissions:
+  contents: read
+concurrency:
+  group: r23-g05-main-merged-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  main-merged-rebaseline:
+    if: github.event_name == 'pull_request' && github.event.pull_request.number == 414
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      G05_MAIN_SHA: 739adcc7c4d516b8f4c90bc2ffa0e492f8837621
+      G05_BASE_SHA: 739adcc7c4d516b8f4c90bc2ffa0e492f8837621
+      G05_PILOT_SHA: 9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9
+      G05_INTEGRATED_TREE: 1fe24059faa2a878d6001d3b03e419263cf2a8cd
+      G05_PR: "414"
+      G05_TARGET_PR: "419"
+      WRANGLER_SEND_METRICS: "false"
+    steps:
+      - name: Checkout exact Draft QA ledger
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: One-shot gate: never benchmark on ledger follow-up commits
+        id: scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$(git log -1 --format=%s)" == "qa(r23): one-shot exact current-main 10-app warm-cold" ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "Ledger-only change: no extra runner benchmark."
+          fi
+      - name: Checkout exact current-main source with complete ancestry
+        if: steps.scope.outputs.run == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: 739adcc7c4d516b8f4c90bc2ffa0e492f8837621
+          path: r23-g05-baseline
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify expected main + pilot and construct QA-only merged tree
+        if: steps.scope.outputs.run == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C r23-g05-baseline rev-parse HEAD)" = "$G05_MAIN_SHA"
+          git -C r23-g05-baseline fetch --no-tags origin "$G05_PILOT_SHA"
+          actual_tree="$(git -C r23-g05-baseline merge-tree --write-tree "$G05_MAIN_SHA" "$G05_PILOT_SHA")"
+          if [[ "$actual_tree" != "$G05_INTEGRATED_TREE" ]]; then
+            echo "::error::Exact integrated source tree mismatch."
+            exit 1
+          fi
+          ephemeral_commit="$(printf 'Isolated G05 local merged tree; never push\n' | git -C r23-g05-baseline -c user.name='R23 QA' -c user.email='qa@example.test' commit-tree "$actual_tree" -p "$G05_MAIN_SHA" -p "$G05_PILOT_SHA")"
+          [[ "$ephemeral_commit" =~ ^[0-9a-f]{40}$ ]]
+          git -C r23-g05-baseline worktree add --detach ../r23-g05-candidate "$ephemeral_commit"
+          test "$(git -C r23-g05-candidate rev-parse HEAD^{tree})" = "$G05_INTEGRATED_TREE"
+          echo "G05_CANDIDATE_SHA=$ephemeral_commit" >> "$GITHUB_ENV"
+          echo "Ephemeral candidate is local to GitHub Actions only."
+          mkdir -p qa-artifacts/r23-g05-main-merged-provenance
+          printf '{"main":"%s","pilot":"%s","combinedTree":"%s","ephemeralCandidateCommit":"%s","noPush":true,"noProduction":true}\n' "$G05_MAIN_SHA" "$G05_PILOT_SHA" "$actual_tree" "$ephemeral_commit" > qa-artifacts/r23-g05-main-merged-provenance/source.json
+      - name: Set up Node22
+        if: steps.scope.outputs.run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+          cache: npm
+      - name: Install source-locked dependencies and real Chromium
+        if: steps.scope.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm ci --prefix r23-g05-baseline --no-audit --no-fund
+          npm ci --prefix r23-g05-candidate --no-audit --no-fund
+          npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.55.1
+          npx playwright install --with-deps chromium
+      - name: Generate narrowly scoped copies of previously proven 10-app QA runners
+        if: steps.scope.outputs.run == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object scripts/r23-g05-cold-start-10.mjs)" = "4e4c0b4738078f0efa96f607a56eff23854a77de"
+          test "$(git hash-object scripts/r23-g05-paired-benchmark.mjs)" = "07a1acc1d9c99fe4eb751d688eebf8e0015a044b"
+          python3 - <<'PY'
+          from pathlib import Path
+          def scoped(source_path, target_path, changes):
+              source=Path(source_path).read_text()
+              for old,new in changes:
+                  if source.count(old)!=1:
+                      raise RuntimeError(f"Refusing unrecognized QA source: {source_path}: {old[:50]}")
+                  source=source.replace(old,new)
+              Path(target_path).write_text(source)
+          scoped("scripts/r23-g05-cold-start-10.mjs", "scripts/.r23-main-merged-cold.mjs", [
+              ('path.join(root,"qa-artifacts","r23-g05-cold-start-10")', 'path.join(root,"qa-artifacts","r23-g05-main-merged-cold")')])
+          scoped("scripts/r23-g05-paired-benchmark.mjs", "scripts/.r23-main-merged-warm.mjs", [
+              ('path.join(root,"qa-artifacts","r23-g05-paired")', 'path.join(root,"qa-artifacts","r23-g05-main-merged-warm")'),
+              ('const counts=[10,50,200];', 'const counts=[10];'),
+              ('const viewports=[{name:"desktop",width:1440,height:900},{name:"tablet",width:800,height:900},{name:"mobile",width:390,height:844}];',
+               'const viewports=[{name:"desktop",width:1440,height:900}];')])
+          PY
+          node --check scripts/.r23-main-merged-cold.mjs
+          node --check scripts/.r23-main-merged-warm.mjs
+      - name: Cold process-start 20 ABBA pairs, local D1 independent readback
+        if: steps.scope.outputs.run == 'true'
+        run: node scripts/.r23-main-merged-cold.mjs
+      - name: Warm persistent-runtime 20 ABBA pairs, same pinned sources
+        if: steps.scope.outputs.run == 'true'
+        run: node scripts/.r23-main-merged-warm.mjs
+      - name: Save both raw reports even on blocker
+        if: always() && steps.scope.outputs.run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: r23-g05-current-main-merged-10-warm-cold
+          path: |
+            qa-artifacts/r23-g05-main-merged-provenance/
+            qa-artifacts/r23-g05-main-merged-cold/
+            qa-artifacts/r23-g05-main-merged-warm/
+          if-no-files-found: error
+          retention-days: 7
