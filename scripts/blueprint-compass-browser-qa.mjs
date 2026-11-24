@@ -1,0 +1,94 @@
+import assert from "node:assert/strict";
+
+/**
+ * Real Chromium + actual local APP route and components.
+ * GitHub response fixtures are deliberately intercepted: no private data,
+ * external Graph access, live-agent telemetry or production authority.
+ */
+export async function verifyBlueprintCompass(origin, { makeContext, pass, screenshot }) {
+  const route = "/tools/blueprint-compass";
+  const hub = "BlueDragon33/Software-Blueprint-Hub";
+  const manager = "BlueDragon33/Application-Management";
+  for (const width of [1440, 390]) {
+    const context = await makeContext(origin, { viewport: { width, height: 900 }, isMobile: width === 390, hasTouch: width === 390 });
+    const page = await context.newPage();
+    const errors = [];
+    let failReads = false;
+    page.on("pageerror", error => errors.push(error.message));
+    try {
+      await page.route("**/api/projects/repositories", request => request.fulfill({ json: { ok: true, unmanaged: [] } }));
+      await page.route("**/api/tools/blueprint-compass/hub-contract", request => request.fulfill({ json: {
+        ok: true, status: "HUB_GRAPH_NOT_EXPOSED", repository: hub,
+        source: "github-public-rest-pinned-contract", hubHead: "a".repeat(40),
+        contractBlobSha: "b".repeat(40), contractSchema: "application-management.contract/v1",
+        contractVersion: 1, canReadGraph: false, canWriteWorkPackages: false,
+        qaPassed: false, productionAuthorized: false, checkedAt: "2026-11-24T00:00:00Z",
+      } }));
+      await page.route("**/api/tools/blueprint-compass?*", async request => {
+        const id = new URL(request.request().url()).searchParams.get("id");
+        const repository = id === "software-blueprint-hub" ? hub : id === "application-management" ? manager : null;
+        if (!repository) return request.abort();
+        if (failReads) return request.abort();
+        return request.fulfill({ json: {
+          ok: true, repository, head: (repository === hub ? "a" : "b").repeat(40),
+          checkedAt: "2026-11-24T00:00:00Z", pullRequests: [], issues: [],
+          evidenceClass: "UNSIGNED_GITHUB_METADATA_ONLY", canonicalGateVerified: false,
+          humanReviewVerified: false, verdict: { status: "DRAFT_REVIEW", title: "Fixture " + id,
+            description: "Synthetic browser readback", nextStep: "Read source",
+            qaPassed: false, productionAuthorized: false },
+        } });
+      });
+      const response = await page.goto(origin + route);
+      assert.equal(response.status(), 200);
+      await page.getByRole("heading", { name: "Blueprint OS · Neural Command Center" }).waitFor();
+      const detail = page.locator("#compass-project-detail");
+      const graph = page.getByRole("region", { name: /Sơ đồ 5 dải/ });
+      const nodes = graph.locator('button[aria-controls="compass-project-detail"]');
+      const chosen = graph.locator('button[aria-pressed="true"]');
+      const guide = page.getByRole("button", { name: /Hướng dẫn/ }).first();
+      await detail.getByText("Fixture software-blueprint-hub", { exact: true }).waitFor();
+      await page.getByText("HUB_GRAPH_NOT_EXPOSED", { exact: false }).first().waitFor();
+      assert.ok(await nodes.count() > 2);
+      assert.equal(await chosen.count(), 1);
+      await guide.click();
+      await page.locator("#blueprint-tool-guide").waitFor({ state: "visible" });
+      await guide.click();
+      await page.locator("#blueprint-tool-guide").waitFor({ state: "hidden" });
+      const target = nodes.filter({ hasText: "Quản trị Ứng dụng" });
+      assert.equal(await target.count(), 1);
+      await target.focus();
+      await page.keyboard.press("Enter");
+      await detail.getByText("Fixture application-management", { exact: true }).waitFor();
+      assert.equal(await target.getAttribute("aria-pressed"), "true");
+      assert.equal(await chosen.count(), 1);
+      assert.equal(await page.locator("#neural-selected-readback li").count(), 4);
+      assert.match(await page.locator("#neural-selected-readback").innerText(), /Application-Management/);
+      const locate = page.getByRole("button", { name: /Đến node dự án/ });
+      await locate.click();
+      await target.and(page.locator(":focus")).waitFor();
+      const viewport = await graph.evaluate(element => {
+        const node = element.querySelector('button[aria-pressed="true"]');
+        return { left: element.scrollLeft, max: Math.max(0, element.scrollWidth - element.clientWidth),
+          expected: Math.max(0, Math.min(element.scrollWidth - element.clientWidth,
+            node.offsetLeft + node.offsetWidth / 2 - element.clientWidth / 2)),
+          documentWidth: document.documentElement.scrollWidth, viewportWidth: document.documentElement.clientWidth };
+      });
+      assert.ok(Math.abs(viewport.left - viewport.expected) <= 2, JSON.stringify(viewport));
+      assert.ok(viewport.documentWidth <= viewport.viewportWidth + 1, JSON.stringify(viewport));
+      await screenshot(page, "compass-" + width + "-selected");
+      pass("Blueprint Compass " + width + "px: real graph selection, four source edges, keyboard and locator, guide, bounded page", { githubFixture: true });
+      failReads = true;
+      await detail.getByRole("button", { name: /Đọc lại GitHub/ }).click();
+      await detail.getByRole("alert").waitFor();
+      assert.doesNotMatch(await detail.innerText(), /Fixture application-management/);
+      assert.match(await detail.innerText(), /UNVERIFIED/);
+      assert.deepEqual(errors, []);
+      pass("Blueprint Compass " + width + "px: failed refresh clears stale evidence and remains UNVERIFIED", { githubFixture: true });
+    } catch (error) {
+      await screenshot(page, "compass-" + width + "-failure").catch(() => {});
+      throw error;
+    } finally {
+      await context.close();
+    }
+  }
+}
