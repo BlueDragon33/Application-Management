@@ -1,3 +1,5 @@
+import { calendarGroups } from "./calendar-content";
+
 export type Bilingual = Readonly<{ en: string; ru: string }>;
 type StudyText = Bilingual & { vi: string };
 
@@ -149,12 +151,10 @@ export const timeLessons: readonly TimeLesson[] = [
         stressed: "По́езд отправля́ется в шесть со́рок.",
       },
     ],
-  },,
-{"id":"weekdays","title":{"en":"Days of the week","ru":"Дни недели"},"objective":{"en":"Learn the days of the week.","ru":"Учите дни недели.","vi":"Học các ngày trong tuần."},"rule":{"en":"Tuesday has devoicing.","ru":"Во вторнике оглушение.","vi":"Thứ Ba có hiện tượng vô thanh hóa."},"examples":[{"id":"weekdays-0","phrase":{"en":"Monday","ru":"понедельник","vi":"thứ Hai"},"stressed":"понеде́льник"},{"id":"weekdays-1","phrase":{"en":"Tuesday","ru":"вторник","vi":"thứ Ba"},"stressed":"вто́рник"},{"id":"weekdays-2","phrase":{"en":"Wednesday","ru":"среда","vi":"thứ Tư"},"stressed":"среда́"},{"id":"weekdays-3","phrase":{"en":"Thursday","ru":"четверг","vi":"thứ Năm"},"stressed":"четве́рг"},{"id":"weekdays-4","phrase":{"en":"Friday","ru":"пятница","vi":"thứ Sáu"},"stressed":"пя́тница"},{"id":"weekdays-5","phrase":{"en":"Saturday","ru":"суббота","vi":"thứ Bảy"},"stressed":"суббо́та"},{"id":"weekdays-6","phrase":{"en":"Sunday","ru":"воскресенье","vi":"Chủ nhật"},"stressed":"воскресе́нье"}]},{"id":"relative-days","title":{"en":"Relative days","ru":"Относительные даты"},"objective":{"en":"Learn relative days.","ru":"Учите относительные даты.","vi":"Học các ngày tương đối."},"rule":{"en":"Today has a special pronunciation.","ru":"Сегодня произносится особо.","vi":"Hôm nay có cách phát âm đặc biệt."},"examples":[{"id":"relative-days-0","phrase":{"en":"Yesterday","ru":"вчера","vi":"hôm qua"},"stressed":"вчера́"},{"id":"relative-days-1","phrase":{"en":"Today","ru":"сегодня","vi":"hôm nay"},"stressed":"сего́дня"},{"id":"relative-days-2","phrase":{"en":"Tomorrow","ru":"завтра","vi":"ngày mai"},"stressed":"за́втра"},{"id":"relative-days-3","phrase":{"en":"The day before yesterday","ru":"позавчера","vi":"hôm kia"},"stressed":"позавчера́"},{"id":"relative-days-4","phrase":{"en":"The day after tomorrow","ru":"послезавтра","vi":"ngày kia"},"stressed":"послеза́втра"}]}
+  },
 ];
 
 const wordGlosses: readonly (readonly [string, string])[] = [
-["learn|учите","học"],["days|дни","các ngày"],["week|недели","tuần"],["tuesday|вторнике","thứ Ba"],["has","có"],["devoicing|оглушение","vô thanh hóa"],["relative|относительные","tương đối"],["dates|даты","ngày tháng"],["today|сегодня","hôm nay"],["special|особо","đặc biệt"],["pronunciation|произносится","phát âm"],["in|во","trong"],["day","ngày"],["yesterday","hôm qua"],["tomorrow","ngày mai"],
   ["what|который", "gì, nào"], ["time|время|времени|временем", "thời gian hoặc giờ"],
   ["hour|hours|час", "giờ (số ít)"], ["часа", "giờ (dạng dùng sau 2, 3, 4)"], ["часов", "giờ (dạng số nhiều)"],
   ["is|has|are", "là, có"], ["it", "chủ ngữ giả trong câu chỉ giờ"], ["the|a|an", "mạo từ trong tiếng Anh"],
@@ -207,6 +207,13 @@ for (const [variants, meaning] of [...wordGlosses, ...phrases]) {
 }
 for (const lesson of timeLessons) {
   for (const entry of [lesson.objective, lesson.rule, ...lesson.examples.map(example => example.phrase)]) {
+    glossary.set(normalize(entry.en), entry.vi);
+    glossary.set(normalize(entry.ru), entry.vi);
+  }
+}
+
+for (const group of calendarGroups) {
+  for (const entry of [...group.forms, group.example]) {
     glossary.set(normalize(entry.en), entry.vi);
     glossary.set(normalize(entry.ru), entry.vi);
   }

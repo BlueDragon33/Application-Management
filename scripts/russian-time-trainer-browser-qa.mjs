@@ -70,6 +70,9 @@ const translate = page => page.getByRole("button", { name: "Translate Перев
 const help = page => page.getByRole("button", { name: "Help Помощь", exact: true });
 const translations = page => page.getByRole("dialog", { name: "Translation Перевод" });
 const examples = page => page.getByRole("region", { name: /Worked examples/ });
+const learn = page => page.getByRole("button", { name: "Learn Уроки", exact: true });
+const audioPractice = page => page.getByRole("button", { name: /Audio practice/ });
+const dayPlan = page => page.getByRole("button", { name: /14-day plan/ });
 const practice = page => page.getByRole("button", { name: "Practice Практика", exact: true });
 const progress = page => page.getByRole("button", { name: "Progress Прогресс", exact: true });
 const word = page => examples(page).locator("[data-study-word='Который']").first();
@@ -133,6 +136,7 @@ async function checkAudioContract(origin) {
   await speechPage.goto(origin + trainerPath);
   await speechPage.waitForFunction(() => document.documentElement.lang === "en");
   assert.ok(await speechPage.evaluate(() => speechSynthesis.getVoices().some(voice => voice.localService && voice.lang === "ru-RU")));
+  await learn(speechPage).click();
   await speechPage.getByRole("button", { name: "Listen: Который час?" }).click();
   await speechPage.getByRole("status").filter({ hasText: "Playing Russian audio." }).waitFor();
   assert.deepEqual(await speechPage.evaluate(() => window.trainerQASpeech), { text: "Который час?", lang: "ru-RU", local: true });
@@ -156,7 +160,8 @@ async function exerciseDesktop(origin) {
   await page.getByRole("heading", { name: "Russian Time Trainer", exact: true }).waitFor();
   await defaultLanguages(page);
   await noOverflow(page, 1440);
-  await screenshot(page, "desktop-immersion");
+  await screenshot(page, "desktop-audio-first");
+  await learn(page).click();
   pass("Desktop 1440×900 normal Tool launcher, default EN/RU and no overflow");
 
   await word(page).hover();
@@ -207,6 +212,8 @@ async function exerciseDesktop(origin) {
   assert.equal(await page.getByText("2/24", { exact: true }).count(), 2);
   await page.getByRole("button", { name: /^Half and quarter hours/ }).click();
   await page.reload();
+  await page.waitForFunction(() => document.documentElement.lang === "en");
+  await learn(page).click();
   await page.getByRole("button", { name: /^Half and quarter hours/ }).and(page.locator("[aria-current=step]")).waitFor();
   await progress(page).click();
   assert.equal(await page.getByText("2/24", { exact: true }).count(), 2);
@@ -257,7 +264,8 @@ async function exerciseMobile(origin) {
   await page.waitForFunction(() => document.documentElement.lang === "en");
   await defaultLanguages(page);
   await noOverflow(page, 390);
-  await screenshot(page, "mobile-immersion");
+  await screenshot(page, "mobile-audio-first");
+  await learn(page).tap();
 
   await word(page).tap();
   await defaultLanguages(page);
@@ -323,6 +331,146 @@ async function exerciseMobile(origin) {
   await phone.close();
 }
 
+async function exerciseAudioPractice(origin) {
+  const context = await makeContext(origin, { viewport: { width: 1440, height: 900 } });
+  await context.grantPermissions(["microphone"], { origin });
+  page = await context.newPage();
+  const errors = [];
+  const responses = [];
+  page.on("pageerror", error => errors.push(error.message));
+  page.on("response", response => {
+    if (response.url().endsWith("/today-1.mp3")) responses.push(response.status());
+  });
+  await page.addInitScript(() => {
+    window.trainerMedia = [];
+    document.addEventListener("playing", event => {
+      if (event.target instanceof HTMLAudioElement) {
+        window.trainerMedia.push({
+          rate: event.target.playbackRate, pitch: event.target.preservesPitch,
+          src: event.target.currentSrc, duration: event.target.duration, timestamp: performance.now(),
+        });
+      }
+    }, true);
+    const Play = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function () {
+      // The trainer uses a detached Audio element. Subscribe on the same real element without replacing its media API.
+      if (!this.isConnected) this.addEventListener("playing", () => {
+        window.trainerMedia.push({
+          rate: this.playbackRate, pitch: this.preservesPitch,
+          src: this.currentSrc, duration: this.duration, timestamp: performance.now(),
+        });
+      }, { once: true });
+      return Play.call(this);
+    };
+    if (localStorage.getItem("application-management:russian-time-trainer:v1:russian-time-trainer-qa:solved:en-ru/what-time") === null) {
+      localStorage.setItem("application-management:russian-time-trainer:v1:russian-time-trainer-qa:solved:en-ru/what-time", "1");
+    }
+  });
+  const response = await page.goto(origin + trainerPath);
+  assert.equal(response.status(), 200);
+  await page.waitForFunction(() => document.documentElement.lang === "en");
+  const play = page.getByRole("button", { name: /Play word or phrase/ });
+  const mode = page.getByRole("combobox", { name: /Training mode/ });
+  const speed = page.getByRole("combobox", { name: /Speed/ });
+  const repeats = page.getByRole("combobox", { name: /Repeat/ });
+  await play.waitFor();
+  await defaultLanguages(page);
+  assert.equal(await page.getByText("сегодня", { exact: true }).filter({ visible: true }).count(), 0);
+  assert.equal(responses.length, 0, "Audio must load only on demand");
+  const navigation = await page.evaluate(() => {
+    const [load] = performance.getEntriesByType("navigation");
+    const resources = performance.getEntriesByType("resource");
+    return {
+      domInteractiveMs: Math.round(load.domInteractive), resources: resources.length,
+      transferBytes: resources.reduce((bytes, entry) => bytes + entry.transferSize, 0),
+      trainingAssetRequests: resources.filter(entry => new URL(entry.name).pathname.startsWith("/russian-time-trainer/")).length,
+    };
+  });
+  assert.equal(navigation.trainingAssetRequests, 0);
+  pass("Direct audio-first navigation does not preload media or handwriting fonts", { ...navigation, sample: "Chromium loopback dev runtime" });
+  await page.getByText("Playback settings", { exact: false }).click();
+  await speed.selectOption("0.5");
+  await repeats.selectOption("3");
+  await play.click();
+  await page.getByText("Pause for repetition.").waitFor();
+  await page.waitForFunction(() => window.trainerMedia.filter(row => row.src.endsWith("/today-1.mp3")).length >= 2);
+  await page.getByText("Pause for repetition.").waitFor();
+  await page.getByRole("button", { name: /Stop audio/ }).click();
+  await page.getByText("Pause for repetition.").waitFor({ state: "hidden" });
+  const playback = await page.evaluate(() => window.trainerMedia.filter(row => row.src.endsWith("/today-1.mp3")));
+  assert.equal(playback.length, 2);
+  assert.ok(responses.some(status => status === 200 || status === 206));
+  assert.ok(playback.every(item => item.rate === 0.5 && item.pitch && item.duration > 0));
+  assert.ok(playback[1].timestamp - playback[0].timestamp >= 1900);
+  pass("Licensed media fetches and plays at half speed, preserves pitch, repeats after a two-second pause and stops", {
+    file: "today-1.mp3", responses, duration: playback[0].duration,
+    decodedPlayback: true, humanPronunciationReview: "UNVERIFIED",
+  });
+
+  await repeats.selectOption("1");
+  await mode.selectOption("dictate");
+  await play.click();
+  await page.getByText("Playback finished.").waitFor();
+  const spelling = page.getByRole("textbox", { name: /Type what you hear/ });
+  await spelling.fill("сиводня");
+  await page.getByRole("button", { name: /Check spelling/ }).click();
+  await page.getByText("ив → ег").waitFor();
+  await mode.selectOption("review");
+  assert.equal(await mode.inputValue(), "review");
+  await spelling.waitFor();
+  await play.click();
+  await page.getByText("Playback finished.").waitFor();
+  await spelling.fill("сегодня");
+  await page.getByRole("button", { name: /Check spelling/ }).click();
+  await page.getByRole("status").getByText("Вспомнили").waitFor();
+  await progress(page).click();
+  await page.getByText("1/24", { exact: true }).first().waitFor();
+  const spellingProgress = page.getByRole("progressbar", { name: "Spelling" });
+  assert.equal(await spellingProgress.getAttribute("value"), "1");
+  assert.equal(await page.getByRole("progressbar", { name: "Listening" }).getAttribute("value"), "0");
+  await page.reload();
+  await page.waitForFunction(() => document.documentElement.lang === "en");
+  await progress(page).click();
+  await spellingProgress.and(page.locator("[value='1']")).waitFor();
+  await page.getByText("1/24", { exact: true }).first().waitFor();
+  pass("Dictation corrections, adaptive review, independent skills and original progress persist");
+
+  await audioPractice(page).click();
+  await mode.selectOption("read");
+  const script = page.getByRole("combobox", { name: /Script/ });
+  await script.selectOption("upper");
+  await page.getByText("СЕГОДНЯ", { exact: true }).waitFor();
+  await script.selectOption("cursive");
+  await page.waitForFunction(() => [...document.fonts].some(font => font.family === "Marck Script" && font.status === "loaded"));
+  await mode.selectOption("shadow");
+  await page.getByRole("button", { name: /^Record / }).click();
+  await page.getByText("Recording locally.").waitFor();
+  await page.getByRole("button", { name: /Stop recording/ }).click();
+  await page.locator("audio[controls]").waitFor();
+  await page.locator("audio[controls]").evaluate(element => element.play());
+  await page.waitForFunction(() => window.trainerMedia.some(row => row.src.startsWith("blob:")));
+  pass("Cyrillic print and cursive font load, and native MediaRecorder captures and replays a synthetic microphone stream");
+
+  await dayPlan(page).click();
+  const day = page.getByRole("combobox", { name: /^Day / });
+  assert.equal(await day.locator("option").count(), 14);
+  await page.getByRole("button", { name: /Dialogue text/ }).click();
+  await page.getByText("Do you have a lesson today? — No, tomorrow.", { exact: true }).waitFor();
+  await page.getByRole("button", { name: /Practice this day/ }).click();
+  await page.locator("button").filter({ hasText: /^All topics/ }).waitFor();
+  await dayPlan(page).click();
+  await page.getByRole("button", { name: /Mark day complete/ }).click();
+  assert.equal(await day.inputValue(), "1");
+  await page.setViewportSize({ width: 320, height: 800 });
+  await noOverflow(page, 320);
+  await audioPractice(page).click();
+  await noOverflow(page, 320);
+  await defaultLanguages(page);
+  assert.deepEqual(errors, []);
+  pass("Fourteen-day plan, dialogue, practice handoff and new UI work at 320px");
+  await context.close();
+}
+
 await mkdir(evidence, { recursive: true });
 try {
   await withRuntime(false, async origin => {
@@ -334,7 +482,11 @@ try {
     assert.equal(location.searchParams.get("return_to"), trainerPath);
     pass("Trainer route follows the existing anonymous sign-in gate");
   });
-  browser = await chromium.launch({ channel: process.env.TRAINER_QA_BROWSER || undefined });
+  browser = await chromium.launch({
+    channel: process.env.TRAINER_QA_BROWSER || undefined,
+    executablePath: process.env.TRAINER_QA_EXECUTABLE || undefined,
+    args: ["--use-fake-device-for-media-stream"],
+  });
   browserVersion = browser.version();
   console.log(JSON.stringify({ sha, node: process.version, browserVersion }));
   await withRuntime(true, async origin => {
@@ -342,6 +494,7 @@ try {
       ["desktop", exerciseDesktop],
       ["mobile", exerciseMobile],
       ["speech-contract", checkAudioContract],
+      ["audio-practice", exerciseAudioPractice],
     ]) {
       try {
         await verify(origin);

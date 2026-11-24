@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { nativeAudio } from "./native-audio";
 import styles from "./trainer.module.css";
 
 function buildPrompt(lesson: string, view: string, requirements: string) {
@@ -78,6 +79,16 @@ export default function TrainerHelp({ lesson, view, onOpen }: { lesson: string; 
           {copy === "manual" && <>Prompt selected for copying. <span lang="ru">Промпт выделен для копирования.</span></>}
           {!copy && ready && <>Prompt reviewed and ready to copy. <span lang="ru">Промпт проверен и готов к копированию.</span></>}
         </p>
+        <details>
+          <summary>Audio credits <span lang="ru">Источники записей</span></summary>
+          <p>Recordings were converted to MP3. <span lang="ru">Записи преобразованы в формат MP3.</span></p>
+          <ul>{Object.values(nativeAudio).map(item => <li key={item.src}>
+            <a href={item.source} target="_blank" rel="noreferrer" lang="ru">{item.ru}</a>{" · "}{item.author}{" · "}
+            <a href={"https://creativecommons.org/licenses/" + item.license + "/"} target="_blank" rel="noreferrer">
+              CC {item.license.replace("/", " ").toUpperCase()}
+            </a>
+          </li>)}</ul>
+        </details>
         <a href="https://github.com/BlueDragon33/Software-Blueprint-Hub/blob/main/docs/UNIVERSAL-CONSTITUTION.md" target="_blank" rel="noreferrer">
           Blueprint OS Constitution <span lang="ru">Конституция Blueprint OS</span>
         </a>
