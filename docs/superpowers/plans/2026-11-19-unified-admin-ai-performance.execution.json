@@ -823,9 +823,168 @@
         "scheduleStatement": "Chưa phê duyệt; không tự ý thay đổi phụ thuộc.",
         "mergeOrProductionAuthority": false
       }
+    },
+    "r23G05ApprovedWarmConfirmation": {
+      "stepId": "R0.3",
+      "date": "2026-11-24",
+      "result": "OWNER_APPROVED_G05_PROSPECTIVE_40_PAIR_WARM_ALL_OBSERVED_P95_WITHIN_BUDGET_CANONICAL_ACCEPTANCE_PENDING",
+      "constitution": "1.3.0",
+      "source": {
+        "baseline": "739adcc7c4d516b8f4c90bc2ffa0e492f8837621",
+        "pilot": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
+        "integratedTree": "1fe24059faa2a878d6001d3b03e419263cf2a8cd",
+        "ephemeralCandidate": "01ca8024120388f49af8718676fd4c7d3d37e398",
+        "qaLedgerHead": "8db29e12affe21ab385a9007a913840e268272ea",
+        "run": "https://github.com/BlueDragon33/Application-Management/actions/runs/45478074047",
+        "artifactId": 14960922326,
+        "artifactZipSha256": "0ed2e7212d0928e3b0ad3057db403ad7eb26bbef6fe9b4ea929d7fdb3fb2db15",
+        "artifactBytes": 1039202,
+        "reportStatus": "MEASURED_NOT_ACCEPTED"
+      },
+      "ownerApprovedBudget": "AM-R23-G05-P95-BUDGET-DRAFT-v1",
+      "scope": {
+        "mode": "warm persistent Vite+Chromium, fresh contexts",
+        "viewport": "1440x900",
+        "syntheticApps": 10,
+        "pairs": 40,
+        "samples": 80,
+        "sourceOrder": "20 first and 20 second per source AB/BA",
+        "http200": 80,
+        "matchedUiAndApi": 80,
+        "independentD1CountReadbacks": 2,
+        "requestFailures": 0,
+        "jsErrors": 0,
+        "completedLoopbackRequests": 8480,
+        "fixtureSpans": 1200,
+        "traceLimits": "Synthetic HTTP fixture timing including expected non-contract 404s; not Worker-internal loader timing. No internal source causal attribution. Exact unmodified app source."
+      },
+      "metrics": {
+        "render": {
+          "baselineP50": 458.51,
+          "candidateP50": 458.21,
+          "baselineP95": 702.41,
+          "candidateP95": 504.19,
+          "deltaMs": -198.22,
+          "allowedIncreaseMs": 50,
+          "observedWithinBudget": true,
+          "pairedMedianDeltaMs": -1.81,
+          "pairedBootstrap95IntervalForP95DifferenceMs": [
+            -498.11,
+            14.21
+          ],
+          "pairedBootstrap95IntervalForBudgetExcessMs": [
+            -548.11,
+            -34.788
+          ]
+        },
+        "bootstrap": {
+          "baselineP50": 414.17,
+          "candidateP50": 410.73,
+          "baselineP95": 663.22,
+          "candidateP95": 447.13,
+          "deltaMs": -216.09,
+          "allowedIncreaseMs": 50,
+          "observedWithinBudget": true,
+          "pairedMedianDeltaMs": -11.12,
+          "pairedBootstrap95IntervalForP95DifferenceMs": [
+            -498.19,
+            -1.18
+          ],
+          "pairedBootstrap95IntervalForBudgetExcessMs": [
+            -548.19,
+            -47.435
+          ]
+        },
+        "api": {
+          "baselineP50": 26.57,
+          "candidateP50": 28.07,
+          "baselineP95": 52.2,
+          "candidateP95": 47.75,
+          "deltaMs": -4.45,
+          "allowedIncreaseMs": 5.22,
+          "observedWithinBudget": true,
+          "pairedMedianDeltaMs": 1.11,
+          "pairedBootstrap95IntervalForP95DifferenceMs": [
+            -218.72,
+            17.02
+          ],
+          "pairedBootstrap95IntervalForBudgetExcessMs": [
+            -228.72,
+            13.947
+          ],
+          "exploratoryFractionResamplesWithinBudget": 0.7184
+        }
+      },
+      "otherMetrics": {
+        "requestCountP50P95": [
+          106,
+          106
+        ],
+        "cpuSecondsP50": [
+          0.9,
+          0.89
+        ],
+        "ownedRssMBP50": [
+          3005.54,
+          3002.46
+        ],
+        "jsHeapMBP50": [
+          8.8,
+          8.81
+        ],
+        "rendererTaskMsP50": [
+          259.62,
+          260.01
+        ]
+      },
+      "uncertainty": {
+        "method": "20,000 paired bootstrap resamples, seed 20261124, nearest-rank p95 at order statistic 38/40, retain all raw data. Exploratory intervals, not formal noninferiority or SLA certification.",
+        "apiInterpretation": "Observed threshold passes on the prospective 40-pair run; exploratory interval for API budget excess includes positive values. Baseline top API 260.17ms (pair20),170.28ms(pair1),52.2ms(pair40); candidate 63.8ms(pair1),53.53ms(pair37),47.75ms(pair10). Prior +27.17% not reproduced; no deterministic source defect established. Do not widen target, delete outliers, repeat benchmark solely to seek PASS or claim statistically proven absence of regression.",
+        "renderInterpretation": "Observed p95 improves but baseline had slow pairs 1,20,21. Medians near parity. No general speedup claim."
+      },
+      "historical": {
+        "retainedSamples": 480,
+        "newSamples": 80,
+        "totalR23Samples": 560,
+        "scopeNote": "Historical runs use differing source pairs/cohorts; do not pool as one distribution."
+      },
+      "pr417Compatibility": {
+        "sha": "92f7fbf6e3b1664d2431694fc5aeaef5b27df5c6",
+        "status": "DRAFT_SOURCE_DIFF_REVIEWED_NOT_INTEGRATED",
+        "changedFiles": 4,
+        "overlapWithPilot": 0,
+        "overlapWithNewMain": [
+          "app/management-dashboard-v2.tsx"
+        ],
+        "note": "PR420 changes earlier imports, tool registry, glyph; PR417 changes clock isolation and policy freshness in separate hunks. No actual three-way merge-tree or runtime proof for PR417 with current main. Preserve independent candidate; do not combine without verified prerequisites."
+      },
+      "canonicalGateSource": {
+        "source": "BlueDragon33/Software-Blueprint-Hub packages/application/src/foundation-templates.ts@b6699207612ea836c14dd4a9c1ea59549f7de2bb",
+        "universalGateIds": [
+          "gate:quality:evidence",
+          "gate:security:authority",
+          "gate:ux:human-acceptance",
+          "gate:architecture:future-scale",
+          "gate:ux:commercial-quality",
+          "gate:durability:ageing-regression",
+          "gate:operations:dependency-sovereignty",
+          "gate:security:resilience-containment"
+        ],
+        "mapping": "SOURCE_IDENTIFIED_NOT_CANONICAL_ATTESTATION"
+      },
+      "decision": "SCOPED_OBSERVED_BUDGET_MET_NO_PROVEN_SOURCE_DEFECT; NO_NEW_BENCHMARK_OR_FIX_RECOMMENDED; G05_UNVERIFIED_UNTIL_AUTHORIZED_EVALUATOR_REVIEWS_COVERAGE_AND_UNCERTAINTY",
+      "dependencyAmendment": "NOT_APPROVED_OR_ACTIVE",
+      "controls": {
+        "noGatePromotion": true,
+        "noRuntimeChanges": true,
+        "noMerge": true,
+        "noProduction": true,
+        "zeroSpend": true
+      },
+      "nextAction": "Use existing 560-sample evidence, approved budget and uncertainty to obtain authorized exact-scope G05 evaluation and resolve canonical gate mapping; only after acceptance continue original serial R0.3/R1 dependencies. No further benchmark solely for p95 improvement."
     }
   },
-  "status": "OWNER_G05_TARGET_APPROVED_FOCUSED_WARM_CONFIRMATION_PENDING",
+  "status": "G05_APPROVED_BUDGET_OBSERVED_WITHIN_LIMITS_FORMAL_ACCEPTANCE_PENDING",
   "rounds": [
     {
       "round": "R0",
@@ -2048,11 +2207,11 @@
   ],
   "activeNextAction": {
     "id": "R0.3",
-    "type": "PROSPECTIVE_FOCUSED_WARM_API_40_PAIR_QA",
-    "state": "READY_QA_ONLY",
-    "why": "Owner approved the G05 target but not dependency amendment. Existing warm API p95 exceeds target; one prospective narrow confirmation required.",
-    "required": "Run exact warm 40 matched pairs with request/fixture timing, keep all raw observations, evaluate approved budget without auto-pass. No changes to serial implementation dependencies.",
-    "fallback": "Hold G05 and serial dependent implementation; preserve exact pilot UX approval; no release.",
+    "type": "AUTHORIZED_G05_SCOPED_ACCEPTANCE_AND_CANONICAL_MAPPING",
+    "state": "BLOCKED_FORMAL_EVALUATOR_AND_SERIAL_DEPENDENCIES",
+    "why": "Owner approved G05 budget only, not dependency amendment. Prospective 40 matched warm pairs met all observed thresholds, raw data and independent readback verified. API uncertainty remains; no source defect established. G05 canonical mapping and authorized evaluation absent; cannot promote gate or progress blocked implementation.",
+    "required": "Review exact 560 historic/prospective scoped sample evidence against approved budget and canonical coverage; secure valid authorized G05 acceptance or precise evidence-based rejection. Keep dependency order unchanged; no additional tests unless evaluator identifies concrete missing evidence and lawful scope. After required acceptance proceed R0.3/R1 in sequence.",
+    "fallback": "Keep G05/G10 UNVERIFIED, G11 BLOCKED, preserve scoped G04 Owner approval; no merge or Production changes.",
     "singleActionRule": true
   },
   "history": [
@@ -3870,6 +4029,165 @@
         "authority": "G05 owner-approved budget is not gate acceptance; evaluation independent and exact scope only"
       },
       "productionWrites": false
+    },
+    {
+      "stepId": "R0.3",
+      "date": "2026-11-24",
+      "result": "OWNER_APPROVED_G05_PROSPECTIVE_40_PAIR_WARM_ALL_OBSERVED_P95_WITHIN_BUDGET_CANONICAL_ACCEPTANCE_PENDING",
+      "constitution": "1.3.0",
+      "source": {
+        "baseline": "739adcc7c4d516b8f4c90bc2ffa0e492f8837621",
+        "pilot": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
+        "integratedTree": "1fe24059faa2a878d6001d3b03e419263cf2a8cd",
+        "ephemeralCandidate": "01ca8024120388f49af8718676fd4c7d3d37e398",
+        "qaLedgerHead": "8db29e12affe21ab385a9007a913840e268272ea",
+        "run": "https://github.com/BlueDragon33/Application-Management/actions/runs/45478074047",
+        "artifactId": 14960922326,
+        "artifactZipSha256": "0ed2e7212d0928e3b0ad3057db403ad7eb26bbef6fe9b4ea929d7fdb3fb2db15",
+        "artifactBytes": 1039202,
+        "reportStatus": "MEASURED_NOT_ACCEPTED"
+      },
+      "ownerApprovedBudget": "AM-R23-G05-P95-BUDGET-DRAFT-v1",
+      "scope": {
+        "mode": "warm persistent Vite+Chromium, fresh contexts",
+        "viewport": "1440x900",
+        "syntheticApps": 10,
+        "pairs": 40,
+        "samples": 80,
+        "sourceOrder": "20 first and 20 second per source AB/BA",
+        "http200": 80,
+        "matchedUiAndApi": 80,
+        "independentD1CountReadbacks": 2,
+        "requestFailures": 0,
+        "jsErrors": 0,
+        "completedLoopbackRequests": 8480,
+        "fixtureSpans": 1200,
+        "traceLimits": "Synthetic HTTP fixture timing including expected non-contract 404s; not Worker-internal loader timing. No internal source causal attribution. Exact unmodified app source."
+      },
+      "metrics": {
+        "render": {
+          "baselineP50": 458.51,
+          "candidateP50": 458.21,
+          "baselineP95": 702.41,
+          "candidateP95": 504.19,
+          "deltaMs": -198.22,
+          "allowedIncreaseMs": 50,
+          "observedWithinBudget": true,
+          "pairedMedianDeltaMs": -1.81,
+          "pairedBootstrap95IntervalForP95DifferenceMs": [
+            -498.11,
+            14.21
+          ],
+          "pairedBootstrap95IntervalForBudgetExcessMs": [
+            -548.11,
+            -34.788
+          ]
+        },
+        "bootstrap": {
+          "baselineP50": 414.17,
+          "candidateP50": 410.73,
+          "baselineP95": 663.22,
+          "candidateP95": 447.13,
+          "deltaMs": -216.09,
+          "allowedIncreaseMs": 50,
+          "observedWithinBudget": true,
+          "pairedMedianDeltaMs": -11.12,
+          "pairedBootstrap95IntervalForP95DifferenceMs": [
+            -498.19,
+            -1.18
+          ],
+          "pairedBootstrap95IntervalForBudgetExcessMs": [
+            -548.19,
+            -47.435
+          ]
+        },
+        "api": {
+          "baselineP50": 26.57,
+          "candidateP50": 28.07,
+          "baselineP95": 52.2,
+          "candidateP95": 47.75,
+          "deltaMs": -4.45,
+          "allowedIncreaseMs": 5.22,
+          "observedWithinBudget": true,
+          "pairedMedianDeltaMs": 1.11,
+          "pairedBootstrap95IntervalForP95DifferenceMs": [
+            -218.72,
+            17.02
+          ],
+          "pairedBootstrap95IntervalForBudgetExcessMs": [
+            -228.72,
+            13.947
+          ],
+          "exploratoryFractionResamplesWithinBudget": 0.7184
+        }
+      },
+      "otherMetrics": {
+        "requestCountP50P95": [
+          106,
+          106
+        ],
+        "cpuSecondsP50": [
+          0.9,
+          0.89
+        ],
+        "ownedRssMBP50": [
+          3005.54,
+          3002.46
+        ],
+        "jsHeapMBP50": [
+          8.8,
+          8.81
+        ],
+        "rendererTaskMsP50": [
+          259.62,
+          260.01
+        ]
+      },
+      "uncertainty": {
+        "method": "20,000 paired bootstrap resamples, seed 20261124, nearest-rank p95 at order statistic 38/40, retain all raw data. Exploratory intervals, not formal noninferiority or SLA certification.",
+        "apiInterpretation": "Observed threshold passes on the prospective 40-pair run; exploratory interval for API budget excess includes positive values. Baseline top API 260.17ms (pair20),170.28ms(pair1),52.2ms(pair40); candidate 63.8ms(pair1),53.53ms(pair37),47.75ms(pair10). Prior +27.17% not reproduced; no deterministic source defect established. Do not widen target, delete outliers, repeat benchmark solely to seek PASS or claim statistically proven absence of regression.",
+        "renderInterpretation": "Observed p95 improves but baseline had slow pairs 1,20,21. Medians near parity. No general speedup claim."
+      },
+      "historical": {
+        "retainedSamples": 480,
+        "newSamples": 80,
+        "totalR23Samples": 560,
+        "scopeNote": "Historical runs use differing source pairs/cohorts; do not pool as one distribution."
+      },
+      "pr417Compatibility": {
+        "sha": "92f7fbf6e3b1664d2431694fc5aeaef5b27df5c6",
+        "status": "DRAFT_SOURCE_DIFF_REVIEWED_NOT_INTEGRATED",
+        "changedFiles": 4,
+        "overlapWithPilot": 0,
+        "overlapWithNewMain": [
+          "app/management-dashboard-v2.tsx"
+        ],
+        "note": "PR420 changes earlier imports, tool registry, glyph; PR417 changes clock isolation and policy freshness in separate hunks. No actual three-way merge-tree or runtime proof for PR417 with current main. Preserve independent candidate; do not combine without verified prerequisites."
+      },
+      "canonicalGateSource": {
+        "source": "BlueDragon33/Software-Blueprint-Hub packages/application/src/foundation-templates.ts@b6699207612ea836c14dd4a9c1ea59549f7de2bb",
+        "universalGateIds": [
+          "gate:quality:evidence",
+          "gate:security:authority",
+          "gate:ux:human-acceptance",
+          "gate:architecture:future-scale",
+          "gate:ux:commercial-quality",
+          "gate:durability:ageing-regression",
+          "gate:operations:dependency-sovereignty",
+          "gate:security:resilience-containment"
+        ],
+        "mapping": "SOURCE_IDENTIFIED_NOT_CANONICAL_ATTESTATION"
+      },
+      "decision": "SCOPED_OBSERVED_BUDGET_MET_NO_PROVEN_SOURCE_DEFECT; NO_NEW_BENCHMARK_OR_FIX_RECOMMENDED; G05_UNVERIFIED_UNTIL_AUTHORIZED_EVALUATOR_REVIEWS_COVERAGE_AND_UNCERTAINTY",
+      "dependencyAmendment": "NOT_APPROVED_OR_ACTIVE",
+      "controls": {
+        "noGatePromotion": true,
+        "noRuntimeChanges": true,
+        "noMerge": true,
+        "noProduction": true,
+        "zeroSpend": true
+      },
+      "nextAction": "Use existing 560-sample evidence, approved budget and uncertainty to obtain authorized exact-scope G05 evaluation and resolve canonical gate mapping; only after acceptance continue original serial R0.3/R1 dependencies. No further benchmark solely for p95 improvement."
     }
   ],
   "assessment": {
@@ -4536,6 +4854,74 @@
           "sourceFix": "NOT_AUTHORIZED_WITHOUT_ROOT_CAUSE",
           "newQa": "NOT_RUN",
           "independentGatePass": false
+        },
+        {
+          "kind": "PROSPECTIVE_OWNER_APPROVED_BUDGET_40_PAIR",
+          "status": "ALL_THREE_OBSERVED_P95_WITHIN_OWNER_BUDGET_NOT_CANONICAL_GATE_ACCEPTANCE",
+          "source": "https://github.com/BlueDragon33/Application-Management/actions/runs/45478074047",
+          "artifactId": 14960922326,
+          "artifactZipSha256": "0ed2e7212d0928e3b0ad3057db403ad7eb26bbef6fe9b4ea929d7fdb3fb2db15",
+          "samples": 80,
+          "integratedTree": "1fe24059faa2a878d6001d3b03e419263cf2a8cd",
+          "metrics": {
+            "render": {
+              "baselineP50": 458.51,
+              "candidateP50": 458.21,
+              "baselineP95": 702.41,
+              "candidateP95": 504.19,
+              "deltaMs": -198.22,
+              "allowedIncreaseMs": 50,
+              "observedWithinBudget": true,
+              "pairedMedianDeltaMs": -1.81,
+              "pairedBootstrap95IntervalForP95DifferenceMs": [
+                -498.11,
+                14.21
+              ],
+              "pairedBootstrap95IntervalForBudgetExcessMs": [
+                -548.11,
+                -34.788
+              ]
+            },
+            "bootstrap": {
+              "baselineP50": 414.17,
+              "candidateP50": 410.73,
+              "baselineP95": 663.22,
+              "candidateP95": 447.13,
+              "deltaMs": -216.09,
+              "allowedIncreaseMs": 50,
+              "observedWithinBudget": true,
+              "pairedMedianDeltaMs": -11.12,
+              "pairedBootstrap95IntervalForP95DifferenceMs": [
+                -498.19,
+                -1.18
+              ],
+              "pairedBootstrap95IntervalForBudgetExcessMs": [
+                -548.19,
+                -47.435
+              ]
+            },
+            "api": {
+              "baselineP50": 26.57,
+              "candidateP50": 28.07,
+              "baselineP95": 52.2,
+              "candidateP95": 47.75,
+              "deltaMs": -4.45,
+              "allowedIncreaseMs": 5.22,
+              "observedWithinBudget": true,
+              "pairedMedianDeltaMs": 1.11,
+              "pairedBootstrap95IntervalForP95DifferenceMs": [
+                -218.72,
+                17.02
+              ],
+              "pairedBootstrap95IntervalForBudgetExcessMs": [
+                -228.72,
+                13.947
+              ],
+              "exploratoryFractionResamplesWithinBudget": 0.7184
+            }
+          },
+          "apiUncertainty": "BUDGET_EXCESS_BOOTSTRAP_INTERVAL_INCLUDES_POSITIVE_VALUES",
+          "noAutoPass": true
         }
       ],
       "exactSha": null,
