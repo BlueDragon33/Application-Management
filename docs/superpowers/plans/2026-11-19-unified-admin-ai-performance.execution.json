@@ -761,7 +761,7 @@
     },
     "r23G05BudgetProposal": {
       "id": "AM-R23-G05-P95-BUDGET-DRAFT-v1",
-      "status": "PROPOSED_NOT_APPROVED",
+      "status": "OWNER_APPROVED_TARGET_NOT_GATE_ACCEPTANCE",
       "basis": "Owner project-specific target proposal, not a Constitution change. Hub NFR B0 design baseline gives 100ms local ACK/200ms pending feedback, not this app boot budget. Plan line 139 requires reviewed target after baseline.",
       "baselineMainSha": "739adcc7c4d516b8f4c90bc2ffa0e492f8837621",
       "pilotSha": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
@@ -813,10 +813,19 @@
           "outcome": "WITHIN_PROPOSED_BOUNDS_ONLY"
         }
       },
-      "approval": "PENDING_EXPLICIT_OWNER_REVIEW_AND_AUTHORIZED_G05_ACCEPTANCE"
+      "approval": "OWNER_EXPLICIT_CHAT_2026_11_24_PROJECT_TARGET_ONLY",
+      "ownerDecision": {
+        "budgetId": "AM-R23-G05-P95-BUDGET-DRAFT-v1",
+        "decision": "APPROVED_PROJECT_TARGET_ONLY",
+        "statement": "Tôi phê duyệt tiêu chuẩn đề xuất cho đánh giá G05, không tự động công nhận G05 PASS.",
+        "scheduleId": "AM-STREAMLINED-EXECUTION-DRAFT-v1",
+        "scheduleDecision": "NOT_APPROVED",
+        "scheduleStatement": "Chưa phê duyệt; không tự ý thay đổi phụ thuộc.",
+        "mergeOrProductionAuthority": false
+      }
     }
   },
-  "status": "STREAMLINED_RECONCILED_DRAFT_BUDGET_AND_DEPENDENCY_REVIEW_PENDING",
+  "status": "OWNER_G05_TARGET_APPROVED_FOCUSED_WARM_CONFIRMATION_PENDING",
   "rounds": [
     {
       "round": "R0",
@@ -2039,16 +2048,11 @@
   ],
   "activeNextAction": {
     "id": "R0.3",
-    "type": "REVIEW_G05_BUDGET_AND_STREAMLINED_DEPENDENCY_PROPOSAL",
-    "state": "BLOCKED_MANDATORY_REVIEW",
-    "why": "21 WPs reconciled without fake PASS. Existing plan requires reviewed G05 targets, one READY WP and serial dependencies. Existing p95 evidence has no approved threshold; proposed 10%/50ms render/bootstrap and 10%/10ms API prospective rules flag warm API for review. No canonical attestation or Production authority.",
-    "required": "Owner review draft AM-R23-G05-P95-BUDGET-DRAFT-v1 and AM-STREAMLINED-EXECUTION-DRAFT-v1 (no merge or release authorization). After valid review, resolve targeted G05 warm API uncertainty and sequence eligible WPs one at a time; actual canonical gate decisions separate.",
-    "expectedEvidence": [
-      "explicit acceptance or revision of draft project budget and dependency proposal",
-      "authorized G05 evaluator outcome, focused evidence only if required",
-      "canonical G10 evidence and G11 actual restore/rollback before release"
-    ],
-    "fallback": "Keep both Draft, all acceptance states and Owner G04 exact SHA intact; source-only preparation only, no speculative implementation or production.",
+    "type": "PROSPECTIVE_FOCUSED_WARM_API_40_PAIR_QA",
+    "state": "READY_QA_ONLY",
+    "why": "Owner approved the G05 target but not dependency amendment. Existing warm API p95 exceeds target; one prospective narrow confirmation required.",
+    "required": "Run exact warm 40 matched pairs with request/fixture timing, keep all raw observations, evaluate approved budget without auto-pass. No changes to serial implementation dependencies.",
+    "fallback": "Hold G05 and serial dependent implementation; preserve exact pilot UX approval; no release.",
     "singleActionRule": true
   },
   "history": [
@@ -3820,6 +3824,52 @@
         "zeroSpend": true
       },
       "blocker": "Review G05 target and proposed sequencing (no authority waiver). Current plan enforces serial implementation dependencies and one READY WP; cannot advance blocked runtime WPs by relabeling."
+    },
+    {
+      "stepId": "R0.3",
+      "date": "2026-11-24",
+      "result": "OWNER_APPROVED_G05_BUDGET_NOT_DEPENDENCY_AMENDMENT_PROSPECTIVE_WARM_QA_PREDECLARED",
+      "ownerDecision": {
+        "budgetId": "AM-R23-G05-P95-BUDGET-DRAFT-v1",
+        "decision": "APPROVED_PROJECT_TARGET_ONLY",
+        "statement": "Tôi phê duyệt tiêu chuẩn đề xuất cho đánh giá G05, không tự động công nhận G05 PASS.",
+        "scheduleId": "AM-STREAMLINED-EXECUTION-DRAFT-v1",
+        "scheduleDecision": "NOT_APPROVED",
+        "scheduleStatement": "Chưa phê duyệt; không tự ý thay đổi phụ thuộc.",
+        "mergeOrProductionAuthority": false
+      },
+      "protocol": {
+        "baseline": "739adcc7c4d516b8f4c90bc2ffa0e492f8837621",
+        "pilot": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
+        "tree": "1fe24059faa2a878d6001d3b03e419263cf2a8cd",
+        "mode": "persistent Vite+Chromium fresh context per observation",
+        "fixture": 10,
+        "viewport": "1440x900",
+        "pairs": 40,
+        "rawSamples": 80,
+        "order": "AB/BA alternating, 20 first and 20 second per source",
+        "percentile": "nearest rank, no exclusion of any measured samples",
+        "limits": {
+          "renderAndBootstrapP95": {
+            "relativeIncreaseMaxPct": 10,
+            "absoluteIncreaseMaxMs": 50,
+            "comparison": "BOTH maximums apply; p95 candidate <= baseline + min(10% of baseline, 50ms)"
+          },
+          "apiNetworkP95": {
+            "relativeIncreaseMaxPct": 10,
+            "absoluteIncreaseMaxMs": 10,
+            "comparison": "BOTH maximums apply; p95 candidate <= baseline + min(10% of baseline, 10ms)"
+          },
+          "requests": "No unexplained new requests; never drop auth, readback or error reporting to meet budget",
+          "resource": "Review CPU/RSS with measurement boundaries; no unapproved hard cap on summed shared runner RSS",
+          "uncertainty": "n=20/stratum nearest-rank p95 exploratory; preserve all original samples, paired AB/BA order. If a metric exceeds proposed limit or is inconclusive, one prospective focused confirmation with predeclared protocol (at least 40 matched pairs, actual per-request timing and source spans, preserve cold/warm distinction) only after budget approval; no full 480 rerun. Source fix only on proven owner and cause. No auto-pass.",
+          "qualification": "Existing observed data is diagnostic, not held-out proof for this newly proposed budget. Independent authorized evaluator must review scope, thresholds and evidence; no retroactive gate promotion."
+        },
+        "trace": "Playwright requestfinished timings for all completed loopback browser requests (method, path only, numeric timing), actual API TTFB/download spans and synthetic source fixture response spans. No raw credentials, headers/body or sensitive records recorded. Internal Worker loader timing not exposed by exact unmodified source; no claim of internal causal trace. If API fails, source-owned cause remains unresolved until safe instrumentation is separately reviewed.",
+        "noRerun": "480 historical data preserved; no cold or 50/200 reruns",
+        "authority": "G05 owner-approved budget is not gate acceptance; evaluation independent and exact scope only"
+      },
+      "productionWrites": false
     }
   ],
   "assessment": {
