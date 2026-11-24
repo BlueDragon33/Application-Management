@@ -627,6 +627,14 @@
         "disk cache still present",
         "no automatic G05 PASS"
       ]
+    },
+    "r23G05CurrentMainDrift": {
+      "measuredBaselineSha": "89a89ce2d3d8ed634ee9562c52744a99223a2b2a",
+      "currentMainSha": "739adcc7c4d516b8f4c90bc2ffa0e492f8837621",
+      "candidateSha": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
+      "mergedPr": 420,
+      "requiresScopedReview": true,
+      "g05Status": "UNVERIFIED"
     }
   },
   "status": "R0_2_FOCUSED_WINDOWS_MEASURED_NOT_ACCEPTED_G05_UNVERIFIED",
@@ -1705,16 +1713,16 @@
   ],
   "activeNextAction": {
     "id": "R0.3",
-    "type": "OWNER_G04_UX_SIGNOFF_AND_SEPARATE_G05_EVIDENCE_REVIEW",
-    "state": "BLOCKED_UNTIL_EXPLICIT_HUMAN_UX_AND_G05_EVIDENCE_ACCEPTANCE",
-    "why": "Exact-SHA G04 real Chromium BM/KT 3 viewports and independent child D1/UI readback PASS with 261 sampled contrast points >=4.5, but Owner UX signoff not provided. G05 original 360 paired fixtures PASS with 10 desktop warm p95 outlier; targeted exact-SHA 40 balanced fully fresh Chromium/Vite sessions show baseline p50/p95 1337.05/1439.84ms versus candidate 1333.9/1372.69ms, no persistent candidate regression. Gate G05 is noAutoPass; QA timing is not Production resource certification. G10/G11 still incomplete.",
-    "required": "Present six exact SHA BM/KT screenshots to Owner and record an explicit APPROVE/CHANGE decision. Independently assess G05 360+40 evidence against acceptance criteria and keep noAutoPass enforcement. Then resolve separate G10 governance/release authority and G11 rollout/rollback before any merge/deploy.",
+    "type": "PR420_MAIN_DRIFT_COMPATIBILITY_THEN_SCOPED_G05_DECISION",
+    "state": "BLOCKED_UNTIL_CURRENT_BASE_RECONCILIATION_AND_CANONICAL_G10_G11",
+    "why": "Explicit Owner visual G04 acceptance for BM/KT 3 viewports at PR419 exact SHA recorded and real technical QA PASS. The historical 360+40 matched benchmark shows no persistent tail regression against old main 89a89ce2, but live main is now 739adcc7 after PR420 Russian Time Trainer additions in central management-dashboard and hub. Project G05 is noAutoPass and current-main performance acceptance unverified. G10 lacks canonical exact-SHA attestation and Hub authority remains false; G11 lacks tested rollback/restore and staged release.",
+    "required": "First do one exact current-main vs pinned PR419 scoped source compatibility/conflict assessment focused on management dashboard imports and new tool registry; define minimal rebaseline of affected boot/performance journey rather than rerunning 360/40 unchanged fixtures. After a safely pinned integration revision, seek separate G05 attestation and G10/G11 human authority and rollback proof before any merge/publish.",
     "expectedEvidence": [
-      "explicit owner G04 visual acceptance or actionable corrections",
-      "independent exact-SHA G05 evidence acceptance with limitations recorded",
-      "canonical G10 release authority and G11 rollback/recovery signoff"
+      "exact live main and PR419 diff compatibility plus retained owner acceptance boundaries",
+      "targeted current-main G05 boot affected-journey readback if actual bundle/init behavior changed",
+      "canonical seven pillar gate authority and independent rollout/restore evidence at release revision"
     ],
-    "fallback": "If any required approval/evidence is absent, retain Draft PRs and UNVERIFIED G04/G05/G10, BLOCKED G11, no Production changes.",
+    "fallback": "Retain Owner G04 scoped approval for exact PR419 SHA; G05/G10 UNVERIFIED and G11 BLOCKED, both Draft, no Production release and no automatic remeasurement.",
     "singleActionRule": true
   },
   "history": [
@@ -2661,6 +2669,112 @@
       },
       "singleNextAction": "Obtain explicit Owner G04 UX acceptance or precise requested changes after showing six authenticated local BM/KT screenshots at exactly sha419; independently review G05 benchmark before any gate transition. Keep G10/G11 release authority/rollback requirements separate.",
       "fallback": "If Owner UX rejects, G05 reviewers cannot attest, or G10/G11 not valid, leave #419/#414 Draft, gates unchanged, Production untouched."
+    },
+    {
+      "stepId": "R2.3",
+      "date": "2026-11-24",
+      "result": "OWNER_G04_UX_SCOPED_APPROVED_G05_HISTORICAL_EXACT_COMPARISON_G10_G11_STILL_BLOCKED",
+      "constitution": "blueprint-os:universal-century-grade@1.3.0",
+      "scope": "R2.3 BM/KT pilot; no merge/publish authorization",
+      "candidate": {
+        "repo": "BlueDragon33/Application-Management",
+        "pr": 419,
+        "sha": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
+        "draft": true,
+        "merged": false
+      },
+      "humanOwnerUxAcceptance": {
+        "decision": "APPROVED",
+        "scope": "HUMAN_UX_G04_R23_BM_KT_PILOT_ONLY",
+        "ownerAuthority": "OWNER_EXPLICIT_IN_CONVERSATION_ON_2026-11-24",
+        "recordedAtUTC": "2026-11-24",
+        "appIds": [
+          "bauman-master-ai",
+          "price-report-tunggiabao"
+        ],
+        "viewports": [
+          "1440x900",
+          "800x900",
+          "390x844"
+        ],
+        "repository": "BlueDragon33/Application-Management",
+        "pr": 419,
+        "exactSha": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
+        "ownerStatement": "Tôi xác nhận, với vai trò Owner, đã xem và nghiệm thu riêng giao diện G04 của Bauman và PriceReport trên desktop 1440×900, tablet 800×900 và mobile 390×844 tại Application-Management PR #419 SHA 9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9.",
+        "technicalProof": "https://github.com/BlueDragon33/Application-Management/actions/runs/45344447276",
+        "chromiumArtifactId": 14898400230,
+        "realIntegratedOwnerChildD1ArtifactId": 14897553787,
+        "observations": "6/6 responsive, 0 horizontal overflows, 6/6 Escape focus, 4/4 pending/blocked denial local, 2/2 central Owner->native BM/KT Worker->independent D1->final UI readback; 261 computed sample pairs >=4.5",
+        "notAuthorizationFor": [
+          "G05",
+          "G10",
+          "G11",
+          "PR_MERGE",
+          "PRODUCTION_PUBLISH",
+          "PRODUCTION_D1",
+          "CONSTITUTIONAL_RATIFICATION",
+          "UNRELATED_APPS"
+        ],
+        "canonicalQualityGateOverride": false
+      },
+      "projectChecklistG04": {
+        "scopedPilotUx": "HUMAN_OWNER_APPROVED_AT_EXACT_SHA",
+        "technical": "REAL_BROWSER_ROLE_AND_D1_TECHNICAL_PASS_AT_EXACT_SHA",
+        "projectWideGate": "UNVERIFIED_CANONICAL_MAPPING_AND_OTHER_DEPENDENCIES",
+        "reason": "The explicit Owner approval closes only the human UX acceptance element for the two-app R2.3 pilot. Canonical seven-pillar universal gate is a separately protected capability; qualityGates[].status stays UNVERIFIED and noAutoPass stays true."
+      },
+      "g05": {
+        "assessment": "HISTORICAL_BASELINE_MEASURED_NO_PERSISTENT_CANDIDATE_REGRESSION_BUT_MAIN_DRIFT",
+        "warm360": "https://github.com/BlueDragon33/Application-Management/actions/runs/45344470024",
+        "cold40": "https://github.com/BlueDragon33/Application-Management/actions/runs/45407829546",
+        "measuredBaselineSha": "89a89ce2d3d8ed634ee9562c52744a99223a2b2a",
+        "measuredCandidateSha": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
+        "coldPaintP50ms": {
+          "baseline": 1337.05,
+          "candidate": 1333.9
+        },
+        "coldPaintP95ms": {
+          "baseline": 1439.84,
+          "candidate": 1372.69
+        },
+        "historicalOutlier": "10-app desktop warm test candidate p95 1320.95ms vs baseline 524.32ms; independent balanced 40-sample fresh runtime comparison does not reproduce candidate tail regression",
+        "currentMainSha": "739adcc7c4d516b8f4c90bc2ffa0e492f8837621",
+        "mainChange": {
+          "mergedPr": 420,
+          "mergedAtCommit": "739adcc7c4d516b8f4c90bc2ffa0e492f8837621",
+          "summary": "Russian Time Trainer added to application-hub.tsx and management-dashboard-v2.tsx; imports/tool list/menu glyph changed, other new files scoped to trainer.",
+          "overlapWithCandidateFiles": [
+            "app/management-dashboard-v2.tsx (main-only modification; candidate did not edit this file)"
+          ],
+          "influence": "Central bundle/tool registry may alter boot cost and integration basis; historical exact pair remains valid for old main but not current-base acceptance."
+        },
+        "risk": "G05 cannot be accepted against moving main without reconciling exact baseline/candidate integration and narrowed affected-journey performance evidence",
+        "gateStatus": "UNVERIFIED",
+        "noAutoPass": true
+      },
+      "g10": {
+        "status": "UNVERIFIED",
+        "requirements": "Canonical seven pillars + universal gate attestation at exact candidate/integration SHA, independent human and Owner release authority separate",
+        "currentEvidence": "App PR419 source CI and Constitution checks PASS but do not grant canonical G10; PR414 is project checklist, not canonical gate state",
+        "hubProductionReleaseAuthority": false,
+        "externalReviewer": "EXTERNAL_PENDING",
+        "ownerApproval": "UX G04 only, not merge or publish",
+        "blocker": "Canonical attestation/independent authority mapping and exact integrated revision unresolved"
+      },
+      "g11": {
+        "status": "BLOCKED_DEPENDENCIES",
+        "requirements": "Per-app staged release, independent rollback, tested restore and post-release monitoring, zero P0/P1",
+        "currentEvidence": "Local BM/KT source readback PASS; no demonstrated controlled Production rollout/rollback/restore drill or post-release observations",
+        "blocker": "No deployment authority or tested restore/rollback evidence; remain gated"
+      },
+      "checks": {
+        "release": "NOT_AUTHORIZED",
+        "merge": "NOT_AUTHORIZED",
+        "productionData": "UNCHANGED",
+        "zeroSpend": true
+      },
+      "singleNextAction": "At exact live main 739adcc7... reconcile PR419 with newly merged PR420 through scoped source/diff compatibility; determine if a narrow warm/boot G05 differential is necessary for the resulting integration SHA, then write independent gate evidence to sole PR414 ledger. Do not automatically rebase/merge or repeat full 360/40 suites.",
+      "fallback": "Keep owner G04 UX approval fixed to 9ed41b7; if source revision changes, review only affected visual journeys and obtain new Owner acceptance if visual scope changes. Keep G05/G10 UNVERIFIED, G11 BLOCKED, both Draft and Production unchanged."
     }
   ],
   "assessment": {
@@ -3132,6 +3246,23 @@
           "integratedArtifactId": 14897553787,
           "contrastSamples": 261,
           "contrastBelow4_5": 0
+        },
+        {
+          "kind": "EXPLICIT_OWNER_G04_UX_ACCEPTANCE",
+          "status": "OWNER_APPROVED_SCOPED_PILOT_UX",
+          "source": "2026-11-24 user-confirmed chat",
+          "exactSha": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
+          "apps": [
+            "bauman-master-ai",
+            "price-report-tunggiabao"
+          ],
+          "viewports": [
+            "1440x900",
+            "800x900",
+            "390x844"
+          ],
+          "integratedBrowserRun": "https://github.com/BlueDragon33/Application-Management/actions/runs/45344447276",
+          "notMergeOrPublish": true
         }
       ],
       "exactSha": null,
@@ -3141,7 +3272,42 @@
       "noAutoPass": true,
       "kind": "PROJECT_ACCEPTANCE_CHECKLIST_NOT_CANONICAL",
       "canonicalQualityGateMapping": "UNVERIFIED_PENDING_RESOLUTION",
-      "canonicalAuthorityOverride": false
+      "canonicalAuthorityOverride": false,
+      "ownerUxAcceptance": {
+        "decision": "APPROVED",
+        "scope": "HUMAN_UX_G04_R23_BM_KT_PILOT_ONLY",
+        "ownerAuthority": "OWNER_EXPLICIT_IN_CONVERSATION_ON_2026-11-24",
+        "recordedAtUTC": "2026-11-24",
+        "appIds": [
+          "bauman-master-ai",
+          "price-report-tunggiabao"
+        ],
+        "viewports": [
+          "1440x900",
+          "800x900",
+          "390x844"
+        ],
+        "repository": "BlueDragon33/Application-Management",
+        "pr": 419,
+        "exactSha": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
+        "ownerStatement": "Tôi xác nhận, với vai trò Owner, đã xem và nghiệm thu riêng giao diện G04 của Bauman và PriceReport trên desktop 1440×900, tablet 800×900 và mobile 390×844 tại Application-Management PR #419 SHA 9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9.",
+        "technicalProof": "https://github.com/BlueDragon33/Application-Management/actions/runs/45344447276",
+        "chromiumArtifactId": 14898400230,
+        "realIntegratedOwnerChildD1ArtifactId": 14897553787,
+        "observations": "6/6 responsive, 0 horizontal overflows, 6/6 Escape focus, 4/4 pending/blocked denial local, 2/2 central Owner->native BM/KT Worker->independent D1->final UI readback; 261 computed sample pairs >=4.5",
+        "notAuthorizationFor": [
+          "G05",
+          "G10",
+          "G11",
+          "PR_MERGE",
+          "PRODUCTION_PUBLISH",
+          "PRODUCTION_D1",
+          "CONSTITUTIONAL_RATIFICATION",
+          "UNRELATED_APPS"
+        ],
+        "canonicalQualityGateOverride": false
+      },
+      "scopedPilotStatus": "OWNER_UX_ACCEPTED_TECHNICAL_PASS"
     },
     {
       "id": "G05",
@@ -3217,6 +3383,15 @@
             "candidate": 1372.69,
             "deltaPercent": -4.66
           }
+        },
+        {
+          "kind": "POST_MEASUREMENT_MAIN_DRIFT_REVIEW",
+          "status": "CURRENT_MAIN_COMPARISON_UNVERIFIED",
+          "currentMainSha": "739adcc7c4d516b8f4c90bc2ffa0e492f8837621",
+          "measuredBaselineSha": "89a89ce2d3d8ed634ee9562c52744a99223a2b2a",
+          "measuredCandidateSha": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
+          "mergedPr": 420,
+          "note": "Three additive lines in management-dashboard-v2.tsx plus Russian Time Trainer registration changed center startup context; historical 360+40 cohort evidence remains valid for old baseline only."
         }
       ],
       "exactSha": null,
@@ -3298,7 +3473,15 @@
       "ownerStep": "R6.3",
       "exitCriterion": "Canonical seven-pillar and universal-gate exact-SHA attestation, independent human and Owner authority separate",
       "status": "UNVERIFIED",
-      "evidence": [],
+      "evidence": [
+        {
+          "kind": "SOURCE_AUTHORITY_REVIEW",
+          "status": "UNVERIFIED",
+          "hubAuthority": false,
+          "source": "BlueDragon33/Software-Blueprint-Hub control/universal-constitution-version.json@main",
+          "note": "App PR CI and scoped Owner G04 UX approval do not confer canonical G10/Production authority; independent attestation pending."
+        }
+      ],
       "exactSha": null,
       "verifiedAt": null,
       "externalHumanReviewRequired": true,
@@ -3314,7 +3497,13 @@
       "ownerStep": "R6.3",
       "exitCriterion": "Per-app staged release, independent rollback, tested restore, post-release observations and no P0/P1",
       "status": "BLOCKED_DEPENDENCIES",
-      "evidence": [],
+      "evidence": [
+        {
+          "kind": "SOURCE_ROLLOUT_READINESS_REVIEW",
+          "status": "BLOCKED_DEPENDENCIES",
+          "note": "No per-app staged Production rollback/restore proof or post-release observation; local D1 test is not a Production recovery drill."
+        }
+      ],
       "exactSha": null,
       "verifiedAt": null,
       "externalHumanReviewRequired": true,
@@ -3439,7 +3628,7 @@
       "pr": 419,
       "branch": "feat/boi-owner-client-admin-shell-20261123",
       "sourceSha": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
-      "sourceStatus": "DRAFT_G04_BM_KT_FULL_NATIVE_TECHNICAL_PASS_HUMAN_UX_PENDING_G05_360_PLUS_40_COLD_MEASURED_NOT_ACCEPTED",
+      "sourceStatus": "DRAFT_G04_OWNER_UX_ACCEPTED_BM_KT_EXACT_SHA_G05_REBASELINE_UNVERIFIED_G10_G11_BLOCKED",
       "apps": [
         "bauman-master-ai",
         "price-report-tunggiabao"
@@ -3452,150 +3641,142 @@
       "lastScopedQa": {
         "stepId": "R2.3",
         "date": "2026-11-24",
-        "result": "G05_COLD_START_40_OF_40_EXACT_SHA_AB_BA_NO_PERSISTENT_TAIL_REGRESSION_TECHNICAL_EVIDENCE_READY_NOT_ACCEPTED",
+        "result": "OWNER_G04_UX_SCOPED_APPROVED_G05_HISTORICAL_EXACT_COMPARISON_G10_G11_STILL_BLOCKED",
         "constitution": "blueprint-os:universal-century-grade@1.3.0",
-        "repo": "BlueDragon33/Application-Management",
+        "scope": "R2.3 BM/KT pilot; no merge/publish authorization",
         "candidate": {
+          "repo": "BlueDragon33/Application-Management",
           "pr": 419,
           "sha": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
           "draft": true,
           "merged": false
         },
-        "baseline": {
-          "source": "main",
-          "sha": "89a89ce2d3d8ed634ee9562c52744a99223a2b2a"
-        },
-        "workflow": {
-          "url": "https://github.com/BlueDragon33/Application-Management/actions/runs/45407829546",
-          "runId": 45407829546,
-          "jobConclusion": "SUCCESS",
-          "sourceHarnessPr": 414,
-          "harnessSha": "5962062a589db954850f0ea9211661c8e187e712",
-          "artifactId": 14925264540,
-          "artifactName": "r23-g05-controlled-cold-10-evidence",
-          "artifactZipSha256": "735693ff6661a1f461b860388be16f15ea490903f0ccb1a7bb972c3c54b1f018",
-          "runReportStatus": "MEASURED_NOT_ACCEPTED",
-          "original360Run": "https://github.com/BlueDragon33/Application-Management/actions/runs/45344470024"
-        },
-        "scope": {
-          "cohort": 10,
-          "viewport": "1440x900",
-          "count": 40,
-          "repeatsPerSource": 20,
-          "order": "20 AB/BA pairs alternated",
-          "baselineAndCandidateSourcePinned": true,
-          "freshProcesses": "Each observation independently launches new Vite process and Chromium browser; app dependencies and Vite optimizer disk cache may persist",
-          "independentD1": "2/2 source-local D1 readback count exactly 10",
-          "http": "40/40 HTTP200",
-          "errors": 0,
-          "productionWrites": false,
-          "timing": "Navigation to complete 10-card grid plus two requestAnimationFrame callbacks, excludes Vite startup and Chromium launch"
-        },
-        "results": {
-          "renderPaintedGridProxyMs": {
-            "p50": {
-              "baseline": 1337.05,
-              "candidate": 1333.9,
-              "deltaPercent": -0.24
-            },
-            "p95": {
-              "baseline": 1439.84,
-              "candidate": 1372.69,
-              "deltaPercent": -4.66
-            }
-          },
-          "bootstrapMs": {
-            "p50": {
-              "baseline": 1287.73,
-              "candidate": 1287.26
-            },
-            "p95": {
-              "baseline": 1390.22,
-              "candidate": 1316.22
-            }
-          },
-          "apiNetworkMs": {
-            "p50": {
-              "baseline": 60.03,
-              "candidate": 60.09
-            },
-            "p95": {
-              "baseline": 86.54,
-              "candidate": 66.07
-            }
-          },
-          "rendererTaskMs": {
-            "p50": {
-              "baseline": 296.66,
-              "candidate": 297.87
-            },
-            "p95": {
-              "baseline": 314.8,
-              "candidate": 314.11
-            }
-          },
-          "cpuSecondsIncludesQa": {
-            "p50": {
-              "baseline": 1.86,
-              "candidate": 1.84
-            },
-            "p95": {
-              "baseline": 2.07,
-              "candidate": 2
-            }
-          },
-          "rssMBIncludesSharedPages": {
-            "p50": {
-              "baseline": 1539.58,
-              "candidate": 1546.31
-            },
-            "p95": {
-              "baseline": 1565.21,
-              "candidate": 1553.7
-            }
-          },
-          "jsHeapMB": {
-            "p50": {
-              "baseline": 8.66,
-              "candidate": 8.64
-            }
-          },
-          "requestsP50": {
-            "baseline": 105,
-            "candidate": 105
-          },
-          "viteStartupMs": {
-            "baselineApproxP50": 5003,
-            "candidateApproxP50": 5008,
-            "excludedFromNavigationMetric": true
-          },
-          "orderStrataPaintedGridMs": {
-            "baselineFirstMedian": 1331.24,
-            "baselineSecondMedian": 1341.36,
-            "candidateFirstMedian": 1333.25,
-            "candidateSecondMedian": 1345.23,
-            "samplesPerStratum": 10
-          }
-        },
-        "comparisonToOriginal": {
-          "originalCandidate10DesktopP95Ms": 1320.95,
-          "originalBaseline10DesktopP95Ms": 524.32,
-          "originalFirstTwoCandidateSamplesMs": [
-            1320.95,
-            1383.02
+        "humanOwnerUxAcceptance": {
+          "decision": "APPROVED",
+          "scope": "HUMAN_UX_G04_R23_BM_KT_PILOT_ONLY",
+          "ownerAuthority": "OWNER_EXPLICIT_IN_CONVERSATION_ON_2026-11-24",
+          "recordedAtUTC": "2026-11-24",
+          "appIds": [
+            "bauman-master-ai",
+            "price-report-tunggiabao"
           ],
-          "originalBaselineFirstSampleMs": 1596.68,
-          "interpretation": "Original 360-run warm-process p95 discrepancy is sensitive to early initialization/optimizer state. Under paired fully fresh Vite and browser, no persistent candidate p95 regression observed. No original outlier removed. Distinct cold vs warm contexts must not be collapsed. This supports source-side regression not reproducible, but does not conclusively isolate Vite vs OS cache or certify Production latency."
+          "viewports": [
+            "1440x900",
+            "800x900",
+            "390x844"
+          ],
+          "repository": "BlueDragon33/Application-Management",
+          "pr": 419,
+          "exactSha": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
+          "ownerStatement": "Tôi xác nhận, với vai trò Owner, đã xem và nghiệm thu riêng giao diện G04 của Bauman và PriceReport trên desktop 1440×900, tablet 800×900 và mobile 390×844 tại Application-Management PR #419 SHA 9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9.",
+          "technicalProof": "https://github.com/BlueDragon33/Application-Management/actions/runs/45344447276",
+          "chromiumArtifactId": 14898400230,
+          "realIntegratedOwnerChildD1ArtifactId": 14897553787,
+          "observations": "6/6 responsive, 0 horizontal overflows, 6/6 Escape focus, 4/4 pending/blocked denial local, 2/2 central Owner->native BM/KT Worker->independent D1->final UI readback; 261 computed sample pairs >=4.5",
+          "notAuthorizationFor": [
+            "G05",
+            "G10",
+            "G11",
+            "PR_MERGE",
+            "PRODUCTION_PUBLISH",
+            "PRODUCTION_D1",
+            "CONSTITUTIONAL_RATIFICATION",
+            "UNRELATED_APPS"
+          ],
+          "canonicalQualityGateOverride": false
         },
-        "remaining": {
-          "G04": "Owner has not explicitly approved six exact source SHA screenshots; technical Chromium/D1 PASS only",
-          "G05": "NoAutoPass true; review evidence and quality target/policy before changing gate status. Benchmark is QA environment and CPU/RSS include harness/shared pages.",
-          "G10": "UNVERIFIED governance/authority, Hub productionReleaseAuthority false",
-          "G11": "BLOCKED_DEPENDENCIES rollout/rollback resilience",
-          "release": "NOT_AUTHORIZED_NO_MERGE_NO_PUBLISH"
+        "projectChecklistG04": {
+          "scopedPilotUx": "HUMAN_OWNER_APPROVED_AT_EXACT_SHA",
+          "technical": "REAL_BROWSER_ROLE_AND_D1_TECHNICAL_PASS_AT_EXACT_SHA",
+          "projectWideGate": "UNVERIFIED_CANONICAL_MAPPING_AND_OTHER_DEPENDENCIES",
+          "reason": "The explicit Owner approval closes only the human UX acceptance element for the two-app R2.3 pilot. Canonical seven-pillar universal gate is a separately protected capability; qualityGates[].status stays UNVERIFIED and noAutoPass stays true."
         },
-        "singleNextAction": "Obtain explicit Owner G04 UX acceptance or precise requested changes after showing six authenticated local BM/KT screenshots at exactly sha419; independently review G05 benchmark before any gate transition. Keep G10/G11 release authority/rollback requirements separate.",
-        "fallback": "If Owner UX rejects, G05 reviewers cannot attest, or G10/G11 not valid, leave #419/#414 Draft, gates unchanged, Production untouched."
+        "g05": {
+          "assessment": "HISTORICAL_BASELINE_MEASURED_NO_PERSISTENT_CANDIDATE_REGRESSION_BUT_MAIN_DRIFT",
+          "warm360": "https://github.com/BlueDragon33/Application-Management/actions/runs/45344470024",
+          "cold40": "https://github.com/BlueDragon33/Application-Management/actions/runs/45407829546",
+          "measuredBaselineSha": "89a89ce2d3d8ed634ee9562c52744a99223a2b2a",
+          "measuredCandidateSha": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
+          "coldPaintP50ms": {
+            "baseline": 1337.05,
+            "candidate": 1333.9
+          },
+          "coldPaintP95ms": {
+            "baseline": 1439.84,
+            "candidate": 1372.69
+          },
+          "historicalOutlier": "10-app desktop warm test candidate p95 1320.95ms vs baseline 524.32ms; independent balanced 40-sample fresh runtime comparison does not reproduce candidate tail regression",
+          "currentMainSha": "739adcc7c4d516b8f4c90bc2ffa0e492f8837621",
+          "mainChange": {
+            "mergedPr": 420,
+            "mergedAtCommit": "739adcc7c4d516b8f4c90bc2ffa0e492f8837621",
+            "summary": "Russian Time Trainer added to application-hub.tsx and management-dashboard-v2.tsx; imports/tool list/menu glyph changed, other new files scoped to trainer.",
+            "overlapWithCandidateFiles": [
+              "app/management-dashboard-v2.tsx (main-only modification; candidate did not edit this file)"
+            ],
+            "influence": "Central bundle/tool registry may alter boot cost and integration basis; historical exact pair remains valid for old main but not current-base acceptance."
+          },
+          "risk": "G05 cannot be accepted against moving main without reconciling exact baseline/candidate integration and narrowed affected-journey performance evidence",
+          "gateStatus": "UNVERIFIED",
+          "noAutoPass": true
+        },
+        "g10": {
+          "status": "UNVERIFIED",
+          "requirements": "Canonical seven pillars + universal gate attestation at exact candidate/integration SHA, independent human and Owner release authority separate",
+          "currentEvidence": "App PR419 source CI and Constitution checks PASS but do not grant canonical G10; PR414 is project checklist, not canonical gate state",
+          "hubProductionReleaseAuthority": false,
+          "externalReviewer": "EXTERNAL_PENDING",
+          "ownerApproval": "UX G04 only, not merge or publish",
+          "blocker": "Canonical attestation/independent authority mapping and exact integrated revision unresolved"
+        },
+        "g11": {
+          "status": "BLOCKED_DEPENDENCIES",
+          "requirements": "Per-app staged release, independent rollback, tested restore and post-release monitoring, zero P0/P1",
+          "currentEvidence": "Local BM/KT source readback PASS; no demonstrated controlled Production rollout/rollback/restore drill or post-release observations",
+          "blocker": "No deployment authority or tested restore/rollback evidence; remain gated"
+        },
+        "checks": {
+          "release": "NOT_AUTHORIZED",
+          "merge": "NOT_AUTHORIZED",
+          "productionData": "UNCHANGED",
+          "zeroSpend": true
+        },
+        "singleNextAction": "At exact live main 739adcc7... reconcile PR419 with newly merged PR420 through scoped source/diff compatibility; determine if a narrow warm/boot G05 differential is necessary for the resulting integration SHA, then write independent gate evidence to sole PR414 ledger. Do not automatically rebase/merge or repeat full 360/40 suites.",
+        "fallback": "Keep owner G04 UX approval fixed to 9ed41b7; if source revision changes, review only affected visual journeys and obtain new Owner acceptance if visual scope changes. Keep G05/G10 UNVERIFIED, G11 BLOCKED, both Draft and Production unchanged."
+      },
+      "ownerUxAcceptance": {
+        "decision": "APPROVED",
+        "scope": "HUMAN_UX_G04_R23_BM_KT_PILOT_ONLY",
+        "ownerAuthority": "OWNER_EXPLICIT_IN_CONVERSATION_ON_2026-11-24",
+        "recordedAtUTC": "2026-11-24",
+        "appIds": [
+          "bauman-master-ai",
+          "price-report-tunggiabao"
+        ],
+        "viewports": [
+          "1440x900",
+          "800x900",
+          "390x844"
+        ],
+        "repository": "BlueDragon33/Application-Management",
+        "pr": 419,
+        "exactSha": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
+        "ownerStatement": "Tôi xác nhận, với vai trò Owner, đã xem và nghiệm thu riêng giao diện G04 của Bauman và PriceReport trên desktop 1440×900, tablet 800×900 và mobile 390×844 tại Application-Management PR #419 SHA 9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9.",
+        "technicalProof": "https://github.com/BlueDragon33/Application-Management/actions/runs/45344447276",
+        "chromiumArtifactId": 14898400230,
+        "realIntegratedOwnerChildD1ArtifactId": 14897553787,
+        "observations": "6/6 responsive, 0 horizontal overflows, 6/6 Escape focus, 4/4 pending/blocked denial local, 2/2 central Owner->native BM/KT Worker->independent D1->final UI readback; 261 computed sample pairs >=4.5",
+        "notAuthorizationFor": [
+          "G05",
+          "G10",
+          "G11",
+          "PR_MERGE",
+          "PRODUCTION_PUBLISH",
+          "PRODUCTION_D1",
+          "CONSTITUTIONAL_RATIFICATION",
+          "UNRELATED_APPS"
+        ],
+        "canonicalQualityGateOverride": false
       }
     },
     "scope": "COMMON_PRESENTATION_PLUS_APP_OWNED_CAPABILITIES; NO_BACKEND_UNIFICATION_NO_FAKE_AUTHORITIES",
