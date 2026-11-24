@@ -39,6 +39,7 @@ jobs:
             -v "$GITHUB_WORKSPACE:/workspace" \
             -w /workspace \
             -e OFFLINE_NETWORK_ISOLATED=1 \
+            -e SOURCE_REVISION="${{ github.event.pull_request.head.sha || github.sha }}" \
             -e CI=1 \
             node:22-bookworm-slim \
             node scripts/local-isolated-network-none-smoke.mjs
