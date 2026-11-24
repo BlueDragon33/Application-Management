@@ -982,9 +982,300 @@
         "zeroSpend": true
       },
       "nextAction": "Use existing 560-sample evidence, approved budget and uncertainty to obtain authorized exact-scope G05 evaluation and resolve canonical gate mapping; only after acceptance continue original serial R0.3/R1 dependencies. No further benchmark solely for p95 improvement."
+    },
+    "r23G05CanonicalReview": {
+      "stepId": "R0.3",
+      "date": "2026-11-24",
+      "result": "G05_RAW_560_REVALIDATED_CANONICAL_SERVICE_FOUND_READONLY_MAPPING_PREPARED_AUTHORIZED_EVALUATION_BLOCKED",
+      "sources": {
+        "hubHead": "b6699207612ea836c14dd4a9c1ea59549f7de2bb",
+        "activeConstitution": "1.3.0",
+        "currentMain": "e97df96427cbc03ba5a62cf03cd6cc214340cf90",
+        "previousMeasuredMain": "739adcc7c4d516b8f4c90bc2ffa0e492f8837621",
+        "pilot": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
+        "optimization": "92f7fbf6e3b1664d2431694fc5aeaef5b27df5c6",
+        "measuredIntegratedTree": "1fe24059faa2a878d6001d3b03e419263cf2a8cd"
+      },
+      "rawReview": {
+        "method": "Read four previously downloaded ZIP artifacts directly, hash full archive, parse all report.json files, count kind=sample, independently recompute latest nearest-rank p95; no new runtime.",
+        "datasets": [
+          {
+            "file": "r23-g05-exact-sha-360-evidence.zip",
+            "sha256": "7a24274918401238e3cf2e74e0c12fd22f84d9addbfe0a58f0545a3d73773ffe",
+            "samples": 360,
+            "readbacks": 6,
+            "cohorts": [
+              10,
+              50,
+              200
+            ],
+            "viewports": [
+              "1440x900",
+              "800x900",
+              "390x844"
+            ],
+            "baseline": "89a89ce2d3d8ed634ee9562c52744a99223a2b2a",
+            "candidate": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9"
+          },
+          {
+            "file": "r23-g05-controlled-cold10-9ed41b7.zip",
+            "sha256": "735693ff6661a1f461b860388be16f15ea490903f0ccb1a7bb972c3c54b1f018",
+            "samples": 40,
+            "readbacks": 2,
+            "cohorts": [
+              10
+            ],
+            "viewports": [
+              "1440x900"
+            ]
+          },
+          {
+            "file": "r23-g05-current-main-scoped-evidence.zip",
+            "sha256": "165e535d5c3c41df11f99d60c0aaea572e4357c00e4ad0b0c0d2b06f6ff64b23",
+            "samples": 80,
+            "readbacks": 4,
+            "cohorts": [
+              10
+            ],
+            "viewports": [
+              "1440x900"
+            ],
+            "modes": [
+              "cold",
+              "warm"
+            ]
+          },
+          {
+            "file": "r23-g05-approved-warm-api-40-pairs.zip",
+            "sha256": "0ed2e7212d0928e3b0ad3057db403ad7eb26bbef6fe9b4ea929d7fdb3fb2db15",
+            "samples": 80,
+            "readbacks": 2,
+            "cohorts": [
+              10
+            ],
+            "viewports": [
+              "1440x900"
+            ],
+            "mode": "warm",
+            "artifactId": 14960922326,
+            "runId": 45478074047
+          }
+        ],
+        "totals": {
+          "samples": 560,
+          "http200": 560,
+          "readbackRecords": 14,
+          "failedRequestOrPageErrorSamples": 0,
+          "latestCompletedRequests": 8480,
+          "latestFixtureSpans": 1200
+        },
+        "latestP95": {
+          "render": {
+            "baseline": 702.41,
+            "candidate": 504.19,
+            "observedWithinBudget": true
+          },
+          "bootstrap": {
+            "baseline": 663.22,
+            "candidate": 447.13,
+            "observedWithinBudget": true
+          },
+          "api": {
+            "baseline": 52.2,
+            "candidate": 47.75,
+            "observedWithinBudget": true
+          }
+        },
+        "scope": "All reports marked MEASURED_NOT_ACCEPTED; distinct source pairs are not pooled. 14 D1 records are synthetic fixture count readbacks, not Production mutation verification. Latest prospective API budget excess interval includes positive values. No new root cause."
+      },
+      "g05Coverage": {
+        "scopeResult": "OBSERVED_OWNER_BUDGET_MET_NO_SOURCE_FIX_JUSTIFIED",
+        "fullProjectGate": "UNVERIFIED",
+        "missingOrUnresolved": [
+          "Approved evaluator decision and canonical gate instance/evidence binding for exact revision.",
+          "R0.2 PR417 54+40 Windows evidence is distinct from R2.3; original R0.2 checklist requires review of per-loader attribution, React/CPU/long-task/coverage and contrast gaps. No new PR417 artifact reviewed in this turn.",
+          "Historical 50/200 and three-viewports evidence is bound to old source pairs; latest integrated-tree evidence only 10-app desktop. Latest approved thresholds concern prospective warm scope, not all journeys.",
+          "No final release revision incorporating PR417, PR419 and new main."
+        ],
+        "decision": "No automatic new measurement; approved evaluator must explicitly identify any necessary risk-scoped missing evidence and review uncertainty."
+      },
+      "mainDrift": {
+        "mergePr": 422,
+        "changedFiles": 142,
+        "scope": "Russian Time Trainer and related CI/test; no direct overlap with original pilot or PR417 files in returned diff",
+        "unchangedBlobs": [
+          [
+            "app/management-dashboard-v2.tsx",
+            "bb577e78e7e1c26e1ceaca5859cd87edb07350b4"
+          ],
+          [
+            "app/application-hub.tsx",
+            "d2940a9cf18e3d581a211af57438d2c2e4f12deb"
+          ],
+          [
+            "app/api/operations/route.ts",
+            "be5fb231b56957d20f412b0c8123c9ddb1ccd202"
+          ],
+          [
+            "app/tools/russian-time-trainer/tool-entry.ts",
+            "1a646fd6c07074cca05dcae9cef1b0c705ad81e7"
+          ],
+          [
+            "package-lock.json",
+            "110f80e067a92a350ec6ce50a7c3913c5570a3d8"
+          ]
+        ],
+        "assessment": "No direct evidence requiring repeat of G05 benchmark solely from PR422; exact combined latest source/runtime and indirect build/bundle impact not certified."
+      },
+      "canonicalReview": {
+        "templateSource": "packages/application/src/foundation-templates.ts@b6699207612ea836c14dd4a9c1ea59549f7de2bb",
+        "mappingStatus": "SOURCE_IDENTIFIED_CANDIDATE_CROSSWALK_8_OF_8_12_OF_12_NOT_INSTANCE_BINDING",
+        "mapping": [
+          {
+            "templateGateId": "gate:quality:evidence",
+            "localChecklistIds": [
+              "G00",
+              "G04",
+              "G05",
+              "G06",
+              "G07",
+              "G08",
+              "G09",
+              "G10",
+              "G11"
+            ],
+            "assessment": "Exact-source artifacts exist for selected pilot and performance QA; canonical evidence IDs, complete critical journey proof and approved gate evaluator outcome absent.",
+            "canonicalInstanceId": null,
+            "status": "CANDIDATE_MAPPING_NOT_CANONICAL_ATTESTATION"
+          },
+          {
+            "templateGateId": "gate:security:authority",
+            "localChecklistIds": [
+              "G02",
+              "G03",
+              "G06",
+              "G07",
+              "G10"
+            ],
+            "assessment": "BM/KT pilot signed command and denied role scenarios evidenced, not complete all-app identity/revocation/delegation or canonical review authority.",
+            "canonicalInstanceId": null,
+            "status": "CANDIDATE_MAPPING_NOT_CANONICAL_ATTESTATION"
+          },
+          {
+            "templateGateId": "gate:ux:human-acceptance",
+            "localChecklistIds": [
+              "G04"
+            ],
+            "assessment": "Owner explicit BM/KT UX approval at original pilot SHA only; not all critical journeys or latest integrated release.",
+            "canonicalInstanceId": null,
+            "status": "CANDIDATE_MAPPING_NOT_CANONICAL_ATTESTATION"
+          },
+          {
+            "templateGateId": "gate:architecture:future-scale",
+            "localChecklistIds": [
+              "G00",
+              "G01",
+              "G05",
+              "G08"
+            ],
+            "assessment": "B4 adoption, shared shell pilot and historical 10/50/200 QA; E2 target not verified, complete cross-client compatibility/capacity evidence pending.",
+            "canonicalInstanceId": null,
+            "status": "CANDIDATE_MAPPING_NOT_CANONICAL_ATTESTATION"
+          },
+          {
+            "templateGateId": "gate:ux:commercial-quality",
+            "localChecklistIds": [
+              "G04",
+              "G05",
+              "G08"
+            ],
+            "assessment": "Pilot screenshots, sampled contrast and scoped render timing; all routes, final states and non-text/theme boundaries not certified.",
+            "canonicalInstanceId": null,
+            "status": "CANDIDATE_MAPPING_NOT_CANONICAL_ATTESTATION"
+          },
+          {
+            "templateGateId": "gate:durability:ageing-regression",
+            "localChecklistIds": [
+              "G01",
+              "G05",
+              "G06",
+              "G08",
+              "G11"
+            ],
+            "assessment": "Scoped CI/regression/QA proof exists; exact combined PR417/419/latest main release and remaining critical journeys not certified.",
+            "canonicalInstanceId": null,
+            "status": "CANDIDATE_MAPPING_NOT_CANONICAL_ATTESTATION"
+          },
+          {
+            "templateGateId": "gate:operations:dependency-sovereignty",
+            "localChecklistIds": [
+              "G00",
+              "G01",
+              "G03",
+              "G09",
+              "G11"
+            ],
+            "assessment": "Local QA and declared contract ownership; tested degraded behavior, portable export/restore and dependency evidence incomplete.",
+            "canonicalInstanceId": null,
+            "status": "CANDIDATE_MAPPING_NOT_CANONICAL_ATTESTATION"
+          },
+          {
+            "templateGateId": "gate:security:resilience-containment",
+            "localChecklistIds": [
+              "G02",
+              "G03",
+              "G06",
+              "G07",
+              "G09",
+              "G11"
+            ],
+            "assessment": "Pilot role and D1 evidence; independent containment/rollback/restore and all relevant failure modes not proven.",
+            "canonicalInstanceId": null,
+            "status": "CANDIDATE_MAPPING_NOT_CANONICAL_ATTESTATION"
+          }
+        ],
+        "service": {
+          "source": "packages/application/src/work-quality-service.ts@b6699207612ea836c14dd4a9c1ea59549f7de2bb",
+          "blob": "e772eb03da1f348c159fceb5d67b292327247fc0",
+          "method": "addGateEvidence and updateQualityGate require authenticated actor PROJECT_REVIEW, listQualityGates requires PROJECT_READ; update uses expectedRecordVersion; PASS invokes assertQualityGateCanPass"
+        },
+        "guard": {
+          "source": "packages/core/src/work-quality.ts@b6699207612ea836c14dd4a9c1ea59549f7de2bb",
+          "blob": "27b41669e3f8f6c132a66754e505b4dda0bf3faa",
+          "limitation": "Checks existence, matching gateId, nonempty source/revision; does not compute G05 percentiles or certify scope/threshold by itself."
+        },
+        "qualityPage": "apps/web/app/projects/[projectId]/quality/page.tsx@b6699207612ea836c14dd4a9c1ea59549f7de2bb",
+        "qualityPageLimitation": "Read-only canonical gate register; no review mutation form in inspected page.",
+        "attestation": {
+          "source": "docs/CONSTITUTION-COMPLIANCE-ATTESTATION.v1.md@b6699207612ea836c14dd4a9c1ea59549f7de2bb",
+          "adoption": "B4 enforced, 7 pillars, no waivers",
+          "snapshotObservation": "Historical snapshot at source a9d3cbe1a87e4ce80bc10c082a443c8d3569a2ba reports standard-attestation-not-found; not current runtime state.",
+          "currentAttestation": "NOT_OBSERVED",
+          "authority": "Server-resolved project PROJECT_REVIEW actor and canonical instance IDs not available/verified in this GitHub-only session; no approved live G05 evaluator result."
+        },
+        "externalAB": {
+          "reviewerA": "Draft #8 ba17ec8c3a184df7b16f90ecedb72bc6887a2e5d",
+          "reviewerB": "Draft #10 a8affe87a2adeb40d0e0cfd9be6564f59fc6c626",
+          "status": "EXTERNAL_TRACK_NOT_GATE_OWNER_NOT_EXECUTED",
+          "reason": "No evidence granting either current authority for this project's G05. Existing project expressly excludes running external A/B track here."
+        }
+      },
+      "decisions": {
+        "ownerBudget": "APPROVED_TARGET_ONLY",
+        "ownerSchedule": "NOT_APPROVED_KEEP_SERIAL",
+        "g04Owner": "PRESERVE_ORIGINAL_PILOT_APPROVAL",
+        "g05": "UNVERIFIED_SCOPED_TECHNICAL_EVIDENCE_READY_FOR_REVIEW",
+        "g10": "UNVERIFIED",
+        "g11": "BLOCKED_DEPENDENCIES",
+        "newQa": false,
+        "runtimeChange": false,
+        "productionAuthority": false
+      },
+      "blocker": "Canonical project gate register/evaluator access with authenticated PROJECT_REVIEW authority and exact evidence binding; serial R0.2 acceptance prerequisite not met. GitHub repo write rights or a Chat prompt cannot substitute.",
+      "nextAction": "Use authorized project-quality evaluation session to read actual canonical instance IDs and record scope-specific G05 evaluation against approved budget and preserved raw evidence. Do not reopen measurement merely to find PASS. Require concrete rejection reason/coverage requirement before any additional QA."
     }
   },
-  "status": "G05_APPROVED_BUDGET_OBSERVED_WITHIN_LIMITS_FORMAL_ACCEPTANCE_PENDING",
+  "status": "SCOPED_G05_EVIDENCE_REVALIDATED_CANONICAL_REVIEW_ACCESS_BLOCKED",
   "rounds": [
     {
       "round": "R0",
@@ -2207,11 +2498,16 @@
   ],
   "activeNextAction": {
     "id": "R0.3",
-    "type": "AUTHORIZED_G05_SCOPED_ACCEPTANCE_AND_CANONICAL_MAPPING",
-    "state": "BLOCKED_FORMAL_EVALUATOR_AND_SERIAL_DEPENDENCIES",
-    "why": "Owner approved G05 budget only, not dependency amendment. Prospective 40 matched warm pairs met all observed thresholds, raw data and independent readback verified. API uncertainty remains; no source defect established. G05 canonical mapping and authorized evaluation absent; cannot promote gate or progress blocked implementation.",
-    "required": "Review exact 560 historic/prospective scoped sample evidence against approved budget and canonical coverage; secure valid authorized G05 acceptance or precise evidence-based rejection. Keep dependency order unchanged; no additional tests unless evaluator identifies concrete missing evidence and lawful scope. After required acceptance proceed R0.3/R1 in sequence.",
-    "fallback": "Keep G05/G10 UNVERIFIED, G11 BLOCKED, preserve scoped G04 Owner approval; no merge or Production changes.",
+    "type": "AUTHORIZED_CANONICAL_G05_EVALUATION_ACCESS",
+    "state": "BLOCKED_AUTHENTICATED_PROJECT_REVIEW_AND_R02_ACCEPTANCE",
+    "why": "Canonical project gate register/evaluator access with authenticated PROJECT_REVIEW authority and exact evidence binding; serial R0.2 acceptance prerequisite not met. GitHub repo write rights or a Chat prompt cannot substitute.",
+    "required": "Use authorized project-quality evaluation session to read actual canonical instance IDs and record scope-specific G05 evaluation against approved budget and preserved raw evidence. Do not reopen measurement merely to find PASS. Require concrete rejection reason/coverage requirement before any additional QA.",
+    "expectedEvidence": [
+      "Actual canonical gate instance IDs and approved evaluator identity/authority scoped to project:application-management",
+      "Revision-specific evidence links and explicit technical scope outcome, with precise missing criteria if not accepted",
+      "Preserve original owner decisions; continue serial WPs only when eligible"
+    ],
+    "fallback": "Keep all Drafts and original dependencies; no new benchmark without concrete need, no gate promotion or Production change.",
     "singleActionRule": true
   },
   "history": [
@@ -4188,6 +4484,297 @@
         "zeroSpend": true
       },
       "nextAction": "Use existing 560-sample evidence, approved budget and uncertainty to obtain authorized exact-scope G05 evaluation and resolve canonical gate mapping; only after acceptance continue original serial R0.3/R1 dependencies. No further benchmark solely for p95 improvement."
+    },
+    {
+      "stepId": "R0.3",
+      "date": "2026-11-24",
+      "result": "G05_RAW_560_REVALIDATED_CANONICAL_SERVICE_FOUND_READONLY_MAPPING_PREPARED_AUTHORIZED_EVALUATION_BLOCKED",
+      "sources": {
+        "hubHead": "b6699207612ea836c14dd4a9c1ea59549f7de2bb",
+        "activeConstitution": "1.3.0",
+        "currentMain": "e97df96427cbc03ba5a62cf03cd6cc214340cf90",
+        "previousMeasuredMain": "739adcc7c4d516b8f4c90bc2ffa0e492f8837621",
+        "pilot": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9",
+        "optimization": "92f7fbf6e3b1664d2431694fc5aeaef5b27df5c6",
+        "measuredIntegratedTree": "1fe24059faa2a878d6001d3b03e419263cf2a8cd"
+      },
+      "rawReview": {
+        "method": "Read four previously downloaded ZIP artifacts directly, hash full archive, parse all report.json files, count kind=sample, independently recompute latest nearest-rank p95; no new runtime.",
+        "datasets": [
+          {
+            "file": "r23-g05-exact-sha-360-evidence.zip",
+            "sha256": "7a24274918401238e3cf2e74e0c12fd22f84d9addbfe0a58f0545a3d73773ffe",
+            "samples": 360,
+            "readbacks": 6,
+            "cohorts": [
+              10,
+              50,
+              200
+            ],
+            "viewports": [
+              "1440x900",
+              "800x900",
+              "390x844"
+            ],
+            "baseline": "89a89ce2d3d8ed634ee9562c52744a99223a2b2a",
+            "candidate": "9ed41b7d6a4d0ad8b4fc50646276099701ab7fb9"
+          },
+          {
+            "file": "r23-g05-controlled-cold10-9ed41b7.zip",
+            "sha256": "735693ff6661a1f461b860388be16f15ea490903f0ccb1a7bb972c3c54b1f018",
+            "samples": 40,
+            "readbacks": 2,
+            "cohorts": [
+              10
+            ],
+            "viewports": [
+              "1440x900"
+            ]
+          },
+          {
+            "file": "r23-g05-current-main-scoped-evidence.zip",
+            "sha256": "165e535d5c3c41df11f99d60c0aaea572e4357c00e4ad0b0c0d2b06f6ff64b23",
+            "samples": 80,
+            "readbacks": 4,
+            "cohorts": [
+              10
+            ],
+            "viewports": [
+              "1440x900"
+            ],
+            "modes": [
+              "cold",
+              "warm"
+            ]
+          },
+          {
+            "file": "r23-g05-approved-warm-api-40-pairs.zip",
+            "sha256": "0ed2e7212d0928e3b0ad3057db403ad7eb26bbef6fe9b4ea929d7fdb3fb2db15",
+            "samples": 80,
+            "readbacks": 2,
+            "cohorts": [
+              10
+            ],
+            "viewports": [
+              "1440x900"
+            ],
+            "mode": "warm",
+            "artifactId": 14960922326,
+            "runId": 45478074047
+          }
+        ],
+        "totals": {
+          "samples": 560,
+          "http200": 560,
+          "readbackRecords": 14,
+          "failedRequestOrPageErrorSamples": 0,
+          "latestCompletedRequests": 8480,
+          "latestFixtureSpans": 1200
+        },
+        "latestP95": {
+          "render": {
+            "baseline": 702.41,
+            "candidate": 504.19,
+            "observedWithinBudget": true
+          },
+          "bootstrap": {
+            "baseline": 663.22,
+            "candidate": 447.13,
+            "observedWithinBudget": true
+          },
+          "api": {
+            "baseline": 52.2,
+            "candidate": 47.75,
+            "observedWithinBudget": true
+          }
+        },
+        "scope": "All reports marked MEASURED_NOT_ACCEPTED; distinct source pairs are not pooled. 14 D1 records are synthetic fixture count readbacks, not Production mutation verification. Latest prospective API budget excess interval includes positive values. No new root cause."
+      },
+      "g05Coverage": {
+        "scopeResult": "OBSERVED_OWNER_BUDGET_MET_NO_SOURCE_FIX_JUSTIFIED",
+        "fullProjectGate": "UNVERIFIED",
+        "missingOrUnresolved": [
+          "Approved evaluator decision and canonical gate instance/evidence binding for exact revision.",
+          "R0.2 PR417 54+40 Windows evidence is distinct from R2.3; original R0.2 checklist requires review of per-loader attribution, React/CPU/long-task/coverage and contrast gaps. No new PR417 artifact reviewed in this turn.",
+          "Historical 50/200 and three-viewports evidence is bound to old source pairs; latest integrated-tree evidence only 10-app desktop. Latest approved thresholds concern prospective warm scope, not all journeys.",
+          "No final release revision incorporating PR417, PR419 and new main."
+        ],
+        "decision": "No automatic new measurement; approved evaluator must explicitly identify any necessary risk-scoped missing evidence and review uncertainty."
+      },
+      "mainDrift": {
+        "mergePr": 422,
+        "changedFiles": 142,
+        "scope": "Russian Time Trainer and related CI/test; no direct overlap with original pilot or PR417 files in returned diff",
+        "unchangedBlobs": [
+          [
+            "app/management-dashboard-v2.tsx",
+            "bb577e78e7e1c26e1ceaca5859cd87edb07350b4"
+          ],
+          [
+            "app/application-hub.tsx",
+            "d2940a9cf18e3d581a211af57438d2c2e4f12deb"
+          ],
+          [
+            "app/api/operations/route.ts",
+            "be5fb231b56957d20f412b0c8123c9ddb1ccd202"
+          ],
+          [
+            "app/tools/russian-time-trainer/tool-entry.ts",
+            "1a646fd6c07074cca05dcae9cef1b0c705ad81e7"
+          ],
+          [
+            "package-lock.json",
+            "110f80e067a92a350ec6ce50a7c3913c5570a3d8"
+          ]
+        ],
+        "assessment": "No direct evidence requiring repeat of G05 benchmark solely from PR422; exact combined latest source/runtime and indirect build/bundle impact not certified."
+      },
+      "canonicalReview": {
+        "templateSource": "packages/application/src/foundation-templates.ts@b6699207612ea836c14dd4a9c1ea59549f7de2bb",
+        "mappingStatus": "SOURCE_IDENTIFIED_CANDIDATE_CROSSWALK_8_OF_8_12_OF_12_NOT_INSTANCE_BINDING",
+        "mapping": [
+          {
+            "templateGateId": "gate:quality:evidence",
+            "localChecklistIds": [
+              "G00",
+              "G04",
+              "G05",
+              "G06",
+              "G07",
+              "G08",
+              "G09",
+              "G10",
+              "G11"
+            ],
+            "assessment": "Exact-source artifacts exist for selected pilot and performance QA; canonical evidence IDs, complete critical journey proof and approved gate evaluator outcome absent.",
+            "canonicalInstanceId": null,
+            "status": "CANDIDATE_MAPPING_NOT_CANONICAL_ATTESTATION"
+          },
+          {
+            "templateGateId": "gate:security:authority",
+            "localChecklistIds": [
+              "G02",
+              "G03",
+              "G06",
+              "G07",
+              "G10"
+            ],
+            "assessment": "BM/KT pilot signed command and denied role scenarios evidenced, not complete all-app identity/revocation/delegation or canonical review authority.",
+            "canonicalInstanceId": null,
+            "status": "CANDIDATE_MAPPING_NOT_CANONICAL_ATTESTATION"
+          },
+          {
+            "templateGateId": "gate:ux:human-acceptance",
+            "localChecklistIds": [
+              "G04"
+            ],
+            "assessment": "Owner explicit BM/KT UX approval at original pilot SHA only; not all critical journeys or latest integrated release.",
+            "canonicalInstanceId": null,
+            "status": "CANDIDATE_MAPPING_NOT_CANONICAL_ATTESTATION"
+          },
+          {
+            "templateGateId": "gate:architecture:future-scale",
+            "localChecklistIds": [
+              "G00",
+              "G01",
+              "G05",
+              "G08"
+            ],
+            "assessment": "B4 adoption, shared shell pilot and historical 10/50/200 QA; E2 target not verified, complete cross-client compatibility/capacity evidence pending.",
+            "canonicalInstanceId": null,
+            "status": "CANDIDATE_MAPPING_NOT_CANONICAL_ATTESTATION"
+          },
+          {
+            "templateGateId": "gate:ux:commercial-quality",
+            "localChecklistIds": [
+              "G04",
+              "G05",
+              "G08"
+            ],
+            "assessment": "Pilot screenshots, sampled contrast and scoped render timing; all routes, final states and non-text/theme boundaries not certified.",
+            "canonicalInstanceId": null,
+            "status": "CANDIDATE_MAPPING_NOT_CANONICAL_ATTESTATION"
+          },
+          {
+            "templateGateId": "gate:durability:ageing-regression",
+            "localChecklistIds": [
+              "G01",
+              "G05",
+              "G06",
+              "G08",
+              "G11"
+            ],
+            "assessment": "Scoped CI/regression/QA proof exists; exact combined PR417/419/latest main release and remaining critical journeys not certified.",
+            "canonicalInstanceId": null,
+            "status": "CANDIDATE_MAPPING_NOT_CANONICAL_ATTESTATION"
+          },
+          {
+            "templateGateId": "gate:operations:dependency-sovereignty",
+            "localChecklistIds": [
+              "G00",
+              "G01",
+              "G03",
+              "G09",
+              "G11"
+            ],
+            "assessment": "Local QA and declared contract ownership; tested degraded behavior, portable export/restore and dependency evidence incomplete.",
+            "canonicalInstanceId": null,
+            "status": "CANDIDATE_MAPPING_NOT_CANONICAL_ATTESTATION"
+          },
+          {
+            "templateGateId": "gate:security:resilience-containment",
+            "localChecklistIds": [
+              "G02",
+              "G03",
+              "G06",
+              "G07",
+              "G09",
+              "G11"
+            ],
+            "assessment": "Pilot role and D1 evidence; independent containment/rollback/restore and all relevant failure modes not proven.",
+            "canonicalInstanceId": null,
+            "status": "CANDIDATE_MAPPING_NOT_CANONICAL_ATTESTATION"
+          }
+        ],
+        "service": {
+          "source": "packages/application/src/work-quality-service.ts@b6699207612ea836c14dd4a9c1ea59549f7de2bb",
+          "blob": "e772eb03da1f348c159fceb5d67b292327247fc0",
+          "method": "addGateEvidence and updateQualityGate require authenticated actor PROJECT_REVIEW, listQualityGates requires PROJECT_READ; update uses expectedRecordVersion; PASS invokes assertQualityGateCanPass"
+        },
+        "guard": {
+          "source": "packages/core/src/work-quality.ts@b6699207612ea836c14dd4a9c1ea59549f7de2bb",
+          "blob": "27b41669e3f8f6c132a66754e505b4dda0bf3faa",
+          "limitation": "Checks existence, matching gateId, nonempty source/revision; does not compute G05 percentiles or certify scope/threshold by itself."
+        },
+        "qualityPage": "apps/web/app/projects/[projectId]/quality/page.tsx@b6699207612ea836c14dd4a9c1ea59549f7de2bb",
+        "qualityPageLimitation": "Read-only canonical gate register; no review mutation form in inspected page.",
+        "attestation": {
+          "source": "docs/CONSTITUTION-COMPLIANCE-ATTESTATION.v1.md@b6699207612ea836c14dd4a9c1ea59549f7de2bb",
+          "adoption": "B4 enforced, 7 pillars, no waivers",
+          "snapshotObservation": "Historical snapshot at source a9d3cbe1a87e4ce80bc10c082a443c8d3569a2ba reports standard-attestation-not-found; not current runtime state.",
+          "currentAttestation": "NOT_OBSERVED",
+          "authority": "Server-resolved project PROJECT_REVIEW actor and canonical instance IDs not available/verified in this GitHub-only session; no approved live G05 evaluator result."
+        },
+        "externalAB": {
+          "reviewerA": "Draft #8 ba17ec8c3a184df7b16f90ecedb72bc6887a2e5d",
+          "reviewerB": "Draft #10 a8affe87a2adeb40d0e0cfd9be6564f59fc6c626",
+          "status": "EXTERNAL_TRACK_NOT_GATE_OWNER_NOT_EXECUTED",
+          "reason": "No evidence granting either current authority for this project's G05. Existing project expressly excludes running external A/B track here."
+        }
+      },
+      "decisions": {
+        "ownerBudget": "APPROVED_TARGET_ONLY",
+        "ownerSchedule": "NOT_APPROVED_KEEP_SERIAL",
+        "g04Owner": "PRESERVE_ORIGINAL_PILOT_APPROVAL",
+        "g05": "UNVERIFIED_SCOPED_TECHNICAL_EVIDENCE_READY_FOR_REVIEW",
+        "g10": "UNVERIFIED",
+        "g11": "BLOCKED_DEPENDENCIES",
+        "newQa": false,
+        "runtimeChange": false,
+        "productionAuthority": false
+      },
+      "blocker": "Canonical project gate register/evaluator access with authenticated PROJECT_REVIEW authority and exact evidence binding; serial R0.2 acceptance prerequisite not met. GitHub repo write rights or a Chat prompt cannot substitute.",
+      "nextAction": "Use authorized project-quality evaluation session to read actual canonical instance IDs and record scope-specific G05 evaluation against approved budget and preserved raw evidence. Do not reopen measurement merely to find PASS. Require concrete rejection reason/coverage requirement before any additional QA."
     }
   ],
   "assessment": {
@@ -4922,6 +5509,17 @@
           },
           "apiUncertainty": "BUDGET_EXCESS_BOOTSTRAP_INTERVAL_INCLUDES_POSITIVE_VALUES",
           "noAutoPass": true
+        },
+        {
+          "kind": "EXISTING_RAW_ARTIFACT_REVALIDATION_AND_CANONICAL_EVALUATOR_SOURCE_REVIEW",
+          "status": "SCOPED_OBSERVED_BUDGET_MET_AUTHORIZED_EVALUATION_MISSING",
+          "samples": 560,
+          "fixtureCountReadbacks": 14,
+          "latestRunId": 45478074047,
+          "approvedBudget": "AM-R23-G05-P95-BUDGET-DRAFT-v1",
+          "canonicalSource": "packages/application/src/work-quality-service.ts@b6699207612ea836c14dd4a9c1ea59549f7de2bb",
+          "sourceMappingOnly": true,
+          "autoPass": false
         }
       ],
       "exactSha": null,
@@ -5017,6 +5615,117 @@
           "source": "https://github.com/BlueDragon33/Application-Management/actions/runs/45442122294",
           "integratedTree": "1fe24059faa2a878d6001d3b03e419263cf2a8cd",
           "hubProductionReleaseAuthority": false
+        },
+        {
+          "kind": "UNIVERSAL_GATE_CANDIDATE_CROSSWALK",
+          "status": "8_TEMPLATE_IDS_12_LOCAL_CHECKLISTS_NOT_CANONICAL_INSTANCE_BINDING",
+          "hubRevision": "b6699207612ea836c14dd4a9c1ea59549f7de2bb",
+          "mapping": [
+            {
+              "templateGateId": "gate:quality:evidence",
+              "localChecklistIds": [
+                "G00",
+                "G04",
+                "G05",
+                "G06",
+                "G07",
+                "G08",
+                "G09",
+                "G10",
+                "G11"
+              ],
+              "assessment": "Exact-source artifacts exist for selected pilot and performance QA; canonical evidence IDs, complete critical journey proof and approved gate evaluator outcome absent.",
+              "canonicalInstanceId": null,
+              "status": "CANDIDATE_MAPPING_NOT_CANONICAL_ATTESTATION"
+            },
+            {
+              "templateGateId": "gate:security:authority",
+              "localChecklistIds": [
+                "G02",
+                "G03",
+                "G06",
+                "G07",
+                "G10"
+              ],
+              "assessment": "BM/KT pilot signed command and denied role scenarios evidenced, not complete all-app identity/revocation/delegation or canonical review authority.",
+              "canonicalInstanceId": null,
+              "status": "CANDIDATE_MAPPING_NOT_CANONICAL_ATTESTATION"
+            },
+            {
+              "templateGateId": "gate:ux:human-acceptance",
+              "localChecklistIds": [
+                "G04"
+              ],
+              "assessment": "Owner explicit BM/KT UX approval at original pilot SHA only; not all critical journeys or latest integrated release.",
+              "canonicalInstanceId": null,
+              "status": "CANDIDATE_MAPPING_NOT_CANONICAL_ATTESTATION"
+            },
+            {
+              "templateGateId": "gate:architecture:future-scale",
+              "localChecklistIds": [
+                "G00",
+                "G01",
+                "G05",
+                "G08"
+              ],
+              "assessment": "B4 adoption, shared shell pilot and historical 10/50/200 QA; E2 target not verified, complete cross-client compatibility/capacity evidence pending.",
+              "canonicalInstanceId": null,
+              "status": "CANDIDATE_MAPPING_NOT_CANONICAL_ATTESTATION"
+            },
+            {
+              "templateGateId": "gate:ux:commercial-quality",
+              "localChecklistIds": [
+                "G04",
+                "G05",
+                "G08"
+              ],
+              "assessment": "Pilot screenshots, sampled contrast and scoped render timing; all routes, final states and non-text/theme boundaries not certified.",
+              "canonicalInstanceId": null,
+              "status": "CANDIDATE_MAPPING_NOT_CANONICAL_ATTESTATION"
+            },
+            {
+              "templateGateId": "gate:durability:ageing-regression",
+              "localChecklistIds": [
+                "G01",
+                "G05",
+                "G06",
+                "G08",
+                "G11"
+              ],
+              "assessment": "Scoped CI/regression/QA proof exists; exact combined PR417/419/latest main release and remaining critical journeys not certified.",
+              "canonicalInstanceId": null,
+              "status": "CANDIDATE_MAPPING_NOT_CANONICAL_ATTESTATION"
+            },
+            {
+              "templateGateId": "gate:operations:dependency-sovereignty",
+              "localChecklistIds": [
+                "G00",
+                "G01",
+                "G03",
+                "G09",
+                "G11"
+              ],
+              "assessment": "Local QA and declared contract ownership; tested degraded behavior, portable export/restore and dependency evidence incomplete.",
+              "canonicalInstanceId": null,
+              "status": "CANDIDATE_MAPPING_NOT_CANONICAL_ATTESTATION"
+            },
+            {
+              "templateGateId": "gate:security:resilience-containment",
+              "localChecklistIds": [
+                "G02",
+                "G03",
+                "G06",
+                "G07",
+                "G09",
+                "G11"
+              ],
+              "assessment": "Pilot role and D1 evidence; independent containment/rollback/restore and all relevant failure modes not proven.",
+              "canonicalInstanceId": null,
+              "status": "CANDIDATE_MAPPING_NOT_CANONICAL_ATTESTATION"
+            }
+          ],
+          "source": "packages/application/src/foundation-templates.ts@b6699207612ea836c14dd4a9c1ea59549f7de2bb",
+          "productionReleaseAuthority": false
         }
       ],
       "exactSha": null,
