@@ -6,6 +6,10 @@ on:
       - scripts/r23-pilot-browser-qa.mjs
       - scripts/r23-client-source-probe.mjs
       - scripts/r23-integrated-owner-qa.mjs
+      - app/application-admin.module.css
+      - app/apps/bauman-master-ai/bauman-admin.module.css
+      - app/apps/price-report-tunggiabao/price-report-admin.module.css
+      - tests/r23-client-panel-css-contrast.test.mjs
       - .github/workflows/r23-pilot-browser-qa.yml
 
 permissions:
