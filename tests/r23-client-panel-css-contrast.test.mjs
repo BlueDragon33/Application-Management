@@ -52,3 +52,12 @@ test("actual shell/KT caption foreground palettes clear WCAG 4.5:1 against sampl
   assert.match(kt, /\.deviceList dt\{color:#47586f/);
   assert.match(kt, /\.deviceIdentity small\{[^}]*color:#47586f/);
 });
+
+
+test("shared Owner topbar descriptions meet opaque/background-composited 4.5:1 target", () => {
+  const base = read("app/application-admin.module.css");
+  assert.match(base, /\.workspaceTopbar p\{[^}]*color:#47586f/);
+  // Topbar background is rgba(243,246,250,.96) over a light page.
+  assert.ok(contrastRatio("#47586f","#f3f6fa") >= 4.5);
+  assert.ok(contrastRatio("#47586f","#ffffff") >= 4.5);
+});
