@@ -6,7 +6,7 @@
  * registered in category, project has repository, repository has registry state.
  * No canonical dependency, Graph/Agent event or QA result is fabricated.
  */
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import { buildRegistryNeuralGraph, centerNeuralViewport } from "../../blueprint-neural-registry-graph.mjs";
 import styles from "./blueprint-compass.module.css";
 
@@ -29,6 +29,7 @@ export default function BlueprintNeuralOverview({
   projects, selectedProjectId, onSelectProject,
 }: { projects: readonly NeuralProject[]; selectedProjectId: string; onSelectProject: (projectId: string) => void }) {
   const trackRef = useRef<HTMLDivElement | null>(null);
+  const [zoom, setZoom] = useState(1);
   const diagram = useMemo(
     () => buildRegistryNeuralGraph(projects, selectedProjectId),
     [projects, selectedProjectId],
@@ -60,24 +61,29 @@ export default function BlueprintNeuralOverview({
     </div>
     {diagram.projects.length > 0 ? <>
       <div className={styles.neuralToolbar}>
+        <div className={styles.neuralZoom} role="group" aria-label="Thu phóng mạng dự án">
+          <button type="button" aria-label="Thu nhỏ mạng" disabled={zoom <= 0.75} onClick={() => setZoom(value => Math.max(0.75, value - 0.25))}>−</button>
+          <button type="button" aria-label="Khôi phục tỷ lệ mạng" onClick={() => setZoom(1)}>{Math.round(zoom * 100)}%</button>
+          <button type="button" aria-label="Phóng to mạng" disabled={zoom >= 1.5} onClick={() => setZoom(value => Math.min(1.5, value + 0.25))}>+</button>
+        </div>
         <button type="button" onClick={() => {
           const track = trackRef.current;
           const node = track?.querySelector<HTMLButtonElement>('button[aria-pressed="true"]');
           if (!track || !node) return;
           const target = centerNeuralViewport(
-            node.offsetLeft + node.offsetWidth / 2,
-            node.offsetTop + node.offsetHeight / 2,
+            (node.offsetLeft + node.offsetWidth / 2) * zoom,
+            (node.offsetTop + node.offsetHeight / 2) * zoom,
             track.scrollWidth, track.scrollHeight, track.clientWidth, track.clientHeight,
           );
           if (!target) return;
           track.scrollTo({ ...target, behavior: "auto" });
           node.focus({ preventScroll: true });
         }}>◎ Đến node dự án</button>
-        <span>Tab để chọn dự án · Kéo ngang để khám phá 5 dải · Chỉ dữ liệu registry</span>
+        <span>Tab để chọn dự án · Cuộn ngang/dọc · Thu phóng chỉ đổi tỷ lệ hiển thị</span>
       </div>
       <div ref={trackRef} className={styles.neuralTrack} tabIndex={0} role="region"
       aria-label="Sơ đồ 5 dải nguồn registry, nhóm, dự án, repository, trạng thái. Cuộn ngang để xem và Tab để chọn node">
-      <div className={styles.neuralStage} style={{ width: diagram.width, height: diagram.height }}>
+      <div className={styles.neuralStage} style={{ width: diagram.width, height: diagram.height, zoom }}>
         <svg className={styles.neuralCanvas}
           viewBox={`0 0 ${diagram.width} ${diagram.height}`}
           width={diagram.width} height={diagram.height} aria-hidden="true" focusable="false">

@@ -102,3 +102,9 @@
 .neuralToolbar button:focus-visible{outline:3px solid #ffe49a;outline-offset:2px}
 .neuralToolbar button:hover{background:#385981}
 @media(max-width:760px){.neuralToolbar{gap:6px}.neuralToolbar button{min-height:44px}}
+
+/* Bounded atlas viewport: keep controls outside the scaled graph. */
+.neuralTrack{max-height:clamp(280px,55vh,680px);scrollbar-gutter:stable}
+.neuralZoom{display:flex;gap:4px;align-items:center}
+.neuralZoom button{min-width:44px;min-height:44px}
+.neuralZoom button:disabled{opacity:.55;cursor:default}

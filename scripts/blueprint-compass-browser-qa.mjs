@@ -82,6 +82,31 @@ export async function verifyBlueprintCompass(origin, { makeContext, pass, screen
       assert.ok(Math.abs(viewport.left - viewport.expected) <= 2, JSON.stringify(viewport));
       assert.ok(viewport.documentWidth <= viewport.viewportWidth + 1, JSON.stringify(viewport));
       await screenshot(page, "compass-" + width + "-selected");
+      const zoomIn = page.getByRole("button", { name: "Phóng to mạng", exact: true });
+      const zoomOut = page.getByRole("button", { name: "Thu nhỏ mạng", exact: true });
+      const reset = page.getByRole("button", { name: "Khôi phục tỷ lệ mạng", exact: true });
+      for (const [control, percent] of [[zoomIn, "125%"], [zoomIn, "150%"], [reset, "100%"], [zoomOut, "75%"]]) {
+        await control.click();
+        assert.equal((await reset.innerText()).trim(), percent);
+        await locate.click();
+        await target.and(page.locator(":focus")).waitFor();
+        assert.equal(await chosen.count(), 1);
+        const geometry = await graph.evaluate(element => {
+          const n = element.querySelector('button[aria-pressed="true"]');
+          const rect = n.getBoundingClientRect(), frame = element.getBoundingClientRect();
+          const x = rect.left + rect.width / 2 - frame.left - element.clientLeft + element.scrollLeft;
+          const y = rect.top + rect.height / 2 - frame.top - element.clientTop + element.scrollTop;
+          const clamp = (v, max) => Math.max(0, Math.min(v, Math.max(0,max)));
+          return { dx: Math.abs(element.scrollLeft - clamp(x-element.clientWidth/2, element.scrollWidth-element.clientWidth)),
+            dy: Math.abs(element.scrollTop - clamp(y-element.clientHeight/2, element.scrollHeight-element.clientHeight)),
+            doc: document.documentElement.scrollWidth, view: document.documentElement.clientWidth };
+        });
+        assert.ok(geometry.dx <= 3 && geometry.dy <= 3 && geometry.doc <= geometry.view + 1, JSON.stringify(geometry));
+      }
+      assert.ok(await zoomOut.isDisabled());
+      await reset.click();
+      assert.equal((await reset.innerText()).trim(), "100%");
+      pass("Blueprint Compass " + width + "px: bounded zoom and two-axis locator keep selected node and page containment", { githubFixture: true });
       pass("Blueprint Compass " + width + "px: real graph selection, four source edges, keyboard and locator, guide, bounded page", { githubFixture: true });
       failReads = true;
       await detail.getByRole("button", { name: /Đọc lại GitHub/ }).click();

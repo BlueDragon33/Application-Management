@@ -85,6 +85,21 @@ test("real neural node click updates selection without inventing graph telemetry
     assert.equal(scrolls[0].behavior, "auto");
     assert.equal(dom.window.document.activeElement, app);
     assert.equal(app.getAttribute("aria-pressed"), "true");
+    const zoomIn = dom.window.document.querySelector('button[aria-label="Phóng to mạng"]');
+    const reset = dom.window.document.querySelector('button[aria-label="Khôi phục tỷ lệ mạng"]');
+    const zoomOut = dom.window.document.querySelector('button[aria-label="Thu nhỏ mạng"]');
+    await React.act(async () => zoomIn.click());
+    assert.equal(reset.textContent, "125%");
+    await React.act(async () => zoomIn.click());
+    assert.equal(reset.textContent, "150%");
+    assert.equal(zoomIn.disabled, true);
+    await React.act(async () => reset.click());
+    assert.equal(reset.textContent, "100%");
+    await React.act(async () => zoomOut.click());
+    assert.equal(reset.textContent, "75%");
+    assert.equal(zoomOut.disabled, true);
+    assert.equal(app.getAttribute("aria-pressed"), "true");
+    assert.equal(dom.window.document.querySelectorAll('button[aria-controls="compass-project-detail"]').length, 2);
   } finally {
     await React.act(async () => root.unmount());
     dom.window.close();
