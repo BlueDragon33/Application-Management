@@ -103,11 +103,48 @@ export async function verifyTrainerV61(origin, { makeContext, pass, screenshot }
     await firstScene.click();
     assert.equal(await firstScene.getAttribute("aria-pressed"), "true");
     const observations = [];
+    const boundaries = [];
+    const controlContrast = locator => locator.evaluate(element => {
+      const lum = value => value.match(/[\d.]+/g).slice(0,3).map(Number).map(n=>n/255)
+        .map(n=>n<=0.04045?n/12.92:((n+0.055)/1.055)**2.4)
+        .reduce((sum,n,i)=>sum+n*[.2126,.7152,.0722][i],0);
+      const ratio = (a,b) => (Math.max(lum(a),lum(b))+.05)/(Math.min(lum(a),lum(b))+.05);
+      let outer;
+      for(let p=element.parentElement;p;p=p.parentElement) {
+        const background=getComputedStyle(p).backgroundColor;
+        if(background!=="rgba(0, 0, 0, 0)") {outer=background;break;}
+      }
+      if(!outer)throw Error("Unresolved control background");
+      const style=getComputedStyle(element);
+      return {
+        boundary:Math.max(ratio(style.borderTopColor,outer),ratio(style.backgroundColor,outer)),
+        outline:style.outlineStyle==="none"?0:ratio(style.outlineColor,outer),
+        focusVisible:element.matches(":focus-visible")
+      };
+    });
     for (const width of [390,1440]) {
       await page.setViewportSize({width,height:900});
       for (const expectedTheme of ["light","dark"]) {
         if (await page.locator("main").getAttribute("data-theme") !== expectedTheme) await theme.click();
         await page.waitForFunction(value=>document.querySelector("main")?.getAttribute("data-theme")===value,expectedTheme);
+        const otherScene = library.getByRole("button").nth(1);
+        await page.mouse.move(0,0);
+        const normal = await controlContrast(otherScene);
+        assert.ok(normal.boundary >= 3, JSON.stringify({width,expectedTheme,normal}));
+        await otherScene.hover();
+        const hover = await controlContrast(otherScene);
+        assert.ok(hover.boundary >= 3, JSON.stringify({width,expectedTheme,hover}));
+        await page.keyboard.press("Tab");
+        await otherScene.focus();
+        const focused = await controlContrast(otherScene);
+        assert.ok(focused.focusVisible && focused.outline >= 3, JSON.stringify({width,expectedTheme,focused}));
+        const selected = await controlContrast(firstScene);
+        assert.ok(selected.boundary >= 3, JSON.stringify({width,expectedTheme,selected}));
+        const summary = guide.getByText("Playback settings", {exact:false});
+        await summary.focus();
+        const summaryFocus = await controlContrast(summary);
+        assert.ok(summaryFocus.focusVisible && summaryFocus.outline >= 3, JSON.stringify({width,expectedTheme,summaryFocus}));
+        boundaries.push({width,theme:expectedTheme,normal,hover,focused,selected,summaryFocus});
         await firstScene.focus();
         const measured = await auditVisibleText(page,'section[aria-label^="Natural Immersion"]');
         assert.ok(measured.checked > 0, "No guided contrast observations");
@@ -124,6 +161,7 @@ export async function verifyTrainerV61(origin, { makeContext, pass, screenshot }
       }
     }
     pass("Guided Observe computed text contrast, target sizes and task-first DOM order", {observations});
+    pass("Context library normal, hover, selected and keyboard-focus boundaries; dark player settings focus", {boundaries});
     await screenshot(page, "v61-context-library");
     await advance.click();
     await library.waitFor({ state: "detached" });
