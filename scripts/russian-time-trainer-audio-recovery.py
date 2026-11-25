@@ -48,7 +48,7 @@ for key,word in words:
         author=val("Artist"); credit=val("Credit"); description=val("ImageDescription")
         combined=" ".join([author,credit,description])
         assert re.search(r"shtooka|forvo",combined,re.I), "recording provenance not established"
-        assert author and re.fullmatch(r"CC (?:BY(?:-SA)? [234]\.0)",license), "rights or author unresolved"
+        assert author and not re.search(r"lacking author|unknown|not provided",author,re.I) and re.fullmatch(r"CC (?:BY(?:-SA)? [234]\.0)(?: fr| us)?",license,re.I), "rights or author unresolved: "+license+" / "+author
         assert license_url.startswith("https://creativecommons.org/") or license_url.startswith("http://creativecommons.org/"),"license URL unresolved"
         url=info["url"]; assert urllib.parse.urlparse(url).hostname=="upload.wikimedia.org"
         data=get(url,2000000); path=out/("human-"+key+".ogg"); path.write_bytes(data)
@@ -71,9 +71,11 @@ try:
     model=work/"ru_RU-dmitri-medium.onnx"
     for name,limit in [("ru_RU-dmitri-medium.onnx",70000000),("ru_RU-dmitri-medium.onnx.json",1000000),("MODEL_CARD",10000)]:
         (work/name).write_bytes(get(base+name,limit))
-    assert digest(model.read_bytes())=="f073356ebc4bd0f80c5af58df2953a5988bd5ab1eb38635ce960b071fbefcb"
+    actual_model_hash=digest(model.read_bytes())
+    manifest["observedModelSha256"]=actual_model_hash
+    assert actual_model_hash=="f073356ebc4bd0f80c5af58df2953a5988bd5ab1eb38635ce960b071fbefcb", "pinned model SHA mismatch: "+actual_model_hash+" bytes="+str(model.stat().st_size)
     card=(work/"MODEL_CARD").read_text()
-    assert "CC0" in card and "Speakers: 1" in card
+    assert "CC0" in card and "Speakers: 1" in card, "pinned card lacks expected CC0 and single-speaker metadata"
     (out/"PIPER_MODEL_CARD.txt").write_text(card)
     voice=PiperVoice.load(str(model))
     for key,word in words:
@@ -82,7 +84,10 @@ try:
             with wave.open(str(path),"wb") as w: voice.synthesize_wav(word,w)
             record("Piper",key,word,path,{"modelRevision":rev,"modelSha256":digest(model.read_bytes()),"modelCard":base+"MODEL_CARD","datasetLicense":"CC0","speaker":"Dmitri (single-speaker model)","licenseAdmission":"pending review of base model/output terms"})
         except Exception as e: fail("Piper:"+word,e)
-except Exception as e: fail("Piper acquisition/synthesis",e)
+except Exception as e:
+    import traceback
+    traceback.print_exc()
+    fail("Piper acquisition/synthesis",repr(e))
 # Human speaker provenance is not inferred from upload authors. Metadata stays in report for qualified review.
 # Provide natural-rate independent clips and labeled ordering; do not mix as an assessment.
 for key,word in words:
