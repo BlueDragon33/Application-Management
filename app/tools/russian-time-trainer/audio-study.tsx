@@ -1,18 +1,19 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState } from "react";
 import { calendarForms, calendarGroups, categories, soundNotes } from "./calendar-content";
 import type { Bilingual } from "./content";
 import { dailyLessons } from "./daily";
 import { adaptiveEligible, memoryEntry, nextAdaptiveTask, nextReview, readMemory, recordAdaptiveAnswer, recordAdaptiveSelfRecall, setMemory, skills, spellingDifference, type MemoryEntry, type ReviewSkill, type Skill } from "./memory";
 import { PronunciationStatus, type AudioSettings, type useRussianAudio } from "./pronunciation";
 import { Recording } from "./recording";
-import AdaptivePractice from "./adaptive-practice";
 import { adaptiveTask, adaptiveTasks, type AdaptiveSkill } from "./adaptive-content";
 import type { AudioSource } from "./audio-assets";
 import { knowledgeLinks, type KnowledgeRelation } from "./knowledge-links";
 import { StudyWords } from "./translation";
 import styles from "./trainer.module.css";
+
+const AdaptivePractice = lazy(() => import("./adaptive-practice"));
 
 const modes = {
   listen: { en: "Listening Only", ru: "Только слушать" },
@@ -75,11 +76,12 @@ const relationLabels: Record<KnowledgeRelation, Bilingual> = {
   context: { en: "Related context", ru: "Связанный контекст" },
 };
 
-function Exercise({ form, mode, speech, hidden, heard, choiceSeed, onResult, onSelect, guidedStage }: {
+function Exercise({ form, mode, speech, hidden, heard, choiceSeed, onResult, onSelect, guidedStage, onRevealWithoutAssessment }: {
   form: typeof calendarForms[number]; mode: ExerciseMode; speech: ReturnType<typeof useRussianAudio>;
   hidden: boolean; heard: boolean; choiceSeed: number; guidedStage?: number;
   onResult: (skill: Skill, result: boolean, time: number) => void;
   onSelect: (id: string) => void;
+  onRevealWithoutAssessment: () => void;
 }) {
   const [revealed, setRevealed] = useState(false);
   const [script, setScript] = useState<keyof typeof scripts>("lower");
@@ -155,8 +157,8 @@ function Exercise({ form, mode, speech, hidden, heard, choiceSeed, onResult, onS
         {" "}<span lang="ru">{spellingDifference(answer, form.ru).typed || "∅"} → {spellingDifference(answer, form.ru).expected || "∅"}</span>
       </p>}
     </div>}
-    {(guidedStage === undefined || guidedRecall) && !showAnswer && !recognition && mode !== "dictate" && <button type="button" className={styles.control} onClick={() => setRevealed(true)}>
-      Reveal text <span lang="ru">Показать текст</span>
+    {(guidedStage === undefined || guidedRecall) && !showAnswer && !recognition && mode !== "dictate" && <button type="button" className={styles.control} onClick={() => { setRevealed(true); if (guidedRecall) onRevealWithoutAssessment(); }}>
+      {guidedRecall ? <Pair text={{ en: "Reveal without assessment", ru: "Показать без оценки" }} /> : <Pair text={{ en: "Reveal text", ru: "Показать текст" }} />}
     </button>}
     {showAnswer && <section className={styles.rule}>
       <p className={styles.phrase}><StudyWords text={form.stressed} language="ru" /></p>
@@ -263,7 +265,7 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
   const category = categories[group.category];
   const categoryGroups = calendarGroups.filter(item => item.category === group.category);
   const selectedDay = dailyLessons[day];
-  const due = nextReview(entries, now);
+  const due = useMemo(() => nextReview(entries, now), [entries, now]);
   const canPlayExample = exerciseMode === "listen" || exerciseMode === "repeat" || exerciseMode === "shadow";
   const hideForAssessment = exerciseMode === "meaning" || exerciseMode === "dictate" || mode === "review";
   const guidedStage = guide?.epoch === sessionEpoch && mode !== "review" && !labMode ? guide.stage : undefined;
@@ -567,13 +569,13 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
     {mode === "review" && !review && <p role="status"><Pair text={due ?
       { en: "A review remains due. Select Smart Review again later or choose another mode.", ru: "Есть отложенное повторение. Вернитесь к умному повторению позже или выберите другой режим." } :
       { en: "Nothing is due. Practice a topic to add words to review.", ru: "Повторений пока нет. Потренируйте слова, чтобы добавить их на повторение." }} /></p>}
-    {labMode && activeLab && <AdaptivePractice key={activeLab.id + ":" + round + ":" + sessionEpoch}
+    {labMode && activeLab && <Suspense fallback={<p role="status">Loading practice <span lang="ru">Загрузка упражнения</span></p>}><AdaptivePractice key={activeLab.id + ":" + round + ":" + sessionEpoch}
       task={activeLab} speech={speech} settings={settings} seed={round + sessionEpoch}
-      onAnswer={updateLab} onSelfRecall={updateSelfRecall} onAdvance={advanceLab} onRetry={resetExercise} />}
+      onAnswer={updateLab} onSelfRecall={updateSelfRecall} onAdvance={advanceLab} onRetry={resetExercise} /></Suspense>}
     {labMode && !activeLab && <p role="status">No other eligible task. Choose another mode. <span lang="ru">Других доступных заданий нет. Выберите другой режим.</span></p>}
     {exerciseMode && <Exercise key={form.id + mode + round + ":" + sessionEpoch} form={form}
       mode={exerciseMode} speech={speech} hidden={effectiveHidden} heard={heard} choiceSeed={round + sessionEpoch} guidedStage={guidedStage}
-      onResult={update} onSelect={next => {
+      onResult={update} onRevealWithoutAssessment={() => setGuideRecallDone(true)} onSelect={next => {
         if (mode === "review") setMode("listen");
         select(next);
         playButton.current?.focus();

@@ -66,12 +66,11 @@ export function setMemory(
   return { ...entries, [key]: entry };
 }
 
-function reviewTargets(): { id: string; skill: ReviewSkill }[] {
-  return [
-    ...calendarForms.flatMap(form => (Object.keys(skills) as Skill[]).map(skill => ({ id: form.id, skill }))),
-    ...adaptiveTasks.map(task => ({ id: task.id, skill: task.skill })),
-  ];
-}
+const canonicalReviewTargets: readonly { id: string; skill: ReviewSkill }[] = [
+  ...calendarForms.flatMap(form => (Object.keys(skills) as Skill[]).map(skill => ({ id: form.id, skill }))),
+  ...adaptiveTasks.map(task => ({ id: task.id, skill: task.skill })),
+];
+function reviewTargets() { return canonicalReviewTargets; }
 function validEvidence(task: AdaptiveTask, entry: MemoryEntry) {
   const e = entry.evidence;
   return !!e && Number.isInteger(e.choice) && e.choice >= 0 && e.choice < task.options.length &&
@@ -138,8 +137,9 @@ export function nextAdaptiveTask(entries: Record<string, MemoryEntry>, now: numb
 export function nextReview(entries: Record<string, MemoryEntry>, now: number, current?: string, skipCurrent = false) {
   const due = reviewTargets().map(target => ({ ...target, entry: memoryEntry(entries, target.id, target.skill) }))
     .filter(item => {
+      if (!item.entry || item.entry.due > now) return false;
       const task = adaptiveTask(item.id);
-      return item.entry && item.entry.due <= now && (!task || (adaptiveEligible(task, entries) && reviewable(task, item.entry)));
+      return !task || (adaptiveEligible(task, entries) && reviewable(task, item.entry));
     });
   due.sort((a, b) => a.entry!.due - b.entry!.due || a.entry!.stage - b.entry!.stage);
   const different = due.find(item => skillKey(item.id, item.skill) !== current);
