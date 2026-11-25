@@ -30,6 +30,7 @@ export default function BlueprintNeuralOverview({
 }: { projects: readonly NeuralProject[]; selectedProjectId: string; onSelectProject: (projectId: string) => void; matchingProjectIds?: readonly string[] }) {
   const trackRef = useRef<HTMLDivElement | null>(null);
   const [zoom, setZoom] = useState(1);
+  const [inspected, setInspected] = useState<{ projectId: string; edgeId: string } | null>(null);
   const diagram = useMemo(
     () => buildRegistryNeuralGraph(projects, selectedProjectId),
     [projects, selectedProjectId],
@@ -37,6 +38,8 @@ export default function BlueprintNeuralOverview({
   const highlightedEdges = [...diagram.links].sort((a, b) => Number(a.selected) - Number(b.selected));
   const focusedProject = diagram.projects.find(project => project.selected);
   const selectedLinks = diagram.links.filter(link => link.selected);
+  const inspectedEdge = inspected?.projectId === focusedProject?.id
+    ? selectedLinks.find(link => link.id === inspected?.edgeId) : undefined;
   const matches = matchingProjectIds === undefined ? null : new Set(matchingProjectIds);
   const matchingNodes = diagram.projects.filter(project => matches?.has(project.id));
   const matchingGroups = new Set(matchingNodes.map(project => project.group));
@@ -116,8 +119,9 @@ export default function BlueprintNeuralOverview({
                 ? matchingGroups.has(link.recordId) : matches.has(link.recordId));
               return <path key={link.id} d={d} fill="none"
                 stroke="url(#neural-source-gradient)"
-                strokeWidth={link.selected ? 2.7 : matched ? 1.8 : .85}
+                strokeWidth={link.id === inspectedEdge?.id ? 4 : link.selected ? 2.7 : matched ? 1.8 : .85}
                 strokeOpacity={link.selected ? .98 : matched ? .85 : .30}
+                data-inspected={link.id === inspectedEdge?.id ? "true" : undefined}
                 data-search-match={matched ? "true" : undefined}
                 data-relation={link.kind}/>;
             })}
@@ -179,8 +183,28 @@ export default function BlueprintNeuralOverview({
       <div>
         <small>ĐƯỜNG KẾT NỐI CÓ NGUỒN</small>
         <ol>{selectedLinks.map(link => <li key={link.id}>
-          {relationLabels[link.kind] ?? "Quan hệ phân loại"} <span>· project-registry.ts</span>
+          <button type="button" className={styles.neuralEdgeButton}
+            aria-pressed={inspectedEdge?.id === link.id}
+            aria-controls="neural-edge-detail"
+            onClick={() => setInspected({ projectId: focusedProject.id, edgeId: link.id })}>
+            {relationLabels[link.kind] ?? "Quan hệ phân loại"}
+          </button> <span>· project-registry.ts</span>
         </li>)}</ol>
+        <div id="neural-edge-detail" className={styles.neuralEdgeDetail}>
+          {inspectedEdge ? <>
+            <strong>{relationLabels[inspectedEdge.kind]}</strong>
+            <span>Từ: {inspectedEdge.kind === "registry-group" ? diagram.sourceName
+              : inspectedEdge.kind === "group-project" ? groupLabels[focusedProject.group] ?? focusedProject.group
+              : inspectedEdge.kind === "project-repository" ? focusedProject.name : focusedProject.repository}</span>
+            <span>Đến: {inspectedEdge.kind === "registry-group" ? groupLabels[focusedProject.group] ?? focusedProject.group
+              : inspectedEdge.kind === "group-project" ? focusedProject.name
+              : inspectedEdge.kind === "project-repository" ? focusedProject.repository
+              : stateLabels[focusedProject.state] ?? focusedProject.state}</span>
+            <span>Bản ghi: <code>{inspectedEdge.recordId}</code></span>
+            <span>Nguồn: <code>{diagram.provenance}</code></span>
+            <a href="https://github.com/BlueDragon33/Application-Management/blob/main/app/project-registry.ts" target="_blank" rel="noopener noreferrer">Đối chiếu registry trên main (không phải SHA đã kiểm thử)</a>
+          </> : <span>Chọn một đường kết nối để xem hai đầu và nguồn bản ghi.</span>}
+        </div>
         <span>Không suy diễn QA, Agent hay dependency từ các cạnh này.</span>
       </div>
     </aside> : <p className={styles.neuralReadback}>Chưa chọn được dự án đã đăng ký. Không suy diễn trạng thái.</p>}

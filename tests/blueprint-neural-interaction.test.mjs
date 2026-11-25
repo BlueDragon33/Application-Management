@@ -62,6 +62,19 @@ test("real neural node click updates selection without inventing graph telemetry
     assert.equal(app.getAttribute("aria-pressed"), "true", "graph click must update shared selection");
     assert.equal(buttons.filter(node => node.getAttribute("aria-pressed") === "true").length, 1);
     assert.match(dom.window.document.body.textContent, /không phải Graph Intelligence live của Hub/);
+    const inspect = [...dom.window.document.querySelectorAll("#neural-selected-readback li button")].find(node => node.textContent.includes("Dự án → repository"));
+    assert.ok(inspect);
+    await React.act(async () => inspect.click());
+    const edgeDetail = dom.window.document.querySelector("#neural-edge-detail");
+    assert.match(edgeDetail.textContent, /App Management/);
+    assert.match(edgeDetail.textContent, /BlueDragon33\/Application-Management/);
+    assert.equal(inspect.getAttribute("aria-pressed"), "true");
+    assert.equal(dom.window.document.querySelectorAll('path[data-inspected="true"]').length, 1);
+    const hub = buttons.find(node => node.textContent.trim() === "Blueprint Hub");
+    await React.act(async () => hub.click());
+    assert.doesNotMatch(dom.window.document.querySelector("#neural-edge-detail").textContent, /Application-Management/);
+    assert.equal(dom.window.document.querySelectorAll('path[data-inspected="true"]').length, 0);
+    await React.act(async () => app.click());
     // JSDOM has no layout engine: provide explicit geometry and observe real component
     // scroll/focus calls. Browser acceptance remains a separate test.
     const track = dom.window.document.querySelector('[role="region"][tabindex="0"]');
