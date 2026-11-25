@@ -73,7 +73,7 @@ try:
         (work/name).write_bytes(get(base+name,limit))
     actual_model_hash=digest(model.read_bytes())
     manifest["observedModelSha256"]=actual_model_hash
-    assert actual_model_hash=="f073356ebc4bd0f80c5af58df2953a5988bd5ab1eb38635ce960b071fbefcb", "pinned model SHA mismatch: "+actual_model_hash+" bytes="+str(model.stat().st_size)
+    assert actual_model_hash=="f073356ebc4bd0f80c5af58df2953a5988bd5bdab1eb38635ce960b071fbefcb", "pinned model SHA mismatch: "+actual_model_hash+" bytes="+str(model.stat().st_size)
     card=(work/"MODEL_CARD").read_text()
     assert "CC0" in card and "Speakers: 1" in card, "pinned card lacks expected CC0 and single-speaker metadata"
     (out/"PIPER_MODEL_CARD.txt").write_text(card)
