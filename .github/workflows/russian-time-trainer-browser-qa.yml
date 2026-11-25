@@ -9,6 +9,7 @@ on:
       - 'scripts/russian-time-trainer-browser-qa.mjs'
       - 'scripts/russian-time-trainer-v61-browser-qa.mjs'
       - 'scripts/russian-time-trainer-comparative-qa.mjs'
+      - 'scripts/russian-time-trainer-contrast-qa.mjs'
       - 'public/russian-time-trainer/**'
       - '.github/workflows/russian-time-trainer-browser-qa.yml'
 

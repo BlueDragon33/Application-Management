@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { auditVisibleText } from "./russian-time-trainer-contrast-qa.mjs";
 export async function verifyTrainerV61(origin, { makeContext, pass, screenshot }) {
   const context = await makeContext(origin, { viewport: { width: 1440, height: 900 } });
   const page = await context.newPage();
@@ -101,6 +102,28 @@ export async function verifyTrainerV61(origin, { makeContext, pass, screenshot }
     const firstScene = library.getByRole("button").first();
     await firstScene.click();
     assert.equal(await firstScene.getAttribute("aria-pressed"), "true");
+    const observations = [];
+    for (const width of [390,1440]) {
+      await page.setViewportSize({width,height:900});
+      for (const expectedTheme of ["light","dark"]) {
+        if (await page.locator("main").getAttribute("data-theme") !== expectedTheme) await theme.click();
+        await page.waitForFunction(value=>document.querySelector("main")?.getAttribute("data-theme")===value,expectedTheme);
+        await firstScene.focus();
+        const measured = await auditVisibleText(page,'section[aria-label^="Natural Immersion"]');
+        assert.ok(measured.checked > 0, "No guided contrast observations");
+        assert.deepEqual(measured.possibleContrastFailures, []);
+        assert.equal(measured.unresolved, 0);
+        assert.deepEqual(measured.targetsBelow44, []);
+        const order = await guide.evaluate(root=>{
+          const p=root.querySelector('[aria-label^="Audio player"]');
+          const footer=Array.from(root.querySelectorAll("button")).find(button=>button.textContent.includes("Next stage"));
+          return !!p&&!!footer&&Boolean(p.compareDocumentPosition(footer)&Node.DOCUMENT_POSITION_FOLLOWING);
+        });
+        assert.ok(order,"Guided continuation must follow the learning scene");
+        observations.push({width,theme:expectedTheme,...measured});
+      }
+    }
+    pass("Guided Observe computed text contrast, target sizes and task-first DOM order", {observations});
     await screenshot(page, "v61-context-library");
     await advance.click();
     await library.waitFor({ state: "detached" });

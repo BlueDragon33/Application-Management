@@ -612,6 +612,16 @@
 .contextLibrary h3,.contextLibrary p { margin: 0; }
 .contextLibrary h3 { font-size: 1rem; }
 .contextLibrary h3 span { display: block; font-size: .82em; color: var(--secondary); }
-.contextLibrary .timeline { display: grid; grid-template-columns: repeat(auto-fit,minmax(44px,1fr)); gap: 6px; }
-.contextLibrary .timeline button { width: 100%; padding: 6px; }
+.contextLibrary .timeline { display: grid; grid-template-columns: minmax(0,1fr); gap: 6px; }
+.contextLibrary .timeline button { width: 100%; padding: 6px 9px; display: flex; align-items: center; gap: 9px; text-align: start; overflow-wrap: anywhere; }
+.contextLibrary .timeline button > span:first-child { flex: none; width: 24px; text-align: center; }
+.contextLibrary .timeline button > span:last-child { min-width: 0; font-size: .85rem; }
+.guideFooter { display: flex; justify-content: flex-end; }
+.guided[data-active="true"] .player { padding: clamp(12px,2vw,22px); }
+.guided[data-active="true"] .guideCue { padding: clamp(16px,2.5vw,28px); min-height: 116px; }
+.guided[data-active="true"] .playerMode { font-size: 1.4rem; }
+@media(max-width: 620px) {
+  .contextLibrary .timeline { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .guideFooter > button { width: 100%; }
+}
 @media(max-width: 1000px) { .studioLayout[data-context-library="true"] { grid-template-columns: minmax(0,1fr); } }
