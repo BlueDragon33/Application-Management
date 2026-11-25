@@ -28,7 +28,7 @@ export function centerNeuralViewport(targetX, targetY, contentWidth, contentHeig
 
 export function buildRegistryNeuralGraph(projects, selectedProjectId = "") {
   const seen = new Set();
-  const sorted = (Array.isArray(projects) ? projects : []).filter(project => {
+  const valid = (Array.isArray(projects) ? projects : []).filter(project => {
     if (!project || typeof project !== "object" || typeof project.id !== "string" || !ID.test(project.id)
       || seen.has(project.id) || typeof project.name !== "string"
       || project.name.trim().length === 0 || project.name.length > 160
@@ -37,8 +37,16 @@ export function buildRegistryNeuralGraph(projects, selectedProjectId = "") {
       || typeof project.state !== "string" || !STATES.has(project.state)) return false;
     seen.add(project.id);
     return true;
-  }).slice(0, 50).sort((a, b) => a.group.localeCompare(b.group)
-    || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+  });
+  const compare = (a, b) => a.group.localeCompare(b.group)
+    || a.name.localeCompare(b.name) || a.id.localeCompare(b.id);
+  const ordered = valid.sort(compare);
+  const sorted = ordered.slice(0, 50);
+  const focused = ordered.find(project => project.id === selectedProjectId);
+  if (focused && !sorted.some(project => project.id === focused.id)) {
+    sorted[sorted.length - 1] = focused;
+    sorted.sort(compare);
+  }
 
   const height = Math.max(720, sorted.length * 48 + 150);
   const groups = [...new Set(sorted.map(project => project.group))].sort();

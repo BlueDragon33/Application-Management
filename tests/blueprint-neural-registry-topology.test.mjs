@@ -110,3 +110,28 @@ test("atlas focus refuses unselected or invalid geometry without scrolling", () 
     [100, -1, 1660, 2550, 390, 320],
   ]) assert.equal(centerNeuralViewport(...args), null);
 });
+
+const cappedEntries = Array.from({ length: 100 }, (_, i) => ({ id: `p-${i}`, name: `Project ${String(i).padStart(3, "0")}`, repository: `BlueDragon33/Repo${i}`, group: "core", state: "developing", summary: "" }));
+test("bounded topology is independent of order for a unique catalog", () => {
+  const a = buildRegistryNeuralGraph(cappedEntries), b = buildRegistryNeuralGraph([...cappedEntries].reverse());
+  assert.equal(a.projects.length, 50);
+  assert.deepEqual(a.projects.map(p => p.id), b.projects.map(p => p.id));
+  assert.deepEqual(a.links, b.links);
+});
+test("selected registered project remains visible beyond the display cap", () => {
+  const g = buildRegistryNeuralGraph(cappedEntries, "p-99");
+  assert.equal(g.projects.length, 50);
+  assert.equal(g.selectedProjectId, "p-99");
+  assert.equal(g.projects.filter(p => p.selected).length, 1);
+  assert.equal(g.links.filter(e => e.selected).length, 4);
+  assert.deepEqual(g, buildRegistryNeuralGraph([...cappedEntries].reverse(), "p-99"));
+});
+test("invalid selection cannot displace registered projects or confer authority", () => {
+  const g = buildRegistryNeuralGraph(cappedEntries, "unregistered");
+  assert.equal(g.selectedProjectId, null);
+  assert.equal(g.projects.length, 50);
+  assert.equal(g.links.filter(e => e.selected).length, 0);
+  assert.equal(g.telemetry, "NOT_CONNECTED");
+  assert.equal(g.qaPassed, false);
+  assert.equal(g.productionAuthorized, false);
+});
