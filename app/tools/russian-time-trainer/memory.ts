@@ -1,7 +1,7 @@
 import { calendarForms } from "./calendar-content";
 import type { Bilingual } from "./content";
 import { adaptiveTask, adaptiveTasks, type AdaptiveSkill, type AdaptiveTask } from "./adaptive-content";
-import type { AudioSource } from "./audio-assets";
+import { bundledAudio, resolveAudioClip, type AudioSource } from "./audio-assets";
 
 export const skills = {
   listening: { en: "Listening", ru: "Аудирование" },
@@ -96,7 +96,7 @@ export function recordAdaptiveAnswer(entries: Record<string, MemoryEntry>, id: s
   audioSource?: AudioSource, storage?: Pick<Storage, "setItem">, prefix = "") {
   const task = adaptiveTask(id);
   if (!task || !adaptiveEligible(task, entries) || !Number.isInteger(choice) || choice < 0 || choice >= task.options.length ||
-    (task.skill === "sound" ? !audioSource || !validAudioSources.has(audioSource) : audioSource !== undefined)) return entries;
+    (task.skill === "sound" ? !audioSource || audioSource === "device" || !validAudioSources.has(audioSource) : audioSource !== undefined)) return entries;
   const key = skillKey(id, task.skill);
   const previous = entries[key];
   const correct = choice === task.correct;
@@ -121,18 +121,24 @@ export function recordAdaptiveSelfRecall(entries: Record<string, MemoryEntry>, i
   storage?.setItem(prefix + prefixVersion + key, JSON.stringify(next));
   return { ...entries, [key]: next };
 }
+// Retain any pre-release device-preview entries for history, but never
+// prioritize them as verified spaced review until a matching local asset exists.
+function reviewable(task: AdaptiveTask, entry: MemoryEntry | undefined) {
+  if (task.skill !== "sound" || entry?.evidence?.audioSource !== "device") return true;
+  return !!bundledAudio(resolveAudioClip(task.options[task.correct].ru, task.id));
+}
 export function nextAdaptiveTask(entries: Record<string, MemoryEntry>, now: number, skill: AdaptiveSkill, exclude?: string) {
   const eligible = adaptiveTasks.filter(task => task.skill === skill && task.id !== exclude && adaptiveEligible(task, entries));
-  const due = eligible.filter(task => (memoryEntry(entries, task.id, skill)?.due ?? Infinity) <= now)
+  const due = eligible.filter(task => reviewable(task, memoryEntry(entries, task.id, skill)) && (memoryEntry(entries, task.id, skill)?.due ?? Infinity) <= now)
     .sort((a, b) => memoryEntry(entries, a.id, skill)!.due - memoryEntry(entries, b.id, skill)!.due);
-  const unseen = eligible.filter(task => !memoryEntry(entries, task.id, skill));
+  const unseen = eligible.filter(task => !memoryEntry(entries, task.id, skill) || !reviewable(task, memoryEntry(entries, task.id, skill)));
   return due[0] ?? unseen[skill === "sound" ? now % Math.max(1, unseen.length) : 0] ?? eligible[0];
 }
 export function nextReview(entries: Record<string, MemoryEntry>, now: number, current?: string, skipCurrent = false) {
   const due = reviewTargets().map(target => ({ ...target, entry: memoryEntry(entries, target.id, target.skill) }))
     .filter(item => {
       const task = adaptiveTask(item.id);
-      return item.entry && item.entry.due <= now && (!task || adaptiveEligible(task, entries));
+      return item.entry && item.entry.due <= now && (!task || (adaptiveEligible(task, entries) && reviewable(task, item.entry)));
     });
   due.sort((a, b) => a.entry!.due - b.entry!.due || a.entry!.stage - b.entry!.stage);
   const different = due.find(item => skillKey(item.id, item.skill) !== current);

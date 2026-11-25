@@ -354,13 +354,16 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
         <span>{attempted.length}/{calendarForms.length} · {dueCount} due <span lang="ru">к повторению</span></span></li>;
     })}</ul>
     <h3>Adaptive evidence <span lang="ru">Результаты адаптивной практики</span></h3>
-    <p className={styles.saveNote}>Choice outcomes and self-reports are separate; neither proves pronunciation. <span lang="ru">Выбор ответов и самооценка не доказывают правильность произношения.</span></p>
+    <p className={styles.saveNote}>Choice outcomes and self-reports are separate; neither proves pronunciation. Device-voice previews do not count as assessment results. <span lang="ru">Выбор ответов и самооценка не доказывают правильность произношения. Тренировка с голосом устройства не считается проверкой.</span></p>
     <ul className={styles.progressList}>{(["sound", "context"] as const).map(skill => {
-      const attempted = adaptiveTasks.filter(task => task.skill === skill && memoryEntry(entries, task.id, skill)?.evidence);
+      const attempted = adaptiveTasks.filter(task => {
+        const evidence = memoryEntry(entries, task.id, skill)?.evidence;
+        return task.skill === skill && evidence && evidence.audioSource !== "device";
+      });
       return <li key={skill}><span><Pair text={modes[skill]} /></span><progress max={adaptiveTasks.filter(task => task.skill === skill).length} value={attempted.length} aria-label={modes[skill].en} /><span>{attempted.length} attempted</span></li>;
     })}</ul>
     <details className={styles.knowledge}><summary>Personal errors <span lang="ru">Личные ошибки</span></summary>
-      <ul className={styles.progressList}>{adaptiveTasks.filter(task => (memoryEntry(entries, task.id, task.skill)?.evidence?.wrongAttempts ?? 0) > 0).map(task => {
+      <ul className={styles.progressList}>{adaptiveTasks.filter(task => (memoryEntry(entries, task.id, task.skill)?.evidence?.wrongAttempts ?? 0) > 0 && memoryEntry(entries, task.id, task.skill)?.evidence?.audioSource !== "device").map(task => {
         const evidence = memoryEntry(entries, task.id, task.skill)!.evidence!;
         return <li key={task.id}><div><Pair text={task.title} /><small>{evidence.correct ? "Corrected / Исправлено" : "Review needed / Нужно повторить"}</small>
           {evidence.lastWrongChoice !== undefined && <details className={styles.knowledge}><summary>Error detail <span lang="ru">Ошибка</span></summary>

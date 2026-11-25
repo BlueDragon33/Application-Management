@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { loadTs } from "./helpers/load-ts.mjs";
 const root = "app/tools/russian-time-trainer/";
-const { adaptiveTasks, adaptiveTask } = loadTs(root + "adaptive-content.ts");
+const { adaptiveTasks, adaptiveTask, adaptiveTexts } = loadTs(root + "adaptive-content.ts");
+const { resolveAudioClip, bundledAudio } = loadTs(root + "audio-assets.ts");
 const { recordAdaptiveAnswer, recordAdaptiveSelfRecall, readMemory, memoryEntry, nextReview, nextAdaptiveTask, adaptiveEligible } = loadTs(root + "memory.ts");
 const { trainerStoragePrefix } = loadTs(root + "progress.ts");
 test("V6.1 supplemental tasks have stable IDs, valid answers and an acyclic prerequisite chain", () => {
@@ -52,8 +53,38 @@ test("adaptive results use existing SRS namespace, prerequisites, evidence, and 
   assert.deepEqual(readMemory(storage, trainerStoragePrefix("B")), {});
   const sound = adaptiveTasks.find(task => task.skill === "sound");
   assert.equal(recordAdaptiveAnswer(entries, sound.id, sound.correct, now), entries);
-  entries = recordAdaptiveAnswer(entries, sound.id, sound.correct, now, "device", storage, prefix);
-  assert.equal(memoryEntry(entries, sound.id, "sound").evidence.audioSource, "device");
+  assert.equal(recordAdaptiveAnswer(entries, sound.id, sound.correct, now, "device", storage, prefix), entries);
+  assert.equal(memoryEntry(entries, sound.id, "sound"), undefined);
+  // State-layer contract only; the real audio source is supplied by the completed playback event.
+  entries = recordAdaptiveAnswer(entries, sound.id, sound.correct, now, "prepared", storage, prefix);
+  assert.equal(memoryEntry(entries, sound.id, "sound").evidence.audioSource, "prepared");
   assert.ok(nextReview(entries, now));
   assert.equal(memoryEntry(entries, sound.id, "listening"), undefined);
+});
+
+test("exact-text adaptive audio reuse preserves 17 existing local assets and never substitutes a near match", () => {
+  const texts = [...new Set(adaptiveTexts.map(t => t.ru))];
+  const matches = texts.map(ru => resolveAudioClip(ru, "unmatched")).filter(clip => bundledAudio(clip));
+  assert.ok(matches.length >= 17);
+  assert.equal(resolveAudioClip("Кото́рый ча́с?", "invalid").id, "what-time");
+  assert.equal(resolveAudioClip("У́тром я пью чай.", "invalid").id, "morning-example");
+  assert.equal(bundledAudio(resolveAudioClip("Утром я пью чай!", "invalid")), undefined);
+  assert.equal(bundledAudio(resolveAudioClip("сегодня", "tomorrow-1")).source, "recording");
+});
+test("device-only sound preview cannot promote or overwrite real SRS evidence", () => {
+  const sound = adaptiveTasks.find(task => task.skill === "sound");
+  const now = 10000;
+  const empty = {};
+  let writes = 0;
+  const storage = { setItem: () => { writes++; } };
+  for (let i = 0; i < 5; i++) {
+    assert.equal(recordAdaptiveAnswer(empty, sound.id, sound.correct, now, "device", storage), empty);
+  }
+  assert.equal(writes, 0);
+  const recorded = recordAdaptiveAnswer(empty, sound.id, sound.correct, now, "prepared");
+  assert.equal(recordAdaptiveAnswer(recorded, sound.id, 1 - sound.correct, now, "device", storage), recorded);
+  assert.equal(writes, 0);
+  const legacy = { [sound.id + ":sound"]: { stage: 0, due: now, attempts: 1,
+    evidence: { choice: sound.correct, correct: true, wrongAttempts: 0, audioSource: "device" } } };
+  if (!bundledAudio(resolveAudioClip(sound.options[sound.correct].ru, sound.id))) assert.equal(nextReview(legacy, now), undefined);
 });

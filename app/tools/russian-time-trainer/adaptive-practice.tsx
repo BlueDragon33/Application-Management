@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import type { AdaptiveTask } from "./adaptive-content";
-import type { AudioSource } from "./audio-assets";
+import { resolveAudioClip, type AudioSource } from "./audio-assets";
 import { PronunciationStatus, type AudioSettings, type useRussianAudio } from "./pronunciation";
 import { Recording } from "./recording";
 import { StudyWords } from "./translation";
@@ -35,16 +35,16 @@ export default function AdaptivePractice({ task, speech, settings, seed, onAnswe
       <p className={styles.playerMode}>Listen first <span lang="ru">Сначала слушайте</span></p>
       <button type="button" className={styles.primary} disabled={choice !== null} onClick={() => {
         setHeard(undefined);
-        speech.play(audioId, [{ id: task.id, ru: task.options[task.correct].ru.replaceAll("\u0301", "") }], { ...settings, repeats: 1 }, setHeard);
+        speech.play(audioId, [resolveAudioClip(task.options[task.correct].ru, task.id)], { ...settings, repeats: 1 }, setHeard);
       }}>Play sound <span lang="ru">Слушать звук</span></button>
       <button type="button" className={styles.control} onClick={speech.stop}>Stop audio <span lang="ru">Остановить звук</span></button>
       <PronunciationStatus audio={speech.audio} id={audioId} />
-      <p className={styles.playerHint}>Device voice is a practice preview, not verified native pronunciation. <span lang="ru">Голос устройства — учебный пример, не проверенное произношение носителя.</span></p>
+      <p className={styles.playerHint}>Device voice is preview only; answers are not added to spaced review. <span lang="ru">Голос устройства — только тренировка; ответы не добавляются в интервальное повторение.</span></p>
     </section> : task.prompt && <section className={styles.rule}>
       <p className={styles.phrase}><StudyWords text={task.prompt.ru} language="ru" /></p>
       <button type="button" className={styles.control} onClick={() => {
         const prompt = task.prompt!;
-        speech.play(audioId, [{ id: task.promptAudioId ?? audioId, ru: prompt.ru.replaceAll("\u0301", "") }], settings);
+        speech.play(audioId, [resolveAudioClip(prompt.ru, task.promptAudioId ?? audioId)], settings);
       }}>Play question <span lang="ru">Слушать вопрос</span></button>
       <PronunciationStatus audio={speech.audio} id={audioId} />
     </section>}
@@ -58,7 +58,7 @@ export default function AdaptivePractice({ task, speech, settings, seed, onAnswe
           disabled={choice !== null || (sound && !heard)}
           data-result={choice === index ? correct ? "correct" : "incorrect" : undefined}
           onClick={() => {
-            if (choice === null && (!sound || heard) && onAnswer(index, Date.now(), sound ? heard : undefined)) {
+            if (choice === null && (!sound || heard) && ((sound && heard === "device") || onAnswer(index, Date.now(), sound ? heard : undefined))) {
               setAnsweredSource(sound ? heard : undefined);
               setChoice(index);
             }
@@ -74,11 +74,16 @@ export default function AdaptivePractice({ task, speech, settings, seed, onAnswe
       <p><Pair text={task.rule} /></p>
       {sound && <>
         <p>Playback source: {answeredSource === "device" ? "Device preview / Голос устройства" : answeredSource === "prepared" ? "Prepared synthetic voice / Синтез" : "Recording / Запись"}</p>
+        {answeredSource === "device" && <p>Preview feedback only. No memory interval or assessment result was saved. <span lang="ru">Только учебная обратная связь. Результат проверки и интервал не сохранены.</span></p>}
         <div className={styles.actions}>{task.options.map((option, index) => <button type="button" key={index} className={styles.control}
-          onClick={() => speech.speak(task.id + "-compare-" + index, option.ru.replaceAll("\u0301", ""))}>
+          onClick={() => speech.play(task.id + "-compare-" + index, [resolveAudioClip(option.ru, task.id.replace(/-\d+$/, "-" + index))], { ...settings, repeats: 1 })}>
           Listen: <span lang="ru">{option.ru}</span>
         </button>)}</div>
         {task.options.map((_, index) => <PronunciationStatus key={index} audio={speech.audio} id={task.id + "-compare-" + index} />)}
+      </>}
+      {!sound && <>
+        <button type="button" className={styles.control} onClick={() => speech.play(audioId + "-model", [resolveAudioClip(task.options[task.correct].ru, audioId + "-model")], settings)}>Listen to model answer <span lang="ru">Слушать образец ответа</span></button>
+        <PronunciationStatus audio={speech.audio} id={audioId + "-model"} />
       </>}
     </section>}
     {conversation && choice !== null && <section className={styles.rule}>
