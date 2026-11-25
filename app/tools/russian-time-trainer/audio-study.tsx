@@ -263,6 +263,7 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
   const canPlayExample = exerciseMode === "listen" || exerciseMode === "repeat" || exerciseMode === "shadow";
   const hideForAssessment = exerciseMode === "meaning" || exerciseMode === "dictate" || mode === "review";
   const effectiveHidden = hidden || hideForAssessment;
+  const sceneMode = mode === "listen" || mode === "repeat" || mode === "shadow";
   const dailyGroups: readonly string[] = dailySession === undefined ? [] : dailyLessons[dailySession].groups;
 
   function savePreference(key: string, value: string) {
@@ -436,6 +437,22 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
     </div>
   </>;
 
+  const topicTimeline = <ol className={styles.timeline} aria-label={category.en}>
+        {categoryGroups.map((item, index) => <li key={item.id}><button type="button" aria-pressed={item.id === group.id}
+          className={styles.control} onClick={() => select(item.forms[0].id)}
+          aria-label={effectiveHidden ? category.en + " " + (index + 1) : item.forms[0].en}>
+          <span aria-hidden="true">{item.cue}</span>{!effectiveHidden && <StudyWords text={item.forms[0].ru} language="ru" />}
+        </button></li>)}
+      </ol>;
+  const playbackSettings = <details className={styles.audioSettings}>
+      <summary>Playback settings <span lang="ru">Настройки звука</span></summary>
+      <AudioControls settings={settings} change={value => {
+        speech.stop();
+        setSettings(value);
+        savePreference(repeatKey, JSON.stringify(value));
+      }} />
+    </details>;
+
   return <section className={styles.audioStudy} aria-label="Audio practice / Звуковая практика">
     {saveNotice}
     {due && mode !== "review" && <div className={styles.nextTask}>
@@ -446,7 +463,10 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
     </div>}
     {exerciseMode && <section className={styles.player} aria-label="Audio player / Аудиоплеер">
       <p className={styles.playerMode}><Pair text={modes[exerciseMode]} /></p>
-      {(exerciseMode === "listen" || exerciseMode === "repeat") && <div className={styles.contextCue} aria-label="Context cue"><span aria-hidden="true">{group.cue}</span><Pair text={category} /></div>}
+      {sceneMode && <div className={styles.scene} aria-label="Context cue">
+        <div className={styles.sceneHeader}><Pair text={category} /><span>{categoryGroups.findIndex(item => item.id === group.id) + 1} / {categoryGroups.length}</span></div>
+        {topicTimeline}
+      </div>}
       <p className={styles.playerHint}><Pair text={exerciseMode === "dictate" ? { en: "Listen, then type what you hear.", ru: "Прослушайте, затем напишите услышанное." } :
         exerciseMode === "meaning" ? { en: "Listen, then choose the meaning.", ru: "Прослушайте, затем выберите значение." } :
         exerciseMode === "speak" ? { en: "Say the phrase before listening to the model.", ru: "Произнесите фразу до прослушивания образца." } :
@@ -467,6 +487,7 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
       <PronunciationStatus audio={speech.audio} id={form.id} />
       <PronunciationStatus audio={speech.audio} id={form.group.example.id} />
       <p className={styles.playerHint}>{settings.rate}× · {settings.repeats === "continuous" ? "∞" : settings.repeats} · {settings.pause}s <span lang="ru">пауза</span></p>
+      {playbackSettings}
     </section>}
     {dailySession !== undefined && !labMode && <div className={styles.rule}>
       <p>Day {dailySession + 1} <span lang="ru">День {dailySession + 1}</span></p>
@@ -504,13 +525,7 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
       <label className={styles.check}><input type="checkbox" checked={effectiveHidden} disabled={hideForAssessment} onChange={event => setHidden(event.target.checked)} />
         <Pair text={{ en: "Hide words while listening", ru: "Скрывать слова при прослушивании" }} />
       </label>
-      <ol className={styles.timeline} aria-label={category.en}>
-        {categoryGroups.map((item, index) => <li key={item.id}><button type="button" aria-pressed={item.id === group.id}
-          className={styles.control} onClick={() => select(item.forms[0].id)}
-          aria-label={effectiveHidden ? category.en + " " + (index + 1) : item.forms[0].en}>
-          <span aria-hidden="true">{item.cue}</span>{!effectiveHidden && <StudyWords text={item.forms[0].ru} language="ru" />}
-        </button></li>)}
-      </ol>
+      {!sceneMode && topicTimeline}
       <div className={styles.actions}>
         <button type="button" className={styles.control} onClick={() => speech.play("topic", calendarForms.filter(item => item.group.category === group.category), settings)}>
           Play topic <span lang="ru">Слушать тему</span>
@@ -537,14 +552,7 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
         select(next);
         playButton.current?.focus();
       }} />}
-    <details className={styles.audioSettings}>
-      <summary>Playback settings <span lang="ru">Настройки звука</span></summary>
-      <AudioControls settings={settings} change={value => {
-        speech.stop();
-        setSettings(value);
-        savePreference(repeatKey, JSON.stringify(value));
-      }} />
-    </details>
+    {!exerciseMode && playbackSettings}
     {mode === "review" && review && !labMode && <button type="button" className={styles.control} onClick={() => selectReview(now)}>
       Next review <span lang="ru">Следующее повторение</span>
     </button>}

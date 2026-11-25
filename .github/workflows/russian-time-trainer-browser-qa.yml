@@ -69,7 +69,9 @@ jobs:
       - name: Install version-pinned offline QA synthesizer
         run: |
           sudo apt-get update
-          sudo apt-get install --no-install-recommends -y rhvoice=1.8.0+dfsg-3build3 rhvoice-russian=1.8.0+dfsg-3build3
+          encoder_version=$(apt-cache policy ffmpeg | awk '/Candidate:/ {print $2}')
+          test -n "$encoder_version" && test "$encoder_version" != '(none)'
+          sudo apt-get install --no-install-recommends -y rhvoice=1.8.0+dfsg-3build3 rhvoice-russian=1.8.0+dfsg-3build3 "ffmpeg=$encoder_version"
           command -v RHVoice-test
           command -v ffmpeg
       - name: Render and decode eight candidate words

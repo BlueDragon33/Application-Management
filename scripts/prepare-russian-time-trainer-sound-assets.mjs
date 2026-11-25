@@ -15,7 +15,7 @@ assert.ok(out.startsWith(resolve(process.env.RUNNER_TEMP ?? tmpdir()) + "/"), "O
 mkdirSync(out, { recursive: true });
 const sha = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
 assert.equal(sha, process.env.TRAINER_QA_EXPECTED_SHA);
-const versions = execFileSync("dpkg-query", ["-W", "-f=${Package}=${Version}\n", "rhvoice", "rhvoice-russian"], { encoding: "utf8" }).trim();
+const versions = execFileSync("dpkg-query", ["-W", "-f=${Package}=${Version}\n", "rhvoice", "rhvoice-russian", "ffmpeg"], { encoding: "utf8" }).trim();
 assert.ok(versions.includes("rhvoice=1.8.0+dfsg-3build3") && versions.includes("rhvoice-russian=1.8.0+dfsg-3build3"));
 const voiceDir = "/usr/share/RHVoice/voices/aleksandr-hq";
 const voiceLicense = readFileSync(join(voiceDir, "README.md"), "utf8");
