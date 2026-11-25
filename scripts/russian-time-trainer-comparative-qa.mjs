@@ -10,6 +10,21 @@ import { auditVisibleText } from "./russian-time-trainer-contrast-qa.mjs";
 const qaRequire = createRequire(path.join(process.env.RTT_QA_TOOL_ROOT ?? "", "package.json"));
 const { chromium } = qaRequire("playwright");
 
+// Diagnostics run on the already excluded warm-up context; measured samples
+// keep the same instrumentation and protocol. No production data or URLs.
+function profileSummary(profile) {
+  const nodes = new Map(profile.nodes.map(node => [node.id, node.callFrame]));
+  const totals = new Map();
+  for (let i = 0; i < (profile.samples?.length ?? 0); i++) {
+    const frame = nodes.get(profile.samples[i]);
+    if (!frame) continue;
+    const url = frame.url ? frame.url.replace(/^https?:\/\/[^/]+/, "").split("?")[0] : "(runtime)";
+    const key = url + ":" + (frame.functionName || "(anonymous)");
+    totals.set(key, (totals.get(key) ?? 0) + (profile.timeDeltas?.[i] ?? 0) / 1000);
+  }
+  return [...totals].map(([functionLocation, sampledMs]) => ({ functionLocation, sampledMs }))
+    .sort((a,b)=>b.sampledMs-a.sampledMs).slice(0,25);
+}
 const base = "e97df96427cbc03ba5a62cf03cd6cc214340cf90";
 const [kind, output, expected] = process.argv.slice(2);
 assert.ok(output);
@@ -42,7 +57,25 @@ if (kind === "compare") {
   const report = { baseline: base, candidate: expected, browser: files[0].browser, samplesPerRevisionPerViewport: 6,
     order: ["baseline","candidate","candidate","baseline"], runtime: "same runner, isolated local Vite development servers; warmed server and fresh browser contexts", metrics: result,
     performanceAcceptance: "MEASURED_NOT_RATIFIED", limits: "Descriptive medians/ranges, no production or statistical significance claim.",
-    accessibilityObservations: files.filter(f => f.sha === expected).flatMap(f => f.audits) };
+    accessibilityObservations: files.filter(f => f.sha === expected).flatMap(f => f.audits),
+    diagnosticProfiles: files.flatMap(file => file.diagnostics.map(d => ({sha:file.sha,...d}))),
+    diagnosticScope: "Excluded warm-up contexts only; sampled CPU is diagnostic, not causal attribution or benchmark timing." };
+  assert.equal(report.diagnosticProfiles.length,8);
+  const resourceDelta = [];
+  for (const width of [390,1440]) {
+    const paths = new Map();
+    for (const record of report.diagnosticProfiles.filter(d=>d.width===width)) {
+      for (const resource of record.resources) {
+        const sums = paths.get(resource.path) ?? [0,0];
+        sums[record.sha===base?0:1] += resource.transferBytes / 2;
+        paths.set(resource.path,sums);
+      }
+    }
+    resourceDelta.push({width,resources:[...paths].map(([path,[baselineBytes,candidateBytes]])=>({path,baselineBytes,candidateBytes,delta:candidateBytes-baselineBytes})).sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta)).slice(0,20)});
+  }
+  report.diagnosticResourceDelta = resourceDelta;
+  console.log("RTT_DIAGNOSTIC_RESOURCES "+JSON.stringify(resourceDelta));
+  console.log("RTT_DIAGNOSTIC_CPU "+JSON.stringify(report.diagnosticProfiles.map(d=>({sha:d.sha,width:d.width,ready:d.readyCpu.slice(0,8),progress:d.progressCpu.slice(0,8)}))));
   await writeFile(path.join(output,"comparison.json"), JSON.stringify(report,null,2)+"\n");
   console.log("RTT_PERFORMANCE_COMPARISON "+JSON.stringify(report.metrics));
   console.log("RTT_ACCESSIBILITY_OBSERVATIONS "+JSON.stringify(report.accessibilityObservations));
@@ -64,7 +97,7 @@ if (kind === "compare") {
   });
   const server = await createServer({logLevel:"warn",clearScreen:false,server:{host:"127.0.0.1",port,strictPort:true,hmr:false}});
   let browser;
-  const samples=[],audits=[];
+  const samples=[],audits=[],diagnostics=[];
   try {
     await server.listen();
     assert.equal(server.httpServer.address().address,"127.0.0.1");
@@ -76,7 +109,9 @@ if (kind === "compare") {
         const context=await browser.newContext({viewport:{width,height:900},reducedMotion:"reduce",serviceWorkers:"block"});
         await context.route("**/*",route=>new URL(route.request().url()).origin===origin?route.continue():route.abort());
         const page=await context.newPage();
+        const profiler=sample===-1?await context.newCDPSession(page):null;
         try {
+          if(profiler){await profiler.send("Profiler.enable");await profiler.send("Profiler.start");}
           assert.equal((await page.goto(origin+"/tools/russian-time-trainer",{waitUntil:"domcontentloaded"})).status(),200);
           await page.getByRole("heading",{name:"Russian Time Trainer",exact:true}).waitFor();
           await page.waitForFunction(() => document.documentElement.lang === "en");
@@ -89,6 +124,12 @@ if (kind === "compare") {
               transferBytes:entry.transferSize+resources.reduce((n,r)=>n+r.transferSize,0),
               trainingAssetRequests:resources.filter(r=>/russian-time-trainer\/.*\.(mp3|ttf|ogg)(?:$|\?)/.test(r.name)).length};
           });
+          let diagnostic;
+          if(profiler){
+            const {profile}=await profiler.send("Profiler.stop");
+            const resources=await page.evaluate(()=>performance.getEntriesByType("resource").map(r=>({path:new URL(r.name).pathname,transferBytes:r.transferSize,durationMs:r.duration})));
+            diagnostic={width,readyCpu:profileSummary(profile),resources};
+          }
           const timeView=async (label, ready)=>{
             const start=performance.now();
             const target = nav.getByRole("button",{name:label,exact:true});
@@ -99,7 +140,9 @@ if (kind === "compare") {
           };
           const learnMs=await timeView("Learn Уроки",page.getByRole("region",{name:/Worked examples/}));
           const practiceMs=await timeView("Practice Практика",page.getByRole("group",{name:"Answer choices"}));
+          if(profiler)await profiler.send("Profiler.start");
           const progressMs=await timeView("Progress Прогресс",page.getByText("Calendar skills",{exact:false}));
+          if(profiler){const {profile}=await profiler.send("Profiler.stop");diagnostic.progressCpu=profileSummary(profile);diagnostics.push(diagnostic);await profiler.send("Profiler.disable");}
           const audioMs=await timeView("Audio practice Аудиотренировка",page.getByRole("combobox",{name:/Training mode/}));
           if(sample>=0)samples.push({width,sample,...timing,learnMs,practiceMs,progressMs,audioMs});
           if(kind==="candidate"&&sample===-1) {
@@ -119,6 +162,6 @@ if (kind === "compare") {
         } finally {await context.close();}
       }
     }
-    await writeFile(output,JSON.stringify({sha,browser:browser.version(),samples,audits},null,2)+"\n");
+    await writeFile(output,JSON.stringify({sha,browser:browser.version(),samples,audits,diagnostics},null,2)+"\n");
   } finally {await browser?.close();await server.close();}
 }
