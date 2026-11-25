@@ -114,6 +114,13 @@ function standaloneCenter(user: { displayName: string; email: string }): CenterB
 const systemTools: readonly SystemTool[] = [
   { ...russianTimeTrainerTool, note: russianTimeTrainerTool.description },
   {
+    id: "tool-blueprint-compass",
+    name: "Blueprint OS · Neural Command Center",
+    href: "/tools/blueprint-compass",
+    category: "Tool",
+    note: "Kim chỉ nam kỹ thuật, bản đồ Neural theo registry và nút Hướng dẫn theo Hiến pháp luôn hiển thị. GitHub chỉ đọc, không tự chạy Agent hay phát hành.",
+  },
+  {
     id: "tool-russian-daily",
     name: "Russian Daily · Lịch học & từ vựng",
     href: "/tools/russian-daily",
@@ -544,8 +551,10 @@ export default function ManagementDashboardV2({ user, authMode, defaultApprovalG
   }
 
   const activeApps = useMemo<ApplicationConfig[]>(() => {
-    const merged = new Map<string, ApplicationConfig>(staticApps.map((app) => [app.id, app]));
+    // Keep canonical client registry and backend policy intact; show Blueprint once as Tool.
+    const merged = new Map<string, ApplicationConfig>(staticApps.filter(app => app.id !== "software-blueprint-hub").map((app) => [app.id, app]));
     for (const dynamicApp of operations?.managedApps ?? []) {
+      if (dynamicApp.id === "software-blueprint-hub") continue;
       const existing = merged.get(dynamicApp.id);
       merged.set(dynamicApp.id, {
         ...(existing ?? {}),

@@ -6,6 +6,7 @@ import { createServer as reserveServer } from "node:net";
 import path from "node:path";
 import { chromium, devices } from "playwright";
 import { createServer } from "vite";
+import { verifyBlueprintCompass } from "./blueprint-compass-browser-qa.mjs";
 
 const trainerPath = "/tools/russian-time-trainer";
 const evidence = path.resolve(process.env.RUNNER_TEMP ?? "test-results", "russian-time-trainer");
@@ -522,6 +523,13 @@ try {
     assert.equal(location.pathname, "/signin-with-chatgpt");
     assert.equal(location.searchParams.get("return_to"), trainerPath);
     pass("Trainer route follows the existing anonymous sign-in gate");
+    const compass = await fetch(origin + "/tools/blueprint-compass", { redirect: "manual", signal: AbortSignal.timeout(20000) });
+    assert.equal(compass.status, 307);
+    const compassLocation = new URL(compass.headers.get("location"), origin);
+    assert.equal(compassLocation.origin, origin);
+    assert.equal(compassLocation.pathname, "/signin-with-chatgpt");
+    assert.equal(compassLocation.searchParams.get("return_to"), "/tools/blueprint-compass");
+    pass("Blueprint Compass anonymous route uses existing sign-in gate");
   });
   browser = await chromium.launch({
     channel: process.env.TRAINER_QA_BROWSER || undefined,
@@ -536,6 +544,7 @@ try {
       ["mobile", exerciseMobile],
       ["speech-contract", checkAudioContract],
       ["audio-practice", exerciseAudioPractice],
+      ["blueprint-compass", origin => verifyBlueprintCompass(origin, { makeContext, pass, screenshot })],
     ]) {
       try {
         await verify(origin);
