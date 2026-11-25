@@ -142,11 +142,25 @@ export async function verifyBlueprintCompass(origin, { makeContext, pass, screen
       assert.equal((await reset.innerText()).trim(), "100%");
       pass("Blueprint Compass " + width + "px: bounded zoom and two-axis locator keep selected node and page containment", { githubFixture: true });
       pass("Blueprint Compass " + width + "px: real graph selection, four source edges, keyboard and locator, guide, bounded page", { githubFixture: true });
+      const productDirection = detail.getByRole("button", { name: "Hoàn thiện sản phẩm", exact: true });
+      await productDirection.click();
+      assert.equal(await productDirection.getAttribute("aria-pressed"), "true");
+      const handoff = detail.locator("#compass-direction-prompt");
+      const prompt = await handoff.inputValue();
+      assert.match(prompt, /FINISH_PRODUCT/);
+      assert.match(prompt, /Observed default HEAD: b{40}/);
+      assert.match(prompt, /not ACTIVE law/);
+      assert.match(prompt, /no automatic publish\/merge/);
+      assert.match(prompt, /xin quyền merge riêng/);
+      await detail.getByRole("button", { name: "Chọn nội dung để sao chép" }).click();
+      assert.ok(await handoff.evaluate(node => document.activeElement === node && node.selectionStart === 0 && node.selectionEnd === node.value.length));
+      pass("Blueprint Compass " + width + "px: FINISH_PRODUCT proposed direction produces scoped read-only handoff, no release authority", { githubFixture: true });
       failReads = true;
       await detail.getByRole("button", { name: /Đọc lại GitHub/ }).click();
       await detail.getByRole("alert").waitFor();
       assert.doesNotMatch(await detail.innerText(), /Fixture application-management/);
       assert.match(await detail.innerText(), /UNVERIFIED/);
+      assert.equal(await detail.locator("#compass-direction-prompt").count(), 0);
       assert.deepEqual(errors, []);
       pass("Blueprint Compass " + width + "px: failed refresh clears stale evidence and remains UNVERIFIED", { githubFixture: true });
     } catch (error) {

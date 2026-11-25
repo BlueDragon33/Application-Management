@@ -122,3 +122,10 @@
 .neuralEdgeButton:focus-visible,.neuralEdgeDetail a:focus-visible{outline:3px solid #ffe49a;outline-offset:2px}
 .neuralEdgeDetail{display:flex;flex-direction:column;gap:4px;border-left:2px solid #8de6ef;padding:8px 10px;margin:4px 0;overflow-wrap:anywhere}
 .neuralEdgeDetail a{color:#b5e7ff;min-height:44px;display:inline-flex;align-items:center;text-decoration:underline}
+
+/* Read-only proposal directions, existing Tool; no runner or authority UI. */
+.directionPanel{margin:16px 0;padding:14px;border:1px solid #447d65;border-radius:12px;min-width:0;background:#142f26;color:#e6f6ef}
+.directionPanel h3{margin:0 0 8px;font-size:16px}.directionPanel p{margin:8px 0;line-height:1.5}.directionPanel a{color:#b5f7d3;text-decoration:underline;overflow-wrap:anywhere}
+.directionButtons{display:flex;flex-wrap:wrap;gap:8px}.directionButtons button,.directionSelect{min-height:44px;border:1px solid #8fcab6;border-radius:8px;padding:8px 12px;background:#183a30;color:#e6fff4;font:inherit;cursor:pointer}
+.directionButtons button[aria-pressed="true"]{border-color:#ffe49a;background:#39472d;color:#fff3c0;font-weight:700}.directionButtons button:focus-visible,.directionPanel a:focus-visible,.directionPanel textarea:focus-visible,.directionSelect:focus-visible{outline:3px solid #ffe49a;outline-offset:2px}
+.directionPanel label{display:block;font-size:13px;margin:10px 0 5px}.directionPanel textarea{box-sizing:border-box;display:block;width:100%;min-width:0;background:#081b14;color:#e6f6ef;border:1px solid #8fcab6;border-radius:8px;padding:10px;font:13px/1.5 system-ui,sans-serif;resize:vertical}.directionSelect{margin-top:8px}

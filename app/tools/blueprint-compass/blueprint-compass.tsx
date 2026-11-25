@@ -10,9 +10,19 @@ type Row = { number: number; title: string; url: string; draft: boolean; headSha
 type Verdict = { status: string; title: string; description: string; nextStep: string; qaPassed: false; productionAuthorized: false };
 type Snapshot = { ok: boolean; repository: string; checkedAt?: string; head?: string | null; branch?: string; pullRequests?: Row[]; issues?: Row[]; verdict: Verdict; error?: string; limitations?: string; evidenceClass?: string; canonicalGateVerified?: false; humanReviewVerified?: false };
 
+// Read-only presentation of the pinned Hub successor proposal. No local policy authority.
+const directionOptions = [
+  { id: "ONE_STEP", label: "1 bước", stop: "Hoàn thành một bước đã kiểm thử rồi dừng." },
+  { id: "ONE_PACKAGE", label: "1 gói", stop: "Hoàn thành gói hiện tại, không mở gói khác." },
+  { id: "UNTIL_REQUIRED_GATE", label: "Liên tục", stop: "Tiếp tục mọi gói đủ quyền; dừng ở cổng bắt buộc sau khi hết việc độc lập đủ điều kiện." },
+  { id: "FINISH_PRODUCT", label: "Hoàn thiện sản phẩm", stop: "Hoàn thiện toàn bộ phạm vi sản phẩm, QA và rollback; chờ Owner quyết định publish đúng SHA. Nghiệm thu thực tế, sửa phản hồi, rồi xin quyền merge riêng." },
+] as const;
+const proposalRevision = "af9af58c1a4bb05f2b8bd9e8c63a5e89eacfbf9f";
 export default function BlueprintCompass({ projects }: { projects: Project[] }) {
   const [guideOpen, setGuideOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [direction, setDirection] = useState<(typeof directionOptions)[number]["id"]>("UNTIL_REQUIRED_GATE");
+  const selectedDirection = directionOptions.find(option => option.id === direction)!;
   const [selection, setSelection] = useState({ id: projects.find(project => project.id === "software-blueprint-hub")?.id ?? projects[0]?.id ?? "", request: 0 });
   const { id: selected, request: requested } = selection;
   const setSelected = (id: string) => setSelection(current => current.id === id ? current : { id, request: current.request + 1 });
@@ -25,6 +35,11 @@ export default function BlueprintCompass({ projects }: { projects: Project[] }) 
   // Derive pending state synchronously from the request identity. Never flash stale evidence.
   const snapshot = loaded && loaded.request === requested && loaded.snapshot.repository === repository ? loaded.snapshot : null;
   const loading = Boolean(entry && !snapshot);
+  const observedHead = snapshot?.ok && typeof snapshot.head === "string" && /^[0-9a-f]{40}$/.test(snapshot.head)
+    ? snapshot.head : null;
+  const directionPrompt = entry && observedHead
+    ? `BLUEPRINT OS — ${direction}\nRepository: ${entry.repository}\nObserved default HEAD: ${observedHead}\nVerify live ACTIVE Constitution, approved objective, authorized draft HEAD and exact evidence before edits. Default HEAD is not candidate or deployment authority.\n${selectedDirection.stop}\nFINISH_PRODUCT is proposed in Hub #178, not ACTIVE law. Retain all current protected gates. No routine permission requests, no automatic publish/merge, no paid resources or hosted Preview. No background execution promise.`
+    : "";
   const visible = useMemo(() => projects.filter(project =>
     `${project.name} ${project.repository} ${project.group}`.toLowerCase().includes(query.trim().toLowerCase()),
   ), [projects, query]);
@@ -115,6 +130,18 @@ export default function BlueprintCompass({ projects }: { projects: Project[] }) 
           <div className={styles.status}><span>Trạng thái registry: <strong>{entry.state}</strong></span><span>Default branch HEAD: <code>{snapshot?.ok && snapshot.head ? snapshot.head : "UNVERIFIED"}</code></span><span>Nguồn QA: <strong>{snapshot?.evidenceClass ?? "UNVERIFIED"}</strong></span><span>Đối chiếu: <strong>{snapshot?.checkedAt ? new Date(snapshot.checkedAt).toLocaleString("vi-VN") : "UNVERIFIED"}</strong></span></div>
           {snapshot?.verdict ? <article className={styles.verdict} data-status={snapshot.verdict.status}><small>GỢI Ý XỬ LÝ · KHÔNG PHẢI QA APPROVAL</small><h3>{snapshot.verdict.title}</h3><p>{snapshot.verdict.description}</p><strong>Hướng xử lý tiếp</strong><p>{snapshot.verdict.nextStep}</p></article> : <p>Đang xác minh bằng chứng GitHub…</p>}
           {snapshot?.error ? <div role="alert" className={styles.warning}>GitHub chưa xác minh: {snapshot.error}. Không được suy ra PASS.</div> : null}
+          <section className={styles.directionPanel} aria-labelledby="compass-direction-heading">
+            <h3 id="compass-direction-heading">Định hướng thực hiện</h3>
+            <p>Đề xuất R37/R38 · Chưa phải Hiến pháp ACTIVE. <a href={`https://github.com/BlueDragon33/Software-Blueprint-Hub/blob/${proposalRevision}/projects/blueprint-os/END_TO_END_COMPLETION_PROGRAM.v1.md`} target="_blank" rel="noopener noreferrer">Đọc quy tắc ứng viên</a></p>
+            <div className={styles.directionButtons} role="group" aria-label="Chọn định hướng">
+              {directionOptions.map(option => <button type="button" key={option.id} aria-pressed={direction === option.id} onClick={() => setDirection(option.id)}>{option.label}</button>)}
+            </div>
+            <p role="status">{selectedDirection.stop}</p>
+            {directionPrompt ? <><label htmlFor="compass-direction-prompt">Prompt bàn giao · chỉ đọc, không tự thực thi</label>
+              <textarea id="compass-direction-prompt" rows={6} readOnly value={directionPrompt}/>
+              <button type="button" className={styles.directionSelect} onClick={() => { const field = document.getElementById("compass-direction-prompt"); if (field instanceof HTMLTextAreaElement) { field.focus(); field.select(); } }}>Chọn nội dung để sao chép</button>
+            </> : <p>UNVERIFIED — cần đọc lại GitHub trước khi tạo prompt có nguồn.</p>}
+          </section>
           <div className={styles.columns}><section><h3>Pull Requests mở (tối đa 20)</h3>{snapshot?.pullRequests?.map(pr=><a key={pr.number} href={pr.url} target="_blank" rel="noopener noreferrer">#{pr.number} {pr.title}{pr.draft ? " · Draft" : ""} · HEAD {pr.headSha?.slice(0, 12) ?? "UNVERIFIED"}</a>)}{snapshot?.ok && !snapshot.pullRequests?.length ? <p>Chưa thấy PR mở trong trang dữ liệu đã tải.</p> : null}</section><section><h3>Issues mở (tối đa 20)</h3>{snapshot?.issues?.map(issue=><a key={issue.number} href={issue.url} target="_blank" rel="noopener noreferrer">#{issue.number} {issue.title}</a>)}{snapshot?.ok && !snapshot.issues?.length ? <p>Chưa thấy Issue mở trong trang dữ liệu đã tải.</p> : null}</section></div>
           <footer className={styles.footer}><a href={`https://github.com/${entry.repository}`} target="_blank" rel="noopener noreferrer">Mở repository GitHub</a><p>{snapshot?.checkedAt ? `Đọc lại lúc ${new Date(snapshot.checkedAt).toLocaleString("vi-VN")}. ` : ""}{snapshot?.limitations ?? "Chỉ đọc. Không tự tạo WorkPackage, tự chạy CI, phê duyệt, merge hoặc deploy."}</p></footer>
         </> : <p>Chưa đăng ký dự án.</p>}
