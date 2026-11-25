@@ -1,7 +1,7 @@
 import { calendarForms } from "./calendar-content";
 import type { Bilingual } from "./content";
 import { adaptiveTask, adaptiveTasks, type AdaptiveSkill, type AdaptiveTask } from "./adaptive-content";
-import { bundledAudio, resolveAudioClip, type AudioSource } from "./audio-assets";
+import { bundledAudio, previewAudio, resolveAudioClip, type AudioSource } from "./audio-assets";
 
 export const skills = {
   listening: { en: "Listening", ru: "Аудирование" },
@@ -96,7 +96,7 @@ export function recordAdaptiveAnswer(entries: Record<string, MemoryEntry>, id: s
   audioSource?: AudioSource, storage?: Pick<Storage, "setItem">, prefix = "") {
   const task = adaptiveTask(id);
   if (!task || !adaptiveEligible(task, entries) || !Number.isInteger(choice) || choice < 0 || choice >= task.options.length ||
-    (task.skill === "sound" ? !audioSource || audioSource === "device" || !validAudioSources.has(audioSource) : audioSource !== undefined)) return entries;
+    (task.skill === "sound" ? !audioSource || previewAudio(audioSource) || !validAudioSources.has(audioSource) : audioSource !== undefined)) return entries;
   const key = skillKey(id, task.skill);
   const previous = entries[key];
   const correct = choice === task.correct;
@@ -125,7 +125,8 @@ export function recordAdaptiveSelfRecall(entries: Record<string, MemoryEntry>, i
 // prioritize them as verified spaced review until a matching local asset exists.
 function reviewable(task: AdaptiveTask, entry: MemoryEntry | undefined) {
   if (task.skill !== "sound" || entry?.evidence?.audioSource !== "device") return true;
-  return !!bundledAudio(resolveAudioClip(task.options[task.correct].ru, task.id));
+  const source = bundledAudio(resolveAudioClip(task.options[task.correct].ru, task.id))?.source;
+  return !!source && !previewAudio(source);
 }
 export function nextAdaptiveTask(entries: Record<string, MemoryEntry>, now: number, skill: AdaptiveSkill, exclude?: string) {
   const eligible = adaptiveTasks.filter(task => task.skill === skill && task.id !== exclude && adaptiveEligible(task, entries));

@@ -2,7 +2,23 @@ import { nativeAudio } from "./native-audio";
 import { preparedAudioText } from "./prepared-audio";
 
 export type AudioClip = { id: string; ru: string };
-export type AudioSource = "recording" | "prepared" | "device";
+export type AudioSource = "recording" | "prepared" | "device" | "candidate";
+
+// Candidate audio is playable, not admitted as assessment evidence.
+export const soundCandidateText: Readonly<Record<string, string>> = {
+  "adaptive-sound-hard-soft-0": "лук",
+  "adaptive-sound-hard-soft-1": "люк",
+  "adaptive-sound-final-soft-0": "угол",
+  "adaptive-sound-final-soft-1": "уголь",
+  "adaptive-sound-vowels-0": "был",
+  "adaptive-sound-vowels-1": "бил",
+  "adaptive-sound-voicing-0": "том",
+  "adaptive-sound-voicing-1": "дом"
+};
+
+export function previewAudio(source: AudioSource | undefined) {
+  return source === "device" || source === "candidate";
+}
 
 export const preparedVoice = {
   name: "RHVoice Aleksandr-HQ",
@@ -15,6 +31,9 @@ export const preparedVoice = {
 export function bundledAudio(clip: AudioClip): { src: string; source: Exclude<AudioSource, "device"> } | undefined {
   const recording = nativeAudio[clip.id];
   if (recording?.ru === clip.ru) return { src: recording.src, source: "recording" };
+  if (Object.hasOwn(soundCandidateText, clip.id) && soundCandidateText[clip.id] === clip.ru) {
+    return { src: "/russian-time-trainer/sound-candidate/" + clip.id + ".mp3", source: "candidate" };
+  }
   if (preparedAudioText[clip.id] === clip.ru) {
     return { src: "/russian-time-trainer/prepared/" + clip.id + ".mp3", source: "prepared" };
   }

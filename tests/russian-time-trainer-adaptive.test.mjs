@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { loadTs } from "./helpers/load-ts.mjs";
 const root = "app/tools/russian-time-trainer/";
 const { adaptiveTasks, adaptiveTask, adaptiveTexts } = loadTs(root + "adaptive-content.ts");
@@ -86,5 +88,25 @@ test("device-only sound preview cannot promote or overwrite real SRS evidence", 
   assert.equal(writes, 0);
   const legacy = { [sound.id + ":sound"]: { stage: 0, due: now, attempts: 1,
     evidence: { choice: sound.correct, correct: true, wrongAttempts: 0, audioSource: "device" } } };
-  if (!bundledAudio(resolveAudioClip(sound.options[sound.correct].ru, sound.id))) assert.equal(nextReview(legacy, now), undefined);
+  assert.equal(nextReview(legacy, now), undefined);
+});
+
+test("exact eight candidate bytes are provenance-bound and cannot create assessment evidence", () => {
+  const manifest = JSON.parse(readFileSync("public/russian-time-trainer/sound-candidate/manifest.json", "utf8"));
+  assert.equal(manifest.admission, "CANDIDATE_ONLY");
+  assert.equal(manifest.humanAudioQuality, "UNVERIFIED");
+  assert.equal(manifest.assets.length, 8);
+  for (const asset of manifest.assets) {
+    const task = adaptiveTask(asset.id);
+    const clip = resolveAudioClip(task.options[task.correct].ru, task.id);
+    const bundled = bundledAudio(clip);
+    assert.equal(clip.ru, asset.word);
+    assert.equal(bundled.source, "candidate");
+    assert.equal(bundledAudio({ id: task.id, ru: "другое слово" }), undefined);
+    const file = readFileSync("public" + bundled.src);
+    assert.equal(file.length, asset.bytes);
+    assert.equal(createHash("sha256").update(file).digest("hex"), asset.sha256);
+    const empty = {};
+    assert.equal(recordAdaptiveAnswer(empty, task.id, task.correct, 10000, "candidate"), empty);
+  }
 });

@@ -182,6 +182,7 @@ const sources = {
   recording: { en: "Speaker recording", ru: "Запись диктора" },
   prepared: { en: "Prepared synthetic voice", ru: "Подготовленный синтез" },
   device: { en: "Device voice", ru: "Голос устройства" },
+  candidate: { en: "Offline synthetic candidate", ru: "Синтез на проверке" },
 };
 
 export function PronunciationStatus({ audio, id }: { audio: AudioState | null; id: string }) {

@@ -81,12 +81,50 @@ export async function verifyTrainerV61(origin, { makeContext, pass, screenshot }
     const options = page.getByRole("group", { name: "Adaptive answer choices" }).getByRole("button");
     assert.equal(await options.count(), 2);
     assert.ok(await options.first().isDisabled() && await options.last().isDisabled());
-    await page.getByRole("button", { name: /Play sound/ }).click();
+    const player = page.getByRole("button", { name: /Play sound/ });
+    const speed = page.getByRole("combobox", { name: /Speed/ });
+    await page.getByText("Playback settings", { exact: false }).click();
+    for (const rate of ["0.5", "0.75", "1"]) {
+      await speed.selectOption(rate);
+      await player.click();
+      await page.getByRole("status").filter({ hasText: "Playback finished." }).filter({ hasText: "Offline synthetic candidate" }).waitFor();
+      assert.ok(await options.first().isEnabled());
+    }
+    await options.first().click();
+    await page.getByText("Preview feedback only.", { exact: false }).waitFor();
+    await progress.click();
+    assert.equal(await page.getByRole("progressbar", { name: "Sound Lab" }).getAttribute("value"), "0");
+    await studio.click();
+    await mode.selectOption("listen");
+    await mode.selectOption("sound");
+    pass("V6.1 offline candidate playback through Sound Lab at 0.5/0.75/1x, no device voice and no assessment persistence");
+    const clips = await page.evaluate(async () => {
+      const ids = ["hard-soft-0","hard-soft-1","final-soft-0","final-soft-1","vowels-0","vowels-1","voicing-0","voicing-1"];
+      const results = [];
+      for (const id of ids) for (const rate of [0.5, 0.75, 1]) {
+        const media = new Audio("/russian-time-trainer/sound-candidate/adaptive-sound-" + id + ".mp3");
+        media.playbackRate = rate;
+        media.preservesPitch = true;
+        await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => { media.pause(); reject(new Error("Playback timeout " + id)); }, 8000);
+          media.onended = () => { clearTimeout(timeout); resolve(); };
+          media.onerror = () => { clearTimeout(timeout); reject(new Error("Media error " + id)); };
+          media.play().catch(error => { clearTimeout(timeout); reject(error); });
+        });
+        results.push({ id, rate: media.playbackRate, duration: media.duration, ended: media.ended, pitch: media.preservesPitch });
+      }
+      return results;
+    });
+    assert.equal(clips.length, 24);
+    assert.ok(clips.every(c => c.ended && c.pitch && c.duration > 0 && [0.5,0.75,1].includes(c.rate)));
+    pass("All eight local candidate assets actually play at all three rates in Chromium", { observations: clips, linguisticAcceptance: "UNVERIFIED" });
+    await page.route("**/russian-time-trainer/sound-candidate/*.mp3", route => route.abort());
+    await player.click();
     await page.getByRole("status").filter({ hasText: "No Russian device voice" }).waitFor();
     assert.ok(await options.first().isDisabled() && await options.last().isDisabled());
     await page.getByRole("button", { name: /Skip for now/ }).click();
     await page.getByRole("group", { name: "Adaptive answer choices" }).waitFor();
-    pass("V6.1 blind sound challenge remains locked without a local Russian voice; skip does not award results", { voiceAvailability: "forced unavailable negative-path test", humanAudioQuality: "UNVERIFIED" });
+    pass("V6.1 blind sound challenge remains locked when bundled candidate is unavailable and no local voice exists; skip does not award results", { voiceAvailability: "forced unavailable negative-path test", humanAudioQuality: "UNVERIFIED" });
     for (const width of [320, 390, 768, 1024, 1440]) {
       await page.setViewportSize({ width, height: 900 });
       const metrics = await page.evaluate(() => ({ w: document.documentElement.scrollWidth, v: document.documentElement.clientWidth }));

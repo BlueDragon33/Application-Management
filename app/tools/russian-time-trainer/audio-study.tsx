@@ -355,7 +355,7 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
         <span>{attempted.length}/{calendarForms.length} · {dueCount} due <span lang="ru">к повторению</span></span></li>;
     })}</ul>
     <h3>Adaptive evidence <span lang="ru">Результаты адаптивной практики</span></h3>
-    <p className={styles.saveNote}>Choice outcomes and self-reports are separate; neither proves pronunciation. Device-voice previews do not count as assessment results. <span lang="ru">Выбор ответов и самооценка не доказывают правильность произношения. Тренировка с голосом устройства не считается проверкой.</span></p>
+    <p className={styles.saveNote}>Choice outcomes and self-reports are separate; neither proves pronunciation. Device-voice and candidate-audio previews do not count as assessment results. <span lang="ru">Выбор ответов и самооценка не доказывают правильность произношения. Тренировка с голосом устройства и непроверенным синтезом не считается проверкой.</span></p>
     <ul className={styles.progressList}>{(["sound", "context"] as const).map(skill => {
       const attempted = adaptiveTasks.filter(task => {
         const evidence = memoryEntry(entries, task.id, skill)?.evidence;
