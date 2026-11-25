@@ -146,6 +146,18 @@ export function nextReview(entries: Record<string, MemoryEntry>, now: number, cu
   return different ?? (skipCurrent ? undefined : due[0]);
 }
 
+export type LearningPriority = "immersion" | "context";
+/** A recommendation from the canonical review queue, not a new scheduler or a mastery estimate. */
+export function adaptiveRecommendation(entries: Record<string, MemoryEntry>, now: number, priority: LearningPriority) {
+  const due = nextReview(entries, now);
+  if (due) return { kind: "review" as const, id: due.id, skill: due.skill };
+  if (priority === "context") {
+    const task = nextAdaptiveTask(entries, now, "context");
+    if (task) return { kind: "context" as const, id: task.id };
+  }
+  return { kind: "immersion" as const };
+}
+
 export function canonicalSpelling(value: string) {
   return value.normalize("NFC").toLowerCase().replaceAll("\u0301", "").trim().replace(/\s+/gu, " ");
 }

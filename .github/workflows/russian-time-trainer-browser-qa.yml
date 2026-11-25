@@ -53,40 +53,7 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-  sound-asset-candidate:
-    if: github.event.repository.visibility == 'public' && github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-24.04
-    timeout-minutes: 8
-    permissions:
-      contents: read
-    env:
-      TRAINER_QA_EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-      - name: Install version-pinned offline QA synthesizer
-        run: |
-          sudo apt-get update
-          encoder_version=$(apt-cache policy ffmpeg | awk '/Candidate:/ {print $2}')
-          test -n "$encoder_version" && test "$encoder_version" != '(none)'
-          sudo apt-get install --no-install-recommends -y rhvoice=1.8.0+dfsg-3build3 rhvoice-russian=1.8.0+dfsg-3build3 "ffmpeg=$encoder_version"
-          command -v RHVoice-test
-          command -v ffmpeg
-      - name: Render and decode eight candidate words
-        run: node --experimental-strip-types scripts/prepare-russian-time-trainer-sound-assets.mjs "$RUNNER_TEMP/rtt-sound-candidate"
-      - name: Attach candidate audio and provenance for human review
-        uses: actions/upload-artifact@v4
-        with:
-          name: russian-time-trainer-sound-candidate
-          path: ${{ runner.temp }}/rtt-sound-candidate/
-          retention-days: 7
-          if-no-files-found: error
-
+  # Candidate acquisition completed at artifact 14997305745. Exact committed MP3 hashes are covered by regression; no repeated synthesis on UI edits.
 
   trainer-comparative-qa:
     if: github.event.repository.visibility == 'public' && github.event.pull_request.number == 423 && github.event.pull_request.head.repo.full_name == github.repository

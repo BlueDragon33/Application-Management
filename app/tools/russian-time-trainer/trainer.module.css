@@ -546,7 +546,11 @@
 .player .control { border-color: #91b9b5; background: #1f4249; color: #fff; }
 .player .control:hover { background: #2b555b; }
 .player :is(button, select):focus-visible { outline-color: #f1d29c; }
-.nextTask { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--tint); }
+.nextTask { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.pathCopy { display: grid; gap: 4px; flex: 1 1 220px; min-width: 0; }
+.pathCopy small, .pathCopy p { color: var(--secondary); }
+.pathCopy p { margin: 0; font-size: .9rem; }
+.pathPreference summary { min-height: 44px; align-content: center; cursor: pointer; color: var(--secondary); font-size: .9rem; }
 .knowledge { margin-top: 10px; }
 .knowledge summary { min-height: 44px; align-content: center; cursor: pointer; font-weight: 650; }
 .knowledgeRoot { display: grid; width: fit-content; max-width: 100%; margin: 8px auto 0; text-align: center; padding: 10px 16px; border: 1px solid var(--selected-border); border-radius: 10px; background: var(--tint); color: var(--selected-ink); }
@@ -597,7 +601,17 @@
 .guideSteps { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 6px; }
 .guideSteps li { display: grid; gap: 3px; align-content: start; padding: 8px; min-width: 0; border: 1px solid var(--border); border-radius: 8px; overflow-wrap: anywhere; color: var(--secondary); font-size: .82rem; }
 .guideSteps li[aria-current="step"] { border-color: var(--selected-border); color: var(--selected-ink); background: var(--tint); font-weight: 650; }
-.guideCue { display: flex; align-items: center; gap: 14px; background: var(--rule-bg); padding: 12px; border-radius: 10px; }
+.guideCue { display: flex; align-items: center; gap: 18px; background: #173741; border: 1px solid #41636b; color: #f6fffd; padding: clamp(18px,4vw,44px); border-radius: 12px; min-height: 148px; overflow-wrap: anywhere; }
 .guideCue > span { font-size: 2rem; min-width: 48px; text-align: center; }
 .guideCue p, .guided > p { margin: 0; }
 @media(max-width: 620px) { .guideSteps { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+
+.studioLayout { display: grid; min-width: 0; gap: 14px; }
+.studioLayout[data-context-library="true"] { grid-template-columns: minmax(0,1fr) minmax(180px,240px); align-items: start; }
+.contextLibrary { display: grid; gap: 8px; padding: 12px; min-width: 0; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.contextLibrary h3,.contextLibrary p { margin: 0; }
+.contextLibrary h3 { font-size: 1rem; }
+.contextLibrary h3 span { display: block; font-size: .82em; color: var(--secondary); }
+.contextLibrary .timeline { display: grid; grid-template-columns: repeat(auto-fit,minmax(44px,1fr)); gap: 6px; }
+.contextLibrary .timeline button { width: 100%; padding: 6px; }
+@media(max-width: 1000px) { .studioLayout[data-context-library="true"] { grid-template-columns: minmax(0,1fr); } }

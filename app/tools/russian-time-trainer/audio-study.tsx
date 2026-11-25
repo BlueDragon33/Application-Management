@@ -4,7 +4,7 @@ import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState } from "rea
 import { calendarForms, calendarGroups, categories, soundNotes } from "./calendar-content";
 import type { Bilingual } from "./content";
 import { dailyLessons } from "./daily";
-import { adaptiveEligible, memoryEntry, nextAdaptiveTask, nextReview, readMemory, recordAdaptiveAnswer, recordAdaptiveSelfRecall, setMemory, skills, spellingDifference, type MemoryEntry, type ReviewSkill, type Skill } from "./memory";
+import { adaptiveEligible, adaptiveRecommendation, type LearningPriority, memoryEntry, nextAdaptiveTask, nextReview, readMemory, recordAdaptiveAnswer, recordAdaptiveSelfRecall, setMemory, skills, spellingDifference, type MemoryEntry, type ReviewSkill, type Skill } from "./memory";
 import { PronunciationStatus, type AudioSettings, type useRussianAudio } from "./pronunciation";
 import { Recording } from "./recording";
 import { adaptiveTask, adaptiveTasks, type AdaptiveSkill } from "./adaptive-content";
@@ -186,6 +186,7 @@ function Exercise({ form, mode, speech, hidden, heard, choiceSeed, onResult, onS
 const dailyKey = "calendar:days:v1:";
 const modeKey = "calendar:form:v1";
 const repeatKey = "calendar:settings:v1";
+const priorityKey = "calendar:priority:v1";
 
 function readSettings(raw: string | null): AudioSettings | undefined {
   if (!raw) return;
@@ -202,6 +203,7 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
   const [saveFailed, setSaveFailed] = useState(false);
   const [mode, setMode] = useState<Mode>("listen");
   const [hidden, setHidden] = useState(true);
+  const [priority, setPriority] = useState<LearningPriority>("immersion");
   const [settings, setSettings] = useState<AudioSettings>({ rate: 0.75, repeats: 1, pause: 2 });
   const [id, setId] = useState("today-1");
   const [review, setReview] = useState<{ id: string; skill: ReviewSkill }>();
@@ -242,6 +244,8 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
       if (calendarForms.some(form => form.id === saved)) setId(saved!);
       const oldSettings = readSettings(localStorage.getItem(storagePrefix + repeatKey));
       if (oldSettings) setSettings(oldSettings);
+      const savedPriority = localStorage.getItem(storagePrefix + priorityKey);
+      if (savedPriority === "immersion" || savedPriority === "context") setPriority(savedPriority);
     } catch {
       // Invalid preferences do not affect saved recall.
     }
@@ -266,6 +270,7 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
   const categoryGroups = calendarGroups.filter(item => item.category === group.category);
   const selectedDay = dailyLessons[day];
   const due = useMemo(() => nextReview(entries, now), [entries, now]);
+  const recommendation = useMemo(() => adaptiveRecommendation(entries, now, priority), [entries, now, priority]);
   const canPlayExample = exerciseMode === "listen" || exerciseMode === "repeat" || exerciseMode === "shadow";
   const hideForAssessment = exerciseMode === "meaning" || exerciseMode === "dictate" || mode === "review";
   const guidedStage = guide?.epoch === sessionEpoch && mode !== "review" && !labMode ? guide.stage : undefined;
@@ -296,6 +301,19 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
     resetExercise();
     setId(id);
     savePreference(modeKey, id);
+  }
+
+  function continuePath() {
+    const next = adaptiveRecommendation(latest.current, now, priority);
+    if (next.kind === "review") {
+      setMode("review");
+      setReview({ id: next.id, skill: next.skill });
+      resetExercise();
+    } else if (next.kind === "context") {
+      setMode("context");
+      setLabId(next.id);
+      resetExercise();
+    } else startGuide(0);
   }
 
   function selectReview(time: number, skipCurrent = false) {
@@ -455,7 +473,10 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
 
   const topicTimeline = <ol className={styles.timeline} aria-label={category.en}>
         {categoryGroups.map((item, index) => <li key={item.id}><button type="button" aria-pressed={item.id === group.id}
-          className={styles.control} onClick={() => select(item.forms[0].id)}
+          className={styles.control} onClick={() => {
+            select(item.forms[0].id);
+            if (guidedStage !== undefined) startGuide(0);
+          }}
           aria-label={effectiveHidden ? category.en + " " + (index + 1) : item.forms[0].en}>
           <span aria-hidden="true">{item.cue}</span>{!effectiveHidden && <StudyWords text={item.forms[0].ru} language="ru" />}
         </button></li>)}
@@ -471,17 +492,32 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
 
   return <section className={styles.audioStudy} aria-label="Audio practice / Звуковая практика">
     {saveNotice}
-    {due && mode !== "review" && <div className={styles.nextTask}>
-      <span><Pair text={{ en: "Review is due", ru: "Пора повторить" }} /></span>
-      <button type="button" className={styles.control} onClick={() => { setMode("review"); selectReview(now); }}>
-        Start review <span lang="ru">Начать повторение</span>
-      </button>
-    </div>}
+    {exerciseMode && mode !== "review" && guidedStage === undefined && <section className={styles.nextTask} aria-label="Adaptive Path / Маршрут обучения">
+      <div className={styles.pathCopy}>
+        <small>Adaptive Path <span lang="ru">Маршрут обучения</span></small>
+        <strong><Pair text={recommendation.kind === "review" ? { en: "Review is due", ru: "Пора повторить" } : recommendation.kind === "context" ? { en: "Conversation practice", ru: "Практика диалога" } : { en: "Learn through context", ru: "Учитесь в контексте" }} /></strong>
+        <p><Pair text={recommendation.kind === "review" ? { en: "An existing review is due. No new assessment is needed to continue.", ru: "Наступил срок повторения. Дополнительная оценка не требуется." } : recommendation.kind === "context" ? { en: "Continue with an eligible contextual task.", ru: "Продолжите доступное задание в контексте." } : { en: "Observe, listen, imitate, recall.", ru: "Наблюдайте, слушайте, повторяйте, вспоминайте." }} /></p>
+        <details className={styles.pathPreference}><summary>Learning priority <span lang="ru">Приоритет обучения</span></summary>
+          <label className={styles.field}><Pair text={{ en: "Prefer when no review is due", ru: "Если нет повторений" }} />
+            <select value={priority} onChange={event => {
+              const next = event.target.value as LearningPriority;
+              setPriority(next);
+              savePreference(priorityKey, next);
+            }}>
+              <option value="immersion">Listen and speak / Слушать и говорить</option>
+              <option value="context">Context and dialogue / Контекст и диалог</option>
+            </select>
+          </label>
+        </details>
+      </div>
+      {recommendation.kind !== "immersion" && <button type="button" className={styles.primary} onClick={continuePath}>
+        {recommendation.kind === "review" ? <Pair text={{ en: "Start review", ru: "Начать повторение" }} /> : <Pair text={{ en: "Continue", ru: "Продолжить" }} />}
+      </button>}
+    </section>}
     {exerciseMode && mode !== "review" && <section className={styles.guided} aria-label="Natural Immersion / Естественное погружение">
-      {guidedStage === undefined ? <button type="button" className={styles.control} onClick={() => startGuide(0)}>Start Natural Immersion <span lang="ru">Естественное погружение</span></button> : <>
+      {guidedStage === undefined ? <button type="button" className={recommendation.kind === "immersion" ? styles.primary : styles.control} onClick={() => startGuide(0)}>Start Natural Immersion <span lang="ru">Естественное погружение</span></button> : <>
         <div className={styles.guideHeader}><strong>Natural Immersion <span lang="ru">Естественное погружение</span></strong><button type="button" className={styles.control} onClick={resetExercise}>Exit guided practice <span lang="ru">Выйти</span></button></div>
         <ol className={styles.guideSteps}>{[{en:"Observe",ru:"Наблюдай"},{en:"Listen",ru:"Слушай"},{en:"Imitate",ru:"Повторяй"},{en:"Recall",ru:"Вспоминай"}].map((step,index) => <li key={step.en} aria-current={guidedStage === index ? "step" : undefined}><small>{index + 1}</small><Pair text={step}/></li>)}</ol>
-        {guidedStage === 0 && <div className={styles.guideCue}><span aria-hidden="true">{group.cue}</span><div><strong>{form.en}</strong><p><StudyWords text={group.example.en} language="en"/></p></div></div>}
         {guidedStage === 1 && <p>Listen without reading the Russian text. <span lang="ru">Слушайте, не читая русский текст.</span></p>}
         {guidedStage === 2 && <p>Repeat aloud after the model. <span lang="ru">Повторяйте вслух за образцом.</span></p>}
         {guidedStage === 3 && <p>Recall without the model, then compare. <span lang="ru">Вспомните без образца, затем сравните.</span></p>}
@@ -489,9 +525,10 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
         {guidedStage === 3 && guideRecallDone && <button type="button" className={styles.primary} onClick={() => { const next = categoryGroups[(categoryGroups.findIndex(item => item.id === group.id) + 1) % categoryGroups.length]; select(next.forms[0].id); startGuide(0); }}>Next word <span lang="ru">Следующее слово</span></button>}
       </>}
     </section>}
-    {exerciseMode && <section className={styles.player} aria-label="Audio player / Аудиоплеер">
+    {exerciseMode && <div className={styles.studioLayout} data-context-library={guidedStage === 0 ? "true" : undefined}><section className={styles.player} aria-label="Audio player / Аудиоплеер">
       <p className={styles.playerMode}><Pair text={modes[exerciseMode]} /></p>
-      {sceneMode && <div className={styles.scene} aria-label="Context cue">
+      {guidedStage === 0 && <div className={styles.guideCue}><span aria-hidden="true">{group.cue}</span><div><strong>{form.en}</strong><p><StudyWords text={group.example.en} language="en"/></p></div></div>}
+      {sceneMode && guidedStage === undefined && <div className={styles.scene} aria-label="Context cue">
         <div className={styles.sceneHeader}><Pair text={category} /><span>{categoryGroups.findIndex(item => item.id === group.id) + 1} / {categoryGroups.length}</span></div>
         {topicTimeline}
       </div>}
@@ -516,7 +553,14 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
       <PronunciationStatus audio={speech.audio} id={form.group.example.id} />
       <p className={styles.playerHint}>{settings.rate}× · {settings.repeats === "continuous" ? "∞" : settings.repeats} · {settings.pause}s <span lang="ru">пауза</span></p>
       {playbackSettings}
+    </section>
+    {guidedStage === 0 && <section className={styles.contextLibrary} aria-label="Context library / Библиотека контекстов">
+      <h3>Context library <span lang="ru">Библиотека контекстов</span></h3>
+      <p><Pair text={category} /></p>
+      {topicTimeline}
+      <p className={styles.saveNote}>Choose a scene to start observing it. <span lang="ru">Выберите ситуацию для наблюдения.</span></p>
     </section>}
+    </div>}
     {dailySession !== undefined && !labMode && <div className={styles.rule}>
       <p>Day {dailySession + 1} <span lang="ru">День {dailySession + 1}</span></p>
       <div className={styles.actions}>
@@ -553,7 +597,7 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
       <label className={styles.check}><input type="checkbox" checked={effectiveHidden} disabled={hideForAssessment || guidedStage !== undefined} onChange={event => setHidden(event.target.checked)} />
         <Pair text={{ en: "Hide words while listening", ru: "Скрывать слова при прослушивании" }} />
       </label>
-      {!sceneMode && topicTimeline}
+      {!sceneMode && guidedStage === undefined && topicTimeline}
       <div className={styles.actions}>
         <button type="button" className={styles.control} disabled={guidedStage !== undefined} onClick={() => speech.play("topic", calendarForms.filter(item => item.group.category === group.category), settings)}>
           Play topic <span lang="ru">Слушать тему</span>

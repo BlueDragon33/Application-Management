@@ -6,7 +6,7 @@ import { loadTs } from "./helpers/load-ts.mjs";
 const root = "app/tools/russian-time-trainer/";
 const { adaptiveTasks, adaptiveTask, adaptiveTexts } = loadTs(root + "adaptive-content.ts");
 const { resolveAudioClip, bundledAudio } = loadTs(root + "audio-assets.ts");
-const { recordAdaptiveAnswer, recordAdaptiveSelfRecall, readMemory, memoryEntry, nextReview, nextAdaptiveTask, adaptiveEligible } = loadTs(root + "memory.ts");
+const { recordAdaptiveAnswer, recordAdaptiveSelfRecall, readMemory, memoryEntry, nextReview, nextAdaptiveTask, adaptiveEligible, adaptiveRecommendation } = loadTs(root + "memory.ts");
 const { trainerStoragePrefix } = loadTs(root + "progress.ts");
 test("V6.1 supplemental tasks have stable IDs, valid answers and an acyclic prerequisite chain", () => {
   assert.equal(adaptiveTasks.length, 20);
@@ -109,4 +109,18 @@ test("exact eight candidate bytes are provenance-bound and cannot create assessm
     const empty = {};
     assert.equal(recordAdaptiveAnswer(empty, task.id, task.correct, 10000, "candidate"), empty);
   }
+});
+
+test("adaptive path uses canonical due review before preference and does not select locked tasks", () => {
+  const now = 10000;
+  assert.deepEqual(adaptiveRecommendation({}, now, "immersion"), {kind:"immersion"});
+  const first = adaptiveRecommendation({}, now, "context");
+  assert.equal(first.kind,"context");
+  assert.equal(first.id,"adaptive-meet-foundation");
+  const task = adaptiveTask(first.id);
+  const entries = recordAdaptiveAnswer({}, task.id, task.correct, now);
+  assert.equal(adaptiveRecommendation(entries, now, "immersion").kind,"review");
+  assert.equal(adaptiveRecommendation(entries, now, "context").id, task.id);
+  const sound = adaptiveTasks.find(task => task.skill === "sound");
+  assert.equal(adaptiveRecommendation(recordAdaptiveAnswer({}, sound.id, sound.correct, now, "candidate"), now, "immersion").kind,"immersion");
 });
