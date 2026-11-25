@@ -7,6 +7,9 @@ on:
       - 'app/application-hub.tsx'
       - 'app/management-dashboard-v2.tsx'
       - 'scripts/russian-time-trainer-browser-qa.mjs'
+      - 'scripts/russian-time-trainer-v61-browser-qa.mjs'
+      - 'scripts/russian-time-trainer-comparative-qa.mjs'
+      - 'public/russian-time-trainer/**'
       - '.github/workflows/russian-time-trainer-browser-qa.yml'
 
 permissions:
@@ -116,11 +119,14 @@ jobs:
       - name: Install baseline locked dependencies
         working-directory: baseline
         run: npm run install:ci
-      - name: Install candidate locked dependencies and browser runtime
+      - name: Install candidate locked dependencies
         working-directory: candidate
+        run: npm run install:ci
+      - name: Install isolated browser harness without altering either checkout
         run: |
-          npm run install:ci
-          npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.55.1
+          mkdir -p "$RUNNER_TEMP/rtt-qa-tools"
+          npm install --prefix "$RUNNER_TEMP/rtt-qa-tools" --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.55.1
+          echo "RTT_QA_TOOL_ROOT=$RUNNER_TEMP/rtt-qa-tools" >> "$GITHUB_ENV"
           google-chrome --version
       - name: Paired cold-context measurements and representative contrast review
         run: |

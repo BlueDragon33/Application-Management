@@ -590,3 +590,13 @@
 @media (max-width: 620px) {
   .player .timeline { grid-template-columns: repeat(auto-fit, minmax(min(100%, 52px), 1fr)); }
 }
+
+.guided { display: grid; gap: 12px; min-width: 0; }
+.guideHeader { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.guideSteps { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 6px; }
+.guideSteps li { display: grid; gap: 3px; align-content: start; padding: 8px; min-width: 0; border: 1px solid var(--border); border-radius: 8px; overflow-wrap: anywhere; color: var(--secondary); font-size: .82rem; }
+.guideSteps li[aria-current="step"] { border-color: var(--selected-border); color: var(--selected-ink); background: var(--tint); font-weight: 650; }
+.guideCue { display: flex; align-items: center; gap: 14px; background: var(--rule-bg); padding: 12px; border-radius: 10px; }
+.guideCue > span { font-size: 2rem; min-width: 48px; text-align: center; }
+.guideCue p, .guided > p { margin: 0; }
+@media(max-width: 620px) { .guideSteps { grid-template-columns: repeat(2,minmax(0,1fr)); } }

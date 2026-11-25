@@ -6,7 +6,8 @@ import { createServer as reserveServer } from "node:net";
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 import path from "node:path";
-import { chromium } from "playwright";
+const qaRequire = createRequire(path.join(process.env.RTT_QA_TOOL_ROOT ?? "", "package.json"));
+const { chromium } = qaRequire("playwright");
 
 const base = "e97df96427cbc03ba5a62cf03cd6cc214340cf90";
 const [kind, output, expected] = process.argv.slice(2);
@@ -77,6 +78,7 @@ if (kind === "compare") {
         try {
           assert.equal((await page.goto(origin+"/tools/russian-time-trainer",{waitUntil:"domcontentloaded"})).status(),200);
           await page.getByRole("heading",{name:"Russian Time Trainer",exact:true}).waitFor();
+          await page.waitForFunction(() => document.documentElement.lang === "en");
           await page.getByRole("combobox",{name:/Training mode/}).waitFor();
           const nav=page.getByRole("navigation",{name:"Trainer sections"});
           const timing=await page.evaluate(()=>{
@@ -88,7 +90,9 @@ if (kind === "compare") {
           });
           const timeView=async (label, ready)=>{
             const start=performance.now();
-            await nav.getByRole("button",{name:label,exact:true}).click();
+            const target = nav.getByRole("button",{name:label,exact:true});
+            await target.click();
+            await target.and(page.locator("[aria-pressed=true]")).waitFor();
             await ready.waitFor();
             return performance.now()-start;
           };
@@ -143,6 +147,10 @@ if (kind === "compare") {
               }
             }
           }
+        } catch (error) {
+          await page.screenshot({path:output+".failure.png"}).catch(()=>{});
+          await writeFile(output+".failure.json",JSON.stringify({sha,width,sample,error:String(error),url:page.url(),body:(await page.locator("main").innerText().catch(()=> "")).slice(0,4000)},null,2));
+          throw error;
         } finally {await context.close();}
       }
     }

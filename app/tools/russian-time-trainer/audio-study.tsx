@@ -75,9 +75,9 @@ const relationLabels: Record<KnowledgeRelation, Bilingual> = {
   context: { en: "Related context", ru: "Связанный контекст" },
 };
 
-function Exercise({ form, mode, speech, hidden, heard, choiceSeed, onResult, onSelect }: {
+function Exercise({ form, mode, speech, hidden, heard, choiceSeed, onResult, onSelect, guidedStage }: {
   form: typeof calendarForms[number]; mode: ExerciseMode; speech: ReturnType<typeof useRussianAudio>;
-  hidden: boolean; heard: boolean; choiceSeed: number;
+  hidden: boolean; heard: boolean; choiceSeed: number; guidedStage?: number;
   onResult: (skill: Skill, result: boolean, time: number) => void;
   onSelect: (id: string) => void;
 }) {
@@ -90,7 +90,8 @@ function Exercise({ form, mode, speech, hidden, heard, choiceSeed, onResult, onS
   const recognition = mode === "meaning" || mode === "read";
   const recording = mode === "shadow" || mode === "speak";
   const showPrompt = mode === "read" || (listening && !hidden);
-  const showAnswer = revealed || result !== undefined;
+  const guidedRecall = guidedStage === 3;
+  const showAnswer = (guidedStage === undefined || guidedRecall) && (revealed || result !== undefined);
   const display = script === "upper" ? form.ru.toUpperCase() : script === "lower" ? form.ru.toLowerCase() : form.ru;
   const choices = [form, ...calendarForms.filter(item => item.group.category === form.group.category &&
     item.id !== form.id && item.en !== form.en && item.id.endsWith(form.id.slice(form.id.lastIndexOf("-")))).slice(0, 2)];
@@ -107,6 +108,7 @@ function Exercise({ form, mode, speech, hidden, heard, choiceSeed, onResult, onS
 
   return <>
     {mode === "speak" && <p className={styles.phrase}><StudyWords text={form.en} language="en" /></p>}
+    {guidedRecall && <p className={styles.saveNote}>Say the Russian phrase before checking. Your self-report is not a pronunciation score. <span lang="ru">Произнесите фразу до проверки. Самооценка не является оценкой произношения.</span></p>}
     {mode === "read" && <label htmlFor={itemSelect} className={styles.field}><Pair text={{ en: "Script", ru: "Начертание" }} />
       <select id={itemSelect} value={script} onChange={event => setScript(event.target.value as keyof typeof scripts)}>
         {Object.entries(scripts).map(([key, label]) => <option key={key} value={key}>{label.en} / {label.ru}</option>)}
@@ -136,12 +138,12 @@ function Exercise({ form, mode, speech, hidden, heard, choiceSeed, onResult, onS
     </form>}
     {recording && <Recording stopModel={speech.stop} />}
     {(mode === "repeat" || recording) && <>
-      {recording && <p><Pair text={{ en: "Listen to both recordings and rate your own recall.", ru: "Прослушайте обе записи и оцените, удалось ли вспомнить фразу." }} /></p>}
+      {recording && !guidedRecall && <p><Pair text={{ en: "Listen to both recordings and rate your own recall.", ru: "Прослушайте обе записи и оцените, удалось ли вспомнить фразу." }} /></p>}
       <div className={styles.actions}>
-        <button type="button" className={styles.control} disabled={!heard || result !== undefined} onClick={() => assess(true)}>
+        <button type="button" className={styles.control} disabled={(!heard && !guidedRecall) || result !== undefined || (guidedRecall && revealed)} onClick={() => assess(true)}>
           {recording ? <Pair text={{ en: "I recalled it", ru: "Я вспомнил(а)" }} /> : <Pair text={{ en: "I heard and repeated it", ru: "Я услышал(а) и повторил(а)" }} />}
         </button>
-        <button type="button" className={styles.control} disabled={!heard || result !== undefined} onClick={() => assess(false)}>
+        <button type="button" className={styles.control} disabled={(!heard && !guidedRecall) || result !== undefined} onClick={() => assess(false)}>
           Review again <span lang="ru">Повторить ещё</span>
         </button>
       </div>
@@ -153,7 +155,7 @@ function Exercise({ form, mode, speech, hidden, heard, choiceSeed, onResult, onS
         {" "}<span lang="ru">{spellingDifference(answer, form.ru).typed || "∅"} → {spellingDifference(answer, form.ru).expected || "∅"}</span>
       </p>}
     </div>}
-    {!showAnswer && !recognition && mode !== "dictate" && <button type="button" className={styles.control} onClick={() => setRevealed(true)}>
+    {(guidedStage === undefined || guidedRecall) && !showAnswer && !recognition && mode !== "dictate" && <button type="button" className={styles.control} onClick={() => setRevealed(true)}>
       Reveal text <span lang="ru">Показать текст</span>
     </button>}
     {showAnswer && <section className={styles.rule}>
@@ -203,6 +205,8 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
   const [review, setReview] = useState<{ id: string; skill: ReviewSkill }>();
   const [labId, setLabId] = useState<string>();
   const [round, setRound] = useState(0);
+  const [guide, setGuide] = useState<{ stage: number; epoch: number }>();
+  const [guideRecallDone, setGuideRecallDone] = useState(false);
   const playButton = useRef<HTMLButtonElement>(null);
   const [heardEpoch, setHeardEpoch] = useState<number | null>(null);
   const heard = heardEpoch === sessionEpoch;
@@ -262,7 +266,8 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
   const due = nextReview(entries, now);
   const canPlayExample = exerciseMode === "listen" || exerciseMode === "repeat" || exerciseMode === "shadow";
   const hideForAssessment = exerciseMode === "meaning" || exerciseMode === "dictate" || mode === "review";
-  const effectiveHidden = hidden || hideForAssessment;
+  const guidedStage = guide?.epoch === sessionEpoch && mode !== "review" && !labMode ? guide.stage : undefined;
+  const effectiveHidden = hidden || hideForAssessment || guidedStage !== undefined;
   const sceneMode = mode === "listen" || mode === "repeat" || mode === "shadow";
   const dailyGroups: readonly string[] = dailySession === undefined ? [] : dailyLessons[dailySession].groups;
 
@@ -273,7 +278,15 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
   function resetExercise() {
     speech.stop();
     setHeardEpoch(null);
+    setGuide(undefined);
+    setGuideRecallDone(false);
     setRound(value => value + 1);
+  }
+
+  function startGuide(stage: number) {
+    resetExercise();
+    setMode(stage === 2 ? "repeat" : stage === 3 ? "speak" : "listen");
+    setGuide({ stage, epoch: sessionEpoch });
   }
 
   function select(id: string) {
@@ -308,6 +321,7 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
   function update(skill: Skill, result: boolean, time: number) {
     setNow(time);
     persistMemory((base, storage) => setMemory(base, form.id, skill, result, time, storage, storagePrefix));
+    if (guidedStage === 3 && skill === "speaking") setGuideRecallDone(true);
   }
 
   function selectLab(skill: AdaptiveSkill, time: number, exclude?: string) {
@@ -461,6 +475,18 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
         Start review <span lang="ru">Начать повторение</span>
       </button>
     </div>}
+    {exerciseMode && mode !== "review" && <section className={styles.guided} aria-label="Natural Immersion / Естественное погружение">
+      {guidedStage === undefined ? <button type="button" className={styles.control} onClick={() => startGuide(0)}>Start Natural Immersion <span lang="ru">Естественное погружение</span></button> : <>
+        <div className={styles.guideHeader}><strong>Natural Immersion <span lang="ru">Естественное погружение</span></strong><button type="button" className={styles.control} onClick={resetExercise}>Exit guided practice <span lang="ru">Выйти</span></button></div>
+        <ol className={styles.guideSteps}>{[{en:"Observe",ru:"Наблюдай"},{en:"Listen",ru:"Слушай"},{en:"Imitate",ru:"Повторяй"},{en:"Recall",ru:"Вспоминай"}].map((step,index) => <li key={step.en} aria-current={guidedStage === index ? "step" : undefined}><small>{index + 1}</small><Pair text={step}/></li>)}</ol>
+        {guidedStage === 0 && <div className={styles.guideCue}><span aria-hidden="true">{group.cue}</span><div><strong>{form.en}</strong><p><StudyWords text={group.example.en} language="en"/></p></div></div>}
+        {guidedStage === 1 && <p>Listen without reading the Russian text. <span lang="ru">Слушайте, не читая русский текст.</span></p>}
+        {guidedStage === 2 && <p>Repeat aloud after the model. <span lang="ru">Повторяйте вслух за образцом.</span></p>}
+        {guidedStage === 3 && <p>Recall without the model, then compare. <span lang="ru">Вспомните без образца, затем сравните.</span></p>}
+        {guidedStage < 3 && <button type="button" className={styles.primary} disabled={guidedStage > 0 && !heard} onClick={() => startGuide(guidedStage + 1)}>Next stage <span lang="ru">Следующий этап</span></button>}
+        {guidedStage === 3 && guideRecallDone && <button type="button" className={styles.primary} onClick={() => { const next = categoryGroups[(categoryGroups.findIndex(item => item.id === group.id) + 1) % categoryGroups.length]; select(next.forms[0].id); startGuide(0); }}>Next word <span lang="ru">Следующее слово</span></button>}
+      </>}
+    </section>}
     {exerciseMode && <section className={styles.player} aria-label="Audio player / Аудиоплеер">
       <p className={styles.playerMode}><Pair text={modes[exerciseMode]} /></p>
       {sceneMode && <div className={styles.scene} aria-label="Context cue">
@@ -473,14 +499,14 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
         exerciseMode === "read" ? { en: "Read the phrase, then compare with the audio.", ru: "Прочитайте фразу и сравните со звуком." } :
         { en: "Listen first. Reveal the text when you need it.", ru: "Сначала слушайте. Откройте текст при необходимости." }} /></p>
       <div className={styles.actions}>
-        <button ref={playButton} type="button" className={styles.primary} onClick={() => {
+        <button ref={playButton} type="button" className={styles.primary} disabled={guidedStage === 0 || (guidedStage === 3 && !guideRecallDone)} onClick={() => {
           setHeardEpoch(null);
           speech.play(form.id, [form], settings, () => setHeardEpoch(sessionEpoch));
         }}>
           Play word or phrase <span lang="ru">Слушать слово или фразу</span>
         </button>
         <button type="button" className={styles.control} onClick={speech.stop}>Stop audio <span lang="ru">Остановить звук</span></button>
-        {canPlayExample && <button type="button" className={styles.control} onClick={() => speech.play(form.group.example.id, [form.group.example], settings)}>
+        {canPlayExample && guidedStage === undefined && <button type="button" className={styles.control} onClick={() => speech.play(form.group.example.id, [form.group.example], settings)}>
           Play example <span lang="ru">Слушать пример</span>
         </button>}
       </div>
@@ -522,12 +548,12 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
       </label>}
     </div>
     {mode !== "review" && !labMode && <>
-      <label className={styles.check}><input type="checkbox" checked={effectiveHidden} disabled={hideForAssessment} onChange={event => setHidden(event.target.checked)} />
+      <label className={styles.check}><input type="checkbox" checked={effectiveHidden} disabled={hideForAssessment || guidedStage !== undefined} onChange={event => setHidden(event.target.checked)} />
         <Pair text={{ en: "Hide words while listening", ru: "Скрывать слова при прослушивании" }} />
       </label>
       {!sceneMode && topicTimeline}
       <div className={styles.actions}>
-        <button type="button" className={styles.control} onClick={() => speech.play("topic", calendarForms.filter(item => item.group.category === group.category), settings)}>
+        <button type="button" className={styles.control} disabled={guidedStage !== undefined} onClick={() => speech.play("topic", calendarForms.filter(item => item.group.category === group.category), settings)}>
           Play topic <span lang="ru">Слушать тему</span>
         </button>
         {group.forms.length > 1 && <label className={styles.field}><Pair text={{ en: "Form", ru: "Форма" }} />
@@ -546,7 +572,7 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
       onAnswer={updateLab} onSelfRecall={updateSelfRecall} onAdvance={advanceLab} onRetry={resetExercise} />}
     {labMode && !activeLab && <p role="status">No other eligible task. Choose another mode. <span lang="ru">Других доступных заданий нет. Выберите другой режим.</span></p>}
     {exerciseMode && <Exercise key={form.id + mode + round + ":" + sessionEpoch} form={form}
-      mode={exerciseMode} speech={speech} hidden={effectiveHidden} heard={heard} choiceSeed={round + sessionEpoch}
+      mode={exerciseMode} speech={speech} hidden={effectiveHidden} heard={heard} choiceSeed={round + sessionEpoch} guidedStage={guidedStage}
       onResult={update} onSelect={next => {
         if (mode === "review") setMode("listen");
         select(next);
