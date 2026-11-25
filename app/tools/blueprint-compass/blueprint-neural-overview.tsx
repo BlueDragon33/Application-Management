@@ -26,8 +26,8 @@ const stateLabels: Record<string,string> = {
 };
 
 export default function BlueprintNeuralOverview({
-  projects, selectedProjectId, onSelectProject,
-}: { projects: readonly NeuralProject[]; selectedProjectId: string; onSelectProject: (projectId: string) => void }) {
+  projects, selectedProjectId, onSelectProject, matchingProjectIds,
+}: { projects: readonly NeuralProject[]; selectedProjectId: string; onSelectProject: (projectId: string) => void; matchingProjectIds?: readonly string[] }) {
   const trackRef = useRef<HTMLDivElement | null>(null);
   const [zoom, setZoom] = useState(1);
   const diagram = useMemo(
@@ -37,6 +37,9 @@ export default function BlueprintNeuralOverview({
   const highlightedEdges = [...diagram.links].sort((a, b) => Number(a.selected) - Number(b.selected));
   const focusedProject = diagram.projects.find(project => project.selected);
   const selectedLinks = diagram.links.filter(link => link.selected);
+  const matches = matchingProjectIds === undefined ? null : new Set(matchingProjectIds);
+  const matchingNodes = diagram.projects.filter(project => matches?.has(project.id));
+  const matchingGroups = new Set(matchingNodes.map(project => project.group));
   const relationLabels: Record<string, string> = {
     "registry-group": "Nguồn registry → nhóm",
     "group-project": "Nhóm → dự án",
@@ -80,6 +83,7 @@ export default function BlueprintNeuralOverview({
           node.focus({ preventScroll: true });
         }}>◎ Đến node dự án</button>
         <span>Tab để chọn dự án · Cuộn ngang/dọc · Thu phóng chỉ đổi tỷ lệ hiển thị</span>
+        {matches !== null ? <span className={styles.neuralSearchResult} role="status">{matchingNodes.length} node khớp · không thay đổi lựa chọn hoặc dữ liệu nguồn</span> : null}
       </div>
       <div ref={trackRef} className={styles.neuralTrack} tabIndex={0} role="region"
       aria-label="Sơ đồ 5 dải nguồn registry, nhóm, dự án, repository, trạng thái. Cuộn ngang để xem và Tab để chọn node">
@@ -108,10 +112,13 @@ export default function BlueprintNeuralOverview({
             {highlightedEdges.map(link => {
               const delta = (link.toX - link.fromX) * .46;
               const d = `M${link.fromX} ${link.fromY} C${link.fromX + delta} ${link.fromY},${link.toX - delta} ${link.toY},${link.toX} ${link.toY}`;
+              const matched = matches !== null && (link.kind === "registry-group"
+                ? matchingGroups.has(link.recordId) : matches.has(link.recordId));
               return <path key={link.id} d={d} fill="none"
                 stroke="url(#neural-source-gradient)"
-                strokeWidth={link.selected ? 2.7 : .85}
-                strokeOpacity={link.selected ? .98 : .30}
+                strokeWidth={link.selected ? 2.7 : matched ? 1.8 : .85}
+                strokeOpacity={link.selected ? .98 : matched ? .85 : .30}
+                data-search-match={matched ? "true" : undefined}
                 data-relation={link.kind}/>;
             })}
           </g>
@@ -152,6 +159,7 @@ export default function BlueprintNeuralOverview({
           style={{ top: project.y - 15, left: 601 }}
           title={`Chọn ${project.name} · ${project.repository}`}
           aria-pressed={project.id === selectedProjectId}
+          data-search-match={matches?.has(project.id) ? "true" : undefined}
           aria-controls="compass-project-detail"
           onClick={() => onSelectProject(project.id)}>
           {project.name}

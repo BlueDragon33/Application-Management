@@ -28,6 +28,7 @@ export default function BlueprintCompass({ projects }: { projects: Project[] }) 
   const visible = useMemo(() => projects.filter(project =>
     `${project.name} ${project.repository} ${project.group}`.toLowerCase().includes(query.trim().toLowerCase()),
   ), [projects, query]);
+  const matchingProjectIds = query.trim() ? visible.map(project => project.id) : undefined;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -90,12 +91,16 @@ export default function BlueprintCompass({ projects }: { projects: Project[] }) 
       <p><strong>Nguyên tắc:</strong> tách dữ liệu đề xuất, quan sát và QA thực; không nhân bản ledger. Mọi quyền reviewer, phê chuẩn Constitution và Production giữ nguyên human gates. Khi đóng trang, Tool không tiếp tục chạy công việc.</p>
       <a href="https://github.com/BlueDragon33/Software-Blueprint-Hub/blob/main/docs/UNIVERSAL-CONSTITUTION.md" target="_blank" rel="noopener noreferrer">Đọc Hiến pháp ACTIVE tại nguồn chính GitHub</a>
     </section>
-    <BlueprintNeuralOverview projects={projects} selectedProjectId={selected} onSelectProject={setSelected}/>
+    <div className={styles.neuralSearch}>
+      <label htmlFor="compass-search">Tìm dự án</label>
+      <input id="compass-search" type="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Tên hoặc repository" />
+      <span role="status">{visible.length}/{projects.length} dự án trong danh mục{query.trim() ? " khớp tìm kiếm" : ""}</span>
+    </div>
+    <BlueprintNeuralOverview projects={projects} selectedProjectId={selected} onSelectProject={setSelected} matchingProjectIds={matchingProjectIds}/>
     {entry?.id === "software-blueprint-hub" ? <HubGraphContractAdmission/> : null}
     <section className={styles.layout}>
       <aside className={styles.side} aria-label="Chọn dự án">
-        <label htmlFor="compass-search">Tìm dự án</label>
-        <input id="compass-search" type="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Tên hoặc repository" />
+        <p>Danh sách dự án · dùng ô tìm kiếm ở trên bản đồ.</p>
         <div className={styles.list}>{visible.map(project => <button type="button" key={project.id} data-selected={selected===project.id} onClick={() => setSelected(project.id)}><strong>{project.name}</strong><small>{project.repository}</small></button>)}</div>
         {!visible.length ? <p>Không tìm thấy trong registry. Dự án mới phải được đưa vào danh mục canonical trước khi sử dụng.</p> : null}
         <section className={styles.discovered}>

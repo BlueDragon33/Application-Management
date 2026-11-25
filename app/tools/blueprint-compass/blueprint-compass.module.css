@@ -108,3 +108,11 @@
 .neuralZoom{display:flex;gap:4px;align-items:center}
 .neuralZoom button{min-width:44px;min-height:44px}
 .neuralZoom button:disabled{opacity:.55;cursor:default}
+
+/* One shared search: graph emphasis and catalog filtering, without hiding context. */
+.neuralSearch{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:0 0 12px;padding:10px 12px;border:1px solid #485f8e;border-radius:12px;background:#15243b;color:#e8efff}
+.neuralSearch label{font-weight:700;font-size:14px}
+.neuralSearch input{flex:1 1 220px;min-width:0;max-width:100%;min-height:44px;border:1px solid #91acd4;border-radius:8px;padding:8px 12px;background:#08192a;color:#f1f6ff;font:inherit}
+.neuralSearch input:focus-visible{outline:3px solid #ffe49a;outline-offset:2px}
+.neuralSearch span,.neuralSearchResult{font-size:13px;color:#d7e5ff}
+.neuralAtlas .neuralNodeButton[data-search-match="true"]:not([aria-pressed="true"]){border-color:#8de6ef;background:#214660;color:#f1faff}
