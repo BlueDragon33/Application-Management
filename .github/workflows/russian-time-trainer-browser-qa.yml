@@ -83,3 +83,51 @@ jobs:
           path: ${{ runner.temp }}/rtt-sound-candidate/
           retention-days: 7
           if-no-files-found: error
+
+  sound-asset-transfer:
+    # One bounded transfer of previously generated PUBLIC audio only.
+    # No repository writes, model installation, secret export or regenerated audio.
+    if: github.event.repository.visibility == 'public' && github.event.pull_request.number == 423 && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Retrieve and verify exact public candidate artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/BlueDragon33/Application-Management/actions/artifacts/14997305745/zip" \
+            -o "$RUNNER_TEMP/rtt-original.zip"
+          echo "1aa91fd34f9b8bf488098ab151feebaff29728212a761e5c02688ac8b957b056  $RUNNER_TEMP/rtt-original.zip" | sha256sum --check
+          python3 - <<'PY'
+          import os, zipfile, json, hashlib, base64
+          expected = {
+            "adaptive-sound-hard-soft-0":"47241d46459d245a10d1fbed0ce706452da4c87fa16d3ae4f83e1350898e5426",
+            "adaptive-sound-hard-soft-1":"54c0a3ecaa27178c965d9a3aaba72b0718f46dc5bea578c86b167beec9acb28a",
+            "adaptive-sound-final-soft-0":"5d0d4cd04cf3d6eb6495310526a924b56781661e34e91ab4de074f29c27cbfd5",
+            "adaptive-sound-final-soft-1":"c8f81db661b4eb712cd83e863ce271943c5a0fade82248f08c38398bdc798050",
+            "adaptive-sound-vowels-0":"8b76e8fe3fe5a04d679c377b2e7877129b5e1c4015397096d51a8e49aec5bd1d",
+            "adaptive-sound-vowels-1":"a2c68bb8c11377aee15d45fbbf18052687ecf80b2223e1d265c7d4a16d7f0c24",
+            "adaptive-sound-voicing-0":"e4b2ed5b5778d5612e332e0c67971582756bc82809060bcc7d202dfd046052fe",
+            "adaptive-sound-voicing-1":"7625fdc32fb7a7aa2751ee9af143c2cee06e9acdb900d9bc22150b34ffaff8de",
+          }
+          with zipfile.ZipFile(os.path.join(os.environ["RUNNER_TEMP"],"rtt-original.zip")) as z:
+              manifest=json.loads(z.read("manifest.json"))
+              assert manifest["sourceSha"]=="a1bcbb5b2dca53a059c0d5f03fc9d1ac8c383c9f"
+              assert manifest["admission"]=="CANDIDATE_ONLY"
+              assert {a["id"]:a["sha256"] for a in manifest["assets"]}==expected
+              for name,digest in expected.items():
+                  data=z.read(name+".mp3")
+                  assert hashlib.sha256(data).hexdigest()==digest
+                  # Only licensed public audio bytes; split to bounded log records.
+                  encoded=base64.b64encode(data).decode("ascii")
+                  for i in range(0,len(encoded),1000):
+                      print("RTT_PUBLIC_AUDIO "+name+" "+str(i//1000)+" "+encoded[i:i+1000])
+              print("RTT_PUBLIC_AUDIO_VERIFIED 8")
+          PY
