@@ -66,15 +66,16 @@ const contextTasks: readonly AdaptiveTask[] = [
     pair("Use начинается в + time for a scheduled lesson.", "Для начала урока используйте «начинается в» и время."),
     text("Во ско́лько начина́ется уро́к?","At what time does the lesson start?","Tiết học bắt đầu lúc mấy giờ?"),"adaptive-clock-first","lesson-start"),
 ];
+// Phonetic IPA: Russian hard lateral [ɫ], soft [lʲ]; see Yanushevskaya & Bunčić, JIPA, doi:10.1017/S0025100314000395.
 const contrasts: readonly { id: string; title: Bilingual; options: readonly AdaptiveText[]; rule: Bilingual }[] = [
   { id: "hard-soft", title: pair("Hard / soft consonant", "Твёрдый / мягкий согласный"),
-    options: [text("лук","onion / bow","hành / cung","luk"),text("люк","hatch","cửa sập","lʲuk")],
-    rule: pair("Hard [l] contrasts with soft [lʲ]. Ю after л signals softness here.", "Твёрдый [л] противопоставлен мягкому [л’].") },
+    options: [text("лук","onion / bow","hành / cung","ɫuk"),text("люк","hatch","cửa sập","lʲuk")],
+    rule: pair("Hard [ɫ] contrasts with soft [lʲ]. Ю after л signals softness here.", "Твёрдый [л] противопоставлен мягкому [л’].") },
   { id: "final-soft", title: pair("Final consonant", "Конечный согласный"),
-    options: [text("у́гол","corner","góc","ˈuɡəl"),text("у́голь","coal","than","ˈuɡəlʲ")],
+    options: [text("у́гол","corner","góc","ˈuɡəɫ"),text("у́голь","coal","than","ˈuɡəlʲ")],
     rule: pair("Final ь marks softness; it has no sound of its own.", "Мягкий знак обозначает мягкость конечного согласного.") },
   { id: "vowels", title: pair("Vowels and softness", "Гласные и мягкость"),
-    options: [text("был","was","đã là","bɨl"),text("бил","hit","đã đánh","bʲil")],
+    options: [text("был","was","đã là","bɨɫ"),text("бил","hit","đã đánh","bʲiɫ")],
     rule: pair("Ы and и differ; б is also soft before и in this pair.", "Ы и и различаются; перед и согласный б мягкий.") },
   { id: "voicing", title: pair("Initial voicing", "Звонкость согласного"),
     options: [text("том","volume","tập sách","tom"),text("дом","house","ngôi nhà","dom")],
