@@ -17,13 +17,16 @@ export async function verifyTrainerV61(origin, { makeContext, pass, screenshot }
   try {
     assert.equal((await page.goto(origin + "/tools/russian-time-trainer")).status(), 200);
     await page.getByRole("heading", { name: "Russian Time Trainer", exact: true }).waitFor();
+    await page.waitForFunction(() => document.documentElement.lang === "en");
     const focus = page.getByRole("button", { name: /Focus mode/ });
     await focus.click();
-    assert.equal(await page.getByRole("navigation", { name: "Trainer sections" }).isVisible(), false);
+    await page.getByRole("button", { name: /Exit focus/ }).waitFor();
+    await page.getByRole("navigation", { name: "Trainer sections" }).waitFor({ state: "detached" });
+    assert.equal(await page.locator("main").getAttribute("data-focus"), "true");
     await page.getByRole("button", { name: /Exit focus/ }).click();
     await page.getByRole("navigation", { name: "Trainer sections" }).waitFor();
     await theme.click();
-    assert.equal(await page.locator("main").getAttribute("data-theme"), "dark");
+    await page.waitForFunction(() => document.querySelector("main")?.getAttribute("data-theme") === "dark");
     const contrast = await page.getByRole("button", { name: /Play word or phrase/ }).evaluate(element => {
       const style = getComputedStyle(element);
       const lum = value => {

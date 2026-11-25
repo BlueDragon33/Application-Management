@@ -414,7 +414,7 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
         setDailySession(day);
         if (due) {
           setMode("review");
-          selectReview(Date.now());
+          selectReview(now);
         } else {
           setMode("listen");
           select(first.forms[0].id);
@@ -437,7 +437,7 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
     {saveNotice}
     {due && mode !== "review" && <div className={styles.nextTask}>
       <span><Pair text={{ en: "Review is due", ru: "Пора повторить" }} /></span>
-      <button type="button" className={styles.control} onClick={() => { setMode("review"); selectReview(Date.now()); }}>
+      <button type="button" className={styles.control} onClick={() => { setMode("review"); selectReview(now); }}>
         Start review <span lang="ru">Начать повторение</span>
       </button>
     </div>}
@@ -481,8 +481,8 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
         <select value={mode} onChange={event => {
           const next = event.target.value as Mode;
           setMode(next);
-          if (next === "review") selectReview(Date.now());
-          else if (next === "sound" || next === "context") selectLab(next, Date.now());
+          if (next === "review") selectReview(now);
+          else if (next === "sound" || next === "context") selectLab(next, now);
           else resetExercise();
         }}>
           {Object.entries(modes).map(([key, label]) => <option key={key} value={key}>{label.en} / {label.ru}</option>)}
@@ -542,7 +542,7 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
         savePreference(repeatKey, JSON.stringify(value));
       }} />
     </details>
-    {mode === "review" && review && !labMode && <button type="button" className={styles.control} onClick={() => selectReview(Date.now())}>
+    {mode === "review" && review && !labMode && <button type="button" className={styles.control} onClick={() => selectReview(now)}>
       Next review <span lang="ru">Следующее повторение</span>
     </button>}
   </section>;

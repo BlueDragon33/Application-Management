@@ -225,13 +225,13 @@ export default function RussianTimeTrainer({ storagePrefix }: { storagePrefix: s
         </div>
       </section>
 
-      <nav className={styles.views} aria-label="Trainer sections" hidden={focusMode}>
+      {!focusMode && <nav className={styles.views} aria-label="Trainer sections">
         {(Object.keys(views) as View[]).map(item => <button key={item} type="button" className={styles.tab}
           aria-label={views[item].en + " " + views[item].ru} aria-pressed={view === item} onClick={() => moveTo(item)}>
           <span className={styles.tabFull}><Pair text={views[item]} /></span>
           <span className={styles.tabShort}><Pair text={compactViews[item]} /></span>
         </button>)}
-      </nav>
+      </nav>}
 
       <div className={view === "audio" || view === "daily" ? styles.singleWorkspace : styles.workspace}>
         {view !== "audio" && view !== "daily" && <aside className={styles.sidebar} aria-label="Lessons">
