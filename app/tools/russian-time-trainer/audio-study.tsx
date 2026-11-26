@@ -596,7 +596,7 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
         }}>Keep samples offline <span lang="ru">Сохранить звук офлайн</span></button>
       </div>
       <PronunciationStatus audio={speech.audio} id="chatterbox-voice-preview" />
-      <p className={styles.saveNote}>Uses the current playback settings. Offline audio works while this page is open; keep the page open. <span lang="ru">Действуют настройки плеера. Для офлайн-звука оставьте страницу открытой.</span></p>
+      <p className={styles.saveNote}>Uses the current speed and repeat options. Offline audio works while this page is open; keep the page open. <span lang="ru">Действуют настройки плеера. Для офлайн-звука оставьте страницу открытой.</span></p>
       <p role="status" className={styles.saveNote}>{candidateCache === "saving" ? "Saving samples / Сохранение" : candidateCache === "ready" ? "11/11 samples saved offline / 11/11 сохранено" : candidateCache === "error" ? "Offline storage failed. Retry online. / Ошибка сохранения. Повторите в сети." : ""}</p>
     </details>}
     {dailySession !== undefined && !labMode && <div className={styles.rule}>

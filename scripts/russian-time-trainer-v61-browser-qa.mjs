@@ -249,7 +249,7 @@ export async function verifyTrainerV61(origin, { makeContext, pass, screenshot }
     await candidate.locator("summary").click();
     const previewSelect = candidate.getByRole("combobox",{name:/Voice sample/});
     const previewPlay = candidate.getByRole("button",{name:/Play voice sample/});
-    const playbackSummary = page.getByText("Playback settings",{exact:false});
+    const playbackSummary = page.getByRole("region",{name:/Audio player/}).locator("summary").filter({hasText:"Playback settings"});
     if (!(await playbackSummary.evaluate(e=>e.parentElement.open))) await playbackSummary.click();
     const previewSpeed = page.getByRole("combobox",{name:/Speed/});
     await previewSpeed.selectOption("1");
