@@ -18,6 +18,7 @@ import { PronunciationStatus, useRussianAudio } from "./pronunciation";
 import TrainerHelp from "./trainer-help";
 import { StudyWords, useContextTranslation } from "./translation";
 import styles from "./trainer.module.css";
+import { createDisplayMasterHistory } from "./display-master-history";
 
 const views = {
   audio: { en: "Audio practice", ru: "Аудиотренировка" },
@@ -77,6 +78,7 @@ export default function RussianTimeTrainer({ storagePrefix }: { storagePrefix: s
   const [question, setQuestion] = useState(0);
   const [answer, setAnswer] = useState<string | null>(null);
   const [progress, setProgress] = useState(emptyProgress);
+  const [historyNotice, setHistoryNotice] = useState<Bilingual | null>(null);
   const [saveState, setSaveState] = useState<"loading" | "saved" | "session">("loading");
 
   useEffect(() => {
@@ -178,6 +180,22 @@ export default function RussianTimeTrainer({ storagePrefix }: { storagePrefix: s
       recordTrainingAnswer(window.localStorage, storagePrefix, key, isCorrect);
     } catch {
       setSaveState("session");
+    }
+  }
+
+  function exportDisplayMasterHistory() {
+    try {
+      const packet = createDisplayMasterHistory(window.localStorage, storagePrefix);
+      const url = URL.createObjectURL(new Blob([JSON.stringify(packet)], {type: "application/json"}));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "russian-time-trainer-history.json";
+      document.body.append(link);
+      try { link.click(); }
+      finally { link.remove(); window.setTimeout(() => URL.revokeObjectURL(url), 1000); }
+      setHistoryNotice({en:"History export requested. Import the file in Russian Display-Master Settings.",ru:"Файл истории подготовлен. Импортируйте его в настройках Russian Display-Master."});
+    } catch {
+      setHistoryNotice({en:"History export refused: storage changed, is unavailable or contains invalid records. No data was modified.",ru:"Экспорт отклонён: данные изменились, недоступны или повреждены. Данные не изменены."});
     }
   }
 
@@ -327,6 +345,10 @@ export default function RussianTimeTrainer({ storagePrefix }: { storagePrefix: s
               saved: { en: "Saved on this device", ru: "Сохранено на этом устройстве" },
               session: { en: "Progress is available for this visit only", ru: "Прогресс доступен только в этом сеансе" },
             }[saveState]} /></p>
+            <button type="button" className={styles.primary} onClick={exportDisplayMasterHistory} disabled={saveState !== "saved"}>
+              <Pair text={{en:"Export history to Russian Display-Master",ru:"Экспорт истории в Russian Display-Master"}} />
+            </button>
+            {historyNotice && <p className={styles.saveNote} role="status"><Pair text={historyNotice} /></p>}
             <ul className={styles.progressList}>
               {timeLessons.map(item => {
                 const keys = practiceDirections.flatMap(practice => item.examples.map(entry => practiceKey(practice, entry.id)));
