@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { bundledAudio, type AudioClip, type AudioSource } from "./audio-assets";
+import { chatterboxAsset, chatterboxBlob } from "./chatterbox-audio";
 import styles from "./trainer.module.css";
 
 type AudioState = { id: string; source?: AudioSource; partial?: boolean; status: "loading" | "speaking" | "pause" | "complete" | "unavailable" | "error" };
@@ -11,6 +12,7 @@ const defaults: AudioSettings = { rate: 1, repeats: 1, pause: 2 };
 type Playback = {
   timer?: number;
   media?: HTMLAudioElement;
+  objectUrl?: string;
   utterance?: SpeechSynthesisUtterance;
   watchdog?: number;
 };
@@ -26,6 +28,7 @@ export function useRussianAudio() {
     window.clearTimeout(session.timer);
     window.clearTimeout(session.watchdog);
     session.media?.pause();
+    if (session.objectUrl) URL.revokeObjectURL(session.objectUrl);
     if (session.utterance) window.speechSynthesis?.cancel();
   }
 
@@ -136,6 +139,12 @@ export function useRussianAudio() {
         speakLocal(clip.ru);
         return;
       }
+      if (session.objectUrl) {
+        URL.revokeObjectURL(session.objectUrl);
+        session.objectUrl = undefined;
+      }
+      function startMedia(src: string, strictCandidate: boolean) {
+      if (active.current !== session) return;
       const media = session.media ?? new Audio();
       session.media = media;
       let fallbackStarted = false;
@@ -147,16 +156,26 @@ export function useRussianAudio() {
         media.onended = null;
         media.onerror = null;
         media.pause();
-        speakLocal(clip.ru);
+        if (strictCandidate) finish("error");
+        else speakLocal(clip.ru);
       };
-      media.onplaying = () => update("speaking", recording.source);
+      media.onplaying = () => update("speaking", recording!.source);
       media.onended = next;
       media.onerror = fallback;
-      if (media.getAttribute("src") !== recording.src) media.src = recording.src;
+      if (media.getAttribute("src") !== src) media.src = src;
       else media.currentTime = 0;
       media.playbackRate = settings.rate;
       media.preservesPitch = true;
       void media.play().catch(fallback);
+      }
+      const candidate = chatterboxAsset(clip);
+      if (candidate) {
+        void chatterboxBlob(candidate).then(blob => {
+          if (active.current !== session) return;
+          session.objectUrl = URL.createObjectURL(blob);
+          startMedia(session.objectUrl, true);
+        }).catch(() => finish("error"));
+      } else startMedia(recording.src, false);
     }
 
     playClip();

@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { loadTs } from "./helpers/load-ts.mjs";
 
 const root = "app/tools/russian-time-trainer/";
@@ -61,4 +63,32 @@ test("playback evidence requires start then end, and cancellation rejects stale 
   speech.stop();
   stale();
   assert.equal(complete, 1);
+});
+
+
+test("Chatterbox pilot exact media is candidate-only and cannot shadow legacy audio or score", () => {
+  const { chatterboxCandidateAssets } = loadTs(root + "chatterbox-audio.ts");
+  const { bundledAudio, resolveAudioClip, previewAudio } = loadTs(root + "audio-assets.ts");
+  const { recordAdaptiveAnswer } = loadTs(root + "memory.ts");
+  const { adaptiveTasks } = loadTs(root + "adaptive-content.ts");
+  const manifest = JSON.parse(readFileSync("public/russian-time-trainer/chatterbox-candidate/manifest.json","utf8"));
+  assert.equal(manifest.admission,"CANDIDATE_ONLY");
+  assert.equal(manifest.assets.length,11);
+  assert.equal(chatterboxCandidateAssets.length,11);
+  for (const a of chatterboxCandidateAssets) {
+    const clip = resolveAudioClip(a.ru,a.id);
+    const bundled = bundledAudio(clip);
+    assert.equal(clip.id,a.id);
+    assert.equal(bundled.source,"candidate");
+    assert.ok(previewAudio(bundled.source));
+    assert.equal(bundledAudio({id:a.id,ru:a.ru+"!"}),undefined);
+    const raw = readFileSync("public"+bundled.src);
+    assert.equal(raw.length,a.bytes);
+    assert.equal(createHash("sha256").update(raw).digest("hex"),a.sha256);
+    assert.equal(manifest.assets.find(x=>x.id===a.id).sha256,a.sha256);
+  }
+  assert.equal(bundledAudio(resolveAudioClip("Который час?","what-time")).source,"prepared");
+  assert.equal(bundledAudio(resolveAudioClip("понедельник","monday-1")).source,"recording");
+  const sound=adaptiveTasks.find(task=>task.skill==="sound"), entries={};
+  assert.equal(recordAdaptiveAnswer(entries,sound.id,sound.correct,10000,"candidate"),entries);
 });

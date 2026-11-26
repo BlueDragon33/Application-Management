@@ -8,7 +8,8 @@ import { adaptiveEligible, adaptiveRecommendation, type LearningPriority, memory
 import { PronunciationStatus, type AudioSettings, type useRussianAudio } from "./pronunciation";
 import { Recording } from "./recording";
 import { adaptiveTask, adaptiveTasks, type AdaptiveSkill } from "./adaptive-content";
-import type { AudioSource } from "./audio-assets";
+import { resolveAudioClip, type AudioSource } from "./audio-assets";
+import { chatterboxCandidateAssets, saveChatterboxOffline } from "./chatterbox-audio";
 import { knowledgeLinks, type KnowledgeRelation } from "./knowledge-links";
 import { StudyWords } from "./translation";
 import styles from "./trainer.module.css";
@@ -204,6 +205,8 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
   const latest = useRef(entries);
   const [saveFailed, setSaveFailed] = useState(false);
   const [mode, setMode] = useState<Mode>("listen");
+  const [candidateId, setCandidateId] = useState<string>(chatterboxCandidateAssets[0].id);
+  const [candidateCache, setCandidateCache] = useState<"idle" | "saving" | "ready" | "error">("idle");
   const [hidden, setHidden] = useState(true);
   const [priority, setPriority] = useState<LearningPriority>("immersion");
   const [settings, setSettings] = useState<AudioSettings>({ rate: 0.75, repeats: 1, pause: 2 });
@@ -573,6 +576,29 @@ export default function AudioStudy({ storagePrefix, speech, display, openAudio, 
       </>}
     </section>}
     {guidedStage === undefined && player}
+    {mode === "listen" && guidedStage === undefined && <details className={`${styles.rule} ${styles.audioSettings}`} data-chatterbox-preview>
+      <summary>Chatterbox V3 · Voice preview <span lang="ru">Пробный голос</span></summary>
+      <p className={styles.saveNote}>11 synthetic samples for listening only. Not yet linguistically verified; no assessment credit. <span lang="ru">11 пробных записей синтеза. Без языковой проверки и оценок.</span></p>
+      <label className={styles.field}>Voice sample <span lang="ru">Фраза</span>
+        <select value={candidateId} onChange={event => { speech.stop(); setCandidateId(event.target.value); }}>
+          {chatterboxCandidateAssets.map(asset => <option lang="ru" value={asset.id} key={asset.id}>{asset.ru}</option>)}
+        </select>
+      </label>
+      <div className={styles.actions}>
+        <button type="button" className={styles.primary} onClick={() => {
+          const asset = chatterboxCandidateAssets.find(item => item.id === candidateId);
+          if (asset) speech.play("chatterbox-voice-preview", [resolveAudioClip(asset.ru, asset.id)], settings);
+        }}>Play voice sample <span lang="ru">Слушать образец</span></button>
+        <button type="button" className={styles.control} onClick={speech.stop}>Stop sample <span lang="ru">Стоп</span></button>
+        <button type="button" className={styles.control} disabled={candidateCache === "saving"} onClick={() => {
+          setCandidateCache("saving");
+          void saveChatterboxOffline().then(() => setCandidateCache("ready"), () => setCandidateCache("error"));
+        }}>Keep samples offline <span lang="ru">Сохранить звук офлайн</span></button>
+      </div>
+      <PronunciationStatus audio={speech.audio} id="chatterbox-voice-preview" />
+      <p className={styles.saveNote}>Uses the current playback settings. Offline audio works while this page is open; keep the page open. <span lang="ru">Действуют настройки плеера. Для офлайн-звука оставьте страницу открытой.</span></p>
+      <p role="status" className={styles.saveNote}>{candidateCache === "saving" ? "Saving samples / Сохранение" : candidateCache === "ready" ? "11/11 samples saved offline / 11/11 сохранено" : candidateCache === "error" ? "Offline storage failed. Retry online. / Ошибка сохранения. Повторите в сети." : ""}</p>
+    </details>}
     {dailySession !== undefined && !labMode && <div className={styles.rule}>
       <p>Day {dailySession + 1} <span lang="ru">День {dailySession + 1}</span></p>
       <div className={styles.actions}>

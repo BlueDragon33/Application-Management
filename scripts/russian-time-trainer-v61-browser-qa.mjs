@@ -244,6 +244,36 @@ export async function verifyTrainerV61(origin, { makeContext, pass, screenshot }
     await page.getByRole("button", { name: /Skip for now/ }).click();
     await page.getByRole("group", { name: "Adaptive answer choices" }).waitFor();
     pass("V6.1 blind sound challenge remains locked when bundled candidate is unavailable and no local voice exists; skip does not award results", { voiceAvailability: "forced unavailable negative-path test", humanAudioQuality: "UNVERIFIED" });
+    await mode.selectOption("listen");
+    const candidate = page.locator("details[data-chatterbox-preview]");
+    await candidate.locator("summary").click();
+    const previewSelect = candidate.getByRole("combobox",{name:/Voice sample/});
+    const previewPlay = candidate.getByRole("button",{name:/Play voice sample/});
+    const playbackSummary = page.getByText("Playback settings",{exact:false});
+    if (!(await playbackSummary.evaluate(e=>e.parentElement.open))) await playbackSummary.click();
+    const previewSpeed = page.getByRole("combobox",{name:/Speed/});
+    await previewSpeed.selectOption("1");
+    const beforeCandidate = await page.evaluate(()=>Object.entries(localStorage).filter(([key])=>key.includes("memory:")||key.includes("calendar:day")).sort());
+    await candidate.getByRole("button",{name:/Keep samples offline/}).click();
+    await candidate.getByText("11/11 samples saved offline",{exact:false}).waitFor();
+    const saved = await page.evaluate(async()=> (await (await caches.open("russian-time-trainer-chatterbox-15117885099")).keys()).length);
+    assert.equal(saved,11);
+    const ids = await previewSelect.locator("option").evaluateAll(options=>options.map(o=>o.value));
+    assert.equal(ids.length,11);
+    await context.setOffline(true);
+    try {
+      assert.equal(await page.evaluate(async()=>{try{await fetch("/russian-time-trainer/chatterbox-candidate/manifest.json?offline-probe",{cache:"no-store"});return false;}catch{return true;}}),true);
+      const playPreview = async()=> {
+        await previewPlay.click();
+        await candidate.getByRole("status").filter({hasText:"Playback finished."}).filter({hasText:"Offline synthetic candidate"}).waitFor();
+      };
+      for (const id of ids) { await previewSelect.selectOption(id); await playPreview(); }
+      for (const rate of ["0.5","0.75"]) { await previewSpeed.selectOption(rate); await playPreview(); }
+      assert.deepEqual(await page.evaluate(()=>Object.entries(localStorage).filter(([key])=>key.includes("memory:")||key.includes("calendar:day")).sort()),beforeCandidate);
+      pass("Chatterbox 11/11 exact cached clips play in disconnected Chromium, 0.5/0.75/1x, no SRS writes", {saved,played:11,linguisticAcceptance:"UNVERIFIED",offlineScope:"already-open page; service worker blocked"});
+    } finally { await context.setOffline(false); }
+    await previewSpeed.selectOption("0.75");
+    await candidate.locator("summary").click();
     for (const width of [320, 390, 768, 1024, 1440]) {
       await page.setViewportSize({ width, height: 900 });
       const metrics = await page.evaluate(() => ({ w: document.documentElement.scrollWidth, v: document.documentElement.clientWidth }));

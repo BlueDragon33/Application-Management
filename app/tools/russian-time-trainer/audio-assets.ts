@@ -1,5 +1,6 @@
 import { nativeAudio } from "./native-audio";
 import { preparedAudioText } from "./prepared-audio";
+import { chatterboxAsset, chatterboxSrc } from "./chatterbox-audio";
 
 export type AudioClip = { id: string; ru: string };
 export type AudioSource = "recording" | "prepared" | "device" | "candidate";
@@ -29,6 +30,8 @@ export const preparedVoice = {
 } as const;
 
 export function bundledAudio(clip: AudioClip): { src: string; source: Exclude<AudioSource, "device"> } | undefined {
+  const candidate = chatterboxAsset(clip);
+  if (candidate) return { src: chatterboxSrc(candidate), source: "candidate" };
   const recording = nativeAudio[clip.id];
   if (recording?.ru === clip.ru) return { src: recording.src, source: "recording" };
   if (Object.hasOwn(soundCandidateText, clip.id) && soundCandidateText[clip.id] === clip.ru) {
