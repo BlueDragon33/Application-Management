@@ -1,0 +1,53 @@
+name: Russian Time Trainer 11-item offline engine audition
+on:
+  pull_request:
+    paths:
+      - 'scripts/russian-time-trainer-engine-audition.py'
+      - '.github/workflows/russian-time-trainer-engine-audition.yml'
+permissions:
+  contents: read
+jobs:
+  audition:
+    if: github.event.repository.visibility == 'public' && github.event.pull_request.number == 423 && github.event.pull_request.head.repo.full_name == github.repository
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [rhvoice, piper, silero]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install isolated QA dependencies only
+        env:
+          ENGINE: ${{ matrix.engine }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          python -m venv "$RUNNER_TEMP/rtt-audition-env"
+          if [ "$ENGINE" = rhvoice ]; then
+            sudo apt-get install -y --no-install-recommends rhvoice=1.8.0+dfsg-3build3 rhvoice-russian=1.8.0+dfsg-3build3
+          elif [ "$ENGINE" = piper ]; then
+            "$RUNNER_TEMP/rtt-audition-env/bin/pip" install --disable-pip-version-check piper-tts==1.3.0
+          elif [ "$ENGINE" = silero ]; then
+            "$RUNNER_TEMP/rtt-audition-env/bin/pip" install --disable-pip-version-check torch==2.6.0 --index-url https://download.pytorch.org/whl/cpu
+            "$RUNNER_TEMP/rtt-audition-env/bin/pip" install --disable-pip-version-check numpy==1.26.4
+          fi
+      - name: Synthesize exact owner corpus locally, normal and slow
+        env:
+          ENGINE: ${{ matrix.engine }}
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          "$RUNNER_TEMP/rtt-audition-env/bin/python" scripts/russian-time-trainer-engine-audition.py "$ENGINE" "$RUNNER_TEMP/rtt-audition" "$RUNNER_TEMP/rtt-audition-work"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rtt-engine-audition-${{ matrix.engine }}
+          path: ${{ runner.temp }}/rtt-audition/
+          retention-days: 14
+          if-no-files-found: error
