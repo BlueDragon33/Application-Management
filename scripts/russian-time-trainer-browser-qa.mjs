@@ -57,12 +57,14 @@ async function withRuntime(authenticated, run) {
     clearScreen: false,
     server: { host: "127.0.0.1", port, strictPort: true, hmr: false },
   });
+  let closing;
+  const stopRuntime = () => closing ??= server.close();
   try {
     await server.listen();
     assert.equal(server.httpServer.address().address, "127.0.0.1");
-    await run("http://127.0.0.1:" + port);
+    await run("http://127.0.0.1:" + port, stopRuntime);
   } finally {
-    await server.close();
+    await stopRuntime();
   }
 }
 
@@ -512,6 +514,51 @@ async function exerciseAudioPractice(origin) {
   await context.close();
 }
 
+
+async function verifyPublicAudioCacheLifecycle(origin, stopRuntime) {
+  const context = await browser.newContext({ serviceWorkers: "allow" });
+  const lifecyclePage = await context.newPage();
+  try {
+    await lifecyclePage.goto(origin + "/offline.html");
+    await lifecyclePage.getByRole("heading", { name: "Máy quản trị đang mất kết nối." }).waitFor();
+    const cached = await lifecyclePage.evaluate(async () => {
+      const base = "/russian-time-trainer/chatterbox-candidate/";
+      const manifestResponse = await fetch(base + "manifest.json");
+      if (!manifestResponse.ok) throw new Error("Missing public audio manifest");
+      const manifest = await manifestResponse.json();
+      const name = "russian-time-trainer-chatterbox-" + manifest.artifactId;
+      const audio = await caches.open(name);
+      await audio.addAll(manifest.assets.map(asset => base + asset.file));
+      await caches.open("application-management-webapp-v1");
+      await navigator.serviceWorker.register("/sw.js");
+      return { name, count: (await audio.keys()).length };
+    });
+    assert.equal(cached.count, 11);
+    await lifecyclePage.waitForFunction(() => navigator.serviceWorker.controller?.state === "activated");
+    const after = await lifecyclePage.evaluate(async name => ({ names: await caches.keys(), count: (await (await caches.open(name)).keys()).length }), cached.name);
+    assert.ok(after.names.includes(cached.name));
+    assert.ok(after.names.includes("application-management-webapp-v2"));
+    assert.ok(!after.names.includes("application-management-webapp-v1"));
+    assert.equal(after.count, 11);
+    console.log(JSON.stringify({ lifecycle: "activated", retained: after.count, caches: after.names }));
+    // CDP page-offline emulation does not prove the Service Worker cannot reach the origin.
+    // Shut down the dedicated real loopback runtime and prove the origin is unreachable.
+    await stopRuntime();
+    await assert.rejects(fetch(origin + "/offline.html", { signal: AbortSignal.timeout(5000) }));
+    const navigation = await lifecyclePage.goto(origin + trainerPath, { waitUntil: "domcontentloaded" });
+    assert.ok(navigation?.fromServiceWorker(), "Offline navigation must be answered by the actual Service Worker");
+    console.log(JSON.stringify({ lifecycle: "origin stopped", status: navigation.status(), title: await lifecyclePage.title() }));
+    await lifecyclePage.getByRole("heading", { name: "Máy quản trị đang mất kết nối." }).waitFor();
+    assert.equal(await lifecyclePage.evaluate(async name => (await (await caches.open(name)).keys()).length, cached.name), 11);
+    pass("Real Service Worker activation retains 11 public Chatterbox clips; disconnected startup remains the safe offline fallback", { saved: 11, retained: after.count, originStopped: true, fullOfflineStartup: "NOT_SUPPORTED" });
+  } catch (error) {
+    await screenshot(lifecyclePage, "public-audio-cache-lifecycle-failure").catch(() => {});
+    throw error;
+  } finally {
+    await context.close();
+  }
+}
+
 await mkdir(evidence, { recursive: true });
 try {
   await withRuntime(false, async origin => {
@@ -532,6 +579,10 @@ try {
   console.log(JSON.stringify({ sha, node: process.version, browserVersion }));
   await withRuntime(true, async origin => {
     for (const [group, verify] of [
+      ["v61-adaptive", async origin => {
+        const { verifyTrainerV61 } = await import("./russian-time-trainer-v61-browser-qa.mjs");
+        await verifyTrainerV61(origin, { makeContext, pass, screenshot });
+      }],
       ["desktop", exerciseDesktop],
       ["mobile", exerciseMobile],
       ["speech-contract", checkAudioContract],
@@ -547,6 +598,8 @@ try {
       }
     }
   });
+  // Dedicated runtime: stopping it must not affect any other journey.
+  await withRuntime(true, verifyPublicAudioCacheLifecycle);
 } catch (error) {
   if (page && !page.isClosed()) await screenshot(page, "failure").catch(() => {});
   results.push({ status: "FAIL", error: error.message });

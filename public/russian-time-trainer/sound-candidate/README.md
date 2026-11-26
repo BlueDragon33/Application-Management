@@ -1,0 +1,3 @@
+# Sound Lab candidate audio
+
+Eight offline synthetic clips created using RHVoice Aleksandr-HQ, based on voice material of Aleksander Karlov. Voice contributors: Artem Plaksin, Sergey Parshakov, Beka Gozalishvili and Zvonimir Stanecic. Source: https://github.com/RHVoice/aleksandr-hq-rus. License: CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0/. Offline synthesis and mono 24 kHz MP3 encoding. No model redistributed. See manifest.json for exact provenance, hashes and original artifact. Technical candidate only: qualified linguistic/acoustic review pending; never native-recording or assessed mastery evidence. Existing audio assets are unchanged.

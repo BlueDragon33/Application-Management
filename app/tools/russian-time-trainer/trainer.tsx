@@ -27,6 +27,10 @@ const views = {
   progress: { en: "Progress", ru: "Прогресс" },
 } satisfies Record<string, Bilingual>;
 type View = keyof typeof views;
+const compactViews: Record<View, Bilingual> = {
+  audio: { en: "Studio", ru: "Аудио" }, daily: { en: "Plan", ru: "План" },
+  learn: views.learn, practice: views.practice, progress: views.progress,
+};
 
 const directionLabels: Record<PracticeDirection, Bilingual> = {
   "en-ru": { en: "English to Russian", ru: "С английского на русский" },
@@ -65,6 +69,9 @@ export default function RussianTimeTrainer({ storagePrefix }: { storagePrefix: s
   const translation = useContextTranslation(content);
   const speech = useRussianAudio();
   const [view, setView] = useState<View>("audio");
+  const [focusMode, setFocusMode] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [sessionEpoch, setSessionEpoch] = useState(0);
   const [lessonId, setLessonId] = useState(timeLessons[0].id);
   const [direction, setDirection] = useState<PracticeDirection>("en-ru");
   const [question, setQuestion] = useState(0);
@@ -101,6 +108,10 @@ export default function RussianTimeTrainer({ storagePrefix }: { storagePrefix: s
     const cancelInitialization = scheduleClientInitialization(() => {
       const state = restore();
       if (state?.lessonId) setLessonId(state.lessonId);
+      try {
+        const preference = localStorage.getItem(storagePrefix + "appearance:v1");
+        if (preference === "dark" || preference === "light") setTheme(preference);
+      } catch { /* Appearance is session-only when storage is unavailable. */ }
     });
     const sync = (event: StorageEvent) => {
       if (event.key?.startsWith(storagePrefix)) restore();
@@ -132,6 +143,8 @@ export default function RussianTimeTrainer({ storagePrefix }: { storagePrefix: s
     if (nextView === view) return;
     focusPending.current = focusContent;
     resetExercise(lesson, direction);
+    if (nextView !== "audio") setFocusMode(false);
+    setSessionEpoch(value => value + 1);
     setView(nextView);
   }
 
@@ -145,7 +158,10 @@ export default function RussianTimeTrainer({ storagePrefix }: { storagePrefix: s
         setSaveState("session");
       }
     }
-    if (view === "progress") setView("learn");
+    if (view === "progress") {
+      setSessionEpoch(value => value + 1);
+      setView("learn");
+    }
   }
 
   function answerExercise(choice: string) {
@@ -173,7 +189,7 @@ export default function RussianTimeTrainer({ storagePrefix }: { storagePrefix: s
     heading.current?.focus();
   }
 
-  return <main lang="en" className={styles.shell}>
+  return <main lang="en" className={styles.shell} data-focus={focusMode ? "true" : undefined} data-theme={theme}>
     <header className={styles.topbar}>
       <div className={styles.topbarInner}>
         <Link href="/?view=applications" className={styles.back}>
@@ -193,16 +209,29 @@ export default function RussianTimeTrainer({ storagePrefix }: { storagePrefix: s
           <h1 id="rtt-title">Russian Time Trainer</h1>
           <p lang="ru" className={styles.heroTitleRu}>Время по-русски</p>
         </div>
+        <div className={styles.heroActions}>
+          <button type="button" className={styles.focusToggle} aria-pressed={theme === "dark"} onClick={() => {
+            const next = theme === "dark" ? "light" : "dark";
+            setTheme(next);
+            try { localStorage.setItem(storagePrefix + "appearance:v1", next); } catch { /* Session preference remains usable. */ }
+          }}>Dark mode <span lang="ru">Тёмная тема</span></button>
+        {view === "audio" && <button type="button" className={styles.focusToggle} aria-pressed={focusMode} onClick={() => setFocusMode(value => !value)}>
+          <Pair text={focusMode ? { en: "Exit focus", ru: "Выйти из фокуса" } : { en: "Focus mode", ru: "Режим фокуса" }} />
+        </button>}
         {view === "learn" && featured.clock && <div className={styles.heroClock}>
           <Clock clock={featured.clock} />
           <div><time dateTime={featured.clock}>{featured.clock}</time><p><StudyWords text={featured.phrase.ru} language="ru" /></p></div>
         </div>}
+        </div>
       </section>
 
-      <nav className={styles.views} aria-label="Trainer sections">
+      {!focusMode && <nav className={styles.views} aria-label="Trainer sections">
         {(Object.keys(views) as View[]).map(item => <button key={item} type="button" className={styles.tab}
-          aria-pressed={view === item} onClick={() => moveTo(item)}><Pair text={views[item]} /></button>)}
-      </nav>
+          aria-label={views[item].en + " " + views[item].ru} aria-pressed={view === item} onClick={() => moveTo(item)}>
+          <span className={styles.tabFull}><Pair text={views[item]} /></span>
+          <span className={styles.tabShort}><Pair text={compactViews[item]} /></span>
+        </button>)}
+      </nav>}
 
       <div className={view === "audio" || view === "daily" ? styles.singleWorkspace : styles.workspace}>
         {view !== "audio" && view !== "daily" && <aside className={styles.sidebar} aria-label="Lessons">
@@ -217,7 +246,7 @@ export default function RussianTimeTrainer({ storagePrefix }: { storagePrefix: s
 
         <article className={styles.study}>
           <h2 ref={heading} tabIndex={-1}><Pair text={view === "learn" || view === "practice" ? lesson.title : views[view]} /></h2>
-          <AudioStudy storagePrefix={storagePrefix} speech={speech} display={view} openAudio={() => moveTo("audio", true)} />
+          <AudioStudy storagePrefix={storagePrefix} speech={speech} display={view} sessionEpoch={sessionEpoch} openAudio={() => moveTo("audio", true)} />
           {view === "learn" && <>
             <div className={styles.studyCopy}><StudyPair text={lesson.objective} /></div>
             <section className={styles.rule}>

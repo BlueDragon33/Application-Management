@@ -1,0 +1,167 @@
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import { readFile, writeFile } from "node:fs/promises";
+import { createServer as reserveServer } from "node:net";
+import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
+import path from "node:path";
+import { auditVisibleText } from "./russian-time-trainer-contrast-qa.mjs";
+const qaRequire = createRequire(path.join(process.env.RTT_QA_TOOL_ROOT ?? "", "package.json"));
+const { chromium } = qaRequire("playwright");
+
+// Diagnostics run on the already excluded warm-up context; measured samples
+// keep the same instrumentation and protocol. No production data or URLs.
+function profileSummary(profile) {
+  const nodes = new Map(profile.nodes.map(node => [node.id, node.callFrame]));
+  const totals = new Map();
+  for (let i = 0; i < (profile.samples?.length ?? 0); i++) {
+    const frame = nodes.get(profile.samples[i]);
+    if (!frame) continue;
+    const url = frame.url ? frame.url.replace(/^https?:\/\/[^/]+/, "").split("?")[0] : "(runtime)";
+    const key = url + ":" + (frame.functionName || "(anonymous)");
+    totals.set(key, (totals.get(key) ?? 0) + (profile.timeDeltas?.[i] ?? 0) / 1000);
+  }
+  return [...totals].map(([functionLocation, sampledMs]) => ({ functionLocation, sampledMs }))
+    .sort((a,b)=>b.sampledMs-a.sampledMs).slice(0,25);
+}
+const base = "e97df96427cbc03ba5a62cf03cd6cc214340cf90";
+const [kind, output, expected] = process.argv.slice(2);
+assert.ok(output);
+const median = values => {
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted.length % 2 ? sorted[(sorted.length - 1) / 2] : (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2;
+};
+if (kind === "compare") {
+  const files = await Promise.all(["baseline-1","candidate-1","candidate-2","baseline-2"].map(name =>
+    readFile(path.join(output, name + ".json"), "utf8").then(JSON.parse)));
+  assert.equal(files[0].sha, base);
+  assert.equal(files[3].sha, base);
+  assert.equal(files[1].sha, expected);
+  assert.equal(files[2].sha, expected);
+  assert.equal(new Set(files.map(file => file.browser)).size, 1);
+  const result = [];
+  for (const width of [390, 1440]) {
+    const a = files.filter(file => file.sha === base).flatMap(file => file.samples.filter(s => s.width === width));
+    const b = files.filter(file => file.sha === expected).flatMap(file => file.samples.filter(s => s.width === width));
+    assert.equal(a.length, 6);
+    assert.equal(b.length, 6);
+    for (const key of ["readyMs","domInteractiveMs","transferBytes","learnMs","practiceMs","progressMs","audioMs"]) {
+      const av = median(a.map(s => s[key])), bv = median(b.map(s => s[key]));
+      result.push({ width, metric: key, baselineMedian: av, candidateMedian: bv, delta: bv-av,
+        ratio: av > 0 ? bv/av : null, baselineRange: [Math.min(...a.map(s => s[key])),Math.max(...a.map(s => s[key]))],
+        candidateRange: [Math.min(...b.map(s => s[key])),Math.max(...b.map(s => s[key]))] });
+    }
+    assert.ok([...a,...b].every(s => s.trainingAssetRequests === 0), "Trainer unexpectedly preloads learning media");
+  }
+  const report = { baseline: base, candidate: expected, browser: files[0].browser, samplesPerRevisionPerViewport: 6,
+    order: ["baseline","candidate","candidate","baseline"], runtime: "same runner, isolated local Vite development servers; warmed server and fresh browser contexts", metrics: result,
+    performanceAcceptance: "MEASURED_NOT_RATIFIED", limits: "Descriptive medians/ranges, no production or statistical significance claim.",
+    accessibilityObservations: files.filter(f => f.sha === expected).flatMap(f => f.audits),
+    diagnosticProfiles: files.flatMap(file => file.diagnostics.map(d => ({sha:file.sha,...d}))),
+    diagnosticScope: "Excluded warm-up contexts only; sampled CPU is diagnostic, not causal attribution or benchmark timing." };
+  assert.equal(report.diagnosticProfiles.length,8);
+  const resourceDelta = [];
+  for (const width of [390,1440]) {
+    const paths = new Map();
+    for (const record of report.diagnosticProfiles.filter(d=>d.width===width)) {
+      for (const resource of record.resources) {
+        const sums = paths.get(resource.path) ?? [0,0];
+        sums[record.sha===base?0:1] += resource.transferBytes / 2;
+        paths.set(resource.path,sums);
+      }
+    }
+    resourceDelta.push({width,resources:[...paths].map(([path,[baselineBytes,candidateBytes]])=>({path,baselineBytes,candidateBytes,delta:candidateBytes-baselineBytes})).sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta)).slice(0,20)});
+  }
+  report.diagnosticResourceDelta = resourceDelta;
+  console.log("RTT_DIAGNOSTIC_RESOURCES "+JSON.stringify(resourceDelta));
+  console.log("RTT_DIAGNOSTIC_CPU "+JSON.stringify(report.diagnosticProfiles.map(d=>({sha:d.sha,width:d.width,ready:d.readyCpu.slice(0,8),progress:d.progressCpu.slice(0,8)}))));
+  await writeFile(path.join(output,"comparison.json"), JSON.stringify(report,null,2)+"\n");
+  console.log("RTT_PERFORMANCE_COMPARISON "+JSON.stringify(report.metrics));
+  console.log("RTT_ACCESSIBILITY_OBSERVATIONS "+JSON.stringify(report.accessibilityObservations));
+} else {
+  assert.ok(kind === "baseline" || kind === "candidate");
+  const sha = execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8"}).trim();
+  assert.equal(sha,expected);
+  assert.ok(!existsSync(".env") && !existsSync(".dev.vars"), "Use isolated QA fixture");
+  Object.assign(process.env,{APP_RUNTIME:"local",CONTROL_PLANE_NETWORK_MODE:"local",LOCAL_DEV_AUTH:"1",
+    LOCAL_DEV_USER_ID:"russian-time-trainer-performance-qa",LOCAL_DEV_USER_EMAIL:"russian-time-trainer-perf@example.test",
+    LOCAL_DEV_USER_NAME:"Trainer performance QA",WRANGLER_SEND_METRICS:"false",WRANGLER_WRITE_LOGS:"false"});
+  delete process.env.CONTROL_OWNER_EMAILS;
+  const requireFromCheckout = createRequire(path.resolve("package.json"));
+  const { createServer } = await import(pathToFileURL(requireFromCheckout.resolve("vite")).href);
+  const port = await new Promise((resolve,reject) => {
+    const reservation = reserveServer();
+    reservation.once("error",reject);
+    reservation.listen(0,"127.0.0.1",() => {const p=reservation.address().port;reservation.close(error=>error?reject(error):resolve(p));});
+  });
+  const server = await createServer({logLevel:"warn",clearScreen:false,server:{host:"127.0.0.1",port,strictPort:true,hmr:false}});
+  let browser;
+  const samples=[],audits=[],diagnostics=[];
+  try {
+    await server.listen();
+    assert.equal(server.httpServer.address().address,"127.0.0.1");
+    const origin="http://127.0.0.1:"+port;
+    browser=await chromium.launch({channel:"chrome",headless:true});
+    for(const width of [390,1440]) {
+      // One warm-up (excluded), then three fresh isolated contexts per block.
+      for(let sample=-1;sample<3;sample++) {
+        const context=await browser.newContext({viewport:{width,height:900},reducedMotion:"reduce",serviceWorkers:"block"});
+        await context.route("**/*",route=>new URL(route.request().url()).origin===origin?route.continue():route.abort());
+        const page=await context.newPage();
+        const profiler=sample===-1?await context.newCDPSession(page):null;
+        try {
+          if(profiler){await profiler.send("Profiler.enable");await profiler.send("Profiler.start");}
+          assert.equal((await page.goto(origin+"/tools/russian-time-trainer",{waitUntil:"domcontentloaded"})).status(),200);
+          await page.getByRole("heading",{name:"Russian Time Trainer",exact:true}).waitFor();
+          await page.waitForFunction(() => document.documentElement.lang === "en");
+          await page.getByRole("combobox",{name:/Training mode/}).waitFor();
+          const nav=page.getByRole("navigation",{name:"Trainer sections"});
+          const timing=await page.evaluate(()=>{
+            const entry=performance.getEntriesByType("navigation")[0];
+            const resources=performance.getEntriesByType("resource");
+            return {readyMs:performance.now(),domInteractiveMs:entry.domInteractive,
+              transferBytes:entry.transferSize+resources.reduce((n,r)=>n+r.transferSize,0),
+              trainingAssetRequests:resources.filter(r=>/russian-time-trainer\/.*\.(mp3|ttf|ogg)(?:$|\?)/.test(r.name)).length};
+          });
+          let diagnostic;
+          if(profiler){
+            const {profile}=await profiler.send("Profiler.stop");
+            const resources=await page.evaluate(()=>performance.getEntriesByType("resource").map(r=>({path:new URL(r.name).pathname,transferBytes:r.transferSize,durationMs:r.duration})));
+            diagnostic={width,readyCpu:profileSummary(profile),resources};
+          }
+          const timeView=async (label, ready)=>{
+            const start=performance.now();
+            const target = nav.getByRole("button",{name:label,exact:true});
+            await target.click();
+            await target.and(page.locator("[aria-pressed=true]")).waitFor();
+            await ready.waitFor();
+            return performance.now()-start;
+          };
+          const learnMs=await timeView("Learn Уроки",page.getByRole("region",{name:/Worked examples/}));
+          const practiceMs=await timeView("Practice Практика",page.getByRole("group",{name:"Answer choices"}));
+          if(profiler)await profiler.send("Profiler.start");
+          const progressMs=await timeView("Progress Прогресс",page.getByText("Calendar skills",{exact:false}));
+          if(profiler){const {profile}=await profiler.send("Profiler.stop");diagnostic.progressCpu=profileSummary(profile);diagnostics.push(diagnostic);await profiler.send("Profiler.disable");}
+          const audioMs=await timeView("Audio practice Аудиотренировка",page.getByRole("combobox",{name:/Training mode/}));
+          if(sample>=0)samples.push({width,sample,...timing,learnMs,practiceMs,progressMs,audioMs});
+          if(kind==="candidate"&&sample===-1) {
+            for(const theme of ["light","dark"]) {
+              if(theme==="dark")await page.getByRole("button",{name:/Dark mode/}).click();
+              for(const label of ["Audio practice Аудиотренировка","14-day plan План на 14 дней","Learn Уроки","Practice Практика","Progress Прогресс"]) {
+                await nav.getByRole("button",{name:label,exact:true}).click();
+                const evidence=await auditVisibleText(page);
+                audits.push({width,theme,view:label,...evidence,scope:"visible DOM text with opaque backgrounds; gradients/opacity unresolved; not screen-reader certification"});
+              }
+            }
+          }
+        } catch (error) {
+          await page.screenshot({path:output+".failure.png"}).catch(()=>{});
+          await writeFile(output+".failure.json",JSON.stringify({sha,width,sample,error:String(error),url:page.url(),body:(await page.locator("main").innerText().catch(()=> "")).slice(0,4000)},null,2));
+          throw error;
+        } finally {await context.close();}
+      }
+    }
+    await writeFile(output,JSON.stringify({sha,browser:browser.version(),samples,audits,diagnostics},null,2)+"\n");
+  } finally {await browser?.close();await server.close();}
+}

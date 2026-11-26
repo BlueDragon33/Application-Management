@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { bundledAudio, type AudioClip, type AudioSource } from "./audio-assets";
+import { chatterboxAsset, chatterboxBlob } from "./chatterbox-audio";
 import styles from "./trainer.module.css";
 
 type AudioState = { id: string; source?: AudioSource; partial?: boolean; status: "loading" | "speaking" | "pause" | "complete" | "unavailable" | "error" };
@@ -11,6 +12,7 @@ const defaults: AudioSettings = { rate: 1, repeats: 1, pause: 2 };
 type Playback = {
   timer?: number;
   media?: HTMLAudioElement;
+  objectUrl?: string;
   utterance?: SpeechSynthesisUtterance;
   watchdog?: number;
 };
@@ -26,6 +28,7 @@ export function useRussianAudio() {
     window.clearTimeout(session.timer);
     window.clearTimeout(session.watchdog);
     session.media?.pause();
+    if (session.objectUrl) URL.revokeObjectURL(session.objectUrl);
     if (session.utterance) window.speechSynthesis?.cancel();
   }
 
@@ -39,7 +42,7 @@ export function useRussianAudio() {
     setAudio(null);
   }
 
-  function play(id: string, clips: readonly AudioClip[], settings: AudioSettings = defaults, onPlaying?: () => void) {
+  function play(id: string, clips: readonly AudioClip[], settings: AudioSettings = defaults, onClipCompleted?: (source: AudioSource) => void) {
     if (!clips.length) return;
     cancel();
     const engine = window.speechSynthesis;
@@ -58,21 +61,37 @@ export function useRussianAudio() {
     active.current = session;
     let position = 0;
     let rounds = 0;
+    let clipStarted = false;
+    let completedOnce = false;
+    let lastSource: AudioSource | undefined;
 
     function update(status: AudioState["status"], source?: AudioSource) {
       if (active.current !== session) return;
       setAudio({ id, status, source, partial: playable.length < clips.length });
-      if (status === "speaking") onPlaying?.();
+      if (status === "speaking") {
+        clipStarted = true;
+        lastSource = source;
+      }
     }
 
     function finish(status: AudioState["status"]) {
       if (active.current !== session) return;
-      update(status);
+      update(status, status === "complete" ? lastSource : undefined);
       cancel();
     }
 
     function next() {
       if (active.current !== session) return;
+      // An ended event alone is not playback evidence. Require a matching start.
+      if (!clipStarted || !lastSource) {
+        finish("error");
+        return;
+      }
+      clipStarted = false;
+      if (!completedOnce) {
+        completedOnce = true;
+        onClipCompleted?.(lastSource);
+      }
       window.clearTimeout(session.watchdog);
       session.utterance = undefined;
       position += 1;
@@ -84,7 +103,7 @@ export function useRussianAudio() {
         finish("complete");
         return;
       }
-      update("pause");
+      update("pause", lastSource);
       session.timer = window.setTimeout(playClip, settings.pause * 1000);
     }
 
@@ -112,6 +131,7 @@ export function useRussianAudio() {
     function playClip() {
       if (active.current !== session) return;
       const clip = playable[position];
+      clipStarted = false;
       update("loading");
       session.watchdog = window.setTimeout(() => finish("error"), 30000);
       const recording = bundledAudio(clip);
@@ -119,26 +139,43 @@ export function useRussianAudio() {
         speakLocal(clip.ru);
         return;
       }
+      if (session.objectUrl) {
+        URL.revokeObjectURL(session.objectUrl);
+        session.objectUrl = undefined;
+      }
+      function startMedia(src: string, strictCandidate: boolean) {
+      if (active.current !== session) return;
       const media = session.media ?? new Audio();
       session.media = media;
       let fallbackStarted = false;
       const fallback = () => {
         if (active.current !== session || fallbackStarted) return;
         fallbackStarted = true;
+        clipStarted = false;
         media.onplaying = null;
         media.onended = null;
         media.onerror = null;
         media.pause();
-        speakLocal(clip.ru);
+        if (strictCandidate) finish("error");
+        else speakLocal(clip.ru);
       };
-      media.onplaying = () => update("speaking", recording.source);
+      media.onplaying = () => update("speaking", recording!.source);
       media.onended = next;
       media.onerror = fallback;
-      if (media.getAttribute("src") !== recording.src) media.src = recording.src;
+      if (media.getAttribute("src") !== src) media.src = src;
       else media.currentTime = 0;
       media.playbackRate = settings.rate;
       media.preservesPitch = true;
       void media.play().catch(fallback);
+      }
+      const candidate = chatterboxAsset(clip);
+      if (candidate) {
+        void chatterboxBlob(candidate).then(blob => {
+          if (active.current !== session) return;
+          session.objectUrl = URL.createObjectURL(blob);
+          startMedia(session.objectUrl, true);
+        }).catch(() => finish("error"));
+      } else startMedia(recording.src, false);
     }
 
     playClip();
@@ -164,6 +201,7 @@ const sources = {
   recording: { en: "Speaker recording", ru: "Запись диктора" },
   prepared: { en: "Prepared synthetic voice", ru: "Подготовленный синтез" },
   device: { en: "Device voice", ru: "Голос устройства" },
+  candidate: { en: "Offline synthetic candidate", ru: "Синтез на проверке" },
 };
 
 export function PronunciationStatus({ audio, id }: { audio: AudioState | null; id: string }) {

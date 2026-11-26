@@ -7,6 +7,10 @@ on:
       - 'app/application-hub.tsx'
       - 'app/management-dashboard-v2.tsx'
       - 'scripts/russian-time-trainer-browser-qa.mjs'
+      - 'scripts/russian-time-trainer-v61-browser-qa.mjs'
+      - 'scripts/russian-time-trainer-comparative-qa.mjs'
+      - 'scripts/russian-time-trainer-contrast-qa.mjs'
+      - 'public/russian-time-trainer/**'
       - '.github/workflows/russian-time-trainer-browser-qa.yml'
 
 permissions:
@@ -49,3 +53,65 @@ jobs:
           path: ${{ runner.temp }}/russian-time-trainer/
           retention-days: 7
           if-no-files-found: ignore
+
+  # Candidate acquisition completed at artifact 14997305745. Exact committed MP3 hashes are covered by regression; no repeated synthesis on UI edits.
+
+  trainer-comparative-qa:
+    if: github.event.repository.visibility == 'public' && github.event.pull_request.number == 423 && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    permissions:
+      contents: read
+    env:
+      RTT_BASELINE: e97df96427cbc03ba5a62cf03cd6cc214340cf90
+      RTT_CANDIDATE: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: candidate
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: e97df96427cbc03ba5a62cf03cd6cc214340cf90
+          path: baseline
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify equivalent dependency and runtime inputs
+        run: |
+          cmp candidate/package.json baseline/package.json
+          cmp candidate/package-lock.json baseline/package-lock.json
+          cmp candidate/vite.config.ts baseline/vite.config.ts
+      - name: Install baseline locked dependencies
+        working-directory: baseline
+        run: npm run install:ci
+      - name: Install candidate locked dependencies
+        working-directory: candidate
+        run: npm run install:ci
+      - name: Install isolated browser harness without altering either checkout
+        run: |
+          mkdir -p "$RUNNER_TEMP/rtt-qa-tools"
+          npm install --prefix "$RUNNER_TEMP/rtt-qa-tools" --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.55.1
+          echo "RTT_QA_TOOL_ROOT=$RUNNER_TEMP/rtt-qa-tools" >> "$GITHUB_ENV"
+          google-chrome --version
+      - name: Paired cold-context measurements and representative contrast review
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/rtt-comparison"
+          mkdir -p "$out"
+          script="$GITHUB_WORKSPACE/candidate/scripts/russian-time-trainer-comparative-qa.mjs"
+          (cd baseline; node "$script" baseline "$out/baseline-1.json" "$RTT_BASELINE")
+          (cd candidate; node "$script" candidate "$out/candidate-1.json" "$RTT_CANDIDATE")
+          (cd candidate; node "$script" candidate "$out/candidate-2.json" "$RTT_CANDIDATE")
+          (cd baseline; node "$script" baseline "$out/baseline-2.json" "$RTT_BASELINE")
+          node "$script" compare "$out" "$RTT_CANDIDATE"
+      - name: Attach measured comparison and unresolved accessibility observations
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: russian-time-trainer-comparison
+          path: ${{ runner.temp }}/rtt-comparison/
+          retention-days: 7
+          if-no-files-found: error
