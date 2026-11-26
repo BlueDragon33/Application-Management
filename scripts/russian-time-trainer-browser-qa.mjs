@@ -512,6 +512,40 @@ async function exerciseAudioPractice(origin) {
   await context.close();
 }
 
+
+async function verifyPublicAudioCacheLifecycle(origin) {
+  const context = await browser.newContext({ serviceWorkers: "allow" });
+  try {
+    const lifecyclePage = await context.newPage();
+    await lifecyclePage.goto(origin + "/offline.html");
+    const cached = await lifecyclePage.evaluate(async () => {
+      const base = "/russian-time-trainer/chatterbox-candidate/";
+      const manifestResponse = await fetch(base + "manifest.json");
+      if (!manifestResponse.ok) throw new Error("Missing public audio manifest");
+      const manifest = await manifestResponse.json();
+      const name = "russian-time-trainer-chatterbox-" + manifest.artifactId;
+      const audio = await caches.open(name);
+      await audio.addAll(manifest.assets.map(asset => base + asset.file));
+      await caches.open("application-management-webapp-v1");
+      await navigator.serviceWorker.register("/sw.js");
+      return { name, count: (await audio.keys()).length };
+    });
+    assert.equal(cached.count, 11);
+    await lifecyclePage.waitForFunction(() => navigator.serviceWorker.controller?.state === "activated");
+    const after = await lifecyclePage.evaluate(async name => ({ names: await caches.keys(), count: (await (await caches.open(name)).keys()).length }), cached.name);
+    assert.ok(after.names.includes(cached.name));
+    assert.ok(after.names.includes("application-management-webapp-v2"));
+    assert.ok(!after.names.includes("application-management-webapp-v1"));
+    assert.equal(after.count, 11);
+    await context.setOffline(true);
+    await lifecyclePage.goto(origin + trainerPath);
+    await lifecyclePage.getByRole("heading", { name: "Máy quản trị đang mất kết nối." }).waitFor();
+    pass("Real Service Worker activation retains 11 public Chatterbox clips; disconnected startup remains the safe offline fallback", { saved: 11, retained: after.count, fullOfflineStartup: "NOT_SUPPORTED" });
+  } finally {
+    await context.close();
+  }
+}
+
 await mkdir(evidence, { recursive: true });
 try {
   await withRuntime(false, async origin => {
@@ -536,6 +570,7 @@ try {
         const { verifyTrainerV61 } = await import("./russian-time-trainer-v61-browser-qa.mjs");
         await verifyTrainerV61(origin, { makeContext, pass, screenshot });
       }],
+      ["public-audio-cache-lifecycle", verifyPublicAudioCacheLifecycle],
       ["desktop", exerciseDesktop],
       ["mobile", exerciseMobile],
       ["speech-contract", checkAudioContract],

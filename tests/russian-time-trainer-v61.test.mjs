@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
+import { runInNewContext } from "node:vm";
 import { loadTs } from "./helpers/load-ts.mjs";
 
 const root = "app/tools/russian-time-trainer/";
@@ -91,4 +92,18 @@ test("Chatterbox pilot exact media is candidate-only and cannot shadow legacy au
   assert.equal(bundledAudio(resolveAudioClip("понедельник","monday-1")).source,"recording");
   const sound=adaptiveTasks.find(task=>task.skill==="sound"), entries={};
   assert.equal(recordAdaptiveAnswer(entries,sound.id,sound.correct,10000,"candidate"),entries);
+});
+
+test("Service Worker activation preserves the exact public Chatterbox cache while cleaning stale caches", async () => {
+  const { chatterboxCacheName } = loadTs(root + "chatterbox-audio.ts");
+  const listeners = new Map(), deleted = [];
+  let claimed = false, pending;
+  runInNewContext(readFileSync("public/sw.js", "utf8"), {
+    self: { addEventListener: (name, fn) => listeners.set(name, fn), clients: { claim: async () => { claimed = true; } } },
+    caches: { keys: async () => ["application-management-webapp-v2", "application-management-webapp-v1", chatterboxCacheName, "other-old-cache"], delete: async key => { deleted.push(key); return true; } },
+  });
+  listeners.get("activate")({ waitUntil: promise => { pending = promise; } });
+  await pending;
+  assert.deepEqual(deleted, ["application-management-webapp-v1", "other-old-cache"]);
+  assert.equal(claimed, true);
 });

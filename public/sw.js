@@ -1,4 +1,6 @@
 const CACHE_NAME = "application-management-webapp-v2";
+// Preserve only the admitted, versioned public audio cache; never cache authenticated pages.
+const RETAINED_PUBLIC_AUDIO_CACHE = "russian-time-trainer-chatterbox-15117885099";
 const SAFE_ASSETS = ["/manifest.webmanifest", "/favicon.svg", "/icon-192.png", "/icon-512.png", "/offline.html"];
 
 self.addEventListener("install", (event) => {
@@ -6,7 +8,7 @@ self.addEventListener("install", (event) => {
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))).then(() => self.clients.claim()));
+  event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME && key !== RETAINED_PUBLIC_AUDIO_CACHE).map((key) => caches.delete(key)))).then(() => self.clients.claim()));
 });
 
 self.addEventListener("fetch", (event) => {
