@@ -32,13 +32,30 @@ jobs:
           P="$RUNNER_TEMP/rtt-model-env/bin/pip"
           "$P" install --disable-pip-version-check torch==2.6.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cpu
           "$P" install --disable-pip-version-check "git+https://github.com/resemble-ai/chatterbox.git@ab55923c27757c90cfcc407baa57dc25a7d25217"
-          command -v ffmpeg
+          if ! command -v ffmpeg >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends ffmpeg
+          fi
+          ffmpeg -version | head -n 1
       - name: Reuse three approved-for-comparison files and produce eight new samples
         env:
           HF_HUB_DISABLE_IMPLICIT_TOKEN: '1'
         run: |
           test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
           "$RUNNER_TEMP/rtt-model-env/bin/python" scripts/russian-time-trainer-chatterbox-candidate.py "$RUNNER_TEMP/rtt-selected" "$RUNNER_TEMP/rtt-original"
+      - name: Emit bounded verified public MP3 transfer
+        run: |
+          python3 - "$RUNNER_TEMP/rtt-selected" <<'PY'
+          import base64, hashlib, json, pathlib, sys
+          root=pathlib.Path(sys.argv[1])
+          m=json.loads((root/"manifest.json").read_text())
+          assert m["admission"]=="CANDIDATE_ONLY" and len(m["assets"])==11 and not m["failures"]
+          for a in m["assets"]:
+              assert a["file"]==a["id"]+".mp3" and a["id"].startswith("chatterbox-preview-")
+              data=(root/a["file"]).read_bytes()
+              assert len(data)<=100000 and hashlib.sha256(data).hexdigest()==a["sha256"]
+              print("RTT_PUBLIC_MP3 "+json.dumps({"id":a["id"],"sha256":a["sha256"],"base64":base64.b64encode(data).decode()}),flush=True)
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
