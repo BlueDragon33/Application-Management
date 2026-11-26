@@ -64,9 +64,10 @@ try:
         (out/"SILERO_LICENSE_CIS.txt").write_bytes((work/"LICENSE_CIS").read_bytes())
         model_path=work/"v5_cis_base.pt"
         manifest["sources"].append(get("https://models.silero.ai/models/tts/ru/v5_cis_base.pt",model_path,1000000000))
+        assert manifest["sources"][-1]["sha256"]=="ba41b18f6a707ad93605a162998865e7c087153d2e010a26dd02229dab0e672a", "Silero package changed since verified first acquisition"
         model=torch.package.PackageImporter(str(model_path)).load_pickle("tts_models","model")
         model.to(torch.device("cpu"))
-        speaker="ru_bel_larisa"
+        speaker="ru_ekaterina"
         speakers=list(model.speakers)
         assert speaker in speakers, "documented speaker unavailable: "+str(speakers)
         manifest.update(voice=speaker,version=torch.__version__,license="MIT (CIS base model, upstream LICENSE_CIS)",modelBytes=model_path.stat().st_size,speakerList=speakers,stressInput="explicit manual stress marks, not auto-stress")

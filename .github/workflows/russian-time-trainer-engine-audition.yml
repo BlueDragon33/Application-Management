@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        engine: [rhvoice, piper, silero]
+        engine: [silero] # RHVoice and Piper exact completed artifacts 15100252633 and 15099269274; do not regenerate.
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -27,8 +27,10 @@ jobs:
         env:
           ENGINE: ${{ matrix.engine }}
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ffmpeg
+          if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends ffmpeg
+          fi
           python -m venv "$RUNNER_TEMP/rtt-audition-env"
           if [ "$ENGINE" = rhvoice ]; then
             sudo apt-get install -y --no-install-recommends rhvoice=1.8.0+dfsg-3build3 rhvoice-russian=1.8.0+dfsg-3build3
