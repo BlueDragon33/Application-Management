@@ -1,0 +1,48 @@
+name: RTT selected Chatterbox candidate package
+on:
+  pull_request:
+    paths:
+      - 'scripts/russian-time-trainer-chatterbox-candidate.py'
+      - '.github/workflows/russian-time-trainer-chatterbox-candidate.yml'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  package:
+    if: github.event.repository.visibility == 'public' && github.event.pull_request.number == 423 && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          artifact-ids: '15104892325'
+          run-id: '45795610640'
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/rtt-original
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install isolated CPU synthesis
+        run: |
+          python -m venv "$RUNNER_TEMP/rtt-model-env"
+          P="$RUNNER_TEMP/rtt-model-env/bin/pip"
+          "$P" install --disable-pip-version-check torch==2.6.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cpu
+          "$P" install --disable-pip-version-check "git+https://github.com/resemble-ai/chatterbox.git@ab55923c27757c90cfcc407baa57dc25a7d25217"
+          command -v ffmpeg
+      - name: Reuse three approved-for-comparison files and produce eight new samples
+        env:
+          HF_HUB_DISABLE_IMPLICIT_TOKEN: '1'
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          "$RUNNER_TEMP/rtt-model-env/bin/python" scripts/russian-time-trainer-chatterbox-candidate.py "$RUNNER_TEMP/rtt-selected" "$RUNNER_TEMP/rtt-original"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rtt-chatterbox-candidate-package
+          path: ${{ runner.temp }}/rtt-selected/
+          retention-days: 14
+          if-no-files-found: error
