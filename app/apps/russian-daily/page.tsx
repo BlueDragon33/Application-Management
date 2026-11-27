@@ -10,32 +10,26 @@ export default async function RussianDailyControlPage() {
 
   return (
     <main style={{ maxWidth: 840, margin: "0 auto", padding: "28px 20px", lineHeight: 1.6 }}>
-      <p style={{ fontSize: 13, opacity: 0.75 }}>Application Management / Web-app riêng</p>
-      <h1>Russian Daily — STANKIN</h1>
-      <p>
-        Đây là mục quản trị / danh mục ứng dụng. Mã nguồn học tiếng Nga và lịch STANKIN
-        thuộc ứng dụng riêng, không còn yêu cầu phát hành lại App-Management để sửa giao diện
-        sau khi Site độc lập được đưa vào hoạt động.
-      </p>
-      <section aria-label="Trạng thái triển khai" style={{ border: "1px solid #8a9baa", borderRadius: 16, padding: 18 }}>
-        <h2>Trạng thái hiện tại: SOURCE CANDIDATE / CHƯA PHÁT HÀNH</h2>
-        <p>Hosting dự kiến: ChatGPT Sites. Chưa được cấp URL thật, chưa kiểm thử Safari thật, chưa có SSO hoặc Control API để điều hành từ xa.</p>
-        <p>Blueprint OS 1.3.0: REVIEW BLOCKED; không có quyền tự phê duyệt, merge, publish hay công nhận RU03.</p>
+      <p style={{ fontSize: 13, opacity: 0.75 }}>App-Manager / Danh mục ứng dụng</p>
+      <h1>{application?.name ?? "Russian Display-Master"}</h1>
+      <p>Bản web học tiếng Nga cho iPhone và Android. App-Manager quản lý thông tin phát hành và đường dẫn mở.</p>
+      <section aria-labelledby="release-heading" style={{ border: "1px solid #8a9baa", borderRadius: 16, padding: 18 }}>
+        <h2 id="release-heading">{siteUrl ? "Đường dẫn phát hành" : "Chờ phát hành"}</h2>
         {siteUrl ? (
-          <p><a href={siteUrl} target="_blank" rel="noopener noreferrer">Mở web-app độc lập</a></p>
+          <p><a href={siteUrl} target="_blank" rel="noopener noreferrer">Mở Russian Display-Master</a></p>
         ) : (
-          <p>Liên kết web-app độc lập sẽ chỉ hiển thị sau khi chủ dự án cấp URL thật và QA đọc lại thành công.</p>
+          <p>Đường dẫn sẽ xuất hiện sau khi bản web có địa chỉ HTTPS được xác minh.</p>
         )}
         <p>
-          <a href="https://github.com/BlueDragon33/Bauman-Russian-iOS/tree/candidate/russian-daily-standalone-sites-pwa-20261103-v2/web/russian-daily-standalone" target="_blank" rel="noopener noreferrer">
-            Xem nguồn Russian Daily đã tách
+          <a href="https://github.com/BlueDragon33/Bauman-Russian-iOS" target="_blank" rel="noopener noreferrer">
+            Xem mã nguồn
           </a>
         </p>
       </section>
-      <section aria-label="Chuyển đổi từ phiên bản cũ" style={{ marginTop: 18 }}>
-        <h2>Chuyển dữ liệu cá nhân an toàn</h2>
-        <p>Bản Russian Daily hiện tại vẫn nằm ở Application-Management, chưa bị xóa hoặc chuyển hướng. Trước khi dùng Site mới, cần xuất bản sao JSON từ bản cũ rồi nhập thủ công vào Site mới và xác minh lịch học.</p>
-        <p><a href="/tools/russian-daily">Dùng tạm bản Russian Daily hiện tại</a></p>
+      <section aria-labelledby="data-heading" style={{ marginTop: 18 }}>
+        <h2 id="data-heading">Tiến độ trên thiết bị</h2>
+        <p>Khi chuyển thiết bị, xuất bản sao JSON trong Cài đặt của Display-Master rồi nhập trên máy mới.</p>
+        <p><a href="/tools/russian-daily">Mở công cụ lịch STANKIN</a></p>
       </section>
     </main>
   );

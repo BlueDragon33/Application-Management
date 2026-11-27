@@ -27,12 +27,12 @@ export type LegacyProjectSource = {
 export const projectRepositories: readonly ProjectRepositoryConfig[] = [
   {
     id: "russian-daily",
-    name: "Russian Daily — STANKIN",
+    name: "Russian Display-Master",
     repository: "BlueDragon33/Bauman-Russian-iOS",
     defaultBranch: "main",
     group: "learning",
     state: "developing",
-    summary: "Web-app/PWA độc lập đang ở candidate, chuẩn bị hosting ChatGPT Sites. Không sử dụng Application-Management làm nơi phát hành bản web-app sau khi chuyển đổi; chưa có URL thật hoặc runtime approval.",
+    summary: "Bản web học tiếng Nga cho iPhone và Android. App-Manager theo dõi bản phát hành và đường dẫn mở ứng dụng.",
     managementHref: "/apps/russian-daily",
     relatedTo: "Bauman Russian iOS / STANKIN",
   },
