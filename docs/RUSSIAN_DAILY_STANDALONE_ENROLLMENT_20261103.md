@@ -19,6 +19,13 @@ Status: **SOURCE-ONLY / PENDING / NOT HOSTED / NOT DEPLOYED**.
 - Nút mở đọc `publicUrl` từ danh mục. Điền địa chỉ sau khi xác minh bản HTTPS của đúng ứng dụng và hoàn tất cổng phát hành. Sau khi cập nhật App-Manager, mở mục quản lý trên site hiện có và kiểm tra nút dẫn tới cùng địa chỉ.
 - Bản phát hành dự kiến giữ dữ liệu học trên thiết bị. Bản cập nhật nội dung của ứng dụng tiếp tục đi qua website riêng.
 
+## Chia sẻ công khai và quyền thiết bị
+
+- Link gửi người học là địa chỉ HTTPS chính thức của Russian Display-Master. Trang công khai mở được khi người học chưa đăng nhập App-Manager. Nút mở và nút sao chép đọc cùng một địa chỉ đã xác minh từ danh mục.
+- Chủ hệ thống dùng App-Manager để duyệt, khóa và mở lại quyền học của thiết bị đã đăng ký. Quyền này cần hợp đồng và Device Gate thật của Russian Display-Master, được kiểm tra trên máy chủ. Tiến độ tiếp tục do ứng dụng lưu trên thiết bị.
+- Kiểm tra trước khi phát hành quản lý thiết bị gồm mở link với khách, đăng ký hai thiết bị riêng, duyệt một thiết bị, khóa và mở lại quyền, kiểm tra từ Safari và Chrome. Kiểm tra việc khóa sau khi thiết bị offline kết nối lại. Thời hạn truy cập offline phải được xác định trong chính sách Device Gate.
+- Trạng thái hiện tại chờ địa chỉ phát hành và kết nối Device Gate. Các thao tác thiết bị còn chờ xác minh đầu cuối.
+
 ## Source-selection reconciliation (2026-11-03)
 - Use the dedicated `candidate/russian-daily-standalone-sites-pwa-20261103-v2` with complete PWA source, including Pair/Contrast and separate images. The earlier `candidate/russian-daily-standalone-chatgpt-sites-20261103` is an alternative isolated source candidate, not a second application registry entry or independent deployment.
 - Keep one `russian-daily` application ID, `planned/pending`, no publicUrl. The existing `/tools/russian-daily` remains unmodified and local browser data is never silently moved.
